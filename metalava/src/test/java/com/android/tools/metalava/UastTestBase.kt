@@ -395,6 +395,40 @@ abstract class UastTestBase : DriverTest() {
         )
     }
 
+    @FilterByProvider("psi", "k2", action = EXCLUDE)
+    @Test
+    fun `internal setter with delegation`() {
+        // https://youtrack.jetbrains.com/issue/KT-70458
+        check(
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+                        class Test {
+                          var prop = "zzz"
+                            internal set
+                          var lazyProp by lazy { setOf("zzz") }
+                            internal set
+                        }
+                        """
+                    )
+                ),
+            api =
+                """
+                package test.pkg {
+                  public final class Test {
+                    ctor public Test();
+                    method public java.util.Set<java.lang.String> getLazyProp();
+                    method public String getProp();
+                    property public final java.util.Set<java.lang.String> lazyProp;
+                    property public final String prop;
+                  }
+                }
+                """
+        )
+    }
+
     @Test
     fun `non-last vararg type`() {
         // https://youtrack.jetbrains.com/issue/KT-57547

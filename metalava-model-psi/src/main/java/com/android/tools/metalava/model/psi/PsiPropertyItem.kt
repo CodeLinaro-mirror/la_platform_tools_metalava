@@ -17,8 +17,8 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.ApiVariantSelectors
+import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.MethodItem
@@ -36,7 +36,7 @@ internal class PsiPropertyItem
 private constructor(
     override val codebase: PsiBasedCodebase,
     private val psiMethod: PsiMethod,
-    modifiers: DefaultModifierList,
+    modifiers: BaseModifierList,
     // This needs to be passed in because the documentation may come from the property, or it may
     // come from the getter method.
     documentationFactory: ItemDocumentationFactory,

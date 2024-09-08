@@ -16,7 +16,7 @@
 
 package com.android.tools.metalava.model
 
-interface ModifierList {
+interface BaseModifierList {
     fun annotations(): List<AnnotationItem>
 
     fun getVisibilityLevel(): VisibilityLevel
@@ -101,7 +101,7 @@ interface ModifierList {
      *   shows that is no longer true so it will need to be updated to correctly handle the other
      *   cases.
      */
-    fun equivalentTo(owner: Item?, other: ModifierList): Boolean
+    fun equivalentTo(owner: Item?, other: BaseModifierList): Boolean
 
     /** Returns true if this modifier list contains the `@JvmSynthetic` annotation */
     fun hasJvmSyntheticAnnotation(): Boolean = hasAnnotation(AnnotationItem::isJvmSynthetic)
@@ -123,7 +123,7 @@ interface ModifierList {
      * Returns true if the visibility modifiers in this modifier list is as least as visible as the
      * ones in the given [other] modifier list
      */
-    fun asAccessibleAs(other: ModifierList): Boolean {
+    fun asAccessibleAs(other: BaseModifierList): Boolean {
         val otherLevel = other.getVisibilityLevel()
         val thisLevel = getVisibilityLevel()
         // Generally the access level enum order determines relative visibility. However, there is
@@ -149,19 +149,48 @@ interface ModifierList {
     fun getVisibilityModifiers(): String {
         return getVisibilityLevel().javaSourceCodeModifier
     }
+
+    /**
+     * Get a [MutableModifierList] from this.
+     *
+     * This will return the object on which it is called if that is already mutable, otherwise it
+     * will create a separate mutable copy of this.
+     */
+    fun toMutable(): MutableModifierList
+
+    /**
+     * Get an immutable [ModifierList] from this.
+     *
+     * This will return the object on which it is called if that is already immutable, otherwise it
+     * will create a separate immutable copy of this.
+     */
+    fun toImmutable(): ModifierList
 }
 
 /**
  * Returns the first annotation in the modifier list that matches the supplied predicate, or null
  * otherwise.
  */
-inline fun ModifierList.findAnnotation(predicate: (AnnotationItem) -> Boolean): AnnotationItem? {
+inline fun BaseModifierList.findAnnotation(
+    predicate: (AnnotationItem) -> Boolean
+): AnnotationItem? {
     return annotations().firstOrNull(predicate)
 }
 
 /**
  * Returns true iff the modifier list contains any annotation that matches the supplied predicate.
  */
-inline fun ModifierList.hasAnnotation(predicate: (AnnotationItem) -> Boolean): Boolean {
+inline fun BaseModifierList.hasAnnotation(predicate: (AnnotationItem) -> Boolean): Boolean {
     return annotations().any(predicate)
+}
+
+interface ModifierList : BaseModifierList {
+    /**
+     * Take a snapshot of this for use in [targetCodebase].
+     *
+     * Creates a deep snapshot, including snapshots of each annotation for use in [targetCodebase].
+     *
+     * @param targetCodebase The [Codebase] of which the snapshot will be part.
+     */
+    fun snapshot(targetCodebase: Codebase): ModifierList
 }

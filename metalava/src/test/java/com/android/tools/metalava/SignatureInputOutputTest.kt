@@ -33,18 +33,18 @@ import org.junit.Test
 
 class SignatureInputOutputTest : Assertions {
     /**
-     * Parses the API (without a header line, the header from [format] will be added) from the
+     * Parses the API (without a header line, the header from [fileFormat] will be added) from the
      * [signature], runs the [codebaseTest] on the parsed codebase, and then writes the codebase
-     * back out in the [format], verifying that the output matches the original [signature].
+     * back out in the [fileFormat], verifying that the output matches the original [signature].
      *
      * This tests both [ApiFile] and [SignatureWriter].
      */
     private fun runInputOutputTest(
         signature: String,
-        format: FileFormat,
+        fileFormat: FileFormat,
         codebaseTest: (Codebase) -> Unit
     ) {
-        val fullSignature = format.header() + signature
+        val fullSignature = fileFormat.header() + signature
         val codebase = ApiFile.parseApi("test", fullSignature)
 
         codebaseTest(codebase)
@@ -56,22 +56,25 @@ class SignatureInputOutputTest : Assertions {
                         SignatureWriter(
                             writer = printWriter,
                             emitHeader = EmitFileHeader.IF_NONEMPTY_FILE,
-                            fileFormat = format,
+                            fileFormat = fileFormat,
                         )
-                    codebase.accept(
-                        signatureWriter.createFilteringVisitor(
-                            filterEmit = { true },
-                            filterReference = { true },
+
+                    val visitor =
+                        createFilteringVisitorForSignatures(
+                            delegate = signatureWriter,
+                            fileFormat = fileFormat,
+                            apiType = ApiType.ALL,
                             preFiltered = true,
                             showUnannotated = false,
-                            apiVisitorConfig = ApiVisitor.Config(),
+                            apiVisitorConfig = ApiVisitor.Config()
                         )
-                    )
+
+                    codebase.accept(visitor)
                 }
                 stringWriter.toString()
             }
 
-        assertSignatureFilesMatch(signature, output, format)
+        assertSignatureFilesMatch(signature, output, fileFormat)
     }
 
     @Test

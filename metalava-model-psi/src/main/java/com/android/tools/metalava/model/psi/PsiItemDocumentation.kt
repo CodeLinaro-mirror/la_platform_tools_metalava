@@ -341,7 +341,7 @@ internal class PsiItemDocumentation(
                     val referenceElement = firstChildPsi as PsiJavaCodeReferenceElement?
                     val referencedElement = referenceElement!!.resolve()
                     if (referencedElement is PsiClass) {
-                        var className = PsiClassItem.computeFullClassName(referencedElement)
+                        var className = computeFullClassName(referencedElement)
                         if (className.indexOf('.') != -1 && !referenceText.startsWith(className)) {
                             val simpleName = referencedElement.name
                             if (simpleName != null && referenceText.startsWith(simpleName)) {
@@ -705,5 +705,30 @@ internal class PsiItemDocumentation(
 
             return ""
         }
+    }
+}
+
+/**
+ * Computes the "full" class name; this is not the qualified class name (e.g. with package) but for
+ * a nested class it includes all the outer classes
+ */
+private fun computeFullClassName(cls: PsiClass): String {
+    if (cls.containingClass == null) {
+        val name = cls.name
+        return name!!
+    } else {
+        val list = mutableListOf<String>()
+        var curr: PsiClass? = cls
+        while (curr != null) {
+            val name = curr.name
+            curr =
+                if (name != null) {
+                    list.add(name)
+                    curr.containingClass
+                } else {
+                    break
+                }
+        }
+        return list.asReversed().joinToString(separator = ".") { it }
     }
 }

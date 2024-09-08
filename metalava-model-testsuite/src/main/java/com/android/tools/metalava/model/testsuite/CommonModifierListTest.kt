@@ -18,8 +18,12 @@ package com.android.tools.metalava.model.testsuite
 
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultAnnotationItem
-import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.JAVA_LANG_DEPRECATED
+import com.android.tools.metalava.model.ModifierList
+import com.android.tools.metalava.model.MutableModifierList
+import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.model.createImmutableModifiers
+import com.android.tools.metalava.model.createMutableModifiers
 import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.testing.java
 import kotlin.test.assertEquals
@@ -27,7 +31,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import org.junit.Test
 
-/** Tests [DefaultModifierList] functionality. */
+/** Tests [ModifierList] and [MutableModifierList] functionality. */
 class CommonModifierListTest : BaseModelTest() {
 
     /** Just creates a basic [Codebase] for the test to use. */
@@ -61,10 +65,10 @@ class CommonModifierListTest : BaseModelTest() {
                 DefaultAnnotationItem.create(codebase, JAVA_LANG_DEPRECATED, emptyList())!!
 
             // Create an empty set of modifiers
-            val modifiers = DefaultModifierList(flags = DefaultModifierList.PUBLIC)
+            val modifiers = createMutableModifiers(VisibilityLevel.PUBLIC)
 
             // Create another empty set of modifiers.
-            val anotherModifiers = DefaultModifierList(flags = DefaultModifierList.PUBLIC)
+            val anotherModifiers = createMutableModifiers(VisibilityLevel.PUBLIC)
 
             // They compare equal both directly and in their string representation.
             assertEquals(modifiers, anotherModifiers, message = "modifiers before")
@@ -102,8 +106,8 @@ class CommonModifierListTest : BaseModelTest() {
                     emptyList()
                 }!!
             val modifiers =
-                DefaultModifierList(
-                    flags = DefaultModifierList.PUBLIC,
+                createImmutableModifiers(
+                    visibility = VisibilityLevel.PUBLIC,
                     annotations = listOf(annotation),
                 )
             assertEquals(
@@ -116,12 +120,12 @@ class CommonModifierListTest : BaseModelTest() {
     @Test
     fun `test equivalentTo()`() {
         assertTrue {
-            DefaultModifierList(flags = DefaultModifierList.PUBLIC)
-                .equivalentTo(null, DefaultModifierList(flags = DefaultModifierList.PUBLIC))
+            createImmutableModifiers(VisibilityLevel.PUBLIC)
+                .equivalentTo(null, createImmutableModifiers(VisibilityLevel.PUBLIC))
         }
         assertFalse {
-            DefaultModifierList(flags = DefaultModifierList.PRIVATE)
-                .equivalentTo(null, DefaultModifierList(flags = DefaultModifierList.PUBLIC))
+            createImmutableModifiers(VisibilityLevel.PRIVATE)
+                .equivalentTo(null, createImmutableModifiers(VisibilityLevel.PUBLIC))
         }
     }
 }

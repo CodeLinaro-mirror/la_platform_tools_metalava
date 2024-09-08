@@ -31,11 +31,11 @@ enum class VisibilityLevel(
     /** String representation in user visible messages. */
     val userVisibleDescription: String,
     /** Representation in the internal flags. */
-    val visibilityFlagValue: Int
+    internal val visibilityFlagValue: Int
 ) {
-    PACKAGE_PRIVATE("", "", "package private", DefaultModifierList.PACKAGE_PRIVATE),
-    PRIVATE("private", "private", "private", DefaultModifierList.PRIVATE),
-    INTERNAL("internal", "internal", "internal", DefaultModifierList.INTERNAL),
-    PROTECTED("protected", "protected", "protected", DefaultModifierList.PROTECTED),
-    PUBLIC("public", "", "public", DefaultModifierList.PUBLIC)
+    PACKAGE_PRIVATE("", "", "package private", ModifierFlags.PACKAGE_PRIVATE),
+    PRIVATE("private", "private", "private", ModifierFlags.PRIVATE),
+    INTERNAL("internal", "internal", "internal", ModifierFlags.INTERNAL),
+    PROTECTED("protected", "protected", "protected", ModifierFlags.PROTECTED),
+    PUBLIC("public", "", "public", ModifierFlags.PUBLIC)
 }

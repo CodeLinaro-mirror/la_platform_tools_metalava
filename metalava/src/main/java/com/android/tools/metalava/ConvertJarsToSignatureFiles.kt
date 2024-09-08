@@ -76,9 +76,6 @@ class ConvertJarsToSignatureFiles(
             val signatureFileLoader = SignatureFileLoader(annotationManager = annotationManager)
 
             val jarCodebase = jarCodebaseLoader.loadFromJarFile(apiJar)
-            val apiPredicateConfig = ApiPredicate.Config()
-            val apiEmit = ApiType.PUBLIC_API.getEmitFilter(apiPredicateConfig)
-            val apiReference = ApiType.PUBLIC_API.getReferenceFilter(apiPredicateConfig)
 
             if (api >= 28) {
                 // As of API 28 we'll put nullness annotations into the jar but some of them
@@ -100,12 +97,13 @@ class ConvertJarsToSignatureFiles(
                             val annotationClass =
                                 if (annotation.isNullable()) ANDROIDX_NULLABLE else ANDROIDX_NONNULL
 
-                            val modifiers = new.mutableModifiers()
                             val replacementAnnotation =
                                 new.codebase.createAnnotation("@$annotationClass", new)
-                            modifiers.mutateAnnotations {
-                                remove(annotation)
-                                replacementAnnotation?.let { add(it) }
+                            new.mutateModifiers {
+                                mutateAnnotations {
+                                    remove(annotation)
+                                    replacementAnnotation?.let { add(it) }
+                                }
                             }
                         }
                     }
@@ -140,17 +138,20 @@ class ConvertJarsToSignatureFiles(
             }
 
             createReportFile(progressTracker, jarCodebase, newApiFile, "API") { printWriter ->
-                SignatureWriter(
+                val signatureWriter =
+                    SignatureWriter(
                         writer = printWriter,
                         fileFormat = fileFormat,
                     )
-                    .createFilteringVisitor(
-                        filterEmit = apiEmit,
-                        filterReference = apiReference,
-                        preFiltered = jarCodebase.preFiltered,
-                        showUnannotated = false,
-                        apiVisitorConfig = ApiVisitor.Config(),
-                    )
+
+                createFilteringVisitorForSignatures(
+                    delegate = signatureWriter,
+                    fileFormat = fileFormat,
+                    apiType = ApiType.PUBLIC_API,
+                    preFiltered = jarCodebase.preFiltered,
+                    showUnannotated = false,
+                    apiVisitorConfig = ApiVisitor.Config()
+                )
             }
 
             // Delete older redundant .xml files
@@ -244,7 +245,7 @@ class ConvertJarsToSignatureFiles(
         this ?: return
         if (!originallyDeprecated) {
             // Set the deprecated flag in the modifiers which underpins [originallyDeprecated].
-            mutableModifiers().setDeprecated(true)
+            mutateModifiers { setDeprecated(true) }
             progressTracker.progress("Turned deprecation on for $this from $source")
         }
     }

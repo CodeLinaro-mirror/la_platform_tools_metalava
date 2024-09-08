@@ -2,6 +2,10 @@ com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTe
   annotation toSource() with compound expression values
   annotation toSource() with constant literal values
 
+com.android.tools.metalava.model.testsuite.classitem.CommonDuplicateClassItemTest
+  Test duplicate classes
+  Test duplicate classes with snapshot
+
 com.android.tools.metalava.model.testsuite.fielditem.CommonFieldItemTest
   Test implicit nullability of constant field initialized from @NonNull method
 
@@ -12,9 +16,6 @@ com.android.tools.metalava.model.testsuite.fielditem.SourceFieldItemTest
 com.android.tools.metalava.model.testsuite.methoditem.CommonParameterItemTest
   Test publicName reports correct name when called on binary class - Object#equals
   Test publicName reports correct name when called on binary class - ViewGroup#onLayout
-
-com.android.tools.metalava.model.testsuite.packageitem.CommonPackageItemTest
-  Test package containment
 
 com.android.tools.metalava.model.testsuite.typeitem.CommonIsAssignableFromTest
   Test assignability without unboxing[boxedInt to primitiveInt]

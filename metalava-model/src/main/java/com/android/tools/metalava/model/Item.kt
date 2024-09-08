@@ -109,8 +109,14 @@ interface Item : Reportable {
     /** Visits this element using the given [visitor] */
     fun accept(visitor: ItemVisitor)
 
-    /** Get a mutable version of modifiers for this item */
-    fun mutableModifiers(): MutableModifierList
+    /**
+     * Mutate the [modifiers] list.
+     *
+     * Provides a [MutableModifierList] of the [modifiers] that can be modified by [mutator]. Once
+     * the mutator exits the [modifiers] will be updated. The [MutableModifierList] must not be
+     * accessed from outside [mutator].
+     */
+    fun mutateModifiers(mutator: MutableModifierList.() -> Unit)
 
     /**
      * The javadoc/KDoc comment for this code element, if any. This is the original content of the
@@ -174,12 +180,6 @@ interface Item : Reportable {
 
     /** Provides a string representation of the item, suitable for use while debugging. */
     fun toStringForItem(): String
-
-    /**
-     * Whether this item was loaded from the classpath (e.g. jar dependencies) rather than be
-     * declared as source
-     */
-    fun isFromClassPath(): Boolean = false
 
     /**
      * The language in which this was written, or [ItemLanguage.UNKNOWN] if not known, e.g. when
@@ -455,7 +455,7 @@ interface Item : Reportable {
 abstract class AbstractItem(
     final override val fileLocation: FileLocation,
     final override val itemLanguage: ItemLanguage,
-    final override val modifiers: DefaultModifierList,
+    modifiers: BaseModifierList,
     documentationFactory: ItemDocumentationFactory,
     variantSelectorsFactory: ApiVariantSelectorsFactory,
 ) : Item {
@@ -468,9 +468,21 @@ abstract class AbstractItem(
      */
     final override val documentation = @Suppress("LeakingThis") documentationFactory(this)
 
+    /**
+     * The immutable [modifiers].
+     *
+     * The supplied `modifiers` parameter could be either [MutableModifierList] or [ModifierList]
+     * but this requires a [ModifierList] so get one using [BaseModifierList.toImmutable].
+     *
+     * The [ModifierList] that this references is immutable but the [mutateModifiers] method can be
+     * used to change the [ModifierList] to which this refers.
+     */
+    final override var modifiers: ModifierList = modifiers.toImmutable()
+        private set
+
     init {
-        if (documentation.contains("@deprecated")) {
-            modifiers.setDeprecated(true)
+        if (documentation.contains("@deprecated") && !modifiers.isDeprecated()) {
+            mutateModifiers { setDeprecated(true) }
         }
     }
 
@@ -507,7 +519,11 @@ abstract class AbstractItem(
         // the value of this and [Item.effectivelyDeprecated] which delegates to this.
         get() = modifiers.isDeprecated()
 
-    final override fun mutableModifiers(): MutableModifierList = modifiers
+    final override fun mutateModifiers(mutator: MutableModifierList.() -> Unit) {
+        val mutable = modifiers.toMutable()
+        mutable.mutator()
+        modifiers = mutable.toImmutable()
+    }
 
     final override val isPublic: Boolean
         get() = modifiers.isPublic()

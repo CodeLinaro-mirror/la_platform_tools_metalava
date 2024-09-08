@@ -17,13 +17,15 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.ApiVariantSelectors
+import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.DefaultModifierList
+import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
+import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.isNonNullAnnotation
 import com.android.tools.metalava.model.item.DefaultFieldItem
 import com.android.tools.metalava.model.item.FieldValue
@@ -46,7 +48,7 @@ import org.jetbrains.uast.UField
 internal class PsiFieldItem(
     override val codebase: PsiBasedCodebase,
     private val psiField: PsiField,
-    modifiers: DefaultModifierList,
+    modifiers: BaseModifierList,
     documentationFactory: ItemDocumentationFactory,
     name: String,
     containingClass: ClassItem,
@@ -161,6 +163,12 @@ internal class PsiFieldItem(
         ): PsiFieldItem {
             val name = psiField.name
             val modifiers = PsiModifierItem.create(codebase, psiField)
+
+            if (containingClass.classKind == ClassKind.INTERFACE) {
+                // All interface fields are implicitly public and static.
+                modifiers.setVisibilityLevel(VisibilityLevel.PUBLIC)
+                modifiers.setStatic(true)
+            }
 
             val isEnumConstant = psiField is PsiEnumConstant
 

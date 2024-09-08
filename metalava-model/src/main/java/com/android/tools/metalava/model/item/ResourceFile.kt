@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,18 +14,16 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.stub
+package com.android.tools.metalava.model.item
+
+import java.io.File
 
 /**
- * Contains configuration for [StubWriter] that can, or at least could, come from command line
- * options.
+ * A resource file is one that is supplied on input to Metalava and copied through to the stubs
+ * unchanged.
+ *
+ * e.g. This is used for copying the `overview.html` file when generate documentation stubs.
  */
-internal data class StubWriterConfig(
-    /**
-     * If true then generate kotlin stubs if the source is kotlin, otherwise generate java stubs.
-     */
-    val kotlinStubs: Boolean = false,
-
-    /** If true then include documentation in the generated stubs. */
-    val includeDocumentationInStubs: Boolean = false,
-)
+class ResourceFile(private val file: File) {
+    val content by lazy(LazyThreadSafetyMode.NONE) { file.readText() }
+}

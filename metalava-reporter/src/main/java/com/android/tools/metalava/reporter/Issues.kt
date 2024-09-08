@@ -112,6 +112,7 @@ object Issues {
     val DEPRECATED_OPTION by Issue(Severity.WARNING)
     val BOTH_PACKAGE_INFO_AND_HTML by Issue(Severity.WARNING, Category.DOCUMENTATION)
     val UNMATCHED_MERGE_ANNOTATION by Issue(Severity.ERROR, Category.API_LINT)
+    val INCONSISTENT_MERGE_ANNOTATION by Issue(Severity.WARNING_ERROR_WHEN_NEW, Category.API_LINT)
     // The plan is for this to be set as an error once (1) existing code is marked as @deprecated
     // and (2) the principle is adopted by the API council
     val REFERENCES_DEPRECATED by Issue(Severity.HIDDEN, Category.API_LINT)
@@ -127,6 +128,7 @@ object Issues {
     val FORBIDDEN_TAG by Issue(Severity.ERROR, Category.DOCUMENTATION)
     val MISSING_COLUMN by Issue(Severity.WARNING, Category.DOCUMENTATION)
     val INVALID_SYNTAX by Issue(Severity.ERROR)
+    val INVALID_PACKAGE by Issue(Severity.WARNING_ERROR_WHEN_NEW)
     val UNRESOLVED_IMPORT by Issue(Severity.INFO)
     val HIDDEN_ABSTRACT_METHOD by Issue(Severity.ERROR, Category.API_LINT)
 

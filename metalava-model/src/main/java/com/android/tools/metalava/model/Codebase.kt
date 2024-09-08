@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.reporter.Reporter
 import java.io.File
 
@@ -50,6 +51,12 @@ interface Codebase {
      * classpath).
      */
     fun getTopLevelClassesFromSource(): List<ClassItem>
+
+    /**
+     * Return `true` if this whole [Codebase] was created from the class path, i.e. not from
+     * sources.
+     */
+    fun isFromClassPath(): Boolean = false
 
     /** Returns a class identified by fully qualified name, if in the codebase */
     fun findClass(className: String): ClassItem?
@@ -91,7 +98,12 @@ interface Codebase {
     ): AnnotationItem?
 
     /** Reports that the given operation is unsupported for this codebase type */
-    fun unsupported(desc: String? = null): Nothing
+    fun unsupported(desc: String? = null): Nothing {
+        error(
+            desc
+                ?: "This operation is not available on this type of codebase (${javaClass.simpleName})"
+        )
+    }
 
     /** Discards this model */
     fun dispose()
@@ -114,23 +126,19 @@ const val CLASS_ESTIMATE = 15000
 
 abstract class AbstractCodebase(
     final override var location: File,
-    final override var description: String,
+    description: String,
     final override val preFiltered: Boolean,
     final override val annotationManager: AnnotationManager,
     private val trustedApi: Boolean,
     private val supportsDocumentation: Boolean,
 ) : Codebase {
 
+    final override var description: String = description
+        private set
+
     final override fun trustedApi() = trustedApi
 
     final override fun supportsDocumentation() = supportsDocumentation
-
-    override fun unsupported(desc: String?): Nothing {
-        error(
-            desc
-                ?: "This operation is not available on this type of codebase (${this.javaClass.simpleName})"
-        )
-    }
 
     final override fun toString() = description
 
@@ -187,4 +195,12 @@ abstract class AbstractCodebase(
             }
         }
     }
+}
+
+interface MutableCodebase : Codebase {
+    /**
+     * Register the class by name, return `true` if the class was registered and `false` if it was
+     * not, i.e. because it is a duplicate.
+     */
+    fun registerClass(classItem: DefaultClassItem): Boolean
 }

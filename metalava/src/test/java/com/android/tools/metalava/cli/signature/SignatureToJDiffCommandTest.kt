@@ -608,6 +608,108 @@ $signatureToJdiffHelp
                     .trimIndent()
         }
     }
+
+    @Test
+    fun `Test producing full JDiff for class with super class and interfaces`() {
+        jdiffConversionTest {
+            formatForLegacyFiles = FileFormat.V2
+
+            api =
+                """
+                    package test.pkg {
+                      public class Test extends Number implements Comparable<Test> {
+                        field public static final int FIELD = 1;
+                      }
+                    }
+                """
+
+            expectedXml =
+                """
+                    <api name="api" xmlns:metalava="http://www.android.com/metalava/">
+                    <package name="test.pkg"
+                    >
+                    <class name="Test"
+                     extends="java.lang.Number"
+                     abstract="false"
+                     static="false"
+                     final="false"
+                     deprecated="not deprecated"
+                     visibility="public"
+                    >
+                    <implements name="java.lang.Comparable&lt;java.lang.Test>">
+                    </implements>
+                    <field name="FIELD"
+                     type="int"
+                     transient="false"
+                     volatile="false"
+                     value="1"
+                     static="true"
+                     final="true"
+                     deprecated="not deprecated"
+                     visibility="public"
+                    >
+                    </field>
+                    </class>
+                    </package>
+                    </api>
+                """
+        }
+    }
+
+    @Test
+    fun `Test producing delta JDiff for class with super class and interfaces`() {
+        jdiffConversionTest {
+            api =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Test extends Number implements Comparable<Test> {
+                        field public static final int FIELD = 1;
+                      }
+                    }
+                """
+
+            baseApi =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Test extends Number implements Comparable<Test> {
+                      }
+                    }
+                """
+
+            expectedXml =
+                """
+                    <api name="api" xmlns:metalava="http://www.android.com/metalava/">
+                    <package name="test.pkg"
+                    >
+                    <class name="Test"
+                     extends="java.lang.Number"
+                     abstract="false"
+                     static="false"
+                     final="false"
+                     deprecated="not deprecated"
+                     visibility="public"
+                    >
+                    <implements name="java.lang.Comparable&lt;java.lang.Test>">
+                    </implements>
+                    <field name="FIELD"
+                     type="int"
+                     transient="false"
+                     volatile="false"
+                     value="1"
+                     static="true"
+                     final="true"
+                     deprecated="not deprecated"
+                     visibility="public"
+                    >
+                    </field>
+                    </class>
+                    </package>
+                    </api>
+                """
+        }
+    }
 }
 
 fun BaseCommandTest<SignatureToJDiffCommand>.jdiffConversionTest(body: JDiffTestConfig.() -> Unit) {

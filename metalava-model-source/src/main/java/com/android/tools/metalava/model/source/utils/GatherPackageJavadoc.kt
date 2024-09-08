@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.source.utils
 import com.android.tools.metalava.model.ItemDocumentation.Companion.toItemDocumentationFactory
 import com.android.tools.metalava.model.item.MutablePackageDoc
 import com.android.tools.metalava.model.item.PackageDocs
+import com.android.tools.metalava.model.item.ResourceFile
 import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.Issues
@@ -28,19 +29,20 @@ import java.io.File
 /** The kinds of package documentation file. */
 private enum class PackageDocumentationKind {
     PACKAGE {
-        override fun update(packageDoc: MutablePackageDoc, contents: String, file: File) {
+        override fun update(packageDoc: MutablePackageDoc, file: File) {
+            val contents = file.readText(Charsets.UTF_8)
             packageDoc.commentFactory = packageHtmlToJavadoc(contents).toItemDocumentationFactory()
             packageDoc.fileLocation = FileLocation.forFile(file)
         }
     },
     OVERVIEW {
-        override fun update(packageDoc: MutablePackageDoc, contents: String, file: File) {
-            packageDoc.overview = contents
+        override fun update(packageDoc: MutablePackageDoc, file: File) {
+            packageDoc.overview = ResourceFile(file)
         }
     };
 
     /** Update kind appropriate property in [packageDoc] with [contents]. */
-    abstract fun update(packageDoc: MutablePackageDoc, contents: String, file: File)
+    abstract fun update(packageDoc: MutablePackageDoc, file: File)
 }
 
 /**
@@ -56,6 +58,9 @@ private enum class PackageDocumentationKind {
  * reported as an error and the comment from the latter will win.
  *
  * @param P the model specific `package-info.java` file type.
+ * @param packageNameFilter a lambda that given a package name will return `true` if it is a valid
+ *   package and `false` otherwise. This is used to filter out any packages incorrectly inferred
+ *   from `package.html` files.
  * @param packageInfoFiles a collection of model specific `package-info.java` files.
  * @param packageInfoDocExtractor get a [MutablePackageDoc] from a model specific
  *   `package-info.java` file.
@@ -63,6 +68,7 @@ private enum class PackageDocumentationKind {
 fun <P> gatherPackageJavadoc(
     reporter: Reporter,
     sourceSet: SourceSet,
+    packageNameFilter: (String) -> Boolean,
     packageInfoFiles: Collection<P>,
     packageInfoDocExtractor: (P) -> MutablePackageDoc?,
 ): PackageDocs {
@@ -96,10 +102,12 @@ fun <P> gatherPackageJavadoc(
             pkg = file.parentFile.path.substring(prefix.length).trim('/').replace("/", ".")
         }
 
+        // If the package name is invalid then skip it.
+        if (!packageNameFilter(pkg)) continue
+
         val packageDoc = packages.computeIfAbsent(pkg, ::MutablePackageDoc)
 
-        val contents = file.readText(Charsets.UTF_8)
-        documentationFile.update(packageDoc, contents, file)
+        documentationFile.update(packageDoc, file)
     }
 
     // Merge package-info.java documentation.

@@ -16,32 +16,37 @@
 package com.android.tools.metalava.model.turbine
 
 import com.android.tools.metalava.model.AnnotationItem
-import com.android.tools.metalava.model.DefaultModifierList
-import com.android.tools.metalava.model.DefaultModifierList.Companion.ABSTRACT
-import com.android.tools.metalava.model.DefaultModifierList.Companion.DEFAULT
-import com.android.tools.metalava.model.DefaultModifierList.Companion.FINAL
-import com.android.tools.metalava.model.DefaultModifierList.Companion.NATIVE
-import com.android.tools.metalava.model.DefaultModifierList.Companion.PRIVATE
-import com.android.tools.metalava.model.DefaultModifierList.Companion.PROTECTED
-import com.android.tools.metalava.model.DefaultModifierList.Companion.PUBLIC
-import com.android.tools.metalava.model.DefaultModifierList.Companion.SEALED
-import com.android.tools.metalava.model.DefaultModifierList.Companion.STATIC
-import com.android.tools.metalava.model.DefaultModifierList.Companion.STRICT_FP
-import com.android.tools.metalava.model.DefaultModifierList.Companion.SYNCHRONIZED
-import com.android.tools.metalava.model.DefaultModifierList.Companion.TRANSIENT
-import com.android.tools.metalava.model.DefaultModifierList.Companion.VARARG
-import com.android.tools.metalava.model.DefaultModifierList.Companion.VOLATILE
+import com.android.tools.metalava.model.ModifierFlags.Companion.ABSTRACT
+import com.android.tools.metalava.model.ModifierFlags.Companion.DEFAULT
+import com.android.tools.metalava.model.ModifierFlags.Companion.FINAL
+import com.android.tools.metalava.model.ModifierFlags.Companion.NATIVE
+import com.android.tools.metalava.model.ModifierFlags.Companion.PRIVATE
+import com.android.tools.metalava.model.ModifierFlags.Companion.PROTECTED
+import com.android.tools.metalava.model.ModifierFlags.Companion.PUBLIC
+import com.android.tools.metalava.model.ModifierFlags.Companion.SEALED
+import com.android.tools.metalava.model.ModifierFlags.Companion.STATIC
+import com.android.tools.metalava.model.ModifierFlags.Companion.STRICT_FP
+import com.android.tools.metalava.model.ModifierFlags.Companion.SYNCHRONIZED
+import com.android.tools.metalava.model.ModifierFlags.Companion.TRANSIENT
+import com.android.tools.metalava.model.ModifierFlags.Companion.VARARG
+import com.android.tools.metalava.model.ModifierFlags.Companion.VOLATILE
+import com.android.tools.metalava.model.MutableModifierList
+import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.model.createMutableModifiers
 import com.google.turbine.model.TurbineFlag
 
 internal object TurbineModifierItem {
-    fun create(flag: Int, annotations: List<AnnotationItem>): DefaultModifierList {
+    fun create(flag: Int, annotations: List<AnnotationItem>): MutableModifierList {
         val modifierItem =
             when (flag) {
                 0 -> { // No Modifier. Default modifier is PACKAGE_PRIVATE in such case
-                    DefaultModifierList(annotations = annotations)
+                    createMutableModifiers(
+                        visibility = VisibilityLevel.PACKAGE_PRIVATE,
+                        annotations = annotations,
+                    )
                 }
                 else -> {
-                    DefaultModifierList(computeFlag(flag), annotations)
+                    createMutableModifiers(computeFlag(flag), annotations)
                 }
             }
         modifierItem.setDeprecated(isDeprecated(annotations))

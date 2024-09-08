@@ -116,6 +116,7 @@ Available Issues                             |  Category                |   Defa
   HiddenTypedefConstant                      |  unknown                 |   error
   IgnoringSymlink                            |  unknown                 |   info
   IllegalStateException                      |  api_lint                |   warning
+  InconsistentMergeAnnotation                |  api_lint                |   warning_error_when_new
   InfixRemoval                               |  compatibility           |   error
   IntDef                                     |  documentation           |   hidden
   IntentBuilderName                          |  api_lint                |   warning
@@ -129,6 +130,7 @@ Available Issues                             |  Category                |   Defa
   InvalidNullabilityAnnotation               |  unknown                 |   error
   InvalidNullabilityAnnotationWarning        |  unknown                 |   warning
   InvalidNullabilityOverride                 |  api_lint                |   error
+  InvalidPackage                             |  unknown                 |   warning_error_when_new
   InvalidSyntax                              |  unknown                 |   error
   IoError                                    |  unknown                 |   error
   KotlinDefaultParameterOrder                |  api_lint                |   error

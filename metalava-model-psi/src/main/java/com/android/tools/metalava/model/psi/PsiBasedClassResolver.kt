@@ -42,7 +42,7 @@ internal class PsiBasedClassResolver(
         javaPsiFacade = JavaPsiFacade.getInstance(project)
         searchScope = GlobalSearchScope.everythingScope(project)
 
-        classpathCodebase =
+        val assembler = PsiCodebaseAssembler { assembler ->
             PsiBasedCodebase(
                 location = File("classpath"),
                 description = "Codebase from classpath",
@@ -50,7 +50,10 @@ internal class PsiBasedClassResolver(
                 reporter = reporter,
                 fromClasspath = true,
                 allowReadingComments = allowReadingComments,
+                assembler = assembler,
             )
+        }
+        classpathCodebase = assembler.codebase
         classpathCodebase.initializeFromSources(uastEnvironment, SourceSet.empty())
     }
 

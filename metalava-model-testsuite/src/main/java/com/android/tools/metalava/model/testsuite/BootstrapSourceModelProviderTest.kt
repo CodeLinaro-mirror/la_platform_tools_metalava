@@ -282,11 +282,11 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             val fieldItem1 = classItem1.assertField("var1")
             val fieldItem2 = classItem1.assertField("var2")
             val fieldItem3 = classItem1.assertField("var3")
-            val packageMod = packageItem.mutableModifiers()
-            val classMod1 = classItem1.mutableModifiers()
-            val fieldMod1 = fieldItem1.mutableModifiers()
-            val fieldMod2 = fieldItem2.mutableModifiers()
-            val fieldMod3 = fieldItem3.mutableModifiers()
+            val packageMod = packageItem.modifiers
+            val classMod1 = classItem1.modifiers
+            val fieldMod1 = fieldItem1.modifiers
+            val fieldMod2 = fieldItem2.modifiers
+            val fieldMod3 = fieldItem3.modifiers
             assertEquals(true, packageMod.isPublic())
             assertEquals(true, classMod1.isPublic())
             assertEquals(false, classMod1.isSynchronized())

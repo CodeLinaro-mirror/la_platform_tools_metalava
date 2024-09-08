@@ -133,14 +133,18 @@ internal class PsiSourceParser(
         val kotlinFiles = sourceSet.sources.filter { it.path.endsWith(SdkConstants.DOT_KT) }
         environment.analyzeFiles(kotlinFiles)
 
-        val codebase =
+        val assembler = PsiCodebaseAssembler {
             PsiBasedCodebase(
                 location = rootDir,
                 description = description,
                 annotationManager = annotationManager,
                 reporter = reporter,
                 allowReadingComments = allowReadingComments,
+                assembler = it,
             )
+        }
+
+        val codebase = assembler.codebase
         codebase.initializeFromSources(environment, sourceSet)
         return codebase
     }
@@ -151,14 +155,17 @@ internal class PsiSourceParser(
 
     override fun loadFromJar(apiJar: File): Codebase {
         val environment = loadUastFromJars(listOf(apiJar))
-        val codebase =
+        val assembler = PsiCodebaseAssembler { assembler ->
             PsiBasedCodebase(
                 location = apiJar,
                 description = "Codebase loaded from $apiJar",
                 annotationManager = annotationManager,
                 reporter = reporter,
-                allowReadingComments = allowReadingComments
+                allowReadingComments = allowReadingComments,
+                assembler = assembler,
             )
+        }
+        val codebase = assembler.codebase
         codebase.initializeFromJar(environment, apiJar)
         return codebase
     }

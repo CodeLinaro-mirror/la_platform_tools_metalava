@@ -19,7 +19,7 @@ package com.android.tools.metalava.model
 import com.android.tools.metalava.model.item.DefaultValue
 
 @MetalavaApi
-interface ParameterItem : Item {
+interface ParameterItem : ClassContentItem, Item {
     /** The name of this field */
     fun name(): String
 

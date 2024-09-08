@@ -22,6 +22,7 @@ import com.android.tools.metalava.testing.KnownSourceFiles.nonNullSource
 import com.android.tools.metalava.testing.html
 import com.android.tools.metalava.testing.java
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import org.junit.Test
 
 class CommonPackageItemTest : BaseModelTest() {
@@ -343,6 +344,35 @@ class CommonPackageItemTest : BaseModelTest() {
     }
 
     @Test
+    fun `Test invalid package (package-html)`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+
+                        public class Foo {
+                        }
+                    """
+                ),
+                html(
+                    "src/other/pkg/package.html",
+                    """
+                        <HTML>
+                        <BODY>
+                        Some text.
+                        </BODY>
+                        </HTML>
+                    """
+                ),
+            ),
+        ) {
+            val packageItem = codebase.findPackage("other.pkg")
+            assertNull(packageItem)
+        }
+    }
+
+    @Test
     fun `Test package documentation (overview-html)`() {
         runCodebaseTest(
             inputSet(
@@ -377,8 +407,25 @@ class CommonPackageItemTest : BaseModelTest() {
                     </HTML>
                 """
                     .trimIndent(),
-                packageItem.overviewDocumentation?.trim(),
+                packageItem.overviewDocumentation?.content?.trim(),
             )
+        }
+    }
+
+    @Test
+    fun `Test mismatching between package and directory`() {
+        runCodebaseTest(
+            java(
+                "src/test/other/Foo.java",
+                """
+                    package test.pkg;
+
+                    public class Foo {
+                    }
+                """
+            ),
+        ) {
+            codebase.assertClass("test.pkg.Foo")
         }
     }
 }

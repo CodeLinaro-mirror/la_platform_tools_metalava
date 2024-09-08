@@ -26,7 +26,7 @@ import java.util.function.Predicate
  * com.android.tools.metalava.model.TypeItem} instead
  */
 @MetalavaApi
-interface ClassItem : SelectableItem, TypeParameterListOwner {
+interface ClassItem : ClassContentItem, SelectableItem, TypeParameterListOwner {
     /**
      * The qualified name of a class. In class foo.bar.Outer.Inner, the qualified name is the whole
      * thing.
@@ -765,10 +765,22 @@ interface ClassItem : SelectableItem, TypeParameterListOwner {
         return declaringClass.typeParameterList.zip(classTypeArguments).toMap()
     }
 
-    /** Creates a constructor in this class */
-    fun createDefaultConstructor(): ConstructorItem = codebase.unsupported()
+    /**
+     * Creates a default constructor in this class.
+     *
+     * Default constructors that are added by Java have the same visibility as their class which is
+     * the default behavior of this method if no [visibility] is provided. However, this is also
+     * used to create default constructors in order for stub classes to compile and as they do not
+     * appear in the API they need to be marked as package private so this method allows the
+     * [visibility] to be explicitly specified by the caller.
+     *
+     * @param visibility the visibility of the constructor, defaults to the same as this class.
+     */
+    fun createDefaultConstructor(
+        visibility: VisibilityLevel = modifiers.getVisibilityLevel()
+    ): ConstructorItem
 
-    fun addMethod(method: MethodItem): Unit = codebase.unsupported()
+    fun addMethod(method: MethodItem)
 
     /**
      * Return true if a [ClassItem] could be subclassed, i.e. is not final or sealed and has at
@@ -778,21 +790,4 @@ interface ClassItem : SelectableItem, TypeParameterListOwner {
         !modifiers.isFinal() &&
             !modifiers.isSealed() &&
             constructors().any { it.isPublic || it.isProtected }
-}
-
-/** Compute the value for [ClassItem.allInterfaces]. */
-fun ClassItem.computeAllInterfaces() = buildList {
-    // Add self as interface if applicable
-    if (isInterface()) {
-        add(this@computeAllInterfaces)
-    }
-
-    // Add all the interfaces of super class
-    superClass()?.let { superClass -> superClass.allInterfaces().forEach { add(it) } }
-
-    // Add all the interfaces of direct interfaces
-    interfaceTypes().forEach { interfaceType ->
-        val itf = interfaceType.asClass()
-        itf?.allInterfaces()?.forEach { add(it) }
-    }
 }

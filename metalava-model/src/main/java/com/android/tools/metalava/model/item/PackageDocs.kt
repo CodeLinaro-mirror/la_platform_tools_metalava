@@ -16,7 +16,7 @@
 
 package com.android.tools.metalava.model.item
 
-import com.android.tools.metalava.model.DefaultModifierList
+import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.PackageItem
@@ -25,13 +25,13 @@ import com.android.tools.metalava.reporter.FileLocation
 /** Set of [PackageDoc] for every documented package defined in the source. */
 class PackageDocs(
     private val packages: Map<String, PackageDoc>,
-) : Iterable<Map.Entry<String, PackageDoc>> {
+) {
+    /** The set of package names. */
+    val packageNames: Collection<String> = packages.keys
 
     operator fun get(packageName: String): PackageDoc {
         return packages[packageName] ?: PackageDoc.EMPTY
     }
-
-    override fun iterator() = packages.entries.iterator()
 
     companion object {
         val EMPTY: PackageDocs = PackageDocs(emptyMap())
@@ -41,7 +41,7 @@ class PackageDocs(
 /** Package specific documentation. */
 interface PackageDoc {
     val fileLocation: FileLocation
-    val modifiers: DefaultModifierList?
+    val modifiers: BaseModifierList?
 
     /**
      * Factory for creating an [ItemDocumentation] instance containing the package level document.
@@ -53,11 +53,11 @@ interface PackageDoc {
     val commentFactory: ItemDocumentationFactory?
 
     /**
-     * The contents of the optional `overview.html` file.
+     * The `overview.html` file.
      *
      * If specified this is used for [PackageItem.overviewDocumentation].
      */
-    val overview: String?
+    val overview: ResourceFile?
 
     companion object {
         val EMPTY =
@@ -65,7 +65,7 @@ interface PackageDoc {
                 override val fileLocation: FileLocation
                     get() = FileLocation.UNKNOWN
 
-                override val modifiers: DefaultModifierList?
+                override val modifiers: BaseModifierList?
                     get() = null
 
                 override val commentFactory
@@ -81,7 +81,7 @@ interface PackageDoc {
 data class MutablePackageDoc(
     val qualifiedName: String,
     override var fileLocation: FileLocation = FileLocation.UNKNOWN,
-    override var modifiers: DefaultModifierList? = null,
+    override var modifiers: BaseModifierList? = null,
     override var commentFactory: ItemDocumentationFactory? = null,
-    override var overview: String? = null,
+    override var overview: ResourceFile? = null,
 ) : PackageDoc

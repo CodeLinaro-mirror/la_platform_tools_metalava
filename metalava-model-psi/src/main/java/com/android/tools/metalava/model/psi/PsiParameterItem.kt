@@ -17,9 +17,10 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassTypeItem
-import com.android.tools.metalava.model.DefaultModifierList
+import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterBindings
 import com.android.tools.metalava.model.VisibilityLevel
@@ -41,7 +42,7 @@ internal class PsiParameterItem
 internal constructor(
     override val codebase: PsiBasedCodebase,
     internal val psiParameter: PsiParameter,
-    modifiers: DefaultModifierList,
+    modifiers: BaseModifierList,
     name: String,
     publicNameProvider: PublicNameProvider,
     containingCallable: PsiCallableItem,
@@ -116,7 +117,7 @@ internal constructor(
         PsiParameterItem(
             codebase = codebase,
             psiParameter = psiParameter,
-            modifiers = modifiers.duplicate(),
+            modifiers = modifiers,
             name = name(),
             publicNameProvider = publicNameProvider,
             containingCallable = containingCallable as PsiCallableItem,
@@ -191,7 +192,7 @@ internal constructor(
         private fun createParameterModifiers(
             codebase: PsiBasedCodebase,
             psiParameter: PsiParameter
-        ): DefaultModifierList {
+        ): MutableModifierList {
             val modifiers = PsiModifierItem.create(codebase, psiParameter)
             // Method parameters don't have a visibility level; they are visible to anyone that can
             // call their method. However, Kotlin constructors sometimes appear to specify the

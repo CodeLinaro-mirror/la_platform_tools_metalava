@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassTypeItem
+import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterScope
@@ -32,7 +33,7 @@ import org.junit.Test
 class TextTypeParserCacheTest : BaseTextCodebaseTest() {
 
     private data class Context(
-        val codebase: TextCodebase,
+        val codebase: Codebase,
         val parser: TextTypeParser,
         val emptyScope: TypeParameterScope,
         val nonEmptyScope: TypeParameterScope,
@@ -50,16 +51,15 @@ class TextTypeParserCacheTest : BaseTextCodebaseTest() {
                 """
             ),
         ) {
-            val textCodebase = codebase as TextCodebase
             val parser =
                 TextTypeParser(
-                    textCodebase,
+                    codebase,
                     kotlinStyleNulls = false,
                 )
             val nonEmptyScope = TypeParameterScope.from(codebase.assertClass("test.pkg.Generic"))
             val context =
                 Context(
-                    textCodebase,
+                    codebase,
                     parser,
                     TypeParameterScope.empty,
                     nonEmptyScope,

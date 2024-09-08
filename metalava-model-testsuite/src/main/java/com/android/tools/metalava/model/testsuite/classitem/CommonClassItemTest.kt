@@ -1660,10 +1660,10 @@ class CommonClassItemTest : BaseModelTest() {
             checkIsFromClassPath("test.pkg.Test", expectedIsFromClassPath = false)
             checkIsFromClassPath("java.lang.String", expectedIsFromClassPath = true)
 
-            // Some models may not return an unknown class but those that do should not treat it as
+            // Some models may not return an unknown class but those that do should treat it as
             // coming from the class path.
             codebase.resolveClass("Unknown")?.let { testClass ->
-                assertEquals(false, testClass.isFromClassPath(), message = "Unknown")
+                assertEquals(true, testClass.isFromClassPath(), message = "Unknown")
             }
         }
     }

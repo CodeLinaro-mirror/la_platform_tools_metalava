@@ -8,9 +8,6 @@ com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTe
   annotation with negative number values
   annotation with type cast values
 
-com.android.tools.metalava.model.testsuite.packageitem.CommonPackageItemTest
-  Test package containment
-
 com.android.tools.metalava.model.testsuite.typeitem.CommonIsAssignableFromTest
   Test assignability without unboxing[boxedInt to primitiveInt]
   Test assignability without unboxing[number to boxedInt]
