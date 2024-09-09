@@ -28,6 +28,7 @@ import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.BaseTypeVisitor
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem
@@ -689,7 +690,10 @@ class ApiAnalyzer(
                         object : BaseTypeVisitor() {
                             override fun visitClassType(classType: ClassTypeItem) {
                                 val cls = classType.asClass() ?: return
-                                if (!filterReference.test(cls) && !cls.isFromClassPath()) {
+                                if (
+                                    !filterReference.test(cls) &&
+                                        cls.origin != ClassOrigin.CLASS_PATH
+                                ) {
                                     reporter.report(
                                         Issues.HIDDEN_TYPE_PARAMETER,
                                         item,
@@ -792,7 +796,7 @@ class ApiAnalyzer(
         from: Item,
         usage: String
     ) {
-        if (cl.isFromClassPath()) {
+        if (cl.origin == ClassOrigin.CLASS_PATH) {
             return
         }
 
@@ -847,7 +851,7 @@ class ApiAnalyzer(
                 // this is not a desired practice, but it's happened, so we deal
                 // with it by finding the first super class which passes checkLevel for purposes of
                 // generating the doc & stub information, and proceeding normally.
-                if (!superItem.isFromClassPath()) {
+                if (superItem.origin != ClassOrigin.CLASS_PATH) {
                     reporter.report(
                         Issues.HIDDEN_SUPERCLASS,
                         cl,
@@ -864,7 +868,7 @@ class ApiAnalyzer(
                 //   cantStripThis(superClass, filter, notStrippable, stubImportPackages, cl, "as
                 // super class")
 
-                if (superItem.isPrivate && !superItem.isFromClassPath()) {
+                if (superItem.isPrivate && superItem.origin != ClassOrigin.CLASS_PATH) {
                     reporter.report(
                         Issues.PRIVATE_SUPERCLASS,
                         cl,
@@ -966,7 +970,7 @@ class ApiAnalyzer(
         val hiddenClasses = findHiddenClasses(type)
         val typeClassName = (type as? ClassTypeItem)?.qualifiedName
         for (hiddenClass in hiddenClasses) {
-            if (hiddenClass.isFromClassPath()) continue
+            if (hiddenClass.origin == ClassOrigin.CLASS_PATH) continue
             if (hiddenClass.qualifiedName() == typeClassName) {
                 // The type itself is hidden
                 reporter.report(

@@ -96,20 +96,19 @@ class TextCodebaseBuilder private constructor(private val assembler: TextCodebas
         if (cls != null) {
             return cls
         }
-        val textClass = fullClass as DefaultClassItem
         val pkg = getOrAddPackage(fullClass.containingPackage().qualifiedName())
 
         return itemFactory.createClassItem(
             fileLocation = FileLocation.UNKNOWN,
-            modifiers = textClass.modifiers,
-            classKind = textClass.classKind,
+            modifiers = fullClass.modifiers,
+            classKind = fullClass.classKind,
             containingClass = null,
             containingPackage = pkg,
-            qualifiedName = textClass.qualifiedName(),
-            typeParameterList = textClass.typeParameterList,
-            isFromClassPath = fullClass.isFromClassPath(),
-            superClassType = textClass.superClassType(),
-            interfaceTypes = textClass.interfaceTypes(),
+            qualifiedName = fullClass.qualifiedName(),
+            typeParameterList = fullClass.typeParameterList,
+            origin = fullClass.origin,
+            superClassType = fullClass.superClassType(),
+            interfaceTypes = fullClass.interfaceTypes(),
         )
     }
 }

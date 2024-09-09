@@ -18,11 +18,11 @@ package com.android.tools.metalava
 
 import com.android.tools.metalava.model.ANDROIDX_INT_DEF
 import com.android.tools.metalava.model.CallableItem
-import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.visitors.ApiVisitor
@@ -33,22 +33,26 @@ import java.util.regex.Pattern
 /** Misc API suggestions */
 class AndroidApiChecks(val reporter: Reporter) {
     fun check(codebase: Codebase) {
-        codebase.accept(
+        for (packageItem in codebase.getPackages().packages) {
+            // Get the package name with a trailing `.` to simplify prefix checking below. Without
+            // it the checks would have to check for `android` and `android.` separately.
+            val name = packageItem.qualifiedName() + "."
+
+            // Limit the checks to the android.* namespace (except for ICU)
+            if (!name.startsWith("android.") || name.startsWith("android.icu.")) continue
+
+            checkPackage(packageItem)
+        }
+    }
+
+    private fun checkPackage(packageItem: PackageItem) {
+        packageItem.accept(
             object :
                 ApiVisitor(
                     // Sort by source order such that warnings follow source line number order
                     callableComparator = CallableItem.sourceOrderComparator,
                     config = @Suppress("DEPRECATION") options.apiVisitorConfig,
                 ) {
-                override fun skip(item: Item): Boolean {
-                    // Limit the checks to the android.* namespace (except for ICU)
-                    if (item is ClassItem) {
-                        val name = item.qualifiedName()
-                        return !(name.startsWith("android.") && !name.startsWith("android.icu."))
-                    }
-                    return super.skip(item)
-                }
-
                 override fun visitItem(item: Item) {
                     checkTodos(item)
                 }

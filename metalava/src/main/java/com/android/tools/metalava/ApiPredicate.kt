@@ -19,6 +19,7 @@ package com.android.tools.metalava
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ClassContentItem
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
@@ -97,7 +98,11 @@ class ApiPredicate(
         }
 
         if (
-            !config.allowClassesFromClasspath && item is ClassContentItem && item.isFromClassPath()
+            !config.allowClassesFromClasspath &&
+                item is ClassContentItem &&
+                // This disallows classes from the source path not just the class path, contrary to
+                // what might be expected from the config property name.
+                item.origin != ClassOrigin.COMMAND_LINE
         ) {
             return false
         }

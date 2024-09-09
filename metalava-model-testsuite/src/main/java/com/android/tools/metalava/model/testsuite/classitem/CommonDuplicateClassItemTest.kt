@@ -18,7 +18,6 @@ package com.android.tools.metalava.model.testsuite.classitem
 
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.snapshot.CodebaseSnapshotTaker
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
 import kotlin.test.assertEquals
@@ -77,13 +76,5 @@ class CommonDuplicateClassItemTest : BaseModelTest() {
     @Test
     fun `Test duplicate classes`() {
         runDuplicateTest { checkCodebase(codebase) }
-    }
-
-    @Test
-    fun `Test duplicate classes with snapshot`() {
-        runDuplicateTest {
-            val snapshot = CodebaseSnapshotTaker.takeSnapshot(codebase)
-            checkCodebase(snapshot)
-        }
     }
 }

@@ -1,16 +1,42 @@
 com.android.tools.metalava.model.testsuite.BootstrapSourceModelProviderTest
+  210 Test Method exception list[psi,java,k1]
+  210 Test Method exception list[psi,java,k2]
+  240 test documentations[psi,java,k1]
+  240 test documentations[psi,java,k2]
   240 test documentations[turbine]
+  260 - test doconly members[psi,java,k1]
+  260 - test doconly members[psi,java,k2]
   260 - test doconly members[turbine]
 
 com.android.tools.metalava.model.testsuite.CommonApiVariantSelectorsTest
+  Test accessible[psi,java,k1]
+  Test accessible[psi,java,k2]
   Test accessible[turbine]
+  Test docOnly[psi,java,k1]
+  Test docOnly[psi,java,k2]
   Test docOnly[turbine]
+  Test not docOnly[psi,java,k1]
+  Test not docOnly[psi,java,k2]
   Test not docOnly[turbine]
+  Test not hidden[psi,java,k1]
+  Test not hidden[psi,java,k2]
   Test not hidden[turbine]
+  Test not removed[psi,java,k1]
+  Test not removed[psi,java,k2]
   Test not removed[turbine]
+  Test originallyHidden hidden[psi,java,k1]
+  Test originallyHidden hidden[psi,java,k2]
   Test originallyHidden hidden[turbine]
+  Test removed[psi,java,k1]
+  Test removed[psi,java,k2]
   Test removed[turbine]
+  Test toString[psi,java,k1]
+  Test toString[psi,java,k2]
   Test toString[turbine]
+
+com.android.tools.metalava.model.testsuite.CommonModifierListWriterTest
+  modifiers public explicitly final method in final class[psi,java,k1]
+  modifiers public explicitly final method in final class[psi,java,k2]
 
 com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTest
   annotation toSource() with char values[text]
@@ -20,15 +46,21 @@ com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTe
   annotation toSource() with constant literal values[turbine]
   annotation toSource() with number values[text]
   annotation with constant literal values[text]
+  annotation with enum values[psi,java,k1]
+  annotation with enum values[psi,java,k2]
   annotation with infinity values[text]
   annotation with negative number values[text]
   annotation with type cast values[text]
 
+com.android.tools.metalava.model.testsuite.classitem.CommonClassItemTest
+  Test origin source path[turbine]
+
 com.android.tools.metalava.model.testsuite.classitem.CommonDuplicateClassItemTest
-  Test duplicate classes with snapshot[turbine]
   Test duplicate classes[turbine]
 
 com.android.tools.metalava.model.testsuite.codebase.CommonCodebaseTest
+  Test getTopLevelClassesFromSource[psi,java,k1]
+  Test getTopLevelClassesFromSource[psi,java,k2]
   Test getTopLevelClassesFromSource[turbine]
 
 com.android.tools.metalava.model.testsuite.fielditem.CommonFieldItemTest
@@ -39,20 +71,46 @@ com.android.tools.metalava.model.testsuite.fielditem.SourceFieldItemTest
   test non final field with default value as constant expression[turbine]
 
 com.android.tools.metalava.model.testsuite.methoditem.CommonParameterItemTest
+  Test no default value[psi,java,k1]
+  Test no default value[psi,java,k2]
+  Test no default value[psi,kotlin,k1]
+  Test no default value[psi,kotlin,k2]
   Test no default value[turbine]
   Test publicName reports correct name when called on binary class - Object#equals[turbine]
   Test publicName reports correct name when called on binary class - ViewGroup#onLayout[turbine]
 
 com.android.tools.metalava.model.testsuite.packageitem.CommonPackageItemTest
+  Test @hide in package html[psi,java,k1]
+  Test @hide in package html[psi,java,k2]
   Test @hide in package html[turbine]
+  Test @hide in package info processed first[psi,java,k1]
+  Test @hide in package info processed first[psi,java,k2]
   Test @hide in package info processed first[turbine]
+  Test @hide in package info processed last[psi,java,k1]
+  Test @hide in package info processed last[psi,java,k2]
   Test @hide in package info processed last[turbine]
 
-com.android.tools.metalava.model.testsuite.sourcefile.CommonSourceFileTest
-  test sourcefile classes[turbine]
-  test sourcefile imports[turbine]
+com.android.tools.metalava.model.testsuite.propertyitem.CommonPropertyItemTest
+  Test property delegate to lambda Kotlin object[psi,kotlin,k1]
+  Test property delegate to lambda Kotlin object[psi,kotlin,k2]
 
 com.android.tools.metalava.model.testsuite.typeitem.CommonIsAssignableFromTest
+  Test assignability without unboxing[psi,java,k1,boxedInt to primitiveInt]
+  Test assignability without unboxing[psi,java,k1,number to boxedInt]
+  Test assignability without unboxing[psi,java,k1,number to primitiveInt]
+  Test assignability without unboxing[psi,java,k1,obj to string]
+  Test assignability without unboxing[psi,java,k2,boxedInt to primitiveInt]
+  Test assignability without unboxing[psi,java,k2,number to boxedInt]
+  Test assignability without unboxing[psi,java,k2,number to primitiveInt]
+  Test assignability without unboxing[psi,java,k2,obj to string]
+  Test assignability without unboxing[psi,kotlin,k1,boxedInt to primitiveInt]
+  Test assignability without unboxing[psi,kotlin,k1,number to boxedInt]
+  Test assignability without unboxing[psi,kotlin,k1,number to primitiveInt]
+  Test assignability without unboxing[psi,kotlin,k1,obj to string]
+  Test assignability without unboxing[psi,kotlin,k2,boxedInt to primitiveInt]
+  Test assignability without unboxing[psi,kotlin,k2,number to boxedInt]
+  Test assignability without unboxing[psi,kotlin,k2,number to primitiveInt]
+  Test assignability without unboxing[psi,kotlin,k2,obj to string]
   Test assignability without unboxing[text,boxedInt to primitiveInt]
   Test assignability without unboxing[text,number to boxedInt]
   Test assignability without unboxing[text,number to primitiveInt]
@@ -62,10 +120,63 @@ com.android.tools.metalava.model.testsuite.typeitem.CommonIsAssignableFromTest
   Test assignability without unboxing[turbine,number to primitiveInt]
   Test assignability without unboxing[turbine,obj to string]
 
+com.android.tools.metalava.model.testsuite.typeitem.CommonLambdaTypeItemTest
+  Test lambda field nested lambda one parameter, no return[psi,kotlin,k1]
+  Test lambda field nested lambda one parameter, no return[psi,kotlin,k2]
+  Test lambda field nested lambda, no parameters, no return[psi,kotlin,k1]
+  Test lambda field nested lambda, no parameters, no return[psi,kotlin,k2]
+  Test lambda field[psi,kotlin,k1]
+  Test lambda field[psi,kotlin,k2]
+  Test lambda, Number receiver, String array param, Int return type[psi,kotlin,k1]
+  Test lambda, Number receiver, String array param, Int return type[psi,kotlin,k2]
+  Test lambda, nested lambda[psi,kotlin,k1]
+  Test lambda, nested lambda[psi,kotlin,k2]
+  Test lambda, no receiver, String param, Int return type[psi,kotlin,k1]
+  Test lambda, no receiver, String param, Int return type[psi,kotlin,k2]
+  Test lambda, no receiver, String param, nullable Int return type[psi,kotlin,k1]
+  Test lambda, no receiver, String param, nullable Int return type[psi,kotlin,k2]
+  Test lambda, no receiver, no params, unit return type[psi,kotlin,k1]
+  Test lambda, no receiver, no params, unit return type[psi,kotlin,k2]
+  Test lambda, return lambda[psi,kotlin,k1]
+  Test lambda, return lambda[psi,kotlin,k2]
+  Test suspend lambda Number receiver[psi,kotlin,k1]
+  Test suspend lambda Number receiver[psi,kotlin,k2]
+  Test suspend lambda no receiver, return Unit[psi,kotlin,k1]
+  Test suspend lambda no receiver, return Unit[psi,kotlin,k2]
+  Test suspend lambda no receiver[psi,kotlin,k1]
+  Test suspend lambda no receiver[psi,kotlin,k2]
+
+com.android.tools.metalava.model.testsuite.typeitem.CommonTypeItemTest
+  Test convertType's creation of duplicate objects[psi,kotlin,k1]
+  Test convertType's creation of duplicate objects[psi,kotlin,k2]
+  Test transform's creation of duplicate objects[psi,kotlin,k1]
+  Test transform's creation of duplicate objects[psi,kotlin,k2]
+
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeModifiersTest
+  Test inner parameterized types with annotations[psi,java,k1]
+  Test inner parameterized types with annotations[psi,java,k2]
   Test interface types[turbine]
   Test leading annotation on array type[turbine]
+  Test nullability of Kotlin properties and accessors[psi,kotlin,k1]
+  Test nullability of Kotlin properties and accessors[psi,kotlin,k2]
+  Test nullability of extension function type[psi,kotlin,k1]
+  Test nullability of extension function type[psi,kotlin,k2]
+  Test nullability of outer classes[psi,java,k1]
+  Test nullability of outer classes[psi,java,k2]
+  Test nullability of typealias[psi,kotlin,k1]
+  Test nullability of typealias[psi,kotlin,k2]
+  Test nullability of varargs[psi,kotlin,k1]
+  Test nullability of varargs[psi,kotlin,k2]
+  Test nullness of Kotlin lambda type[psi,kotlin,k1]
+  Test nullness of Kotlin lambda type[psi,kotlin,k2]
   Test super class and interface types of interface[turbine]
 
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeParameterItemTest
+  Test type parameter with annotations[psi,kotlin,k1]
   Test type parameter with annotations[text]
+
+com.android.tools.metalava.model.testsuite.typeitem.CommonTypeStringTest
+  Type string[psi,java,k1,null annotated parameterized inner type - annotated]
+  Type string[psi,java,k1,null annotated parameterized inner type - kotlin nulls]
+  Type string[psi,java,k2,null annotated parameterized inner type - annotated]
+  Type string[psi,java,k2,null annotated parameterized inner type - kotlin nulls]

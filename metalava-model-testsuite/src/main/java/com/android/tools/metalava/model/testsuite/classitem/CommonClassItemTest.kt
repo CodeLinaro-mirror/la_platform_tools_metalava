@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.testsuite.classitem
 
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterItem
@@ -1629,8 +1630,17 @@ class CommonClassItemTest : BaseModelTest() {
         }
     }
 
+    private fun CodebaseContext.checkClassOrigin(
+        name: String,
+        expectedOrigin: ClassOrigin,
+    ) {
+        // Make sure to resolve any class requested just in case it is on the class path.
+        val testClass = codebase.assertResolvedClass(name)
+        assertEquals(expectedOrigin, testClass.origin, message = "$name origin")
+    }
+
     @Test
-    fun `Test isFromClassPath`() {
+    fun `Test origin`() {
         runCodebaseTest(
             signature(
                 """
@@ -1651,20 +1661,52 @@ class CommonClassItemTest : BaseModelTest() {
                 """
             ),
         ) {
-            fun checkIsFromClassPath(name: String, expectedIsFromClassPath: Boolean) {
-                // Make sure to resolve any class requested just in case it is on the class path.
-                val testClass = codebase.assertResolvedClass(name)
-                assertEquals(expectedIsFromClassPath, testClass.isFromClassPath(), message = name)
-            }
-
-            checkIsFromClassPath("test.pkg.Test", expectedIsFromClassPath = false)
-            checkIsFromClassPath("java.lang.String", expectedIsFromClassPath = true)
+            checkClassOrigin(
+                "test.pkg.Test",
+                expectedOrigin = ClassOrigin.COMMAND_LINE,
+            )
+            checkClassOrigin(
+                "java.lang.String",
+                expectedOrigin = ClassOrigin.CLASS_PATH,
+            )
 
             // Some models may not return an unknown class but those that do should treat it as
             // coming from the class path.
             codebase.resolveClass("Unknown")?.let { testClass ->
-                assertEquals(true, testClass.isFromClassPath(), message = "Unknown")
+                assertEquals(ClassOrigin.CLASS_PATH, testClass.origin, message = "Unknown")
             }
+        }
+    }
+
+    @Test
+    fun `Test origin source path`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+
+                        public class Test {
+                            private Test() {}
+                        }
+                    """
+                ),
+                sourcePathFiles =
+                    listOf(
+                        java(
+                            """
+                                package test.pkg;
+
+                                public class SourcePathClass {}
+                            """
+                        )
+                    ),
+            )
+        ) {
+            checkClassOrigin(
+                "test.pkg.SourcePathClass",
+                expectedOrigin = ClassOrigin.SOURCE_PATH,
+            )
         }
     }
 }

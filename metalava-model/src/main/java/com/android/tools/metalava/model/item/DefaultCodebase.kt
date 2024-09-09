@@ -94,7 +94,7 @@ open class DefaultCodebase(
      */
     private val topLevelClassesFromSource: MutableList<ClassItem> = ArrayList(CLASS_ESTIMATE)
 
-    override fun getTopLevelClassesFromSource(): List<ClassItem> {
+    final override fun getTopLevelClassesFromSource(): List<ClassItem> {
         return topLevelClassesFromSource
     }
 
@@ -117,7 +117,7 @@ open class DefaultCodebase(
         findClassInCodebase(className) ?: externalClassesByName[className]
 
     /** Register [DefaultClassItem] with this [Codebase]. */
-    override fun registerClass(classItem: DefaultClassItem): Boolean {
+    final override fun registerClass(classItem: DefaultClassItem): Boolean {
         // Check for duplicates, ignore the class if it is a duplicate.
         val qualifiedName = classItem.qualifiedName()
         val existing = allClassesByName[qualifiedName]
@@ -133,8 +133,6 @@ open class DefaultCodebase(
 
         // Register it by name.
         allClassesByName[qualifiedName] = classItem
-
-        addClass(classItem)
 
         // Perform any subclass specific processing on the newly registered class.
         assembler.newClassRegistered(classItem)
@@ -164,7 +162,7 @@ open class DefaultCodebase(
         return created
     }
 
-    final override fun createAnnotation(
+    open override fun createAnnotation(
         source: String,
         context: Item?,
     ): AnnotationItem? {

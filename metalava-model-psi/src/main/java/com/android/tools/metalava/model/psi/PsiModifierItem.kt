@@ -54,7 +54,6 @@ import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.createMutableModifiers
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.isNullnessAnnotation
-import com.android.tools.metalava.model.psi.KotlinTypeInfo.Companion.isInheritedGenericType
 import com.intellij.psi.PsiAnnotation
 import com.intellij.psi.PsiAnnotationMemberValue
 import com.intellij.psi.PsiArrayInitializerMemberValue
@@ -70,9 +69,8 @@ import com.intellij.psi.impl.light.LightModifierList
 import org.jetbrains.annotations.NotNull
 import org.jetbrains.annotations.Nullable
 import org.jetbrains.kotlin.analysis.api.analyze
-import org.jetbrains.kotlin.analysis.api.symbols.markers.KtSymbolWithVisibility
+import org.jetbrains.kotlin.analysis.api.symbols.KaSymbolVisibility
 import org.jetbrains.kotlin.asJava.elements.KtLightElement
-import org.jetbrains.kotlin.descriptors.Visibilities
 import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.KtAnnotated
 import org.jetbrains.kotlin.psi.KtDeclaration
@@ -108,7 +106,7 @@ internal object PsiModifierItem {
 
         // Sometimes Psi/Kotlin interoperation goes a little awry and adds nullability annotations
         // that it should not, so this removes them.
-        if (shouldRemoveNullnessAnnotations(element, modifiers)) {
+        if (shouldRemoveNullnessAnnotations(modifiers)) {
             modifiers.mutateAnnotations { removeIf { it.isNullnessAnnotation() } }
         }
 
@@ -125,26 +123,12 @@ internal object PsiModifierItem {
 
     /** Determine whether nullness annotations need removing from [modifiers]. */
     private fun shouldRemoveNullnessAnnotations(
-        element: PsiModifierListOwner,
         modifiers: BaseModifierList,
     ): Boolean {
         // Kotlin varargs are not nullable but can sometimes and up with an @Nullable annotation
         // added to the [PsiParameter] so remove it from the modifiers. Only Kotlin varargs have a
         // `vararg` modifier.
         if (modifiers.isVarArg()) {
-            return true
-        }
-
-        // Although https://youtrack.jetbrains.com/issue/KTIJ-19087 has been fixed there still
-        // seems to be an issue with reified type parameters causing nullability annotations
-        // being added to the parameter even when the use site does not require
-        // them. So, this removes them.
-        val kotlinTypeInfo = KotlinTypeInfo.fromContext(element)
-        if (
-            kotlinTypeInfo.analysisSession != null &&
-                kotlinTypeInfo.ktType != null &&
-                kotlinTypeInfo.analysisSession.isInheritedGenericType(kotlinTypeInfo.ktType)
-        ) {
             return true
         }
 
@@ -257,9 +241,9 @@ internal object PsiModifierItem {
                 // modifier, but overrides an internal declaration. Adapted from
                 // org.jetbrains.kotlin.asJava.classes.UltraLightMembersCreator.isInternal
                 analyze(sourcePsi) {
-                    val symbol = (sourcePsi as? KtDeclaration)?.getSymbol()
-                    val visibility = (symbol as? KtSymbolWithVisibility)?.visibility
-                    if (visibility == Visibilities.Internal) {
+                    val symbol = (sourcePsi as? KtDeclaration)?.symbol
+                    val visibility = symbol?.visibility
+                    if (visibility == KaSymbolVisibility.INTERNAL) {
                         visibilityFlags = INTERNAL
                     }
                 }

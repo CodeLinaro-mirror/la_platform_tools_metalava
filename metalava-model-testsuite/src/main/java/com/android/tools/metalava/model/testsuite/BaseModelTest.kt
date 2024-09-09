@@ -92,8 +92,11 @@ abstract class BaseModelTest() :
         /** The [InputFormat] of the [testFiles]. */
         val inputFormat: InputFormat,
 
-        /** The [TestFile]s to process. */
+        /** The [TestFile]s to explicitly pass to code being tested. */
         val testFiles: List<TestFile>,
+
+        /** The optional [TestFile]s to pass on source path. */
+        val additionalTestFiles: List<TestFile>?,
     )
 
     /** Create an [InputSet] from a list of [TestFile]s. */
@@ -106,7 +109,7 @@ abstract class BaseModelTest() :
      * ([InputFormat.JAVA] or [InputFormat.KOTLIN]) and signature ([InputFormat.SIGNATURE]). If it
      * contains both [InputFormat.JAVA] and [InputFormat.KOTLIN] then the latter will be used.
      */
-    fun inputSet(vararg testFiles: TestFile): InputSet {
+    fun inputSet(vararg testFiles: TestFile, sourcePathFiles: List<TestFile>? = null): InputSet {
         if (testFiles.isEmpty()) {
             throw IllegalStateException("Must provide at least one source file")
         }
@@ -124,7 +127,7 @@ abstract class BaseModelTest() :
                 // are incompatible.
                 .reduce { if1, if2 -> if1.combineWith(if2) }
 
-        return InputSet(inputFormat, testFiles.toList())
+        return InputSet(inputFormat, testFiles.toList(), sourcePathFiles)
     }
 
     /**
@@ -165,6 +168,8 @@ abstract class BaseModelTest() :
             ?.let { inputSet ->
                 val mainSourceDir = sourceDir(inputSet)
 
+                val additionalSourceDir = inputSet.additionalTestFiles?.let { sourceDir(it) }
+
                 val commonSourceDir =
                     commonSourcesByInputFormat[inputFormat]?.let { commonInputSet ->
                         sourceDir(commonInputSet)
@@ -175,6 +180,7 @@ abstract class BaseModelTest() :
                         inputFormat = inputSet.inputFormat,
                         modelOptions = codebaseCreatorConfig.modelOptions,
                         mainSourceDir = mainSourceDir,
+                        additionalMainSourceDir = additionalSourceDir,
                         commonSourceDir = commonSourceDir,
                     )
                 runner.createCodebaseAndRun(inputs) { codebase ->
@@ -185,9 +191,12 @@ abstract class BaseModelTest() :
     }
 
     private fun sourceDir(inputSet: InputSet): ModelSuiteRunner.SourceDir {
+        return sourceDir(inputSet.testFiles)
+    }
+
+    private fun sourceDir(testFiles: List<TestFile>): ModelSuiteRunner.SourceDir {
         val tempDir = temporaryFolder.newFolder()
-        val mainSourceDir = ModelSuiteRunner.SourceDir(dir = tempDir, contents = inputSet.testFiles)
-        return mainSourceDir
+        return ModelSuiteRunner.SourceDir(dir = tempDir, contents = testFiles)
     }
 
     private fun testFilesToInputSets(testFiles: Array<out TestFile>): Array<InputSet> {

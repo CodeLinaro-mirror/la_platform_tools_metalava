@@ -128,7 +128,7 @@ object Issues {
     val FORBIDDEN_TAG by Issue(Severity.ERROR, Category.DOCUMENTATION)
     val MISSING_COLUMN by Issue(Severity.WARNING, Category.DOCUMENTATION)
     val INVALID_SYNTAX by Issue(Severity.ERROR)
-    val INVALID_PACKAGE by Issue(Severity.WARNING_ERROR_WHEN_NEW)
+    val INVALID_PACKAGE by Issue(Severity.ERROR)
     val UNRESOLVED_IMPORT by Issue(Severity.INFO)
     val HIDDEN_ABSTRACT_METHOD by Issue(Severity.ERROR, Category.API_LINT)
 

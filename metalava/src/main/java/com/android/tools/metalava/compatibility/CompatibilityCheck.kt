@@ -26,6 +26,7 @@ import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
@@ -881,7 +882,7 @@ class CompatibilityCheck(
             // API is OK (e.g. overriding toString() from java.lang.Object)
             val superMethods = new.superMethods()
             for (superMethod in superMethods) {
-                if (superMethod.isFromClassPath()) {
+                if (superMethod.origin == ClassOrigin.CLASS_PATH) {
                     return
                 }
             }

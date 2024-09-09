@@ -2,9 +2,11 @@ com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTe
   annotation toSource() with compound expression values
   annotation toSource() with constant literal values
 
+com.android.tools.metalava.model.testsuite.classitem.CommonClassItemTest
+  Test origin source path
+
 com.android.tools.metalava.model.testsuite.classitem.CommonDuplicateClassItemTest
   Test duplicate classes
-  Test duplicate classes with snapshot
 
 com.android.tools.metalava.model.testsuite.fielditem.CommonFieldItemTest
   Test implicit nullability of constant field initialized from @NonNull method
