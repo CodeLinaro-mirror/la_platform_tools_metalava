@@ -1521,6 +1521,58 @@ class CommonAnnotationItemTest : BaseModelTest() {
         }
     }
 
+    @Test
+    fun `annotation resolve`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      @test.pkg.Test.Anno
+                      public class Test {
+                      }
+
+                      @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) public @interface Test.Anno {
+                      }
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+
+                    import java.lang.annotation.Retention;
+                    import java.lang.annotation.RetentionPolicy;
+
+                    @Test.Anno
+                    public class Test {
+                        private Test() {}
+
+                        @Retention(RetentionPolicy.CLASS)
+                        public @interface Anno {
+                        }
+                    }
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            val anno = testClass.modifiers.annotations().single()
+
+            // Check that the annotation can be resolved to a class.
+            val annoClass = anno.resolve()!!
+            assertEquals("test.pkg.Test.Anno", annoClass.qualifiedName(), message = "anno class")
+
+            // Check that the annotation can be resolved to a class.
+            val retentionAnno = annoClass.modifiers.annotations().single()
+            val retentionClass = retentionAnno.resolve()!!
+            assertEquals(
+                "java.lang.annotation.Retention",
+                retentionClass.qualifiedName(),
+                message = "retention class"
+            )
+        }
+    }
+
     inline fun <reified T : Any> AnnotationItem.assertAttributeValue(
         attributeName: String,
         expected: T

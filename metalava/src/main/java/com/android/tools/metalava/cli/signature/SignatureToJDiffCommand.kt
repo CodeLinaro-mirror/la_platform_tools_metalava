@@ -202,9 +202,11 @@ private fun computeDelta(
     apiVisitorConfig: ApiVisitor.Config,
 ): Codebase {
     // Compute just the delta
-    return TextCodebaseBuilder.build(baseFile, signatureApi.annotationManager) {
-        description = "Delta between $baseApi and $signatureApi"
-
+    return TextCodebaseBuilder.build(
+        location = baseFile,
+        description = "Delta between $baseApi and $signatureApi",
+        annotationManager = signatureApi.annotationManager,
+    ) {
         CodebaseComparator(apiVisitorConfig = apiVisitorConfig)
             .compare(
                 object : ComparisonVisitor() {

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,9 +14,16 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model.psi
+package com.android.tools.metalava.model.source
 
-internal data class PackageDocs(
-    val packageDocs: MutableMap<String, String>,
-    val overviewDocs: MutableMap<String, String>,
-)
+import com.android.tools.metalava.model.testsuite.ModelSuiteRunner
+import com.android.tools.metalava.model.testsuite.ModelSuiteRunnerProvider
+
+/**
+ * A [ModelSuiteRunnerProvider] that will return one [ModelSuiteRunner] for each available
+ * [SourceModelProvider].
+ */
+class SourceModelSuiteRunnerProvider : ModelSuiteRunnerProvider {
+    override val runners: List<ModelSuiteRunner> =
+        SourceModelProvider.implementations.map { SourceModelSuiteRunner(it) }
+}

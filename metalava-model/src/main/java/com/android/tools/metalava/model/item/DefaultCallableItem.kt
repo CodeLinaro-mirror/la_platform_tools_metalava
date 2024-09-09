@@ -17,11 +17,12 @@
 package com.android.tools.metalava.model.item
 
 import com.android.tools.metalava.model.ApiVariantSelectorsFactory
+import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.CallableBody
+import com.android.tools.metalava.model.CallableBodyFactory
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.ItemLanguage
@@ -44,7 +45,7 @@ abstract class DefaultCallableItem(
     codebase: Codebase,
     fileLocation: FileLocation,
     itemLanguage: ItemLanguage,
-    modifiers: DefaultModifierList,
+    modifiers: BaseModifierList,
     documentationFactory: ItemDocumentationFactory,
     variantSelectorsFactory: ApiVariantSelectorsFactory,
     name: String,
@@ -53,6 +54,7 @@ abstract class DefaultCallableItem(
     returnType: TypeItem,
     parameterItemsFactory: ParameterItemsFactory,
     internal val throwsTypes: List<ExceptionTypeItem>,
+    callableBodyFactory: CallableBodyFactory,
 ) :
     DefaultMemberItem(
         codebase,
@@ -89,7 +91,12 @@ abstract class DefaultCallableItem(
 
     final override fun throwsTypes(): List<ExceptionTypeItem> = throwsTypes
 
-    /** Default callables do not currently have a body. */
-    override val body
-        get() = CallableBody.UNAVAILABLE
+    /**
+     * Create the [CallableBody] during initialization of this callable to allow it to contain an
+     * immutable reference to this object.
+     *
+     * The leaking of `this` to `callableBodyFactory` is ok as implementations follow the rules
+     * explained in the documentation of [CallableBodyFactory].
+     */
+    final override val body: CallableBody = callableBodyFactory(@Suppress("LeakingThis") this)
 }

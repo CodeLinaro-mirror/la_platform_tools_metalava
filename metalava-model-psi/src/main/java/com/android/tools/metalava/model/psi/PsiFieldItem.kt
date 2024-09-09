@@ -17,14 +17,17 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.ApiVariantSelectors
+import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.DefaultModifierList
+import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.ItemDocumentationFactory
+import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
+import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.isNonNullAnnotation
-import com.android.tools.metalava.model.item.DefaultMemberItem
+import com.android.tools.metalava.model.item.DefaultFieldItem
 import com.android.tools.metalava.model.item.FieldValue
 import com.android.tools.metalava.reporter.Issues
 import com.intellij.psi.PsiCallExpression
@@ -45,15 +48,15 @@ import org.jetbrains.uast.UField
 internal class PsiFieldItem(
     override val codebase: PsiBasedCodebase,
     private val psiField: PsiField,
-    containingClass: PsiClassItem,
-    name: String,
-    modifiers: DefaultModifierList,
+    modifiers: BaseModifierList,
     documentationFactory: ItemDocumentationFactory,
-    private var fieldType: TypeItem,
+    name: String,
+    containingClass: ClassItem,
+    type: TypeItem,
     private val isEnumConstant: Boolean,
-    override val fieldValue: PsiFieldValue?,
+    override val fieldValue: FieldValue?,
 ) :
-    DefaultMemberItem(
+    DefaultFieldItem(
         codebase = codebase,
         fileLocation = PsiFileLocation(psiField),
         itemLanguage = psiField.itemLanguage,
@@ -62,36 +65,25 @@ internal class PsiFieldItem(
         variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
         name = name,
         containingClass = containingClass,
+        type = type,
+        isEnumConstant = isEnumConstant,
+        fieldValue = fieldValue,
     ),
     FieldItem,
     PsiItem {
 
-    override var property: PsiPropertyItem? = null
-
-    override fun type(): TypeItem = fieldType
-
-    override fun setType(type: TypeItem) {
-        fieldType = type
-    }
-
-    override fun initialValue(requireConstant: Boolean): Any? {
-        return fieldValue?.initialValue(requireConstant)
-    }
-
-    override fun isEnumConstant(): Boolean = isEnumConstant
-
     override fun psi(): PsiField = psiField
+
+    override var property: PropertyItem? = null
 
     override fun duplicate(targetContainingClass: ClassItem) =
         create(
                 codebase,
-                targetContainingClass as PsiClassItem,
+                targetContainingClass,
                 psiField,
                 codebase.globalTypeItemFactory.from(targetContainingClass),
             )
             .also { duplicated -> duplicated.inheritedFrom = containingClass() }
-
-    override var inheritedFrom: ClassItem? = null
 
     override fun ensureCompanionFieldJvmField() {
         if (modifiers.isPublic() && modifiers.isFinal()) {
@@ -165,12 +157,18 @@ internal class PsiFieldItem(
     companion object {
         internal fun create(
             codebase: PsiBasedCodebase,
-            containingClass: PsiClassItem,
+            containingClass: ClassItem,
             psiField: PsiField,
             enclosingClassTypeItemFactory: PsiTypeItemFactory,
         ): PsiFieldItem {
             val name = psiField.name
             val modifiers = PsiModifierItem.create(codebase, psiField)
+
+            if (containingClass.classKind == ClassKind.INTERFACE) {
+                // All interface fields are implicitly public and static.
+                modifiers.setVisibilityLevel(VisibilityLevel.PUBLIC)
+                modifiers.setStatic(true)
+            }
 
             val isEnumConstant = psiField is PsiEnumConstant
 
@@ -197,11 +195,11 @@ internal class PsiFieldItem(
             return PsiFieldItem(
                 codebase = codebase,
                 psiField = psiField,
-                containingClass = containingClass,
-                name = name,
                 documentationFactory = PsiItemDocumentation.factory(psiField, codebase),
                 modifiers = modifiers,
-                fieldType = fieldType,
+                name = name,
+                containingClass = containingClass,
+                type = fieldType,
                 isEnumConstant = isEnumConstant,
                 fieldValue = fieldValue
             )

@@ -16,10 +16,7 @@
 
 package com.android.tools.metalava.model
 
-class PackageList(val codebase: Codebase, val packages: List<PackageItem>) {
-    fun accept(visitor: ItemVisitor) {
-        visitor.visit(this)
-    }
+class PackageList(val packages: List<PackageItem>) {
 
     /** All top level classes in all packages */
     fun allTopLevelClasses(): Sequence<ClassItem> {

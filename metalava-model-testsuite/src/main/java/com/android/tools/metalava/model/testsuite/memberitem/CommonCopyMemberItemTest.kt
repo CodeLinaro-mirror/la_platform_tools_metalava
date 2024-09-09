@@ -17,7 +17,6 @@
 package com.android.tools.metalava.model.testsuite.memberitem
 
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 
@@ -36,12 +35,12 @@ abstract class CommonCopyMemberItemTest<M : MemberItem> : BaseModelTest() {
     protected abstract fun copyMember(sourceMemberItem: M, targetClassItem: ClassItem): M
 
     protected inner class CopyContext(
-        override val codebase: Codebase,
+        codebaseContext: CodebaseContext,
         val sourceClassItem: ClassItem,
         val targetClassItem: ClassItem,
         val sourceMemberItem: M,
         val copiedMemberItem: M,
-    ) : CodebaseContext
+    ) : CodebaseContext by codebaseContext
 
     protected fun runCopyTest(
         vararg inputs: InputSet,
@@ -61,7 +60,7 @@ abstract class CommonCopyMemberItemTest<M : MemberItem> : BaseModelTest() {
 
             val context =
                 CopyContext(
-                    codebase,
+                    this,
                     sourceClassItem,
                     targetClassItem,
                     sourceMemberItem,

@@ -24,20 +24,22 @@ import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
+import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DefaultAnnotationItem
-import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.DefaultTypeParameterList
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.FixedFieldValue
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.JAVA_LANG_DEPRECATED
+import com.android.tools.metalava.model.JAVA_LANG_OBJECT
 import com.android.tools.metalava.model.MetalavaApi
 import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
@@ -47,11 +49,15 @@ import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeParameterListAndFactory
 import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.model.createImmutableModifiers
+import com.android.tools.metalava.model.createMutableModifiers
 import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.item.DefaultPackageItem
 import com.android.tools.metalava.model.item.DefaultTypeParameterItem
 import com.android.tools.metalava.model.item.DefaultValue
+import com.android.tools.metalava.model.item.MutablePackageDoc
+import com.android.tools.metalava.model.item.PackageDocs
 import com.android.tools.metalava.model.javaUnescapeString
 import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.type.MethodFingerprint
@@ -93,9 +99,11 @@ data class SignatureFile(
 @MetalavaApi
 class ApiFile
 private constructor(
-    private val codebase: TextCodebase,
+    private val assembler: TextCodebaseAssembler,
     private val formatForLegacyFiles: FileFormat?,
 ) {
+
+    private val codebase = assembler.codebase
 
     /**
      * Provides support for parsing and caching [TypeItem]s.
@@ -112,10 +120,7 @@ private constructor(
      * Defer creation as it depends on [typeParser].
      */
     private val globalTypeItemFactory by
-        lazy(LazyThreadSafetyMode.NONE) { TextTypeItemFactory(codebase, typeParser) }
-
-    /** Supports the initialization of a [TextCodebase]. */
-    private val assembler = codebase.assembler
+        lazy(LazyThreadSafetyMode.NONE) { TextTypeItemFactory(assembler, typeParser) }
 
     /** Creates [Item] instances for [codebase]. */
     private val itemFactory = assembler.itemFactory
@@ -170,11 +175,11 @@ private constructor(
             )
 
         /**
-         * Read API signature files into a [TextCodebase].
+         * Read API signature files into a [DefaultCodebase].
          *
-         * Note: when reading from them multiple files, [TextCodebase.location] would refer to the
-         * first file specified. each [Item.fileLocation] would correctly point out the source file
-         * of each item.
+         * Note: when reading from them multiple files, [DefaultCodebase.location] would refer to
+         * the first file specified. each [Item.fileLocation] would correctly point out the source
+         * file of each item.
          *
          * @param signatureFiles input signature files
          */
@@ -188,19 +193,20 @@ private constructor(
             apiStatsConsumer: (Stats) -> Unit = {},
         ): Codebase {
             require(signatureFiles.isNotEmpty()) { "files must not be empty" }
-            val api =
-                TextCodebase(
-                    location = signatureFiles[0].file,
-                    annotationManager = annotationManager,
-                    classResolver = classResolver,
-                )
             val actualDescription =
                 description
                     ?: buildString {
                         append("Codebase loaded from ")
                         signatureFiles.joinTo(this)
                     }
-            val parser = ApiFile(api, formatForLegacyFiles)
+            val assembler =
+                TextCodebaseAssembler.createAssembler(
+                    location = signatureFiles[0].file,
+                    description = actualDescription,
+                    annotationManager = annotationManager,
+                    classResolver = classResolver,
+                )
+            val parser = ApiFile(assembler, formatForLegacyFiles)
             var first = true
             for (signatureFile in signatureFiles) {
                 val file = signatureFile.file
@@ -222,12 +228,10 @@ private constructor(
                 )
                 first = false
             }
-            api.description = actualDescription
-            parser.postProcess()
 
             apiStatsConsumer(parser.stats)
 
-            return api
+            return assembler.codebase
         }
 
         /** <p>DO NOT MODIFY - used by com/android/gts/api/ApprovedApis.java */
@@ -268,22 +272,22 @@ private constructor(
             formatForLegacyFiles: FileFormat? = null,
         ): Codebase {
             val path = Path.of(filename)
-            val api =
-                TextCodebase(
+            val assembler =
+                TextCodebaseAssembler.createAssembler(
                     location = path.toFile(),
+                    description = "Codebase loaded from $filename",
                     annotationManager = noOpAnnotationManager,
                     classResolver = classResolver,
                 )
-            api.description = "Codebase loaded from $filename"
-            val parser = ApiFile(api, formatForLegacyFiles)
+            val parser = ApiFile(assembler, formatForLegacyFiles)
             parser.parseApiSingleFile(
                 appending = false,
                 path = path,
                 apiText = apiText,
                 forCurrentApiSurface = true,
             )
-            parser.postProcess()
-            return api
+
+            return assembler.codebase
         }
 
         /**
@@ -367,13 +371,6 @@ private constructor(
         }
     }
 
-    /**
-     * Perform any final steps to initialize the [TextCodebase] after parsing the signature files.
-     */
-    private fun postProcess() {
-        codebase.resolveSuperTypes()
-    }
-
     private fun parseApiSingleFile(
         appending: Boolean,
         path: Path,
@@ -423,44 +420,26 @@ private constructor(
 
         // Metalava: including annotations in file now
         val annotations = getAnnotations(tokenizer, token)
-        val modifiers = createModifiers(DefaultModifierList.PUBLIC, annotations)
+        val modifiers = createModifiers(VisibilityLevel.PUBLIC, annotations)
         token = tokenizer.current
         tokenizer.assertIdent(token)
         val name: String = token
 
-        // If the same package showed up multiple times, make sure they have the same modifiers.
-        // (Packages can't have public/private/etc., but they can have annotations, which are part
-        // of ModifierList.)
-        val existing = codebase.findPackage(name)
+        // Wrap the modifiers and file location in a PackageDocs so that findOrCreatePackage(...)
+        // will create a package with them and will check to make sure that an existing package, if
+        // any, has matching modifiers.
+        val packageDoc =
+            MutablePackageDoc(
+                name,
+                fileLocation = tokenizer.fileLocation(),
+                modifiers = modifiers,
+            )
+        val packageDocs = PackageDocs(mapOf(name to packageDoc))
         val pkg =
-            if (existing != null) {
-                if (modifiers != existing.modifiers) {
-                    throw ApiParseException(
-                        String.format(
-                            "Contradicting declaration of package %s. Previously seen with modifiers \"%s\", but now with \"%s\"",
-                            name,
-                            existing.modifiers,
-                            modifiers
-                        ),
-                        tokenizer
-                    )
-                }
-                // Make sure that to mark the existing package as part of the current API surface if
-                // it is referenced in any signature file that was part of the current API surface.
-                if (!existing.emit) {
-                    existing.markForCurrentApiSurface()
-                }
-                existing
-            } else {
-                val newPackageItem =
-                    itemFactory.createPackageItem(
-                        fileLocation = tokenizer.fileLocation(),
-                        modifiers = modifiers,
-                        qualifiedName = name,
-                    )
-                newPackageItem.markForCurrentApiSurface()
-                codebase.addPackage(newPackageItem)
-                newPackageItem
+            try {
+                codebase.findOrCreatePackage(name, packageDocs)
+            } catch (e: IllegalStateException) {
+                throw ApiParseException(e.message!!, tokenizer)
             }
 
         token = tokenizer.requireToken()
@@ -525,7 +504,6 @@ private constructor(
 
         // Extract lots of information from the declared class type.
         val (
-            className,
             fullName,
             qualifiedClassName,
             outerClass,
@@ -593,7 +571,7 @@ private constructor(
                 qualifiedName = qualifiedClassName,
                 fullName = fullName,
                 classKind = classKind,
-                modifiers = modifiers,
+                modifiers = modifiers.toImmutable(),
                 superClassType = superClassType,
             )
 
@@ -601,6 +579,16 @@ private constructor(
         // one and return. Otherwise, drop through and create a whole new class.
         if (tryMergingIntoExistingClass(tokenizer, newClassCharacteristics)) {
             return
+        }
+
+        // Default the superClassType() to java.lang.Object for any class that is not an interface,
+        // annotation, or enum and which is not itself java.lang.Object.
+        if (
+            classKind == ClassKind.CLASS &&
+                superClassType == null &&
+                qualifiedClassName != JAVA_LANG_OBJECT
+        ) {
+            superClassType = globalTypeItemFactory.superObjectType
         }
 
         // Create the DefaultClassItem and set its package but do not add it to the package or
@@ -613,20 +601,13 @@ private constructor(
                 containingClass = outerClass,
                 containingPackage = pkg,
                 qualifiedName = qualifiedClassName,
-                simpleName = className,
-                fullName = fullName,
                 typeParameterList = typeParameterList,
+                // All signature files have to be explicitly specified.
+                origin = ClassOrigin.COMMAND_LINE,
+                superClassType = superClassType,
+                interfaceTypes = interfaceTypes.toList(),
             )
         cl.markForCurrentApiSurface()
-
-        // Default the superClassType() to java.lang.Object for any class that is not an interface,
-        // annotation, or enum and which is not itself java.lang.Object.
-        if (classKind == ClassKind.CLASS && superClassType == null && !cl.isJavaLangObject()) {
-            superClassType = globalTypeItemFactory.superObjectType
-        }
-        cl.setSuperClassType(superClassType)
-
-        cl.setInterfaceTypes(interfaceTypes.toList())
 
         // Store the [TypeItemFactory] for this [ClassItem] so it can be retrieved later in
         // [typeItemFactoryForClass].
@@ -669,8 +650,10 @@ private constructor(
         // Add new annotations to the existing class
         val newClassAnnotations = newClassCharacteristics.modifiers.annotations().toSet()
         val existingClassAnnotations = existingCharacteristics.modifiers.annotations().toSet()
-        for (annotation in newClassAnnotations.subtract(existingClassAnnotations)) {
-            existingClass.modifiers.addAnnotation(annotation)
+
+        val extraAnnotations = newClassAnnotations.subtract(existingClassAnnotations)
+        if (extraAnnotations.isNotEmpty()) {
+            existingClass.mutateModifiers { mutateAnnotations { addAll(extraAnnotations) } }
         }
 
         // Use the latest super class.
@@ -761,8 +744,6 @@ private constructor(
 
     /** Encapsulates multiple return values from [parseDeclaredClassType]. */
     private data class DeclaredClassTypeComponents(
-        /** The simple name of the class, i.e. not including any outer class prefix. */
-        val simpleName: String,
         /** The full name of the class, including outer class prefix. */
         val fullName: String,
         /** The fully qualified name, including package and full name. */
@@ -808,21 +789,19 @@ private constructor(
 
         // Split the full name into an optional outer class and a simple name.
         val nestedClassIndex = fullName.lastIndexOf('.')
-        val (outerClass, simpleName) =
+        val outerClass =
             if (nestedClassIndex == -1) {
-                Pair(null, fullName)
+                null
             } else {
                 val outerClassFullName = fullName.substring(0, nestedClassIndex)
                 val qualifiedOuterClassName = qualifiedName(pkgName, outerClassFullName)
 
                 // Search for the outer class in the codebase. This is safe as the outer class
                 // always precedes its nested classes.
-                val outerClass =
-                    codebase.getOrCreateClass(qualifiedOuterClassName, isOuterClass = true)
-                        as DefaultClassItem
-
-                val nestedClassName = fullName.substring(nestedClassIndex + 1)
-                Pair(outerClass, nestedClassName)
+                assembler.getOrCreateClass(
+                    qualifiedOuterClassName,
+                    isOuterClassOfClassInThisCodebase = true
+                ) as DefaultClassItem
             }
 
         // Get the [TextTypeItemFactory] for the outer class, if any, from a previously stored one,
@@ -868,7 +847,6 @@ private constructor(
                 ?: Pair(typeParameterList, typeItemFactory)
 
         return DeclaredClassTypeComponents(
-            simpleName = simpleName,
             fullName = fullName,
             qualifiedName = qualifiedName,
             outerClass = outerClass,
@@ -940,24 +918,19 @@ private constructor(
 
     /**
      * Collects all the sequential annotations from the [tokenizer] beginning with [startingToken],
-     * returning them as a (possibly empty) mutable list.
+     * returning them as a (possibly empty) list.
      *
      * When the method returns, the [tokenizer] will point to the token after the annotation list.
      */
-    private fun getAnnotations(
-        tokenizer: Tokenizer,
-        startingToken: String
-    ): MutableList<AnnotationItem> {
-        val annotations: MutableList<AnnotationItem> = mutableListOf()
+    private fun getAnnotations(tokenizer: Tokenizer, startingToken: String) = buildList {
         var token = startingToken
         while (true) {
             val annotationSource = getAnnotationSource(tokenizer, token) ?: break
             token = tokenizer.current
             DefaultAnnotationItem.create(codebase, annotationSource)?.let { annotationItem ->
-                annotations.add(annotationItem)
+                add(annotationItem)
             }
         }
-        return annotations
     }
 
     /**
@@ -1231,10 +1204,10 @@ private constructor(
     private fun parseModifiers(
         tokenizer: Tokenizer,
         startingToken: String?,
-        annotations: MutableList<AnnotationItem>
-    ): DefaultModifierList {
+        annotations: List<AnnotationItem>
+    ): MutableModifierList {
         var token = startingToken
-        val modifiers = createModifiers(DefaultModifierList.PACKAGE_PRIVATE, annotations)
+        val modifiers = createModifiers(VisibilityLevel.PACKAGE_PRIVATE, annotations)
 
         processModifiers@ while (true) {
             token =
@@ -1337,12 +1310,12 @@ private constructor(
         return modifiers
     }
 
-    /** Creates a [DefaultModifierList], setting the deprecation based on the [annotations]. */
+    /** Creates a [MutableModifierList], setting the deprecation based on the [annotations]. */
     private fun createModifiers(
-        visibility: Int,
-        annotations: MutableList<AnnotationItem>
-    ): DefaultModifierList {
-        val modifiers = DefaultModifierList(codebase, visibility, annotations)
+        visibility: VisibilityLevel,
+        annotations: List<AnnotationItem>
+    ): MutableModifierList {
+        val modifiers = createMutableModifiers(visibility, annotations)
         // @Deprecated is also treated as a "modifier"
         if (annotations.any { it.qualifiedName == JAVA_LANG_DEPRECATED }) {
             modifiers.setDeprecated(true)
@@ -1450,7 +1423,13 @@ private constructor(
             throw ApiParseException("expected ; found $token", tokenizer)
         }
         val property =
-            itemFactory.createPropertyItem(tokenizer.fileLocation(), modifiers, name, cl, type)
+            itemFactory.createPropertyItem(
+                fileLocation = tokenizer.fileLocation(),
+                modifiers = modifiers,
+                name = name,
+                containingClass = cl,
+                type = type,
+            )
         property.markForCurrentApiSurface()
         cl.addProperty(property)
     }
@@ -1511,7 +1490,7 @@ private constructor(
             scopeDescription,
             typeParameterStrings,
             // Create a `TextTypeParameterItem` from the type parameter string.
-            { createTypeParameterItem(codebase, it) },
+            { createTypeParameterItem(it) },
             // Create, set and return the [BoundsTypeItem] list.
             { typeItemFactory, typeParameterString ->
                 val boundsStringList = extractTypeParameterBoundsStringList(typeParameterString)
@@ -1527,10 +1506,7 @@ private constructor(
      * [typeParameterString] and creates a [DefaultTypeParameterItem] with those properties
      * initialized but the [DefaultTypeParameterItem.bounds] is not.
      */
-    private fun createTypeParameterItem(
-        codebase: DefaultCodebase,
-        typeParameterString: String,
-    ): DefaultTypeParameterItem {
+    private fun createTypeParameterItem(typeParameterString: String): DefaultTypeParameterItem {
         val length = typeParameterString.length
         var nameEnd = length
 
@@ -1552,7 +1528,7 @@ private constructor(
         val name = typeParameterString.substring(nameStart, nameEnd)
 
         // TODO: Type use annotations support will need to handle annotations on the parameter.
-        val modifiers = DefaultModifierList(codebase, DefaultModifierList.PUBLIC)
+        val modifiers = createImmutableModifiers(VisibilityLevel.PUBLIC)
 
         return itemFactory.createTypeParameterItem(
             modifiers = modifiers,
@@ -1730,7 +1706,7 @@ private constructor(
         val publicName: String?,
         val defaultValue: DefaultValue,
         val typeString: String,
-        val modifiers: DefaultModifierList,
+        val modifiers: MutableModifierList,
         val location: FileLocation,
         val index: Int
     ) {
@@ -1752,20 +1728,17 @@ private constructor(
 
             val parameter =
                 itemFactory.createParameterItem(
-                    location,
-                    modifiers,
-                    name,
-                    { publicName },
-                    containingCallable,
-                    index,
-                    type,
-                    defaultValue,
+                    fileLocation = location,
+                    modifiers = modifiers,
+                    name = name,
+                    publicNameProvider = { publicName },
+                    containingCallable = containingCallable,
+                    parameterIndex = index,
+                    type = type,
+                    defaultValueFactory = { defaultValue },
                 )
 
             parameter.markForCurrentApiSurface()
-            if (type is ArrayTypeItem && type.isVarargs) {
-                modifiers.setVarArg(true)
-            }
 
             return parameter
         }
@@ -1858,7 +1831,7 @@ private constructor(
      * @param typeItem the type of the API item.
      * @param modifiers the API item's modifiers.
      */
-    private fun synchronizeNullability(typeItem: TypeItem, modifiers: DefaultModifierList) {
+    private fun synchronizeNullability(typeItem: TypeItem, modifiers: MutableModifierList) {
         if (typeParser.kotlinStyleNulls) {
             // Add an annotation to the context item for the type's nullability if applicable.
             val annotationToAdd =

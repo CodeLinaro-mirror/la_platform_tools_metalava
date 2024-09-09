@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.psi
 import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.CallableBody
+import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.Issues
@@ -60,6 +61,19 @@ internal class PsiCallableBody(private val callable: PsiCallableItem) : Callable
      */
     private val psiMethod
         get() = callable.psiMethod
+
+    override fun duplicate(callableItem: CallableItem): CallableBody {
+        // It is ok to cast here as `duplicate` will always be called with a `callableItem` from the
+        // same type of `Codebase` as this is.
+        return PsiCallableBody(callableItem as PsiCallableItem)
+    }
+
+    // Cannot create a copy of this as callableItem cannot be cast to PsiCallableItem. There is no
+    // easy way to capture the state of this sufficiently well to implement the necessary behavior
+    // so just pretend it is unavailable for now.
+    override fun snapshot(callableItem: CallableItem): CallableBody {
+        return CallableBody.UNAVAILABLE
+    }
 
     override fun findThrownExceptions(): Set<ClassItem> {
         if (!callable.isKotlin()) {

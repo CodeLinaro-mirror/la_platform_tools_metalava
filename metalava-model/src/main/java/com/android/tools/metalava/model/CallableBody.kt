@@ -16,10 +16,35 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.reporter.FileLocation
+
+/**
+ * A lamda that given a [CallableItem] will create a [CallableBody] for it.
+ *
+ * This is called from within the constructor of the [CallableItem] and should not access any
+ * properties of [CallableItem] as they may not have been initialized. This should just store a
+ * reference for later use.
+ */
+typealias CallableBodyFactory = (CallableItem) -> CallableBody
 
 /** Represents the body of a [CallableItem]. */
 interface CallableBody {
+
+    /**
+     * Return a duplicate of this instance to use by [callableItem] which will be in the same type
+     * of [Codebase] as this.
+     */
+    fun duplicate(callableItem: CallableItem): CallableBody
+
+    /**
+     * Take a snapshot of this suitable for use by [callableItem] which will be in a
+     * [DefaultCodebase].
+     *
+     * At the moment this simply delegates to [duplicate] as there is no easy way to take a snapshot
+     * of the state.
+     */
+    fun snapshot(callableItem: CallableItem) = duplicate(callableItem)
 
     /**
      * Finds uncaught exceptions actually thrown inside this body (as opposed to ones declared in
@@ -48,6 +73,8 @@ interface CallableBody {
         /** Indicates that the model does not provide [CallableBody] instances. */
         val UNAVAILABLE =
             object : CallableBody {
+                override fun duplicate(callableItem: CallableItem) = this
+
                 override fun findThrownExceptions() = error("method body is unavailable")
 
                 /** Return an empty list as the method body is unavailable. */
@@ -59,5 +86,13 @@ interface CallableBody {
                     typeDefClass: ClassItem
                 ) {}
             }
+
+        /**
+         * A special [CallableBodyFactory] that returns [UNAVAILABLE].
+         *
+         * Used where there is no available body, e.g. text/turbine model, implicit default
+         * constructor, etc..
+         */
+        val UNAVAILABLE_FACTORY: CallableBodyFactory = { UNAVAILABLE }
     }
 }

@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.turbine
 
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ModifierList
+import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.item.DefaultValue
@@ -35,4 +36,6 @@ class TurbineDefaultValue(private val modifiers: ModifierList) : DefaultValue {
         val annotation = modifiers.findAnnotation(AnnotationItem::isDefaultValue)
         return annotation?.attributes?.firstOrNull()?.value?.value()?.toString()
     }
+
+    override fun duplicate(parameter: ParameterItem) = TurbineDefaultValue(parameter.modifiers)
 }

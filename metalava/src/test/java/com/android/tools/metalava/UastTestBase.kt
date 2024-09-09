@@ -395,6 +395,40 @@ abstract class UastTestBase : DriverTest() {
         )
     }
 
+    @FilterByProvider("psi", "k2", action = EXCLUDE)
+    @Test
+    fun `internal setter with delegation`() {
+        // https://youtrack.jetbrains.com/issue/KT-70458
+        check(
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+                        class Test {
+                          var prop = "zzz"
+                            internal set
+                          var lazyProp by lazy { setOf("zzz") }
+                            internal set
+                        }
+                        """
+                    )
+                ),
+            api =
+                """
+                package test.pkg {
+                  public final class Test {
+                    ctor public Test();
+                    method public java.util.Set<java.lang.String> getLazyProp();
+                    method public String getProp();
+                    property public final java.util.Set<java.lang.String> lazyProp;
+                    property public final String prop;
+                  }
+                }
+                """
+        )
+    }
+
     @Test
     fun `non-last vararg type`() {
         // https://youtrack.jetbrains.com/issue/KT-57547
@@ -802,6 +836,36 @@ abstract class UastTestBase : DriverTest() {
                   public final class NavGraphBuilderKt {
                     method public static Void after(test.pkg.NavGraphBuilder, optional kotlin.jvm.functions.Function1<test.pkg.AnimatedContentTransitionScope<test.pkg.NavBackStackEntry>,test.pkg.EnterTransition?>? enterTransition);
                     method @Deprecated public static Void before(test.pkg.NavGraphBuilder, optional kotlin.jvm.functions.Function1<${wildcard1}test.pkg.AnimatedContentTransitionScope<test.pkg.NavBackStackEntry>,${wildcard2}test.pkg.EnterTransition?>? enterTransition);
+                  }
+                }
+                """
+        )
+    }
+
+    @Test
+    fun `Upper bound wildcards -- suspend continuation with generic collection`() {
+        val wildcard = if (isK2) "" else "? extends "
+        check(
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+
+                        class Test {
+                          suspend fun foo(): Set<String> {
+                            return setOf("blah")
+                          }
+                        }
+                        """
+                    )
+                ),
+            api =
+                """
+                package test.pkg {
+                  public final class Test {
+                    ctor public Test();
+                    method public suspend Object? foo(kotlin.coroutines.Continuation<? super java.util.Set<${wildcard}java.lang.String>>);
                   }
                 }
                 """

@@ -19,7 +19,7 @@ package com.android.tools.metalava.model
 import com.android.tools.metalava.model.item.DefaultValue
 
 @MetalavaApi
-interface ParameterItem : Item {
+interface ParameterItem : ClassContentItem, Item {
     /** The name of this field */
     fun name(): String
 
@@ -88,7 +88,7 @@ interface ParameterItem : Item {
     val defaultValue: DefaultValue
 
     /** Whether this is a varargs parameter */
-    fun isVarArgs(): Boolean
+    fun isVarArgs(): Boolean = modifiers.isVarArg()
 
     /** The property declared by this parameter; inverse of [PropertyItem.constructorParameter] */
     val property: PropertyItem?

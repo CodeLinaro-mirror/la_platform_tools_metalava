@@ -20,6 +20,7 @@ import com.android.tools.lint.UastEnvironment
 import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassResolver
+import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.reporter.Reporter
 import com.intellij.psi.JavaPsiFacade
 import com.intellij.psi.search.GlobalSearchScope
@@ -41,17 +42,20 @@ internal class PsiBasedClassResolver(
         javaPsiFacade = JavaPsiFacade.getInstance(project)
         searchScope = GlobalSearchScope.everythingScope(project)
 
-        classpathCodebase =
-            PsiBasedCodebase(
-                location = File("classpath"),
-                description = "Codebase from classpath",
-                annotationManager = annotationManager,
-                reporter = reporter,
-                fromClasspath = true,
-                allowReadingComments = allowReadingComments,
-            )
-        val emptyPackageDocs = PackageDocs(mutableMapOf(), mutableMapOf())
-        classpathCodebase.initializeFromSources(uastEnvironment, emptyList(), emptyPackageDocs)
+        val assembler =
+            PsiCodebaseAssembler(uastEnvironment) { assembler ->
+                PsiBasedCodebase(
+                    location = File("classpath"),
+                    description = "Codebase from classpath",
+                    annotationManager = annotationManager,
+                    reporter = reporter,
+                    fromClasspath = true,
+                    allowReadingComments = allowReadingComments,
+                    assembler = assembler,
+                )
+            }
+        assembler.initializeFromSources(SourceSet.empty())
+        classpathCodebase = assembler.codebase
     }
 
     override fun resolveClass(erasedName: String): ClassItem? {

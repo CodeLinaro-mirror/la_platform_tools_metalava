@@ -17,21 +17,21 @@
 package com.android.tools.metalava.model.item
 
 import com.android.tools.metalava.model.ApiVariantSelectorsFactory
+import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.DefaultModifierList
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.reporter.FileLocation
 
-class DefaultFieldItem(
+open class DefaultFieldItem(
     codebase: Codebase,
     fileLocation: FileLocation,
     itemLanguage: ItemLanguage,
     variantSelectorsFactory: ApiVariantSelectorsFactory,
-    modifiers: DefaultModifierList,
+    modifiers: BaseModifierList,
     documentationFactory: ItemDocumentationFactory,
     name: String,
     containingClass: ClassItem,
@@ -51,11 +51,11 @@ class DefaultFieldItem(
     ),
     FieldItem {
 
-    override var inheritedFrom: ClassItem? = null
+    final override var inheritedFrom: ClassItem? = null
 
-    override fun type(): TypeItem = type
+    final override fun type(): TypeItem = type
 
-    override fun setType(type: TypeItem) {
+    final override fun setType(type: TypeItem) {
         this.type = type
     }
 
@@ -65,7 +65,7 @@ class DefaultFieldItem(
                 fileLocation = fileLocation,
                 itemLanguage = itemLanguage,
                 variantSelectorsFactory = variantSelectors::duplicate,
-                modifiers = modifiers.duplicate(),
+                modifiers = modifiers,
                 documentationFactory = documentation::duplicate,
                 name = name(),
                 containingClass = targetContainingClass,
@@ -75,7 +75,8 @@ class DefaultFieldItem(
             )
             .also { duplicated -> duplicated.inheritedFrom = containingClass() }
 
-    override fun initialValue(requireConstant: Boolean) = fieldValue?.initialValue(requireConstant)
+    final override fun initialValue(requireConstant: Boolean) =
+        fieldValue?.initialValue(requireConstant)
 
-    override fun isEnumConstant(): Boolean = isEnumConstant
+    final override fun isEnumConstant(): Boolean = isEnumConstant
 }

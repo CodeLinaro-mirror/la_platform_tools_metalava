@@ -382,7 +382,7 @@ sealed class ApiVariantSelectors {
                 // marked @hide, but since we only see the .class files we don't know that.
                 if (
                     item.simpleName().startsWith("I") &&
-                        item.isFromClassPath() &&
+                        item.origin == ClassOrigin.CLASS_PATH &&
                         item.interfaceTypes().any { it.qualifiedName == "android.os.IInterface" }
                 ) {
                     hidden = true

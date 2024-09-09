@@ -24,6 +24,7 @@ import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.CodebaseCreatorConfig
 import com.android.tools.metalava.model.testing.CodebaseCreatorConfigAware
 import com.android.tools.metalava.testing.TemporaryFolderOwner
+import java.io.File
 import org.junit.Rule
 import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
@@ -91,8 +92,11 @@ abstract class BaseModelTest() :
         /** The [InputFormat] of the [testFiles]. */
         val inputFormat: InputFormat,
 
-        /** The [TestFile]s to process. */
+        /** The [TestFile]s to explicitly pass to code being tested. */
         val testFiles: List<TestFile>,
+
+        /** The optional [TestFile]s to pass on source path. */
+        val additionalTestFiles: List<TestFile>?,
     )
 
     /** Create an [InputSet] from a list of [TestFile]s. */
@@ -105,7 +109,7 @@ abstract class BaseModelTest() :
      * ([InputFormat.JAVA] or [InputFormat.KOTLIN]) and signature ([InputFormat.SIGNATURE]). If it
      * contains both [InputFormat.JAVA] and [InputFormat.KOTLIN] then the latter will be used.
      */
-    fun inputSet(vararg testFiles: TestFile): InputSet {
+    fun inputSet(vararg testFiles: TestFile, sourcePathFiles: List<TestFile>? = null): InputSet {
         if (testFiles.isEmpty()) {
             throw IllegalStateException("Must provide at least one source file")
         }
@@ -123,7 +127,7 @@ abstract class BaseModelTest() :
                 // are incompatible.
                 .reduce { if1, if2 -> if1.combineWith(if2) }
 
-        return InputSet(inputFormat, testFiles.toList())
+        return InputSet(inputFormat, testFiles.toList(), sourcePathFiles)
     }
 
     /**
@@ -132,9 +136,19 @@ abstract class BaseModelTest() :
     interface CodebaseContext {
         /** The newly created [Codebase]. */
         val codebase: Codebase
+
+        /** Replace any test run specific directories in [string] with a placeholder string. */
+        fun removeTestSpecificDirectories(string: String): String
     }
 
-    private class DefaultCodebaseContext<C : Codebase>(override val codebase: C) : CodebaseContext
+    inner class DefaultCodebaseContext(
+        override val codebase: Codebase,
+        private val mainSourceDir: File,
+    ) : CodebaseContext {
+        override fun removeTestSpecificDirectories(string: String): String {
+            return cleanupString(string, mainSourceDir)
+        }
+    }
 
     /**
      * Create a [Codebase] from one of the supplied [inputSets] and then run a test on that
@@ -146,13 +160,15 @@ abstract class BaseModelTest() :
     private fun createCodebaseFromInputSetAndRun(
         inputSets: Array<out InputSet>,
         commonSourcesByInputFormat: Map<InputFormat, InputSet> = emptyMap(),
-        test: (Codebase) -> Unit,
+        test: CodebaseContext.() -> Unit,
     ) {
         // Run the input set that matches the current inputFormat, if there is one.
         inputSets
             .singleOrNull { it.inputFormat == inputFormat }
             ?.let { inputSet ->
                 val mainSourceDir = sourceDir(inputSet)
+
+                val additionalSourceDir = inputSet.additionalTestFiles?.let { sourceDir(it) }
 
                 val commonSourceDir =
                     commonSourcesByInputFormat[inputFormat]?.let { commonInputSet ->
@@ -164,16 +180,23 @@ abstract class BaseModelTest() :
                         inputFormat = inputSet.inputFormat,
                         modelOptions = codebaseCreatorConfig.modelOptions,
                         mainSourceDir = mainSourceDir,
+                        additionalMainSourceDir = additionalSourceDir,
                         commonSourceDir = commonSourceDir,
                     )
-                runner.createCodebaseAndRun(inputs) { codebase -> test(codebase) }
+                runner.createCodebaseAndRun(inputs) { codebase ->
+                    val context = DefaultCodebaseContext(codebase, mainSourceDir.dir)
+                    context.test()
+                }
             }
     }
 
     private fun sourceDir(inputSet: InputSet): ModelSuiteRunner.SourceDir {
+        return sourceDir(inputSet.testFiles)
+    }
+
+    private fun sourceDir(testFiles: List<TestFile>): ModelSuiteRunner.SourceDir {
         val tempDir = temporaryFolder.newFolder()
-        val mainSourceDir = ModelSuiteRunner.SourceDir(dir = tempDir, contents = inputSet.testFiles)
-        return mainSourceDir
+        return ModelSuiteRunner.SourceDir(dir = tempDir, contents = testFiles)
     }
 
     private fun testFilesToInputSets(testFiles: Array<out TestFile>): Array<InputSet> {
@@ -229,12 +252,10 @@ abstract class BaseModelTest() :
         test: CodebaseContext.() -> Unit,
     ) {
         createCodebaseFromInputSetAndRun(
-            sources,
+            inputSets = sources,
             commonSourcesByInputFormat = commonSourcesByInputFormat,
-        ) { codebase ->
-            val context = DefaultCodebaseContext(codebase)
-            context.test()
-        }
+            test = test,
+        )
     }
 
     /**
@@ -289,10 +310,8 @@ abstract class BaseModelTest() :
         createCodebaseFromInputSetAndRun(
             inputSets = sources,
             commonSourcesByInputFormat = commonSourcesByInputFormat,
-        ) { codebase ->
-            val context = DefaultCodebaseContext(codebase)
-            context.test()
-        }
+            test = test,
+        )
     }
 
     /**

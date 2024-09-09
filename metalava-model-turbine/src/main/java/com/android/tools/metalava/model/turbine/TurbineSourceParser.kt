@@ -19,12 +19,10 @@ package com.android.tools.metalava.model.turbine
 import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.source.SourceSet
-import com.android.tools.metalava.model.source.utils.findPackage
 import com.android.tools.metalava.reporter.Reporter
-import com.google.turbine.diag.SourceFile
-import com.google.turbine.parse.Parser
 import java.io.File
 
 internal class TurbineSourceParser(
@@ -48,76 +46,32 @@ internal class TurbineSourceParser(
     ): Codebase {
         val rootDir = sourceSet.sourcePath.firstOrNull() ?: File("").canonicalFile
 
-        val sources = sourceSet.sources
-
-        // Scan the files looking for package.html files and return a map from name to file just in
-        // case they are needed to create packages.
-        val packageHtmlByPackageName = findPackageHtmlFileByPackageName(sources)
-
-        val sourceFiles = getSourceFiles(sources)
-        val units = sourceFiles.map { Parser.parse(it) }
-
-        // Create the Codebase. The initialization of the codebase has to done after the creation of
-        // the codebase and not during, i.e. in the lambda, because the codebase will not be fully
-        // initialized when it is called.
-        val codebase =
-            TurbineBasedCodebase(rootDir, description, annotationManager, reporter) { codebase ->
-                TurbineCodebaseInitialiser(
-                    units,
-                    codebase as TurbineBasedCodebase,
-                    classPath,
-                    allowReadingComments,
-                )
-            }
+        val assembler =
+            TurbineCodebaseInitialiser(
+                codebaseFactory = { assembler ->
+                    DefaultCodebase(
+                        location = rootDir,
+                        description = description,
+                        preFiltered = false,
+                        annotationManager = annotationManager,
+                        trustedApi = false,
+                        supportsDocumentation = true,
+                        reporter = reporter,
+                        assembler = assembler,
+                    )
+                },
+                classpath = classPath,
+                allowReadingComments = allowReadingComments,
+            )
 
         // Initialize the codebase.
-        (codebase.assembler as TurbineCodebaseInitialiser).initialize(packageHtmlByPackageName)
+        assembler.initialize(sourceSet)
 
         // Return the newly created and initialized codebase.
-        return codebase
-    }
-
-    private fun getSourceFiles(sources: List<File>): List<SourceFile> {
-        return sources
-            .filter { it.isFile && it.extension == "java" } // Ensure only Java files are included
-            .map { SourceFile(it.path, it.readText()) }
+        return assembler.codebase
     }
 
     override fun loadFromJar(apiJar: File): Codebase {
         TODO("b/299044569 handle this")
-    }
-
-    /**
-     * Finds `package.html` files in the source and returns a mapping from the package name,
-     * obtained from the file path, to the file.
-     */
-    private fun findPackageHtmlFileByPackageName(files: List<File>): Map<String, File> {
-        return files
-            .filter { it.isFile && it.name == "package.html" }
-            .associateBy({ findPackageName(it) }) { it }
-    }
-
-    /**
-     * Attempts to find the package name by looking for any Java class files in the same directory,
-     * if unsuccessful, it will guess based on the directory structure.
-     */
-    private fun findPackageName(file: File): String {
-        // First try to find a package name using the utility method which might analyze the java
-        // file
-        file.parentFile
-            .listFiles()
-            ?.filter { it.isFile && it.extension == "java" }
-            ?.forEach { javaFile ->
-                findPackage(javaFile)?.let {
-                    return it
-                }
-            }
-
-        // If no class file with package declaration was found, deduce from the directory structure
-        return file.parentFile.absolutePath
-            .split(File.separatorChar)
-            .dropWhile { it != "java" }
-            .drop(1)
-            .joinToString(".")
     }
 }

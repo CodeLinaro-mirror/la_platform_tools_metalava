@@ -126,8 +126,12 @@ fun Item.markRecent() {
     // Nullness information change: Add migration annotation
     val annotationClass = if (annotation.isNullable()) RECENTLY_NULLABLE else RECENTLY_NONNULL
 
-    val modifiers = mutableModifiers()
-    modifiers.removeAnnotation(annotation)
+    val replacementAnnotation = codebase.createAnnotation("@$annotationClass", this)
 
-    modifiers.addAnnotation(codebase.createAnnotation("@$annotationClass", this))
+    mutateModifiers {
+        mutateAnnotations {
+            remove(annotation)
+            replacementAnnotation?.let { add(it) }
+        }
+    }
 }

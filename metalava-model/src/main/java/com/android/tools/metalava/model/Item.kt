@@ -67,7 +67,7 @@ interface Item : Reportable {
     /** Whether this element will be printed in the signature file */
     var emit: Boolean
 
-    fun parent(): Item?
+    fun parent(): SelectableItem?
 
     /**
      * Recursive check to see if this item or any of its parents (containing class, containing
@@ -109,8 +109,14 @@ interface Item : Reportable {
     /** Visits this element using the given [visitor] */
     fun accept(visitor: ItemVisitor)
 
-    /** Get a mutable version of modifiers for this item */
-    fun mutableModifiers(): MutableModifierList
+    /**
+     * Mutate the [modifiers] list.
+     *
+     * Provides a [MutableModifierList] of the [modifiers] that can be modified by [mutator]. Once
+     * the mutator exits the [modifiers] will be updated. The [MutableModifierList] must not be
+     * accessed from outside [mutator].
+     */
+    fun mutateModifiers(mutator: MutableModifierList.() -> Unit)
 
     /**
      * The javadoc/KDoc comment for this code element, if any. This is the original content of the
@@ -176,12 +182,6 @@ interface Item : Reportable {
     fun toStringForItem(): String
 
     /**
-     * Whether this item was loaded from the classpath (e.g. jar dependencies) rather than be
-     * declared as source
-     */
-    fun isFromClassPath(): Boolean = false
-
-    /**
      * The language in which this was written, or [ItemLanguage.UNKNOWN] if not known, e.g. when
      * created from a signature file.
      */
@@ -212,11 +212,22 @@ interface Item : Reportable {
     fun hasShowAnnotation(): Boolean = showability.show()
 
     /** Returns true if this modifier list contains any hide annotations */
-    fun hasHideAnnotation(): Boolean =
-        modifiers.codebase.annotationManager.hasHideAnnotations(modifiers)
+    fun hasHideAnnotation(): Boolean = codebase.annotationManager.hasHideAnnotations(modifiers)
 
+    /**
+     * Returns true if this [Item]'s modifier list contains any suppress compatibility
+     * meta-annotations.
+     *
+     * Metalava will suppress compatibility checks for APIs which are within the scope of a
+     * "suppress compatibility" meta-annotation, but they may still be written to API files or stub
+     * JARs.
+     *
+     * "Suppress compatibility" meta-annotations allow Metalava to handle concepts like Jetpack
+     * experimental APIs, where developers can use the [RequiresOptIn] meta-annotation to mark
+     * feature sets with unstable APIs.
+     */
     fun hasSuppressCompatibilityMetaAnnotation(): Boolean =
-        modifiers.hasSuppressCompatibilityMetaAnnotations()
+        codebase.annotationManager.hasSuppressCompatibilityMetaAnnotations(modifiers)
 
     fun sourceFile(): SourceFile? {
         var curr: Item? = this
@@ -434,7 +445,8 @@ interface Item : Reportable {
         }
 
         private fun describe(item: PackageItem, capitalize: Boolean = false): String {
-            return "${if (capitalize) "Package" else "package"} ${item.qualifiedName()}"
+            val suffix = item.qualifiedName().let { if (it.isEmpty()) "<root>" else it }
+            return "${if (capitalize) "Package" else "package"} $suffix"
         }
     }
 }
@@ -443,7 +455,7 @@ interface Item : Reportable {
 abstract class AbstractItem(
     final override val fileLocation: FileLocation,
     final override val itemLanguage: ItemLanguage,
-    final override val modifiers: DefaultModifierList,
+    modifiers: BaseModifierList,
     documentationFactory: ItemDocumentationFactory,
     variantSelectorsFactory: ApiVariantSelectorsFactory,
 ) : Item {
@@ -456,12 +468,21 @@ abstract class AbstractItem(
      */
     final override val documentation = @Suppress("LeakingThis") documentationFactory(this)
 
-    init {
-        @Suppress("LeakingThis")
-        modifiers.owner = this
+    /**
+     * The immutable [modifiers].
+     *
+     * The supplied `modifiers` parameter could be either [MutableModifierList] or [ModifierList]
+     * but this requires a [ModifierList] so get one using [BaseModifierList.toImmutable].
+     *
+     * The [ModifierList] that this references is immutable but the [mutateModifiers] method can be
+     * used to change the [ModifierList] to which this refers.
+     */
+    final override var modifiers: ModifierList = modifiers.toImmutable()
+        private set
 
-        if (documentation.contains("@deprecated")) {
-            modifiers.setDeprecated(true)
+    init {
+        if (documentation.contains("@deprecated") && !modifiers.isDeprecated()) {
+            mutateModifiers { setDeprecated(true) }
         }
     }
 
@@ -498,7 +519,11 @@ abstract class AbstractItem(
         // the value of this and [Item.effectivelyDeprecated] which delegates to this.
         get() = modifiers.isDeprecated()
 
-    final override fun mutableModifiers(): MutableModifierList = modifiers
+    final override fun mutateModifiers(mutator: MutableModifierList.() -> Unit) {
+        val mutable = modifiers.toMutable()
+        mutable.mutator()
+        modifiers = mutable.toImmutable()
+    }
 
     final override val isPublic: Boolean
         get() = modifiers.isPublic()

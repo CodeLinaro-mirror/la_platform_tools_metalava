@@ -16,15 +16,20 @@
 
 package com.android.tools.metalava.model.psi
 
+import com.android.tools.metalava.model.ApiVariantSelectors
+import com.android.tools.metalava.model.BaseModifierList
+import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
-import com.android.tools.metalava.model.ConstructorItem
-import com.android.tools.metalava.model.DefaultModifierList
-import com.android.tools.metalava.model.DefaultModifierList.Companion.PACKAGE_PRIVATE
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
-import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
+import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.model.createImmutableModifiers
+import com.android.tools.metalava.model.item.DefaultConstructorItem
+import com.android.tools.metalava.model.item.ParameterItemsFactory
+import com.android.tools.metalava.model.psi.PsiCallableItem.Companion.parameterList
+import com.android.tools.metalava.model.psi.PsiCallableItem.Companion.throwsTypes
 import com.android.tools.metalava.reporter.FileLocation
 import com.intellij.psi.JavaPsiFacade
 import com.intellij.psi.PsiClass
@@ -35,57 +40,62 @@ import org.jetbrains.uast.UMethod
 
 internal class PsiConstructorItem
 private constructor(
-    codebase: PsiBasedCodebase,
-    psiMethod: PsiMethod,
+    override val codebase: PsiBasedCodebase,
+    override val psiMethod: PsiMethod,
     fileLocation: FileLocation = PsiFileLocation(psiMethod),
-    containingClass: PsiClassItem,
+    containingClass: ClassItem,
     name: String,
-    modifiers: DefaultModifierList,
+    modifiers: BaseModifierList,
     documentationFactory: ItemDocumentationFactory,
     parameterItemsFactory: ParameterItemsFactory,
     returnType: ClassTypeItem,
     typeParameterList: TypeParameterList,
     throwsTypes: List<ExceptionTypeItem>,
-    val implicitConstructor: Boolean = false,
+    implicitConstructor: Boolean = false,
     override val isPrimary: Boolean = false
 ) :
-    PsiCallableItem(
+    DefaultConstructorItem(
         codebase = codebase,
+        fileLocation = fileLocation,
+        itemLanguage = psiMethod.itemLanguage,
         modifiers = modifiers,
         documentationFactory = documentationFactory,
-        psiMethod = psiMethod,
-        fileLocation = fileLocation,
-        containingClass = containingClass,
+        variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
         name = name,
+        containingClass = containingClass,
+        typeParameterList = typeParameterList,
         returnType = returnType,
         parameterItemsFactory = parameterItemsFactory,
-        typeParameterList = typeParameterList,
         throwsTypes = throwsTypes,
+        callableBodyFactory = { PsiCallableBody(it as PsiCallableItem) },
+        implicitConstructor = implicitConstructor,
     ),
-    ConstructorItem {
-
-    override fun isImplicitConstructor(): Boolean = implicitConstructor
-
-    override var superConstructor: ConstructorItem? = null
-
-    /** Override to specialize the return type. */
-    override fun returnType() = super.returnType() as ClassTypeItem
-
-    /** Override to make sure that [type] is a [ClassTypeItem]. */
-    override fun setType(type: TypeItem) {
-        super.setType(type as ClassTypeItem)
-    }
+    PsiCallableItem {
 
     companion object {
         internal fun create(
             codebase: PsiBasedCodebase,
-            containingClass: PsiClassItem,
+            containingClass: ClassItem,
             psiMethod: PsiMethod,
             enclosingClassTypeItemFactory: PsiTypeItemFactory,
         ): PsiConstructorItem {
             assert(psiMethod.isConstructor)
             val name = psiMethod.name
             val modifiers = PsiModifierItem.create(codebase, psiMethod)
+
+            // After KT-13495, "all constructors of `sealed` classes now have `protected`
+            // visibility by default," and (S|U)LC follows that (hence the same in UAST).
+            // However, that change was made to allow more flexible class hierarchy and
+            // nesting. If they're compiled to JVM bytecode, sealed class's ctor is still
+            // technically `private` to block instantiation from outside class hierarchy.
+            // Another synthetic constructor, along with an internal ctor marker, is added
+            // for subclasses of a sealed class. Therefore, from Metalava's perspective,
+            // it is not necessary to track such semantically protected ctor. Here we force
+            // set the visibility to `private` back to ignore it during signature writing.
+            if (containingClass.modifiers.isSealed()) {
+                modifiers.setVisibilityLevel(VisibilityLevel.PRIVATE)
+            }
+
             // Create the TypeParameterList for this before wrapping any of the other types used by
             // it as they may reference a type parameter in the list.
             val (typeParameterList, constructorTypeItemFactory) =
@@ -101,31 +111,36 @@ private constructor(
                     psiMethod = psiMethod,
                     containingClass = containingClass,
                     name = name,
-                    documentationFactory = PsiItemDocumentation.factory(psiMethod, codebase),
                     modifiers = modifiers,
+                    documentationFactory = PsiItemDocumentation.factory(psiMethod, codebase),
                     parameterItemsFactory = { containingCallable ->
-                        parameterList(containingCallable, constructorTypeItemFactory)
+                        parameterList(
+                            codebase,
+                            psiMethod,
+                            containingCallable as PsiCallableItem,
+                            constructorTypeItemFactory,
+                        )
                     },
                     returnType = containingClass.type(),
-                    implicitConstructor = false,
-                    isPrimary = (psiMethod as? UMethod)?.isPrimaryConstructor ?: false,
                     typeParameterList = typeParameterList,
                     throwsTypes = throwsTypes(psiMethod, constructorTypeItemFactory),
+                    implicitConstructor = false,
+                    isPrimary = (psiMethod as? UMethod)?.isPrimaryConstructor ?: false,
                 )
             return constructor
         }
 
         fun createDefaultConstructor(
             codebase: PsiBasedCodebase,
-            containingClass: PsiClassItem,
+            containingClass: ClassItem,
             psiClass: PsiClass,
+            visibilityLevel: VisibilityLevel,
         ): PsiConstructorItem {
             val name = psiClass.name!!
 
             val factory = JavaPsiFacade.getInstance(psiClass.project).elementFactory
             val psiMethod = factory.createConstructor(name, psiClass)
-            val modifiers = DefaultModifierList(codebase, PACKAGE_PRIVATE, null)
-            modifiers.setVisibilityLevel(containingClass.modifiers.getVisibilityLevel())
+            val modifiers = createImmutableModifiers(visibilityLevel)
 
             val item =
                 PsiConstructorItem(
@@ -136,13 +151,13 @@ private constructor(
                     fileLocation = containingClass.fileLocation,
                     containingClass = containingClass,
                     name = name,
-                    documentationFactory = ItemDocumentation.NONE_FACTORY,
                     modifiers = modifiers,
+                    documentationFactory = ItemDocumentation.NONE_FACTORY,
                     parameterItemsFactory = { emptyList() },
                     returnType = containingClass.type(),
-                    implicitConstructor = true,
                     typeParameterList = TypeParameterList.NONE,
                     throwsTypes = emptyList(),
+                    implicitConstructor = true,
                 )
             return item
         }

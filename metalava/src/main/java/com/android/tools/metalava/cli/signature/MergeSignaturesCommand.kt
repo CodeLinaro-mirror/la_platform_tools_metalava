@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.cli.signature
 
+import com.android.tools.metalava.ApiType
 import com.android.tools.metalava.OptionsDelegate
 import com.android.tools.metalava.SignatureWriter
 import com.android.tools.metalava.cli.common.MetalavaCliException
@@ -23,6 +24,7 @@ import com.android.tools.metalava.cli.common.MetalavaSubCommand
 import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.newFile
 import com.android.tools.metalava.cli.common.progressTracker
+import com.android.tools.metalava.createFilteringVisitorForSignatures
 import com.android.tools.metalava.createReportFile
 import com.android.tools.metalava.model.text.ApiFile
 import com.android.tools.metalava.model.text.ApiParseException
@@ -84,17 +86,21 @@ class MergeSignaturesCommand :
         try {
             val codebase = ApiFile.parseApi(SignatureFile.fromFiles(files))
             createReportFile(progressTracker, codebase, out, description = "Merged file") {
-                SignatureWriter(
+                val fileFormat = signatureFormat.fileFormat
+                val signatureWriter =
+                    SignatureWriter(
                         writer = it,
-                        fileFormat = signatureFormat.fileFormat,
+                        fileFormat = fileFormat,
                     )
-                    .createFilteringVisitor(
-                        filterEmit = { true },
-                        filterReference = { true },
-                        preFiltered = true,
-                        showUnannotated = false,
-                        apiVisitorConfig = ApiVisitor.Config(),
-                    )
+
+                createFilteringVisitorForSignatures(
+                    delegate = signatureWriter,
+                    fileFormat = fileFormat,
+                    apiType = ApiType.ALL,
+                    preFiltered = true,
+                    showUnannotated = false,
+                    apiVisitorConfig = ApiVisitor.Config()
+                )
             }
         } catch (e: ApiParseException) {
             throw MetalavaCliException(stderr = e.message)

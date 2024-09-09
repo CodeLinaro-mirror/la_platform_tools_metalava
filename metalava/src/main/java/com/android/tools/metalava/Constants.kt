@@ -21,7 +21,6 @@ const val ORG_INTELLIJ_LANG_ANNOTATIONS_PREFIX = "org.intellij.lang.annotations.
 const val ANDROID_SYSTEM_API = "android.annotation.SystemApi"
 const val ANDROID_TEST_API = "android.annotation.TestApi"
 const val ANDROID_FLAGGED_API = "android.annotation.FlaggedApi"
-const val ANDROID_REQUIRES_PERMISSION = "android.annotation.RequiresPermission"
 const val RECENTLY_NULLABLE = "androidx.annotation.RecentlyNullable"
 const val RECENTLY_NONNULL = "androidx.annotation.RecentlyNonNull"
 const val ANDROID_NULLABLE = "android.annotation.Nullable"

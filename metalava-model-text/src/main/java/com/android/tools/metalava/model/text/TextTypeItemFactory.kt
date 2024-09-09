@@ -27,7 +27,7 @@ import com.android.tools.metalava.model.type.ContextNullability
 import com.android.tools.metalava.model.type.DefaultTypeItemFactory
 
 internal class TextTypeItemFactory(
-    private val codebase: TextCodebase,
+    private val assembler: TextCodebaseAssembler,
     private val typeParser: TextTypeParser,
     typeParameterScope: TypeParameterScope = TypeParameterScope.empty,
 ) : DefaultTypeItemFactory<String, TextTypeItemFactory>(typeParameterScope) {
@@ -47,7 +47,7 @@ internal class TextTypeItemFactory(
     override fun self() = this
 
     override fun createNestedFactory(scope: TypeParameterScope) =
-        TextTypeItemFactory(codebase, typeParser, scope)
+        TextTypeItemFactory(assembler, typeParser, scope)
 
     override fun getType(
         underlyingType: String,
@@ -87,12 +87,12 @@ internal class TextTypeItemFactory(
     override fun getExceptionType(underlyingType: String) =
         super.getExceptionType(underlyingType).also { exceptionTypeItem ->
             if (exceptionTypeItem is ClassTypeItem) {
-                codebase.requireStubKindFor(exceptionTypeItem, StubKind.THROWABLE)
+                assembler.requireStubKindFor(exceptionTypeItem, StubKind.THROWABLE)
             }
         }
 
     override fun getInterfaceType(underlyingType: String) =
         super.getInterfaceType(underlyingType).also { classTypeItem ->
-            codebase.requireStubKindFor(classTypeItem, StubKind.INTERFACE)
+            assembler.requireStubKindFor(classTypeItem, StubKind.INTERFACE)
         }
 }

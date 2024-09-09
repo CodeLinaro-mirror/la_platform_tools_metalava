@@ -17,12 +17,13 @@
 package com.android.tools.metalava.model.text
 
 import com.android.tools.lint.checks.infrastructure.TestFile
+import com.android.tools.metalava.model.Codebase
 import com.google.common.truth.Truth.assertThat
 import kotlin.test.assertSame
 import org.junit.Assert.assertThrows
 import org.junit.Test
 
-/** Contains tests for when loading multiple files into a single [TextCodebase]. */
+/** Contains tests for when loading multiple files into a single [Codebase]. */
 class MultipleFileTest : BaseTextCodebaseTest() {
 
     @Test

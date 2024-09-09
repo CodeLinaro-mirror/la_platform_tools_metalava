@@ -69,7 +69,10 @@ class SourceMethodItemTest : BaseModelTest() {
                 methodItem.modifiers.getVisibilityLevel(),
                 duplicateMethod.modifiers.getVisibilityLevel()
             )
-            assertEquals(true, methodItem.modifiers.equivalentTo(duplicateMethod.modifiers))
+            assertEquals(
+                true,
+                methodItem.modifiers.equivalentTo(methodItem, duplicateMethod.modifiers)
+            )
             assertEquals("void", duplicateMethod.returnType().toTypeString())
             assertEquals(
                 listOf("M", "String"),
@@ -84,7 +87,10 @@ class SourceMethodItemTest : BaseModelTest() {
                 methodItem1.modifiers.getVisibilityLevel(),
                 duplicateMethod1.modifiers.getVisibilityLevel()
             )
-            assertEquals(true, methodItem1.modifiers.equivalentTo(duplicateMethod1.modifiers))
+            assertEquals(
+                true,
+                methodItem1.modifiers.equivalentTo(methodItem1, duplicateMethod1.modifiers)
+            )
             assertEquals("void", duplicateMethod.returnType().toTypeString())
             assertEquals(
                 listOf("C", "D"),
