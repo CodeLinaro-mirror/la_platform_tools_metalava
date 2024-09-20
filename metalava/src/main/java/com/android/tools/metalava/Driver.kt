@@ -716,15 +716,6 @@ private fun createStubFiles(
             }
         }
 
-    val stubWriter =
-        StubWriter(
-            stubsDir = stubDir,
-            generateAnnotations = options.generateAnnotations,
-            docStubs = docStubs,
-            reporter = options.reporter,
-            config = stubWriterConfig,
-        )
-
     val codebaseFragment =
         CodebaseFragment(codebase) { delegate ->
             createFilteringVisitorForStubs(
@@ -745,6 +736,16 @@ private fun createStubFiles(
         }
     val stubConstructorManager = StubConstructorManager(codebaseFragment.codebase)
     stubConstructorManager.addConstructors(filterEmit)
+
+    val stubWriter =
+        StubWriter(
+            stubsDir = stubDir,
+            generateAnnotations = options.generateAnnotations,
+            docStubs = docStubs,
+            reporter = options.reporter,
+            config = stubWriterConfig,
+            stubConstructorManager = stubConstructorManager,
+        )
 
     codebaseFragment.accept(stubWriter)
 
