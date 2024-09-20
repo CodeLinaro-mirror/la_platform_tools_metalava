@@ -57,7 +57,7 @@ class CommonCopyFieldItemTest : CommonCopyMemberItemTest<FieldItem>() {
 
                         import java.io.IOException;
 
-                        public interface Source  {
+                        public interface Source {
                             int field;
                         }
                     """
@@ -101,7 +101,7 @@ class CommonCopyFieldItemTest : CommonCopyMemberItemTest<FieldItem>() {
 
                         import java.io.IOException;
 
-                        interface Source  {
+                        public interface Source {
                             static int field;
                         }
                     """
@@ -131,7 +131,7 @@ class CommonCopyFieldItemTest : CommonCopyMemberItemTest<FieldItem>() {
 
                         import java.io.IOException;
 
-                        interface Source  {
+                        public interface Source {
                             int field;
                         }
                     """

@@ -738,7 +738,14 @@ class CommonSuperMethodsTest : BaseModelTest() {
             val method = codebase.assertClass("test.pkg.Foo").methods().first()
             val parentInterfaceMethod =
                 codebase.assertClass("test.pkg.ParentInterface").methods().first()
-            val hiddenClassMethod = codebase.assertClass("test.pkg.HiddenClass").methods().first()
+            val hiddenClassMethod =
+                codebase
+                    .assertResolvedClass(
+                        "test.pkg.HiddenClass",
+                        expectedEmit = true,
+                    )
+                    .methods()
+                    .first()
 
             assertEquals(listOf(hiddenClassMethod, parentInterfaceMethod), method.superMethods())
         }

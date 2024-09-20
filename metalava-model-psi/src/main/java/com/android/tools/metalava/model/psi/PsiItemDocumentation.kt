@@ -217,7 +217,7 @@ internal class PsiItemDocumentation(
                             return
                         }
 
-                        var className = containingClass.qualifiedName
+                        var className = containingClass.classQualifiedName
 
                         if (
                             element.firstChildNode.elementType ===
@@ -231,7 +231,7 @@ internal class PsiItemDocumentation(
                                 val referenceElement = firstChildPsi as PsiJavaCodeReferenceElement?
                                 val referencedElement = referenceElement!!.resolve()
                                 if (referencedElement is PsiClass) {
-                                    className = referencedElement.qualifiedName
+                                    className = referencedElement.classQualifiedName
                                 }
                             }
                         }
@@ -265,11 +265,11 @@ internal class PsiItemDocumentation(
                     if (samePackage(resolved) || resolved is PsiTypeParameter) {
                         sb.append(element.text)
                     } else {
-                        sb.append(resolved.qualifiedName)
+                        sb.append(resolved.classQualifiedName)
                     }
                 } else if (resolved is PsiMember) {
                     val text = element.text
-                    sb.append(resolved.containingClass?.qualifiedName)
+                    sb.append(resolved.containingClass?.classQualifiedName)
                     sb.append('#')
                     sb.append(resolved.name)
                     val index = text.indexOf('(')
@@ -352,7 +352,7 @@ internal class PsiItemDocumentation(
                             sb.append("{@")
                             sb.append(element.name)
                             sb.append(' ')
-                            sb.append(referencedElement.qualifiedName)
+                            sb.append(referencedElement.classQualifiedName)
                             val suffix = referenceText.substring(className.length)
                             if (suffix.contains("(") && suffix.contains(")")) {
                                 expandArgumentList(element, suffix, sb)

@@ -88,25 +88,30 @@ internal class JavaStubWriter(
         generateInterfaceList(cls)
         writer.print(" {\n")
 
+        // Enum constants must be written out first.
         if (cls.isEnum()) {
             var first = true
-            // Enums should preserve the original source order, not alphabetical etc. sort
-            for (field in cls.fields().sortedBy { it.sortingRank }) {
-                if (field.isEnumConstant()) {
-                    if (first) {
-                        first = false
-                    } else {
-                        writer.write(",\n")
-                    }
-                    appendDocumentation(field, writer, config)
-
-                    // Append the modifier list even though the enum constant does not actually have
-                    // modifiers as that will write the annotations which it does have and ignore
-                    // the modifiers.
-                    appendModifiers(field)
-
-                    writer.write(field.name())
+            // While enum order is significant at runtime as it affects `Enum.ordinal` and its
+            // comparable order it is not significant in the stubs so sort alphabetically. That
+            // matches the order in the documentation and the signature files. It is theoretically
+            // possible for an annotation processor to care about the order but any that did would
+            // be poorly written and would break on stubs created from signature files.
+            val enumConstants =
+                cls.fields().filter { it.isEnumConstant() }.sortedWith(FieldItem.comparator)
+            for (enumConstant in enumConstants) {
+                if (first) {
+                    first = false
+                } else {
+                    writer.write(",\n")
                 }
+                appendDocumentation(enumConstant, writer, config)
+
+                // Append the modifier list even though the enum constant does not actually have
+                // modifiers as that will write the annotations which it does have and ignore
+                // the modifiers.
+                appendModifiers(enumConstant)
+
+                writer.write(enumConstant.name())
             }
             writer.println(";")
         }
