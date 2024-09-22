@@ -23,18 +23,40 @@ import kotlin.test.assertNotNull
 
 interface Assertions {
 
-    /** Get the class from the [Codebase], failing if it does not exist. */
-    fun Codebase.assertClass(qualifiedName: String): ClassItem {
+    /**
+     * Get the class from the [Codebase], failing if it does not exist.
+     *
+     * Checks to make sure that returned [ClassItem]'s [ClassItem.emit] property matches
+     * [expectedEmit]. That defaults to `true` as this is usually used to retrieve a class that is
+     * present in the source which have `emit = true` by default.
+     */
+    fun Codebase.assertClass(qualifiedName: String, expectedEmit: Boolean = true): ClassItem {
         val classItem = findClass(qualifiedName)
         assertNotNull(classItem, message = "Expected $qualifiedName to be defined")
+        assertEquals(
+            expectedEmit,
+            classItem.emit,
+            message = "Expected $qualifiedName to have emit=$expectedEmit"
+        )
         return classItem
     }
 
-    /** Resolve the class from the [Codebase], failing if it does not exist. */
-    fun Codebase.assertResolvedClass(qualifiedName: String): ClassItem {
-        val classItem = resolveClass(qualifiedName)
-        assertNotNull(classItem, message = "Expected $qualifiedName to be defined")
-        return classItem
+    /**
+     * Resolve the class from the [Codebase], failing if it does not exist.
+     *
+     * Checks to make sure that returned [ClassItem]'s [ClassItem.emit] property matches
+     * [expectedEmit]. That defaults to `true` as this is usually used to retrieve a class that is
+     * present in the source which have `emit = true` by default.
+     */
+    fun Codebase.assertResolvedClass(
+        qualifiedName: String,
+        expectedEmit: Boolean = false
+    ): ClassItem {
+        // Resolve the class which should make it available to assertClass(...) if it could be
+        // found.
+        resolveClass(qualifiedName)
+        // Assert that the class exists and has correct setting of `emit`.
+        return assertClass(qualifiedName, expectedEmit)
     }
 
     /** Get the package from the [Codebase], failing if it does not exist. */

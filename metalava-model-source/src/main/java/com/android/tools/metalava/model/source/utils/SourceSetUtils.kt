@@ -32,5 +32,6 @@ fun findPackage(file: File): String? {
 
 /** Finds the package of the given Java/Kotlin source code, if possible */
 private fun findPackage(source: String): String? {
-    return ClassName(source).packageName
+    // Replace is there to handle kotlin packages that have `` in them like com.`receiver`.example
+    return ClassName(source).packageName?.replace("`", "")
 }

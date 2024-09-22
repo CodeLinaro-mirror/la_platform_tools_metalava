@@ -28,6 +28,7 @@ import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.ItemLanguage
+import com.android.tools.metalava.model.ItemVisitor
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.PackageItem
@@ -475,12 +476,15 @@ class CodebaseSnapshotTaker private constructor() : DefaultCodebaseAssembler(), 
 
     companion object {
         /** Take a snapshot of [codebase]. */
-        fun takeSnapshot(codebase: Codebase): Codebase {
+        fun takeSnapshot(
+            codebase: Codebase,
+            visitorFactory: (DelegatedVisitor) -> ItemVisitor = ::NonEmittableDelegatingVisitor,
+        ): Codebase {
             // Create a snapshot taker that will construct the snapshot.
             val taker = CodebaseSnapshotTaker()
 
             // Wrap it in a visitor and visit the codebase.
-            val visitor = NonFilteringDelegatingVisitor(taker)
+            val visitor = visitorFactory(taker)
             codebase.accept(visitor)
 
             // Return the constructed snapshot.

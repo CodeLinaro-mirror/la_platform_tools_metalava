@@ -78,9 +78,9 @@ class CommonSourceFileTest : BaseModelTest() {
                     """
                         package test.pkg1;
 
-                        class Test1 {}
+                        public class Test1 {}
 
-                        class Test2 {}
+                        public class Test2 {}
                     """
                 ),
                 java(
@@ -88,7 +88,7 @@ class CommonSourceFileTest : BaseModelTest() {
                         package test;
 
                         /** @hide */
-                        class Test {
+                        public class Test {
                             class Inner {}
                         }
                     """
@@ -132,7 +132,7 @@ class CommonSourceFileTest : BaseModelTest() {
 
                     public class Test {}
 
-                    class Outer {
+                    public class Outer {
                         class Inner {}
                     }
                 """

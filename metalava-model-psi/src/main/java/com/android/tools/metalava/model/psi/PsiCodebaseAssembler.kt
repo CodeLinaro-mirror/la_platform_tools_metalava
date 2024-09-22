@@ -194,8 +194,7 @@ internal class PsiCodebaseAssembler(
                 "Must not be called with PsiTypeParameter; use PsiTypeParameterItem.create(...) instead"
             )
         }
-        val simpleName = psiClass.name!!
-        val qualifiedName = psiClass.qualifiedName ?: simpleName
+        val qualifiedName = psiClass.classQualifiedName
         val classKind = getClassKind(psiClass)
         val modifiers = PsiModifierItem.create(codebase, psiClass)
         val isKotlin = psiClass.isKotlin()
@@ -569,14 +568,14 @@ internal class PsiCodebaseAssembler(
         }
         top ?: return ""
 
-        val name = top.name
-        val fullName = top.qualifiedName ?: return ""
+        val simpleName = top.simpleName
+        val qualifiedName = top.classQualifiedName
 
-        if (name == fullName) {
+        if (simpleName == qualifiedName) {
             return ""
         }
 
-        return fullName.substring(0, fullName.length - 1 - name!!.length)
+        return qualifiedName.substring(0, qualifiedName.length - 1 - simpleName.length)
     }
 
     internal fun createAnnotation(
@@ -879,3 +878,25 @@ internal class PsiCodebaseAssembler(
         return multiFileClassName
     }
 }
+
+/**
+ * Get the simple name of a named class or type parameter.
+ *
+ * A [PsiClass] is used to represent named classes, type parameters, anonymous and local classes.
+ * So, its [PsiClass.getName] can sometimes be `null`. However, Metalava only gets the name for
+ * named classes and type parameters which never return `null`. So, this extension property forces
+ * it to be non-null.
+ */
+internal val PsiClass.simpleName
+    get() = name!!
+
+/**
+ * Get the qualified name of a name class.
+ *
+ * A [PsiClass] is used to represent named classes, type parameters, anonymous and local classes.
+ * So, its [PsiClass.getQualifiedName] can sometimes be `null`. However, Metalava only gets the
+ * qualified name for name classes which never return `null`. So, this extension property forces it
+ * to be non-null.
+ */
+internal val PsiClass.classQualifiedName
+    get() = qualifiedName!!

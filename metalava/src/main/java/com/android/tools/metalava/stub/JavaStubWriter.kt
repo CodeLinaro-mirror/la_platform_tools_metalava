@@ -39,6 +39,7 @@ internal class JavaStubWriter(
     private val writer: PrintWriter,
     private val modifierListWriter: ModifierListWriter,
     private val config: StubWriterConfig,
+    private val stubConstructorManager: StubConstructorManager,
 ) : DelegatedVisitor {
 
     override fun visitClass(cls: ClassItem) {
@@ -87,25 +88,30 @@ internal class JavaStubWriter(
         generateInterfaceList(cls)
         writer.print(" {\n")
 
+        // Enum constants must be written out first.
         if (cls.isEnum()) {
             var first = true
-            // Enums should preserve the original source order, not alphabetical etc. sort
-            for (field in cls.fields().sortedBy { it.sortingRank }) {
-                if (field.isEnumConstant()) {
-                    if (first) {
-                        first = false
-                    } else {
-                        writer.write(",\n")
-                    }
-                    appendDocumentation(field, writer, config)
-
-                    // Append the modifier list even though the enum constant does not actually have
-                    // modifiers as that will write the annotations which it does have and ignore
-                    // the modifiers.
-                    appendModifiers(field)
-
-                    writer.write(field.name())
+            // While enum order is significant at runtime as it affects `Enum.ordinal` and its
+            // comparable order it is not significant in the stubs so sort alphabetically. That
+            // matches the order in the documentation and the signature files. It is theoretically
+            // possible for an annotation processor to care about the order but any that did would
+            // be poorly written and would break on stubs created from signature files.
+            val enumConstants =
+                cls.fields().filter { it.isEnumConstant() }.sortedWith(FieldItem.comparator)
+            for (enumConstant in enumConstants) {
+                if (first) {
+                    first = false
+                } else {
+                    writer.write(",\n")
                 }
+                appendDocumentation(enumConstant, writer, config)
+
+                // Append the modifier list even though the enum constant does not actually have
+                // modifiers as that will write the annotations which it does have and ignore
+                // the modifiers.
+                appendModifiers(enumConstant)
+
+                writer.write(enumConstant.name())
             }
             writer.println(";")
         }
@@ -182,8 +188,9 @@ internal class JavaStubWriter(
     }
 
     private fun writeConstructorBody(constructor: ConstructorItem) {
-        // Find any constructor in parent that we can compile against
-        constructor.superConstructor?.let { superConstructor ->
+        val optionalSuperConstructor =
+            stubConstructorManager.optionalSuperConstructor(constructor.containingClass())
+        optionalSuperConstructor?.let { superConstructor ->
             val parameters = superConstructor.parameters()
             if (parameters.isNotEmpty()) {
                 writer.print("super(")

@@ -418,7 +418,7 @@ class CommonClassItemTest : BaseModelTest() {
             val fooSuperClass = fooClass.superClass()
 
             // Now get the object class.
-            val objectClass = codebase.assertClass("java.lang.Object")
+            val objectClass = codebase.assertClass("java.lang.Object", expectedEmit = false)
 
             assertSame(objectClass, fooSuperClass)
 
@@ -523,7 +523,7 @@ class CommonClassItemTest : BaseModelTest() {
             val fooSuperClass = fooClass.superClass()
 
             // Now get the object class.
-            val objectClass = codebase.assertClass("java.lang.Object")
+            val objectClass = codebase.assertClass("java.lang.Object", expectedEmit = false)
 
             assertSame(objectClass, fooSuperClass)
 
@@ -1308,7 +1308,11 @@ class CommonClassItemTest : BaseModelTest() {
                 ),
             ),
         ) {
-            val hiddenClass = codebase.assertClass("test.pkg.HiddenClass")
+            val hiddenClass =
+                codebase.assertResolvedClass(
+                    "test.pkg.HiddenClass",
+                    expectedEmit = true,
+                )
             val hiddenClassMethod = hiddenClass.methods().single()
             val publicClass = codebase.assertClass("test.pkg.PublicClass")
 
@@ -1377,7 +1381,11 @@ class CommonClassItemTest : BaseModelTest() {
                 ),
             ),
         ) {
-            val hiddenClass = codebase.assertClass("test.pkg.HiddenClass")
+            val hiddenClass =
+                codebase.assertResolvedClass(
+                    "test.pkg.HiddenClass",
+                    expectedEmit = true,
+                )
             val publicClass = codebase.assertClass("test.pkg.PublicClass")
 
             val expectedTypes =
@@ -1435,7 +1443,11 @@ class CommonClassItemTest : BaseModelTest() {
                 ),
             ),
         ) {
-            val hiddenClass = codebase.assertClass("test.pkg.HiddenClass")
+            val hiddenClass =
+                codebase.assertResolvedClass(
+                    "test.pkg.HiddenClass",
+                    expectedEmit = true,
+                )
             val publicClass = codebase.assertClass("test.pkg.PublicClass")
 
             val expectedTypesAndNullability =
@@ -1635,7 +1647,11 @@ class CommonClassItemTest : BaseModelTest() {
         expectedOrigin: ClassOrigin,
     ) {
         // Make sure to resolve any class requested just in case it is on the class path.
-        val testClass = codebase.assertResolvedClass(name)
+        val testClass =
+            codebase.assertResolvedClass(
+                name,
+                expectedEmit = expectedOrigin == ClassOrigin.COMMAND_LINE,
+            )
         assertEquals(expectedOrigin, testClass.origin, message = "$name origin")
     }
 

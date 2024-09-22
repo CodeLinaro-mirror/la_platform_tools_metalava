@@ -292,12 +292,6 @@ class FilteringApiVisitor(
 
         override fun containingClass() = FilteringClassItem(delegate.containingClass())
 
-        override var superConstructor: ConstructorItem?
-            get() = delegate.superConstructor?.let { FilteringConstructorItem(it) }
-            set(_) {
-                error("cannot set value")
-            }
-
         override fun returnType() = filteredReturnType(delegate) as ClassTypeItem
 
         override fun parameters() = filteredParameters(delegate)

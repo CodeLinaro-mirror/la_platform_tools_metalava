@@ -179,7 +179,7 @@ open class DefaultClassItem(
         }
     }
 
-    final override var stubConstructor: ConstructorItem? = null
+    final var stubConstructor: ConstructorItem? = null
 
     /** Tracks whether the class has an implicit default constructor. */
     private var hasImplicitDefaultConstructor = false

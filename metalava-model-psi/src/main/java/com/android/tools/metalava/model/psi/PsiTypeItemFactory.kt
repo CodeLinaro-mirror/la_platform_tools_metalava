@@ -207,7 +207,7 @@ internal class PsiTypeItemFactory(
                         // If the type resolves to a PsiTypeParameter then the TypeParameterItem
                         // must exist.
                         is PsiTypeParameter -> {
-                            val name = psiClass.qualifiedName ?: psiType.name
+                            val name = psiClass.simpleName
                             typeParameterScope.getTypeParameter(name)
                         }
                         // If the type could not be resolved then the TypeParameterItem might
