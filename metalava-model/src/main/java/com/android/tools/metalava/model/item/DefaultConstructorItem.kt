@@ -67,8 +67,6 @@ open class DefaultConstructorItem(
     ),
     ConstructorItem {
 
-    final override var superConstructor: ConstructorItem? = null
-
     /** Override to specialize the return type. */
     final override fun returnType() = super.returnType() as ClassTypeItem
 

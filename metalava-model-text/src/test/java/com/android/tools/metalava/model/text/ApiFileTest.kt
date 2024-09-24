@@ -104,7 +104,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
             val throwableSuperClass = throwable.superClass()
 
             // Now get the object class.
-            val objectClass = codebase.assertClass("java.lang.Object")
+            val objectClass = codebase.assertClass("java.lang.Object", expectedEmit = false)
 
             assertSame(objectClass, throwableSuperClass)
 
@@ -139,7 +139,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
             val errorSuperClass = error.superClassType()?.asClass()
 
             // Now get the throwable class.
-            val throwable = codebase.assertClass("java.lang.Throwable")
+            val throwable = codebase.assertClass("java.lang.Throwable", expectedEmit = false)
 
             assertSame(throwable, errorSuperClass)
 
@@ -198,7 +198,8 @@ class ApiFileTest : BaseTextCodebaseTest() {
             // is checked below.
             exceptionType.erasedClass
 
-            val unknownExceptionClass = codebase.assertClass("other.UnknownException")
+            val unknownExceptionClass =
+                codebase.assertClass("other.UnknownException", expectedEmit = false)
             // Make sure the stub UnknownException is initialized correctly.
             assertSame(throwable, unknownExceptionClass.superClass())
 
@@ -448,7 +449,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
             // Resolve the class. Even though it does not exist, the text model will fabricate an
             // instance.
             val unknownInterfaceClass =
-                codebase.assertResolvedClass("test.pkg.Foo").interfaceTypes().single().asClass()
+                codebase.assertClass("test.pkg.Foo").interfaceTypes().single().asClass()
             assertNotNull(unknownInterfaceClass)
 
             // Make sure that the fabricated instance is of the correct structure.

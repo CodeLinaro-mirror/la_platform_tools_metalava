@@ -680,14 +680,6 @@ interface ClassItem : ClassContentItem, SelectableItem, TypeParameterListOwner {
     }
 
     /**
-     * The default constructor to invoke on this class from subclasses; initially null but may be
-     * updated during use. (Note that in some cases [stubConstructor] may not be in [constructors],
-     * e.g. when we need to create a constructor to match a public parent class with a non-default
-     * constructor and the one in the code is not a match, e.g. is marked @hide etc.)
-     */
-    var stubConstructor: ConstructorItem?
-
-    /**
      * Creates a map of type parameters of the target class to the type variables substituted for
      * those parameters by this class.
      *

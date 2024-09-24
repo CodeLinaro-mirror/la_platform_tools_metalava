@@ -50,6 +50,7 @@ internal class StubWriter(
     private val docStubs: Boolean,
     private val reporter: Reporter,
     private val config: StubWriterConfig,
+    private val stubConstructorManager: StubConstructorManager,
 ) : DelegatedVisitor {
 
     /**
@@ -212,7 +213,7 @@ internal class StubWriter(
                 if (kotlin) {
                     error("Generating Kotlin stubs is not supported")
                 } else {
-                    JavaStubWriter(textWriter, modifierListWriter, config)
+                    JavaStubWriter(textWriter, modifierListWriter, config, stubConstructorManager)
                 }
 
             // Copyright statements from the original file?
@@ -225,19 +226,15 @@ internal class StubWriter(
 
     /**
      * Stubs that have no accessible constructor may still need to generate one and that constructor
-     * is available from [ClassItem.stubConstructor].
-     *
-     * However, sometimes that constructor is ignored by this because it is not accessible either,
-     * e.g. it might be package private. In that case this will pass it to [visitConstructor]
-     * directly.
+     * is available from [StubConstructorManager.optionalSyntheticConstructor].
      */
     private fun dispatchStubsConstructorIfAvailable(cls: ClassItem) {
-        val clsStubConstructor = cls.stubConstructor
-        val constructors = cls.constructors()
-        // If the default stub constructor is not publicly visible then it won't be output during
-        // the normal visiting so visit it specially to ensure that it is output.
-        if (clsStubConstructor != null && !constructors.contains(clsStubConstructor)) {
-            visitConstructor(clsStubConstructor)
+        // If a special constructor had to be synthesized for the class then it will not be in the
+        // ClassItem's list of constructors that would be visited automatically. So, this will visit
+        // it explicitly to make sure it appears in the stubs.
+        val syntheticConstructor = stubConstructorManager.optionalSyntheticConstructor(cls)
+        if (syntheticConstructor != null) {
+            visitConstructor(syntheticConstructor)
         }
     }
 

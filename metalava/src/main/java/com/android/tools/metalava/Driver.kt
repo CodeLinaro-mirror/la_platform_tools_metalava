@@ -41,6 +41,7 @@ import com.android.tools.metalava.lint.ApiLint
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.CodebaseFragment
 import com.android.tools.metalava.model.DelegatedVisitor
 import com.android.tools.metalava.model.ItemVisitor
 import com.android.tools.metalava.model.ModelOptions
@@ -716,15 +717,6 @@ private fun createStubFiles(
             }
         }
 
-    val stubWriter =
-        StubWriter(
-            stubsDir = stubDir,
-            generateAnnotations = options.generateAnnotations,
-            docStubs = docStubs,
-            reporter = options.reporter,
-            config = stubWriterConfig,
-        )
-
     val codebaseFragment =
         CodebaseFragment(codebase) { delegate ->
             createFilteringVisitorForStubs(
@@ -745,6 +737,16 @@ private fun createStubFiles(
         }
     val stubConstructorManager = StubConstructorManager(codebaseFragment.codebase)
     stubConstructorManager.addConstructors(filterEmit)
+
+    val stubWriter =
+        StubWriter(
+            stubsDir = stubDir,
+            generateAnnotations = options.generateAnnotations,
+            docStubs = docStubs,
+            reporter = options.reporter,
+            config = stubWriterConfig,
+            stubConstructorManager = stubConstructorManager,
+        )
 
     codebaseFragment.accept(stubWriter)
 

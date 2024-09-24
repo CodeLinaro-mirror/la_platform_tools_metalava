@@ -54,7 +54,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
                 """
                     package test.pkg;
 
-                    class Test {
+                    public class Test {
                     }
                 """
             ),
@@ -71,7 +71,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
                 """
                     package test.pkg;
 
-                    class Test {
+                    public class Test {
                     }
                 """
             ),
@@ -89,7 +89,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
                 """
                     package test.pkg;
 
-                    class Test {
+                    public class Test {
                         int field;
                     }
                 """
@@ -109,7 +109,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
                 """
                     package test.pkg;
 
-                    class Test {
+                    public class Test {
                         void method();
                     }
                 """
@@ -128,7 +128,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
                 """
                     package test.pkg;
 
-                    class Test {
+                    public class Test {
                         public Test() {}
                     }
                 """
@@ -147,7 +147,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
                 """
                     package test.pkg;
 
-                    class Test {
+                    public class Test {
                       class InnerTestClass {}
                     }
                 """
@@ -173,12 +173,12 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
 
                         import test.parent.SuperInterface;
 
-                        abstract class SuperClass implements SuperInterface {}
+                        public abstract class SuperClass implements SuperInterface {}
 
-                        interface SuperChildInterface {}
-                        interface ChildInterface extends SuperChildInterface,SuperInterface {}
+                        public interface SuperChildInterface {}
+                        public interface ChildInterface extends SuperChildInterface,SuperInterface {}
 
-                        class Test extends SuperClass implements ChildInterface {}
+                        public class Test extends SuperClass implements ChildInterface {}
                     """
                 ),
                 java(
@@ -214,9 +214,9 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
                 """
                   package test.pkg;
 
-                  interface TestInterface {}
-                  enum TestEnum {}
-                  @interface TestAnnotation {}
+                  public interface TestInterface {}
+                  public enum TestEnum {}
+                  public @interface TestAnnotation {}
                 """
             ),
         ) {
@@ -237,7 +237,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
                     """
                         package test.pkg;
 
-                        class Test {
+                        public class Test {
                             class Inner {}
                         }
                     """
@@ -314,7 +314,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
 
                     import java.util.Date;
 
-                    class Test extends Date {}
+                    public class Test extends Date {}
                 """
             ),
         ) {
@@ -331,7 +331,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             // Check that the class and package have been loaded but will not be emitted.
             val utilPkgItem = codebase.assertPackage("java.util")
             assertEquals(false, utilPkgItem.emit)
-            val utilClassItem = codebase.assertClass("java.util.Date")
+            val utilClassItem = codebase.assertClass("java.util.Date", expectedEmit = false)
             assertEquals(false, utilClassItem.emit)
 
             // Check that the Test super class is expected.
@@ -343,7 +343,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             // Check that the class and package have been loaded but will not be emitted.
             val langPkgItem = codebase.assertPackage("java.lang")
             assertEquals(false, langPkgItem.emit)
-            val objectClassItem = codebase.assertClass("java.lang.Object")
+            val objectClassItem = codebase.assertClass("java.lang.Object", expectedEmit = false)
             assertEquals(false, objectClassItem.emit)
 
             // Check that the Date super class is expected.
@@ -361,7 +361,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
                     package test.pkg;
 
                     interface Interface {}
-                    class Test extends UnresolvedSuper implements Interface, UnresolvedInterface {}
+                    public class Test extends UnresolvedSuper implements Interface, UnresolvedInterface {}
                 """
             ),
         ) {
@@ -389,7 +389,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
                         import anno.FieldValue;
                         import test.SimpleClass;
 
-                        class Test {
+                        public class Test {
                             @test.Nullable
                             @FieldInfo(children = {"child1","child2"}, val = 5, cls = SimpleClass.class)
                             @FieldValue(testInt1+testInt2)
@@ -501,18 +501,18 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
                 """
                     package test.pkg;
 
-                    interface Interface1 {
+                    public interface Interface1 {
                         public void method1();
                         public <T> void method2(T value);
                     }
 
-                    interface Interface2 extends Interface1 {
+                    public interface Interface2 extends Interface1 {
                         public void method1();
                     }
 
-                    interface Interface3 extends Interface1,Interface2 {}
+                    public interface Interface3 extends Interface1,Interface2 {}
 
-                    abstract class Test1 implements Interface2 {
+                    public abstract class Test1 implements Interface2 {
                         @Override
                         public void method1(){}
 
@@ -520,12 +520,12 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
                         public <Integer> void method2(Integer value){}
                     }
 
-                    class Test2 implements Interface3 {
+                    public class Test2 implements Interface3 {
                         @Override
                         public void method1(){}
                     }
 
-                    class Test3 implements Interface2,Interface1 {
+                    public class Test3 implements Interface2,Interface1 {
                         @Override
                         public void method1(){}
                     }
@@ -640,7 +640,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
                     package test.pkg;
 
                     public class Test {}
-                    class Test1<S> {
+                    public class Test1<S> {
                         class Test2<T extends Test> {}
                     }
 
@@ -727,7 +727,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
                     import java.util.Map;
                     import java.io.Serializable;
 
-                    class Test<@Nullable T,U extends Map<? super U, String>,V extends  Comparable & Serializable> {
+                    public class Test<@Nullable T,U extends Map<? super U, String>,V extends  Comparable & Serializable> {
                         public <Q, R extends Outer<? super U>.Inner<? extends Comparable >,S extends  Comparable & Serializable> void foo1(Q a, R b, S c) {}
                         public <A extends Object, B extends Object> void foo2() {}
                     }
@@ -735,7 +735,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
                     class Outer<O> {
                         class Inner<P> {}
                     }
-                    @interface Nullable {}
+                    public @interface Nullable {}
                 """
             ),
         ) {
@@ -805,7 +805,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             val throwableClasses = methodItem.throwsTypes().map { it.erasedClass }
 
             // This must be available after resolving throwable types.
-            val ioExceptionClass = codebase.assertClass("java.io.IOException")
+            val ioExceptionClass = codebase.assertClass("java.io.IOException", expectedEmit = false)
 
             assertEquals(listOf(testExceptionClass, ioExceptionClass), throwableClasses)
         }
@@ -931,7 +931,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
 
                          class Inner {}
                     }
-                    class Test1 {}
+                    public class Test1 {}
                 """
             ),
         ) {
@@ -994,9 +994,9 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
                         public int valueOf(Test a, String b) {return 7;}
                     }
 
-                    enum Test1 {}
+                    public enum Test1 {}
 
-                    class Test2 {
+                    public class Test2 {
                         static final Test field = Test.ENUM2;
                     }
                 """

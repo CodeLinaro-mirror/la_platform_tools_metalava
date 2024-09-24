@@ -22,7 +22,6 @@ import com.android.tools.metalava.model.testing.FilterByProvider
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.testing.KnownSourceFiles
-import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
 
@@ -188,53 +187,6 @@ abstract class UastTestBase : DriverTest() {
                 ),
             format = FileFormat.V4,
             api = api,
-        )
-    }
-
-    @Test
-    fun `Kotlin Reified Methods`() {
-        // TODO: once fix for https://youtrack.jetbrains.com/issue/KT-39209 is available (231),
-        //  FE1.0 UAST will have implicit nullability too.
-        //  Put this back to ApiFileTest, before `Kotlin Reified Methods 2`
-        val n = if (isK2) " @Nullable" else ""
-        check(
-            format = FileFormat.V2,
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package test.pkg;
-
-                    public class Context {
-                        @SuppressWarnings("unchecked")
-                        public final <T> T getSystemService(Class<T> serviceClass) {
-                            return null;
-                        }
-                    }
-                    """
-                    ),
-                    kotlin(
-                        """
-                    package test.pkg
-
-                    inline fun <reified T> Context.systemService1() = getSystemService(T::class.java)
-                    inline fun Context.systemService2() = getSystemService(String::class.java)
-                    """
-                    )
-                ),
-            api =
-                """
-                package test.pkg {
-                  public class Context {
-                    ctor public Context();
-                    method public final <T> T getSystemService(Class<T>);
-                  }
-                  public final class TestKt {
-                    method$n public static inline <reified T> T systemService1(@NonNull test.pkg.Context);
-                    method public static inline String systemService2(@NonNull test.pkg.Context);
-                  }
-                }
-                """
         )
     }
 

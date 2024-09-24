@@ -129,7 +129,7 @@ interface FieldItem : MemberItem, InheritableItem {
          * Comparator that will order [FieldItem]s such that those for which
          * [FieldItem.isEnumConstant] returns `true` will come before those for which it is `false`.
          */
-        val comparatorEnumConstantFirst =
+        val comparatorEnumConstantFirst: java.util.Comparator<FieldItem> =
             Comparator.comparing(FieldItem::isEnumConstant).reversed().thenComparing(comparator)
     }
 

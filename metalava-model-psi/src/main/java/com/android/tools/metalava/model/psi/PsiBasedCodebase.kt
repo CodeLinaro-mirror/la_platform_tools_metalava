@@ -94,7 +94,7 @@ internal class PsiBasedCodebase(
     }
 
     fun findClass(psiClass: PsiClass): ClassItem? {
-        val qualifiedName: String = psiClass.qualifiedName ?: psiClass.name!!
+        val qualifiedName: String = psiClass.classQualifiedName
         return findClass(qualifiedName)
     }
 
