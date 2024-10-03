@@ -125,20 +125,33 @@ class ApiAnalyzer(
         // package class lists, which could trigger a concurrent modification, so create a snapshot
         // of the class list and iterate over it:
         val allClasses = packages.allClasses().toList()
-        allClasses.forEach {
-            if (filterEmit.test(it)) {
-                generateInheritedStubs(it, filterEmit, filterReference)
-            }
-        }
+
+        val visited = mutableSetOf<ClassItem>()
+        allClasses.forEach { generateInheritedStubs(it, filterEmit, filterReference, visited) }
     }
 
     private fun generateInheritedStubs(
         cls: ClassItem,
         filterEmit: Predicate<Item>,
-        filterReference: Predicate<Item>
+        filterReference: Predicate<Item>,
+        visited: MutableSet<ClassItem>,
     ) {
+        // If it is not a class, i.e. an interface, etc., then return.
         if (!cls.isClass()) return
-        if (cls.superClass() == null) return
+
+        // If already visited this class then ignore it. Otherwise, remember that this was visited.
+        if (cls in visited) return
+        visited += cls
+
+        // If it has no super class then ignore it.
+        val superClass = cls.superClass() ?: return
+
+        // If the class is not going to be emitted then do not inherit any methods into it.
+        if (!filterEmit.test(cls)) return
+
+        // Make sure that the super class has inherited the stubs and interfaces.
+        generateInheritedStubs(superClass, filterEmit, filterReference, visited)
+
         val allSuperClasses = cls.allSuperClasses()
         val hiddenSuperClasses =
             allSuperClasses.filter { !filterReference.test(it) && !it.isJavaLangObject() }
@@ -316,6 +329,9 @@ class ApiAnalyzer(
             }
 
             cls.addMethod(method)
+
+            // Make sure that the same method is not added from multiple super classes.
+            existingMethods.add(method)
         }
     }
 

@@ -3273,4 +3273,35 @@ src/android/pkg/Interface.kt:158: error: Parameter `default` has a default value
                 )
         )
     }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `throw unresolved error`() {
+        // Regression test from b/364736827
+        check(
+            expectedIssues = "",
+            apiLint = "",
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+
+                        import kotlin.random.Random
+
+                        public class SubspaceSemanticsNodeInteraction() {
+                            /**
+                             * @throws [UnresolvedAssertionError] if failed
+                             */
+                            public fun assertDoesNotExist() {
+                                if (Random.nextBoolean()) {
+                                    throw UnresolvedAssertionError("Failed")
+                                }
+                            }
+                        }
+                    """
+                    )
+                )
+        )
+    }
 }

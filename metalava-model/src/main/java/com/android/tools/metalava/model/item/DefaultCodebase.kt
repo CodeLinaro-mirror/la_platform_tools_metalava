@@ -103,6 +103,12 @@ open class DefaultCodebase(
         topLevelClassesFromSource.add(classItem)
     }
 
+    override fun freezeClasses() {
+        for (classItem in topLevelClassesFromSource) {
+            classItem.freeze()
+        }
+    }
+
     /**
      * Look for classes in this [Codebase].
      *

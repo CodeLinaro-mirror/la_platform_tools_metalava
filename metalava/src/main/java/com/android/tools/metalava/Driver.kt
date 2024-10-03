@@ -609,6 +609,10 @@ private fun ActionContext.loadFromSources(
         options.validateNullabilityFromList
     )
     options.nullabilityAnnotationsValidator?.report()
+
+    // Prevent the codebase from being mutated.
+    codebase.freezeClasses()
+
     analyzer.handleStripping()
 
     // General API checks for Android APIs

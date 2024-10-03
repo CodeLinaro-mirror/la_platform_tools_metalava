@@ -519,7 +519,7 @@ abstract class AbstractItem(
         // the value of this and [Item.effectivelyDeprecated] which delegates to this.
         get() = modifiers.isDeprecated()
 
-    final override fun mutateModifiers(mutator: MutableModifierList.() -> Unit) {
+    override fun mutateModifiers(mutator: MutableModifierList.() -> Unit) {
         val mutable = modifiers.toMutable()
         mutable.mutator()
         modifiers = mutable.toImmutable()
