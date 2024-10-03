@@ -29,8 +29,10 @@ import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JAVA_PACKAGE_INFO
+import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.TypeParameterScope
+import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.addDefaultRetentionPolicyAnnotation
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.isRetention
@@ -100,6 +102,21 @@ internal class PsiCodebaseAssembler(
     private val reporter
         get() = codebase.reporter
 
+    /**
+     * Map from qualified class name to the heavyweight [PsiClass] implementations corresponding to
+     * a source class.
+     *
+     * Psi can represent classes with a number of different implementations of [PsiClass] that have
+     * different capabilities and provide different, and inconsistent, information. This keeps track
+     * of the heavyweight [PsiClass] implementations for source classes which do not contribute
+     * directly to an API surface (and so do not have a [ClassItem] created in the initialization of
+     * the [PsiBasedCodebase]) but which may contribute indirectly, e.g. through inherited methods.
+     * If a [ClassItem] needs to be created during processing, e.g. because it is a super type, then
+     * the [PsiClass] corresponding to it will be removed from this map (if it exists) and used. If
+     * it does not exist then it will be looked up using [JavaPsiFacade].
+     */
+    private val deferredHeavyweightPsiClasses = mutableMapOf<String, PsiClass>()
+
     fun dispose() {
         uastEnvironment.dispose()
     }
@@ -147,14 +164,45 @@ internal class PsiCodebaseAssembler(
     override fun createClassFromUnderlyingModel(qualifiedName: String) =
         findOrCreateClass(qualifiedName)
 
+    /** Check if the [BaseModifierList] is accsssible. */
+    private val BaseModifierList.isAccessible
+        get() =
+            when (getVisibilityLevel()) {
+                VisibilityLevel.PUBLIC,
+                VisibilityLevel.PROTECTED -> true
+                VisibilityLevel.INTERNAL -> annotations().any { it.showability.show() }
+                else -> false
+            }
+
     /**
-     * Create top level classes, their inner classes and all the other members.
+     * Create a possible API class, i.e. a class that has a possibility of being part of an API
+     * surface.
      *
-     * All the classes are registered by name and so can be found by [findOrCreateClass].
+     * This will ignore any class that is inaccessible as it cannot be part of the API. A
+     * [ClassItem] may be created for it later if needed, e.g. if it is a super class of an
+     * accessible class.
      */
+    private fun createPossibleApiClass(
+        psiClass: PsiClass,
+        origin: ClassOrigin,
+    ): ClassItem? {
+        if (psiClass.containingClass != null) error("$psiClass is not a top level class")
+
+        // Ignore inaccessible classes.
+        val modifiers = PsiModifierItem.create(codebase, psiClass)
+        if (!modifiers.isAccessible) {
+            deferredHeavyweightPsiClasses[psiClass.qualifiedName!!] = psiClass
+            return null
+        }
+
+        return createTopLevelClassAndContents(psiClass, origin, modifiers)
+    }
+
+    /** Create a top level class, their inner classes and all the other members. */
     private fun createTopLevelClassAndContents(
         psiClass: PsiClass,
         origin: ClassOrigin,
+        modifiers: MutableModifierList = PsiModifierItem.create(codebase, psiClass),
     ): ClassItem {
         if (psiClass.containingClass != null) error("$psiClass is not a top level class")
         return createClass(
@@ -162,6 +210,7 @@ internal class PsiCodebaseAssembler(
             null,
             globalTypeItemFactory,
             origin,
+            modifiers = modifiers,
         )
     }
 
@@ -170,6 +219,7 @@ internal class PsiCodebaseAssembler(
         containingClassItem: ClassItem?,
         enclosingClassTypeItemFactory: PsiTypeItemFactory,
         origin: ClassOrigin,
+        modifiers: MutableModifierList = PsiModifierItem.create(codebase, psiClass),
     ): ClassItem {
         val packageName = getPackageName(psiClass)
 
@@ -196,7 +246,6 @@ internal class PsiCodebaseAssembler(
         }
         val qualifiedName = psiClass.classQualifiedName
         val classKind = getClassKind(psiClass)
-        val modifiers = PsiModifierItem.create(codebase, psiClass)
         val isKotlin = psiClass.isKotlin()
         if (
             classKind == ClassKind.ANNOTATION_TYPE &&
@@ -457,6 +506,11 @@ internal class PsiCodebaseAssembler(
             return it
         }
 
+        // Create the ClassItem from a heavyweight PsiClass, if available.
+        deferredHeavyweightPsiClasses.remove(qualifiedName)?.let {
+            return findOrCreateClass(it)
+        }
+
         // The following cannot find a class whose name does not correspond to the file name, e.g.
         // in Java a class that is a second top level class.
         val finder = JavaPsiFacade.getInstance(project)
@@ -692,11 +746,7 @@ internal class PsiCodebaseAssembler(
         for (className in classNames) {
             val psiClass = facade.findClass(className, scope) ?: continue
 
-            val classItem =
-                createTopLevelClassAndContents(
-                    psiClass,
-                    origin,
-                )
+            val classItem = createPossibleApiClass(psiClass, origin) ?: continue
             codebase.addTopLevelClassFromSource(classItem)
         }
     }
@@ -724,11 +774,12 @@ internal class PsiCodebaseAssembler(
         // Process the `PsiClass`es.
         for (psiClass in psiClasses) {
             val classItem =
-                createTopLevelClassAndContents(
+                createPossibleApiClass(
                     psiClass,
                     // Sources always come from the command line.
                     ClassOrigin.COMMAND_LINE,
                 )
+                    ?: continue
             codebase.addTopLevelClassFromSource(classItem)
         }
     }

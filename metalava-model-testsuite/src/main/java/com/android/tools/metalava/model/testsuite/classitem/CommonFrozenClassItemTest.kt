@@ -143,7 +143,7 @@ class CommonFrozenClassItemTest : BaseModelTest() {
                 java(
                     """
                         package test.pkg;
-                        class SuperClass {
+                        public class SuperClass {
                             public void foo() {}
                         }
                     """

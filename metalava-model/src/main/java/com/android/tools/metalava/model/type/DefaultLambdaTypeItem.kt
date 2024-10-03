@@ -18,23 +18,30 @@ package com.android.tools.metalava.model.type
 
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.DefaultTypeItem
+import com.android.tools.metalava.model.LambdaTypeItem
 import com.android.tools.metalava.model.TypeArgumentTypeItem
+import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeModifiers
 
-open class DefaultClassTypeItem(
-    internal val codebase: Codebase,
+class DefaultLambdaTypeItem(
+    codebase: Codebase,
     modifiers: TypeModifiers,
-    final override val qualifiedName: String,
-    final override val arguments: List<TypeArgumentTypeItem>,
-    final override val outerClassType: ClassTypeItem?,
-) : ClassTypeItem, DefaultTypeItem(modifiers) {
-    override val className: String = ClassTypeItem.computeClassName(qualifiedName)
-
-    private val asClassCache by
-        lazy(LazyThreadSafetyMode.NONE) { codebase.resolveClass(qualifiedName) }
-
-    override fun asClass() = asClassCache
+    qualifiedName: String,
+    arguments: List<TypeArgumentTypeItem>,
+    outerClassType: ClassTypeItem?,
+    override val isSuspend: Boolean,
+    override val receiverType: TypeItem?,
+    override val parameterTypes: List<TypeItem>,
+    override val returnType: TypeItem,
+) :
+    DefaultClassTypeItem(
+        codebase = codebase,
+        modifiers = modifiers,
+        qualifiedName = qualifiedName,
+        arguments = arguments,
+        outerClassType = outerClassType,
+    ),
+    LambdaTypeItem {
 
     @Deprecated(
         "implementation detail of this class",
@@ -44,7 +51,17 @@ open class DefaultClassTypeItem(
         modifiers: TypeModifiers,
         outerClassType: ClassTypeItem?,
         arguments: List<TypeArgumentTypeItem>
-    ): ClassTypeItem {
-        return DefaultClassTypeItem(codebase, modifiers, qualifiedName, arguments, outerClassType)
+    ): LambdaTypeItem {
+        return DefaultLambdaTypeItem(
+            codebase = codebase,
+            qualifiedName = qualifiedName,
+            arguments = arguments,
+            outerClassType = outerClassType,
+            modifiers = modifiers,
+            isSuspend = isSuspend,
+            receiverType = receiverType,
+            parameterTypes = parameterTypes,
+            returnType = returnType,
+        )
     }
 }

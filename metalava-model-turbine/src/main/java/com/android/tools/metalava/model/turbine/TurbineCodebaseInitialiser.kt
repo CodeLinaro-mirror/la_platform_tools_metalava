@@ -449,6 +449,11 @@ internal class TurbineCodebaseInitialiser(
                 continue
             }
 
+            // Ignore inaccessible classes.
+            if (!sourceBoundClass.isAccessible) {
+                continue
+            }
+
             val classItem =
                 createTopLevelClassAndContents(
                     classSymbol = classSymbol,
@@ -1310,3 +1315,12 @@ private fun getSourceFiles(sources: Sequence<File>): List<SourceFile> {
         .map { SourceFile(it.path, it.readText()) }
         .toList()
 }
+
+private const val ACC_PUBLIC_OR_PROTECTED = TurbineFlag.ACC_PUBLIC or TurbineFlag.ACC_PROTECTED
+
+/** Check whether the [TypeBoundClass] is accessible. */
+private val TypeBoundClass.isAccessible: Boolean
+    get() {
+        val flags = access()
+        return flags and ACC_PUBLIC_OR_PROTECTED != 0
+    }
