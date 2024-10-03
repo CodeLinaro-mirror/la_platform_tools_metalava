@@ -154,6 +154,7 @@ internal fun processFlags(
             modelOptions = modelOptions,
             allowReadingComments = options.allowReadingComments,
             jdkHome = options.jdkHome,
+            projectDescription = options.projectDescription,
         )
 
     val signatureFileCache = options.signatureFileCache

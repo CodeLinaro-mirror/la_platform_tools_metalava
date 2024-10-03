@@ -534,8 +534,10 @@ abstract class DriverTest : CodebaseCreatorConfigAware<SourceModelProvider>, Tem
         sourceFiles: Array<TestFile> = emptyArray(),
         /** The common source files to pass to the analyzer */
         commonSourceFiles: Array<TestFile> = emptyArray(),
+        /** Lint project description */
+        projectDescription: TestFile? = null,
         /** [ARG_REPEAT_ERRORS_MAX] */
-        repeatErrorsMax: Int = 0
+        repeatErrorsMax: Int = 0,
     ) {
         // Ensure different API clients don't interfere with each other
         try {
@@ -614,6 +616,8 @@ abstract class DriverTest : CodebaseCreatorConfigAware<SourceModelProvider>, Tem
                     commonSourceFiles.first().targetPath.substringBefore("src") + "src"
                 )
         }
+
+        val projectDescriptionFile = projectDescription?.createFile(project)
 
         val apiClassResolutionArgs =
             arrayOf(ARG_API_CLASS_RESOLUTION, apiClassResolution.optionValue)
@@ -1062,7 +1066,6 @@ abstract class DriverTest : CodebaseCreatorConfigAware<SourceModelProvider>, Tem
                 *validateNullabilityFromListArgs,
                 format.outputFlags(),
                 *apiClassResolutionArgs,
-                *sourceList,
                 *extraArguments,
                 *errorMessageApiLintArgs,
                 *errorMessageCheckCompatibilityReleasedArgs,
@@ -1071,9 +1074,17 @@ abstract class DriverTest : CodebaseCreatorConfigAware<SourceModelProvider>, Tem
                 *apiLintArgs,
             ) +
                 buildList {
-                        if (commonSourcePath != null) {
-                            add(ARG_COMMON_SOURCE_PATH)
-                            add(commonSourcePath)
+                        if (projectDescriptionFile != null) {
+                            add(ARG_PROJECT)
+                            add(projectDescriptionFile.absolutePath)
+                            // When project description is provided,
+                            // skip listing (common) sources
+                        } else {
+                            addAll(sourceList)
+                            if (commonSourcePath != null) {
+                                add(ARG_COMMON_SOURCE_PATH)
+                                add(commonSourcePath)
+                            }
                         }
                     }
                     .toTypedArray()

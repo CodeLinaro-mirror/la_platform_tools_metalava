@@ -21,8 +21,6 @@ import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.type.MethodFingerprint
 import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiParameter
-import org.jetbrains.kotlin.name.JvmStandardClassIds
-import org.jetbrains.kotlin.psi.KtFunction
 import org.jetbrains.uast.UMethod
 
 internal interface PsiCallableItem : CallableItem, PsiItem {
@@ -30,16 +28,6 @@ internal interface PsiCallableItem : CallableItem, PsiItem {
     override fun psi() = psiMethod
 
     val psiMethod: PsiMethod
-
-    override fun shouldExpandOverloads(): Boolean {
-        val ktFunction = (psiMethod as? UMethod)?.sourcePsi as? KtFunction ?: return false
-        return modifiers.isActual() &&
-            psiMethod.hasAnnotation(JvmStandardClassIds.JVM_OVERLOADS_FQ_NAME.asString()) &&
-            // It is /technically/ invalid to have actual functions with default values, but
-            // some places suppress the compiler error, so we should handle it here too.
-            ktFunction.valueParameters.none { it.hasDefaultValue() } &&
-            parameters().any { it.hasDefaultValue() }
-    }
 
     companion object {
         /**
@@ -55,8 +43,8 @@ internal interface PsiCallableItem : CallableItem, PsiItem {
             psiMethod: PsiMethod,
             containingCallable: PsiCallableItem,
             enclosingTypeItemFactory: PsiTypeItemFactory,
+            psiParameters: List<PsiParameter> = psiMethod.psiParameters,
         ): List<PsiParameterItem> {
-            val psiParameters = psiMethod.psiParameters
             val fingerprint = MethodFingerprint(containingCallable.name(), psiParameters.size)
             return psiParameters.mapIndexed { index, parameter ->
                 PsiParameterItem.create(

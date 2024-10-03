@@ -121,6 +121,8 @@ API sources:
 --classpath <paths>
                                              One or more directories or jars (separated by `:`) containing classes that
                                              should be on the classpath when parsing the source files
+--project <xmlfile>
+                                             Project description written in XML according to Lint's project model.
 --merge-qualifier-annotations <file>
                                              An external annotations file to merge and overlay the sources, or a
                                              directory of such files. Should be used for annotations intended for
