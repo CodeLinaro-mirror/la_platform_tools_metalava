@@ -179,10 +179,10 @@ class StubsClassTest : AbstractStubsTest() {
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public class MyClass extends test.pkg.PublicParent {
                 public MyClass() { throw new RuntimeException("Stub!"); }
-                public void method4() { throw new RuntimeException("Stub!"); }
-                public static void method3b() { throw new RuntimeException("Stub!"); }
                 public void method2() { throw new RuntimeException("Stub!"); }
                 public void method3() { throw new RuntimeException("Stub!"); }
+                public static void method3b() { throw new RuntimeException("Stub!"); }
+                public void method4() { throw new RuntimeException("Stub!"); }
                 public static final java.lang.String CONSTANT = "MyConstant";
                 }
                 """,

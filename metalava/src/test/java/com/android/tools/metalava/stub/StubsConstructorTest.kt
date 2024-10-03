@@ -659,11 +659,11 @@ class StubsConstructorTest : AbstractStubsTest() {
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class TestSuite implements test.pkg.Constructors2.Test {
                     public TestSuite() { throw new RuntimeException("Stub!"); }
-                    public TestSuite(java.lang.Class<?> theClass) { throw new RuntimeException("Stub!"); }
                     public TestSuite(java.lang.Class<? extends test.pkg.Constructors2.TestCase> theClass, java.lang.String name) { throw new RuntimeException("Stub!"); }
-                    public TestSuite(java.lang.String name) { throw new RuntimeException("Stub!"); }
-                    public TestSuite(java.lang.Class<?>... classes) { throw new RuntimeException("Stub!"); }
                     public TestSuite(java.lang.Class<? extends test.pkg.Constructors2.TestCase>[] classes, java.lang.String name) { throw new RuntimeException("Stub!"); }
+                    public TestSuite(java.lang.Class<?> theClass) { throw new RuntimeException("Stub!"); }
+                    public TestSuite(java.lang.Class<?>... classes) { throw new RuntimeException("Stub!"); }
+                    public TestSuite(java.lang.String name) { throw new RuntimeException("Stub!"); }
                     }
                     }
                     """

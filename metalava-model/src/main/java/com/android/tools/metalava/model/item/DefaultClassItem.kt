@@ -179,8 +179,6 @@ open class DefaultClassItem(
         }
     }
 
-    final var stubConstructor: ConstructorItem? = null
-
     /** Tracks whether the class has an implicit default constructor. */
     private var hasImplicitDefaultConstructor = false
 

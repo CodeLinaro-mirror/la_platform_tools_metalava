@@ -209,19 +209,11 @@ class ApiAnalyzer(
         // doesn't actually implement the interface, but still provides a matching signature for the
         // interface. Instead, we'll look through all of our interface methods and look for
         // potential overrides.
-        val interfaceNames = mutableMapOf<String, MutableList<MethodItem>>()
+        val inheritableMethods = MethodItemSet()
         for (interfaceType in interfaces) {
             val interfaceClass = interfaceType.asClass() ?: continue
             for (method in interfaceClass.methods()) {
-                val name = method.name()
-                val list =
-                    interfaceNames[name]
-                        ?: run {
-                            val list = ArrayList<MethodItem>()
-                            interfaceNames[name] = list
-                            list
-                        }
-                list.add(method)
+                inheritableMethods.add(method)
             }
         }
 
@@ -233,15 +225,7 @@ class ApiAnalyzer(
                 if (!method.modifiers.isAbstract() || !method.modifiers.isPublicOrProtected()) {
                     continue
                 }
-                val name = method.name()
-                val list =
-                    interfaceNames[name]
-                        ?: run {
-                            val list = ArrayList<MethodItem>()
-                            interfaceNames[name] = list
-                            list
-                        }
-                list.add(method)
+                inheritableMethods.add(method)
             }
         }
 
@@ -270,46 +254,22 @@ class ApiAnalyzer(
                     continue
                 }
 
-                val name = method.name()
-                val list =
-                    interfaceNames[name]
-                        ?: run {
-                            val list = ArrayList<MethodItem>()
-                            interfaceNames[name] = list
-                            list
-                        }
-                list.add(method)
+                inheritableMethods.add(method)
             }
         }
 
-        // Find all methods that are inherited from these classes into our class
-        // (making sure that we don't have duplicates, e.g. a method defined by one
-        // inherited class and then overridden by another closer one).
-        // map from method name to super methods overriding our interfaces
-        val map = HashMap<String, MutableList<MethodItem>>()
+        // Find all methods that are inherited from these classes into our class (making sure that
+        // we don't have duplicates, e.g. a method defined by one inherited class and then
+        // overridden by another closer one). map from method name to super methods overriding our
+        // interfaces
+        val inheritedMethods = MethodItemSet()
 
         for (superClass in hiddenSuperClasses) {
             for (method in superClass.methods()) {
                 val modifiers = method.modifiers
                 if (!modifiers.isPrivate() && !modifiers.isAbstract()) {
-                    val name = method.name()
-                    val candidates = interfaceNames[name] ?: continue
-                    val parameterCount = method.parameters().size
-                    for (superMethod in candidates) {
-                        if (parameterCount != superMethod.parameters().count()) {
-                            continue
-                        }
-                        if (method.matches(superMethod)) {
-                            val list =
-                                map[name]
-                                    ?: run {
-                                        val newList = ArrayList<MethodItem>()
-                                        map[name] = newList
-                                        newList
-                                    }
-                            list.add(method)
-                            break
-                        }
+                    if (inheritableMethods.containsMatchingMethod(method)) {
+                        inheritedMethods.add(method)
                     }
                 }
             }
@@ -317,21 +277,12 @@ class ApiAnalyzer(
 
         // Remove any methods that are overriding any of our existing methods
         for (method in cls.methods()) {
-            val name = method.name()
-            val candidates = map[name] ?: continue
-            val iterator = candidates.listIterator()
-            while (iterator.hasNext()) {
-                val inheritedMethod = iterator.next()
-                if (method.matches(inheritedMethod)) {
-                    iterator.remove()
-                }
-            }
+            inheritedMethods.removeMatchingMethods(method)
         }
 
         // Next remove any overrides among the remaining super methods (e.g. one method from a
-        // hidden parent is
-        // overriding another method from a more distant hidden parent).
-        map.values.forEach { methods ->
+        // hidden parent is overriding another method from a more distant hidden parent).
+        inheritedMethods.values.forEach { methods ->
             if (methods.size >= 2) {
                 for (candidate in ArrayList(methods)) {
                     for (superMethod in candidate.allSuperMethods()) {
@@ -341,22 +292,15 @@ class ApiAnalyzer(
             }
         }
 
-        val existingMethodMap = HashMap<String, MutableList<MethodItem>>()
+        // Add all the existing methods in the class to the set of existing methods.
+        val existingMethods = MethodItemSet()
         for (method in cls.methods()) {
-            val name = method.name()
-            val list =
-                existingMethodMap[name]
-                    ?: run {
-                        val newList = ArrayList<MethodItem>()
-                        existingMethodMap[name] = newList
-                        newList
-                    }
-            list.add(method)
+            existingMethods.add(method)
         }
 
         // We're now left with concrete methods in hidden parents that are implementing methods in
         // public interfaces that are listed in this class. Create stubs for them:
-        map.values.flatten().forEach {
+        inheritedMethods.values.flatten().forEach {
             // Copy the method from the hidden class that is not part of the API into the class that
             // is part of the API.
             val method = it.duplicate(cls)
@@ -366,18 +310,9 @@ class ApiAnalyzer(
                     method.documentation
              */
 
-            val name = method.name()
-            val candidates = existingMethodMap[name]
-            if (candidates != null) {
-                val iterator = candidates.listIterator()
-                while (iterator.hasNext()) {
-                    val inheritedMethod = iterator.next()
-                    if (method.matches(inheritedMethod)) {
-                        // If we already have an override of this method, do not add it to the
-                        // methods list
-                        return@forEach
-                    }
-                }
+            // If we already have an override of this method, do not add it to the methods list
+            if (existingMethods.containsMatchingMethod(method)) {
+                return@forEach
             }
 
             cls.addMethod(method)
@@ -1045,4 +980,52 @@ private fun Item.documentationContainsDeprecated(): Boolean {
         return superMethods().any { it.documentationContainsDeprecated() }
     }
     return false
+}
+
+/**
+ * A set of [MethodItem]s.
+ *
+ * This is implemented as a [MutableMap] from the [MethodItem.name] to the list of [MethodItem]s
+ * with that name.
+ */
+private typealias MethodItemSet = HashMap<String, MutableList<MethodItem>>
+
+/**
+ * Add a method to the set.
+ *
+ * This does not check to see if the [MethodItem] exists already so it is possible that it will
+ * contain duplicate methods.
+ */
+private fun MethodItemSet.add(method: MethodItem) {
+    val name = method.name()
+    val list = computeIfAbsent(name) { mutableListOf() }
+    list.add(method)
+}
+
+/**
+ * Check to see whether the set contains a method that matches [method] as determined by
+ * [MethodItem.matches].
+ */
+private fun MethodItemSet.containsMatchingMethod(method: MethodItem): Boolean {
+    val name = method.name()
+    val list = this[name] ?: return false
+    for (existing in list) {
+        if (method.matches(existing)) {
+            return true
+        }
+    }
+    return false
+}
+
+/** Remove any method that matches [method] as determined by [MethodItem.matches]. */
+private fun MethodItemSet.removeMatchingMethods(method: MethodItem) {
+    val name = method.name()
+    val list = this[name] ?: return
+    val iterator = list.listIterator()
+    while (iterator.hasNext()) {
+        val existing = iterator.next()
+        if (method.matches(existing)) {
+            iterator.remove()
+        }
+    }
 }

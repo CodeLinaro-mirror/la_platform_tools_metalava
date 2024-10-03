@@ -16,10 +16,8 @@
 
 package com.android.tools.metalava.model.item
 
-import com.android.tools.metalava.model.AbstractCodebase
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationManager
-import com.android.tools.metalava.model.CLASS_ESTIMATE
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultAnnotationItem
@@ -30,29 +28,32 @@ import com.android.tools.metalava.reporter.Reporter
 import java.io.File
 import java.util.HashMap
 
-/**
- * Base class of [Codebase]s for the models that do not incorporate their underlying model, if any,
- * into their [Item] implementations.
- */
+private const val CLASS_ESTIMATE = 15000
+
+/** Base class of [Codebase]s. */
 open class DefaultCodebase(
-    location: File,
+    final override var location: File,
     description: String,
-    preFiltered: Boolean,
-    annotationManager: AnnotationManager,
-    trustedApi: Boolean,
-    supportsDocumentation: Boolean,
+    override val preFiltered: Boolean,
+    override val annotationManager: AnnotationManager,
+    private val trustedApi: Boolean,
+    private val supportsDocumentation: Boolean,
     reporter: Reporter? = null,
     val assembler: CodebaseAssembler,
-) :
-    AbstractCodebase(
-        location,
-        description,
-        preFiltered,
-        annotationManager,
-        trustedApi,
-        supportsDocumentation,
-    ),
-    MutableCodebase {
+) : MutableCodebase {
+
+    final override var description: String = description
+        private set
+
+    final override fun trustedApi() = trustedApi
+
+    final override fun supportsDocumentation() = supportsDocumentation
+
+    final override fun toString() = description
+
+    override fun dispose() {
+        description += " [disposed]"
+    }
 
     private val optionalReporter = reporter
 

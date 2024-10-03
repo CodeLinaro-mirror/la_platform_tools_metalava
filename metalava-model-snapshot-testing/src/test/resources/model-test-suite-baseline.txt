@@ -52,9 +52,6 @@ com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTe
   annotation with negative number values[text]
   annotation with type cast values[text]
 
-com.android.tools.metalava.model.testsuite.classitem.CommonClassItemTest
-  Test origin source path[turbine]
-
 com.android.tools.metalava.model.testsuite.classitem.CommonDuplicateClassItemTest
   Test duplicate classes[turbine]
 

@@ -122,31 +122,6 @@ data class SetMinSdkVersion(val value: Int) : MinSdkVersion()
 
 object UnsetMinSdkVersion : MinSdkVersion()
 
-const val CLASS_ESTIMATE = 15000
-
-abstract class AbstractCodebase(
-    final override var location: File,
-    description: String,
-    final override val preFiltered: Boolean,
-    final override val annotationManager: AnnotationManager,
-    private val trustedApi: Boolean,
-    private val supportsDocumentation: Boolean,
-) : Codebase {
-
-    final override var description: String = description
-        private set
-
-    final override fun trustedApi() = trustedApi
-
-    final override fun supportsDocumentation() = supportsDocumentation
-
-    final override fun toString() = description
-
-    override fun dispose() {
-        description += " [disposed]"
-    }
-}
-
 interface MutableCodebase : Codebase {
     /**
      * Register the class by name, return `true` if the class was registered and `false` if it was

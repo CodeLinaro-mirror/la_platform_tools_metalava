@@ -630,7 +630,7 @@ internal class PsiCodebaseAssembler(
                     TypeAnnotationProvider.Static.create(
                         arrayOf(createPsiAnnotation("@$ANDROIDX_NONNULL"))
                     )
-                nonNullAnnotationProvider
+                nonNullAnnotationProvider = provider
                 provider
             }
     }
@@ -643,7 +643,7 @@ internal class PsiCodebaseAssembler(
                     TypeAnnotationProvider.Static.create(
                         arrayOf(createPsiAnnotation("@$ANDROIDX_NULLABLE"))
                     )
-                nullableAnnotationProvider
+                nullableAnnotationProvider = provider
                 provider
             }
     }
