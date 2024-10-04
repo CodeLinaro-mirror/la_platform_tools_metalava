@@ -29,6 +29,10 @@ fun html(to: String, @Language("HTML") source: String): TestFile {
     return TestFiles.source(to, source.trimIndent())
 }
 
+fun xml(to: String, @Language("XML") source: String): TestFile {
+    return TestFiles.xml(to, source.trimIndent())
+}
+
 fun java(to: String, @Language("JAVA") source: String): TestFile {
     return TestFiles.java(to, source.trimIndent())
 }

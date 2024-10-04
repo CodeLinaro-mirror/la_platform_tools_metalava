@@ -30,6 +30,7 @@ import com.android.tools.metalava.testing.kotlin
 import com.google.common.truth.Truth.assertThat
 import com.google.common.truth.Truth.assertWithMessage
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
@@ -1294,8 +1295,7 @@ class CommonClassItemTest : BaseModelTest() {
                 kotlin(
                     """
                         package test.pkg
-                        /** @hide */
-                        open class HiddenClass {
+                        internal open class HiddenClass {
                             fun foo() {}
                         }
                     """
@@ -1308,11 +1308,7 @@ class CommonClassItemTest : BaseModelTest() {
                 ),
             ),
         ) {
-            val hiddenClass =
-                codebase.assertResolvedClass(
-                    "test.pkg.HiddenClass",
-                    expectedEmit = true,
-                )
+            val hiddenClass = codebase.assertResolvedClass("test.pkg.HiddenClass")
             val hiddenClassMethod = hiddenClass.methods().single()
             val publicClass = codebase.assertClass("test.pkg.PublicClass")
 
@@ -1381,11 +1377,7 @@ class CommonClassItemTest : BaseModelTest() {
                 ),
             ),
         ) {
-            val hiddenClass =
-                codebase.assertResolvedClass(
-                    "test.pkg.HiddenClass",
-                    expectedEmit = true,
-                )
+            val hiddenClass = codebase.assertResolvedClass("test.pkg.HiddenClass")
             val publicClass = codebase.assertClass("test.pkg.PublicClass")
 
             val expectedTypes =
@@ -1443,11 +1435,7 @@ class CommonClassItemTest : BaseModelTest() {
                 ),
             ),
         ) {
-            val hiddenClass =
-                codebase.assertResolvedClass(
-                    "test.pkg.HiddenClass",
-                    expectedEmit = true,
-                )
+            val hiddenClass = codebase.assertResolvedClass("test.pkg.HiddenClass")
             val publicClass = codebase.assertClass("test.pkg.PublicClass")
 
             val expectedTypesAndNullability =
@@ -1723,6 +1711,36 @@ class CommonClassItemTest : BaseModelTest() {
                 "test.pkg.SourcePathClass",
                 expectedOrigin = ClassOrigin.SOURCE_PATH,
             )
+        }
+    }
+
+    @Test
+    fun `Test class on source path`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+
+                        public class Test {
+                            private Test() {}
+                        }
+                    """
+                ),
+                sourcePathFiles =
+                    listOf(
+                        java(
+                            """
+                                package test.pkg;
+
+                                public class SourcePathClass {}
+                            """
+                        )
+                    ),
+            )
+        ) {
+            // Make sure that a class defined on the source class path can be resolved.
+            assertNotNull(codebase.resolveClass("test.pkg.SourcePathClass"))
         }
     }
 }

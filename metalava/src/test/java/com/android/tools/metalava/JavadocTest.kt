@@ -713,13 +713,13 @@ class JavadocTest : DriverTest() {
                 public abstract class AsyncTaskLoader<D> {
                 public AsyncTaskLoader() { throw new RuntimeException("Stub!"); }
                 /**
-                 * Called if the task was canceled before it was completed.  Gives the class a chance
-                 * to clean up post-cancellation and to properly dispose of the result.
+                 * Sends the result of the load to the registered listener. Should only be called by subclasses.
                  *
-                 * @param data The value that was returned by {@link #loadInBackground}, or null
-                 * if the task threw {@link android.os.OperationCanceledException OperationCanceledException}.
+                 * Must be called from the process's main thread.
+                 *
+                 * @param data the result of the load
                  */
-                public void onCanceled(D data) { throw new RuntimeException("Stub!"); }
+                public void deliverResult(java.lang.Object data) { throw new RuntimeException("Stub!"); }
                 /**
                  * Called on a worker thread to perform the actual load and to return
                  * the result of the load operation.
@@ -742,13 +742,13 @@ class JavadocTest : DriverTest() {
                  */
                 public abstract java.lang.Object loadInBackground();
                 /**
-                 * Sends the result of the load to the registered listener. Should only be called by subclasses.
+                 * Called if the task was canceled before it was completed.  Gives the class a chance
+                 * to clean up post-cancellation and to properly dispose of the result.
                  *
-                 * Must be called from the process's main thread.
-                 *
-                 * @param data the result of the load
+                 * @param data The value that was returned by {@link #loadInBackground}, or null
+                 * if the task threw {@link android.os.OperationCanceledException OperationCanceledException}.
                  */
-                public void deliverResult(java.lang.Object data) { throw new RuntimeException("Stub!"); }
+                public void onCanceled(D data) { throw new RuntimeException("Stub!"); }
                 }
                 """
         )

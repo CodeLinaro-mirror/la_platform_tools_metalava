@@ -58,6 +58,14 @@ interface Codebase {
      */
     fun isFromClassPath(): Boolean = false
 
+    /**
+     * Freeze all the classes loaded from sources, along with their super classes.
+     *
+     * This does not prevent adding new classes and does automatically freeze classes added after
+     * this is called.
+     */
+    fun freezeClasses()
+
     /** Returns a class identified by fully qualified name, if in the codebase */
     fun findClass(className: String): ClassItem?
 
@@ -121,31 +129,6 @@ sealed class MinSdkVersion
 data class SetMinSdkVersion(val value: Int) : MinSdkVersion()
 
 object UnsetMinSdkVersion : MinSdkVersion()
-
-const val CLASS_ESTIMATE = 15000
-
-abstract class AbstractCodebase(
-    final override var location: File,
-    description: String,
-    final override val preFiltered: Boolean,
-    final override val annotationManager: AnnotationManager,
-    private val trustedApi: Boolean,
-    private val supportsDocumentation: Boolean,
-) : Codebase {
-
-    final override var description: String = description
-        private set
-
-    final override fun trustedApi() = trustedApi
-
-    final override fun supportsDocumentation() = supportsDocumentation
-
-    final override fun toString() = description
-
-    override fun dispose() {
-        description += " [disposed]"
-    }
-}
 
 interface MutableCodebase : Codebase {
     /**

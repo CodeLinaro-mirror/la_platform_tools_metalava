@@ -154,6 +154,7 @@ internal fun processFlags(
             modelOptions = modelOptions,
             allowReadingComments = options.allowReadingComments,
             jdkHome = options.jdkHome,
+            projectDescription = options.projectDescription,
         )
 
     val signatureFileCache = options.signatureFileCache
@@ -609,6 +610,10 @@ private fun ActionContext.loadFromSources(
         options.validateNullabilityFromList
     )
     options.nullabilityAnnotationsValidator?.report()
+
+    // Prevent the codebase from being mutated.
+    codebase.freezeClasses()
+
     analyzer.handleStripping()
 
     // General API checks for Android APIs

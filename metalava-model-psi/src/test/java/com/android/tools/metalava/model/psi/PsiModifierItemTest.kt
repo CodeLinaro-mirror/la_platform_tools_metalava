@@ -103,7 +103,7 @@ class PsiModifierItemTest : BaseModelTest() {
                 """
             )
         ) {
-            assertTrue(codebase.assertClass("Internal").isInternal)
+            assertTrue(codebase.assertResolvedClass("Internal").isInternal)
             assertTrue(codebase.assertClass("Public").isPublic)
             assertTrue(codebase.assertClass("DefaultPublic").isPublic)
             assertTrue(codebase.assertClass("Outer.Private").isPrivate)

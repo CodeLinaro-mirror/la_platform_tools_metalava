@@ -83,10 +83,14 @@ open class DefaultMethodItem(
      * are not matched
      */
     final override fun superMethods(): List<MethodItem> {
-        if (!::superMethodList.isInitialized) {
-            superMethodList = computeSuperMethods()
+        return if (containingClass().frozen) {
+            if (!::superMethodList.isInitialized) {
+                superMethodList = computeSuperMethods()
+            }
+            superMethodList
+        } else {
+            computeSuperMethods()
         }
-        return superMethodList
     }
 
     @Deprecated("This property should not be accessed directly.")

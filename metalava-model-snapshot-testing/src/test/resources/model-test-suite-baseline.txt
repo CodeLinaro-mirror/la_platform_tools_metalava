@@ -52,9 +52,6 @@ com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTe
   annotation with negative number values[text]
   annotation with type cast values[text]
 
-com.android.tools.metalava.model.testsuite.classitem.CommonClassItemTest
-  Test origin source path[turbine]
-
 com.android.tools.metalava.model.testsuite.classitem.CommonDuplicateClassItemTest
   Test duplicate classes[turbine]
 
@@ -90,10 +87,6 @@ com.android.tools.metalava.model.testsuite.packageitem.CommonPackageItemTest
   Test @hide in package info processed last[psi,java,k2]
   Test @hide in package info processed last[turbine]
 
-com.android.tools.metalava.model.testsuite.propertyitem.CommonPropertyItemTest
-  Test property delegate to lambda Kotlin object[psi,kotlin,k1]
-  Test property delegate to lambda Kotlin object[psi,kotlin,k2]
-
 com.android.tools.metalava.model.testsuite.typeitem.CommonIsAssignableFromTest
   Test assignability without unboxing[psi,java,k1,boxedInt to primitiveInt]
   Test assignability without unboxing[psi,java,k1,number to boxedInt]
@@ -120,38 +113,6 @@ com.android.tools.metalava.model.testsuite.typeitem.CommonIsAssignableFromTest
   Test assignability without unboxing[turbine,number to primitiveInt]
   Test assignability without unboxing[turbine,obj to string]
 
-com.android.tools.metalava.model.testsuite.typeitem.CommonLambdaTypeItemTest
-  Test lambda field nested lambda one parameter, no return[psi,kotlin,k1]
-  Test lambda field nested lambda one parameter, no return[psi,kotlin,k2]
-  Test lambda field nested lambda, no parameters, no return[psi,kotlin,k1]
-  Test lambda field nested lambda, no parameters, no return[psi,kotlin,k2]
-  Test lambda field[psi,kotlin,k1]
-  Test lambda field[psi,kotlin,k2]
-  Test lambda, Number receiver, String array param, Int return type[psi,kotlin,k1]
-  Test lambda, Number receiver, String array param, Int return type[psi,kotlin,k2]
-  Test lambda, nested lambda[psi,kotlin,k1]
-  Test lambda, nested lambda[psi,kotlin,k2]
-  Test lambda, no receiver, String param, Int return type[psi,kotlin,k1]
-  Test lambda, no receiver, String param, Int return type[psi,kotlin,k2]
-  Test lambda, no receiver, String param, nullable Int return type[psi,kotlin,k1]
-  Test lambda, no receiver, String param, nullable Int return type[psi,kotlin,k2]
-  Test lambda, no receiver, no params, unit return type[psi,kotlin,k1]
-  Test lambda, no receiver, no params, unit return type[psi,kotlin,k2]
-  Test lambda, return lambda[psi,kotlin,k1]
-  Test lambda, return lambda[psi,kotlin,k2]
-  Test suspend lambda Number receiver[psi,kotlin,k1]
-  Test suspend lambda Number receiver[psi,kotlin,k2]
-  Test suspend lambda no receiver, return Unit[psi,kotlin,k1]
-  Test suspend lambda no receiver, return Unit[psi,kotlin,k2]
-  Test suspend lambda no receiver[psi,kotlin,k1]
-  Test suspend lambda no receiver[psi,kotlin,k2]
-
-com.android.tools.metalava.model.testsuite.typeitem.CommonTypeItemTest
-  Test convertType's creation of duplicate objects[psi,kotlin,k1]
-  Test convertType's creation of duplicate objects[psi,kotlin,k2]
-  Test transform's creation of duplicate objects[psi,kotlin,k1]
-  Test transform's creation of duplicate objects[psi,kotlin,k2]
-
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeModifiersTest
   Test inner parameterized types with annotations[psi,java,k1]
   Test inner parameterized types with annotations[psi,java,k2]
@@ -159,16 +120,10 @@ com.android.tools.metalava.model.testsuite.typeitem.CommonTypeModifiersTest
   Test leading annotation on array type[turbine]
   Test nullability of Kotlin properties and accessors[psi,kotlin,k1]
   Test nullability of Kotlin properties and accessors[psi,kotlin,k2]
-  Test nullability of extension function type[psi,kotlin,k1]
-  Test nullability of extension function type[psi,kotlin,k2]
   Test nullability of outer classes[psi,java,k1]
   Test nullability of outer classes[psi,java,k2]
-  Test nullability of typealias[psi,kotlin,k1]
-  Test nullability of typealias[psi,kotlin,k2]
   Test nullability of varargs[psi,kotlin,k1]
   Test nullability of varargs[psi,kotlin,k2]
-  Test nullness of Kotlin lambda type[psi,kotlin,k1]
-  Test nullness of Kotlin lambda type[psi,kotlin,k2]
   Test super class and interface types of interface[turbine]
 
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeParameterItemTest

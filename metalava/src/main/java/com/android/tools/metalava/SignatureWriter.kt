@@ -34,7 +34,6 @@ import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.model.visitors.FilteringApiVisitor
 import java.io.PrintWriter
-import java.util.BitSet
 
 class SignatureWriter(
     private val writer: PrintWriter,
@@ -77,33 +76,13 @@ class SignatureWriter(
     }
 
     override fun visitConstructor(constructor: ConstructorItem) {
-        fun writeConstructor(skipMask: BitSet? = null) {
-            write("    ctor ")
-            writeModifiers(constructor)
-            writeTypeParameterList(constructor.typeParameterList, addSpace = true)
-            write(constructor.containingClass().fullName())
-            writeParameterList(constructor, skipMask)
-            writeThrowsList(constructor)
-            write(";\n")
-        }
-
-        // Workaround for https://youtrack.jetbrains.com/issue/KT-57537
-        if (constructor.shouldExpandOverloads()) {
-            val parameters = constructor.parameters()
-            val defaultMask = BitSet(parameters.size)
-
-            // fill the bitmask for all parameters
-            parameters.forEachIndexed { i, item -> defaultMask.set(i, item.hasDefaultValue()) }
-
-            // expand overloads ordered by number of parameters, skipping last parameters first
-            for (i in parameters.indices) {
-                if (!defaultMask.get(i)) continue
-                writeConstructor(defaultMask)
-                defaultMask.clear(i)
-            }
-        }
-
-        writeConstructor()
+        write("    ctor ")
+        writeModifiers(constructor)
+        writeTypeParameterList(constructor.typeParameterList, addSpace = true)
+        write(constructor.containingClass().fullName())
+        writeParameterList(constructor)
+        writeThrowsList(constructor)
+        write(";\n")
     }
 
     override fun visitField(field: FieldItem) {
@@ -262,13 +241,10 @@ class SignatureWriter(
         }
     }
 
-    private fun writeParameterList(callable: CallableItem, skipMask: BitSet? = null) {
+    private fun writeParameterList(callable: CallableItem) {
         write("(")
         var writtenParams = 0
-        callable.parameters().asSequence().forEachIndexed { i, parameter ->
-            // skip over defaults when generating @JvmOverloads permutations
-            if (skipMask != null && skipMask.get(i)) return@forEachIndexed
-
+        callable.parameters().asSequence().forEach { parameter ->
             if (writtenParams > 0) {
                 write(", ")
             }

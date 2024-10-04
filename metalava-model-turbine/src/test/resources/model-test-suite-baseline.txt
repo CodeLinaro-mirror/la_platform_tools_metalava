@@ -2,9 +2,6 @@ com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTe
   annotation toSource() with compound expression values
   annotation toSource() with constant literal values
 
-com.android.tools.metalava.model.testsuite.classitem.CommonClassItemTest
-  Test origin source path
-
 com.android.tools.metalava.model.testsuite.classitem.CommonDuplicateClassItemTest
   Test duplicate classes
 

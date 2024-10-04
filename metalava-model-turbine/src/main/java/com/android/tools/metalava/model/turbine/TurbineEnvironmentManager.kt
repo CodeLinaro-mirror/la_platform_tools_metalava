@@ -34,6 +34,7 @@ internal class TurbineEnvironmentManager() : EnvironmentManager {
         modelOptions: ModelOptions,
         allowReadingComments: Boolean,
         jdkHome: File?,
+        projectDescription: File?,
     ): SourceParser {
         return TurbineSourceParser(reporter, annotationManager, allowReadingComments)
     }

@@ -379,23 +379,23 @@ class ShowForStubPurposesAnnotationTest : DriverTest() {
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class SystemClass {
                     public SystemClass() { throw new RuntimeException("Stub!"); }
-                    public void noAnnotation() { throw new RuntimeException("Stub!"); }
-                    public void system() { throw new RuntimeException("Stub!"); }
                     public void module() { throw new RuntimeException("Stub!"); }
                     public void moduleAndSystem() { throw new RuntimeException("Stub!"); }
+                    public void noAnnotation() { throw new RuntimeException("Stub!"); }
                     public void referFromModuleToSystem(test.pkg.SystemClass2 arg) { throw new RuntimeException("Stub!"); }
+                    public void system() { throw new RuntimeException("Stub!"); }
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public static class NestedDefault {
                     public NestedDefault() { throw new RuntimeException("Stub!"); }
+                    public void module() { throw new RuntimeException("Stub!"); }
                     public void noAnnotation() { throw new RuntimeException("Stub!"); }
                     public void system() { throw new RuntimeException("Stub!"); }
-                    public void module() { throw new RuntimeException("Stub!"); }
                     }
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public static class NestedModule {
                     public NestedModule() { throw new RuntimeException("Stub!"); }
-                    public void noAnnotation() { throw new RuntimeException("Stub!"); }
                     public void module() { throw new RuntimeException("Stub!"); }
+                    public void noAnnotation() { throw new RuntimeException("Stub!"); }
                     }
                     }
                     """
@@ -406,21 +406,21 @@ class ShowForStubPurposesAnnotationTest : DriverTest() {
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class PublicClass {
                     public PublicClass() { throw new RuntimeException("Stub!"); }
+                    public void module() { throw new RuntimeException("Stub!"); }
                     public void noAnnotation() { throw new RuntimeException("Stub!"); }
                     public void system() { throw new RuntimeException("Stub!"); }
-                    public void module() { throw new RuntimeException("Stub!"); }
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public static class NestedDefault {
                     public NestedDefault() { throw new RuntimeException("Stub!"); }
+                    public void module() { throw new RuntimeException("Stub!"); }
                     public void noAnnotation() { throw new RuntimeException("Stub!"); }
                     public void system() { throw new RuntimeException("Stub!"); }
-                    public void module() { throw new RuntimeException("Stub!"); }
                     }
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public static class NestedModule {
                     public NestedModule() { throw new RuntimeException("Stub!"); }
-                    public void noAnnotation() { throw new RuntimeException("Stub!"); }
                     public void module() { throw new RuntimeException("Stub!"); }
+                    public void noAnnotation() { throw new RuntimeException("Stub!"); }
                     }
                     }
                     """
@@ -440,8 +440,8 @@ class ShowForStubPurposesAnnotationTest : DriverTest() {
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class ModuleClass {
                     public ModuleClass() { throw new RuntimeException("Stub!"); }
-                    public void noAnnotation() { throw new RuntimeException("Stub!"); }
                     public void module() { throw new RuntimeException("Stub!"); }
+                    public void noAnnotation() { throw new RuntimeException("Stub!"); }
                     }
                     """
                     )

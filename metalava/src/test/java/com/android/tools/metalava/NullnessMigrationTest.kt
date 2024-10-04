@@ -512,11 +512,11 @@ class NullnessMigrationTest : DriverTest() {
                                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                                 public class Foo {
                                 public Foo() { throw new RuntimeException("Stub!"); }
-                                public static char @androidx.annotation.RecentlyNonNull [] toChars(int codePoint) { throw new RuntimeException("Stub!"); }
                                 public static int codePointAt(char @androidx.annotation.RecentlyNonNull [] a, int index) { throw new RuntimeException("Stub!"); }
-                                public <T> T @android.annotation.RecentlyNonNull [] toArray(T @androidx.annotation.RecentlyNonNull [] a) { throw new RuntimeException("Stub!"); }
                                 @androidx.annotation.NonNull
                                 public static java.lang.String newMethod(@android.annotation.Nullable java.lang.String argument) { throw new RuntimeException("Stub!"); }
+                                public <T> T @android.annotation.RecentlyNonNull [] toArray(T @androidx.annotation.RecentlyNonNull [] a) { throw new RuntimeException("Stub!"); }
+                                public static char @androidx.annotation.RecentlyNonNull [] toChars(int codePoint) { throw new RuntimeException("Stub!"); }
                                 }
                             """
                         ),
@@ -529,11 +529,11 @@ class NullnessMigrationTest : DriverTest() {
                                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                                 public class Foo {
                                 public Foo() { throw new RuntimeException("Stub!"); }
-                                public static char[] toChars(int codePoint) { throw new RuntimeException("Stub!"); }
                                 public static int codePointAt(char[] a, int index) { throw new RuntimeException("Stub!"); }
-                                public <T> T[] toArray(T[] a) { throw new RuntimeException("Stub!"); }
                                 @android.annotation.NonNull
                                 public static java.lang.String newMethod(@android.annotation.Nullable java.lang.String argument) { throw new RuntimeException("Stub!"); }
+                                public <T> T[] toArray(T[] a) { throw new RuntimeException("Stub!"); }
+                                public static char[] toChars(int codePoint) { throw new RuntimeException("Stub!"); }
                                 }
                             """
                         ),
@@ -586,9 +586,9 @@ class NullnessMigrationTest : DriverTest() {
                                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                                 public class Foo {
                                 public Foo() { throw new RuntimeException("Stub!"); }
-                                public static char @androidx.annotation.RecentlyNonNull [] toChars(int codePoint) { throw new RuntimeException("Stub!"); }
                                 public static int codePointAt(char @androidx.annotation.RecentlyNonNull [] a, int index) { throw new RuntimeException("Stub!"); }
                                 public <T> T @androidx.annotation.RecentlyNonNull [] toArray(T @androidx.annotation.RecentlyNonNull [] a) { throw new RuntimeException("Stub!"); }
+                                public static char @androidx.annotation.RecentlyNonNull [] toChars(int codePoint) { throw new RuntimeException("Stub!"); }
                                 }
                             """
                         ),
@@ -601,9 +601,9 @@ class NullnessMigrationTest : DriverTest() {
                                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                                 public class Foo {
                                 public Foo() { throw new RuntimeException("Stub!"); }
-                                public static char[] toChars(int codePoint) { throw new RuntimeException("Stub!"); }
                                 public static int codePointAt(char[] a, int index) { throw new RuntimeException("Stub!"); }
                                 public <T> T[] toArray(T[] a) { throw new RuntimeException("Stub!"); }
+                                public static char[] toChars(int codePoint) { throw new RuntimeException("Stub!"); }
                                 }
                             """
                         ),

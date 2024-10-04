@@ -492,7 +492,7 @@ class AnnotationsMergerTest : DriverTest() {
                 import libcore.util.Nullable;
 
                 public class PublicClass {
-                    @NonNull public @NonNull String publicMethod(@Nullable Object object) {return "";}
+                    @NonNull public String publicMethod(@Nullable Object object) {return "";}
                 }
                 """,
             api =
@@ -513,7 +513,7 @@ class AnnotationsMergerTest : DriverTest() {
             format = FileFormat.V2,
             expectedIssues =
                 """
-                    inclusion/src/test/pkg/Example.java:13: warning: inclusion annotations were given for method test.pkg.HiddenExample.notPresentWithAnnotations() but no matching item was found [UnmatchedMergeAnnotation]
+                    inclusion1/src/test/pkg/HiddenExample.java:7: warning: inclusion annotations were given for method test.pkg.HiddenExample.notPresentWithAnnotations() but no matching item was found [UnmatchedMergeAnnotation]
                 """,
             sourceFiles =
                 arrayOf(
@@ -554,6 +554,11 @@ class AnnotationsMergerTest : DriverTest() {
                                 @test.annotation.Hide void bHidden();
                                 @test.annotation.Hide @test.annotation.Show void cShown();
                             }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
 
                             @test.annotation.Hide
                             public interface HiddenExample {

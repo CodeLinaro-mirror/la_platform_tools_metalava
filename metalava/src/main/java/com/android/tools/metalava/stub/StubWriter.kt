@@ -282,10 +282,11 @@ fun createFilteringVisitorForStubs(
     return FilteringApiVisitor(
         delegate = delegate,
         inlineInheritedFields = true,
-        // Methods are by default sorted in source order in stubs, to encourage methods
-        // that are near each other in the source to show up near each other in the
-        // documentation
-        callableComparator = CallableItem.sourceOrderComparator,
+        // Sort methods in stubs based on their signature. The order of methods in stubs is
+        // irrelevant, e.g. it does not affect compilation or document generation. However, having a
+        // consistent order will prevent churn in the generated stubs caused by changes to Metalava
+        // itself or changes to the order of methods in the sources.
+        callableComparator = CallableItem.comparator,
         filterEmit = filterEmit,
         filterReference = filterReference,
         preFiltered = preFiltered,

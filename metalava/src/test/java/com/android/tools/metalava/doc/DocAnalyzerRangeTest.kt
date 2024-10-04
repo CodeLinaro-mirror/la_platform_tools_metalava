@@ -134,13 +134,13 @@ class DocAnalyzerRangeTest : DriverTest() {
                     public class TypedefTest {
                     public TypedefTest() { throw new RuntimeException("Stub!"); }
                     /**
-                     * @param style Value is {@link test.pkg.TypedefTest#STYLE_NORMAL}, {@link test.pkg.TypedefTest#STYLE_NO_TITLE}, {@link test.pkg.TypedefTest#STYLE_NO_FRAME}, or {@link test.pkg.TypedefTest#STYLE_NO_INPUT}
-                     */
-                    public void setStyle(int style, int theme) { throw new RuntimeException("Stub!"); }
-                    /**
                      * @param flags Value is either <code>0</code> or a combination of {@link test.pkg.TypedefTest#STYLE_NORMAL}, {@link test.pkg.TypedefTest#STYLE_NO_TITLE}, {@link test.pkg.TypedefTest#STYLE_NO_FRAME}, {@link test.pkg.TypedefTest#STYLE_NO_INPUT}, 2, and 3 + 1
                      */
                     public void setFlags(java.lang.Object first, int flags) { throw new RuntimeException("Stub!"); }
+                    /**
+                     * @param style Value is {@link test.pkg.TypedefTest#STYLE_NORMAL}, {@link test.pkg.TypedefTest#STYLE_NO_TITLE}, {@link test.pkg.TypedefTest#STYLE_NO_FRAME}, or {@link test.pkg.TypedefTest#STYLE_NO_INPUT}
+                     */
+                    public void setStyle(int style, int theme) { throw new RuntimeException("Stub!"); }
                     public static final int STYLE_NORMAL = 0; // 0x0
                     public static final int STYLE_NO_FRAME = 2; // 0x2
                     public static final int STYLE_NO_INPUT = 3; // 0x3

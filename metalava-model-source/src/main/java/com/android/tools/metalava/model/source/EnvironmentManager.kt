@@ -41,6 +41,7 @@ interface EnvironmentManager : Closeable {
      * @param kotlinLanguageLevel the kotlin language level as a string, e.g. 1.8, etc.
      * @param modelOptions a set of model specific options provided by the caller.
      * @param jdkHome the optional path to the jdk home directory.
+     * @param projectDescription Lint project model that can describe project structures in detail.
      */
     fun createSourceParser(
         reporter: Reporter,
@@ -50,6 +51,7 @@ interface EnvironmentManager : Closeable {
         modelOptions: ModelOptions = ModelOptions.empty,
         allowReadingComments: Boolean = true,
         jdkHome: File? = null,
+        projectDescription: File? = null,
     ): SourceParser
 }
 

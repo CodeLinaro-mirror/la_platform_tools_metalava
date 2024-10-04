@@ -94,9 +94,9 @@ internal open class PsiClassTypeItem(
     final override val qualifiedName: String,
     final override val arguments: List<TypeArgumentTypeItem>,
     final override val outerClassType: ClassTypeItem?,
-    final override val className: String,
     modifiers: TypeModifiers,
 ) : ClassTypeItem, PsiTypeItem(psiType, modifiers) {
+    override val className: String = ClassTypeItem.computeClassName(qualifiedName)
 
     private val asClassCache by
         lazy(LazyThreadSafetyMode.NONE) { codebase.resolveClass(qualifiedName) }
@@ -122,7 +122,6 @@ internal open class PsiClassTypeItem(
             qualifiedName = qualifiedName,
             arguments = arguments,
             outerClassType = outerClassType,
-            className = className,
             modifiers = modifiers,
         )
 }
@@ -133,7 +132,6 @@ internal class PsiLambdaTypeItem(
     qualifiedName: String,
     arguments: List<TypeArgumentTypeItem>,
     outerClassType: ClassTypeItem?,
-    className: String,
     modifiers: TypeModifiers,
     override val isSuspend: Boolean,
     override val receiverType: TypeItem?,
@@ -146,7 +144,6 @@ internal class PsiLambdaTypeItem(
         qualifiedName = qualifiedName,
         arguments = arguments,
         outerClassType = outerClassType,
-        className = className,
         modifiers = modifiers,
     ),
     LambdaTypeItem {
@@ -166,7 +163,6 @@ internal class PsiLambdaTypeItem(
             qualifiedName = qualifiedName,
             arguments = arguments,
             outerClassType = outerClassType,
-            className = className,
             modifiers = modifiers,
             isSuspend = isSuspend,
             receiverType = receiverType,

@@ -1481,19 +1481,19 @@ class DocAnalyzerTest : DriverTest() {
                     @Deprecated
                     public void foo() { throw new RuntimeException("Stub!"); }
                     /**
-                     * {@inheritDoc}
-                     * @deprecated Blah blah blah 1
-                     */
-                    @Deprecated
-                    @androidx.annotation.NonNull
-                    public java.lang.String toString() { throw new RuntimeException("Stub!"); }
-                    /**
                      * My description
                      * @deprecated Existing deprecation message.
                      * Blah blah blah 2
                      */
                     @Deprecated
                     public int hashCode() { throw new RuntimeException("Stub!"); }
+                    /**
+                     * {@inheritDoc}
+                     * @deprecated Blah blah blah 1
+                     */
+                    @Deprecated
+                    @androidx.annotation.NonNull
+                    public java.lang.String toString() { throw new RuntimeException("Stub!"); }
                     }
                     """
                     )

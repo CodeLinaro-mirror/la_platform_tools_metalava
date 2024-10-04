@@ -108,16 +108,6 @@ interface CallableItem : MemberItem, TypeParameterListOwner {
             containingClass().qualifiedName()}.${name()}(${parameters().joinToString { it.type().toSimpleType() }})"
     }
 
-    /**
-     * Returns true if overloads of this callable should be checked separately when checking the
-     * signature of this callable.
-     *
-     * This works around the issue of actual callable not generating overloads for @JvmOverloads
-     * annotation when the default is specified on expect side
-     * (https://youtrack.jetbrains.com/issue/KT-57537).
-     */
-    fun shouldExpandOverloads(): Boolean = false
-
     override fun equalsToItem(other: Any?): Boolean {
         if (this === other) return true
         if (other !is CallableItem) return false

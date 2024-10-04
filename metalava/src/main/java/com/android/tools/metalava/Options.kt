@@ -195,8 +195,8 @@ const val ARG_IGNORE_CLASSES_ON_CLASSPATH = "--ignore-classes-on-classpath"
 const val ARG_SDK_JAR_ROOT = "--sdk-extensions-root"
 const val ARG_SDK_INFO_FILE = "--sdk-extensions-info"
 const val ARG_USE_K2_UAST = "--Xuse-k2-uast"
+const val ARG_PROJECT = "--project"
 const val ARG_SOURCE_MODEL_PROVIDER = "--source-model-provider"
-
 const val ARG_CONFIG_FILE = "--config-file"
 
 class Options(
@@ -319,6 +319,9 @@ class Options(
 
     /** All source files to parse */
     var sources: List<File> = mutableSources
+
+    /** Lint project description that describes project's module structure in details */
+    var projectDescription: File? = null
 
     val configFiles by
         option(
@@ -890,6 +893,9 @@ class Options(
                     compileSdkVersion = getValue(args, ++index)
                 }
                 ARG_USE_K2_UAST -> useK2Uast = true
+                ARG_PROJECT -> {
+                    projectDescription = stringToExistingFile(getValue(args, ++index))
+                }
                 ARG_SDK_JAR_ROOT -> {
                     sdkJarRoot = stringToExistingDir(getValue(args, ++index))
                 }
@@ -1235,6 +1241,8 @@ object OptionsHelp {
                 "One or more directories or jars (separated by " +
                     "`${File.pathSeparator}`) containing classes that should be on the classpath when parsing the " +
                     "source files",
+                "$ARG_PROJECT <xmlfile>",
+                "Project description written in XML according to Lint's project model.",
                 "$ARG_MERGE_QUALIFIER_ANNOTATIONS <file>",
                 "An external annotations file to merge and overlay " +
                     "the sources, or a directory of such files. Should be used for annotations intended for " +
