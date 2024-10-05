@@ -30,6 +30,7 @@ import com.android.tools.metalava.model.WildcardTypeItem
 import com.android.tools.metalava.model.type.ContextNullability
 import com.android.tools.metalava.model.type.DefaultArrayTypeItem
 import com.android.tools.metalava.model.type.DefaultClassTypeItem
+import com.android.tools.metalava.model.type.DefaultLambdaTypeItem
 import com.android.tools.metalava.model.type.DefaultPrimitiveTypeItem
 import com.android.tools.metalava.model.type.DefaultTypeItemFactory
 import com.android.tools.metalava.model.type.DefaultTypeModifiers
@@ -92,7 +93,17 @@ internal class SnapshotTypeItemFactory(
         )
 
     override fun transform(typeItem: LambdaTypeItem) =
-        error("Snapshotting LambdaTypeItem not supported yet")
+        DefaultLambdaTypeItem(
+            codebase,
+            typeItem.modifiers.snapshot(),
+            typeItem.qualifiedName,
+            typeItem.arguments.map { it.transform(this) },
+            typeItem.outerClassType?.transform(this),
+            typeItem.isSuspend,
+            typeItem.receiverType?.transform(this),
+            typeItem.parameterTypes.map { it.transform(this) },
+            typeItem.returnType.transform(this),
+        )
 
     override fun transform(typeItem: PrimitiveTypeItem) =
         DefaultPrimitiveTypeItem(typeItem.modifiers.snapshot(), typeItem.kind)

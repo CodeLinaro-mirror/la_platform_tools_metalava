@@ -42,6 +42,7 @@ import org.jetbrains.uast.USimpleNameReferenceExpression
 import org.jetbrains.uast.UThisExpression
 import org.jetbrains.uast.UThrowExpression
 import org.jetbrains.uast.UTryExpression
+import org.jetbrains.uast.UastErrorType
 import org.jetbrains.uast.getParentOfType
 import org.jetbrains.uast.toUElement
 import org.jetbrains.uast.visitor.AbstractUastVisitor
@@ -87,7 +88,8 @@ internal class PsiCallableBody(private val callable: PsiCallableItem) : Callable
             object : AbstractUastVisitor() {
                 override fun visitThrowExpression(node: UThrowExpression): Boolean {
                     val type = node.thrownExpression.getExpressionType()
-                    if (type != null) {
+                    // TODO: after KTIJ-31242, go back to null check only
+                    if (type != null && type != UastErrorType) {
                         val typeItemFactory = codebase.globalTypeItemFactory.from(callable)
                         val exceptionClass = typeItemFactory.getType(type).asClass()
                         if (exceptionClass != null && !isCaught(exceptionClass, node)) {

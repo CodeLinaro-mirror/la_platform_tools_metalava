@@ -218,6 +218,19 @@ interface ClassItem : ClassContentItem, SelectableItem, TypeParameterListOwner {
     override fun setType(type: TypeItem) =
         error("Cannot call setType(TypeItem) on PackageItem: $this")
 
+    /** True if [freeze] has been called on this, false otherwise. */
+    val frozen: Boolean
+
+    /**
+     * Freeze this [ClassItem] so it cannot be mutated.
+     *
+     * A frozen [ClassItem] cannot have new members (including nested classes) added or its
+     * modifiers mutated.
+     *
+     * Freezing a [ClassItem] will also freeze its super types.
+     */
+    fun freeze()
+
     override fun findCorrespondingItemIn(
         codebase: Codebase,
         superMethods: Boolean,

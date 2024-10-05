@@ -156,8 +156,8 @@ class StubsGenericTest : AbstractStubsTest() {
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public abstract class Collections {
                 public Collections() { throw new RuntimeException("Stub!"); }
-                public static <T extends java.lang.Object & java.lang.Comparable<? super T>> T max(java.util.Collection<? extends T> collection) { throw new RuntimeException("Stub!"); }
                 public abstract <T extends java.util.Collection<java.lang.String>> T addAllTo(T t);
+                public static <T extends java.lang.Object & java.lang.Comparable<? super T>> T max(java.util.Collection<? extends T> collection) { throw new RuntimeException("Stub!"); }
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public final class Range<T extends java.lang.Comparable<? super T>> {
                 public Range() { throw new RuntimeException("Stub!"); }

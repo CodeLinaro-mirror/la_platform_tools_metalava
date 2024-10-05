@@ -70,6 +70,10 @@ sealed interface JarCodebaseLoader {
             analyzer.computeApi()
             analyzer.mergeExternalQualifierAnnotations()
             analyzer.generateInheritedStubs(apiEmit, apiReference)
+
+            // Prevent the codebase from being mutated.
+            codebase.freezeClasses()
+
             return codebase
         }
     }
