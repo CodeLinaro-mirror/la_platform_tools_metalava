@@ -767,16 +767,16 @@ class ApiAnalyzer(
             return
         }
 
-        // cant strip any public fields or their generics
+        // can't strip any public fields or their generics
         for (field in cl.fields()) {
             if (!filter.test(field)) {
                 continue
             }
             cantStripThis(field.type(), field, filter, notStrippable, "in field type")
         }
-        // cant strip any of the type's generics
+        // can't strip any of the type's generics
         cantStripThis(cl.typeParameterList, filter, notStrippable, cl)
-        // cant strip any of the annotation elements
+        // can't strip any of the annotation elements
         // cantStripThis(cl.annotationElements(), notStrippable);
         // take care of methods
         cantStripThis(cl.methods(), filter, notStrippable)

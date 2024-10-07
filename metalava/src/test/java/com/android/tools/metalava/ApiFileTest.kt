@@ -566,7 +566,7 @@ class ApiFileTest : DriverTest() {
                         var readOnlyVar = false
                             internal set
                         // This property should have no public setter
-                        public var readOnlyVarWithPublicModifer = false
+                        public var readOnlyVarWithPublicModifier = false
                             internal set
                     }
                     """
@@ -579,9 +579,9 @@ class ApiFileTest : DriverTest() {
                   public final class MyClass {
                     ctor public MyClass();
                     method public boolean getReadOnlyVar();
-                    method public boolean getReadOnlyVarWithPublicModifer();
+                    method public boolean getReadOnlyVarWithPublicModifier();
                     property public final boolean readOnlyVar;
-                    property public final boolean readOnlyVarWithPublicModifer;
+                    property public final boolean readOnlyVarWithPublicModifier;
                   }
                 }
                 """
