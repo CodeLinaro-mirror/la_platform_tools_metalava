@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
 import kotlin.test.assertEquals
+import kotlin.test.assertSame
 import org.junit.Test
 
 /** Common tests for implementations of [MethodItem]. */
@@ -47,6 +48,25 @@ class CommonCodebaseTest : BaseModelTest() {
             val classes = codebase.getTopLevelClassesFromSource()
 
             assertEquals(listOf(codebase.assertClass("test.pkg.Outer")), classes)
+        }
+    }
+
+    @Test
+    fun `Test resolve nested class sets correct containing class`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    public class Test {
+                        private Test() {}
+                    }
+                """
+            ),
+        ) {
+            val entryClass = codebase.assertResolvedClass("java.util.Map.Entry")
+            val mapClass = codebase.assertResolvedClass("java.util.Map")
+            assertSame(entryClass.containingClass(), mapClass)
         }
     }
 }
