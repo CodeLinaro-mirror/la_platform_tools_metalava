@@ -39,10 +39,7 @@ interface AnnotationManager {
     ): String?
 
     /** Get the applicable targets for the annotation */
-    fun computeTargets(
-        annotation: AnnotationItem,
-        classFinder: (String) -> ClassItem?
-    ): Set<AnnotationTarget>
+    fun computeTargets(annotation: AnnotationItem): Set<AnnotationTarget>
 
     /** Returns true if [annotationName] is the name of one of the show annotations. */
     fun isShowAnnotationName(annotationName: String): Boolean = false
@@ -164,10 +161,8 @@ internal class NoOpAnnotationManager : BaseAnnotationManager() {
         return qualifiedName
     }
 
-    override fun computeTargets(
-        annotation: AnnotationItem,
-        classFinder: (String) -> ClassItem?
-    ): Set<AnnotationTarget> = ANNOTATION_IN_ALL_STUBS
+    override fun computeTargets(annotation: AnnotationItem): Set<AnnotationTarget> =
+        ANNOTATION_IN_ALL_STUBS
 
     override val typedefMode: TypedefMode = TypedefMode.NONE
 }

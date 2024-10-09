@@ -27,6 +27,7 @@ import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SUPPORT_TYPE_USE_ANNOTATIONS
+import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.SignatureFile
 import com.android.tools.metalava.model.visitors.ApiVisitor
@@ -84,7 +85,7 @@ class ConvertJarsToSignatureFiles(
                 jarCodebase.accept(
                     object :
                         ApiVisitor(
-                            config = ApiVisitor.Config(),
+                            apiPredicateConfig = ApiPredicate.Config(),
                         ) {
                         override fun visitItem(item: Item) {
                             unmarkRecent(item)
@@ -130,8 +131,7 @@ class ConvertJarsToSignatureFiles(
                                 }
                             }
                         }
-                    CodebaseComparator(apiVisitorConfig = ApiVisitor.Config())
-                        .compare(visitor, oldCodebase, jarCodebase, null)
+                    CodebaseComparator().compare(visitor, oldCodebase, jarCodebase, null)
                 } catch (e: Exception) {
                     throw IllegalStateException("Could not load $oldApiFile: ${e.message}", e)
                 }
@@ -150,7 +150,7 @@ class ConvertJarsToSignatureFiles(
                     apiType = ApiType.PUBLIC_API,
                     preFiltered = jarCodebase.preFiltered,
                     showUnannotated = false,
-                    apiVisitorConfig = ApiVisitor.Config()
+                    apiPredicateConfig = ApiPredicate.Config()
                 )
             }
 

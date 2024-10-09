@@ -54,7 +54,7 @@ internal class PsiBasedClassResolver(
                     assembler = assembler,
                 )
             }
-        assembler.initializeFromSources(SourceSet.empty())
+        assembler.initializeFromSources(SourceSet.empty(), apiPackages = null)
         classpathCodebase = assembler.codebase
     }
 

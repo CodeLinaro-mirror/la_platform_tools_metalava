@@ -80,7 +80,6 @@ class FilteringApiVisitor(
     private val preFiltered: Boolean,
     private val filterSuperClassType: Boolean = true,
     showUnannotated: Boolean = true,
-    config: Config,
 ) :
     ApiVisitor(
         preserveClassNesting = delegate.requiresClassNesting,
@@ -89,7 +88,6 @@ class FilteringApiVisitor(
         filterEmit = filterEmit,
         filterReference = filterReference,
         showUnannotated = showUnannotated,
-        config = config,
     ),
     ItemVisitor {
 

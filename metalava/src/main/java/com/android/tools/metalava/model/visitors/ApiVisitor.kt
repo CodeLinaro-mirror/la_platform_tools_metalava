@@ -17,7 +17,6 @@
 package com.android.tools.metalava.model.visitors
 
 import com.android.tools.metalava.ApiPredicate
-import com.android.tools.metalava.PackageFilter
 import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
@@ -56,23 +55,7 @@ open class ApiVisitor(
      * annotated API relative to the base API.
      */
     val showUnannotated: Boolean = true,
-
-    /** Configuration that may come from the command line. */
-    config: Config,
 ) : BaseItemVisitor(preserveClassNesting) {
-
-    private val packageFilter: PackageFilter? = config.packageFilter
-
-    /**
-     * Contains configuration for [ApiVisitor] that can, or at least could, come from command line
-     * options.
-     */
-    data class Config(
-        val packageFilter: PackageFilter? = null,
-
-        /** Configuration for any [ApiPredicate] instances this needs to create. */
-        val apiPredicateConfig: ApiPredicate.Config = ApiPredicate.Config()
-    )
 
     constructor(
         /**
@@ -112,7 +95,7 @@ open class ApiVisitor(
         includeApisForStubPurposes: Boolean = true,
 
         /** Configuration that may come from the command line. */
-        config: Config,
+        apiPredicateConfig: ApiPredicate.Config
     ) : this(
         preserveClassNesting = preserveClassNesting,
         inlineInheritedFields = true,
@@ -121,14 +104,13 @@ open class ApiVisitor(
                 ?: ApiPredicate(
                     matchRemoved = remove,
                     includeApisForStubPurposes = includeApisForStubPurposes,
-                    config = config.apiPredicateConfig.copy(ignoreShown = ignoreShown),
+                    config = apiPredicateConfig.copy(ignoreShown = ignoreShown),
                 ),
         filterReference = filterReference
                 ?: ApiPredicate(
                     ignoreRemoved = remove,
-                    config = config.apiPredicateConfig.copy(ignoreShown = true),
+                    config = apiPredicateConfig.copy(ignoreShown = true),
                 ),
-        config = config,
     )
 
     /**
@@ -181,9 +163,6 @@ open class ApiVisitor(
     /** @return Whether this class is generally one that we want to recurse into */
     open fun include(cls: ClassItem): Boolean {
         if (skip(cls)) {
-            return false
-        }
-        if (packageFilter != null && !packageFilter.matches(cls.containingPackage())) {
             return false
         }
 

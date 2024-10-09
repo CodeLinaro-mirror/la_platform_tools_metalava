@@ -17,14 +17,14 @@
 package com.android.tools.metalava.cli.internal
 
 import com.android.SdkConstants
-import com.android.tools.metalava.ANDROID_FLAGGED_API
-import com.android.tools.metalava.ANDROID_NONNULL
-import com.android.tools.metalava.ANDROID_NULLABLE
 import com.android.tools.metalava.ANDROID_SDK_CONSTANT
-import com.android.tools.metalava.RECENTLY_NONNULL
-import com.android.tools.metalava.RECENTLY_NULLABLE
+import com.android.tools.metalava.model.ANDROID_FLAGGED_API
+import com.android.tools.metalava.model.ANDROID_NONNULL
+import com.android.tools.metalava.model.ANDROID_NULLABLE
 import com.android.tools.metalava.model.AnnotationRetention
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.RECENTLY_NONNULL
+import com.android.tools.metalava.model.RECENTLY_NULLABLE
 import java.io.File
 import kotlin.text.Charsets.UTF_8
 

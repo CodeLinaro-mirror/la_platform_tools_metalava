@@ -21,6 +21,7 @@ import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.DefaultAnnotationSingleAttributeValue
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.VariableTypeItem
+import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.testing.java
 import com.google.common.truth.Truth.assertThat
 import kotlin.test.assertEquals
@@ -437,6 +438,12 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
                     """
                 ),
             ),
+            testFixture =
+                TestFixture(
+                    // Use the noOpAnnotationManager to avoid annotation name normalizing as the
+                    // annotation names are important for this test.
+                    annotationManager = noOpAnnotationManager,
+                ),
         ) {
             val classItem = codebase.assertClass("test.pkg.Test")
             val fieldItem = classItem.assertField("myString")

@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.text
 
+import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassOrigin
@@ -53,8 +54,13 @@ class TextModelSuiteRunner : ModelSuiteRunner {
         }
 
         val signatureFiles = SignatureFile.fromFiles(inputs.mainSourceDir.createFiles())
-        val resolver = ClassLoaderBasedClassResolver(getAndroidJar())
-        val codebase = ApiFile.parseApi(signatureFiles, classResolver = resolver)
+        val resolver = ClassLoaderBasedClassResolver(getAndroidJar(), inputs.annotationManager)
+        val codebase =
+            ApiFile.parseApi(
+                signatureFiles,
+                annotationManager = inputs.annotationManager,
+                classResolver = resolver,
+            )
 
         // If available, transform the codebase for testing, otherwise use the one provided.
         val transformedCodebase = CodebaseTransformer.transformIfAvailable(codebase)
@@ -77,14 +83,17 @@ class TextModelSuiteRunner : ModelSuiteRunner {
  * the [classLoader]. It is just a placeholder to indicate that it was found, although that may
  * change in the future.
  */
-class ClassLoaderBasedClassResolver(jar: File) : ClassResolver {
+class ClassLoaderBasedClassResolver(
+    jar: File,
+    annotationManager: AnnotationManager = noOpAnnotationManager,
+) : ClassResolver {
 
     private val assembler by
         lazy(LazyThreadSafetyMode.NONE) {
             TextCodebaseAssembler.createAssembler(
                 location = jar,
                 description = "Codebase for resolving classes in $jar for tests",
-                annotationManager = noOpAnnotationManager,
+                annotationManager = annotationManager,
                 classResolver = null,
             )
         }

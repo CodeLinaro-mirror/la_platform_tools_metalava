@@ -14,14 +14,18 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava
+package com.android.tools.metalava.model.annotation
 
-import com.android.tools.metalava.DefaultAnnotationManager.Config
 import com.android.tools.metalava.model.ANDROIDX_ANNOTATION_PREFIX
 import com.android.tools.metalava.model.ANDROIDX_NONNULL
 import com.android.tools.metalava.model.ANDROIDX_NULLABLE
 import com.android.tools.metalava.model.ANDROID_ANNOTATION_PREFIX
 import com.android.tools.metalava.model.ANDROID_DEPRECATED_FOR_SDK
+import com.android.tools.metalava.model.ANDROID_FLAGGED_API
+import com.android.tools.metalava.model.ANDROID_NONNULL
+import com.android.tools.metalava.model.ANDROID_NULLABLE
+import com.android.tools.metalava.model.ANDROID_SYSTEM_API
+import com.android.tools.metalava.model.ANDROID_TEST_API
 import com.android.tools.metalava.model.ANNOTATION_EXTERNAL
 import com.android.tools.metalava.model.ANNOTATION_EXTERNAL_ONLY
 import com.android.tools.metalava.model.ANNOTATION_IN_ALL_STUBS
@@ -41,10 +45,13 @@ import com.android.tools.metalava.model.JAVA_LANG_PREFIX
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.NO_ANNOTATION_TARGETS
+import com.android.tools.metalava.model.RECENTLY_NONNULL
+import com.android.tools.metalava.model.RECENTLY_NULLABLE
 import com.android.tools.metalava.model.SUPPRESS_COMPATIBILITY_ANNOTATION
 import com.android.tools.metalava.model.ShowOrHide
 import com.android.tools.metalava.model.Showability
 import com.android.tools.metalava.model.TypedefMode
+import com.android.tools.metalava.model.annotation.DefaultAnnotationManager.Config
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.isNonNullAnnotation
 import com.android.tools.metalava.model.isNullableAnnotation
@@ -330,10 +337,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
         else ANNOTATION_EXTERNAL_ONLY
 
     /** The applicable targets for this annotation */
-    override fun computeTargets(
-        annotation: AnnotationItem,
-        classFinder: (String) -> ClassItem?
-    ): Set<AnnotationTarget> {
+    override fun computeTargets(annotation: AnnotationItem): Set<AnnotationTarget> {
         val qualifiedName = annotation.qualifiedName
         if (config.passThroughAnnotations.contains(qualifiedName)) {
             return ANNOTATION_IN_ALL_STUBS
@@ -474,7 +478,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
 
         // See if the annotation is pointing to an annotation class that is part of the API; if
         // not, skip it.
-        val cls = classFinder(qualifiedName) ?: return NO_ANNOTATION_TARGETS
+        val cls = annotation.resolve() ?: return NO_ANNOTATION_TARGETS
         if (!config.apiPredicate.test(cls)) {
             if (config.typedefMode != TypedefMode.NONE) {
                 if (cls.modifiers.hasAnnotation(AnnotationItem::isTypeDefAnnotation)) {
@@ -772,13 +776,3 @@ private class LazyAnnotationInfo(
                 checkResolvedAnnotationClass { it.hasSuppressCompatibilityMetaAnnotation() }
         }
 }
-
-/**
- * Get the actual item to use, this takes into account whether the item has been reverted.
- *
- * This casts the [Showability.revertItem] to the same type as this is called upon. That is safe as,
- * if set to a non-null value the [Showability.revertItem] will always point to an [Item] of the
- * same type.
- */
-val <reified T : Item> T.actualItem: T
-    inline get() = (showability.revertItem ?: this) as T

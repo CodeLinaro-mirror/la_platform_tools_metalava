@@ -18,7 +18,6 @@ package com.android.tools.metalava.stub
 
 import com.android.tools.metalava.ApiPredicate
 import com.android.tools.metalava.FilterPredicate
-import com.android.tools.metalava.actualItem
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ConstructorItem
@@ -33,6 +32,7 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.item.ResourceFile
 import com.android.tools.metalava.model.psi.trimDocIndent
 import com.android.tools.metalava.model.removeDeprecatedSection
+import com.android.tools.metalava.model.snapshot.actualItemToSnapshot
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.model.visitors.FilteringApiVisitor
 import com.android.tools.metalava.reporter.Issues
@@ -271,12 +271,12 @@ fun createFilteringVisitorForStubs(
     delegate: DelegatedVisitor,
     docStubs: Boolean,
     preFiltered: Boolean,
-    apiVisitorConfig: ApiVisitor.Config,
+    apiPredicateConfig: ApiPredicate.Config,
 ): ItemVisitor {
     val filterReference =
         ApiPredicate(
             includeDocOnly = docStubs,
-            config = apiVisitorConfig.apiPredicateConfig.copy(ignoreShown = true),
+            config = apiPredicateConfig.copy(ignoreShown = true),
         )
     val filterEmit = FilterPredicate(filterReference)
     return FilteringApiVisitor(
@@ -290,7 +290,6 @@ fun createFilteringVisitorForStubs(
         filterEmit = filterEmit,
         filterReference = filterReference,
         preFiltered = preFiltered,
-        config = apiVisitorConfig,
     )
 }
 
@@ -316,7 +315,7 @@ internal fun appendDocumentation(item: Item, writer: PrintWriter, config: StubWr
  * avoid warnings when compiling and misleading information being written into the Javadoc.
  */
 fun revertDocumentationDeprecationChange(currentItem: Item, docs: String): String {
-    val actualItem = currentItem.actualItem
+    val actualItem = currentItem.actualItemToSnapshot
     // The documentation does not need to be reverted if...
     if (
         // the current item is not being reverted

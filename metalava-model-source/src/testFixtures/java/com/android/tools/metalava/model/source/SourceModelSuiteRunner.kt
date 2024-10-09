@@ -17,7 +17,6 @@
 package com.android.tools.metalava.model.source
 
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.transformer.CodebaseTransformer
@@ -81,7 +80,7 @@ class SourceModelSuiteRunner(private val sourceModelProvider: SourceModelProvide
         val sourceParser =
             environmentManager.createSourceParser(
                 reporter = reporter,
-                annotationManager = noOpAnnotationManager,
+                annotationManager = inputs.annotationManager,
                 modelOptions = inputs.modelOptions,
             )
         return sourceParser.parseSources(
@@ -89,6 +88,7 @@ class SourceModelSuiteRunner(private val sourceModelProvider: SourceModelProvide
             sourceSet(inputs.commonSourceDir),
             description = "Test Codebase",
             classPath = classPath,
+            apiPackages = null,
         )
     }
 

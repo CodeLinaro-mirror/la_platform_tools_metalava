@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.stub
 
-import com.android.tools.metalava.actualItem
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
@@ -33,6 +32,7 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterBindings
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VariableTypeItem
+import com.android.tools.metalava.model.snapshot.actualItemToSnapshot
 import java.io.PrintWriter
 
 internal class JavaStubWriter(
@@ -122,7 +122,7 @@ internal class JavaStubWriter(
     }
 
     private fun appendModifiers(item: Item) {
-        modifierListWriter.write(item.actualItem)
+        modifierListWriter.write(item.actualItemToSnapshot)
     }
 
     private fun generateSuperClassDeclaration(cls: ClassItem) {
@@ -322,7 +322,7 @@ internal class JavaStubWriter(
             }
         }
 
-        if (ModifierListWriter.requiresMethodBodyInStubs(method.actualItem)) {
+        if (ModifierListWriter.requiresMethodBodyInStubs(method.actualItemToSnapshot)) {
             writer.print(" { ")
             writeThrowStub()
             writer.println(" }")
@@ -345,7 +345,7 @@ internal class JavaStubWriter(
         writer.print(' ')
         writer.print(field.name())
         val needsInitialization =
-            field.actualItem.modifiers.isFinal() &&
+            field.actualItemToSnapshot.modifiers.isFinal() &&
                 field.initialValue(true) == null &&
                 field.containingClass().isClass()
         field.writeValueWithSemicolon(

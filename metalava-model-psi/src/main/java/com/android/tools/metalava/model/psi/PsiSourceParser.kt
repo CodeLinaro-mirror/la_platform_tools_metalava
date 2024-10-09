@@ -23,6 +23,7 @@ import com.android.tools.lint.detector.api.Project
 import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.source.DEFAULT_JAVA_LANGUAGE_LEVEL
 import com.android.tools.metalava.model.source.SourceParser
@@ -89,12 +90,14 @@ internal class PsiSourceParser(
         commonSourceSet: SourceSet,
         description: String,
         classPath: List<File>,
+        apiPackages: PackageFilter?,
     ): Codebase {
         return parseAbsoluteSources(
             sourceSet.absoluteCopy().extractRoots(reporter),
             commonSourceSet.absoluteCopy().extractRoots(reporter),
             description,
-            classPath.map { it.absoluteFile }
+            classPath.map { it.absoluteFile },
+            apiPackages,
         )
     }
 
@@ -104,6 +107,7 @@ internal class PsiSourceParser(
         commonSourceSet: SourceSet,
         description: String,
         classpath: List<File>,
+        apiPackages: PackageFilter?,
     ): PsiBasedCodebase {
         val config = UastEnvironment.Configuration.create(useFirUast = useK2Uast)
         config.javaLanguageLevel = javaLanguageLevel
@@ -151,7 +155,7 @@ internal class PsiSourceParser(
                 )
             }
 
-        assembler.initializeFromSources(sourceSet)
+        assembler.initializeFromSources(sourceSet, apiPackages)
         return assembler.codebase
     }
 

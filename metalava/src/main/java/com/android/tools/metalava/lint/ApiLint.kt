@@ -17,7 +17,7 @@
 package com.android.tools.metalava.lint
 
 import com.android.sdklib.SdkVersionInfo
-import com.android.tools.metalava.ANDROID_FLAGGED_API
+import com.android.tools.metalava.ApiPredicate
 import com.android.tools.metalava.ApiType
 import com.android.tools.metalava.KotlinInteropChecks
 import com.android.tools.metalava.lint.ResourceType.AAPT
@@ -51,6 +51,7 @@ import com.android.tools.metalava.lint.ResourceType.STYLE_ITEM
 import com.android.tools.metalava.lint.ResourceType.TRANSITION
 import com.android.tools.metalava.lint.ResourceType.XML
 import com.android.tools.metalava.manifest.Manifest
+import com.android.tools.metalava.model.ANDROID_FLAGGED_API
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.CallableItem
@@ -194,21 +195,20 @@ private constructor(
     private val oldCodebase: Codebase?,
     reporter: Reporter,
     private val manifest: Manifest,
-    config: Config,
+    apiPredicateConfig: ApiPredicate.Config,
 ) :
     ApiVisitor(
         // We don't use ApiType's eliding emitFilter here, because lint checks should run
         // even when the signatures match that of a super method exactly (notably the ones checking
         // that nullability overrides are consistent).
-        filterEmit = ApiType.PUBLIC_API.getNonElidingFilter(config.apiPredicateConfig),
-        filterReference = ApiType.PUBLIC_API.getReferenceFilter(config.apiPredicateConfig),
-        config = config,
+        filterEmit = ApiType.PUBLIC_API.getNonElidingFilter(apiPredicateConfig),
+        filterReference = ApiType.PUBLIC_API.getReferenceFilter(apiPredicateConfig),
         // Sort by source order such that warnings follow source line number order.
         callableComparator = CallableItem.sourceOrderComparator,
     ) {
 
     /** Predicate that checks if the item appears in the signature file. */
-    private val elidingFilterEmit = ApiType.PUBLIC_API.getEmitFilter(config.apiPredicateConfig)
+    private val elidingFilterEmit = ApiType.PUBLIC_API.getEmitFilter(apiPredicateConfig)
 
     /** [Reporter] that filters out items that are not relevant for the current API surface. */
     inner class FilteringReporter(private val delegate: Reporter) : Reporter by delegate {
@@ -3331,9 +3331,9 @@ private constructor(
             oldCodebase: Codebase?,
             reporter: Reporter,
             manifest: Manifest,
-            config: Config,
+            apiPredicateConfig: ApiPredicate.Config,
         ) {
-            val apiLint = ApiLint(codebase, oldCodebase, reporter, manifest, config)
+            val apiLint = ApiLint(codebase, oldCodebase, reporter, manifest, apiPredicateConfig)
             apiLint.check()
         }
 

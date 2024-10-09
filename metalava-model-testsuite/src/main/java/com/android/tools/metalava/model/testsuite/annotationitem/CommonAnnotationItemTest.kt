@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.testsuite.annotationitem
 
+import com.android.tools.metalava.model.ANNOTATION_IN_ALL_STUBS
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.ClassItem
@@ -1570,6 +1571,39 @@ class CommonAnnotationItemTest : BaseModelTest() {
                 retentionClass.qualifiedName(),
                 message = "retention class"
             )
+        }
+    }
+
+    @Test
+    fun `annotation targets - on source path`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+                        @SourcePathAnnotation
+                        public class Test {
+                            private Test() {}
+                        }
+                    """
+                ),
+                sourcePathFiles =
+                    listOf(
+                        java(
+                            """
+                                package test.pkg;
+                                public @interface SourcePathAnnotation {}
+                            """
+                        ),
+                    ),
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            val annotationItem = testClass.modifiers.annotations().single()
+
+            // Make sure that it correctly computes targets for an annotation class from the
+            // source path.
+            assertEquals(ANNOTATION_IN_ALL_STUBS, annotationItem.targets)
         }
     }
 

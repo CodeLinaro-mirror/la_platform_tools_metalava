@@ -21,6 +21,7 @@ import com.android.tools.metalava.manifest.emptyManifest
 import com.android.tools.metalava.model.ANDROIDX_REQUIRES_PERMISSION
 import com.android.tools.metalava.model.ANDROID_ANNOTATION_PREFIX
 import com.android.tools.metalava.model.ANDROID_DEPRECATED_FOR_SDK
+import com.android.tools.metalava.model.ANDROID_SYSTEM_API
 import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
 import com.android.tools.metalava.model.AnnotationAttributeValue
 import com.android.tools.metalava.model.AnnotationItem
@@ -43,6 +44,7 @@ import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VariableTypeItem
+import com.android.tools.metalava.model.annotation.AnnotationFilter
 import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.Issues
@@ -518,7 +520,7 @@ class ApiAnalyzer(
         codebase.accept(
             object :
                 ApiVisitor(
-                    config = @Suppress("DEPRECATION") options.apiVisitorConfig,
+                    apiPredicateConfig = @Suppress("DEPRECATION") options.apiPredicateConfig,
                 ) {
                 override fun visitParameter(parameter: ParameterItem) {
                     checkTypeReferencesHidden(parameter, parameter.type())

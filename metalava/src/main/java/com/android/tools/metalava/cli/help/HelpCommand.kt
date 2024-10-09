@@ -16,7 +16,7 @@
 
 package com.android.tools.metalava.cli.help
 
-import com.android.tools.metalava.ARG_STUB_PACKAGES
+import com.android.tools.metalava.cli.common.ARG_STUB_PACKAGES
 import com.android.tools.metalava.cli.common.MetalavaHelpFormatter
 import com.android.tools.metalava.cli.common.stdout
 import com.android.tools.metalava.cli.common.terminal

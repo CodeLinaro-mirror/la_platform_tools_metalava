@@ -395,7 +395,7 @@ protected constructor(
 ) : AnnotationItem {
 
     override val targets: Set<AnnotationTarget> by lazy {
-        codebase.annotationManager.computeTargets(this, codebase::findClass)
+        codebase.annotationManager.computeTargets(this)
     }
 
     final override val attributes: List<AnnotationAttribute> by lazy(attributesGetter)

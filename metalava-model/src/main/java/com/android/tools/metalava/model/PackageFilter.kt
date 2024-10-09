@@ -1,32 +1,40 @@
-package com.android.tools.metalava
+/*
+ * Copyright (C) 2018 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
-import com.android.tools.metalava.cli.common.MetalavaCliException
-import com.android.tools.metalava.model.PackageItem
+package com.android.tools.metalava.model
+
 import java.io.File
 import java.util.function.Predicate
 
 /**
- * We permit a number of different styles:
+ * Checks to see if a package name matches a set of configured rules.
+ *
+ * This supports a number of rule styles:
  * - exact match (foo)
  * - prefix match (foo*, probably not intentional)
- * - subpackage match (foo.*)
- * - package and subpackage match (foo:foo.*)
+ * - package and subpackage match (foo.*)
  * - explicit addition (+foo.*)
  * - subtraction (+*:-foo.*)
  *
  * Real examples: args: "-stubpackages com.android.test.power ", args: "-stubpackages android.car*
  * ", args: "-stubpackages com.android.ahat:com.android.ahat.*", args:
  * "-force-convert-to-warning-nullability-annotations +*:-android.*:+android.icu.*:-dalvik.*
- *
- * Note that doclava does *not* include subpackages by default: -stubpackage foo will match only
- * foo, not foo.bar. Note also that "foo.*" will not match "foo", so doclava required you to supply
- * both: "foo:foo.*".
- *
- * In metalava we've changed that: it's not likely that you want to match any subpackage of foo but
- * not foo itself, so foo.* is taken to mean "foo" and "foo.*".
  */
 class PackageFilter {
-    val components: MutableList<PackageFilterComponent> = mutableListOf()
+    private val components: MutableList<PackageFilterComponent> = mutableListOf()
 
     fun matches(qualifiedName: String): Boolean {
         for (component in components.reversed()) {
@@ -37,16 +45,15 @@ class PackageFilter {
         return false
     }
 
-    fun addPackages(path: String) {
+    internal fun addPackages(path: String) {
         for (arg in path.split(File.pathSeparatorChar)) {
             val treatAsPositiveMatch = !arg.startsWith("-")
             val pkg = arg.removePrefix("-").removePrefix("+")
             val index = pkg.indexOf('*')
             if (index != -1) {
                 if (index < pkg.length - 1) {
-                    throw MetalavaCliException(
-                        stderr =
-                            "Wildcards in stub packages must be at the end of the package: $pkg)"
+                    throw IllegalStateException(
+                        "Wildcards in stub packages must be at the end of the package: $pkg"
                     )
                 }
                 val prefix = pkg.removeSuffix("*")
@@ -62,7 +69,7 @@ class PackageFilter {
         }
     }
 
-    fun add(predicate: Predicate<String>, treatAsPositiveMatch: Boolean) {
+    private fun add(predicate: Predicate<String>, treatAsPositiveMatch: Boolean) {
         components.add(PackageFilterComponent(predicate, treatAsPositiveMatch))
     }
 
@@ -79,20 +86,23 @@ class PackageFilter {
     }
 }
 
-class StringPrefixPredicate(private val acceptedPrefix: String) : Predicate<String> {
+internal class StringPrefixPredicate(private val acceptedPrefix: String) : Predicate<String> {
     override fun test(candidatePackage: String): Boolean {
         return candidatePackage.startsWith(acceptedPrefix)
     }
 }
 
-class StringEqualsPredicate(val acceptedPackage: String) : Predicate<String> {
+internal class StringEqualsPredicate(private val acceptedPackage: String) : Predicate<String> {
     override fun test(candidatePackage: String): Boolean {
         return candidatePackage == acceptedPackage
     }
 }
 
 /**
- * One element of a PackageFilter. Detects packages and either either includes or excludes them from
- * the filter
+ * One element of a PackageFilter. Detects packages and either includes or excludes them from the
+ * filter
  */
-class PackageFilterComponent(val filter: Predicate<String>, val treatAsPositiveMatch: Boolean)
+internal class PackageFilterComponent(
+    val filter: Predicate<String>,
+    val treatAsPositiveMatch: Boolean,
+)

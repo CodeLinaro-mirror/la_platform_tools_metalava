@@ -97,7 +97,7 @@ class NullabilityAnnotationsValidator(
             topLevelClass.accept(
                 object :
                     ApiVisitor(
-                        config = @Suppress("DEPRECATION") options.apiVisitorConfig,
+                        apiPredicateConfig = @Suppress("DEPRECATION") options.apiPredicateConfig,
                     ) {
 
                     override fun visitMethod(method: MethodItem) {

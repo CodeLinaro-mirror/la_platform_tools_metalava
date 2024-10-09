@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.source
 
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.PackageFilter
 import java.io.File
 
 /** Provides support for creating [Codebase] related objects from source files (including jars). */
@@ -38,6 +39,9 @@ interface SourceParser {
      * @param description the description to use for [Codebase.description].
      * @param classPath the possibly empty list of jar files which may provide additional classes
      *   referenced by the sources.
+     * @param apiPackages an optional [PackageFilter] that if specified will result in only
+     *   including the source classes that match the filter in the
+     *   [Codebase.getTopLevelClassesFromSource] list.
      *
      * "Common module" is the term used in Kotlin multi-platform projects where platform-agnostic
      * business logic and `expect` declarations are declared. (Counterparts, like platform-specific
@@ -51,6 +55,7 @@ interface SourceParser {
         commonSourceSet: SourceSet,
         description: String,
         classPath: List<File>,
+        apiPackages: PackageFilter?,
     ): Codebase
 
     /**

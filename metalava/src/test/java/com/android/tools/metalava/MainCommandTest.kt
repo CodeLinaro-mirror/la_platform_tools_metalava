@@ -161,12 +161,6 @@ API sources:
                                              Use the given API level
 --jdk-home <dir>
                                              If set, add the Java APIs from the given JDK to the classpath
---stub-packages <package-list>
-                                             List of packages (separated by :) which will be used to filter out
-                                             irrelevant code. If specified, only code in these packages will be included
-                                             in signature files, stubs, etc. (This is not limited to just the stubs; the
-                                             name is historical.) You can also use ".*" at the end to match subpackages,
-                                             so `foo.*` will match both `foo` and `foo.bar`.
 --subtract-api <api file>
                                              Subtracts the API in the given signature or jar file from the current API
                                              being emitted via --api, --stubs, --doc-stubs, etc. Note that the

@@ -315,6 +315,5 @@ class JDiffXmlWriter(
             preFiltered = preFiltered,
             filterSuperClassType = filterSuperClassType,
             showUnannotated = showUnannotated,
-            config = ApiVisitor.Config(),
         )
 }

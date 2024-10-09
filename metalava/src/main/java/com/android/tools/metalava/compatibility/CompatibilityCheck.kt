@@ -16,13 +16,13 @@
 
 package com.android.tools.metalava.compatibility
 
-import com.android.tools.metalava.ANDROID_SYSTEM_API
-import com.android.tools.metalava.ANDROID_TEST_API
 import com.android.tools.metalava.ApiType
 import com.android.tools.metalava.CodebaseComparator
 import com.android.tools.metalava.ComparisonVisitor
 import com.android.tools.metalava.JVM_DEFAULT_WITH_COMPATIBILITY
 import com.android.tools.metalava.cli.common.MetalavaCliException
+import com.android.tools.metalava.model.ANDROID_SYSTEM_API
+import com.android.tools.metalava.model.ANDROID_TEST_API
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
@@ -1074,10 +1074,7 @@ class CompatibilityCheck(
                 }
             val newFullCodebase = MergedCodebase(listOf(newCodebase))
 
-            CodebaseComparator(
-                    apiVisitorConfig = @Suppress("DEPRECATION") options.apiVisitorConfig,
-                )
-                .compare(checker, oldFullCodebase, newFullCodebase, filter)
+            CodebaseComparator().compare(checker, oldFullCodebase, newFullCodebase, filter)
 
             val message =
                 "Found compatibility problems checking " +

@@ -89,6 +89,7 @@ class PsiSourceParserTest : TemporaryFolderOwner, Assertions {
                 SourceSet.empty(),
                 description = "Test Codebase",
                 classPath = emptyList(),
+                apiPackages = null,
             )
     }
 

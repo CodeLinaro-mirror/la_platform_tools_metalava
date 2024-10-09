@@ -17,7 +17,7 @@
 package com.android.tools.metalava.model
 
 import com.android.tools.metalava.model.snapshot.CodebaseSnapshotTaker
-import com.android.tools.metalava.model.snapshot.NonEmittableDelegatingVisitor
+import com.android.tools.metalava.model.snapshot.EmittableDelegatingVisitor
 
 /**
  * Encapsulates [codebase] to visit and a [factory] that if given a [DelegatedVisitor] will return
@@ -36,7 +36,7 @@ class CodebaseFragment(
     /** Take a snapshot of this [CodebaseFragment] and return a new [CodebaseFragment]. */
     fun snapshotIncludingRevertedItems(): CodebaseFragment {
         val snapshot = CodebaseSnapshotTaker.takeSnapshot(codebase, factory)
-        return CodebaseFragment(snapshot, ::NonEmittableDelegatingVisitor)
+        return CodebaseFragment(snapshot, ::EmittableDelegatingVisitor)
     }
 
     /** Visit this fragment, delegating to [delegate]. */
