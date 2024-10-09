@@ -710,6 +710,120 @@ $signatureToJdiffHelp
                 """
         }
     }
+
+    @Test
+    fun `Test for adding new interface`() {
+        jdiffConversionTest {
+            api =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public interface Existing {
+                        method public void foo();
+                      }
+
+                      public interface New {
+                        method public void bar();
+                      }
+                    }
+                """
+
+            baseApi =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public interface Existing {
+                        method public void foo();
+                      }
+                    }
+                """
+
+            expectedXml =
+                """
+                    <api name="api" xmlns:metalava="http://www.android.com/metalava/">
+                    <package name="test.pkg"
+                    >
+                    <interface name="New"
+                     abstract="true"
+                     static="false"
+                     final="false"
+                     deprecated="not deprecated"
+                     visibility="public"
+                    >
+                    <method name="bar"
+                     return="void"
+                     abstract="true"
+                     native="false"
+                     synchronized="false"
+                     static="false"
+                     final="false"
+                     deprecated="not deprecated"
+                     visibility="public"
+                    >
+                    </method>
+                    </interface>
+                    </package>
+                    </api>
+                """
+        }
+    }
+
+    @Test
+    fun `Test for adding new nested interface`() {
+        jdiffConversionTest {
+            api =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public interface Existing {
+                        method public void foo();
+                      }
+
+                      public interface Existing.New {
+                        method public void bar();
+                      }
+                    }
+                """
+
+            baseApi =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public interface Existing {
+                        method public void foo();
+                      }
+                    }
+                """
+
+            expectedXml =
+                """
+                    <api name="api" xmlns:metalava="http://www.android.com/metalava/">
+                    <package name="test.pkg"
+                    >
+                    <interface name="Existing.New"
+                     abstract="true"
+                     static="false"
+                     final="false"
+                     deprecated="not deprecated"
+                     visibility="public"
+                    >
+                    <method name="bar"
+                     return="void"
+                     abstract="true"
+                     native="false"
+                     synchronized="false"
+                     static="false"
+                     final="false"
+                     deprecated="not deprecated"
+                     visibility="public"
+                    >
+                    </method>
+                    </interface>
+                    </package>
+                    </api>
+                """
+        }
+    }
 }
 
 fun BaseCommandTest<SignatureToJDiffCommand>.jdiffConversionTest(body: JDiffTestConfig.() -> Unit) {
