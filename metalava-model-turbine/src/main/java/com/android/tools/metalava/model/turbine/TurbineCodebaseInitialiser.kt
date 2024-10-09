@@ -53,6 +53,7 @@ import com.android.tools.metalava.model.ModifierFlags.Companion.TRANSIENT
 import com.android.tools.metalava.model.ModifierFlags.Companion.VARARG
 import com.android.tools.metalava.model.ModifierFlags.Companion.VOLATILE
 import com.android.tools.metalava.model.MutableModifierList
+import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeParameterListAndFactory
@@ -180,7 +181,10 @@ internal class TurbineCodebaseInitialiser(
      * Then creates the packages, classes and their members, as well as sets up various class
      * hierarchies using the binder's output
      */
-    fun initialize(sourceSet: SourceSet) {
+    fun initialize(
+        sourceSet: SourceSet,
+        apiPackages: PackageFilter?,
+    ) {
         // Get the units from the source files provided on the command line.
         val commandLineSources = sourceSet.sources
         val sourceFiles = getSourceFiles(commandLineSources.asSequence())
@@ -306,7 +310,7 @@ internal class TurbineCodebaseInitialiser(
             }
 
         createAllPackages(packageDocs)
-        createAllClasses(commandLineSourceClasses)
+        createAllClasses(commandLineSourceClasses, apiPackages)
     }
 
     /**
@@ -441,7 +445,10 @@ internal class TurbineCodebaseInitialiser(
         codebase.packageTracker.createInitialPackages(packageDocs)
     }
 
-    private fun createAllClasses(sourceClassMap: Map<ClassSymbol, SourceTypeBoundClass>) {
+    private fun createAllClasses(
+        sourceClassMap: Map<ClassSymbol, SourceTypeBoundClass>,
+        apiPackages: PackageFilter?,
+    ) {
         // Iterate over all the classes in the sources.
         for ((classSymbol, sourceBoundClass) in sourceClassMap) {
             // Ignore nested classes, they will be created when the outer class is created.
@@ -452,6 +459,12 @@ internal class TurbineCodebaseInitialiser(
             // Ignore inaccessible classes.
             if (!sourceBoundClass.isAccessible) {
                 continue
+            }
+
+            // If a package filter is supplied then ignore any classes that do not match it.
+            if (apiPackages != null) {
+                val packageName = classSymbol.dotSeparatedPackageName
+                if (!apiPackages.matches(packageName)) continue
             }
 
             val classItem =
@@ -606,6 +619,9 @@ internal class TurbineCodebaseInitialiser(
         return annotations?.any { it.qualifiedName == "java.lang.Deprecated" } ?: false
     }
 
+    private val ClassSymbol.dotSeparatedPackageName
+        get() = packageName().replace('/', '.')
+
     private fun createClass(
         classSymbol: ClassSymbol,
         typeBoundClass: TypeBoundClass = typeBoundClassForSymbol(classSymbol),
@@ -618,7 +634,7 @@ internal class TurbineCodebaseInitialiser(
         val isTopClass = typeBoundClass.owner() == null
 
         // Get the package item
-        val pkgName = classSymbol.packageName().replace('/', '.')
+        val pkgName = classSymbol.dotSeparatedPackageName
         val pkgItem = codebase.findOrCreatePackage(pkgName)
 
         // Create the sourcefile

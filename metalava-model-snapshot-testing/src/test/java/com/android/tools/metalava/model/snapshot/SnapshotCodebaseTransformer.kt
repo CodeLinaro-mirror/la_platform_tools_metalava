@@ -25,7 +25,7 @@ import com.android.tools.metalava.model.testing.transformer.CodebaseTransformer
 class SnapshotCodebaseTransformer : CodebaseTransformer {
     override fun transform(codebase: Codebase): Codebase {
         val fragment =
-            CodebaseFragment(codebase, ::NonEmittableDelegatingVisitor)
+            CodebaseFragment(codebase, ::EmittableDelegatingVisitor)
                 .snapshotIncludingRevertedItems()
         return fragment.codebase
     }

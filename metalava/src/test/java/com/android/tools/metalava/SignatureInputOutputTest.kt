@@ -25,7 +25,6 @@ import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.text.ApiFile
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.assertSignatureFilesMatch
-import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.google.common.truth.Truth.assertThat
 import java.io.PrintWriter
 import java.io.StringWriter
@@ -66,7 +65,7 @@ class SignatureInputOutputTest : Assertions {
                             apiType = ApiType.ALL,
                             preFiltered = true,
                             showUnannotated = false,
-                            apiVisitorConfig = ApiVisitor.Config()
+                            apiPredicateConfig = ApiPredicate.Config()
                         )
 
                     codebase.accept(visitor)

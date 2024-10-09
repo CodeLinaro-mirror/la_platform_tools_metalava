@@ -76,7 +76,7 @@ class DocAnalyzer(
     private val reporter: Reporter,
 ) {
 
-    private val apiVisitorConfig = @Suppress("DEPRECATION") options.apiVisitorConfig
+    private val apiPredicateConfig = @Suppress("DEPRECATION") options.apiPredicateConfig
 
     /** Computes the visible part of the API from all the available code in the codebase */
     fun enhance() {
@@ -106,7 +106,7 @@ class DocAnalyzer(
         // like an unreasonable burden.
 
         codebase.accept(
-            object : ApiVisitor(config = apiVisitorConfig) {
+            object : ApiVisitor(apiPredicateConfig = apiPredicateConfig) {
                 override fun visitItem(item: Item) {
                     val annotations = item.modifiers.annotations()
                     if (annotations.isEmpty()) {
@@ -217,7 +217,7 @@ class DocAnalyzer(
                         if (depth == 20) { // Temp debugging
                             throw StackOverflowError(
                                 "Unbounded recursion, processing annotation ${annotation.toSource()} " +
-                                    "in $item in ${item.sourceFile()} "
+                                    "in $item at ${annotation.fileLocation} "
                             )
                         } else if (nested.qualifiedName !in visitedClasses) {
                             handleAnnotation(nested, item, depth + 1, visitedClasses)
@@ -676,7 +676,7 @@ class DocAnalyzer(
 
     private fun tweakGrammar() {
         codebase.accept(
-            object : ApiVisitor(config = apiVisitorConfig) {
+            object : ApiVisitor(apiPredicateConfig = apiPredicateConfig) {
                 override fun visitItem(item: Item) {
                     item.documentation.workAroundJavaDocSummaryTruncationIssue()
                 }
@@ -696,7 +696,7 @@ class DocAnalyzer(
         codebase.accept(
             object :
                 ApiVisitor(
-                    config = apiVisitorConfig,
+                    apiPredicateConfig = apiPredicateConfig,
                 ) {
 
                 override fun visitCallable(callable: CallableItem) {
@@ -948,7 +948,7 @@ fun getApiLookup(
     val prev = System.getProperty(xmlPathProperty)
     try {
         System.setProperty(xmlPathProperty, xmlFile.path)
-        return ApiLookup.get(client) ?: error("ApiLookup creation failed")
+        return ApiLookup.get(client, null) ?: error("ApiLookup creation failed")
     } finally {
         if (prev != null) {
             System.setProperty(xmlPathProperty, xmlFile.path)

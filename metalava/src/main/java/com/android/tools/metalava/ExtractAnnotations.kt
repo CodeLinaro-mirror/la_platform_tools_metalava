@@ -67,7 +67,7 @@ class ExtractAnnotations(
     private val outputFile: File,
 ) :
     ApiVisitor(
-        config = @Suppress("DEPRECATION") options.apiVisitorConfig,
+        apiPredicateConfig = @Suppress("DEPRECATION") options.apiPredicateConfig,
     ) {
     // Used linked hash map for order such that we always emit parameters after their surrounding
     // method etc

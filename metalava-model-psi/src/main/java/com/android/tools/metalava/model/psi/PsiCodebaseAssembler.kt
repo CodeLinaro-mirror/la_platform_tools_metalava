@@ -31,6 +31,7 @@ import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JAVA_PACKAGE_INFO
 import com.android.tools.metalava.model.MutableModifierList
+import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.VisibilityLevel
@@ -827,7 +828,10 @@ internal class PsiCodebaseAssembler(
         }
     }
 
-    internal fun initializeFromSources(sourceSet: SourceSet) {
+    internal fun initializeFromSources(
+        sourceSet: SourceSet,
+        apiPackages: PackageFilter?,
+    ) {
         // Get the list of `PsiFile`s from the `SourceSet`.
         val psiFiles = Extractor.createUnitsForFiles(uastEnvironment.ideaProject, sourceSet.sources)
 
@@ -849,6 +853,12 @@ internal class PsiCodebaseAssembler(
 
         // Process the `PsiClass`es.
         for (psiClass in psiClasses) {
+            // If a package filter is supplied then ignore any classes that do not match it.
+            if (apiPackages != null) {
+                val packageName = getPackageName(psiClass)
+                if (!apiPackages.matches(packageName)) continue
+            }
+
             val classItem =
                 createPossibleApiClass(
                     psiClass,

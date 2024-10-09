@@ -394,14 +394,13 @@ protected constructor(
     attributesGetter: () -> List<AnnotationAttribute>,
 ) : AnnotationItem {
 
-    override val targets: Set<AnnotationTarget> by lazy {
-        codebase.annotationManager.computeTargets(this, codebase::findClass)
-    }
+    override val targets
+        get() = info.targets
 
     final override val attributes: List<AnnotationAttribute> by lazy(attributesGetter)
 
     /** Information that metalava has gathered about this annotation item. */
-    val info: AnnotationInfo by lazy { codebase.annotationManager.getAnnotationInfo(this) }
+    internal val info: AnnotationInfo by lazy { codebase.annotationManager.getAnnotationInfo(this) }
 
     override val typeNullability: TypeNullability?
         get() = info.typeNullability
@@ -441,6 +440,14 @@ protected constructor(
     override fun isShowabilityAnnotation(): Boolean = info.showability != Showability.NO_EFFECT
 
     override fun snapshot(targetCodebase: Codebase): AnnotationItem {
+        // Force the info property to be initialized which will cause the AnnotationInfo for
+        // annotations of the same class as this to be created based off this AnnotationItem and
+        // not the snapshot AnnotationItem. That is important because the AnnotationInfo
+        // properties depends on accessing information like the ApiVariantSelectors which is
+        // discarded when creating the snapshot. The snapshot AnnotationItem will retrieve the
+        // cached version of the AnnotationInfo from the AnnotationManager.
+        info
+
         return DefaultAnnotationItem(
             targetCodebase,
             fileLocation,

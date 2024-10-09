@@ -25,7 +25,6 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.text.ApiFile
 import com.android.tools.metalava.model.text.SignatureFile
-import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.testing.TemporaryFolderOwner
 import com.android.tools.metalava.testing.signature
 import org.junit.Assert.assertEquals
@@ -88,7 +87,7 @@ class ComparisonVisitorTest : TemporaryFolderOwner, Assertions {
                 )
             )
         var methodType: String? = null
-        CodebaseComparator(ApiVisitor.Config())
+        CodebaseComparator()
             .compare(
                 object : ComparisonVisitor() {
                     override fun added(new: MethodItem) {
@@ -134,7 +133,7 @@ class ComparisonVisitorTest : TemporaryFolderOwner, Assertions {
 
         // Compare the two.
         val differences = mutableListOf<String>()
-        CodebaseComparator(ApiVisitor.Config())
+        CodebaseComparator()
             .compare(
                 object : ComparisonVisitor() {
                     override fun compare(old: MethodItem, new: MethodItem) {

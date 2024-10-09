@@ -45,6 +45,7 @@ import com.android.tools.metalava.model.CodebaseFragment
 import com.android.tools.metalava.model.DelegatedVisitor
 import com.android.tools.metalava.model.ItemVisitor
 import com.android.tools.metalava.model.ModelOptions
+import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.psi.PsiModelOptions
 import com.android.tools.metalava.model.source.EnvironmentManager
 import com.android.tools.metalava.model.source.SourceParser
@@ -298,7 +299,7 @@ internal fun processFlags(
                     apiType = ApiType.PUBLIC_API,
                     preFiltered = codebase.preFiltered,
                     showUnannotated = options.showUnannotated,
-                    apiVisitorConfig = options.apiVisitorConfig,
+                    apiPredicateConfig = options.apiPredicateConfig,
                 )
             }
 
@@ -320,7 +321,7 @@ internal fun processFlags(
                     apiType = ApiType.REMOVED,
                     preFiltered = false,
                     showUnannotated = options.showUnannotated,
-                    apiVisitorConfig = options.apiVisitorConfig,
+                    apiPredicateConfig = options.apiPredicateConfig,
                 )
             }
 
@@ -351,7 +352,6 @@ internal fun processFlags(
                     filterEmit = apiEmit,
                     filterReference = apiReferenceIgnoreShown,
                     preFiltered = codebase.preFiltered,
-                    config = options.apiVisitorConfig,
                 )
             }
         }
@@ -426,9 +426,7 @@ private fun ActionContext.subtractApi(
         }
 
     @Suppress("DEPRECATION")
-    CodebaseComparator(
-            apiVisitorConfig = @Suppress("DEPRECATION") options.apiVisitorConfig,
-        )
+    CodebaseComparator()
         .compare(
             object : ComparisonVisitor() {
                 override fun compare(old: ClassItem, new: ClassItem) {
@@ -586,6 +584,7 @@ private fun ActionContext.loadFromSources(
             commonSourceSet,
             "Codebase loaded from source folders",
             classPath = options.classpath,
+            apiPackages = options.apiPackages,
         )
 
     progressTracker.progress("Analyzing API: ")
@@ -639,7 +638,7 @@ private fun ActionContext.loadFromSources(
             previouslyReleasedApi,
             reporter,
             options.manifest,
-            options.apiVisitorConfig,
+            options.apiPredicateConfig,
         )
         progressTracker.progress(
             "$PROGRAM_NAME ran api-lint in ${localTimer.elapsed(SECONDS)} seconds"
@@ -728,7 +727,7 @@ private fun createStubFiles(
                 delegate = delegate,
                 docStubs = docStubs,
                 preFiltered = codebase.preFiltered,
-                apiVisitorConfig = options.apiVisitorConfig,
+                apiPredicateConfig = options.apiPredicateConfig,
             )
         }
 

@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.testsuite.packageitem
 
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.KnownSourceFiles.nonNullSource
 import com.android.tools.metalava.testing.html
@@ -134,6 +135,12 @@ class CommonPackageItemTest : BaseModelTest() {
                         .trimIndent()
                 ),
             ),
+            testFixture =
+                TestFixture(
+                    // Use the noOpAnnotationManager to avoid annotation name normalizing as the
+                    // annotation names are important for this test.
+                    annotationManager = noOpAnnotationManager,
+                ),
         ) {
             val packageItem = codebase.assertPackage("test.pkg")
             assertEquals(

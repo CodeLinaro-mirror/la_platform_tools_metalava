@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.snapshot
 
 import com.android.tools.metalava.model.ArrayTypeItem
+import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.LambdaTypeItem
@@ -47,6 +48,12 @@ internal class SnapshotTypeItemFactory(
     private val codebase: Codebase,
     typeParameterScope: TypeParameterScope = TypeParameterScope.empty,
 ) : DefaultTypeItemFactory<TypeItem, SnapshotTypeItemFactory>(typeParameterScope), TypeTransformer {
+
+    /** Construct a [SnapshotTypeItemFactory] suitable for creating types within [classItem]. */
+    fun from(classItem: ClassItem?): SnapshotTypeItemFactory {
+        val scope = TypeParameterScope.from(classItem)
+        return if (scope.isEmpty()) this else SnapshotTypeItemFactory(codebase, scope)
+    }
 
     override fun self() = this
 

@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.testsuite.classitem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.ClassTypeItem
+import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.VariableTypeItem
@@ -30,7 +31,6 @@ import com.android.tools.metalava.testing.kotlin
 import com.google.common.truth.Truth.assertThat
 import com.google.common.truth.Truth.assertWithMessage
 import kotlin.test.assertEquals
-import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
@@ -758,6 +758,7 @@ class CommonClassItemTest : BaseModelTest() {
                     package test.pkg;
 
                     /**
+                     * @noinspection DeprecatedIsStillUsed
                      * @deprecated
                      */
                     public class Bar {}
@@ -765,8 +766,48 @@ class CommonClassItemTest : BaseModelTest() {
             ),
         ) {
             val barClass = codebase.assertClass("test.pkg.Bar")
-            assertEquals(true, barClass.originallyDeprecated)
-            assertEquals(true, barClass.effectivelyDeprecated)
+            barClass.assertExplicitlyDeprecated()
+        }
+    }
+
+    @Test
+    fun `Test class is not treated as deprecated by @deprecatedSince`() {
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    /**
+                     * @deprecatedSince this should not be treated as deprecated.
+                     * @noinspection JavadocDeclaration, DeprecatedIsStillUsed
+                     */
+                    public class Bar {}
+                """
+            ),
+        ) {
+            val barClass = codebase.assertClass("test.pkg.Bar")
+            barClass.assertNotDeprecated()
+        }
+    }
+
+    @Test
+    fun `Test class is treated as deprecated if @deprecated comes after @deprecatedSince`() {
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    /**
+                     * @deprecatedSince this should not be treated as deprecated.
+                     * @noinspection JavadocDeclaration, DeprecatedIsStillUsed
+                     * @deprecated Really deprecated
+                     */
+                    public class Bar {}
+                """
+            ),
+        ) {
+            val barClass = codebase.assertClass("test.pkg.Bar")
+            barClass.assertExplicitlyDeprecated()
         }
     }
 
@@ -786,6 +827,7 @@ class CommonClassItemTest : BaseModelTest() {
                 """
                     package test.pkg;
 
+                    /** @noinspection DeprecatedIsStillUsed */
                     @Deprecated
                     public class Bar {}
                 """
@@ -800,8 +842,7 @@ class CommonClassItemTest : BaseModelTest() {
             ),
         ) {
             val barClass = codebase.assertClass("test.pkg.Bar")
-            assertEquals(true, barClass.originallyDeprecated)
-            assertEquals(true, barClass.effectivelyDeprecated)
+            barClass.assertExplicitlyDeprecated()
         }
     }
 
@@ -833,8 +874,7 @@ class CommonClassItemTest : BaseModelTest() {
             ),
         ) {
             val barClass = codebase.assertClass("test.pkg.Bar")
-            assertEquals(false, barClass.originallyDeprecated)
-            assertEquals(false, barClass.effectivelyDeprecated)
+            barClass.assertNotDeprecated()
         }
     }
 
@@ -1739,8 +1779,43 @@ class CommonClassItemTest : BaseModelTest() {
                     ),
             )
         ) {
-            // Make sure that a class defined on the source class path can be resolved.
-            assertNotNull(codebase.resolveClass("test.pkg.SourcePathClass"))
+            // Make sure that a class defined on the source class path can be resolved but is not
+            // emitted.
+            codebase.assertResolvedClass("test.pkg.SourcePathClass")
+        }
+    }
+
+    @Test
+    fun `Test class excluded by package filter`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+
+                        public class Test {
+                            private Test() {}
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.excluded.pkg;
+
+                        public class Excluded {
+                            private Excluded() {}
+                        }
+                    """
+                ),
+            ),
+            testFixture =
+                TestFixture(
+                    apiPackages = PackageFilter.parse("test.pkg"),
+                ),
+        ) {
+            // Make sure that a class defined excluded by a package filter can be resolved but is
+            // not emitted.
+            codebase.assertResolvedClass("test.excluded.pkg.Excluded")
         }
     }
 }

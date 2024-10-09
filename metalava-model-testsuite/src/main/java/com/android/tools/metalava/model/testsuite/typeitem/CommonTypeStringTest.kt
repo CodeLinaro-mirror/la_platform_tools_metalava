@@ -21,6 +21,7 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.isNullnessAnnotation
+import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.model.typeUseAnnotationFilter
 import com.android.tools.metalava.testing.KnownSourceFiles.intRangeTypeUseSource
@@ -160,7 +161,16 @@ class CommonTypeStringTest : BaseModelTest() {
 
     @Test
     fun `Type string`() {
-        runCodebaseTest(javaTestFiles(), signatureTestFile()) {
+        runCodebaseTest(
+            javaTestFiles(),
+            signatureTestFile(),
+            testFixture =
+                TestFixture(
+                    // Use the noOpAnnotationManager to avoid annotation name normalizing as the
+                    // annotation names are important for this test.
+                    annotationManager = noOpAnnotationManager,
+                ),
+        ) {
             val method = codebase.assertClass("test.pkg.Foo").methods().single()
             val param = method.parameters().single()
             val type =

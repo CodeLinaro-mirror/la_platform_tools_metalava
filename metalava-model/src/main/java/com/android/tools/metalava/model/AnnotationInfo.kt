@@ -22,15 +22,11 @@ package com.android.tools.metalava.model
  * Instances of [AnnotationInfo] will be shared across [AnnotationItem]s that have the same
  * qualified name and (where applicable) the same attributes. That will allow the information in
  * [AnnotationInfo] to be computed once and then reused whenever needed.
- *
- * This class just sets the properties that can be determined simply by looking at the
- * [qualifiedName]. Any other properties are set to the default, usually `false`. Subclasses can
- * change that behavior.
  */
-open class AnnotationInfo(
-    /** The fully qualified and normalized name of the annotation class. */
-    val qualifiedName: String,
-) {
+interface AnnotationInfo {
+
+    /** The applicable targets for this annotation */
+    val targets: Set<AnnotationTarget>
 
     /**
      * Determines whether the annotation is nullability related.
@@ -38,23 +34,24 @@ open class AnnotationInfo(
      * If this is null then the annotation is not a nullability annotation, otherwise this
      * determines whether it is nullable or non-null.
      */
-    internal val typeNullability: TypeNullability? =
-        when {
-            isNullableAnnotation(qualifiedName) -> TypeNullability.NULLABLE
-            isNonNullAnnotation(qualifiedName) -> TypeNullability.NONNULL
-            else -> null
-        }
+    val typeNullability: TypeNullability?
 
     /**
      * Determines whether this annotation affects whether the annotated item is shown or hidden and
      * if so how.
      */
-    open val showability: Showability
-        get() = Showability.NO_EFFECT
+    val showability: Showability
 
-    open val suppressCompatibility: Boolean
-        get() = false
+    val suppressCompatibility: Boolean
 }
+
+/** Compute the [TypeNullability], if any, for the annotation with [qualifiedName]. */
+internal fun computeTypeNullability(qualifiedName: String): TypeNullability? =
+    when {
+        isNullableAnnotation(qualifiedName) -> TypeNullability.NULLABLE
+        isNonNullAnnotation(qualifiedName) -> TypeNullability.NONNULL
+        else -> null
+    }
 
 /**
  * The set of possible effects on whether an `Item` is part of an API.

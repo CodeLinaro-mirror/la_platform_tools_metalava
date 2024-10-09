@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.KnownSourceFiles.jetbrainsNullableTypeUseSource
 import com.android.tools.metalava.testing.java
@@ -54,6 +55,12 @@ class PsiModifierItemTest : BaseModelTest() {
         runCodebaseTest(
             inputSet(javaSource, jetbrainsNullableTypeUseSource),
             inputSet(kotlinSource, jetbrainsNullableTypeUseSource),
+            testFixture =
+                TestFixture(
+                    // Use the noOpAnnotationManager to avoid annotation name normalizing as the
+                    // annotation names are important for this test.
+                    annotationManager = noOpAnnotationManager,
+                ),
         ) {
             val method = codebase.assertClass("test.pkg.Foo").methods().single()
             // For now, the nullability annotation needs to be attached to the method.

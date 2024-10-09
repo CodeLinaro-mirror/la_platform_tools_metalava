@@ -83,8 +83,37 @@ interface ItemDocumentation : CharSequence {
      * Otherwise, if it is "@return", add the comment to the return value. Otherwise, the
      * [tagSection] is taken to be the parameter name, and the comment added as parameter
      * documentation for the given parameter.
+     *
+     * @param tagSection if specified and not a parameter name then it is expected to start with
+     *   `@`, e.g. `@deprecated`, not `deprecated`.
      */
     fun appendDocumentation(comment: String, tagSection: String?)
+
+    /**
+     * Check to see whether this has the named tag section.
+     *
+     * @param tagSection the name of the tag section, including preceding `@`.
+     */
+    fun hasTagSection(tagSection: String): Boolean {
+        val length = text.length
+        var startIndex = 0
+
+        // Scan through the documentation looking for the tag section.
+        while (startIndex < length) {
+            // Find the position of the tag section starting with the supplied name.
+            val index = text.indexOf(tagSection, startIndex)
+            if (index == -1) return false
+
+            // If the tag section is at the end of the documentation or is followed by a whitespace
+            // then it matches.
+            val nextIndex = index + tagSection.length
+            if (text.length == nextIndex || Character.isWhitespace(text[nextIndex])) return true
+
+            // Else, continue scanning from the end of the tag section.
+            startIndex = nextIndex
+        }
+        return false
+    }
 
     /**
      * Looks up docs for the first instance of a specific javadoc tag having the (optionally)

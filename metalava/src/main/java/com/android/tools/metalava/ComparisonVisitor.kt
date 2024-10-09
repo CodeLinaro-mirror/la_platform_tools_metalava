@@ -102,9 +102,7 @@ private fun <E> Stack<E>.pop(): E = removeAt(lastIndex)
 
 private fun <E> Stack<E>.peek(): E = last()
 
-class CodebaseComparator(
-    private val apiVisitorConfig: ApiVisitor.Config,
-) {
+class CodebaseComparator {
     /**
      * Visits this codebase and compares it with another codebase, informing the visitors about the
      * correlations and differences that it finds
@@ -641,7 +639,6 @@ class CodebaseComparator(
                         // So, when doing compatibility checking we want to consider public APIs
                         // even if the caller didn't explicitly pass --show-unannotated
                         showUnannotated = true,
-                        config = apiVisitorConfig,
                     ) {
                     override fun visitItem(item: Item) {
                         val node = ItemTree(item)

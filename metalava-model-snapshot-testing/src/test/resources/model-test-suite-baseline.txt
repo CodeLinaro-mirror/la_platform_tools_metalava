@@ -1,9 +1,6 @@
 com.android.tools.metalava.model.testsuite.BootstrapSourceModelProviderTest
   210 Test Method exception list[psi,java,k1]
   210 Test Method exception list[psi,java,k2]
-  240 test documentations[psi,java,k1]
-  240 test documentations[psi,java,k2]
-  240 test documentations[turbine]
   260 - test doconly members[psi,java,k1]
   260 - test doconly members[psi,java,k2]
   260 - test doconly members[turbine]
