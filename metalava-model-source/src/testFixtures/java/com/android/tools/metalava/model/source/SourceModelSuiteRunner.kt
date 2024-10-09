@@ -88,7 +88,7 @@ class SourceModelSuiteRunner(private val sourceModelProvider: SourceModelProvide
             sourceSet(inputs.commonSourceDir),
             description = "Test Codebase",
             classPath = classPath,
-            apiPackages = null,
+            apiPackages = inputs.apiPackages,
         )
     }
 

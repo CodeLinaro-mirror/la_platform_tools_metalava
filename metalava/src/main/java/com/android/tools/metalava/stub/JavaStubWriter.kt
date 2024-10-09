@@ -53,7 +53,7 @@ internal class JavaStubWriter(
                 // All the classes referenced in the stubs are fully qualified, so no imports are
                 // needed. However, in some cases for javadoc, replacement with fully qualified name
                 // fails, and thus we need to include imports for the stubs to compile.
-                cls.getSourceFile()?.getImports()?.let {
+                cls.sourceFile()?.getImports()?.let {
                     for (item in it) {
                         if (item.isMember) {
                             writer.println("import static ${item.pattern};")

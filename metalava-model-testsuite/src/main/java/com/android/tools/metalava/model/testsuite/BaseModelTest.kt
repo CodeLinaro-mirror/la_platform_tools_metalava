@@ -21,6 +21,7 @@ import com.android.tools.lint.checks.infrastructure.TestFiles
 import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.Assertions
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.CodebaseCreatorConfig
@@ -156,6 +157,12 @@ abstract class BaseModelTest() :
     data class TestFixture(
         /** The [AnnotationManager] to use when creating a [Codebase]. */
         val annotationManager: AnnotationManager = DefaultAnnotationManager(),
+
+        /**
+         * The optional [PackageFilter] that defines which packages can contribute to the API. If
+         * this is unspecified then all packages can contribute to the API.
+         */
+        val apiPackages: PackageFilter? = null,
     )
 
     /**
@@ -192,6 +199,7 @@ abstract class BaseModelTest() :
                         additionalMainSourceDir = additionalSourceDir,
                         commonSourceDir = commonSourceDir,
                         annotationManager = testFixture.annotationManager,
+                        apiPackages = testFixture.apiPackages,
                     )
                 runner.createCodebaseAndRun(inputs) { codebase ->
                     val context = DefaultCodebaseContext(codebase, mainSourceDir.dir)

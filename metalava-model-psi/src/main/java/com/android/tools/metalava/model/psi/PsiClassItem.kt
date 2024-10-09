@@ -79,9 +79,10 @@ internal constructor(
     override fun createClassTypeItemForThis() =
         codebase.globalTypeItemFactory.getClassTypeForClass(this)
 
-    override fun getSourceFile(): SourceFile? {
+    override fun sourceFile(): SourceFile? {
         if (isNestedClass()) {
-            return null
+            // Retrieve the SourceFile from the top level class.
+            return containingClass()?.sourceFile()
         }
 
         val containingFile = psiClass.containingFile ?: return null
