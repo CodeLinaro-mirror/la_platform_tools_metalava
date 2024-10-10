@@ -16,12 +16,12 @@
 
 package com.android.tools.metalava.apilevels
 
-import com.android.tools.metalava.actualItem
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.snapshot.actualItemToSnapshot
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.options
 import java.util.function.Predicate
@@ -45,7 +45,7 @@ fun addApisFromCodebase(
                 preserveClassNesting = false,
                 filterEmit = providedFilterEmit,
                 filterReference = providedFilterReference,
-                config = @Suppress("DEPRECATION") options.apiVisitorConfig,
+                apiPredicateConfig = @Suppress("DEPRECATION") options.apiPredicateConfig,
             ) {
 
             var currentClass: ApiClass? = null
@@ -55,11 +55,11 @@ fun addApisFromCodebase(
             }
 
             /**
-             * Get the value of [Item.originallyDeprecated] from the [Item.actualItem], i.e. the
-             * item that would actually be written out.
+             * Get the value of [Item.originallyDeprecated] from the [Item.actualItemToSnapshot],
+             * i.e. the item that would actually be written out.
              */
             private val Item.actualDeprecated
-                get() = actualItem.effectivelyDeprecated
+                get() = actualItemToSnapshot.effectivelyDeprecated
 
             override fun visitClass(cls: ClassItem) {
                 val newClass = api.addClass(cls.nameInApi(), apiLevel, cls.actualDeprecated)

@@ -22,6 +22,8 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.RECENTLY_NONNULL
+import com.android.tools.metalava.model.RECENTLY_NULLABLE
 import com.android.tools.metalava.model.SUPPORT_TYPE_USE_ANNOTATIONS
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.findAnnotation
@@ -93,10 +95,7 @@ class NullnessMigration : ComparisonVisitor() {
 
     companion object {
         fun migrateNulls(codebase: Codebase, previous: Codebase) {
-            CodebaseComparator(
-                    apiVisitorConfig = @Suppress("DEPRECATION") options.apiVisitorConfig,
-                )
-                .compare(NullnessMigration(), previous, codebase)
+            CodebaseComparator().compare(NullnessMigration(), previous, codebase)
         }
 
         fun hasNullnessInformation(item: Item): Boolean {

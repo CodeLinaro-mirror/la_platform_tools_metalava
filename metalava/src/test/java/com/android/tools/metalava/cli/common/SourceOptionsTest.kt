@@ -28,6 +28,12 @@ Sources:
                                              well as common business logic are defined.
   --source-path <path>                       A : separated list of directories containing source files (organized in a
                                              standard Java package hierarchy).
+  --stub-packages <package-list>             List of packages (separated by :) which will be used to filter out
+                                             irrelevant classes. If specified, only classes in these packages will be
+                                             included in signature files, stubs, etc.. This is not limited to just the
+                                             stubs; the --stub-packages name is historical.
+
+                                             See `metalava help package-filters` for more information.
     """
         .trimIndent()
 

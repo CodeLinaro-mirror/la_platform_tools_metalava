@@ -76,10 +76,6 @@ private constructor(
         return super.isNonNull()
     }
 
-    override val targets: Set<AnnotationTarget> by lazy {
-        codebase.annotationManager.computeTargets(this, codebase::resolveClass)
-    }
-
     companion object {
         private fun getAnnotationAttributes(
             codebase: PsiBasedCodebase,

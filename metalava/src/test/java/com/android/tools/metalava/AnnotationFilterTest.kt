@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.model.annotation.AnnotationFilter
+import com.android.tools.metalava.model.annotation.AnnotationFilterBuilder
 import org.junit.Assert.assertEquals
 import org.junit.AssumptionViolatedException
 import org.junit.Test

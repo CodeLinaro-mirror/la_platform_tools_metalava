@@ -102,7 +102,7 @@ class CommonSourceFileTest : BaseModelTest() {
             val classItem1 = codebase.assertClass("test.Test")
             val innerClassItem = codebase.assertClass("test.Test.Inner")
             val pkgItem = codebase.assertPackage("test.pkg1")
-            val sourceFile = classItem.getSourceFile()!!
+            val sourceFile = classItem.sourceFile()!!
 
             val classImport = Import(classItem1)
             val innerClassImport = Import(innerClassItem)

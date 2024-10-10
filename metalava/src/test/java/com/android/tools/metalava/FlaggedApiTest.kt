@@ -18,6 +18,7 @@ package com.android.tools.metalava
 
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.cli.common.ARG_HIDE
+import com.android.tools.metalava.model.ANDROID_FLAGGED_API
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.testing.KnownSourceFiles

@@ -51,7 +51,7 @@ class AndroidApiChecks(val reporter: Reporter) {
                 ApiVisitor(
                     // Sort by source order such that warnings follow source line number order
                     callableComparator = CallableItem.sourceOrderComparator,
-                    config = @Suppress("DEPRECATION") options.apiVisitorConfig,
+                    apiPredicateConfig = @Suppress("DEPRECATION") options.apiPredicateConfig,
                 ) {
                 override fun visitItem(item: Item) {
                     checkTodos(item)
