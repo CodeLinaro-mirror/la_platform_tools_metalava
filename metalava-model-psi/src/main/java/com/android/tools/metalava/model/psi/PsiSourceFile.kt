@@ -96,7 +96,7 @@ internal class PsiSourceFile(
                 for (importStatement in importList.importStatements) {
                     val resolved = importStatement.resolve() ?: continue
                     if (resolved is PsiClass) {
-                        val classItem = codebase.findClass(resolved) ?: continue
+                        val classItem = codebase.findOrCreateClass(resolved)
                         if (predicate.test(classItem)) {
                             imports.add(Import(classItem))
                         }
@@ -119,7 +119,7 @@ internal class PsiSourceFile(
                         }
                     } else if (resolved is PsiField) {
                         val classItem =
-                            codebase.findClass(resolved.containingClass ?: continue) ?: continue
+                            codebase.findOrCreateClass(resolved.containingClass ?: continue)
                         val fieldItem =
                             classItem.findField(
                                 resolved.name,
@@ -137,7 +137,7 @@ internal class PsiSourceFile(
             for (importDirective in file.importDirectives) {
                 val resolved = importDirective.reference?.resolve() ?: continue
                 if (resolved is PsiClass) {
-                    val classItem = codebase.findClass(resolved) ?: continue
+                    val classItem = codebase.findOrCreateClass(resolved)
                     if (predicate.test(classItem)) {
                         imports.add(Import(classItem))
                     }

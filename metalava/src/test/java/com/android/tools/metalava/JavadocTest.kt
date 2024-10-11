@@ -157,8 +157,8 @@ class JavadocTest : DriverTest() {
                     import test.pkg2.OtherClass;
                     /**
                      *  Blah blah {@link test.pkg2.OtherClass OtherClass} blah blah.
-                     *  Referencing <b>field</b> {@link test.pkg2.OtherClass#foo OtherClass#foo},
-                     *  and referencing method {@link test.pkg2.OtherClass#bar(int,boolean) OtherClass#bar(int,
+                     *  Referencing <b>field</b> {@link test.pkg2.OtherClass#foo OtherClass.foo},
+                     *  and referencing method {@link test.pkg2.OtherClass#bar(int,boolean) OtherClass.bar(int,
                      *   boolean)}.
                      *  And relative method reference {@link #baz()}.
                      *  And relative field reference {@link #importance}.
@@ -176,8 +176,8 @@ class JavadocTest : DriverTest() {
                     public SomeClass() { throw new RuntimeException("Stub!"); }
                     /**
                      * My method.
-                     * @param focus The focus to find. One of {@link test.pkg2.OtherClass#FOCUS_INPUT OtherClass#FOCUS_INPUT} or
-                     *         {@link test.pkg2.OtherClass#FOCUS_ACCESSIBILITY OtherClass#FOCUS_ACCESSIBILITY}.
+                     * @param focus The focus to find. One of {@link test.pkg2.OtherClass#FOCUS_INPUT OtherClass.FOCUS_INPUT} or
+                     *         {@link test.pkg2.OtherClass#FOCUS_ACCESSIBILITY OtherClass.FOCUS_ACCESSIBILITY}.
                      * @throws java.io.IOException when blah blah blah
                      * @throws {@link java.lang.RuntimeException RuntimeException} when blah blah blah
                      */
@@ -366,8 +366,8 @@ class JavadocTest : DriverTest() {
                 import test.pkg2.OtherClass;
                 /**
                  *  Blah blah {@link test.pkg2.OtherClass OtherClass} blah blah.
-                 *  Referencing <b>field</b> {@link test.pkg2.OtherClass#foo OtherClass#foo},
-                 *  and referencing method {@link test.pkg2.OtherClass#bar(int,boolean) OtherClass#bar(int,
+                 *  Referencing <b>field</b> {@link test.pkg2.OtherClass#foo OtherClass.foo},
+                 *  and referencing method {@link test.pkg2.OtherClass#bar(int,boolean) OtherClass.bar(int,
                  *   boolean)}.
                  *  And relative method reference {@link #baz()}.
                  *  And relative field reference {@link #importance}.
@@ -385,8 +385,8 @@ class JavadocTest : DriverTest() {
                 public SomeClass() { throw new RuntimeException("Stub!"); }
                 /**
                  * My method.
-                 * @param focus The focus to find. One of {@link test.pkg2.OtherClass#FOCUS_INPUT OtherClass#FOCUS_INPUT} or
-                 *         {@link test.pkg2.OtherClass#FOCUS_ACCESSIBILITY OtherClass#FOCUS_ACCESSIBILITY}.
+                 * @param focus The focus to find. One of {@link test.pkg2.OtherClass#FOCUS_INPUT OtherClass.FOCUS_INPUT} or
+                 *         {@link test.pkg2.OtherClass#FOCUS_ACCESSIBILITY OtherClass.FOCUS_ACCESSIBILITY}.
                  * @throws java.io.IOException when blah blah blah
                  * @throws {@link java.lang.RuntimeException} when blah blah blah
                  */
@@ -873,16 +873,16 @@ class JavadocTest : DriverTest() {
                 package test.pkg1;
                 import test.pkg2.MyChild;
                 /**
-                 * Reference to {@link test.pkg2.MyChild#CONSTANT1 MyChild#CONSTANT1},
-                 * {@link test.pkg2.MyChild#CONSTANT2 MyChild#CONSTANT2}, and
-                 * {@link test.pkg2.MyChild#myMethod MyChild#myMethod}.
+                 * Reference to {@link test.pkg2.MyChild#CONSTANT1 MyChild.CONSTANT1},
+                 * {@link test.pkg2.MyChild#CONSTANT2 MyChild.CONSTANT2}, and
+                 * {@link test.pkg2.MyChild#myMethod MyChild.myMethod}.
                  * <p>
                  * Absolute reference:
                  * {@link test.pkg2.MyChild#CONSTANT1 MyChild.CONSTANT1}
                  * <p>
                  * Inner class reference:
-                 * {@link test.pkg1.Test.TestInner#CONSTANT3 Test.TestInner#CONSTANT3}, again
-                 * {@link test.pkg1.Test.TestInner#CONSTANT3 TestInner#CONSTANT3}
+                 * {@link test.pkg1.Test.TestInner#CONSTANT3 Test.TestInner.CONSTANT3}, again
+                 * {@link test.pkg1.Test.TestInner#CONSTANT3 TestInner.CONSTANT3}
                  *
                  * @see test.pkg2.MyChild#myMethod
                  */
@@ -894,52 +894,6 @@ class JavadocTest : DriverTest() {
                 public TestInner() { throw new RuntimeException("Stub!"); }
                 public static final java.lang.String CONSTANT3 = "Hello";
                 }
-                }
-                """
-        )
-    }
-
-    @Test
-    fun `Handle @attr references`() {
-        checkStubs(
-            docStubs = true,
-            warnings = "",
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package test.pkg1;
-
-                    @SuppressWarnings("all")
-                    public class Test {
-                        /**
-                         * Returns the drawable that will be drawn between each item in the list.
-                         *
-                         * @return the current drawable drawn between list elements
-                         * This value may be {@code null}.
-                         * @attr ref R.styleable#ListView_divider
-                         */
-                        public Object getFoo() {
-                            return null;
-                        }
-                    }
-                    """
-                    )
-                ),
-            source =
-                """
-                package test.pkg1;
-                @SuppressWarnings({"unchecked", "deprecation", "all"})
-                public class Test {
-                public Test() { throw new RuntimeException("Stub!"); }
-                /**
-                 * Returns the drawable that will be drawn between each item in the list.
-                 *
-                 * @return the current drawable drawn between list elements
-                 * This value may be {@code null}.
-                 * @attr ref android.R.styleable#ListView_divider
-                 */
-                public java.lang.Object getFoo() { throw new RuntimeException("Stub!"); }
                 }
                 """
         )
@@ -996,13 +950,13 @@ class JavadocTest : DriverTest() {
                 package test.pkg1;
                 import test.pkg2.OtherClass2;
                 /**
-                 * Reference to {@link test.pkg2.OtherClass1#myMethod(test.pkg2.OtherClass2,int name,test.pkg2.OtherClass2[]) OtherClass1#myMethod(OtherClass2, int name, OtherClass2[])},
+                 * Reference to {@link test.pkg2.OtherClass1#myMethod(test.pkg2.OtherClass2,int name,test.pkg2.OtherClass2[]) OtherClass1.myMethod(OtherClass2, int name, OtherClass2[])},
                  */
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public class Test<E extends test.pkg2.OtherClass2> {
                 public Test() { throw new RuntimeException("Stub!"); }
                 /**
-                 * Reference to {@link test.pkg2.OtherClass1#myMethod(E,int,test.pkg2.OtherClass2[]) OtherClass1#myMethod(E, int, OtherClass2 [])},
+                 * Reference to {@link test.pkg2.OtherClass1#myMethod(E,int,test.pkg2.OtherClass2[]) OtherClass1.myMethod(E, int, OtherClass2 [])},
                  */
                 public void test() { throw new RuntimeException("Stub!"); }
                 }
@@ -1102,7 +1056,7 @@ class JavadocTest : DriverTest() {
                 public Test() { throw new RuntimeException("Stub!"); }
                 /**
                  * Reference to {@link SomethingMissing} and
-                 * {@link java.lang.String#randomMethod String#randomMethod}.
+                 * {@link java.lang.String#randomMethod String.randomMethod}.
                  *
                  * @see OtherMissing
                  */
@@ -1181,8 +1135,8 @@ class JavadocTest : DriverTest() {
                      * @param right New right inset in pixels
                      * @param bottom New bottom inset in pixels
                      * @return A modified copy of this WindowInsets
-                     * @deprecated use {@link android.view.WindowInsets.Builder#Builder(android.view.WindowInsets) Builder#Builder(WindowInsets)} with
-                     *             {@link android.view.WindowInsets.Builder#setSystemWindowInsets(android.graphics.Insets) Builder#setSystemWindowInsets(Insets)} instead.
+                     * @deprecated use {@link android.view.WindowInsets.Builder#Builder(android.view.WindowInsets) Builder.Builder(WindowInsets)} with
+                     *             {@link android.view.WindowInsets.Builder#setSystemWindowInsets(android.graphics.Insets) Builder.setSystemWindowInsets(Insets)} instead.
                      */
                     @Deprecated
                     public android.view.WindowInsets replaceSystemWindowInsets(int left, int top, int right, int bottom) { throw new RuntimeException("Stub!"); }

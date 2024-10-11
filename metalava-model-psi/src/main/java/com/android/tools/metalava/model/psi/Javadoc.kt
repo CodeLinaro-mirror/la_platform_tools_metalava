@@ -39,9 +39,6 @@ import com.intellij.psi.javadoc.PsiDocToken
  */
 internal const val INCLUDE_SAME_PACKAGE = true
 
-/** If documentation starts with hash, insert the implicit class? */
-internal const val PREPEND_LOCAL_CLASS = false
-
 /**
  * Whether we should report unresolved symbols. This is typically a bug in the documentation. It
  * looks like there are a LOT of mistakes right now, so I'm worried about turning this on since
