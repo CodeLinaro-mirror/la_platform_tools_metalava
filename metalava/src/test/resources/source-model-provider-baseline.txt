@@ -70,7 +70,6 @@ com.android.tools.metalava.Java9LanguageFeaturesTest
 com.android.tools.metalava.JavadocTest
   Check references to inherited field constants[turbine]
   Ensure references to classes in JavaDoc of hidden members do not affect imports[turbine]
-  Handle @attr references[turbine]
   Javadoc link to innerclass constructor[turbine]
   Relative documentation links in stubs[turbine]
   Rewrite parameter list 2[turbine]

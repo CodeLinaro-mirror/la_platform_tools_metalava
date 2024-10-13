@@ -171,48 +171,16 @@ internal class PsiItemDocumentation(
             element is PsiDocToken -> {
                 assert(element.firstChild == null)
                 val text = element.text
-                // Auto-fix some docs in the framework which starts with R.styleable in @attr
-                if (text.startsWith("R.styleable#") && item.documentation.contains("@attr")) {
-                    sb.append("android.")
-                }
-
                 sb.append(text)
             }
             element is PsiDocMethodOrFieldRef -> {
                 val text = element.text
-                var resolved = element.reference?.resolve()
-
-                // Workaround: relative references doesn't work from a class item to its members
-                if (resolved == null && item is ClassItem) {
-                    // For some reason, resolving relative methods and field references at the root
-                    // level isn't working right.
-                    if (PREPEND_LOCAL_CLASS && text.startsWith("#")) {
-                        var end = text.indexOf('(')
-                        if (end == -1) {
-                            // definitely a field
-                            end = text.length
-                            val fieldName = text.substring(1, end)
-                            val field = item.findField(fieldName)
-                            if (field != null) {
-                                resolved = (field as? PsiFieldItem)?.psi()
-                            }
-                        }
-                        if (resolved == null) {
-                            val methodName = text.substring(1, end)
-                            resolved =
-                                (item as PsiClassItem)
-                                    .psi()
-                                    .findMethodsByName(methodName, true)
-                                    .firstOrNull()
-                        }
-                    }
-                }
-
+                val resolved = element.reference?.resolve()
                 if (resolved is PsiMember) {
                     val containingClass = resolved.containingClass
                     if (containingClass != null && !samePackage(containingClass)) {
                         val referenceText = element.reference?.element?.text ?: text
-                        if (!PREPEND_LOCAL_CLASS && referenceText.startsWith("#")) {
+                        if (referenceText.startsWith("#")) {
                             sb.append(text)
                             return
                         }
@@ -315,8 +283,8 @@ internal class PsiItemDocumentation(
         val reference = extractReference(element)
         val referenceText = reference?.element?.text ?: element.text
         val customLinkText = extractCustomLinkText(element)
-        val displayText = customLinkText?.text ?: referenceText
-        if (!PREPEND_LOCAL_CLASS && referenceText.startsWith("#")) {
+        val displayText = customLinkText?.text ?: referenceText.replaceFirst('#', '.')
+        if (referenceText.startsWith("#")) {
             val suffix = element.text
             if (suffix.contains("(") && suffix.contains(")")) {
                 expandArgumentList(element, suffix, sb)
@@ -369,32 +337,7 @@ internal class PsiItemDocumentation(
             }
         }
 
-        var resolved = reference?.resolve()
-        if (resolved == null && item is ClassItem) {
-            // For some reason, resolving relative methods and field references at the root
-            // level isn't working right.
-            if (PREPEND_LOCAL_CLASS && referenceText.startsWith("#")) {
-                var end = referenceText.indexOf('(')
-                if (end == -1) {
-                    // definitely a field
-                    end = referenceText.length
-                    val fieldName = referenceText.substring(1, end)
-                    val field = item.findField(fieldName)
-                    if (field != null) {
-                        resolved = (field as? PsiFieldItem)?.psi()
-                    }
-                }
-                if (resolved == null) {
-                    val methodName = referenceText.substring(1, end)
-                    resolved =
-                        (item as PsiClassItem)
-                            .psi()
-                            .findMethodsByName(methodName, true)
-                            .firstOrNull()
-                }
-            }
-        }
-
+        val resolved = reference?.resolve()
         if (resolved != null) {
             when (resolved) {
                 is PsiClass -> {
