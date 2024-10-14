@@ -97,7 +97,8 @@ open class DefaultClassItem(
         }
     }
 
-    override fun getSourceFile() = source
+    /** If [source] is not set and this is a nested class then try the containing class. */
+    override fun sourceFile() = source ?: containingClass?.sourceFile()
 
     final override fun containingPackage(): PackageItem = containingPackage
 

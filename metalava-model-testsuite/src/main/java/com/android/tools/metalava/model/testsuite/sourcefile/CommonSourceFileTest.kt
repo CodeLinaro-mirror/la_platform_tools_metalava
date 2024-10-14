@@ -26,10 +26,6 @@ import org.junit.Test
 
 /** Common tests for implementations of [SourceFile]. */
 class CommonSourceFileTest : BaseModelTest() {
-    internal class AlwaysTrue : Predicate<Item> {
-        override fun test(item: Item): Boolean = true
-    }
-
     internal class FilterHidden : Predicate<Item> {
         override fun test(item: Item): Boolean = !item.isHiddenOrRemoved()
     }
@@ -99,27 +95,74 @@ class CommonSourceFileTest : BaseModelTest() {
             )
         ) {
             val classItem = codebase.assertClass("test.pkg.Test")
-            val classItem1 = codebase.assertClass("test.Test")
-            val innerClassItem = codebase.assertClass("test.Test.Inner")
-            val pkgItem = codebase.assertPackage("test.pkg1")
-            val sourceFile = classItem.getSourceFile()!!
+            val sourceFile = classItem.sourceFile()!!
 
+            // Create the Import objects that are expected.
+            val classItem1 = codebase.assertClass("test.Test")
             val classImport = Import(classItem1)
+
+            val innerClassItem = codebase.assertClass("test.Test.Inner")
             val innerClassImport = Import(innerClassItem)
+
+            val pkgItem = codebase.assertPackage("test.pkg1")
             val packageImport = Import(pkgItem)
 
             // Only class imports that are referenced in documentation are included.
             // The wildcard imports are always included (except for empty packages and packages from
             // classpath).
             // Method and Field imports don't seem to resolve and are not included.
+            val allImports = sourceFile.getImports()
             assertEquals(
                 setOf(classImport, innerClassImport, packageImport),
-                sourceFile.getImports(AlwaysTrue()),
+                allImports,
                 message = "unfiltered imports"
             )
 
-            val imports = sourceFile.getImports(FilterHidden())
-            assertEquals(setOf(packageImport), imports, message = "filtered hidden")
+            val notHiddenImports = sourceFile.getImports(FilterHidden())
+            assertEquals(setOf(packageImport), notHiddenImports, message = "filtered hidden")
+        }
+    }
+
+    @Test
+    fun `test sourcefile imports from classpath`() {
+        runSourceCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+
+                        import java.util.List;
+                        import java.util.Set;
+
+                        /** {@link List} {@link Set}*/
+                        public class Foo {
+                            public static List<String> LIST_FIELD;
+                            public static Set<String> SET_FIELD;
+                        }
+                    """
+                ),
+            )
+        ) {
+            val classItem = codebase.assertClass("test.pkg.Foo")
+            val sourceFile = classItem.sourceFile()!!
+
+            // Get the imports before resolving java.util.Set to see how the getImports(...) methods
+            // behave with unresolved classes.
+            val allImports = sourceFile.getImports()
+
+            // Create the Import objects that are expected.
+            val listClassItem = codebase.assertResolvedClass("java.util.List")
+            val listClassImport = Import(listClassItem)
+
+            val setClassItem = codebase.assertResolvedClass("java.util.Set")
+            val setClassImport = Import(setClassItem)
+
+            // Makes sure that classes from the classpath are included in the imports.
+            assertEquals(
+                setOf(listClassImport, setClassImport),
+                allImports,
+                message = "unfiltered imports"
+            )
         }
     }
 

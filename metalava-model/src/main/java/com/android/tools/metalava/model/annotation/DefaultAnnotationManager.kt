@@ -52,6 +52,7 @@ import com.android.tools.metalava.model.ShowOrHide
 import com.android.tools.metalava.model.Showability
 import com.android.tools.metalava.model.TypedefMode
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager.Config
+import com.android.tools.metalava.model.computeTypeNullability
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.isNonNullAnnotation
 import com.android.tools.metalava.model.isNullableAnnotation
@@ -141,7 +142,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
     }
 
     override fun computeAnnotationInfo(annotationItem: AnnotationItem): AnnotationInfo {
-        return LazyAnnotationInfo(config, annotationItem)
+        return LazyAnnotationInfo(this, config, annotationItem)
     }
 
     override fun normalizeInputName(qualifiedName: String?): String? {
@@ -336,8 +337,14 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
          ANNOTATION_EXTERNAL
         else ANNOTATION_EXTERNAL_ONLY
 
-    /** The applicable targets for this annotation */
-    override fun computeTargets(annotation: AnnotationItem): Set<AnnotationTarget> {
+    /**
+     * The applicable targets for the [annotation].
+     *
+     * Care must be taken to ensure that this only accesses [AnnotationItem.qualifiedName] and
+     * [AnnotationItem.resolve]. In particular, it must NOT access the attributes. That is because
+     * the result must be identical for all [AnnotationItem] instances of an annotation class.
+     */
+    internal fun computeTargets(annotation: AnnotationItem): Set<AnnotationTarget> {
         val qualifiedName = annotation.qualifiedName
         if (config.passThroughAnnotations.contains(qualifiedName)) {
             return ANNOTATION_IN_ALL_STUBS
@@ -642,12 +649,20 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
  * The properties are initialized lazily to avoid doing more work than necessary.
  */
 private class LazyAnnotationInfo(
+    private val annotationManager: DefaultAnnotationManager,
     private val config: Config,
     private val annotationItem: AnnotationItem,
-) : AnnotationInfo(annotationItem.qualifiedName) {
+) : AnnotationInfo {
+
+    private val qualifiedName = annotationItem.qualifiedName
+
+    override val targets by
+        lazy(LazyThreadSafetyMode.NONE) { annotationManager.computeTargets(annotationItem) }
+
+    override val typeNullability = computeTypeNullability(qualifiedName)
 
     /** Compute lazily to avoid doing any more work than strictly necessary. */
-    override val showability: Showability by
+    override val showability by
         lazy(LazyThreadSafetyMode.NONE) {
             // The showAnnotations filter includes all the annotation patterns that are matched by
             // the first two filters plus 0 or more additional patterns. Excluding the patterns that
@@ -732,11 +747,10 @@ private class LazyAnnotationInfo(
     }
 
     /** Resolve the [AnnotationItem] to a [ClassItem] lazily. */
-    private val annotationClass: ClassItem? by
-        lazy(LazyThreadSafetyMode.NONE, annotationItem::resolve)
+    private val annotationClass by lazy(LazyThreadSafetyMode.NONE, annotationItem::resolve)
 
     /** Flag to detect whether the [checkResolvedAnnotationClass] is in a cycle. */
-    private var isCheckingResolvedAnnotationClass: Boolean = false
+    private var isCheckingResolvedAnnotationClass = false
 
     /**
      * Check to see whether the resolved annotation class matches the supplied predicate.
@@ -769,7 +783,7 @@ private class LazyAnnotationInfo(
      *
      * This is true if this annotation is
      */
-    override val suppressCompatibility: Boolean by
+    override val suppressCompatibility by
         lazy(LazyThreadSafetyMode.NONE) {
             qualifiedName == SUPPRESS_COMPATIBILITY_ANNOTATION_QUALIFIED ||
                 config.suppressCompatibilityMetaAnnotations.contains(qualifiedName) ||

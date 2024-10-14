@@ -560,7 +560,7 @@ class ApiAnalyzer(
                         val deprecatedForSdk =
                             item.modifiers.findAnnotation(ANDROID_DEPRECATED_FOR_SDK)
                         if (deprecatedForSdk != null) {
-                            if (item.documentation.contains("@deprecated")) {
+                            if (item.documentation.hasTagSection("@deprecated")) {
                                 reporter.report(
                                     Issues.DEPRECATION_MISMATCH,
                                     item,

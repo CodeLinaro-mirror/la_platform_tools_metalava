@@ -181,7 +181,7 @@ class FilteringApiVisitor(
         val delegate: ClassItem,
     ) : ClassItem by delegate {
 
-        override fun getSourceFile() = delegate.getSourceFile()?.let { FilteringSourceFile(it) }
+        override fun sourceFile() = delegate.sourceFile()?.let { FilteringSourceFile(it) }
 
         override fun superClass() = superClassType()?.asClass()
 

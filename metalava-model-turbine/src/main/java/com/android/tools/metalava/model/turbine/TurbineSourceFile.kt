@@ -69,7 +69,7 @@ internal class TurbineSourceFile(
             }
             // Not static member import i.e. class import
             else if (!import.stat()) {
-                val classItem = codebase.findClass(resolvedName) ?: continue
+                val classItem = codebase.resolveClass(resolvedName) ?: continue
                 if (predicate.test(classItem)) {
                     imports.add(Import(classItem))
                 }

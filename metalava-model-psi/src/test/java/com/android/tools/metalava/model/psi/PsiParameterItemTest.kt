@@ -77,7 +77,7 @@ class PsiParameterItemTest : BaseModelTest() {
         ) {
             // Expect classes are ignored by UAST/Kotlin light classes, verify we test actual
             // classes.
-            val actualFile = codebase.assertClass("ActualKt").getSourceFile()
+            val actualFile = codebase.assertClass("ActualKt").sourceFile()
 
             val functionItem = codebase.assertClass("ActualKt").methods().single()
             with(functionItem) {
@@ -96,7 +96,7 @@ class PsiParameterItemTest : BaseModelTest() {
             }
 
             val classItem = codebase.assertClass("Test")
-            assertEquals(actualFile, classItem.getSourceFile())
+            assertEquals(actualFile, classItem.sourceFile())
 
             val constructorItem = classItem.constructors().single()
             with(constructorItem) {

@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.stub
 
+import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
@@ -156,30 +157,25 @@ class StubConstructorManager(codebase: Codebase) {
 
         val superDefaultConstructor = superClassConstructors?.stubConstructor
 
-        // Find default constructor, if one doesn't exist
+        // Find constructor subclasses should delegate to, creating one if necessary. If the stub
+        // will contain a no-args constructor then that is represented as `null` to allow it to be
+        // optimized below.
         val filteredConstructors = cls.filteredConstructors(filter).toList()
         val stubConstructor =
             if (filteredConstructors.isNotEmpty()) {
-                // Try to pick the constructor, select first by fewest throwables,
-                // then fewest parameters, then based on order in listFilter.test(cls)
-                filteredConstructors.reduce { first, second -> pickBest(first, second) }
-            } else if (
-                cls.constructors().isNotEmpty() ||
-                    // For text based codebase, stub constructor needs to be generated even if
-                    // cls.constructors() is empty, so that public default constructor is not
-                    // created.
-                    cls.codebase.preFiltered
-            ) {
-
-                // No accessible constructors are available so a package private constructor is
-                // created. Technically, the stub now has a constructor that isn't available at
-                // runtime, but apps creating subclasses inside the android.* package is not
-                // supported.
-                cls.createDefaultConstructor(VisibilityLevel.PACKAGE_PRIVATE)
+                // Pick the best constructor. If that is a no-args constructor then represent that
+                // as `null`.
+                pickBest(filteredConstructors).takeUnless { it.parameters().isEmpty() }
             } else {
-                null
+                // No accessible constructors are available (not even a default implicit
+                // constructor) so a package private constructor is needed. Technically, this will
+                // result in the stub class having a constructor that isn't available at runtime,
+                // but creating subclasses in API packages is not supported.
+                cls.createDefaultConstructor(VisibilityLevel.PACKAGE_PRIVATE)
             }
 
+        // If neither the constructors in this class nor its subclasses need to add a `super(...)`
+        // call then use a shared object.
         if (stubConstructor == null && superDefaultConstructor == null) {
             return StubConstructors.EMPTY
         }
@@ -194,20 +190,44 @@ class StubConstructorManager(codebase: Codebase) {
             }
     }
 
-    private fun pickBest(current: ConstructorItem, next: ConstructorItem): ConstructorItem {
-        val currentThrowsCount = current.throwsTypes().size
-        val nextThrowsCount = next.throwsTypes().size
+    companion object {
+        /**
+         * Comparator to pick the best [ConstructorItem] to which derived stub classes will
+         * delegate.
+         *
+         * Uses the following rules:
+         * 1. Fewest throwables as they have to be propagated down to constructors that delegate to
+         *    it.
+         * 2. Fewest parameters to reduce the size of the `super(...)` call.
+         * 3. Shortest erased parameter types as that should reduce the size of the `super(...)`
+         *    call.
+         * 4. Total ordering defined by [CallableItem.comparator] to ensure consistent behavior.
+         *
+         * Returns less than zero if the first [ConstructorItem] passed to `compare(c1, c2)` is the
+         * best option, more if the second [ConstructorItem] is the best option and zero if they are
+         * the same.
+         */
+        private val bestStubConstructorComparator: Comparator<ConstructorItem> =
+            Comparator.comparingInt<ConstructorItem?>({ it.throwsTypes().size })
+                .thenComparingInt({ it.parameters().size })
+                .thenComparingInt({
+                    it.parameters().sumOf { it.type().toErasedTypeString().length }
+                })
+                .thenComparing(CallableItem.comparator)
+    }
 
-        return if (currentThrowsCount < nextThrowsCount) {
-            current
-        } else if (currentThrowsCount > nextThrowsCount) {
-            next
-        } else {
-            val currentParameterCount = current.parameters().size
-            val nextParameterCount = next.parameters().size
-            if (currentParameterCount <= nextParameterCount) {
-                current
-            } else next
+    /**
+     * Pick the best [ConstructorItem] to which derived stub classes will delegate.
+     *
+     * Selects the first [ConstructorItem] in [constructors] which compares less to or equal to all
+     * the other [ConstructorItem]s in the list when compared using [bestStubConstructorComparator].
+     * That defines a total order so the result is independent of the order of [constructors].
+     */
+    private fun pickBest(constructors: List<ConstructorItem>): ConstructorItem {
+        // Try to pick the best constructor to which derived stub classes can delegate.
+        return constructors.reduce { first, second ->
+            val result = bestStubConstructorComparator.compare(first, second)
+            if (result <= 0) first else second
         }
     }
 
