@@ -1405,6 +1405,7 @@ class StubsTest : AbstractStubsTest() {
                     package android.util;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public final class ArrayMapKt {
+                    ArrayMapKt() { throw new RuntimeException("Stub!"); }
                     /**
                      * @deprecated Use android.Manifest.permission.ACCESS_FINE_LOCATION instead
                      */

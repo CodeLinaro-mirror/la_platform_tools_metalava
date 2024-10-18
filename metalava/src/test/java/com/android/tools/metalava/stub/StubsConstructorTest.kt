@@ -16,8 +16,11 @@
 
 package com.android.tools.metalava.stub
 
+import com.android.tools.metalava.model.provider.Capability
+import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.testing.java
+import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
 
 @SuppressWarnings("ALL")
@@ -919,6 +922,48 @@ class StubsConstructorTest : AbstractStubsTest() {
                     public Child(java.lang.String... strings) { super((int[])null); throw new RuntimeException("Stub!"); }
                     }
                     """
+                    )
+                )
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `File facade constructor`() {
+        check(
+            format = FileFormat.V2,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        "test/pkg/Constants.kt",
+                        """
+                            package test.pkg
+
+                            const val CONSTANT = "CONSTANT"
+                        """
+                    ),
+                ),
+            api =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public final class ConstantsKt {
+                        field @NonNull public static final String CONSTANT = "CONSTANT";
+                      }
+                    }
+                """,
+            stubPaths = arrayOf("test/pkg/ConstantsKt.java"),
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public final class ConstantsKt {
+                            ConstantsKt() { throw new RuntimeException("Stub!"); }
+                            @android.annotation.NonNull public static final java.lang.String CONSTANT = "CONSTANT";
+                            }
+                        """
                     )
                 )
         )
