@@ -292,7 +292,7 @@ internal fun processFlags(
     options.apiFile?.let { apiFile ->
         val fileFormat = options.signatureFileFormat
         val codebaseFragment =
-            CodebaseFragment(codebase) { delegate ->
+            CodebaseFragment.create(codebase) { delegate ->
                 createFilteringVisitorForSignatures(
                     delegate = delegate,
                     fileFormat = fileFormat,
@@ -314,7 +314,7 @@ internal fun processFlags(
     options.removedApiFile?.let { apiFile ->
         val fileFormat = options.signatureFileFormat
         val codebaseFragment =
-            CodebaseFragment(codebase) { delegate ->
+            CodebaseFragment.create(codebase) { delegate ->
                 createFilteringVisitorForSignatures(
                     delegate = delegate,
                     fileFormat = fileFormat,
@@ -722,7 +722,7 @@ private fun createStubFiles(
         }
 
     val codebaseFragment =
-        CodebaseFragment(codebase) { delegate ->
+        CodebaseFragment.create(codebase) { delegate ->
             createFilteringVisitorForStubs(
                 delegate = delegate,
                 docStubs = docStubs,

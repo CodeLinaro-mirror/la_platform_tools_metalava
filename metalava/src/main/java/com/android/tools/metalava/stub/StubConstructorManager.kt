@@ -157,27 +157,25 @@ class StubConstructorManager(codebase: Codebase) {
 
         val superDefaultConstructor = superClassConstructors?.stubConstructor
 
-        // Find default constructor, if one doesn't exist
+        // Find constructor subclasses should delegate to, creating one if necessary. If the stub
+        // will contain a no-args constructor then that is represented as `null` to allow it to be
+        // optimized below.
         val filteredConstructors = cls.filteredConstructors(filter).toList()
         val stubConstructor =
             if (filteredConstructors.isNotEmpty()) {
-                pickBest(filteredConstructors)
-            } else if (
-                cls.constructors().isNotEmpty() ||
-                    // For text based codebase, stub constructor needs to be generated even if
-                    // cls.constructors() is empty, so that public default constructor is not
-                    // created.
-                    cls.codebase.preFiltered
-            ) {
-                // No accessible constructors are available so a package private constructor is
-                // created. Technically, the stub now has a constructor that isn't available at
-                // runtime, but apps creating subclasses inside the android.* package is not
-                // supported.
-                cls.createDefaultConstructor(VisibilityLevel.PACKAGE_PRIVATE)
+                // Pick the best constructor. If that is a no-args constructor then represent that
+                // as `null`.
+                pickBest(filteredConstructors).takeUnless { it.parameters().isEmpty() }
             } else {
-                null
+                // No accessible constructors are available (not even a default implicit
+                // constructor) so a package private constructor is needed. Technically, this will
+                // result in the stub class having a constructor that isn't available at runtime,
+                // but creating subclasses in API packages is not supported.
+                cls.createDefaultConstructor(VisibilityLevel.PACKAGE_PRIVATE)
             }
 
+        // If neither the constructors in this class nor its subclasses need to add a `super(...)`
+        // call then use a shared object.
         if (stubConstructor == null && superDefaultConstructor == null) {
             return StubConstructors.EMPTY
         }

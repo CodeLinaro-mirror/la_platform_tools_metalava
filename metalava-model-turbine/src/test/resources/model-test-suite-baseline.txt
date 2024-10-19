@@ -5,6 +5,9 @@ com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTe
 com.android.tools.metalava.model.testsuite.classitem.CommonDuplicateClassItemTest
   Test duplicate classes
 
+com.android.tools.metalava.model.testsuite.documentation.CommonParameterizedDocumentationTest
+  Documentation fully qualified[doc comment with link - java]
+
 com.android.tools.metalava.model.testsuite.fielditem.CommonFieldItemTest
   Test implicit nullability of constant field initialized from @NonNull method
 
