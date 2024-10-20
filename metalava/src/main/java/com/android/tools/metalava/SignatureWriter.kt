@@ -30,7 +30,6 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
-import com.android.tools.metalava.model.snapshot.actualItemToSnapshot
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.model.visitors.FilteringApiVisitor
@@ -190,7 +189,7 @@ class SignatureWriter(
     }
 
     private fun writeModifiers(item: Item) {
-        modifierListWriter.write(item.actualItemToSnapshot)
+        modifierListWriter.write(item)
     }
 
     private fun writeSuperClassStatement(cls: ClassItem) {
@@ -379,8 +378,7 @@ fun createFilteringVisitorForSignatures(
     showUnannotated: Boolean,
     apiPredicateConfig: ApiPredicate.Config,
 ): ApiVisitor {
-    val filterEmit = apiType.getEmitFilter(apiPredicateConfig)
-    val filterReference = apiType.getReferenceFilter(apiPredicateConfig)
+    val apiFilters = apiType.getApiFilters(apiPredicateConfig)
 
     val (interfaceListSorter, interfaceListComparator) =
         if (fileFormat.sortWholeExtendsList) Pair(null, TypeItem.totalComparator)
@@ -391,8 +389,7 @@ fun createFilteringVisitorForSignatures(
         callableComparator = fileFormat.overloadedMethodOrder.comparator,
         interfaceListSorter = interfaceListSorter,
         interfaceListComparator = interfaceListComparator,
-        filterEmit = filterEmit,
-        filterReference = filterReference,
+        apiFilters = apiFilters,
         preFiltered = preFiltered,
         showUnannotated = showUnannotated,
     )

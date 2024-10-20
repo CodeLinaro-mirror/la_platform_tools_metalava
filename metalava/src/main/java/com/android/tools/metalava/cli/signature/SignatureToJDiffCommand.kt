@@ -39,6 +39,7 @@ import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.SignatureFile
 import com.android.tools.metalava.model.text.TextCodebaseBuilder
+import com.android.tools.metalava.model.visitors.ApiFilters
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.options.convert
 import com.github.ajalt.clikt.parameters.options.flag
@@ -146,6 +147,7 @@ class SignatureToJDiffCommand :
         val apiReference =
             if (strip) apiType.getEmitFilter(apiPredicateConfig)
             else apiType.getReferenceFilter(apiPredicateConfig)
+        val apiFilters = ApiFilters(emit = apiEmit, reference = apiReference)
         val baseFile = baseApiFile
 
         val outputApi =
@@ -165,8 +167,7 @@ class SignatureToJDiffCommand :
                     apiName = apiName,
                 )
                 .createFilteringVisitor(
-                    filterEmit = apiEmit,
-                    filterReference = apiReference,
+                    apiFilters = apiFilters,
                     preFiltered = signatureApi.preFiltered && !strip,
                     showUnannotated = false,
                     // Historically, the super class type has not been filtered.

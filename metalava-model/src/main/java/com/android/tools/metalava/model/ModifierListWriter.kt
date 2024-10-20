@@ -248,9 +248,6 @@ private constructor(
         if (item !is PackageItem) {
             val writeDeprecated =
                 when {
-                    // Do not write @Deprecated for a removed item unless it was explicitly marked
-                    // as deprecated.
-                    item.removed -> item.originallyDeprecated
                     // Do not write @Deprecated for a parameter unless it was explicitly marked
                     // as deprecated.
                     item is ParameterItem -> item.originallyDeprecated

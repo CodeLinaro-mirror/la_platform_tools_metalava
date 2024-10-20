@@ -31,8 +31,7 @@ import com.android.tools.metalava.model.ModifierListWriter
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.item.ResourceFile
 import com.android.tools.metalava.model.psi.trimDocIndent
-import com.android.tools.metalava.model.removeDeprecatedSection
-import com.android.tools.metalava.model.snapshot.actualItemToSnapshot
+import com.android.tools.metalava.model.visitors.ApiFilters
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.model.visitors.FilteringApiVisitor
 import com.android.tools.metalava.reporter.Issues
@@ -272,6 +271,7 @@ fun createFilteringVisitorForStubs(
     docStubs: Boolean,
     preFiltered: Boolean,
     apiPredicateConfig: ApiPredicate.Config,
+    ignoreEmit: Boolean = false,
 ): ItemVisitor {
     val filterReference =
         ApiPredicate(
@@ -279,6 +279,11 @@ fun createFilteringVisitorForStubs(
             config = apiPredicateConfig.copy(ignoreShown = true),
         )
     val filterEmit = FilterPredicate(filterReference)
+    val apiFilters =
+        ApiFilters(
+            emit = filterEmit,
+            reference = filterReference,
+        )
     return FilteringApiVisitor(
         delegate = delegate,
         inlineInheritedFields = true,
@@ -287,9 +292,9 @@ fun createFilteringVisitorForStubs(
         // consistent order will prevent churn in the generated stubs caused by changes to Metalava
         // itself or changes to the order of methods in the sources.
         callableComparator = CallableItem.comparator,
-        filterEmit = filterEmit,
-        filterReference = filterReference,
+        apiFilters = apiFilters,
         preFiltered = preFiltered,
+        ignoreEmit = ignoreEmit,
     )
 }
 
@@ -299,35 +304,8 @@ internal fun appendDocumentation(item: Item, writer: PrintWriter, config: StubWr
         val text = documentation.fullyQualifiedDocumentation()
         if (text.isNotBlank()) {
             val trimmed = trimDocIndent(text)
-            val output = revertDocumentationDeprecationChange(item, trimmed)
-            writer.println(output)
+            writer.println(trimmed)
             writer.println()
         }
     }
-}
-
-/**
- * Revert the documentation change that accompanied a deprecation change.
- *
- * Deprecating an API requires adding an `@Deprecated` annotation and an `@deprecated` Javadoc tag
- * with text that explains why it is being deprecated and what will replace it. When the deprecation
- * change is being reverted then this will remove the `@deprecated` tag and its associated text to
- * avoid warnings when compiling and misleading information being written into the Javadoc.
- */
-fun revertDocumentationDeprecationChange(currentItem: Item, docs: String): String {
-    val actualItem = currentItem.actualItemToSnapshot
-    // The documentation does not need to be reverted if...
-    if (
-        // the current item is not being reverted
-        currentItem === actualItem
-        // or if the current item and the actual item have the same deprecation setting
-        ||
-            currentItem.effectivelyDeprecated == actualItem.effectivelyDeprecated
-            // or if the actual item is deprecated
-            ||
-            actualItem.effectivelyDeprecated
-    )
-        return docs
-
-    return removeDeprecatedSection(docs)
 }

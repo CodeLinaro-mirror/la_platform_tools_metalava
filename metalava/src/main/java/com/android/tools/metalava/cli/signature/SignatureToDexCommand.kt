@@ -66,8 +66,7 @@ class SignatureToDexCommand :
 
         val apiPredicateConfig = ApiPredicate.Config()
         val apiType = ApiType.ALL
-        val apiEmit = apiType.getEmitFilter(apiPredicateConfig)
-        val apiReference = apiType.getReferenceFilter(apiPredicateConfig)
+        val apiFilters = apiType.getApiFilters(apiPredicateConfig)
 
         createReportFile(progressTracker, signatureApi, outFile, "DEX API") { printWriter ->
             DexApiWriter(
@@ -77,8 +76,7 @@ class SignatureToDexCommand :
                     FilteringApiVisitor(
                         dexApiWriter,
                         inlineInheritedFields = true,
-                        filterEmit = apiEmit,
-                        filterReference = apiReference,
+                        apiFilters = apiFilters,
                         preFiltered = signatureApi.preFiltered,
                     )
                 }

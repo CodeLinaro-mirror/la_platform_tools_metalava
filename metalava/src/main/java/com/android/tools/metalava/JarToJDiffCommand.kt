@@ -76,16 +76,14 @@ class JarToJDiffCommand :
 
                 val apiType = ApiType.PUBLIC_API
                 val apiPredicateConfig = ApiPredicate.Config()
-                val apiEmit = apiType.getEmitFilter(apiPredicateConfig)
-                val apiReference = apiType.getReferenceFilter(apiPredicateConfig)
+                val apiFilters = apiType.getApiFilters(apiPredicateConfig)
 
                 createReportFile(progressTracker, codebase, xmlFile, "JDiff File") { printWriter ->
                     JDiffXmlWriter(
                             writer = printWriter,
                         )
                         .createFilteringVisitor(
-                            filterEmit = apiEmit,
-                            filterReference = apiReference,
+                            apiFilters = apiFilters,
                             preFiltered = false,
                             showUnannotated = false,
                         )
