@@ -47,12 +47,14 @@ import com.android.tools.metalava.model.ItemVisitor
 import com.android.tools.metalava.model.ModelOptions
 import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.psi.PsiModelOptions
+import com.android.tools.metalava.model.snapshot.NonFilteringDelegatingVisitor
 import com.android.tools.metalava.model.source.EnvironmentManager
 import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.tools.metalava.model.text.SignatureFile
 import com.android.tools.metalava.model.visitors.ApiFilters
+import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.model.visitors.FilteringApiVisitor
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.stub.StubConstructorManager
@@ -230,13 +232,36 @@ internal fun processFlags(
             } else {
                 null
             }
+
+        var codebaseFragment =
+            CodebaseFragment.create(codebase) { delegatedVisitor ->
+                FilteringApiVisitor(
+                    delegate = delegatedVisitor,
+                    apiFilters = ApiVisitor.defaultFilters(options.apiPredicateConfig),
+                    preFiltered = false,
+                )
+            }
+
+        // If reverting some changes then create a snapshot that combines the items from the sources
+        // for any un-reverted changes and items from the previously released API for any reverted
+        // changes.
+        if (options.revertAnnotations.isNotEmpty()) {
+            codebaseFragment =
+                codebaseFragment.snapshotIncludingRevertedItems(
+                    // Allow references to any of the ClassItems in the original Codebase. This
+                    // should not be a problem for api-versions.xml files as they only refer to them
+                    // by name and do not care about their contents.
+                    referenceVisitorFactory = ::NonFilteringDelegatingVisitor,
+                )
+        }
+
         apiGenerator.generateXml(
             apiLevelJars,
             options.firstApiLevel,
             options.currentApiLevel,
             options.isDeveloperPreviewBuild(),
             androidApiLevelXml,
-            codebase,
+            codebaseFragment,
             sdkExtArgs,
             options.removeMissingClassesInApiLevels
         )
@@ -266,13 +291,21 @@ internal fun processFlags(
         val apiType = ApiType.PUBLIC_API
         val apiFilters = apiType.getApiFilters(options.apiPredicateConfig)
 
+        val codebaseFragment =
+            CodebaseFragment.create(codebase) { delegatedVisitor ->
+                FilteringApiVisitor(
+                    delegate = delegatedVisitor,
+                    apiFilters = apiFilters,
+                    preFiltered = false,
+                )
+            }
+
         apiGenerator.generateJson(
             // The signature files can be null if the current version is the only version
             options.apiVersionSignatureFiles ?: emptyList(),
-            codebase,
+            codebaseFragment,
             apiVersionsJson,
             apiVersionNames,
-            apiFilters,
         )
     }
 
@@ -290,7 +323,7 @@ internal fun processFlags(
     // files
     options.apiFile?.let { apiFile ->
         val fileFormat = options.signatureFileFormat
-        val codebaseFragment =
+        var codebaseFragment =
             CodebaseFragment.create(codebase) { delegate ->
                 createFilteringVisitorForSignatures(
                     delegate = delegate,
@@ -302,6 +335,19 @@ internal fun processFlags(
                 )
             }
 
+        // If reverting some changes then create a snapshot that combines the items from the sources
+        // for any un-reverted changes and items from the previously released API for any reverted
+        // changes.
+        if (options.revertAnnotations.isNotEmpty()) {
+            codebaseFragment =
+                codebaseFragment.snapshotIncludingRevertedItems(
+                    // Allow references to any of the ClassItems in the original Codebase. This
+                    // should not be a problem for signature files as they only refer to them by
+                    // name and do not care about their contents.
+                    referenceVisitorFactory = ::NonFilteringDelegatingVisitor,
+                )
+        }
+
         createReportFile(progressTracker, codebaseFragment, apiFile, "API") { printWriter ->
             SignatureWriter(
                 writer = printWriter,
@@ -312,7 +358,7 @@ internal fun processFlags(
 
     options.removedApiFile?.let { apiFile ->
         val fileFormat = options.signatureFileFormat
-        val codebaseFragment =
+        var codebaseFragment =
             CodebaseFragment.create(codebase) { delegate ->
                 createFilteringVisitorForSignatures(
                     delegate = delegate,
@@ -323,6 +369,19 @@ internal fun processFlags(
                     apiPredicateConfig = options.apiPredicateConfig,
                 )
             }
+
+        // If reverting some changes then create a snapshot that combines the items from the sources
+        // for any un-reverted changes and items from the previously released API for any reverted
+        // changes.
+        if (options.revertAnnotations.isNotEmpty()) {
+            codebaseFragment =
+                codebaseFragment.snapshotIncludingRevertedItems(
+                    // Allow references to any of the ClassItems in the original Codebase. This
+                    // should not be a problem for signature files as they only refer to them by
+                    // name and do not care about their contents.
+                    referenceVisitorFactory = ::NonFilteringDelegatingVisitor,
+                )
+        }
 
         createReportFile(
             progressTracker,
@@ -720,7 +779,7 @@ private fun createStubFiles(
             }
         }
 
-    val codebaseFragment =
+    var codebaseFragment =
         CodebaseFragment.create(codebase) { delegate ->
             createFilteringVisitorForStubs(
                 delegate = delegate,
@@ -729,6 +788,23 @@ private fun createStubFiles(
                 apiPredicateConfig = options.apiPredicateConfig,
             )
         }
+
+    // If reverting some changes then create a snapshot that combines the items from the sources for
+    // any un-reverted changes and items from the previously released API for any reverted changes.
+    if (options.revertAnnotations.isNotEmpty()) {
+        codebaseFragment =
+            codebaseFragment.snapshotIncludingRevertedItems(
+                referenceVisitorFactory = { delegate ->
+                    createFilteringVisitorForStubs(
+                        delegate = delegate,
+                        docStubs = docStubs,
+                        preFiltered = codebase.preFiltered,
+                        apiPredicateConfig = options.apiPredicateConfig,
+                        ignoreEmit = true,
+                    )
+                },
+            )
+    }
 
     // Add additional constructors needed by the stubs.
     val filterEmit =

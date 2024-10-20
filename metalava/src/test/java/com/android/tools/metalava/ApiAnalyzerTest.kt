@@ -509,42 +509,6 @@ class ApiAnalyzerTest : DriverTest() {
         )
     }
 
-    @Test
-    fun `Test deprecated status not propagated to removed items`() {
-        check(
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                            package test.pkg;
-
-                            /**
-                             * @deprecated
-                             * @removed
-                             */
-                            public class Concrete {
-                                public void bar() {}
-                            }
-                        """
-                    ),
-                ),
-            format = FileFormat.V2,
-            api = """
-                    // Signature format: 2.0
-                """,
-            removedApi =
-                """
-                    // Signature format: 2.0
-                    package test.pkg {
-                      @Deprecated public class Concrete {
-                        ctor public Concrete();
-                        method public void bar();
-                      }
-                    }
-                """,
-        )
-    }
-
     @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Test warnings for usage of hidden interface type`() {

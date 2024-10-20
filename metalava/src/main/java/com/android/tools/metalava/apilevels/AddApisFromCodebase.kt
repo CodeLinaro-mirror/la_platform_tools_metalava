@@ -18,13 +18,13 @@ package com.android.tools.metalava.apilevels
 
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.CodebaseFragment
+import com.android.tools.metalava.model.ConstructorItem
+import com.android.tools.metalava.model.DelegatedVisitor
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.snapshot.actualItemToSnapshot
-import com.android.tools.metalava.model.visitors.ApiFilters
+import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.visitors.ApiVisitor
-import com.android.tools.metalava.options
 
 /**
  * Visits the API codebase and inserts into the [Api] the classes, methods and fields. If
@@ -34,13 +34,11 @@ import com.android.tools.metalava.options
 fun addApisFromCodebase(
     api: Api,
     apiLevel: Int,
-    codebase: Codebase,
+    codebaseFragment: CodebaseFragment,
     useInternalNames: Boolean,
-    apiFilters: ApiFilters =
-        ApiVisitor.defaultFilters(@Suppress("DEPRECATION") options.apiPredicateConfig),
 ) {
-    codebase.accept(
-        object : ApiVisitor(apiFilters = apiFilters) {
+    val delegatedVisitor =
+        object : DelegatedVisitor {
 
             var currentClass: ApiClass? = null
 
@@ -48,19 +46,12 @@ fun addApisFromCodebase(
                 currentClass = null
             }
 
-            /**
-             * Get the value of [Item.originallyDeprecated] from the [Item.actualItemToSnapshot],
-             * i.e. the item that would actually be written out.
-             */
-            private val Item.actualDeprecated
-                get() = actualItemToSnapshot.effectivelyDeprecated
-
             override fun visitClass(cls: ClassItem) {
-                val newClass = api.addClass(cls.nameInApi(), apiLevel, cls.actualDeprecated)
+                val newClass = api.addClass(cls.nameInApi(), apiLevel, cls.effectivelyDeprecated)
                 currentClass = newClass
 
                 if (cls.isClass()) {
-                    val superClass = cls.filteredSuperclass(filterReference)
+                    val superClass = cls.superClass()
                     if (superClass != null) {
                         newClass.addSuperClass(superClass.nameInApi(), apiLevel)
                     }
@@ -105,24 +96,36 @@ fun addApisFromCodebase(
                     newClass.addSuperClass(objectClass, apiLevel)
                 }
 
-                for (interfaceType in cls.filteredInterfaceTypes(filterReference)) {
+                for (interfaceType in cls.interfaceTypes()) {
                     val interfaceClass = interfaceType.asClass() ?: return
                     newClass.addInterface(interfaceClass.nameInApi(), apiLevel)
                 }
             }
 
-            override fun visitCallable(callable: CallableItem) {
+            private fun visitCallable(callable: CallableItem) {
                 if (callable.isPrivate || callable.isPackagePrivate) {
                     return
                 }
-                currentClass?.addMethod(callable.nameInApi(), apiLevel, callable.actualDeprecated)
+                currentClass?.addMethod(
+                    callable.nameInApi(),
+                    apiLevel,
+                    callable.effectivelyDeprecated
+                )
+            }
+
+            override fun visitConstructor(constructor: ConstructorItem) {
+                visitCallable(constructor)
+            }
+
+            override fun visitMethod(method: MethodItem) {
+                visitCallable(method)
             }
 
             override fun visitField(field: FieldItem) {
                 if (field.isPrivate || field.isPackagePrivate) {
                     return
                 }
-                currentClass?.addField(field.nameInApi(), apiLevel, field.actualDeprecated)
+                currentClass?.addField(field.nameInApi(), apiLevel, field.effectivelyDeprecated)
             }
 
             /** The name of the field in this [Api], based on [useInternalNames] */
@@ -177,7 +180,8 @@ fun addApisFromCodebase(
                 }
             }
         }
-    )
+
+    codebaseFragment.accept(delegatedVisitor)
 }
 
 /**

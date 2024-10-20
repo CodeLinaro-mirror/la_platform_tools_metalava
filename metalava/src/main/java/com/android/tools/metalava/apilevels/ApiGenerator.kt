@@ -20,9 +20,10 @@ import com.android.tools.metalava.SignatureFileCache
 import com.android.tools.metalava.apilevels.ApiToExtensionsMap.Companion.fromXml
 import com.android.tools.metalava.apilevels.ExtensionSdkJarReader.Companion.findExtensionSdkJarFiles
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.CodebaseFragment
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.snapshot.NonFilteringDelegatingVisitor
 import com.android.tools.metalava.model.text.SignatureFile
-import com.android.tools.metalava.model.visitors.ApiFilters
 import java.io.File
 import java.io.IOException
 import java.io.PrintStream
@@ -40,7 +41,7 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
         currentApiLevel: Int,
         isDeveloperPreviewBuild: Boolean,
         outputFile: File,
-        codebase: Codebase,
+        codebaseFragment: CodebaseFragment,
         sdkExtensionsArguments: SdkExtensionsArguments?,
         removeMissingClasses: Boolean
     ): Boolean {
@@ -49,7 +50,7 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
         if (isDeveloperPreviewBuild || apiLevels.size - 1 < currentApiLevel) {
             // Only include codebase if we don't have a prebuilt, finalized jar for it.
             val apiLevel = if (isDeveloperPreviewBuild) notFinalizedApiLevel else currentApiLevel
-            addApisFromCodebase(api, apiLevel, codebase, true)
+            addApisFromCodebase(api, apiLevel, codebaseFragment, true)
         }
         api.backfillHistoricalFixes()
         var sdkIdentifiers = emptySet<SdkIdentifier>()
@@ -88,7 +89,9 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
         val api = Api(apiLevel)
         for (apiFile in previousApiFiles) {
             val codebase: Codebase = signatureFileCache.load(SignatureFile.fromFile(apiFile))
-            addApisFromCodebase(api, apiLevel, codebase, false)
+            val codebaseFragment =
+                CodebaseFragment.create(codebase, ::NonFilteringDelegatingVisitor)
+            addApisFromCodebase(api, apiLevel, codebaseFragment, false)
             apiLevel += 1
         }
         api.clean()
@@ -111,10 +114,9 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
      */
     fun generateJson(
         pastApiVersions: List<File>,
-        currentApiVersion: Codebase,
+        currentApiVersion: CodebaseFragment,
         outputFile: File,
         apiVersionNames: List<String>,
-        apiFilters: ApiFilters,
     ) {
         val api = createApiFromSignatureFiles(pastApiVersions)
         addApisFromCodebase(
@@ -122,7 +124,6 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
             apiVersionNames.size,
             currentApiVersion,
             false,
-            apiFilters,
         )
         val printer = ApiJsonPrinter(apiVersionNames)
         printer.print(api, outputFile)
