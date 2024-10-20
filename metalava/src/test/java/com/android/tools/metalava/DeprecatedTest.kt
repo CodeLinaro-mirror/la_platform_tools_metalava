@@ -20,7 +20,7 @@ import com.android.tools.metalava.testing.java
 import org.junit.Test
 
 /** Test some inconsistent behavior around deprecated status. */
-class DeprecatedTestCase : DriverTest() {
+class DeprecatedTest : DriverTest() {
 
     @Test
     fun `Test deprecated not written out for parameter unless explicitly deprecated`() {
@@ -274,16 +274,16 @@ class DeprecatedTestCase : DriverTest() {
                     // Signature format: 5.0
                     package test.pkg {
                       @Deprecated public class Foo {
-                        ctor public Foo();
+                        ctor @Deprecated public Foo();
                         method @Deprecated public void deprecatedMethod();
-                        method public void method(int);
-                        field public static final int CONSTANT = 1; // 0x1
+                        method @Deprecated public void method(int);
+                        field @Deprecated public static final int CONSTANT = 1; // 0x1
                       }
-                      public static class Foo.Nested {
-                        ctor public Foo.Nested();
+                      @Deprecated public static class Foo.Nested {
+                        ctor @Deprecated public Foo.Nested();
                         method @Deprecated public void deprecatedNestedMethod();
-                        method public void nestedMethod(int);
-                        field public static final int NESTED_CONSTANT = 1; // 0x1
+                        method @Deprecated public void nestedMethod(int);
+                        field @Deprecated public static final int NESTED_CONSTANT = 1; // 0x1
                       }
                     }
                 """,

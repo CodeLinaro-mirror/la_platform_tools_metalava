@@ -28,6 +28,7 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
+import com.android.tools.metalava.model.visitors.ApiFilters
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import java.util.function.Predicate
 
@@ -618,13 +619,13 @@ class CodebaseComparator {
         for (codebase in codebases) {
             val acceptAll = codebase.preFiltered || filter == null
             val predicate = if (acceptAll) Predicate { true } else filter!!
+            val apiFilters = ApiFilters(emit = predicate, reference = predicate)
             codebase.accept(
                 object :
                     ApiVisitor(
                         preserveClassNesting = true,
                         inlineInheritedFields = true,
-                        filterEmit = predicate,
-                        filterReference = predicate,
+                        apiFilters = apiFilters,
                         // Whenever a caller passes arguments of "--show-annotation 'SomeAnnotation'
                         // --check-compatibility:api:released $oldApi",
                         // really what they mean is:
