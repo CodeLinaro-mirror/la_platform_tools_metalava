@@ -34,7 +34,6 @@ import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeTransformer
 import com.android.tools.metalava.model.typeUseAnnotationFilter
-import java.util.function.Predicate
 
 /**
  * An [ApiVisitor] that filters the input and forwards it to the [delegate] [ItemVisitor].
@@ -75,8 +74,7 @@ class FilteringApiVisitor(
      * This is mutually exclusive with [interfaceListSorter].
      */
     private val interfaceListComparator: Comparator<TypeItem>? = null,
-    filterEmit: Predicate<Item>,
-    filterReference: Predicate<Item>,
+    apiFilters: ApiFilters,
     private val preFiltered: Boolean,
     private val filterSuperClassType: Boolean = true,
     showUnannotated: Boolean = true,
@@ -85,8 +83,7 @@ class FilteringApiVisitor(
         preserveClassNesting = delegate.requiresClassNesting,
         inlineInheritedFields = inlineInheritedFields,
         callableComparator = callableComparator,
-        filterEmit = filterEmit,
-        filterReference = filterReference,
+        apiFilters = apiFilters,
         showUnannotated = showUnannotated,
     ),
     ItemVisitor {

@@ -22,11 +22,11 @@ import com.android.tools.metalava.apilevels.ExtensionSdkJarReader.Companion.find
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.text.SignatureFile
+import com.android.tools.metalava.model.visitors.ApiFilters
 import java.io.File
 import java.io.IOException
 import java.io.PrintStream
 import java.nio.charset.StandardCharsets
-import java.util.function.Predicate
 
 /**
  * Main class for command line command to convert the existing API XML/TXT files into diff-based
@@ -114,8 +114,7 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
         currentApiVersion: Codebase,
         outputFile: File,
         apiVersionNames: List<String>,
-        filterEmit: Predicate<Item>,
-        filterReference: Predicate<Item>
+        apiFilters: ApiFilters,
     ) {
         val api = createApiFromSignatureFiles(pastApiVersions)
         addApisFromCodebase(
@@ -123,8 +122,7 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
             apiVersionNames.size,
             currentApiVersion,
             false,
-            filterEmit,
-            filterReference
+            apiFilters,
         )
         val printer = ApiJsonPrinter(apiVersionNames)
         printer.print(api, outputFile)

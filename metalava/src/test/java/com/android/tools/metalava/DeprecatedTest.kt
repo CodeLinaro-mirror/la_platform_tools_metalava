@@ -20,7 +20,7 @@ import com.android.tools.metalava.testing.java
 import org.junit.Test
 
 /** Test some inconsistent behavior around deprecated status. */
-class DeprecatedTestCase : DriverTest() {
+class DeprecatedTest : DriverTest() {
 
     @Test
     fun `Test deprecated not written out for parameter unless explicitly deprecated`() {

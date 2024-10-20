@@ -52,6 +52,7 @@ import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.tools.metalava.model.text.SignatureFile
+import com.android.tools.metalava.model.visitors.ApiFilters
 import com.android.tools.metalava.model.visitors.FilteringApiVisitor
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.stub.StubConstructorManager
@@ -263,8 +264,7 @@ internal fun processFlags(
         )
 
         val apiType = ApiType.PUBLIC_API
-        val apiEmit = apiType.getEmitFilter(options.apiPredicateConfig)
-        val apiReference = apiType.getReferenceFilter(options.apiPredicateConfig)
+        val apiFilters = apiType.getApiFilters(options.apiPredicateConfig)
 
         apiGenerator.generateJson(
             // The signature files can be null if the current version is the only version
@@ -272,8 +272,7 @@ internal fun processFlags(
             codebase,
             apiVersionsJson,
             apiVersionNames,
-            apiEmit,
-            apiReference
+            apiFilters,
         )
     }
 
@@ -344,13 +343,13 @@ internal fun processFlags(
         val apiPredicateConfigIgnoreShown = options.apiPredicateConfig.copy(ignoreShown = true)
         val apiReferenceIgnoreShown = ApiPredicate(config = apiPredicateConfigIgnoreShown)
         val apiEmit = FilterPredicate(ApiPredicate())
+        val apiFilters = ApiFilters(emit = apiEmit, reference = apiReferenceIgnoreShown)
         createReportFile(progressTracker, codebase, proguard, "Proguard file") { printWriter ->
             ProguardWriter(printWriter).let { proguardWriter ->
                 FilteringApiVisitor(
                     proguardWriter,
                     inlineInheritedFields = true,
-                    filterEmit = apiEmit,
-                    filterReference = apiReferenceIgnoreShown,
+                    apiFilters = apiFilters,
                     preFiltered = codebase.preFiltered,
                 )
             }

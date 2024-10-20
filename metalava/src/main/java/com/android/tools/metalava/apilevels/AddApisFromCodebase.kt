@@ -22,31 +22,25 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.snapshot.actualItemToSnapshot
+import com.android.tools.metalava.model.visitors.ApiFilters
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.options
-import java.util.function.Predicate
 
 /**
  * Visits the API codebase and inserts into the [Api] the classes, methods and fields. If
- * [providedFilterEmit] and [providedFilterReference] are non-null, they are used to determine which
- * [Item]s should be added to the [api]. Otherwise, the [ApiVisitor] default filters are used.
+ * [apiFilters] is non-null, it is used to determine which [Item]s should be added to the [api].
+ * Otherwise, the [ApiVisitor.defaultFilters] are used.
  */
 fun addApisFromCodebase(
     api: Api,
     apiLevel: Int,
     codebase: Codebase,
     useInternalNames: Boolean,
-    providedFilterEmit: Predicate<Item>? = null,
-    providedFilterReference: Predicate<Item>? = null
+    apiFilters: ApiFilters =
+        ApiVisitor.defaultFilters(@Suppress("DEPRECATION") options.apiPredicateConfig),
 ) {
     codebase.accept(
-        object :
-            ApiVisitor(
-                preserveClassNesting = false,
-                filterEmit = providedFilterEmit,
-                filterReference = providedFilterReference,
-                apiPredicateConfig = @Suppress("DEPRECATION") options.apiPredicateConfig,
-            ) {
+        object : ApiVisitor(apiFilters = apiFilters) {
 
             var currentClass: ApiClass? = null
 
@@ -66,47 +60,8 @@ fun addApisFromCodebase(
                 currentClass = newClass
 
                 if (cls.isClass()) {
-                    // The jar files historically contain package private parents instead of
-                    // the real API so we need to correct the data we've already read in
-
-                    val filteredSuperClass = cls.filteredSuperclass(filterReference)
-                    val superClass = cls.superClass()
-                    if (filteredSuperClass != superClass && filteredSuperClass != null) {
-                        val existing = newClass.superClasses.firstOrNull()?.name
-                        val superName = superClass?.nameInApi()
-                        if (existing == superName) {
-                            // The bytecode used to point to the old hidden super class. Point
-                            // to the real one (that the signature files referenced) instead.
-                            val removed = superName?.let { newClass.removeSuperClass(it) }
-                            val since = removed?.since ?: apiLevel
-                            val entry =
-                                newClass.addSuperClass(filteredSuperClass.nameInApi(), since)
-                            // Show that it's also seen here
-                            entry.update(apiLevel)
-
-                            // Also inherit the interfaces from that API level, unless it was added
-                            // later
-                            val superClassEntry = api.findClass(superName)
-                            if (superClassEntry != null) {
-                                for (interfaceType in
-                                    superClass!!.filteredInterfaceTypes(filterReference)) {
-                                    val interfaceClass = interfaceType.asClass() ?: return
-                                    var mergedSince = since
-                                    val interfaceName = interfaceClass.nameInApi()
-                                    for (itf in superClassEntry.interfaces) {
-                                        val currentInterface = itf.name
-                                        if (interfaceName == currentInterface) {
-                                            mergedSince = itf.since
-                                            break
-                                        }
-                                    }
-                                    newClass.addInterface(interfaceClass.nameInApi(), mergedSince)
-                                }
-                            }
-                        } else {
-                            newClass.addSuperClass(filteredSuperClass.nameInApi(), apiLevel)
-                        }
-                    } else if (superClass != null) {
+                    val superClass = cls.filteredSuperclass(filterReference)
+                    if (superClass != null) {
                         newClass.addSuperClass(superClass.nameInApi(), apiLevel)
                     }
                 } else if (cls.isInterface()) {

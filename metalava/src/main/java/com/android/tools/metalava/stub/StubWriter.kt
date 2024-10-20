@@ -33,6 +33,7 @@ import com.android.tools.metalava.model.item.ResourceFile
 import com.android.tools.metalava.model.psi.trimDocIndent
 import com.android.tools.metalava.model.removeDeprecatedSection
 import com.android.tools.metalava.model.snapshot.actualItemToSnapshot
+import com.android.tools.metalava.model.visitors.ApiFilters
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.model.visitors.FilteringApiVisitor
 import com.android.tools.metalava.reporter.Issues
@@ -279,6 +280,11 @@ fun createFilteringVisitorForStubs(
             config = apiPredicateConfig.copy(ignoreShown = true),
         )
     val filterEmit = FilterPredicate(filterReference)
+    val apiFilters =
+        ApiFilters(
+            emit = filterEmit,
+            reference = filterReference,
+        )
     return FilteringApiVisitor(
         delegate = delegate,
         inlineInheritedFields = true,
@@ -287,8 +293,7 @@ fun createFilteringVisitorForStubs(
         // consistent order will prevent churn in the generated stubs caused by changes to Metalava
         // itself or changes to the order of methods in the sources.
         callableComparator = CallableItem.comparator,
-        filterEmit = filterEmit,
-        filterReference = filterReference,
+        apiFilters = apiFilters,
         preFiltered = preFiltered,
     )
 }

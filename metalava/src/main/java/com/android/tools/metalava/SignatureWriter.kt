@@ -379,8 +379,7 @@ fun createFilteringVisitorForSignatures(
     showUnannotated: Boolean,
     apiPredicateConfig: ApiPredicate.Config,
 ): ApiVisitor {
-    val filterEmit = apiType.getEmitFilter(apiPredicateConfig)
-    val filterReference = apiType.getReferenceFilter(apiPredicateConfig)
+    val apiFilters = apiType.getApiFilters(apiPredicateConfig)
 
     val (interfaceListSorter, interfaceListComparator) =
         if (fileFormat.sortWholeExtendsList) Pair(null, TypeItem.totalComparator)
@@ -391,8 +390,7 @@ fun createFilteringVisitorForSignatures(
         callableComparator = fileFormat.overloadedMethodOrder.comparator,
         interfaceListSorter = interfaceListSorter,
         interfaceListComparator = interfaceListComparator,
-        filterEmit = filterEmit,
-        filterReference = filterReference,
+        apiFilters = apiFilters,
         preFiltered = preFiltered,
         showUnannotated = showUnannotated,
     )
