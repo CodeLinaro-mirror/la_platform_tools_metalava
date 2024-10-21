@@ -501,5 +501,5 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
  * if set to a non-null value the [Showability.revertItem] will always point to an [Item] of the
  * same type.
  */
-val <reified T : Item> T.actualItemToSnapshot: T
+private val <reified T : Item> T.actualItemToSnapshot: T
     inline get() = (showability.revertItem ?: this) as T

@@ -277,17 +277,6 @@ interface CallableItem : MemberItem, TypeParameterListOwner {
         val comparator: Comparator<CallableItem> = Comparator { o1, o2 ->
             compareCallables(o1, o2, false)
         }
-        val sourceOrderComparator: Comparator<CallableItem> = Comparator { o1, o2 ->
-            val delta = o1.sortingRank - o2.sortingRank
-            if (delta == 0) {
-                // Within a source file all the items will have unique sorting ranks, but since
-                // we copy methods in from hidden super classes it's possible for ranks to clash,
-                // and in that case we'll revert to a signature based comparison
-                comparator.compare(o1, o2)
-            } else {
-                delta
-            }
-        }
         val sourceOrderForOverloadedMethodsComparator: Comparator<CallableItem> =
             Comparator { o1, o2 ->
                 compareCallables(o1, o2, true)

@@ -17,6 +17,7 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.visitors.ApiFilters
 import java.util.function.Predicate
 
 /** Types of APIs emitted (or parsed etc.) */
@@ -75,7 +76,9 @@ enum class ApiType(val flagName: String, val displayName: String = flagName) {
         }
     };
 
-    abstract fun getNonElidingFilter(apiPredicateConfig: ApiPredicate.Config): Predicate<Item>
+    protected abstract fun getNonElidingFilter(
+        apiPredicateConfig: ApiPredicate.Config
+    ): Predicate<Item>
 
     open fun getEmitFilter(apiPredicateConfig: ApiPredicate.Config): Predicate<Item> {
         val nonElidingFilter = FilterPredicate(getNonElidingFilter(apiPredicateConfig))
@@ -96,6 +99,31 @@ enum class ApiType(val flagName: String, val displayName: String = flagName) {
         ElidingPredicate(
             wrappedPredicate,
             addAdditionalOverrides = apiPredicateConfig.addAdditionalOverrides,
+        )
+
+    /**
+     * Get the [ApiFilters] for this [ApiType] that uses information from [apiPredicateConfig] to
+     * customize their behavior.
+     *
+     * The returned [ApiFilters.emit] will elide methods overrides that match the overridden method.
+     */
+    fun getApiFilters(apiPredicateConfig: ApiPredicate.Config) =
+        ApiFilters(
+            emit = getEmitFilter(apiPredicateConfig),
+            reference = getReferenceFilter(apiPredicateConfig),
+        )
+
+    /**
+     * Get the [ApiFilters] for this [ApiType] that uses information from [apiPredicateConfig] to
+     * customize their behavior.
+     *
+     * The returned [ApiFilters.emit] will NOT elide methods overrides that match the overridden
+     * method.
+     */
+    fun getNonElidingApiFilters(apiPredicateConfig: ApiPredicate.Config) =
+        ApiFilters(
+            emit = getNonElidingFilter(apiPredicateConfig),
+            reference = getReferenceFilter(apiPredicateConfig),
         )
 
     override fun toString(): String = displayName
