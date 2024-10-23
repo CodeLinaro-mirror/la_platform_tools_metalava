@@ -610,11 +610,9 @@ class AnnotationsMerger(
                         // Attempt to sort in reflection order
                         if (!found && reflectionFields != null) {
                             val filterEmit =
-                                ApiVisitor(
-                                        apiPredicateConfig =
-                                            @Suppress("DEPRECATION") options.apiPredicateConfig,
-                                    )
-                                    .filterEmit
+                                ApiVisitor.defaultEmitFilter(
+                                    @Suppress("DEPRECATION") options.apiPredicateConfig,
+                                )
 
                             // Attempt with reflection
                             var first = true

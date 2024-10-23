@@ -31,11 +31,11 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.psi.CodePrinter
+import com.android.tools.metalava.model.visitors.ApiFilters
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.model.visitors.FilteringApiVisitor
 import com.android.utils.XmlUtils
 import java.io.PrintWriter
-import java.util.function.Predicate
 
 /**
  * Writes out an XML format in the JDiff schema: See $ANDROID/external/jdiff/src/api.xsd (though
@@ -300,8 +300,7 @@ class JDiffXmlWriter(
      * [JDiffXmlWriter] instance.
      */
     fun createFilteringVisitor(
-        filterEmit: Predicate<Item>,
-        filterReference: Predicate<Item>,
+        apiFilters: ApiFilters,
         preFiltered: Boolean,
         showUnannotated: Boolean,
         filterSuperClassType: Boolean = true,
@@ -310,8 +309,7 @@ class JDiffXmlWriter(
             this,
             inlineInheritedFields = true,
             interfaceListComparator = TypeItem.totalComparator,
-            filterEmit = filterEmit,
-            filterReference = filterReference,
+            apiFilters = apiFilters,
             preFiltered = preFiltered,
             filterSuperClassType = filterSuperClassType,
             showUnannotated = showUnannotated,

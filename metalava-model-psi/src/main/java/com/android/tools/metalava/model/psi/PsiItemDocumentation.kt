@@ -68,7 +68,11 @@ internal class PsiItemDocumentation(
         return _text
     }
 
-    override fun duplicate(item: Item) = PsiItemDocumentation(item as PsiItem, psi, extraDocs)
+    override fun duplicate(item: Item) =
+        if (item is PsiItem) PsiItemDocumentation(item, psi, extraDocs)
+        else text.toItemDocumentationFactory()(item)
+
+    override fun snapshot(item: Item) = this
 
     override fun findTagDocumentation(tag: String, value: String?): String? {
         if (psi is PsiCompiledElement) {
@@ -127,19 +131,7 @@ internal class PsiItemDocumentation(
         }
 
         val assembler = item.codebase.psiAssembler
-        val comment =
-            try {
-                assembler.getComment(documentation, psi)
-            } catch (throwable: Throwable) {
-                // TODO: Get rid of line comments as documentation
-                // Invalid comment
-                if (documentation.startsWith("//") && documentation.contains("/**")) {
-                    return fullyQualifiedDocumentation(
-                        documentation.substring(documentation.indexOf("/**"))
-                    )
-                }
-                assembler.getComment(documentation, psi)
-            }
+        val comment = assembler.getComment(documentation, psi)
         return buildString(documentation.length) { expand(comment, this) }
     }
 
@@ -629,9 +621,11 @@ internal class PsiItemDocumentation(
             if (element is UElement) {
                 val comments = element.comments
                 if (comments.isNotEmpty()) {
-                    val sb = StringBuilder()
-                    comments.joinTo(buffer = sb, separator = "\n") { it.text }
-                    return sb.toString()
+                    return comments.firstNotNullOfOrNull {
+                        val text = it.text
+                        if (text.startsWith("/**")) text else null
+                    }
+                        ?: ""
                 } else {
                     // Temporary workaround: UAST seems to not return document nodes
                     // https://youtrack.jetbrains.com/issue/KT-22135
