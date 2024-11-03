@@ -45,6 +45,7 @@ import com.android.tools.metalava.config.ConfigParser
 import com.android.tools.metalava.manifest.Manifest
 import com.android.tools.metalava.manifest.emptyManifest
 import com.android.tools.metalava.model.AnnotationManager
+import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.PackageItem
@@ -392,7 +393,7 @@ class Options(
     /** Annotations to revert */
     val revertAnnotations by lazy(revertAnnotationsBuilder::build)
 
-    val annotationManager: AnnotationManager by lazy {
+    private val annotationManager: AnnotationManager by lazy {
         DefaultAnnotationManager(
             DefaultAnnotationManager.Config(
                 passThroughAnnotations = passThroughAnnotations,
@@ -413,8 +414,16 @@ class Options(
         )
     }
 
+    internal val codebaseConfig by
+        lazy(LazyThreadSafetyMode.NONE) {
+            Codebase.Config(
+                annotationManager = annotationManager,
+                reporter = reporter,
+            )
+        }
+
     internal val signatureFileLoader by
-        lazy(LazyThreadSafetyMode.NONE) { SignatureFileLoader(annotationManager) }
+        lazy(LazyThreadSafetyMode.NONE) { SignatureFileLoader(codebaseConfig) }
 
     internal val signatureFileCache by
         lazy(LazyThreadSafetyMode.NONE) { SignatureFileCache(signatureFileLoader) }
@@ -560,7 +569,7 @@ class Options(
                 PreviouslyReleasedApi.optionalPreviouslyReleasedApi(
                     ARG_MIGRATE_NULLNESS,
                     it,
-                    onlyUseLastForCurrentApiSurface = false
+                    onlyUseLastForMainApiSurface = false
                 )
             }
 

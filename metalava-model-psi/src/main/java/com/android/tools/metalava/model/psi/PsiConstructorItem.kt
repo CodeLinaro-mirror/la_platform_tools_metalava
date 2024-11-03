@@ -166,7 +166,12 @@ private constructor(
             return item
         }
 
-        private val UMethod.isPrimaryConstructor: Boolean
+        /**
+         * Whether the [UMethod] is the primary constructor of a Kotlin class. A primary constructor
+         * is declared in the class header, and all other constructors must delegate to it (see
+         * https://kotlinlang.org/docs/classes.html#constructors).
+         */
+        internal val UMethod.isPrimaryConstructor: Boolean
             get() = sourcePsi is KtPrimaryConstructor || sourcePsi is KtClassOrObject
     }
 }

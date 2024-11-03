@@ -215,7 +215,7 @@ abstract class UastTestBase : DriverTest() {
                     method public test.pkg.Foo copy(@test.pkg.MyAnnotation int p1, String p2);
                     method public int getP1();
                     method public String getP2();
-                    property public final int p1;
+                    property @test.pkg.MyAnnotation public final int p1;
                     property public final String p2;
                   }
                   @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface MyAnnotation {
@@ -230,6 +230,9 @@ abstract class UastTestBase : DriverTest() {
         // https://youtrack.jetbrains.com/issue/KT-57546
         // https://youtrack.jetbrains.com/issue/KT-57577
         val mod = if (isK2) "" else " final"
+        // https://youtrack.jetbrains.com/issue/KT-72078
+        val horizontalType = if (isK2) "test.pkg.Alignment.Horizontal" else "int"
+        val verticalType = if (isK2) "test.pkg.Alignment.Vertical" else "int"
         check(
             sourceFiles =
                 arrayOf(
@@ -284,7 +287,7 @@ abstract class UastTestBase : DriverTest() {
                 """
                 package test.pkg {
                   public final class Alignment {
-                    ctor public Alignment(int horizontal, int vertical);
+                    ctor public Alignment($horizontalType horizontal, $verticalType vertical);
                     method public int getHorizontal();
                     method public int getVertical();
                     property public$mod int horizontal;
@@ -1036,6 +1039,9 @@ abstract class UastTestBase : DriverTest() {
                     field public static final int NO_ERROR = -1; // 0xffffffff
                   }
                   public static final class RemoteAuthClient.Companion {
+                    property public static final int ERROR_PHONE_UNAVAILABLE;
+                    property public static final int ERROR_UNSUPPORTED;
+                    property public static final int NO_ERROR;
                   }
                   @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention.SOURCE) @test.pkg.MyIntDef({test.pkg.RemoteAuthClient.NO_ERROR, test.pkg.RemoteAuthClient.ERROR_UNSUPPORTED, test.pkg.RemoteAuthClient.ERROR_PHONE_UNAVAILABLE}) public static @interface RemoteAuthClient.Companion.ErrorCode {
                   }
@@ -1103,7 +1109,7 @@ abstract class UastTestBase : DriverTest() {
                         method @Deprecated public void setPOld_accessors_deprecatedOnSetter(String?);
                         property public final String? pNew_accessors;
                         property @Deprecated public String? pOld_accessors_deprecatedOnGetter;
-                        property public String? pOld_accessors_deprecatedOnProperty;
+                        property @Deprecated public String? pOld_accessors_deprecatedOnProperty;
                         property public final String? pOld_accessors_deprecatedOnSetter;
                       }
                       public final class Test_getter {
@@ -1118,7 +1124,7 @@ abstract class UastTestBase : DriverTest() {
                         method @Deprecated public void setPOld_getter_deprecatedOnSetter(String?);
                         property public final String? pNew_getter;
                         property @Deprecated public String? pOld_getter_deprecatedOnGetter;
-                        property public String? pOld_getter_deprecatedOnProperty;
+                        property @Deprecated public String? pOld_getter_deprecatedOnProperty;
                         property public final String? pOld_getter_deprecatedOnSetter;
                       }
                       public final class Test_noAccessor {
@@ -1183,6 +1189,10 @@ abstract class UastTestBase : DriverTest() {
                         property @Deprecated @test.pkg.MyAnnotation @test.pkg.MyAnnotation public int pOld_deprecatedOnProperty_myAnnoOnBoth;
                         property @Deprecated @test.pkg.MyAnnotation public int pOld_deprecatedOnProperty_myAnnoOnGetter;
                         property @Deprecated @test.pkg.MyAnnotation public int pOld_deprecatedOnProperty_myAnnoOnSetter;
+                        property public int pOld_deprecatedOnSetter;
+                        property public int pOld_deprecatedOnSetter_myAnnoOnBoth;
+                        property public int pOld_deprecatedOnSetter_myAnnoOnGetter;
+                        property public int pOld_deprecatedOnSetter_myAnnoOnSetter;
                       }
                       public final class Test_accessors {
                         ctor public Test_accessors();
@@ -1194,7 +1204,8 @@ abstract class UastTestBase : DriverTest() {
                         method @Deprecated public void setPOld_accessors_deprecatedOnSetter(String?);
                         property public final String? pNew_accessors;
                         property @Deprecated public String? pOld_accessors_deprecatedOnGetter;
-                        property public String? pOld_accessors_deprecatedOnProperty;
+                        property @Deprecated public String? pOld_accessors_deprecatedOnProperty;
+                        property public final String? pOld_accessors_deprecatedOnSetter;
                       }
                       public final class Test_getter {
                         ctor public Test_getter();
@@ -1206,7 +1217,8 @@ abstract class UastTestBase : DriverTest() {
                         method @Deprecated public void setPOld_getter_deprecatedOnSetter(String?);
                         property public final String? pNew_getter;
                         property @Deprecated public String? pOld_getter_deprecatedOnGetter;
-                        property public String? pOld_getter_deprecatedOnProperty;
+                        property @Deprecated public String? pOld_getter_deprecatedOnProperty;
+                        property public final String? pOld_getter_deprecatedOnSetter;
                       }
                       public final class Test_noAccessor {
                         ctor public Test_noAccessor();
@@ -1219,6 +1231,7 @@ abstract class UastTestBase : DriverTest() {
                         property public final String pNew_noAccessor;
                         property @Deprecated public String pOld_noAccessor_deprecatedOnGetter;
                         property @Deprecated public String pOld_noAccessor_deprecatedOnProperty;
+                        property public final String pOld_noAccessor_deprecatedOnSetter;
                       }
                       public final class Test_setter {
                         ctor public Test_setter();
@@ -1231,6 +1244,7 @@ abstract class UastTestBase : DriverTest() {
                         property public final String? pNew_setter;
                         property @Deprecated public String? pOld_setter_deprecatedOnGetter;
                         property @Deprecated public String? pOld_setter_deprecatedOnProperty;
+                        property public final String? pOld_setter_deprecatedOnSetter;
                       }
                     }
                 """

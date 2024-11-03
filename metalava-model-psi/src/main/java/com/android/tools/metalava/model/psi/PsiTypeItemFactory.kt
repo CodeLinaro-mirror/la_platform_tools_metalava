@@ -47,6 +47,7 @@ import org.jetbrains.kotlin.analysis.api.KaExperimentalApi
 import org.jetbrains.kotlin.analysis.api.types.KaClassType
 import org.jetbrains.kotlin.analysis.api.types.KaFunctionType
 import org.jetbrains.kotlin.analysis.api.types.KaTypeMappingMode
+import org.jetbrains.kotlin.psi.KtElement
 import org.jetbrains.kotlin.utils.addToStdlib.ifNotEmpty
 import org.jetbrains.uast.kotlin.isKotlin
 
@@ -145,6 +146,27 @@ internal class PsiTypeItemFactory(
             psiTypeParameterItem,
             ContextNullability.forceUndefined,
         )
+    }
+
+    /**
+     * Attempts to create a type for the [ktElement]. Returns null if the Kotlin type for the
+     * element could not be converted to a [PsiType]. This should only be used when the element has
+     * no [PsiElement] with a defined [PsiType].
+     */
+    @OptIn(KaExperimentalApi::class)
+    internal fun getTypeForProperty(
+        ktElement: KtElement,
+    ): PsiTypeItem? {
+        val kotlinTypeInfo = KotlinTypeInfo.fromContext(ktElement)
+        val psiType =
+            kotlinTypeInfo.analysisSession?.run {
+                kotlinTypeInfo.kaType?.asPsiType(
+                    ktElement,
+                    allowErrorTypes = false,
+                    mode = KaTypeMappingMode.DEFAULT_UAST
+                )
+            }
+        return psiType?.let { createTypeItem(it, kotlinTypeInfo, ContextNullability.none) }
     }
 
     // PsiTypeItem factory methods

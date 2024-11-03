@@ -134,7 +134,7 @@ internal fun processFlags(
 
     val reporter = options.reporter
 
-    val annotationManager = options.annotationManager
+    val codebaseConfig = options.codebaseConfig
     val modelOptions =
         // If the option was specified on the command line then use [ModelOptions] created from
         // that.
@@ -150,8 +150,7 @@ internal fun processFlags(
             ?: ModelOptions.empty
     val sourceParser =
         environmentManager.createSourceParser(
-            reporter = reporter,
-            annotationManager = annotationManager,
+            codebaseConfig = codebaseConfig,
             javaLanguageLevel = options.javaLanguageLevelAsString,
             kotlinLanguageLevel = options.kotlinLanguageLevelAsString,
             modelOptions = modelOptions,

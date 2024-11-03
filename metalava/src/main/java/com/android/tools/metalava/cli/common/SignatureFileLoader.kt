@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.cli.common
 
-import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.text.ApiFile
@@ -29,7 +28,7 @@ import com.android.tools.metalava.model.text.SignatureFile
  * [MetalavaCliException].
  */
 class SignatureFileLoader(
-    private val annotationManager: AnnotationManager,
+    private val codebaseConfig: Codebase.Config,
     private val formatForLegacyFiles: FileFormat? = null,
 ) {
     fun loadFiles(
@@ -41,7 +40,7 @@ class SignatureFileLoader(
         try {
             return ApiFile.parseApi(
                 signatureFiles = files,
-                annotationManager = annotationManager,
+                codebaseConfig = codebaseConfig,
                 classResolver = classResolver,
                 formatForLegacyFiles = formatForLegacyFiles,
             )

@@ -16,19 +16,16 @@
 
 package com.android.tools.metalava.model.turbine
 
-import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.source.SourceSet
-import com.android.tools.metalava.reporter.Reporter
 import java.io.File
 
 internal class TurbineSourceParser(
-    private val reporter: Reporter,
-    private val annotationManager: AnnotationManager,
+    private val codebaseConfig: Codebase.Config,
     private val allowReadingComments: Boolean
 ) : SourceParser {
 
@@ -55,10 +52,9 @@ internal class TurbineSourceParser(
                         location = rootDir,
                         description = description,
                         preFiltered = false,
-                        annotationManager = annotationManager,
+                        config = codebaseConfig,
                         trustedApi = false,
                         supportsDocumentation = true,
-                        reporter = reporter,
                         assembler = assembler,
                     )
                 },

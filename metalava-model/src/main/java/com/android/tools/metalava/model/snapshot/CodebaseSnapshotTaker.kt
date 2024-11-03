@@ -105,11 +105,10 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
                 location = codebase.location,
                 description = "snapshot of ${codebase.description}",
                 preFiltered = true,
-                annotationManager = codebase.annotationManager,
+                config = codebase.config,
                 trustedApi = true,
                 // Supports documentation if the copied codebase does.
                 supportsDocumentation = codebase.supportsDocumentation(),
-                reporter = codebase.reporter,
                 assembler = this,
             )
 

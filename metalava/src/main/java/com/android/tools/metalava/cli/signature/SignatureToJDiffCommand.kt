@@ -132,9 +132,13 @@ class SignatureToJDiffCommand :
         OptionsDelegate.disallowAccess()
 
         val annotationManager = DefaultAnnotationManager()
+        val codebaseConfig =
+            Codebase.Config(
+                annotationManager = annotationManager,
+            )
         val signatureFileLoader =
             SignatureFileLoader(
-                annotationManager = annotationManager,
+                codebaseConfig = codebaseConfig,
                 formatForLegacyFiles = formatForLegacyFiles,
             )
 
@@ -205,7 +209,7 @@ private fun computeDelta(
     return TextCodebaseBuilder.build(
         location = baseFile,
         description = "Delta between $baseApi and $signatureApi",
-        annotationManager = signatureApi.annotationManager,
+        codebaseConfig = signatureApi.config,
     ) {
         CodebaseComparator()
             .compare(

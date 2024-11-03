@@ -48,7 +48,7 @@ sealed interface PreviouslyReleasedApi {
         internal fun optionalPreviouslyReleasedApi(
             optionName: String,
             files: List<File>,
-            onlyUseLastForCurrentApiSurface: Boolean = true
+            onlyUseLastForMainApiSurface: Boolean = true,
         ) =
             if (files.isEmpty()) null
             else {
@@ -58,7 +58,10 @@ sealed interface PreviouslyReleasedApi {
                     files.partition { it.path.endsWith(SdkConstants.DOT_JAR) }
                 when {
                     jarFiles.isEmpty() ->
-                        SignatureBasedApi.fromFiles(signatureFiles, onlyUseLastForCurrentApiSurface)
+                        SignatureBasedApi.fromFiles(
+                            signatureFiles,
+                            onlyUseLastForMainApiSurface,
+                        )
                     signatureFiles.isEmpty() ->
                         if (jarFiles.size > 1)
                             throw IllegalStateException(
@@ -113,17 +116,13 @@ data class SignatureBasedApi(val signatureFiles: List<SignatureFile>) : Previous
     companion object {
         fun fromFiles(
             files: List<File>,
-            onlyUseLastForCurrentApiSurface: Boolean = true
+            onlyUseLastForMainApiSurface: Boolean = true,
         ): SignatureBasedApi {
             val lastIndex = files.size - 1
             return SignatureBasedApi(
-                files.mapIndexed { index, file ->
-                    SignatureFile(
-                        file,
-                        // The last file is assumed to be for the current API surface.
-                        forCurrentApiSurface =
-                            !onlyUseLastForCurrentApiSurface || index == lastIndex,
-                    )
+                SignatureFile.fromFiles(files) { index, _ ->
+                    // The last file is assumed to be for the main API surface.
+                    !onlyUseLastForMainApiSurface || index == lastIndex
                 }
             )
         }

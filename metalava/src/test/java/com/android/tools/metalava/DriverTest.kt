@@ -1134,7 +1134,7 @@ abstract class DriverTest : CodebaseCreatorConfigAware<SourceModelProvider>, Tem
             )
             assertSignatureFilesMatch(api, apiFile.readText(), expectedFormat = format)
             // Make sure we can read back the files we write
-            ApiFile.parseApi(SignatureFile.fromFiles(apiFile), options.annotationManager)
+            ApiFile.parseApi(SignatureFile.fromFiles(apiFile), options.codebaseConfig)
         }
 
         baselineCheck.apply()
@@ -1152,7 +1152,7 @@ abstract class DriverTest : CodebaseCreatorConfigAware<SourceModelProvider>, Tem
                 expectedFormat = format
             )
             // Make sure we can read back the files we write
-            ApiFile.parseApi(SignatureFile.fromFiles(removedApiFile), options.annotationManager)
+            ApiFile.parseApi(SignatureFile.fromFiles(removedApiFile), options.codebaseConfig)
         }
 
         if (proguard != null && proguardFile != null) {

@@ -16,11 +16,11 @@
 
 package com.android.tools.metalava.model.text
 
-import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.ClassTypeItem
+import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.bestGuessAtFullName
@@ -31,9 +31,7 @@ import com.android.tools.metalava.model.item.DefaultCodebaseFactory
 import com.android.tools.metalava.model.item.DefaultItemFactory
 import com.android.tools.metalava.model.item.DefaultPackageItem
 import com.android.tools.metalava.model.item.PackageDocs
-import com.android.tools.metalava.reporter.BasicReporter
 import java.io.File
-import java.io.PrintWriter
 
 internal class TextCodebaseAssembler(
     codebaseFactory: DefaultCodebaseFactory,
@@ -185,21 +183,19 @@ internal class TextCodebaseAssembler(
         fun createAssembler(
             location: File,
             description: String,
-            annotationManager: AnnotationManager,
+            codebaseConfig: Codebase.Config,
             classResolver: ClassResolver?,
         ): TextCodebaseAssembler {
             val assembler =
                 TextCodebaseAssembler(
                     codebaseFactory = { assembler ->
-                        val reporter = BasicReporter(PrintWriter(System.err))
                         DefaultCodebase(
                             location = location,
                             description = description,
                             preFiltered = true,
-                            annotationManager = annotationManager,
+                            config = codebaseConfig,
                             trustedApi = true,
                             supportsDocumentation = false,
-                            reporter = reporter,
                             assembler = assembler,
                         )
                     },

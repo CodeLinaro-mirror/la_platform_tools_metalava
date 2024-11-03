@@ -74,7 +74,11 @@ class ConvertJarsToSignatureFiles(
             progressTracker.progress("Writing signature files $signatureFile for $apiJar")
 
             val annotationManager = DefaultAnnotationManager()
-            val signatureFileLoader = SignatureFileLoader(annotationManager = annotationManager)
+            val codebaseConfig =
+                Codebase.Config(
+                    annotationManager = annotationManager,
+                )
+            val signatureFileLoader = SignatureFileLoader(codebaseConfig)
 
             val jarCodebase = jarCodebaseLoader.loadFromJarFile(apiJar)
 

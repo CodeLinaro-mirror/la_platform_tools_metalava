@@ -245,7 +245,7 @@ class AnnotationsMerger(
             val signatureCodebase =
                 ApiFile.parseApi(
                     SignatureFile.fromFiles(file),
-                    codebase.annotationManager,
+                    codebase.config,
                     "Signature files for annotation merger: loaded from $file"
                 )
             mergeQualifierAnnotationsFromCodebase(signatureCodebase)
