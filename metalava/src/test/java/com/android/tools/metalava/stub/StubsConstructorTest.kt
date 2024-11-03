@@ -948,6 +948,7 @@ class StubsConstructorTest : AbstractStubsTest() {
                     // Signature format: 2.0
                     package test.pkg {
                       public final class ConstantsKt {
+                        property public static final String CONSTANT;
                         field @NonNull public static final String CONSTANT = "CONSTANT";
                       }
                     }

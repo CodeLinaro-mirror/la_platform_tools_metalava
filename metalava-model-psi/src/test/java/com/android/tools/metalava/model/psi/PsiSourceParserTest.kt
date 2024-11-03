@@ -28,7 +28,6 @@ import com.android.tools.metalava.testing.TemporaryFolderOwner
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import java.io.File
-import java.io.PrintWriter
 import java.io.StringWriter
 import kotlin.test.assertEquals
 import org.junit.Rule
@@ -61,7 +60,7 @@ class PsiSourceParserTest : TemporaryFolderOwner, Assertions {
         projectDir = temporaryFolder.newFolder()
         PsiEnvironmentManager().use { environmentManager ->
             outputWriter = StringWriter()
-            reporter = BasicReporter(PrintWriter(outputWriter))
+            reporter = BasicReporter(outputWriter)
             val codebase =
                 createTestCodebase(
                     environmentManager,
@@ -81,8 +80,11 @@ class PsiSourceParserTest : TemporaryFolderOwner, Assertions {
     ): Codebase {
         return environmentManager
             .createSourceParser(
-                reporter,
-                noOpAnnotationManager,
+                codebaseConfig =
+                    Codebase.Config(
+                        annotationManager = noOpAnnotationManager,
+                        reporter = reporter,
+                    ),
             )
             .parseSources(
                 createSourceSet(sources, directory),

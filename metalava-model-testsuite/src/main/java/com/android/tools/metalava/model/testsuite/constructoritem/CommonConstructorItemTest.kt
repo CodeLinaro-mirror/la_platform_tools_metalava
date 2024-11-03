@@ -20,6 +20,8 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 import org.junit.Test
 
 /** Common tests for implementations of [MethodItem]. */
@@ -82,6 +84,26 @@ class CommonConstructorItemTest : BaseModelTest() {
                     .type()
 
             constructorType.assertReferencesTypeParameter(oTypeParameter)
+        }
+    }
+
+    @Test
+    fun `Test Kotlin primary constructor`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                    package test.pkg
+                    class Foo(i: Int, s: String?) {
+                        constructor(i: Int) : this(i, null)
+                    }
+                """
+            )
+        ) {
+            val classItem = codebase.assertClass("test.pkg.Foo")
+            val primaryCtor = classItem.assertConstructor("int,java.lang.String")
+            assertTrue(primaryCtor.isPrimary, "primary constructor")
+            val secondaryCtor = classItem.assertConstructor("int")
+            assertFalse(secondaryCtor.isPrimary, "secondary constructor")
         }
     }
 }

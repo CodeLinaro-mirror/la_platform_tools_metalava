@@ -24,9 +24,6 @@ import java.io.File
 /** A previously released API. */
 sealed interface PreviouslyReleasedApi {
 
-    /** The set of files defining the previously released API. */
-    val files: List<File>
-
     /** The last signature file, if any, defining the previously released API. */
     val lastSignatureFile: File?
 
@@ -51,7 +48,7 @@ sealed interface PreviouslyReleasedApi {
         internal fun optionalPreviouslyReleasedApi(
             optionName: String,
             files: List<File>,
-            onlyUseLastForCurrentApiSurface: Boolean = true
+            onlyUseLastForMainApiSurface: Boolean = true,
         ) =
             if (files.isEmpty()) null
             else {
@@ -61,7 +58,10 @@ sealed interface PreviouslyReleasedApi {
                     files.partition { it.path.endsWith(SdkConstants.DOT_JAR) }
                 when {
                     jarFiles.isEmpty() ->
-                        SignatureBasedApi.fromFiles(signatureFiles, onlyUseLastForCurrentApiSurface)
+                        SignatureBasedApi.fromFiles(
+                            signatureFiles,
+                            onlyUseLastForMainApiSurface,
+                        )
                     signatureFiles.isEmpty() ->
                         if (jarFiles.size > 1)
                             throw IllegalStateException(
@@ -79,8 +79,6 @@ sealed interface PreviouslyReleasedApi {
 
 /** A previously released API defined by jar files. */
 data class JarBasedApi(val file: File) : PreviouslyReleasedApi {
-
-    override val files: List<File> = listOf(file)
 
     /** This does not have any signature files, so it always returns `null`. */
     override val lastSignatureFile: File? = null
@@ -104,8 +102,6 @@ data class JarBasedApi(val file: File) : PreviouslyReleasedApi {
  */
 data class SignatureBasedApi(val signatureFiles: List<SignatureFile>) : PreviouslyReleasedApi {
 
-    override val files: List<File> = signatureFiles.map { it.file }
-
     override val lastSignatureFile = signatureFiles.last().file
 
     override fun load(
@@ -120,17 +116,13 @@ data class SignatureBasedApi(val signatureFiles: List<SignatureFile>) : Previous
     companion object {
         fun fromFiles(
             files: List<File>,
-            onlyUseLastForCurrentApiSurface: Boolean = true
+            onlyUseLastForMainApiSurface: Boolean = true,
         ): SignatureBasedApi {
             val lastIndex = files.size - 1
             return SignatureBasedApi(
-                files.mapIndexed { index, file ->
-                    SignatureFile(
-                        file,
-                        // The last file is assumed to be for the current API surface.
-                        forCurrentApiSurface =
-                            !onlyUseLastForCurrentApiSurface || index == lastIndex,
-                    )
+                SignatureFile.fromFiles(files) { index, _ ->
+                    // The last file is assumed to be for the main API surface.
+                    !onlyUseLastForMainApiSurface || index == lastIndex
                 }
             )
         }

@@ -120,11 +120,15 @@ private constructor(
                 )
 
             val annotationManager = DefaultAnnotationManager()
+            val codebaseConfig =
+                Codebase.Config(
+                    annotationManager = annotationManager,
+                    reporter = reporter,
+                )
 
             val sourceParser =
                 environmentManager.createSourceParser(
-                    reporter,
-                    annotationManager,
+                    codebaseConfig,
                 )
 
             val jarLoader =

@@ -88,7 +88,7 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
         var apiLevel = 1
         val api = Api(apiLevel)
         for (apiFile in previousApiFiles) {
-            val codebase: Codebase = signatureFileCache.load(SignatureFile.fromFile(apiFile))
+            val codebase: Codebase = signatureFileCache.load(SignatureFile.fromFiles(apiFile))
             val codebaseFragment =
                 CodebaseFragment.create(codebase, ::NonFilteringDelegatingVisitor)
             addApisFromCodebase(api, apiLevel, codebaseFragment, false)
