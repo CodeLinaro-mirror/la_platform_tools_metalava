@@ -122,7 +122,8 @@ class ConvertJarsToSignatureFiles(
             // javap. So as another fallback, read from the existing signature files:
             if (oldApiFile.isFile) {
                 try {
-                    val oldCodebase = signatureFileLoader.load(SignatureFile.fromFile(oldApiFile))
+                    val oldCodebase =
+                        signatureFileLoader.loadFiles(SignatureFile.fromFiles(oldApiFile))
                     val visitor =
                         object : ComparisonVisitor() {
                             override fun compare(old: Item, new: Item) {

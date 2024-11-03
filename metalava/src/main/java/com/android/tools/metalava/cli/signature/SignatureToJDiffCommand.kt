@@ -138,7 +138,7 @@ class SignatureToJDiffCommand :
                 formatForLegacyFiles = formatForLegacyFiles,
             )
 
-        val signatureApi = signatureFileLoader.load(SignatureFile.fromFile(apiFile))
+        val signatureApi = signatureFileLoader.loadFiles(SignatureFile.fromFiles(apiFile))
 
         val apiPredicateConfig = ApiPredicate.Config()
         val apiType = ApiType.ALL
@@ -153,7 +153,7 @@ class SignatureToJDiffCommand :
         val outputApi =
             if (baseFile != null) {
                 // Convert base on a diff
-                val baseApi = signatureFileLoader.load(SignatureFile.fromFile(baseFile))
+                val baseApi = signatureFileLoader.loadFiles(SignatureFile.fromFiles(baseFile))
                 computeDelta(baseFile, baseApi, signatureApi, apiPredicateConfig)
             } else {
                 signatureApi

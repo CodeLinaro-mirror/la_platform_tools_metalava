@@ -32,13 +32,6 @@ class SignatureFileLoader(
     private val annotationManager: AnnotationManager,
     private val formatForLegacyFiles: FileFormat? = null,
 ) {
-    fun load(
-        file: SignatureFile,
-        classResolver: ClassResolver? = null,
-    ): Codebase {
-        return loadFiles(listOf(file), classResolver)
-    }
-
     fun loadFiles(
         files: List<SignatureFile>,
         classResolver: ClassResolver? = null,

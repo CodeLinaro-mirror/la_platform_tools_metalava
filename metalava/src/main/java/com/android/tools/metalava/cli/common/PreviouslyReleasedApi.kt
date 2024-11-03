@@ -24,9 +24,6 @@ import java.io.File
 /** A previously released API. */
 sealed interface PreviouslyReleasedApi {
 
-    /** The set of files defining the previously released API. */
-    val files: List<File>
-
     /** The last signature file, if any, defining the previously released API. */
     val lastSignatureFile: File?
 
@@ -80,8 +77,6 @@ sealed interface PreviouslyReleasedApi {
 /** A previously released API defined by jar files. */
 data class JarBasedApi(val file: File) : PreviouslyReleasedApi {
 
-    override val files: List<File> = listOf(file)
-
     /** This does not have any signature files, so it always returns `null`. */
     override val lastSignatureFile: File? = null
 
@@ -103,8 +98,6 @@ data class JarBasedApi(val file: File) : PreviouslyReleasedApi {
  * widest API, where all but the first files are deltas on the preceding file.
  */
 data class SignatureBasedApi(val signatureFiles: List<SignatureFile>) : PreviouslyReleasedApi {
-
-    override val files: List<File> = signatureFiles.map { it.file }
 
     override val lastSignatureFile = signatureFiles.last().file
 

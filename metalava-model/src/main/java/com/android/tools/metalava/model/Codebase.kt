@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model
 
-import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.reporter.Reporter
 import java.io.File
 
@@ -129,11 +128,3 @@ sealed class MinSdkVersion
 data class SetMinSdkVersion(val value: Int) : MinSdkVersion()
 
 object UnsetMinSdkVersion : MinSdkVersion()
-
-interface MutableCodebase : Codebase {
-    /**
-     * Register the class by name, return `true` if the class was registered and `false` if it was
-     * not, i.e. because it is a duplicate.
-     */
-    fun registerClass(classItem: DefaultClassItem): Boolean
-}

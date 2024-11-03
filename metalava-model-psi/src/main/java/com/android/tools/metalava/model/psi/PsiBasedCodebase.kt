@@ -22,7 +22,6 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.MutableCodebase
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.reporter.Reporter
 import com.intellij.openapi.project.Project
@@ -63,8 +62,7 @@ internal class PsiBasedCodebase(
         trustedApi = false,
         supportsDocumentation = true,
         assembler = assembler,
-    ),
-    MutableCodebase {
+    ) {
 
     internal val psiAssembler = assembler
 

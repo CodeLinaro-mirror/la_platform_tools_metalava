@@ -464,7 +464,7 @@ abstract class DriverTest : CodebaseCreatorConfigAware<SourceModelProvider>, Tem
         /** If using [showAnnotations], whether to include unannotated */
         showUnannotated: Boolean = false,
         /** Additional arguments to supply */
-        extraArguments: Array<String> = emptyArray(),
+        extraArguments: Array<out String> = emptyArray(),
         /** Expected output (stdout and stderr combined). If null, don't check. */
         expectedOutput: String? = null,
         /** Expected fail message and state, if any */
@@ -1134,7 +1134,7 @@ abstract class DriverTest : CodebaseCreatorConfigAware<SourceModelProvider>, Tem
             )
             assertSignatureFilesMatch(api, apiFile.readText(), expectedFormat = format)
             // Make sure we can read back the files we write
-            ApiFile.parseApi(SignatureFile.fromFile(apiFile), options.annotationManager)
+            ApiFile.parseApi(SignatureFile.fromFiles(apiFile), options.annotationManager)
         }
 
         baselineCheck.apply()
@@ -1152,7 +1152,7 @@ abstract class DriverTest : CodebaseCreatorConfigAware<SourceModelProvider>, Tem
                 expectedFormat = format
             )
             // Make sure we can read back the files we write
-            ApiFile.parseApi(SignatureFile.fromFile(removedApiFile), options.annotationManager)
+            ApiFile.parseApi(SignatureFile.fromFiles(removedApiFile), options.annotationManager)
         }
 
         if (proguard != null && proguardFile != null) {

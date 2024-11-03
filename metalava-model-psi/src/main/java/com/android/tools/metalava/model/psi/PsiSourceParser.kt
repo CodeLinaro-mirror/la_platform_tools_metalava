@@ -24,7 +24,6 @@ import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.PackageFilter
-import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.source.DEFAULT_JAVA_LANGUAGE_LEVEL
 import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.source.SourceSet
@@ -60,13 +59,13 @@ fun kotlinLanguageVersionSettings(value: String?): LanguageVersionSettings {
 internal class PsiSourceParser(
     private val psiEnvironmentManager: PsiEnvironmentManager,
     private val reporter: Reporter,
-    private val annotationManager: AnnotationManager = noOpAnnotationManager,
-    private val javaLanguageLevel: LanguageLevel = defaultJavaLanguageLevel,
-    private val kotlinLanguageLevel: LanguageVersionSettings = defaultKotlinLanguageLevel,
-    private val useK2Uast: Boolean = false,
+    private val annotationManager: AnnotationManager,
+    private val javaLanguageLevel: LanguageLevel,
+    private val kotlinLanguageLevel: LanguageVersionSettings,
+    private val useK2Uast: Boolean,
     private val allowReadingComments: Boolean,
-    private val jdkHome: File? = null,
-    private val projectDescription: File? = null,
+    private val jdkHome: File?,
+    private val projectDescription: File?,
 ) : SourceParser {
 
     override fun getClassResolver(classPath: List<File>): ClassResolver {

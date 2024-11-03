@@ -53,7 +53,7 @@ private constructor(
     typeParameterList: TypeParameterList,
     throwsTypes: List<ExceptionTypeItem>,
     implicitConstructor: Boolean = false,
-    override val isPrimary: Boolean = false
+    isPrimary: Boolean = false
 ) :
     DefaultConstructorItem(
         codebase = codebase,
@@ -70,6 +70,7 @@ private constructor(
         throwsTypes = throwsTypes,
         callableBodyFactory = { PsiCallableBody(it as PsiCallableItem) },
         implicitConstructor = implicitConstructor,
+        isPrimary = isPrimary,
     ),
     PsiCallableItem {
 

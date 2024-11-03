@@ -83,8 +83,13 @@ data class SignatureFile(
     val forCurrentApiSurface: Boolean = true,
 ) {
     companion object {
-        /** Create a [SignatureFile] from a [File]. */
-        fun fromFile(file: File) = SignatureFile(file)
+        /** Create a list of [SignatureFile]s from a varargs array of [File]s. */
+        fun fromFiles(vararg files: File) =
+            files.map {
+                SignatureFile(
+                    it,
+                )
+            }
 
         /** Create a list of [SignatureFile]s from a list of [File]s. */
         fun fromFiles(files: List<File>): List<SignatureFile> =
@@ -159,22 +164,6 @@ private constructor(
         ) = parseApi(SignatureFile.fromFiles(files))
 
         /**
-         * Same as `parseApi(List<SignatureFile>, ...)`, but takes a single file for convenience.
-         *
-         * @param signatureFile input signature file
-         */
-        fun parseApi(
-            signatureFile: SignatureFile,
-            annotationManager: AnnotationManager,
-            description: String? = null,
-        ) =
-            parseApi(
-                signatureFiles = listOf(signatureFile),
-                annotationManager = annotationManager,
-                description = description,
-            )
-
-        /**
          * Read API signature files into a [DefaultCodebase].
          *
          * Note: when reading from them multiple files, [DefaultCodebase.location] would refer to
@@ -232,22 +221,6 @@ private constructor(
             apiStatsConsumer(parser.stats)
 
             return assembler.codebase
-        }
-
-        /** <p>DO NOT MODIFY - used by com/android/gts/api/ApprovedApis.java */
-        @Deprecated("Exists only for external callers.")
-        @JvmStatic
-        @MetalavaApi
-        @Throws(ApiParseException::class)
-        fun parseApi(
-            filename: String,
-            apiText: String,
-            @Suppress("UNUSED_PARAMETER") kotlinStyleNulls: Boolean?,
-        ): Codebase {
-            return parseApi(
-                filename,
-                apiText,
-            )
         }
 
         /**

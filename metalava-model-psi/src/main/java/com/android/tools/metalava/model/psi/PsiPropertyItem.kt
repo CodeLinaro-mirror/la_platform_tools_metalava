@@ -43,10 +43,10 @@ private constructor(
     name: String,
     containingClass: ClassItem,
     type: TypeItem,
-    override val getter: MethodItem,
-    override val setter: MethodItem?,
-    override val constructorParameter: ParameterItem?,
-    override val backingField: FieldItem?
+    getter: MethodItem,
+    setter: MethodItem?,
+    constructorParameter: ParameterItem?,
+    backingField: FieldItem?
 ) :
     DefaultPropertyItem(
         codebase = codebase,
@@ -58,6 +58,10 @@ private constructor(
         name = name,
         containingClass = containingClass,
         type = type,
+        getter = getter,
+        setter = setter,
+        constructorParameter = constructorParameter,
+        backingField = backingField,
     ),
     PropertyItem,
     PsiItem {
