@@ -87,7 +87,7 @@ class CommonPropertyItemTest : BaseModelTest() {
             ),
         ) {
             val barClass = codebase.assertClass("test.pkg.Bar")
-            val property = barClass.properties().single()
+            val property = barClass.assertProperty("foo")
             val methods = barClass.methods()
             val getter = methods.single { it.name() == "getFoo" }
             val setter = methods.single { it.name() == "setFoo" }
@@ -535,6 +535,44 @@ class CommonPropertyItemTest : BaseModelTest() {
                     """
                         .trimIndent()
                 )
+        }
+    }
+
+    @Test
+    fun `Test companion property`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                    package test.pkg
+                    class Foo {
+                        companion object {
+                            val value: Int = 0
+                            const val constant: Int = 1
+                            @JvmField val jvmField: Int = 2
+                        }
+                    }
+                """
+            )
+        ) {
+            val foo = codebase.assertClass("test.pkg.Foo")
+            assertThat(foo.methods()).isEmpty()
+            assertThat(foo.properties()).isEmpty()
+            foo.assertField("constant")
+            foo.assertField("jvmField")
+
+            val fooCompanion = codebase.assertClass("test.pkg.Foo.Companion")
+            assertThat(fooCompanion.fields()).isEmpty()
+            assertThat(fooCompanion.methods()).hasSize(1)
+            val valueGetterOnCompanion = fooCompanion.assertMethod("getValue", "")
+
+            assertThat(fooCompanion.properties()).hasSize(3)
+            val constantPropertyOnCompanion = fooCompanion.assertProperty("constant")
+            val jvmPropertyOnCompanion = fooCompanion.assertProperty("jvmField")
+            val valuePropertyOnCompanion = fooCompanion.assertProperty("value")
+
+            assertThat(jvmPropertyOnCompanion.getter).isNull()
+            assertThat(constantPropertyOnCompanion.getter).isNull()
+            assertThat(valuePropertyOnCompanion.getter).isEqualTo(valueGetterOnCompanion)
         }
     }
 }

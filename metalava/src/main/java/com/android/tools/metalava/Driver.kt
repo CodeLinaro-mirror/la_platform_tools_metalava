@@ -25,7 +25,6 @@ import com.android.tools.metalava.cli.common.EarlyOptions
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.cli.common.MetalavaCommand
-import com.android.tools.metalava.cli.common.SignatureFileLoader
 import com.android.tools.metalava.cli.common.VersionCommand
 import com.android.tools.metalava.cli.common.commonOptions
 import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions.CheckRequest
@@ -135,7 +134,7 @@ internal fun processFlags(
 
     val reporter = options.reporter
 
-    val annotationManager = options.annotationManager
+    val codebaseConfig = options.codebaseConfig
     val modelOptions =
         // If the option was specified on the command line then use [ModelOptions] created from
         // that.
@@ -151,8 +150,7 @@ internal fun processFlags(
             ?: ModelOptions.empty
     val sourceParser =
         environmentManager.createSourceParser(
-            reporter = reporter,
-            annotationManager = annotationManager,
+            codebaseConfig = codebaseConfig,
             javaLanguageLevel = options.javaLanguageLevelAsString,
             kotlinLanguageLevel = options.kotlinLanguageLevelAsString,
             modelOptions = modelOptions,
@@ -189,7 +187,7 @@ internal fun processFlags(
                         "Inconsistent input file types: The first file is of $DOT_TXT, but detected different extension in ${it.path}"
                     )
                 }
-            val signatureFileLoader = SignatureFileLoader(annotationManager)
+            val signatureFileLoader = options.signatureFileLoader
             signatureFileLoader.loadFiles(
                 SignatureFile.fromFiles(sources),
                 classResolverProvider.classResolver,
@@ -475,7 +473,7 @@ private fun ActionContext.subtractApi(
     val oldCodebase =
         when {
             path.endsWith(DOT_TXT) ->
-                signatureFileCache.load(SignatureFile.fromFile(subtractApiFile))
+                signatureFileCache.load(SignatureFile.fromFiles(subtractApiFile))
             path.endsWith(DOT_JAR) -> loadFromJarFile(subtractApiFile)
             else ->
                 throw MetalavaCliException(

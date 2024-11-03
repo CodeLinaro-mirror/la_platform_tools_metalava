@@ -22,7 +22,6 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.MutableCodebase
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import java.io.File
@@ -35,12 +34,13 @@ open class DefaultCodebase(
     final override var location: File,
     description: String,
     override val preFiltered: Boolean,
-    override val annotationManager: AnnotationManager,
+    final override val config: Codebase.Config,
     private val trustedApi: Boolean,
     private val supportsDocumentation: Boolean,
-    reporter: Reporter? = null,
     val assembler: CodebaseAssembler,
-) : MutableCodebase {
+) : Codebase {
+
+    final override val annotationManager: AnnotationManager = config.annotationManager
 
     final override var description: String = description
         private set
@@ -55,10 +55,7 @@ open class DefaultCodebase(
         description += " [disposed]"
     }
 
-    private val optionalReporter = reporter
-
-    override val reporter: Reporter
-        get() = optionalReporter ?: unsupported("reporter is not available")
+    override val reporter: Reporter = config.reporter
 
     /** Tracks [DefaultPackageItem] use in this [Codebase]. */
     val packageTracker = PackageTracker(assembler::createPackageItem)
@@ -123,8 +120,11 @@ open class DefaultCodebase(
     final override fun findClass(className: String): ClassItem? =
         findClassInCodebase(className) ?: externalClassesByName[className]
 
-    /** Register [DefaultClassItem] with this [Codebase]. */
-    final override fun registerClass(classItem: DefaultClassItem): Boolean {
+    /**
+     * Register the class by name, return `true` if the class was registered and `false` if it was
+     * not, i.e. because it is a duplicate.
+     */
+    fun registerClass(classItem: DefaultClassItem): Boolean {
         // Check for duplicates, ignore the class if it is a duplicate.
         val qualifiedName = classItem.qualifiedName()
         val existing = allClassesByName[qualifiedName]

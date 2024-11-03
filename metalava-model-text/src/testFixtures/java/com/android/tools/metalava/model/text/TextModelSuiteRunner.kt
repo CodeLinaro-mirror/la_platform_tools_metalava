@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model.text
 
-import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassOrigin
@@ -26,7 +25,6 @@ import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.createImmutableModifiers
 import com.android.tools.metalava.model.item.DefaultClassItem
-import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.transformer.CodebaseTransformer
@@ -53,12 +51,17 @@ class TextModelSuiteRunner : ModelSuiteRunner {
             error("text model does not support common sources")
         }
 
+        val codebaseConfig =
+            Codebase.Config(
+                annotationManager = inputs.annotationManager,
+            )
+
         val signatureFiles = SignatureFile.fromFiles(inputs.mainSourceDir.createFiles())
-        val resolver = ClassLoaderBasedClassResolver(getAndroidJar(), inputs.annotationManager)
+        val resolver = ClassLoaderBasedClassResolver(getAndroidJar(), codebaseConfig)
         val codebase =
             ApiFile.parseApi(
                 signatureFiles,
-                annotationManager = inputs.annotationManager,
+                codebaseConfig = codebaseConfig,
                 classResolver = resolver,
             )
 
@@ -85,7 +88,7 @@ class TextModelSuiteRunner : ModelSuiteRunner {
  */
 class ClassLoaderBasedClassResolver(
     jar: File,
-    annotationManager: AnnotationManager = noOpAnnotationManager,
+    codebaseConfig: Codebase.Config = Codebase.Config.NOOP,
 ) : ClassResolver {
 
     private val assembler by
@@ -93,7 +96,7 @@ class ClassLoaderBasedClassResolver(
             TextCodebaseAssembler.createAssembler(
                 location = jar,
                 description = "Codebase for resolving classes in $jar for tests",
-                annotationManager = annotationManager,
+                codebaseConfig = codebaseConfig,
                 classResolver = null,
             )
         }

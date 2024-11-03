@@ -99,7 +99,7 @@ class TextTypeParserCacheTest : BaseTextCodebaseTest() {
         }
 
         ApiFile.parseApi(
-            listOf(SignatureFile.fromFile(testFile)),
+            SignatureFile.fromFiles(testFile),
             apiStatsConsumer = { stats ->
                 assertThat(stats)
                     .isEqualTo(
