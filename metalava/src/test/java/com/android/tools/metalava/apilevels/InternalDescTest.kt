@@ -18,6 +18,7 @@ package com.android.tools.metalava.apilevels
 
 import com.android.tools.metalava.model.Assertions
 import com.android.tools.metalava.model.text.ApiFile
+import com.android.tools.metalava.model.text.SignatureFile
 import kotlin.test.assertEquals
 import org.junit.Test
 
@@ -25,18 +26,21 @@ class InternalDescTest : Assertions {
 
     @Test
     fun `MethodItem internalDesc (psi)`() {
-        val signature =
-            """
-                // Signature format: 2.0
-                package test.pkg {
-                  public class Test {
-                    ctor public Test();
-                    method public abstract boolean foo(test.pkg.Test, int...);
-                    method public abstract void bar(test.pkg.Test... tests);
-                  }
-                }
-             """
-        ApiFile.parseApi("test", signature.trimIndent()).let {
+        val signatureFile =
+            SignatureFile.fromText(
+                "test",
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Test {
+                        ctor public Test();
+                        method public abstract boolean foo(test.pkg.Test, int...);
+                        method public abstract void bar(test.pkg.Test... tests);
+                      }
+                    }
+                 """
+            )
+        ApiFile.parseApi(listOf(signatureFile)).let {
             val testClass = it.assertClass("test.pkg.Test")
             val actual = buildString {
                 testClass.methods().forEach {

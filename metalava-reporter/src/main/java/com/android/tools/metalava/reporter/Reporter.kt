@@ -17,7 +17,9 @@
 package com.android.tools.metalava.reporter
 
 import java.io.File
+import java.io.OutputStream
 import java.io.PrintWriter
+import java.io.Writer
 
 interface Reporter {
 
@@ -107,6 +109,10 @@ interface Reporter {
  * the supplied [PrintWriter].
  */
 class BasicReporter(private val stderr: PrintWriter) : Reporter {
+    constructor(writer: Writer) : this(PrintWriter(writer))
+
+    constructor(outputStream: OutputStream) : this(PrintWriter(outputStream))
+
     override fun report(
         id: Issues.Issue,
         reportable: Reportable?,
@@ -141,4 +147,8 @@ class BasicReporter(private val stderr: PrintWriter) : Reporter {
         reportable: Reportable?,
         message: String?
     ): Boolean = false
+
+    companion object {
+        val ERR = BasicReporter(System.err)
+    }
 }

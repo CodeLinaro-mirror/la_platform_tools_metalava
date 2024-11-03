@@ -105,11 +105,10 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
                 location = codebase.location,
                 description = "snapshot of ${codebase.description}",
                 preFiltered = true,
-                annotationManager = codebase.annotationManager,
+                config = codebase.config,
                 trustedApi = true,
                 // Supports documentation if the copied codebase does.
                 supportsDocumentation = codebase.supportsDocumentation(),
-                reporter = codebase.reporter,
                 assembler = this,
             )
 
@@ -268,6 +267,7 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
                         },
                     callableBodyFactory = constructorToSnapshot.body::snapshot,
                     implicitConstructor = constructorToSnapshot.isImplicitConstructor(),
+                    isPrimary = constructorToSnapshot.isPrimary,
                 )
             }
 
@@ -351,6 +351,10 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
                     name = propertyToSnapshot.name(),
                     containingClass = containingClass,
                     type = propertyToSnapshot.type().snapshot(),
+                    getter = property.getter,
+                    setter = property.setter,
+                    constructorParameter = property.constructorParameter,
+                    backingField = property.backingField,
                 )
             }
 

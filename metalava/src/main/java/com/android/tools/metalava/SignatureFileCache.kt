@@ -17,7 +17,6 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.cli.common.SignatureFileLoader
-import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.text.SignatureFile
@@ -28,8 +27,7 @@ private data class CacheKey(
 )
 
 /** Loads signature files, caching them for reuse where appropriate. */
-class SignatureFileCache(annotationManager: AnnotationManager) {
-    private val signatureFileLoader = SignatureFileLoader(annotationManager)
+class SignatureFileCache(private val signatureFileLoader: SignatureFileLoader) {
     private val map = mutableMapOf<CacheKey, Codebase>()
 
     fun load(signatureFile: SignatureFile, classResolver: ClassResolver? = null): Codebase =

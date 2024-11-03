@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model.text
 
-import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
@@ -37,14 +36,14 @@ class TextCodebaseBuilder private constructor(private val assembler: TextCodebas
         fun build(
             location: File,
             description: String,
-            annotationManager: AnnotationManager,
+            codebaseConfig: Codebase.Config,
             block: TextCodebaseBuilder.() -> Unit
         ): Codebase {
             val assembler =
                 TextCodebaseAssembler.createAssembler(
                     location = location,
                     description = description,
-                    annotationManager = annotationManager,
+                    codebaseConfig = codebaseConfig,
                     classResolver = null,
                 )
             val builder = TextCodebaseBuilder(assembler)
