@@ -103,6 +103,7 @@ class ApiFileTest : DriverTest() {
                   }
                   public static final class Foo.Companion {
                     method public void sayHello();
+                    property public static final int answer;
                   }
                 }
                 """,
@@ -413,11 +414,13 @@ class ApiFileTest : DriverTest() {
                     method public void setProperty2(@Nullable String);
                     property @NonNull public final String property1;
                     property @Nullable public final String property2;
+                    property public final int someField2;
                     field @NonNull public static final test.pkg.Kotlin.Companion Companion;
                     field public static final int MY_CONST = 42; // 0x2a
                     field public int someField2;
                   }
                   public static final class Kotlin.Companion {
+                    property public static final int MY_CONST;
                   }
                   public final class KotlinKt {
                     method @NonNull public static inline operator String component1(@NonNull String);
@@ -1396,6 +1399,7 @@ class ApiFileTest : DriverTest() {
                     ctor public SimpleClass();
                     method public int getNonJvmField();
                     method public void setNonJvmField(int);
+                    property public final int jvmField;
                     property public final int nonJvmField;
                     field public int jvmField;
                   }
@@ -4403,7 +4407,7 @@ class ApiFileTest : DriverTest() {
                     ctor public KotlinClass(@IntRange(from=2L) int differentParam);
                     method public int getParam();
                     method public void myMethod(@IntRange(from=3L) int methodParam);
-                    property public final int param;
+                    property @IntRange(from=1L) public final int param;
                   }
                 }
             """
@@ -4775,8 +4779,8 @@ class ApiFileTest : DriverTest() {
                     inline class Dp(val value: Float) : Comparable<Dp> {
                         inline operator fun plus(other: Dp) = Dp(value = this.value + other.value)
                         inline operator fun minus(other: Dp) = Dp(value = this.value - other.value)
-                        // Not tracked due to https://youtrack.jetbrains.com/issue/KTIJ-11559
                         val someBits
+                            // Not tracked due to https://youtrack.jetbrains.com/issue/KTIJ-11559
                             get() = value.toInt() and 0x00ff
                         fun doSomething() {}
                     }
@@ -4793,6 +4797,7 @@ class ApiFileTest : DriverTest() {
                     method public float getValue();
                     method public inline operator float minus(float other);
                     method public inline operator float plus(float other);
+                    property public final int someBits;
                     property public final float value;
                   }
                 }
@@ -4834,7 +4839,6 @@ class ApiFileTest : DriverTest() {
                     ctor public Dp(float value);
                     method public int compareTo(float other);
                     method public void doSomething();
-                    method public int getSomeBits();
                     method public float getValue();
                     method public inline operator float minus(float other);
                     method public inline operator float plus(float other);
@@ -5144,6 +5148,7 @@ class ApiFileTest : DriverTest() {
                 package test.pkg {
                   @RestrictTo({androidx.annotation.RestrictTo.Scope.LIBRARY}) public final class TestKt {
                     method public static void bar();
+                    property public static final String CONST;
                     field public static final String CONST = "Hello";
                   }
                 }
@@ -5299,6 +5304,9 @@ class ApiFileTest : DriverTest() {
                     field public static final int SP = 2; // 0x2
                   }
                   public static final class Dimension.Companion {
+                    property public static final int DP;
+                    property public static final int PX;
+                    property public static final int SP;
                     field public static final int DP = 0; // 0x0
                     field public static final int PX = 1; // 0x1
                     field public static final int SP = 2; // 0x2
@@ -5481,11 +5489,13 @@ class ApiFileTest : DriverTest() {
                   @kotlin.annotation.Repeatable public @interface RequiresExtension {
                     method public abstract int extension();
                     method public abstract int version();
-                    property public abstract int extension;
-                    property public abstract int version;
+                    property @IntRange(from=1L) public abstract int extension;
+                    property @IntRange(from=1L) public abstract int version;
                   }
                   @kotlin.annotation.Repeatable public static @interface RequiresExtension.Container {
                     method public abstract test.pkg.RequiresExtension[] value();
+                    property @IntRange(from=1L) public abstract int extension;
+                    property @IntRange(from=1L) public abstract int version;
                   }
                 }
             """
@@ -5670,6 +5680,8 @@ class ApiFileTest : DriverTest() {
                         package test.pkg
 
                         fun String.bar(): Unit {}
+
+                        val nonConstVal = 3
                     """
                     ),
                     kotlin(
@@ -5681,6 +5693,8 @@ class ApiFileTest : DriverTest() {
                         package test.pkg
 
                         fun String.baz(): Unit {}
+
+                        const val constVal = 4
                     """
                     )
                 ),
@@ -5692,6 +5706,10 @@ class ApiFileTest : DriverTest() {
                   public final class Foo {
                     method public static void bar(String);
                     method public static void baz(String);
+                    method public static int getNonConstVal();
+                    property public static final int constVal;
+                    property public static final int nonConstVal;
+                    field public static final int constVal = 4; // 0x4
                   }
                 }
             """

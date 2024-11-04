@@ -217,8 +217,8 @@ class ApiFileTest : BaseTextCodebaseTest() {
                 "other.UnknownException",
                 "java.lang.Throwable",
             )
-        val codebase =
-            ApiFile.parseApi(
+        val signatureFile =
+            SignatureFile.fromText(
                 "api.txt",
                 """
                     // Signature format: 2.0
@@ -228,7 +228,11 @@ class ApiFileTest : BaseTextCodebaseTest() {
                         }
                     }
                 """
-                    .trimIndent(),
+            )
+
+        val codebase =
+            ApiFile.parseApi(
+                listOf(signatureFile),
                 classResolver = testClassResolver,
             )
 
@@ -481,7 +485,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
     }
 
     @Test
-    fun `Test for current API surface`() {
+    fun `Test for main API surface`() {
         val testFiles =
             listOf(
                 signature(
@@ -525,9 +529,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
 
         val files = testFiles.map { it.createFile(temporaryFolder.newFolder()) }
         val signatureFiles =
-            files.map { file ->
-                SignatureFile(file, forCurrentApiSurface = file.name == "current.txt")
-            }
+            SignatureFile.fromFiles(files) { _, file -> file.name == "current.txt" }
 
         val classResolver = ClassLoaderBasedClassResolver(getAndroidJar())
         val codebase = ApiFile.parseApi(signatureFiles, classResolver = classResolver)
@@ -566,7 +568,8 @@ class ApiFileTest : BaseTextCodebaseTest() {
     class TestClassItem private constructor(delegate: ClassItem) : ClassItem by delegate {
         companion object {
             fun create(name: String): TestClassItem {
-                val codebase = ApiFile.parseApi("other.txt", "// Signature format: 2.0")
+                val signatureFile = SignatureFile.fromText("other.txt", "// Signature format: 2.0")
+                val codebase = ApiFile.parseApi(listOf(signatureFile))
                 val delegate = codebase.resolveClass(name)!!
                 return TestClassItem(delegate)
             }

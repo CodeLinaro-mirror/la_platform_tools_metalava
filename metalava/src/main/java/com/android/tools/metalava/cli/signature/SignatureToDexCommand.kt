@@ -25,7 +25,7 @@ import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.newFile
 import com.android.tools.metalava.cli.common.progressTracker
 import com.android.tools.metalava.createReportFile
-import com.android.tools.metalava.model.noOpAnnotationManager
+import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.text.SignatureFile
 import com.android.tools.metalava.model.visitors.FilteringApiVisitor
 import com.github.ajalt.clikt.parameters.arguments.argument
@@ -61,7 +61,8 @@ class SignatureToDexCommand :
         // property.
         OptionsDelegate.disallowAccess()
 
-        val signatureFileLoader = SignatureFileLoader(annotationManager = noOpAnnotationManager)
+        val codebaseConfig = Codebase.Config.NOOP
+        val signatureFileLoader = SignatureFileLoader(codebaseConfig)
         val signatureApi = signatureFileLoader.loadFiles(SignatureFile.fromFiles(apiFiles))
 
         val apiPredicateConfig = ApiPredicate.Config()

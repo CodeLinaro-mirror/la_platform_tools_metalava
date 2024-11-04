@@ -22,7 +22,6 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.MergedCodebase
 import com.android.tools.metalava.model.MethodItem
-import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.text.ApiFile
 import com.android.tools.metalava.model.text.SignatureFile
 import com.android.tools.metalava.testing.TemporaryFolderOwner
@@ -37,24 +36,22 @@ class ComparisonVisitorTest : TemporaryFolderOwner, Assertions {
 
     @Test
     fun `prefer first's real children even when first is only implied`() {
-        val new =
-            MergedCodebase(
-                listOf(
-                    ApiFile.parseApi(
-                        "first.txt",
-                        """
+        val newSignatureFiles =
+            listOf(
+                SignatureFile.fromText(
+                    "first.txt",
+                    """
                         // Signature format: 2.0
                         package pkg {
                             public class Outer.Inner {
                                 method public TypeInFirst foobar();
                             }
                         }
-                        """
-                            .trimIndent()
-                    ),
-                    ApiFile.parseApi(
-                        "second.txt",
-                        """
+                    """
+                ),
+                SignatureFile.fromText(
+                    "second.txt",
+                    """
                         // Signature format: 2.0
                         package pkg {
                             public class Outer {
@@ -63,29 +60,29 @@ class ComparisonVisitorTest : TemporaryFolderOwner, Assertions {
                                 method public TypeInSecond foobar();
                             }
                         }
-                        """
-                            .trimIndent()
-                    )
-                )
+                    """
+                ),
             )
-        val old =
+        val new =
             MergedCodebase(
-                listOf(
-                    ApiFile.parseApi(
-                        "old.txt",
-                        """
-                        // Signature format: 2.0
-                        package pkg {
-                            public class Outer {
-                            }
-                            public class Outer.Inner {
-                            }
-                        }
-                        """
-                            .trimIndent()
-                    ),
-                )
+                // Parse each signature file on its own.
+                newSignatureFiles.map { ApiFile.parseApi(listOf(it)) }
             )
+
+        val oldSignatureFile =
+            SignatureFile.fromText(
+                "old.txt",
+                """
+                    // Signature format: 2.0
+                    package pkg {
+                        public class Outer {
+                        }
+                        public class Outer.Inner {
+                        }
+                    }
+                """
+            )
+        val old = MergedCodebase(listOf(ApiFile.parseApi(listOf(oldSignatureFile))))
         var methodType: String? = null
         CodebaseComparator()
             .compare(
@@ -104,8 +101,8 @@ class ComparisonVisitorTest : TemporaryFolderOwner, Assertions {
     fun `Test make sure that method with emit=false is ignored during comparison`() {
 
         fun TestFile.readCodebase(): Codebase {
-            val signatureFile = SignatureFile(createFile(temporaryFolder.root))
-            return ApiFile.parseApi(signatureFile, noOpAnnotationManager)
+            val signatureFiles = SignatureFile.fromFiles(createFile(temporaryFolder.root))
+            return ApiFile.parseApi(signatureFiles, Codebase.Config.NOOP)
         }
 
         val signatureFile =

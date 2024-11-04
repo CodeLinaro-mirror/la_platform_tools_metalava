@@ -32,7 +32,7 @@ class DefaultAnnotationItemTest {
             location = File("").canonicalFile,
             description = "",
             preFiltered = false,
-            annotationManager = noOpAnnotationManager,
+            config = Codebase.Config.NOOP,
             trustedApi = false,
             supportsDocumentation = false,
             assembler =
