@@ -38,7 +38,7 @@ import com.android.tools.metalava.model.hasAnnotation
  *   {@code @NonNull List<@Nullable String>} to {@code @NonNull List<@NonNull String>} is forbidden.
  */
 class NullnessMigration : ComparisonVisitor() {
-    override fun compare(old: Item, new: Item) {
+    override fun compareItems(old: Item, new: Item) {
         if (hasNullnessInformation(new) && !hasNullnessInformation(old)) {
             new.markRecent()
         }
@@ -48,7 +48,7 @@ class NullnessMigration : ComparisonVisitor() {
     // having nullness annotations: those APIs are themselves new, so there's no reason
     // to mark the nullness contract as migration (warning- rather than error-severity)
 
-    override fun compare(old: CallableItem, new: CallableItem) {
+    override fun compareCallableItems(old: CallableItem, new: CallableItem) {
         @Suppress("ConstantConditionIf")
         if (SUPPORT_TYPE_USE_ANNOTATIONS) {
             val newType = new.returnType()
@@ -57,7 +57,7 @@ class NullnessMigration : ComparisonVisitor() {
         }
     }
 
-    override fun compare(old: FieldItem, new: FieldItem) {
+    override fun compareFieldItems(old: FieldItem, new: FieldItem) {
         @Suppress("ConstantConditionIf")
         if (SUPPORT_TYPE_USE_ANNOTATIONS) {
             val newType = new.type()
@@ -66,7 +66,7 @@ class NullnessMigration : ComparisonVisitor() {
         }
     }
 
-    override fun compare(old: ParameterItem, new: ParameterItem) {
+    override fun compareParameterItems(old: ParameterItem, new: ParameterItem) {
         @Suppress("ConstantConditionIf")
         if (SUPPORT_TYPE_USE_ANNOTATIONS) {
             val newType = new.type()

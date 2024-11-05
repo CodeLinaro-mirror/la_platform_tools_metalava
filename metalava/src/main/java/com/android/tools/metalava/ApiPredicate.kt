@@ -20,11 +20,10 @@ import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ClassContentItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassOrigin
-import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.SelectableItem
-import java.util.function.Predicate
 
 /**
  * Predicate that decides if the given member should be considered part of an API surface area. To
@@ -57,7 +56,7 @@ class ApiPredicate(
 
     /** Configuration that may be provided by command line options. */
     private val config: Config = @Suppress("DEPRECATION") options.apiPredicateConfig,
-) : Predicate<Item> {
+) : FilterPredicate {
 
     /**
      * Contains configuration for [ApiPredicate] that can, or at least could, come from command line
@@ -83,18 +82,11 @@ class ApiPredicate(
         val addAdditionalOverrides: Boolean = false,
     )
 
-    override fun test(item: Item): Boolean {
+    override fun test(item: SelectableItem): Boolean {
         // non-class, i.e., (literally) member declaration w/o emit flag, e.g., due to `expect`
         // Some [ClassItem], e.g., JvmInline, java.lang.* classes, may not set the emit flag.
         if (item !is ClassItem && !item.emit) {
             return false
-        }
-
-        // If the item is not individually selectable (i.e. ParameterItem and TypeParameterItem)
-        // then whether it is included will always be determined by its owner. If it got to this
-        // point the chances are that its owner was selected, so just assume this is too.
-        if (item !is SelectableItem) {
-            return true
         }
 
         if (
@@ -230,7 +222,7 @@ class ApiPredicate(
         CURRENT
     }
 
-    /** Get the API to which this [Item] belongs, according to the annotations. */
+    /** Get the API to which this [SelectableItem] belongs, according to the annotations. */
     private fun SelectableItem.apiMembership(): ApiMembership {
         // If the item has a "show" annotation, then return whether it *only* has a "for stubs"
         // show annotation or not.

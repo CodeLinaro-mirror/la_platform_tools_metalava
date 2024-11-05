@@ -40,7 +40,7 @@ import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.BaseAnnotationManager
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.JAVA_LANG_PREFIX
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierList
@@ -48,6 +48,7 @@ import com.android.tools.metalava.model.NO_ANNOTATION_TARGETS
 import com.android.tools.metalava.model.RECENTLY_NONNULL
 import com.android.tools.metalava.model.RECENTLY_NULLABLE
 import com.android.tools.metalava.model.SUPPRESS_COMPATIBILITY_ANNOTATION
+import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.ShowOrHide
 import com.android.tools.metalava.model.Showability
 import com.android.tools.metalava.model.TypedefMode
@@ -56,7 +57,6 @@ import com.android.tools.metalava.model.computeTypeNullability
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.isNonNullAnnotation
 import com.android.tools.metalava.model.isNullableAnnotation
-import java.util.function.Predicate
 
 /** The type of lambda that can construct a key from an [AnnotationItem] */
 typealias KeyFactory = (annotationItem: AnnotationItem) -> String
@@ -74,7 +74,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
         val suppressCompatibilityMetaAnnotations: Set<String> = emptySet(),
         val excludeAnnotations: Set<String> = emptySet(),
         val typedefMode: TypedefMode = TypedefMode.NONE,
-        val apiPredicate: Predicate<Item> = Predicate { true },
+        val apiPredicate: FilterPredicate = FilterPredicate { true },
         /**
          * Provider of a [List] of [Codebase] objects that will be used when reverting flagged APIs.
          */
@@ -541,7 +541,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
         return modifiers.hasAnnotation(AnnotationItem::isSuppressCompatibilityAnnotation)
     }
 
-    override fun getShowabilityForItem(item: Item): Showability {
+    override fun getShowabilityForItem(item: SelectableItem): Showability {
         // Iterates over the annotations on the item and computes the showability for the item by
         // combining the showability of each annotation. The basic rules are:
         // * `show=true` beats `show=false`
@@ -629,7 +629,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
      * Searches first the previously released API (if present) and then the previously released
      * removed API (if present).
      */
-    private fun findRevertItem(item: Item): Item? {
+    private fun findRevertItem(item: SelectableItem): SelectableItem? {
         for (oldCodebase in previouslyReleasedCodebases) {
             item.findCorrespondingItemIn(oldCodebase)?.let {
                 return it

@@ -27,12 +27,11 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
 
 open class ApiVisitor(
-    /**
-     * Whether nested classes should be visited "inside" a class; when this property is true, nested
-     * classes are visited before the [#afterVisitClass] method is called; when false, it's done
-     * afterward. Defaults to false.
-     */
+    /** @see BaseItemVisitor.preserveClassNesting */
     preserveClassNesting: Boolean = false,
+
+    /** @see BaseItemVisitor.visitParameterItems */
+    visitParameterItems: Boolean = true,
 
     /** Whether to include inherited fields too */
     private val inlineInheritedFields: Boolean = true,
@@ -50,12 +49,16 @@ open class ApiVisitor(
      * annotated API relative to the base API.
      */
     protected val showUnannotated: Boolean = true,
-) : BaseItemVisitor(preserveClassNesting) {
+) : BaseItemVisitor(preserveClassNesting, visitParameterItems) {
 
     constructor(
+        /** @see BaseItemVisitor.visitParameterItems */
+        visitParameterItems: Boolean = true,
+
         /** Configuration that may come from the command line. */
         apiPredicateConfig: ApiPredicate.Config,
     ) : this(
+        visitParameterItems = visitParameterItems,
         apiFilters = defaultFilters(apiPredicateConfig),
     )
 
@@ -127,13 +130,13 @@ open class ApiVisitor(
         // If none of the classes in this package will be visited them ignore the package entirely.
         if (classesToVisitDirectly.isEmpty()) return
 
-        visitItem(pkg)
-        visitPackage(pkg)
+        wrapBodyWithCallsToVisitMethodsForSelectableItem(pkg) {
+            visitPackage(pkg)
 
-        visitClassList(classesToVisitDirectly)
+            visitClassList(classesToVisitDirectly)
 
-        afterVisitPackage(pkg)
-        afterVisitItem(pkg)
+            afterVisitPackage(pkg)
+        }
     }
 
     /** @return Whether this class is generally one that we want to recurse into */
@@ -261,31 +264,31 @@ open class ApiVisitor(
             visitWrappedClassAndFilteredMembers()
         }
 
-        internal fun visitWrappedClassAndFilteredMembers() {
-            visitItem(cls)
-            visitClass(cls)
+        fun visitWrappedClassAndFilteredMembers() {
+            wrapBodyWithCallsToVisitMethodsForSelectableItem(cls) {
+                visitClass(cls)
 
-            for (constructor in constructors) {
-                constructor.accept(this@ApiVisitor)
-            }
+                for (constructor in constructors) {
+                    constructor.accept(this@ApiVisitor)
+                }
 
-            for (method in methods) {
-                method.accept(this@ApiVisitor)
-            }
+                for (method in methods) {
+                    method.accept(this@ApiVisitor)
+                }
 
-            for (property in properties) {
-                property.accept(this@ApiVisitor)
-            }
-            for (field in fields) {
-                field.accept(this@ApiVisitor)
-            }
+                for (property in properties) {
+                    property.accept(this@ApiVisitor)
+                }
+                for (field in fields) {
+                    field.accept(this@ApiVisitor)
+                }
 
-            if (preserveClassNesting) { // otherwise done in visit(PackageItem)
-                visitClassList(cls.nestedClasses().mapNotNull { getVisitCandidateIfNeeded(it) })
-            }
+                if (preserveClassNesting) { // otherwise done in visit(PackageItem)
+                    visitClassList(cls.nestedClasses().mapNotNull { getVisitCandidateIfNeeded(it) })
+                }
 
-            afterVisitClass(cls)
-            afterVisitItem(cls)
+                afterVisitClass(cls)
+            }
         }
     }
 }

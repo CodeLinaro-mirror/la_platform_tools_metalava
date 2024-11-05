@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2020 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,19 +14,12 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava
+package com.android.tools.metalava.model
 
-import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.MethodItem
 import java.util.function.Predicate
 
-class FilterPredicate(private val wrapped: Predicate<Item>) : Predicate<Item> {
-
-    override fun test(method: Item): Boolean {
-        return when {
-            wrapped.test(method) -> true
-            method is MethodItem -> method.findPredicateSuperMethod(wrapped) != null
-            else -> false
-        }
-    }
-}
+/**
+ * Type alias for [Predicate]s that are generally used to filter [SelectableItem]s that are defined
+ * in the API, or can be referenced from the API.
+ */
+typealias FilterPredicate = Predicate<SelectableItem>
