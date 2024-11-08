@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.ANDROIDX_NULLABLE
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem
+import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
@@ -34,7 +35,6 @@ import com.android.tools.metalava.model.visitors.ApiVisitor
 import java.io.File
 import java.io.IOException
 import java.io.PrintWriter
-import java.util.function.Predicate
 import java.util.zip.ZipFile
 import org.objectweb.asm.ClassReader
 import org.objectweb.asm.Opcodes
@@ -130,7 +130,7 @@ class ConvertJarsToSignatureFiles(
                         signatureFileLoader.loadFiles(SignatureFile.fromFiles(oldApiFile))
                     val visitor =
                         object : ComparisonVisitor() {
-                            override fun compare(old: Item, new: Item) {
+                            override fun compareItems(old: Item, new: Item) {
                                 if (old.originallyDeprecated && old !is PackageItem) {
                                     new.deprecateIfRequired("previous signature file for $old")
                                 }
@@ -256,12 +256,12 @@ class ConvertJarsToSignatureFiles(
     }
 
     companion object {
-        val MATCH_ALL: Predicate<Item> = Predicate { true }
+        val MATCH_ALL: FilterPredicate = FilterPredicate { true }
     }
 }
 
 /** Finds the given class by JVM owner */
-private fun Codebase.findClassByOwner(owner: String, apiFilter: Predicate<Item>): ClassItem? {
+private fun Codebase.findClassByOwner(owner: String, apiFilter: FilterPredicate): ClassItem? {
     val className = owner.replace('/', '.').replace('$', '.')
     val cls = findClass(className)
     return if (cls != null && apiFilter.test(cls)) {
@@ -271,14 +271,14 @@ private fun Codebase.findClassByOwner(owner: String, apiFilter: Predicate<Item>)
     }
 }
 
-private fun Codebase.findClass(node: ClassNode, apiFilter: Predicate<Item>): ClassItem? {
+private fun Codebase.findClass(node: ClassNode, apiFilter: FilterPredicate): ClassItem? {
     return findClassByOwner(node.name, apiFilter)
 }
 
 private fun Codebase.findMethod(
     classNode: ClassNode,
     node: MethodNode,
-    apiFilter: Predicate<Item>
+    apiFilter: FilterPredicate
 ): MethodItem? {
     val cls = findClass(classNode, apiFilter) ?: return null
     val types = Type.getArgumentTypes(node.desc)
@@ -307,7 +307,7 @@ private fun Codebase.findMethod(
 private fun Codebase.findField(
     classNode: ClassNode,
     node: FieldNode,
-    apiFilter: Predicate<Item>
+    apiFilter: FilterPredicate
 ): FieldItem? {
     val cls = findClass(classNode, apiFilter) ?: return null
     val field = cls.findField(node.name + 2)

@@ -433,7 +433,6 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
                     { typeParameterItem ->
                         DefaultTypeParameterItem(
                             codebase = snapshotCodebase,
-                            itemLanguage = typeParameterItem.itemLanguage,
                             modifiers = typeParameterItem.modifiers.snapshot(),
                             name = typeParameterItem.name(),
                             isReified = typeParameterItem.isReified()

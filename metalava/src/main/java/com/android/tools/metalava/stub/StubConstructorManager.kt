@@ -20,10 +20,9 @@ import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
-import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.PackageList
 import com.android.tools.metalava.model.VisibilityLevel
-import java.util.function.Predicate
 
 class StubConstructorManager(codebase: Codebase) {
 
@@ -59,7 +58,7 @@ class StubConstructorManager(codebase: Codebase) {
         }
     }
 
-    fun addConstructors(filter: Predicate<Item>) {
+    fun addConstructors(filter: FilterPredicate) {
         // Let's say we have
         //  class GrandParent { public GrandParent(int) {} }
         //  class Parent {  Parent(int) {} }
@@ -105,7 +104,7 @@ class StubConstructorManager(codebase: Codebase) {
      */
     private fun addConstructors(
         cls: ClassItem,
-        filter: Predicate<Item>,
+        filter: FilterPredicate,
     ): StubConstructors {
 
         // Don't add constructors to interfaces, enums, annotations, etc

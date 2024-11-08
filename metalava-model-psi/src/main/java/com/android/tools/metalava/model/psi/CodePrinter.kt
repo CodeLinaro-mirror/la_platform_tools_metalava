@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.psi
 import com.android.SdkConstants.DOT_CLASS
 import com.android.tools.lint.detector.api.ConstantEvaluator
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.canonicalizeFloatingPointString
 import com.android.tools.metalava.model.javaEscapeString
@@ -35,7 +36,6 @@ import com.intellij.psi.PsiLiteral
 import com.intellij.psi.PsiReference
 import com.intellij.psi.PsiTypeCastExpression
 import com.intellij.psi.PsiVariable
-import java.util.function.Predicate
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.uast.UAnnotation
@@ -70,7 +70,7 @@ class CodePrinter(
      */
     private val skipUnknown: Boolean = false,
     /** An optional filter to use to determine if we should emit a reference to an item */
-    private val filterReference: Predicate<Item>? = null
+    private val filterReference: FilterPredicate? = null
 ) {
     private fun warning(message: String, psiElement: PsiElement? = null) {
         reporter.report(Issues.INTERNAL_ERROR, psiElement, message)

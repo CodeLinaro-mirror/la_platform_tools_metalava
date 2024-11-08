@@ -276,7 +276,6 @@ class DefaultItemFactory(
     ) =
         DefaultTypeParameterItem(
             codebase,
-            defaultItemLanguage,
             modifiers,
             name,
             isReified,

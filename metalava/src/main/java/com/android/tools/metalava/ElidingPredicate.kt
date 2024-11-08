@@ -16,37 +16,37 @@
 
 package com.android.tools.metalava
 
-import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.MethodItem
-import java.util.function.Predicate
+import com.android.tools.metalava.model.SelectableItem
 
 /**
  * Filter that will elide exact duplicate methods that are already included in another
  * superclass/interfaces.
  */
 class ElidingPredicate(
-    private val wrapped: Predicate<Item>,
+    private val wrapped: FilterPredicate,
 
     /** Whether overriding methods essential for compiling the stubs should be elided or not. */
     private val addAdditionalOverrides: Boolean,
-) : Predicate<Item> {
+) : FilterPredicate {
 
     // Returning true means we are keeping this item
     // i.e. when this returns false, we are eliding the item
-    override fun test(method: Item): Boolean {
+    override fun test(item: SelectableItem): Boolean {
         // This method should be included, but if it's an exact duplicate
         // override then we can elide it.
-        return if (method is MethodItem) {
+        return if (item is MethodItem) {
             val differentSuper =
-                method.findPredicateSuperMethod(
+                item.findPredicateSuperMethod(
                     // This predicate returns true if
                     // the potential super method has same signature
-                    Predicate { maybeEqualSuperMethod ->
+                    FilterPredicate { maybeEqualSuperMethod ->
                         // We're looking for included and perfect signature
                         wrapped.test(maybeEqualSuperMethod) &&
                             maybeEqualSuperMethod is MethodItem &&
                             MethodItem.sameSignature(
-                                method,
+                                item,
                                 maybeEqualSuperMethod,
                                 addAdditionalOverrides = addAdditionalOverrides,
                             )
@@ -54,7 +54,7 @@ class ElidingPredicate(
                 )
 
             val doNotElideForAdditionalOverridePurpose =
-                addAdditionalOverrides && method.isRequiredOverridingMethodForTextStub()
+                addAdditionalOverrides && item.isRequiredOverridingMethodForTextStub()
 
             differentSuper == null || doNotElideForAdditionalOverridePurpose
         } else {

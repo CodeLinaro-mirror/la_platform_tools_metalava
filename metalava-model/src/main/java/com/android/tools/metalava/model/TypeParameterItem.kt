@@ -17,16 +17,17 @@
 package com.android.tools.metalava.model
 
 @MetalavaApi
-interface TypeParameterItem : Item {
+interface TypeParameterItem {
+    val codebase: Codebase
+
+    /** Return the modifiers of this class */
+    @MetalavaApi val modifiers: ModifierList
 
     /** The name of the type parameter. */
     fun name(): String
 
     /** The [VariableTypeItem] representing the type of this type parameter. */
-    override fun type(): VariableTypeItem
-
-    override fun setType(type: TypeItem) =
-        error("Cannot call setType(TypeItem) on TypeParameterItem: $this")
+    fun type(): VariableTypeItem
 
     fun typeBounds(): List<BoundsTypeItem>
 
@@ -64,47 +65,4 @@ interface TypeParameterItem : Item {
             }
         }
     }
-
-    override fun equalsToItem(other: Any?): Boolean {
-        if (this === other) return true
-        if (other !is TypeParameterItem) return false
-
-        return name() == other.name()
-    }
-
-    override fun hashCodeForItem(): Int {
-        return name().hashCode()
-    }
-
-    override fun toStringForItem(): String =
-        if (typeBounds().isEmpty() && !isReified()) name()
-        else
-            buildString {
-                if (isReified()) append("reified ")
-                append(name())
-                if (typeBounds().isNotEmpty()) {
-                    append(" extends ")
-                    typeBounds().joinTo(this, " & ")
-                }
-            }
-
-    // Methods from [Item] that are not needed. They will be removed in a follow-up change.
-    override fun parent() = error("Not needed for TypeParameterItem")
-
-    override val effectivelyDeprecated: Boolean
-        get() = error("Not needed for TypeParameterItem")
-
-    override fun baselineElementId() = error("Not needed for TypeParameterItem")
-
-    override fun accept(visitor: ItemVisitor) = error("Not needed for TypeParameterItem")
-
-    override fun containingPackage() = error("Not needed for TypeParameterItem")
-
-    override fun containingClass() = error("Not needed for TypeParameterItem")
-
-    override fun findCorrespondingItemIn(
-        codebase: Codebase,
-        superMethods: Boolean,
-        duplicate: Boolean,
-    ) = error("Not needed for TypeParameterItem")
 }

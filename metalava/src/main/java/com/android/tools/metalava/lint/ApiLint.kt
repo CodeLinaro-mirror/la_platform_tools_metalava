@@ -60,6 +60,7 @@ import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
+import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.InheritableItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JAVA_LANG_DEPRECATED
@@ -71,6 +72,7 @@ import com.android.tools.metalava.model.MultipleTypeVisitor
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
+import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.SetMinSdkVersion
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
@@ -182,7 +184,6 @@ import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.reporter.Severity
 import java.io.StringWriter
 import java.util.Locale
-import java.util.function.Predicate
 import org.jetbrains.kotlin.util.capitalizeDecapitalize.toUpperCaseAsciiOnly
 
 /**
@@ -239,9 +240,23 @@ private constructor(
                     return false
                 }
 
+                // Get the Item to check if it is part of the API. If it is not then there is no
+                // point in reporting the issue.
+                val testItem =
+                    when (item) {
+                        is ParameterItem ->
+                            // The parameter will only be included in the API if and only if its
+                            // containing callable is so check that.
+                            item.containingCallable()
+                        is SelectableItem -> item
+                        else ->
+                            // This should not happen as all Items are either a SelectableItem or a
+                            // ParameterItem
+                            error("Unknown item $item")
+                    }
+
                 // With show annotations we might be flagging API that is filtered out: hide these
-                // here
-                val testItem = if (item is ParameterItem) item.containingCallable() else item
+                // here by checking to see if the item is part of the API.
                 if (!filterEmit.test(testItem)) {
                     return false
                 }
@@ -1794,7 +1809,7 @@ private constructor(
         }
     }
 
-    private fun checkExceptions(callable: CallableItem, filterReference: Predicate<Item>) {
+    private fun checkExceptions(callable: CallableItem, filterReference: FilterPredicate) {
         for (throwableType in callable.filteredThrowsTypes(filterReference)) {
             // Get the throwable class, which for a type parameter will be the lower bound. A
             // method that throws a type parameter is treated as if it throws its lower bound, so
@@ -1905,12 +1920,12 @@ private constructor(
         }
     }
 
-    private fun checkHasFlaggedApi(item: Item) {
+    private fun checkHasFlaggedApi(item: SelectableItem) {
         // Cannot flag an implicit constructor.
         if (item is ConstructorItem && item.isImplicitConstructor()) return
 
-        fun itemOrAnyContainingClasses(predicate: Predicate<Item>): Boolean {
-            var it: Item? = item
+        fun itemOrAnyContainingClasses(predicate: FilterPredicate): Boolean {
+            var it: SelectableItem? = item
             while (it != null) {
                 if (predicate.test(it)) {
                     return true
@@ -1937,7 +1952,7 @@ private constructor(
      * Check whether an `@FlaggedApi` annotation is required on a new [Item], i.e. one that has not
      * previously been released.
      */
-    private fun checkFlaggedApiOnNewApi(item: Item) {
+    private fun checkFlaggedApiOnNewApi(item: SelectableItem) {
         val elidedField =
             if (item is FieldItem) {
                 val inheritedFrom = item.inheritedFrom
