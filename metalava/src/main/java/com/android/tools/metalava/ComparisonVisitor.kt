@@ -616,6 +616,9 @@ class CodebaseComparator {
                 object :
                     ApiVisitor(
                         preserveClassNesting = true,
+                        // Do not visit [ParameterItem]s, as they will be compared in
+                        // [dispatchToCompare].
+                        visitParameterItems = false,
                         inlineInheritedFields = true,
                         apiFilters = apiFilters,
                         // Whenever a caller passes arguments of "--show-annotation 'SomeAnnotation'
@@ -633,11 +636,14 @@ class CodebaseComparator {
                         // even if the caller didn't explicitly pass --show-unannotated
                         showUnannotated = true,
                     ) {
-                    override fun visitItem(item: Item) {
-                        // Ignore ParameterItems (the only Item that is not also a SelectableItem),
-                        // they will be compared when comparing callables.
-                        if (item !is SelectableItem) return
 
+                    /**
+                     * Construct an [ItemTree] for [item] and push it onto the stack.
+                     *
+                     * This will not be called for [ParameterItem]s as it is not a [SelectableItem]
+                     * and they are compared when comparing callables in [dispatchToCompare].
+                     */
+                    override fun visitSelectableItem(item: SelectableItem) {
                         val node = ItemTree(item)
                         val parent = stack.peek()
                         parent.children += node
@@ -648,11 +654,14 @@ class CodebaseComparator {
                     override fun include(cls: ClassItem): Boolean =
                         if (acceptAll) true else super.include(cls)
 
-                    override fun afterVisitItem(item: Item) {
-                        // Ignore ParameterItems (the only Item that is not also a SelectableItem),
-                        // they will be compared when comparing callables.
-                        if (item !is SelectableItem) return
-
+                    /**
+                     * Pop the [ItemTree] for [item] constructed in [visitSelectableItem] off the
+                     * stack.
+                     *
+                     * This will not be called for [ParameterItem]s as it is not a [SelectableItem]
+                     * and they are compared when comparing callables in [dispatchToCompare].
+                     */
+                    override fun afterVisitSelectableItem(item: SelectableItem) {
                         stack.pop()
                     }
                 }

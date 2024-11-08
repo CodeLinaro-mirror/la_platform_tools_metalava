@@ -37,7 +37,6 @@ import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JAVA_LANG_DEPRECATED
 import com.android.tools.metalava.model.MethodItem
-import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PackageList
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
@@ -396,22 +395,14 @@ class ApiAnalyzer(
         // level classes and then propagate them, and removed status, down onto the nested classes
         // and members.
         val visitor =
-            object : BaseItemVisitor(preserveClassNesting = true) {
-
-                override fun visitPackage(pkg: PackageItem) {
-                    pkg.variantSelectors.inheritInto()
-                }
-
-                override fun visitClass(cls: ClassItem) {
-                    cls.variantSelectors.inheritInto()
-                }
-
-                override fun visitCallable(callable: CallableItem) {
-                    callable.variantSelectors.inheritInto()
-                }
-
-                override fun visitField(field: FieldItem) {
-                    field.variantSelectors.inheritInto()
+            object :
+                BaseItemVisitor(
+                    preserveClassNesting = true,
+                    // Only SelectableItems can have variantSelectors.
+                    visitParameterItems = false,
+                ) {
+                override fun visitSelectableItem(item: SelectableItem) {
+                    item.variantSelectors.inheritInto()
                 }
             }
 
@@ -526,14 +517,15 @@ class ApiAnalyzer(
                     checkTypeReferencesHidden(parameter, parameter.type())
                 }
 
-                override fun visitItem(item: Item) {
-                    // None of the checks in this apply to [ParameterItem]. The deprecation checks
-                    // do not apply as there is no way to provide an `@deprecation` tag in Javadoc
-                    // for parameters. The unhidden showability annotation check
-                    // ('UnhiddemSystemApi`) does not apply as you cannot annotation a
-                    // [ParameterItem] with a showability annotation.
-                    if (item is ParameterItem) return
-
+                /**
+                 * Visit all [SelectableItem]s, i.e. all [Item]s apart from [ParameterItem]s.
+                 *
+                 * None of the checks in this apply to [ParameterItem]. The deprecation checks do
+                 * not apply as there is no way to provide an `@deprecation` tag in Javadoc for
+                 * parameters. The unhidden showability annotation check ('UnhiddemSystemApi`) does
+                 * not apply as you cannot annotate a [ParameterItem] with a showability annotation.
+                 */
+                override fun visitSelectableItem(item: SelectableItem) {
                     if (
                         item.originallyDeprecated &&
                             !item.documentationContainsDeprecated() &&

@@ -82,6 +82,9 @@ class FilteringApiVisitor(
 ) :
     ApiVisitor(
         preserveClassNesting = delegate.requiresClassNesting,
+        // Only `SelectableItem`s can be filtered separately, i.e. `ParameterItem`s will be included
+        // if and only if their containing method is included.
+        visitParameterItems = false,
         inlineInheritedFields = inlineInheritedFields,
         callableComparator = callableComparator,
         apiFilters = apiFilters,

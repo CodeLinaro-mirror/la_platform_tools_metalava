@@ -34,6 +34,7 @@ import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
+import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.Showability
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
@@ -497,12 +498,12 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
 /**
  * Get the actual item to snapshot, this takes into account whether the item has been reverted.
  *
- * The [Showability.revertItem] is only set to a non-null value if changes to this [Item] have been
- * reverted AND this [Item] existed in the previously released API.
+ * The [Showability.revertItem] is only set to a non-null value if changes to this [SelectableItem]
+ * have been reverted AND this [SelectableItem] existed in the previously released API.
  *
  * This casts the [Showability.revertItem] to the same type as this is called upon. That is safe as,
- * if set to a non-null value the [Showability.revertItem] will always point to an [Item] of the
- * same type.
+ * if set to a non-null value the [Showability.revertItem] will always point to a [SelectableItem]
+ * of the same type.
  */
-private val <reified T : Item> T.actualItemToSnapshot: T
+private val <reified T : SelectableItem> T.actualItemToSnapshot: T
     inline get() = (showability.revertItem ?: this) as T

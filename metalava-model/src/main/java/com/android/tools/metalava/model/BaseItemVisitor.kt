@@ -23,53 +23,88 @@ open class BaseItemVisitor(
      * afterwards. Defaults to false.
      */
     val preserveClassNesting: Boolean = false,
+
+    /**
+     * Determines whether this will visit [ParameterItem]s or not.
+     *
+     * If this is `true` then [ParameterItem]s will be visited, and passed to [visitItem],
+     * [visitParameter] and [afterVisitItem] in that order. Otherwise, they will not be visited.
+     *
+     * Defaults to `true` as that is the safest option which avoids inadvertently ignoring them.
+     */
+    protected val visitParameterItems: Boolean = true,
 ) : ItemVisitor {
+    /** Calls [visitItem] before invoking [body] after which it calls [afterVisitItem]. */
+    protected inline fun <T : Item> wrapBodyWithCallsToVisitMethodsForItem(
+        item: T,
+        body: () -> Unit
+    ) {
+        visitItem(item)
+        body()
+        afterVisitItem(item)
+    }
+
+    /**
+     * Calls [visitItem], then [visitSelectableItem] before invoking [body] after which it calls
+     * [afterVisitSelectableItem] and finally [afterVisitItem].
+     */
+    protected inline fun <T : SelectableItem> wrapBodyWithCallsToVisitMethodsForSelectableItem(
+        item: T,
+        body: () -> Unit
+    ) {
+        wrapBodyWithCallsToVisitMethodsForItem(item) {
+            visitSelectableItem(item)
+            body()
+            afterVisitSelectableItem(item)
+        }
+    }
+
     override fun visit(cls: ClassItem) {
         if (skip(cls)) {
             return
         }
 
-        visitItem(cls)
-        visitClass(cls)
+        wrapBodyWithCallsToVisitMethodsForSelectableItem(cls) {
+            visitClass(cls)
 
-        for (constructor in cls.constructors()) {
-            constructor.accept(this)
-        }
+            for (constructor in cls.constructors()) {
+                constructor.accept(this)
+            }
 
-        for (method in cls.methods()) {
-            method.accept(this)
-        }
+            for (method in cls.methods()) {
+                method.accept(this)
+            }
 
-        for (property in cls.properties()) {
-            property.accept(this)
-        }
+            for (property in cls.properties()) {
+                property.accept(this)
+            }
 
-        if (cls.isEnum()) {
-            // In enums, visit the enum constants first, then the fields
-            for (field in cls.fields()) {
-                if (field.isEnumConstant()) {
+            if (cls.isEnum()) {
+                // In enums, visit the enum constants first, then the fields
+                for (field in cls.fields()) {
+                    if (field.isEnumConstant()) {
+                        field.accept(this)
+                    }
+                }
+                for (field in cls.fields()) {
+                    if (!field.isEnumConstant()) {
+                        field.accept(this)
+                    }
+                }
+            } else {
+                for (field in cls.fields()) {
                     field.accept(this)
                 }
             }
-            for (field in cls.fields()) {
-                if (!field.isEnumConstant()) {
-                    field.accept(this)
+
+            if (preserveClassNesting) {
+                for (nestedCls in cls.nestedClasses()) {
+                    nestedCls.accept(this)
                 }
-            }
-        } else {
-            for (field in cls.fields()) {
-                field.accept(this)
-            }
+            } // otherwise done in visit(PackageItem)
+
+            afterVisitClass(cls)
         }
-
-        if (preserveClassNesting) {
-            for (nestedCls in cls.nestedClasses()) {
-                nestedCls.accept(this)
-            }
-        } // otherwise done in visit(PackageItem)
-
-        afterVisitClass(cls)
-        afterVisitItem(cls)
     }
 
     override fun visit(field: FieldItem) {
@@ -77,9 +112,7 @@ open class BaseItemVisitor(
             return
         }
 
-        visitItem(field)
-        visitField(field)
-        afterVisitItem(field)
+        wrapBodyWithCallsToVisitMethodsForSelectableItem(field) { visitField(field) }
     }
 
     override fun visit(constructor: ConstructorItem) {
@@ -98,17 +131,18 @@ open class BaseItemVisitor(
             return
         }
 
-        visitItem(callable)
-        visitCallable(callable)
+        wrapBodyWithCallsToVisitMethodsForSelectableItem(callable) {
+            visitCallable(callable)
 
-        // Call the specific visitX method for the CallableItem subclass.
-        dispatch(callable)
+            // Call the specific visitX method for the CallableItem subclass.
+            dispatch(callable)
 
-        for (parameter in callable.parameters()) {
-            parameter.accept(this)
+            if (visitParameterItems) {
+                for (parameter in callable.parameters()) {
+                    parameter.accept(this)
+                }
+            }
         }
-
-        afterVisitItem(callable)
     }
 
     /**
@@ -139,15 +173,15 @@ open class BaseItemVisitor(
             return
         }
 
-        visitItem(pkg)
-        visitPackage(pkg)
+        wrapBodyWithCallsToVisitMethodsForSelectableItem(pkg) {
+            visitPackage(pkg)
 
-        for (cls in packageClassesAsSequence(pkg)) {
-            cls.accept(this)
+            for (cls in packageClassesAsSequence(pkg)) {
+                cls.accept(this)
+            }
+
+            afterVisitPackage(pkg)
         }
-
-        afterVisitPackage(pkg)
-        afterVisitItem(pkg)
     }
 
     override fun visit(parameter: ParameterItem) {
@@ -155,9 +189,7 @@ open class BaseItemVisitor(
             return
         }
 
-        visitItem(parameter)
-        visitParameter(parameter)
-        afterVisitItem(parameter)
+        wrapBodyWithCallsToVisitMethodsForItem(parameter) { visitParameter(parameter) }
     }
 
     override fun visit(property: PropertyItem) {
@@ -165,18 +197,25 @@ open class BaseItemVisitor(
             return
         }
 
-        visitItem(property)
-        visitProperty(property)
-        afterVisitItem(property)
+        wrapBodyWithCallsToVisitMethodsForSelectableItem(property) { visitProperty(property) }
     }
 
     open fun skip(item: Item): Boolean = false
 
     /**
-     * Visits the item. This is always called before other more specialized visit methods, such as
-     * [visitClass].
+     * Visits any [Item].
+     *
+     * This is always called BEFORE other more specialized visit methods, such as [visitClass].
      */
     open fun visitItem(item: Item) {}
+
+    /**
+     * Visits any [SelectableItem], i.e. everything for which [visitItem] is called except
+     * [ParameterItem]s.
+     *
+     * This is always called BEFORE other more specialized visit methods, such as [visitClass].
+     */
+    open fun visitSelectableItem(item: SelectableItem) {}
 
     open fun visitCodebase(codebase: Codebase) {}
 
@@ -192,10 +231,24 @@ open class BaseItemVisitor(
 
     open fun visitField(field: FieldItem) {}
 
+    /** Visits a [ParameterItem]. */
     open fun visitParameter(parameter: ParameterItem) {}
 
     open fun visitProperty(property: PropertyItem) {}
 
+    /**
+     * Visits any [SelectableItem], i.e. everything for which [afterVisitItem] is called except
+     * [ParameterItem]s.
+     *
+     * This is always called AFTER other more specialized visit methods, such as [afterVisitClass].
+     */
+    open fun afterVisitSelectableItem(item: SelectableItem) {}
+
+    /**
+     * Visits any [Item], except for [TypeParameterItem].
+     *
+     * This is always called AFTER other more specialized visit methods, such as [afterVisitClass].
+     */
     open fun afterVisitItem(item: Item) {}
 
     open fun afterVisitCodebase(codebase: Codebase) {}

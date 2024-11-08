@@ -42,6 +42,7 @@ import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
+import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterItem
@@ -345,7 +346,7 @@ private constructor(
      * This will set [Item.emit] to [forMainApiSurface] and should only be called on [Item]s which
      * have been created from the main signature file.
      */
-    private fun Item.markForMainApiSurface() {
+    private fun SelectableItem.markForMainApiSurface() {
         emit = forMainApiSurface
     }
 
@@ -1735,8 +1736,6 @@ private constructor(
                     type = type,
                     defaultValueFactory = { defaultValue },
                 )
-
-            parameter.markForMainApiSurface()
 
             return parameter
         }

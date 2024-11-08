@@ -20,7 +20,6 @@ import com.android.tools.metalava.model.ApiVariantSelectorsFactory
 import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.DefaultItem
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.PackageItem
@@ -37,7 +36,7 @@ open class DefaultPackageItem(
     val containingPackage: PackageItem?,
     override val overviewDocumentation: ResourceFile?,
 ) :
-    DefaultItem(
+    DefaultSelectableItem(
         codebase = codebase,
         fileLocation = fileLocation,
         itemLanguage = itemLanguage,
