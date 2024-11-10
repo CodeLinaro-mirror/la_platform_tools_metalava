@@ -17,7 +17,6 @@
 package com.android.tools.metalava.model
 
 import java.util.TreeSet
-import java.util.function.Predicate
 
 /** Represents a Kotlin/Java source file */
 interface SourceFile {
@@ -30,7 +29,7 @@ interface SourceFile {
     fun getImports() = getImports { true }
 
     /** Get only those imports that reference [Item]s for which [predicate] returns `true`. */
-    fun getImports(predicate: Predicate<Item>): Collection<Import> = emptyList()
+    fun getImports(predicate: FilterPredicate): Collection<Import> = emptyList()
 
     /**
      * Compute set of import statements that are actually referenced from the documentation (we do
@@ -38,7 +37,7 @@ interface SourceFile {
      * some extras). This isn't a big problem since our code style forbids/discourages wildcards, so
      * it shows up in fewer places, but we need to handle it when it does -- such as in ojluni.
      */
-    fun filterImports(imports: TreeSet<Import>, predicate: Predicate<Item>): TreeSet<Import> {
+    fun filterImports(imports: TreeSet<Import>, predicate: FilterPredicate): TreeSet<Import> {
         // Create a map from the short name for the import to a list of the items imported. A
         // list is needed because classes and members could be imported with the same short
         // name.
@@ -54,6 +53,8 @@ interface SourceFile {
             cls.accept(
                 object : TraversingVisitor() {
                     override fun visitItem(item: Item): TraversalAction {
+                        if (item !is SelectableItem) return TraversalAction.SKIP_CHILDREN
+
                         // Do not let documentation on hidden items affect the imports.
                         if (!predicate.test(item)) {
                             // Just because an item like a class is hidden does not mean

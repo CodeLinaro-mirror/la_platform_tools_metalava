@@ -74,13 +74,10 @@ class SourceModelSuiteRunner(private val sourceModelProvider: SourceModelProvide
         inputs: ModelSuiteRunner.TestInputs,
         classPath: List<File>,
     ): Codebase {
-        val codebaseConfig =
-            Codebase.Config(
-                annotationManager = inputs.annotationManager,
-            )
+        val testFixture = inputs.testFixture
         val sourceParser =
             environmentManager.createSourceParser(
-                codebaseConfig = codebaseConfig,
+                codebaseConfig = testFixture.codebaseConfig,
                 modelOptions = inputs.modelOptions,
             )
         return sourceParser.parseSources(
@@ -88,7 +85,7 @@ class SourceModelSuiteRunner(private val sourceModelProvider: SourceModelProvide
             sourceSet(inputs.commonSourceDir),
             description = "Test Codebase",
             classPath = classPath,
-            apiPackages = inputs.apiPackages,
+            apiPackages = testFixture.apiPackages,
         )
     }
 
