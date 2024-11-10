@@ -39,6 +39,7 @@ import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.getAttributeValue
 import com.android.tools.metalava.model.getCallableParameterDescriptorUsingDots
 import com.android.tools.metalava.model.psi.containsLinkTags
@@ -201,7 +202,10 @@ class DocAnalyzer(
                         "androidx.annotation.StringDef" -> handleTypeDef(annotation, item)
                         "android.annotation.RequiresFeature" ->
                             handleRequiresFeature(annotation, item)
-                        "androidx.annotation.RequiresApi" -> handleRequiresApi(annotation, item)
+                        "androidx.annotation.RequiresApi" ->
+                            // The RequiresApi annotation can only be applied to SelectableItems,
+                            // i.e. not ParameterItems, so ignore it on them.
+                            if (item is SelectableItem) handleRequiresApi(annotation, item)
                         "android.provider.Column" -> handleColumn(annotation, item)
                         "kotlin.Deprecated" -> handleKotlinDeprecation(annotation, item)
                     }
@@ -512,7 +516,11 @@ class DocAnalyzer(
                     appendDocumentation(doc, item, false)
                 }
 
-                private fun handleRequiresApi(annotation: AnnotationItem, item: Item) {
+                /**
+                 * Handle `RequiresApi` annotations which can only be applied to classes, methods,
+                 * constructors, fields and/or properties, i.e. not parameters.
+                 */
+                private fun handleRequiresApi(annotation: AnnotationItem, item: SelectableItem) {
                     val level = run {
                         val api =
                             annotation.findAttribute("api")?.leafValues()?.firstOrNull()?.value()
@@ -676,8 +684,20 @@ class DocAnalyzer(
 
     private fun tweakGrammar() {
         codebase.accept(
-            object : ApiVisitor(apiPredicateConfig = apiPredicateConfig) {
-                override fun visitItem(item: Item) {
+            object :
+                ApiVisitor(
+                    // Do not visit [ParameterItem]s as they do not have their own summary line that
+                    // could become truncated.
+                    visitParameterItems = false,
+                    apiPredicateConfig = apiPredicateConfig,
+                ) {
+                /**
+                 * Work around an issue with JavaDoc summary truncation.
+                 *
+                 * This is not called for [ParameterItem]s as they do not have their own summary
+                 * line that could become truncated.
+                 */
+                override fun visitSelectableItem(item: SelectableItem) {
                     item.documentation.workAroundJavaDocSummaryTruncationIssue()
                 }
             }
@@ -696,6 +716,8 @@ class DocAnalyzer(
         codebase.accept(
             object :
                 ApiVisitor(
+                    // Only SelectableItems have documentation associated with them.
+                    visitParameterItems = false,
                     apiPredicateConfig = apiPredicateConfig,
                 ) {
 
@@ -751,8 +773,13 @@ class DocAnalyzer(
         }
     }
 
+    /**
+     * Add API level documentation to the [item].
+     *
+     * This only applies to classes and class members, i.e. not parameters.
+     */
     @Suppress("DEPRECATION")
-    private fun addApiLevelDocumentation(level: Int, item: Item) {
+    private fun addApiLevelDocumentation(level: Int, item: SelectableItem) {
         if (level > 0) {
             if (item.originallyHidden) {
                 // @SystemApi, @TestApi etc -- don't apply API levels here since we don't have
@@ -795,7 +822,15 @@ class DocAnalyzer(
         }
     }
 
-    private fun addApiExtensionsDocumentation(sdkExtSince: List<SdkAndVersion>, item: Item) {
+    /**
+     * Add API extension documentation to the [item].
+     *
+     * This only applies to classes and class members, i.e. not parameters.
+     */
+    private fun addApiExtensionsDocumentation(
+        sdkExtSince: List<SdkAndVersion>,
+        item: SelectableItem
+    ) {
         if (item.documentation.contains("@sdkExtSince")) {
             reporter.report(
                 Issues.FORBIDDEN_TAG,
@@ -812,8 +847,13 @@ class DocAnalyzer(
             ?.let { item.appendDocumentation("${it.name} ${it.version}", "@sdkExtSince") }
     }
 
+    /**
+     * Add deprecated documentation to the [item].
+     *
+     * This only applies to classes and class members, i.e. not parameters.
+     */
     @Suppress("DEPRECATION")
-    private fun addDeprecatedDocumentation(level: Int, item: Item) {
+    private fun addDeprecatedDocumentation(level: Int, item: SelectableItem) {
         if (level > 0) {
             if (item.originallyHidden) {
                 // @SystemApi, @TestApi etc -- don't apply API levels here since we don't have

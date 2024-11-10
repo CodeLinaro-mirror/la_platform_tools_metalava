@@ -87,7 +87,7 @@ class ComparisonVisitorTest : TemporaryFolderOwner, Assertions {
         CodebaseComparator()
             .compare(
                 object : ComparisonVisitor() {
-                    override fun added(new: MethodItem) {
+                    override fun addedMethodItem(new: MethodItem) {
                         methodType = new.type().toSimpleType()
                     }
                 },
@@ -133,15 +133,15 @@ class ComparisonVisitorTest : TemporaryFolderOwner, Assertions {
         CodebaseComparator()
             .compare(
                 object : ComparisonVisitor() {
-                    override fun compare(old: MethodItem, new: MethodItem) {
+                    override fun compareMethodItems(old: MethodItem, new: MethodItem) {
                         differences += "$old was changed"
                     }
 
-                    override fun added(new: MethodItem) {
+                    override fun addedMethodItem(new: MethodItem) {
                         differences += "$new was added"
                     }
 
-                    override fun removed(old: MethodItem, from: ClassItem?) {
+                    override fun removedMethodItem(old: MethodItem, from: ClassItem) {
                         differences += "$old was removed"
                     }
                 },

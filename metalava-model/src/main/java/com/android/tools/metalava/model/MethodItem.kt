@@ -16,8 +16,6 @@
 
 package com.android.tools.metalava.model
 
-import java.util.function.Predicate
-
 @MetalavaApi
 interface MethodItem : CallableItem, InheritableItem {
     /**
@@ -81,7 +79,7 @@ interface MethodItem : CallableItem, InheritableItem {
      */
     override fun duplicate(targetContainingClass: ClassItem): MethodItem
 
-    fun findPredicateSuperMethod(predicate: Predicate<Item>): MethodItem? {
+    fun findPredicateSuperMethod(predicate: FilterPredicate): MethodItem? {
         val superMethods = superMethods()
         for (method in superMethods) {
             if (predicate.test(method)) {
