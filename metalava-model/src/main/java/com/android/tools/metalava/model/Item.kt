@@ -38,44 +38,7 @@ interface Item : Reportable {
     /** Return the modifiers of this class */
     @MetalavaApi val modifiers: ModifierList
 
-    /**
-     * Whether this element was originally hidden with @hide/@Hide. The [hidden] property tracks
-     * whether it is *actually* hidden, since elements can be unhidden via show annotations, etc.
-     *
-     * @see variantSelectors
-     */
-    val originallyHidden: Boolean
-
-    /**
-     * Whether this element has been hidden with @hide/@Hide (or after propagation, in some
-     * containing class/pkg)
-     *
-     * @see variantSelectors
-     */
-    val hidden: Boolean
-
-    /**
-     * Tracks the properties that determine whether this [Item] will be selected for each API
-     * variant.
-     *
-     * @see originallyHidden
-     * @see hidden
-     * @see removed
-     */
-    val variantSelectors: ApiVariantSelectors
-
-    /** Whether this element will be printed in the signature file */
-    var emit: Boolean
-
     fun parent(): SelectableItem?
-
-    /**
-     * Recursive check to see if this item or any of its parents (containing class, containing
-     * package) are hidden
-     */
-    fun hidden(): Boolean {
-        return hidden || parent()?.hidden() ?: false
-    }
 
     /**
      * Recursive check to see if compatibility checks should be suppressed for this item or any of
@@ -86,14 +49,6 @@ interface Item : Reportable {
             parent()?.isCompatibilitySuppressed() ?: false
     }
 
-    /**
-     * Whether this element has been removed with @removed/@Remove (or after propagation, in some
-     * containing class)
-     *
-     * @see variantSelectors
-     */
-    val removed: Boolean
-
     /** True if this item has been marked deprecated. */
     val originallyDeprecated: Boolean
 
@@ -102,9 +57,6 @@ interface Item : Reportable {
      * has been marked as deprecated.
      */
     val effectivelyDeprecated: Boolean
-
-    /** True if this item is either hidden or removed */
-    fun isHiddenOrRemoved(): Boolean = hidden || removed
 
     /** Visits this element using the given [visitor] */
     fun accept(visitor: ItemVisitor)
@@ -200,19 +152,6 @@ interface Item : Reportable {
      * See [itemLanguage].
      */
     fun isKotlin() = itemLanguage.isKotlin()
-
-    /** Determines whether this item will be shown as part of the API or not. */
-    val showability: Showability
-
-    /**
-     * Returns true if this item has any show annotations.
-     *
-     * See [Showability.show]
-     */
-    fun hasShowAnnotation(): Boolean = showability.show()
-
-    /** Returns true if this modifier list contains any hide annotations */
-    fun hasHideAnnotation(): Boolean = codebase.annotationManager.hasHideAnnotations(modifiers)
 
     /**
      * Returns true if this [Item]'s modifier list contains any suppress compatibility
@@ -446,7 +385,6 @@ abstract class DefaultItem(
     final override val itemLanguage: ItemLanguage,
     modifiers: BaseModifierList,
     documentationFactory: ItemDocumentationFactory,
-    variantSelectorsFactory: ApiVariantSelectorsFactory,
 ) : Item {
 
     /**
@@ -475,32 +413,6 @@ abstract class DefaultItem(
         }
     }
 
-    /**
-     * Create a [ApiVariantSelectors] appropriate for this [Item].
-     *
-     * The leaking of `this` is safe as the implementations do not access anything that has not been
-     * initialized.
-     */
-    override val variantSelectors = @Suppress("LeakingThis") variantSelectorsFactory(this)
-
-    /**
-     * Manually delegate to [ApiVariantSelectors.originallyHidden] as property delegates are
-     * expensive.
-     */
-    final override val originallyHidden
-        get() = variantSelectors.originallyHidden
-
-    /** Manually delegate to [ApiVariantSelectors.hidden] as property delegates are expensive. */
-    final override val hidden
-        get() = variantSelectors.hidden
-
-    /** Manually delegate to [ApiVariantSelectors.removed] as property delegates are expensive. */
-    final override val removed: Boolean
-        get() = variantSelectors.removed
-
-    final override val showability: Showability
-        get() = variantSelectors.showability
-
     final override val sortingRank: Int = nextRank.getAndIncrement()
 
     final override val originallyDeprecated
@@ -528,10 +440,6 @@ abstract class DefaultItem(
 
     final override val isPrivate: Boolean
         get() = modifiers.isPrivate()
-
-    final override var emit =
-        // Do not emit expect declarations in APIs.
-        !modifiers.isExpect()
 
     companion object {
         private var nextRank = AtomicInteger()

@@ -27,6 +27,71 @@ package com.android.tools.metalava.model
  * an indivisible part of the [ParameterItem.containingCallable].
  */
 interface SelectableItem : Item {
-    // At the moment this is a marker interface but over time more functionality related to
-    // selection will be migrated here, e.g. [Item.hidden] and related members.
+    /** Whether this element will be printed in the signature file */
+    var emit: Boolean
+
+    /**
+     * Whether this element was originally hidden with @hide/@Hide. The [hidden] property tracks
+     * whether it is *actually* hidden, since elements can be unhidden via show annotations, etc.
+     *
+     * @see variantSelectors
+     */
+    val originallyHidden: Boolean
+
+    /**
+     * Whether this element has been hidden with @hide/@Hide (or after propagation, in some
+     * containing class/pkg)
+     *
+     * @see variantSelectors
+     */
+    val hidden: Boolean
+
+    /**
+     * Tracks the properties that determine whether this [Item] will be selected for each API
+     * variant.
+     *
+     * @see originallyHidden
+     * @see hidden
+     * @see removed
+     */
+    val variantSelectors: ApiVariantSelectors
+
+    /**
+     * Recursive check to see if this item or any of its parents (containing class, containing
+     * package) are hidden
+     */
+    fun hidden(): Boolean {
+        return hidden || parent()?.hidden() ?: false
+    }
+
+    /**
+     * Whether this element has been removed with @removed/@Remove (or after propagation, in some
+     * containing class)
+     *
+     * @see variantSelectors
+     */
+    val removed: Boolean
+
+    /** True if this item is either hidden or removed */
+    fun isHiddenOrRemoved(): Boolean = hidden || removed
+
+    /** Determines whether this item will be shown as part of the API or not. */
+    val showability: Showability
+
+    /**
+     * Returns true if this item has any show annotations.
+     *
+     * See [Showability.show]
+     */
+    fun hasShowAnnotation(): Boolean = showability.show()
+
+    /** Returns true if this modifier list contains any hide annotations */
+    fun hasHideAnnotation(): Boolean = codebase.annotationManager.hasHideAnnotations(modifiers)
+
+    /** Override to specialize return type. */
+    override fun findCorrespondingItemIn(
+        codebase: Codebase,
+        superMethods: Boolean,
+        duplicate: Boolean,
+    ): SelectableItem?
 }

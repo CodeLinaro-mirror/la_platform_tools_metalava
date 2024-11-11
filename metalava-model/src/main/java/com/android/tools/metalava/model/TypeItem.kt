@@ -17,7 +17,6 @@
 package com.android.tools.metalava.model
 
 import java.util.Objects
-import java.util.function.Predicate
 
 /**
  * Whether metalava supports type use annotations. Note that you can't just turn this flag back on;
@@ -1243,7 +1242,7 @@ interface WildcardTypeItem : TypeItem, TypeArgumentTypeItem {
  * when called against the [AnnotationItem]'s [ClassItem] return by [AnnotationItem.resolve]. If
  * that returns `null` then the [AnnotationItem] will be kept.
  */
-fun typeUseAnnotationFilter(filter: Predicate<Item>): TypeTransformer =
+fun typeUseAnnotationFilter(filter: FilterPredicate): TypeTransformer =
     object : BaseTypeTransformer() {
         override fun transform(modifiers: TypeModifiers): TypeModifiers {
             if (modifiers.annotations.isEmpty()) return modifiers

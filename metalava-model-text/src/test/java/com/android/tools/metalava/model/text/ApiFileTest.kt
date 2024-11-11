@@ -22,7 +22,7 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.testing.getAndroidJar
 import com.google.common.truth.Truth.assertThat
 import kotlin.test.assertEquals
@@ -536,8 +536,8 @@ class ApiFileTest : BaseTextCodebaseTest() {
 
         val current = buildList {
             codebase.accept(
-                object : BaseItemVisitor() {
-                    override fun visitItem(item: Item) {
+                object : BaseItemVisitor(visitParameterItems = false) {
+                    override fun visitSelectableItem(item: SelectableItem) {
                         if (item.emit) {
                             add(item)
                         }
@@ -551,11 +551,8 @@ class ApiFileTest : BaseTextCodebaseTest() {
                 package test.pkg
                 class test.pkg.Foo
                 constructor test.pkg.Foo.Foo(int)
-                parameter currentCtorParameter
                 method test.pkg.Foo.extensibleMethod(int)
-                parameter parameter
                 method test.pkg.Foo.currentMethod(int)
-                parameter currentMethodParameter
                 field Foo.currentField
                 class test.pkg.Outer.Middle.Inner
                 method test.pkg.Outer.Middle.Inner.currentInnerMethod()

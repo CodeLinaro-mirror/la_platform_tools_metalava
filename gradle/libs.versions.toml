@@ -1,6 +1,6 @@
 [versions]
 kotlin = "2.0.20"
-androidLint = "31.8.0-alpha04"
+androidLint = "31.8.0-alpha08"
 
 [libraries]
 androidGradlePlugin = { module = "com.android.tools.build:gradle", version = "8.7.0-alpha09" }

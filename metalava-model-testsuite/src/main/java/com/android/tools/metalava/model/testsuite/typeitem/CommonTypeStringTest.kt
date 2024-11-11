@@ -18,7 +18,7 @@ package com.android.tools.metalava.model.testsuite.typeitem
 
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.isNullnessAnnotation
 import com.android.tools.metalava.model.noOpAnnotationManager
@@ -29,7 +29,6 @@ import com.android.tools.metalava.testing.KnownSourceFiles.libcoreNonNullSource
 import com.android.tools.metalava.testing.KnownSourceFiles.libcoreNullableSource
 import com.android.tools.metalava.testing.java
 import com.google.common.truth.Truth.assertThat
-import java.util.function.Predicate
 import org.junit.Test
 import org.junit.runners.Parameterized
 import org.junit.runners.Parameterized.Parameter
@@ -113,7 +112,7 @@ class CommonTypeStringTest : BaseModelTest() {
     data class TypeStringConfiguration(
         val annotations: Boolean = false,
         val kotlinStyleNulls: Boolean = false,
-        val filter: Predicate<Item>? = null,
+        val filter: FilterPredicate? = null,
         val spaceBetweenParameters: Boolean = false,
     )
 

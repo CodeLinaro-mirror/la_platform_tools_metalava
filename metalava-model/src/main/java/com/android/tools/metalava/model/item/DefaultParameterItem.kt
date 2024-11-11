@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model.item
 
-import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.CallableItem
@@ -47,7 +46,6 @@ open class DefaultParameterItem(
         itemLanguage = itemLanguage,
         modifiers = modifiers,
         documentationFactory = ItemDocumentation.NONE_FACTORY,
-        variantSelectorsFactory = ApiVariantSelectors.IMMUTABLE_FACTORY,
     ),
     ParameterItem {
 

@@ -163,7 +163,13 @@ abstract class BaseModelTest() :
          * this is unspecified then all packages can contribute to the API.
          */
         val apiPackages: PackageFilter? = null,
-    )
+    ) {
+        /** The [Codebase.Config] to use when creating a [Codebase] to test. */
+        val codebaseConfig =
+            Codebase.Config(
+                annotationManager = annotationManager,
+            )
+    }
 
     /**
      * Create a [Codebase] from one of the supplied [inputSets] and then run a test on that
@@ -198,8 +204,7 @@ abstract class BaseModelTest() :
                         mainSourceDir = mainSourceDir,
                         additionalMainSourceDir = additionalSourceDir,
                         commonSourceDir = commonSourceDir,
-                        annotationManager = testFixture.annotationManager,
-                        apiPackages = testFixture.apiPackages,
+                        testFixture = testFixture,
                     )
                 runner.createCodebaseAndRun(inputs) { codebase ->
                     val context = DefaultCodebaseContext(codebase, mainSourceDir.dir)
