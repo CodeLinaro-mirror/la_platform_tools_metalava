@@ -442,12 +442,14 @@ class Options(
                 excludeAnnotations = excludeAnnotations,
                 typedefMode = typedefMode,
                 apiPredicate = ApiPredicate(config = apiPredicateConfig),
-                previouslyReleasedCodebasesProvider = {
-                    compatibilityCheckOptions.previouslyReleasedCodebases(signatureFileCache)
-                },
+                previouslyReleasedCodebaseProvider = { previouslyReleasedCodebase },
             )
         )
     }
+
+    /** Make this available for testing purposes. */
+    internal val previouslyReleasedCodebase
+        get() = compatibilityCheckOptions.previouslyReleasedCodebase(signatureFileCache)
 
     internal val codebaseConfig by
         lazy(LazyThreadSafetyMode.NONE) {

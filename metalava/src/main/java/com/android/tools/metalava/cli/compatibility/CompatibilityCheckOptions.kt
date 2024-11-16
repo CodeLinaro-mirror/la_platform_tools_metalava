@@ -21,12 +21,12 @@ import com.android.tools.metalava.SignatureFileCache
 import com.android.tools.metalava.cli.common.BaselineOptionsMixin
 import com.android.tools.metalava.cli.common.CommonBaselineOptions
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
-import com.android.tools.metalava.cli.common.JarBasedApi
 import com.android.tools.metalava.cli.common.PreviouslyReleasedApi
 import com.android.tools.metalava.cli.common.allowStructuredOptionName
 import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.map
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.api.surface.ApiVariantType
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import com.github.ajalt.clikt.parameters.options.multiple
 import com.github.ajalt.clikt.parameters.options.option
@@ -170,20 +170,14 @@ class CompatibilityCheckOptions(
             internal fun optionalCheckRequest(files: List<File>, apiType: ApiType) =
                 PreviouslyReleasedApi.optionalPreviouslyReleasedApi(
                         checkCompatibilityOptionForApiType(apiType),
-                        files
+                        files,
+                        apiVariantType =
+                            when (apiType) {
+                                ApiType.REMOVED -> ApiVariantType.REMOVED
+                                else -> ApiVariantType.CORE
+                            },
                     )
-                    ?.let { previouslyReleasedApi ->
-                        // It makes no sense to supply a jar file for the removed API because the
-                        // removed API is only a tiny fraction and incomplete part of an API
-                        // surface, so it could never be guaranteed to be able to compile into a jar
-                        // file.
-                        if (apiType == ApiType.REMOVED && previouslyReleasedApi is JarBasedApi) {
-                            throw IllegalStateException(
-                                "$ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED: Cannot specify jar files for removed API but found ${previouslyReleasedApi.file}"
-                            )
-                        }
-                        CheckRequest(previouslyReleasedApi, apiType)
-                    }
+                    ?.let { previouslyReleasedApi -> CheckRequest(previouslyReleasedApi, apiType) }
 
             private fun checkCompatibilityOptionForApiType(apiType: ApiType) =
                 "--check-compatibility:${apiType.flagName}:released"
@@ -202,20 +196,13 @@ class CompatibilityCheckOptions(
         lazy(LazyThreadSafetyMode.NONE) { listOfNotNull(checkReleasedApi, checkReleasedRemoved) }
 
     /**
-     * The list of [Codebase]s corresponding to [compatibilityChecks].
+     * The optional Codebase corresponding to [compatibilityChecks].
      *
-     * This is used to provide the previously released API needed for `--revert-annotation`. It does
-     * not support jar files.
+     * This is used to provide the previously released API needed for `--revert-annotation`.
      */
-    fun previouslyReleasedCodebases(signatureFileCache: SignatureFileCache): List<Codebase> =
-        compatibilityChecks.map {
-            it.previouslyReleasedApi.load(
-                {
-                    throw IllegalStateException(
-                        "Unexpected file $it: jar files do not work with --revert-annotation"
-                    )
-                },
-                { signatureFileCache.load(it) }
-            )
-        }
+    fun previouslyReleasedCodebase(signatureFileCache: SignatureFileCache): Codebase? =
+        compatibilityChecks
+            .map { it.previouslyReleasedApi }
+            .reduceOrNull { p1, p2 -> p1.combine(p2) }
+            ?.load({ signatureFileCache.load(it) })
 }

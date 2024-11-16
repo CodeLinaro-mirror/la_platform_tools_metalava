@@ -19,9 +19,7 @@ package com.android.tools.metalava.compatibility
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.cli.common.ARG_WARNING
-import com.android.tools.metalava.testing.getAndroidJar
-import java.io.File
-import org.junit.Assert.assertTrue
+import com.android.tools.metalava.testing.getAndroidTxt
 import org.junit.AssumptionViolatedException
 import org.junit.Test
 
@@ -69,8 +67,8 @@ abstract class CompatibilityCheckAndroidApisTest(
                 ApiLevelCheck(
                     5,
                     """
-                warning: Method android.view.Surface.lockCanvas added thrown exception java.lang.IllegalArgumentException [ChangedThrows]
-                """,
+                        load-api.txt:14736: warning: Method android.view.Surface.lockCanvas added thrown exception java.lang.IllegalArgumentException [ChangedThrows]
+                    """,
                     hide(
                         DEFAULT_HIDDEN_ISSUES_STRING,
                         "AddedAbstractMethod",
@@ -79,10 +77,10 @@ abstract class CompatibilityCheckAndroidApisTest(
                 ApiLevelCheck(
                     6,
                     """
-                warning: Method android.accounts.AbstractAccountAuthenticator.confirmCredentials added thrown exception android.accounts.NetworkErrorException [ChangedThrows]
-                warning: Method android.accounts.AbstractAccountAuthenticator.updateCredentials added thrown exception android.accounts.NetworkErrorException [ChangedThrows]
-                warning: Field android.view.WindowManager.LayoutParams.TYPE_STATUS_BAR_PANEL has changed value from 2008 to 2014 [ChangedValue]
-                """,
+                        load-api.txt:1321: warning: Method android.accounts.AbstractAccountAuthenticator.confirmCredentials added thrown exception android.accounts.NetworkErrorException [ChangedThrows]
+                        load-api.txt:1328: warning: Method android.accounts.AbstractAccountAuthenticator.updateCredentials added thrown exception android.accounts.NetworkErrorException [ChangedThrows]
+                        load-api.txt:15728: warning: Field android.view.WindowManager.LayoutParams.TYPE_STATUS_BAR_PANEL has changed value from 2008 to 2014 [ChangedValue]
+                    """,
                     hide(
                         DEFAULT_HIDDEN_ISSUES_STRING,
                     ) +
@@ -94,8 +92,8 @@ abstract class CompatibilityCheckAndroidApisTest(
                 ApiLevelCheck(
                     7,
                     """
-                error: Removed field android.view.ViewGroup.FLAG_USE_CHILD_DRAWING_ORDER [RemovedField]
-                """,
+                        released-api.txt:15404: error: Removed field android.view.ViewGroup.FLAG_USE_CHILD_DRAWING_ORDER [RemovedField]
+                    """,
                     hide(
                         "AddedClass",
                         "AddedField",
@@ -108,32 +106,32 @@ abstract class CompatibilityCheckAndroidApisTest(
                 ApiLevelCheck(
                     8,
                     """
-                warning: Class javax.xml.XMLConstants added 'final' qualifier [AddedFinal]
-                warning: Constructor android.net.SSLCertificateSocketFactory no longer throws exception java.security.KeyManagementException [ChangedThrows]
-                warning: Constructor android.net.SSLCertificateSocketFactory no longer throws exception java.security.NoSuchAlgorithmException [ChangedThrows]
-                warning: Constructor java.nio.charset.Charset no longer throws exception java.nio.charset.IllegalCharsetNameException [ChangedThrows]
-                warning: Method android.content.ComponentName.clone no longer throws exception java.lang.CloneNotSupportedException [ChangedThrows]
-                warning: Method android.gesture.Gesture.clone no longer throws exception java.lang.CloneNotSupportedException [ChangedThrows]
-                warning: Method android.gesture.GesturePoint.clone no longer throws exception java.lang.CloneNotSupportedException [ChangedThrows]
-                warning: Method android.gesture.GestureStroke.clone no longer throws exception java.lang.CloneNotSupportedException [ChangedThrows]
-                warning: Method java.nio.charset.Charset.forName no longer throws exception java.nio.charset.IllegalCharsetNameException [ChangedThrows]
-                warning: Method java.nio.charset.Charset.forName no longer throws exception java.nio.charset.UnsupportedCharsetException [ChangedThrows]
-                warning: Method java.nio.charset.Charset.isSupported no longer throws exception java.nio.charset.IllegalCharsetNameException [ChangedThrows]
-                warning: Method java.util.regex.Matcher.appendReplacement no longer throws exception java.lang.IllegalStateException [ChangedThrows]
-                warning: Method java.util.regex.Matcher.start no longer throws exception java.lang.IllegalStateException [ChangedThrows]
-                warning: Method java.util.regex.Pattern.compile no longer throws exception java.util.regex.PatternSyntaxException [ChangedThrows]
-                warning: Method javax.xml.parsers.DocumentBuilder.isXIncludeAware no longer throws exception java.lang.UnsupportedOperationException [ChangedThrows]
-                warning: Method javax.xml.parsers.DocumentBuilderFactory.newInstance no longer throws exception javax.xml.parsers.FactoryConfigurationError [ChangedThrows]
-                warning: Method javax.xml.parsers.SAXParser.isXIncludeAware no longer throws exception java.lang.UnsupportedOperationException [ChangedThrows]
-                warning: Method javax.xml.parsers.SAXParserFactory.newInstance no longer throws exception javax.xml.parsers.FactoryConfigurationError [ChangedThrows]
-                warning: Method org.w3c.dom.Element.getAttributeNS added thrown exception org.w3c.dom.DOMException [ChangedThrows]
-                warning: Method org.w3c.dom.Element.getAttributeNodeNS added thrown exception org.w3c.dom.DOMException [ChangedThrows]
-                warning: Method org.w3c.dom.Element.getElementsByTagNameNS added thrown exception org.w3c.dom.DOMException [ChangedThrows]
-                warning: Method org.w3c.dom.Element.hasAttributeNS added thrown exception org.w3c.dom.DOMException [ChangedThrows]
-                warning: Method org.w3c.dom.NamedNodeMap.getNamedItemNS added thrown exception org.w3c.dom.DOMException [ChangedThrows]
-                error: Method android.content.ComponentName.clone has changed return type from java.lang.Object to android.content.ComponentName [ChangedType]
-                error: Removed constructor javax.xml.XMLConstants() [RemovedMethod]
-                """,
+                        load-api.txt:2901: warning: Method android.content.ComponentName.clone no longer throws exception java.lang.CloneNotSupportedException [ChangedThrows]
+                        load-api.txt:2901: error: Method android.content.ComponentName.clone has changed return type from java.lang.Object to android.content.ComponentName [ChangedType]
+                        load-api.txt:5169: warning: Method android.gesture.Gesture.clone no longer throws exception java.lang.CloneNotSupportedException [ChangedThrows]
+                        load-api.txt:5281: warning: Method android.gesture.GesturePoint.clone no longer throws exception java.lang.CloneNotSupportedException [ChangedThrows]
+                        load-api.txt:5313: warning: Method android.gesture.GestureStroke.clone no longer throws exception java.lang.CloneNotSupportedException [ChangedThrows]
+                        load-api.txt:8395: warning: Constructor android.net.SSLCertificateSocketFactory no longer throws exception java.security.KeyManagementException [ChangedThrows]
+                        load-api.txt:8395: warning: Constructor android.net.SSLCertificateSocketFactory no longer throws exception java.security.NoSuchAlgorithmException [ChangedThrows]
+                        load-api.txt:24974: warning: Constructor java.nio.charset.Charset no longer throws exception java.nio.charset.IllegalCharsetNameException [ChangedThrows]
+                        load-api.txt:24987: warning: Method java.nio.charset.Charset.forName no longer throws exception java.nio.charset.IllegalCharsetNameException [ChangedThrows]
+                        load-api.txt:24987: warning: Method java.nio.charset.Charset.forName no longer throws exception java.nio.charset.UnsupportedCharsetException [ChangedThrows]
+                        load-api.txt:24990: warning: Method java.nio.charset.Charset.isSupported no longer throws exception java.nio.charset.IllegalCharsetNameException [ChangedThrows]
+                        load-api.txt:30437: warning: Method java.util.regex.Matcher.appendReplacement no longer throws exception java.lang.IllegalStateException [ChangedThrows]
+                        load-api.txt:30462: warning: Method java.util.regex.Matcher.start no longer throws exception java.lang.IllegalStateException [ChangedThrows]
+                        load-api.txt:30471: warning: Method java.util.regex.Pattern.compile no longer throws exception java.util.regex.PatternSyntaxException [ChangedThrows]
+                        load-api.txt:32652: warning: Class javax.xml.XMLConstants added 'final' qualifier [AddedFinal]
+                        load-api.txt:32849: warning: Method javax.xml.parsers.DocumentBuilder.isXIncludeAware no longer throws exception java.lang.UnsupportedOperationException [ChangedThrows]
+                        load-api.txt:32874: warning: Method javax.xml.parsers.DocumentBuilderFactory.newInstance no longer throws exception javax.xml.parsers.FactoryConfigurationError [ChangedThrows]
+                        load-api.txt:32908: warning: Method javax.xml.parsers.SAXParser.isXIncludeAware no longer throws exception java.lang.UnsupportedOperationException [ChangedThrows]
+                        load-api.txt:32930: warning: Method javax.xml.parsers.SAXParserFactory.newInstance no longer throws exception javax.xml.parsers.FactoryConfigurationError [ChangedThrows]
+                        load-api.txt:37246: warning: Method org.w3c.dom.Element.getAttributeNS added thrown exception org.w3c.dom.DOMException [ChangedThrows]
+                        load-api.txt:37248: warning: Method org.w3c.dom.Element.getAttributeNodeNS added thrown exception org.w3c.dom.DOMException [ChangedThrows]
+                        load-api.txt:37250: warning: Method org.w3c.dom.Element.getElementsByTagNameNS added thrown exception org.w3c.dom.DOMException [ChangedThrows]
+                        load-api.txt:37254: warning: Method org.w3c.dom.Element.hasAttributeNS added thrown exception org.w3c.dom.DOMException [ChangedThrows]
+                        load-api.txt:37290: warning: Method org.w3c.dom.NamedNodeMap.getNamedItemNS added thrown exception org.w3c.dom.DOMException [ChangedThrows]
+                        released-api.txt:31151: error: Removed constructor javax.xml.XMLConstants() [RemovedMethod]
+                    """,
                     hide(
                         DEFAULT_HIDDEN_ISSUES_STRING,
                         "AddedAbstractMethod",
@@ -146,12 +144,12 @@ abstract class CompatibilityCheckAndroidApisTest(
                 ApiLevelCheck(
                     18,
                     """
-                error: Added method android.content.pm.PackageManager.getPackagesHoldingPermissions(String[],int) [AddedAbstractMethod]
-                error: Added method android.widget.MediaController.MediaPlayerControl.getAudioSessionId() [AddedAbstractMethod]
-                error: Removed class android.renderscript.Program [RemovedClass]
-                error: Removed class android.renderscript.ProgramStore [RemovedClass]
-                error: Removed field android.os.Process.BLUETOOTH_GID [RemovedField]
-                """,
+                        load-api.txt:6911: error: Added method android.content.pm.PackageManager.getPackagesHoldingPermissions(String[],int) [AddedAbstractMethod]
+                        load-api.txt:29748: error: Added method android.widget.MediaController.MediaPlayerControl.getAudioSessionId() [AddedAbstractMethod]
+                        released-api.txt:16415: error: Removed field android.os.Process.BLUETOOTH_GID [RemovedField]
+                        released-api.txt:19682: error: Removed class android.renderscript.Program [RemovedClass]
+                        released-api.txt:19764: error: Removed class android.renderscript.ProgramStore [RemovedClass]
+                    """,
                     hide(
                         "AddedClass",
                         "AddedField",
@@ -169,20 +167,20 @@ abstract class CompatibilityCheckAndroidApisTest(
                 ApiLevelCheck(
                     19,
                     """
-                warning: Field android.view.animation.Transformation.TYPE_ALPHA has added 'final' qualifier [AddedFinal]
-                warning: Field android.view.animation.Transformation.TYPE_BOTH has added 'final' qualifier [AddedFinal]
-                warning: Field android.view.animation.Transformation.TYPE_IDENTITY has added 'final' qualifier [AddedFinal]
-                warning: Field android.view.animation.Transformation.TYPE_MATRIX has added 'final' qualifier [AddedFinal]
-                warning: Method java.nio.CharBuffer.subSequence has changed return type from java.lang.CharSequence to java.nio.CharBuffer [ChangedType]
-                warning: Field android.view.animation.Transformation.TYPE_ALPHA has changed value from nothing/not constant to 1 [ChangedValue]
-                warning: Field android.view.animation.Transformation.TYPE_BOTH has changed value from nothing/not constant to 3 [ChangedValue]
-                warning: Field android.view.animation.Transformation.TYPE_IDENTITY has changed value from nothing/not constant to 0 [ChangedValue]
-                warning: Field android.view.animation.Transformation.TYPE_MATRIX has changed value from nothing/not constant to 2 [ChangedValue]
-                error: Removed method android.os.Debug.MemoryInfo.getOtherLabel(int) [RemovedMethod]
-                error: Removed method android.os.Debug.MemoryInfo.getOtherPrivateDirty(int) [RemovedMethod]
-                error: Removed method android.os.Debug.MemoryInfo.getOtherPss(int) [RemovedMethod]
-                error: Removed method android.os.Debug.MemoryInfo.getOtherSharedDirty(int) [RemovedMethod]
-                """,
+                        load-api.txt:29411: warning: Field android.view.animation.Transformation.TYPE_ALPHA has added 'final' qualifier [AddedFinal]
+                        load-api.txt:29411: warning: Field android.view.animation.Transformation.TYPE_ALPHA has changed value from nothing/not constant to 1 [ChangedValue]
+                        load-api.txt:29412: warning: Field android.view.animation.Transformation.TYPE_BOTH has added 'final' qualifier [AddedFinal]
+                        load-api.txt:29412: warning: Field android.view.animation.Transformation.TYPE_BOTH has changed value from nothing/not constant to 3 [ChangedValue]
+                        load-api.txt:29413: warning: Field android.view.animation.Transformation.TYPE_IDENTITY has added 'final' qualifier [AddedFinal]
+                        load-api.txt:29413: warning: Field android.view.animation.Transformation.TYPE_IDENTITY has changed value from nothing/not constant to 0 [ChangedValue]
+                        load-api.txt:29414: warning: Field android.view.animation.Transformation.TYPE_MATRIX has added 'final' qualifier [AddedFinal]
+                        load-api.txt:29414: warning: Field android.view.animation.Transformation.TYPE_MATRIX has changed value from nothing/not constant to 2 [ChangedValue]
+                        load-api.txt:37262: warning: Method java.nio.CharBuffer.subSequence has changed return type from java.lang.CharSequence to java.nio.CharBuffer [ChangedType]
+                        released-api.txt:16987: error: Removed method android.os.Debug.MemoryInfo.getOtherLabel(int) [RemovedMethod]
+                        released-api.txt:16988: error: Removed method android.os.Debug.MemoryInfo.getOtherPrivateDirty(int) [RemovedMethod]
+                        released-api.txt:16989: error: Removed method android.os.Debug.MemoryInfo.getOtherPss(int) [RemovedMethod]
+                        released-api.txt:16990: error: Removed method android.os.Debug.MemoryInfo.getOtherSharedDirty(int) [RemovedMethod]
+                    """,
                     // The last warning above is not right; seems to be a PSI jar loading bug. It
                     // returns the wrong return type!
                     hide(
@@ -198,10 +196,10 @@ abstract class CompatibilityCheckAndroidApisTest(
                 ApiLevelCheck(
                     20,
                     """
-                warning: Field org.xmlpull.v1.XmlPullParserFactory.features has changed type from java.util.HashMap to java.util.HashMap<java.lang.String,java.lang.Boolean> [ChangedType]
-                warning: Method org.json.JSONObject.keys has changed return type from java.util.Iterator to java.util.Iterator<java.lang.String> [ChangedType]
-                error: Removed method android.util.TypedValue.complexToDimensionNoisy(int,android.util.DisplayMetrics) [RemovedMethod]
-                """,
+                        load-api.txt:51013: warning: Method org.json.JSONObject.keys has changed return type from java.util.Iterator to java.util.Iterator<java.lang.String> [ChangedType]
+                        load-api.txt:52005: warning: Field org.xmlpull.v1.XmlPullParserFactory.features has changed type from java.util.HashMap to java.util.HashMap<java.lang.String,java.lang.Boolean> [ChangedType]
+                        released-api.txt:26150: error: Removed method android.util.TypedValue.complexToDimensionNoisy(int,android.util.DisplayMetrics) [RemovedMethod]
+                    """,
                     hide(
                         DEFAULT_HIDDEN_ISSUES_STRING,
                         "AddedAbstractMethod",
@@ -213,9 +211,9 @@ abstract class CompatibilityCheckAndroidApisTest(
                 ApiLevelCheck(
                     26,
                     """
-                warning: Field android.app.ActivityManager.RunningAppProcessInfo.IMPORTANCE_PERCEPTIBLE has changed value from 130 to 230 [ChangedValue]
-                warning: Field android.content.pm.PermissionInfo.PROTECTION_MASK_FLAGS has changed value from 4080 to 65520 [ChangedValue]
-                """,
+                        load-api.txt:3941: warning: Field android.app.ActivityManager.RunningAppProcessInfo.IMPORTANCE_PERCEPTIBLE has changed value from 130 to 230 [ChangedValue]
+                        load-api.txt:10849: warning: Field android.content.pm.PermissionInfo.PROTECTION_MASK_FLAGS has changed value from 4080 to 65520 [ChangedValue]
+                    """,
                     hide(
                         "AddedAbstractMethod",
                         "AddedClass",
@@ -278,44 +276,17 @@ abstract class CompatibilityCheckAndroidApisTest(
                 else ""
             val extraArgs = apiLevelCheck.extraArgs.toTypedArray()
 
-            val current = getAndroidJar(apiLevel)
-            val previous = getAndroidJar(apiLevel - 1)
-            val previousApi = previous.path
-
-            // PSI based check
+            val current = getAndroidTxt(apiLevel)
+            val previous = getAndroidTxt(apiLevel - 1)
 
             check(
                 extraArguments = extraArgs,
                 expectedIssues = expectedIssues,
                 expectedFail = expectedFail,
-                checkCompatibilityApiReleased = previousApi,
-                apiJar = current,
+                checkCompatibilityApiReleased = previous.readText(),
+                signatureSource = current.readText(),
                 skipEmitPackages = emptyList(),
             )
-
-            // Signature based check
-            if (apiLevel >= 21) {
-                // Check signature file checks. We have .txt files for API level 14 and up, but
-                // there are a
-                // BUNCH of problems in older signature files that make the comparisons not work --
-                // missing type variables in class declarations, missing generics in method
-                // signatures, etc.
-                val signatureFile =
-                    File("../../../prebuilts/sdk/${apiLevel - 1}/public/api/android.txt")
-                assertTrue(
-                    "Couldn't find $signatureFile: Check that pwd (${File("").absolutePath}) for test is correct",
-                    signatureFile.isFile
-                )
-
-                check(
-                    extraArguments = extraArgs,
-                    expectedIssues = expectedIssues,
-                    expectedFail = expectedFail,
-                    checkCompatibilityApiReleased = signatureFile.path,
-                    apiJar = current,
-                    skipEmitPackages = emptyList(),
-                )
-            }
         }
     }
 }

@@ -27,6 +27,9 @@ sealed interface ApiSurface {
     /** The optional [ApiSurface] that this extends. */
     val extends: ApiSurface?
 
+    /** True if this is the main [ApiSurface] being generated. */
+    val isMain: Boolean
+
     /** The list of [ApiVariant]s, in the same order as [ApiVariantType]s. */
     val variants: List<ApiVariant>
 

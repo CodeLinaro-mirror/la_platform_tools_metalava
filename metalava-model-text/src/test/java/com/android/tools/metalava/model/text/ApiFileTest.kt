@@ -531,7 +531,10 @@ class ApiFileTest : BaseTextCodebaseTest() {
 
         val files = testFiles.map { it.createFile(temporaryFolder.newFolder()) }
         val signatureFiles =
-            SignatureFile.fromFiles(files) { _, file -> file.name == "current.txt" }
+            SignatureFile.fromFiles(
+                files,
+                forMainApiSurfacePredicate = { _, file -> file.name == "current.txt" },
+            )
 
         val apiSurfaces = ApiSurfaces.create(needsBase = true)
         val codebaseConfig =

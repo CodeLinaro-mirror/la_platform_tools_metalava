@@ -67,6 +67,35 @@ interface Assertions {
         return packageItem
     }
 
+    /**
+     * Return a dump of the state of [SelectableItem.selectedApiVariants] across this [Codebase].
+     */
+    private fun Codebase.dumpSelectedApiVariants() = buildString {
+        accept(
+            object :
+                BaseItemVisitor(
+                    preserveClassNesting = true,
+                ) {
+                private var indent = ""
+
+                override fun visitSelectableItem(item: SelectableItem) {
+                    append("$indent${item.describe()} - ${item.selectedApiVariants}\n")
+                    indent += "  "
+                }
+
+                override fun afterVisitSelectableItem(item: SelectableItem) {
+                    indent = indent.substring(2)
+                }
+            }
+        )
+    }
+
+    /** Assert that the [dumpSelectedApiVariants] matches [expected]. */
+    fun Codebase.assertSelectedApiVariants(expected: String, message: String? = null) {
+        val actual = dumpSelectedApiVariants()
+        assertEquals(expected.trimIndent(), actual.trimEnd(), message)
+    }
+
     /** Get the field from the [ClassItem], failing if it does not exist. */
     fun ClassItem.assertField(fieldName: String): FieldItem {
         val fieldItem = findField(fieldName)

@@ -141,6 +141,8 @@ sealed interface ApiSurfaces {
             return variants[type.ordinal]
         }
 
+        override val isMain = name == "main"
+
         override fun toString(): String = "ApiSurface($name)"
     }
 }

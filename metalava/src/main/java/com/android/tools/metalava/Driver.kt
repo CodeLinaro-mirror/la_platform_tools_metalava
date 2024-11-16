@@ -434,10 +434,7 @@ internal fun processFlags(
     val previouslyReleasedApi = options.migrateNullsFrom
     if (previouslyReleasedApi != null) {
         val previous =
-            previouslyReleasedApi.load(
-                jarLoader = { jarFile -> actionContext.loadFromJarFile(jarFile) },
-                signatureFileLoader = { signatureFiles -> signatureFileCache.load(signatureFiles) }
-            )
+            previouslyReleasedApi.load { signatureFiles -> signatureFileCache.load(signatureFiles) }
 
         // If configured, checks for newly added nullness information compared
         // to the previous stable API and marks the newly annotated elements
@@ -540,12 +537,9 @@ private fun ActionContext.checkCompatibility(
     }
 
     val oldCodebase =
-        check.previouslyReleasedApi.load(
-            jarLoader = { jarFile -> loadFromJarFile(jarFile) },
-            signatureFileLoader = { signatureFiles ->
-                signatureFileCache.load(signatureFiles, classResolverProvider.classResolver)
-            }
-        )
+        check.previouslyReleasedApi.load { signatureFiles ->
+            signatureFileCache.load(signatureFiles, classResolverProvider.classResolver)
+        }
 
     // If configured, compares the new API with the previous API and reports
     // any incompatibilities.
@@ -691,12 +685,9 @@ private fun ActionContext.loadFromSources(
 
         // See if we should provide a previous codebase to provide a delta from?
         val previouslyReleasedApi =
-            apiLintOptions.previouslyReleasedApi?.load(
-                jarLoader = { jarFile -> loadFromJarFile(jarFile) },
-                signatureFileLoader = { signatureFiles ->
-                    signatureFileCache.load(signatureFiles, classResolverProvider.classResolver)
-                }
-            )
+            apiLintOptions.previouslyReleasedApi?.load { signatureFiles ->
+                signatureFileCache.load(signatureFiles, classResolverProvider.classResolver)
+            }
 
         ApiLint.check(
             codebase,
