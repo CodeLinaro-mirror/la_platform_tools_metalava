@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.testing.testTypeString
 import com.google.common.truth.Truth.assertThat
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -158,10 +159,10 @@ interface Assertions {
         append(name())
         append("(")
         parameters().joinTo(this) {
-            "${it.name()}: ${it.type().toTypeString(kotlinStyleNulls = true)}"
+            "${it.name()}: ${it.type().testTypeString(kotlinStyleNulls = true)}"
         }
         append("): ")
-        append(returnType().toTypeString(kotlinStyleNulls = true))
+        append(returnType().testTypeString(kotlinStyleNulls = true))
     }
 
     /** Get the list of fully qualified annotation names associated with the [TypeItem]. */

@@ -25,6 +25,8 @@ import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.Showability
+import com.android.tools.metalava.model.api.surface.ApiVariantSet
+import com.android.tools.metalava.model.api.surface.MutableApiVariantSet
 import com.android.tools.metalava.reporter.FileLocation
 
 abstract class DefaultSelectableItem(
@@ -43,6 +45,15 @@ abstract class DefaultSelectableItem(
         documentationFactory,
     ),
     SelectableItem {
+
+    final override var selectedApiVariants: ApiVariantSet = codebase.apiSurfaces.emptyVariantSet
+        private set
+
+    override fun mutateSelectedApiVariants(mutator: MutableApiVariantSet.() -> Unit) {
+        val mutable = selectedApiVariants.toMutable()
+        mutable.mutator()
+        selectedApiVariants = mutable.toImmutable()
+    }
 
     final override var emit =
         // Do not emit expect declarations in APIs.

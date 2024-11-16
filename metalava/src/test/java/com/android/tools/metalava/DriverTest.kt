@@ -37,6 +37,8 @@ import com.android.tools.metalava.cli.common.ARG_QUIET
 import com.android.tools.metalava.cli.common.ARG_REPEAT_ERRORS_MAX
 import com.android.tools.metalava.cli.common.ARG_SOURCE_PATH
 import com.android.tools.metalava.cli.common.ARG_VERBOSE
+import com.android.tools.metalava.cli.common.CheckerContext
+import com.android.tools.metalava.cli.common.CheckerFunction
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.cli.common.TestEnvironment
 import com.android.tools.metalava.cli.compatibility.ARG_API_COMPAT_ANNOTATION
@@ -538,6 +540,15 @@ abstract class DriverTest : CodebaseCreatorConfigAware<SourceModelProvider>, Tem
         projectDescription: TestFile? = null,
         /** [ARG_REPEAT_ERRORS_MAX] */
         repeatErrorsMax: Int = 0,
+        /**
+         * Called on a [CheckerContext] after the analysis phase in the metalava main command.
+         *
+         * This allows testing of the internal state of the metalava main command. Ideally, tests
+         * should not use this as it makes the tests more fragile and can increase the cost of
+         * refactoring. However, it is often the only way to verify the effects of changes that
+         * start to add a new feature but which does not yet have any effect on the output.
+         */
+        postAnalysisChecker: CheckerFunction? = null,
     ) {
         // Ensure different API clients don't interfere with each other
         try {
@@ -1094,6 +1105,7 @@ abstract class DriverTest : CodebaseCreatorConfigAware<SourceModelProvider>, Tem
                 skipEmitPackages = skipEmitPackages,
                 sourceModelProvider = codebaseCreatorConfig.creator,
                 modelOptions = codebaseCreatorConfig.modelOptions,
+                postAnalysisChecker = postAnalysisChecker,
             )
 
         val actualOutput =

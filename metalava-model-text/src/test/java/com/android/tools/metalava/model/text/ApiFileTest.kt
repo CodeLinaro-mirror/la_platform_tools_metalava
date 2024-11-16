@@ -23,6 +23,8 @@ import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.SelectableItem
+import com.android.tools.metalava.model.api.surface.ApiSurfaces
+import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.testing.getAndroidJar
 import com.google.common.truth.Truth.assertThat
 import kotlin.test.assertEquals
@@ -531,8 +533,19 @@ class ApiFileTest : BaseTextCodebaseTest() {
         val signatureFiles =
             SignatureFile.fromFiles(files) { _, file -> file.name == "current.txt" }
 
+        val apiSurfaces = ApiSurfaces.create(needsBase = true)
+        val codebaseConfig =
+            Codebase.Config(
+                annotationManager = noOpAnnotationManager,
+                apiSurfaces = apiSurfaces,
+            )
         val classResolver = ClassLoaderBasedClassResolver(getAndroidJar())
-        val codebase = ApiFile.parseApi(signatureFiles, classResolver = classResolver)
+        val codebase =
+            ApiFile.parseApi(
+                signatureFiles,
+                codebaseConfig = codebaseConfig,
+                classResolver = classResolver,
+            )
 
         val current = buildList {
             codebase.accept(

@@ -18,6 +18,7 @@ package com.android.tools.metalava
 
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
+import com.android.tools.metalava.testing.getAndroidJar
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import com.android.tools.metalava.testing.xml
@@ -96,6 +97,7 @@ class ProjectDescriptionTest : DriverTest() {
                           <module name="app" android="true" library="false">
                             <src file="androidMain/src/some/pkg/Foo.kt" />
                             <src file="androidMain/src/test/Bar.java" />
+                            <classpath file="${getAndroidJar()}"/>
                           </module>
                         </project>
                     """

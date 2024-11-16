@@ -22,6 +22,7 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import java.io.File
@@ -41,6 +42,8 @@ open class DefaultCodebase(
 ) : Codebase {
 
     final override val annotationManager: AnnotationManager = config.annotationManager
+
+    final override val apiSurfaces: ApiSurfaces = config.apiSurfaces
 
     final override var description: String = description
         private set

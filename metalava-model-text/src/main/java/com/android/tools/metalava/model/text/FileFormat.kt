@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.CallableItem
+import com.android.tools.metalava.model.StripJavaLangPrefix
 import com.android.tools.metalava.reporter.FileLocation
 import java.io.LineNumberReader
 import java.io.Reader
@@ -133,6 +134,12 @@ data class FileFormat(
      * sorting is by the full name (without the package) of the class.
      */
     val specifiedSortWholeExtendsList: Boolean? = null,
+
+    /**
+     * Indicates which of the possible approaches to `java.lang.` prefix stripping available in
+     * [StripJavaLangPrefix] is used when outputting types to signature files.
+     */
+    val specifiedStripJavaLangPrefix: StripJavaLangPrefix? = null
 ) {
     init {
         if (migrating != null && "[,\n]".toRegex().find(migrating) != null) {
@@ -187,6 +194,10 @@ data class FileFormat(
     // This defaults to false but can be overridden on the command line.
     val sortWholeExtendsList
         get() = effectiveValue({ specifiedSortWholeExtendsList }, default = false)
+
+    // This defaults to LEGACY but can be overridden on the command line.
+    val stripJavaLangPrefix
+        get() = effectiveValue({ specifiedStripJavaLangPrefix }, StripJavaLangPrefix.LEGACY)
 
     /** The base version of the file format. */
     enum class Version(
@@ -711,6 +722,7 @@ data class FileFormat(
         var name: String? = null
         var overloadedMethodOrder: OverloadedMethodOrder? = null
         var sortWholeExtendsList: Boolean? = null
+        var stripJavaLangPrefix: StripJavaLangPrefix? = null
         var surface: String? = null
 
         fun build(): FileFormat {
@@ -731,6 +743,8 @@ data class FileFormat(
                         ?: base.specifiedOverloadedMethodOrder,
                 specifiedSortWholeExtendsList = sortWholeExtendsList
                         ?: base.specifiedSortWholeExtendsList,
+                specifiedStripJavaLangPrefix = stripJavaLangPrefix
+                        ?: base.specifiedStripJavaLangPrefix,
                 surface = surface ?: base.surface,
             )
         }
@@ -837,6 +851,14 @@ data class FileFormat(
 
             override fun stringFromFormat(format: FileFormat): String? =
                 format.specifiedSortWholeExtendsList?.let { yesNo(it) }
+        },
+        STRIP_JAVA_LANG_PREFIX(defaultable = true) {
+            override fun setFromString(builder: Builder, value: String) {
+                builder.stripJavaLangPrefix = enumFromString<StripJavaLangPrefix>(value)
+            }
+
+            override fun stringFromFormat(format: FileFormat): String? =
+                format.specifiedStripJavaLangPrefix?.stringFromEnum()
         };
 
         /** The property name in the [parseSpecifier] input. */

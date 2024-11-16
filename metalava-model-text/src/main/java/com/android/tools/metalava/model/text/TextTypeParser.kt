@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.JAVA_LANG_OBJECT
+import com.android.tools.metalava.model.JAVA_LANG_PREFIX
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.ReferenceTypeItem
 import com.android.tools.metalava.model.TypeArgumentTypeItem
@@ -824,15 +825,12 @@ internal class TextTypeParser(val codebase: Codebase, val kotlinStyleNulls: Bool
             // package, all other types must be fully qualified. At this point it is not clear
             // whether the type used in the input type string was qualified or not as the package
             // has been prepended so this assumes that they all are just to be on the safe side.
-            // It is only for legacy reasons that all `java.lang` package prefixes are stripped
-            // when generating the API signature files. See b/324047248.
             val name = classType.qualifiedName
             if (!name.contains('.')) {
                 unqualifiedNames.add(name)
             } else {
-                val trimmed = TypeItem.stripJavaLangPrefix(name)
-                if (trimmed != name) {
-                    unqualifiedNames.add(trimmed)
+                if (classType.classNamePrefix == JAVA_LANG_PREFIX) {
+                    unqualifiedNames.add(classType.className)
                 }
             }
         }
