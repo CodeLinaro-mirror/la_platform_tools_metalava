@@ -49,6 +49,9 @@ import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeParameterListAndFactory
 import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.model.api.surface.ApiSurfaces
+import com.android.tools.metalava.model.api.surface.ApiVariant
+import com.android.tools.metalava.model.api.surface.ApiVariantType
 import com.android.tools.metalava.model.createImmutableModifiers
 import com.android.tools.metalava.model.createMutableModifiers
 import com.android.tools.metalava.model.item.DefaultClassItem
@@ -70,20 +73,41 @@ import java.util.IdentityHashMap
 import kotlin.text.Charsets.UTF_8
 
 /** Encapsulates information needed to process a signature file. */
-sealed interface SignatureFile {
+sealed class SignatureFile {
     /** The underlying signature [File]. */
-    val file: File
+    abstract val file: File
 
     /**
      * Indicates whether [file] is for the main API surface, i.e. the one that is being created.
      *
      * This will be stored in [Item.emit].
      */
-    val forMainApiSurface: Boolean
+    protected open val forMainApiSurface: Boolean
         get() = true
 
+    /** The [ApiVariantType] of the signature files. */
+    protected open val apiVariantType: ApiVariantType
+        get() = ApiVariantType.CORE
+
+    /**
+     * Get the [ApiVariant] that this signature file represents.
+     *
+     * If [forMainApiSurface] is `false` then [apiSurfaces] must provide a non-null value for
+     * [ApiSurfaces.base]. An exception will be thrown if it is not.
+     *
+     * @param apiSurfaces the [ApiSurfaces] the returned [Codebase] is required to support.
+     */
+    fun apiVariantFor(apiSurfaces: ApiSurfaces): ApiVariant {
+        val apiSurface =
+            if (forMainApiSurface) apiSurfaces.main
+            else
+                apiSurfaces.base
+                    ?: error("$file expects a base API surface to be available but it is not")
+        return apiSurface.variantFor(apiVariantType)
+    }
+
     /** Read the contents of this signature file. */
-    fun readContents(): String
+    abstract fun readContents(): String
 
     companion object {
         /** Create a list of [SignatureFile]s from a varargs array of [File]s. */
@@ -98,18 +122,22 @@ sealed interface SignatureFile {
          * Create a list of [SignatureFile]s from a list of [File]s.
          *
          * @param files the list of [File]s.
+         * @param apiVariantTypeChooser A lambda that will be called with the [File] of each item in
+         *   [files] and whose return value will be stored in [SignatureFile.apiVariantType].
          * @param forMainApiSurfacePredicate A predicate that will be called with the index and
          *   [File] of each item in [files] and whose return value will be stored in
          *   [SignatureFile.forMainApiSurface].
          */
         fun fromFiles(
             files: List<File>,
+            apiVariantTypeChooser: (File) -> ApiVariantType = { ApiVariantType.CORE },
             forMainApiSurfacePredicate: (Int, File) -> Boolean = { _, _ -> true },
         ): List<SignatureFile> =
             files.mapIndexed { index, file ->
                 SignatureFileFromFile(
                     file,
                     forMainApiSurface = forMainApiSurfacePredicate(index, file),
+                    apiVariantType = apiVariantTypeChooser(file),
                 )
             }
 
@@ -133,7 +161,8 @@ sealed interface SignatureFile {
     private data class SignatureFileFromFile(
         override val file: File,
         override val forMainApiSurface: Boolean = true,
-    ) : SignatureFile {
+        override val apiVariantType: ApiVariantType = ApiVariantType.CORE,
+    ) : SignatureFile() {
         override fun readContents() =
             try {
                 file.readText(UTF_8)
@@ -150,7 +179,7 @@ sealed interface SignatureFile {
     private data class SignatureFileFromStream(
         override val file: File,
         val inputStream: InputStream,
-    ) : SignatureFile {
+    ) : SignatureFile() {
         override fun readContents() = inputStream.bufferedReader().readText()
     }
 
@@ -158,7 +187,7 @@ sealed interface SignatureFile {
     private data class SignatureFileFromText(
         override val file: File,
         val contents: String,
-    ) : SignatureFile {
+    ) : SignatureFile() {
         override fun readContents() = contents
     }
 }
@@ -204,12 +233,11 @@ private constructor(
     lateinit var format: FileFormat
 
     /**
-     * Indicates whether the file currently being parsed is for the main API surface, i.e. the one
-     * that is being created.
+     * The [ApiVariant] which is defined within the current signature file being parsed.
      *
-     * See [SignatureFile.forMainApiSurface].
+     * Set in [parseApiSingleFile].
      */
-    private var forMainApiSurface: Boolean = true
+    private lateinit var apiVariant: ApiVariant
 
     /** Map from [ClassItem] to [TextTypeItemFactory]. */
     private val classToTypeItemFactory = IdentityHashMap<ClassItem, TextTypeItemFactory>()
@@ -258,15 +286,17 @@ private constructor(
                     classResolver = classResolver,
                 )
             val parser = ApiFile(assembler, formatForLegacyFiles)
+            val apiSurfaces = codebaseConfig.apiSurfaces
             var first = true
             for (signatureFile in signatureFiles) {
                 val file = signatureFile.file
                 val apiText = signatureFile.readContents()
+                val apiVariant = signatureFile.apiVariantFor(apiSurfaces)
                 parser.parseApiSingleFile(
                     appending = !first,
                     path = file.toPath(),
                     apiText = apiText,
-                    forMainApiSurface = signatureFile.forMainApiSurface,
+                    apiVariant = apiVariant,
                 )
                 first = false
             }
@@ -339,15 +369,27 @@ private constructor(
     }
 
     /**
-     * Mark this [Item] as being part of the main API surface, i.e. the one that is being created.
+     * Mark this [SelectableItem] as being part of the main API surface, i.e. the one that is being
+     * created.
      *
      * See [SignatureFile.forMainApiSurface].
      *
-     * This will set [Item.emit] to [forMainApiSurface] and should only be called on [Item]s which
-     * have been created from the main signature file.
+     * This will set [SelectableItem.emit] to [forMainApiSurface] and should only be called on
+     * [SelectableItem]s which have been created from the main signature file.
      */
     private fun SelectableItem.markForMainApiSurface() {
-        emit = forMainApiSurface
+        emit = apiVariant.surface.isMain
+        markSelectedApiVariant()
+    }
+
+    /**
+     * Record that this [SelectableItem] was loaded from a signature file that contains
+     * [apiVariant].
+     */
+    private fun SelectableItem.markSelectedApiVariant() {
+        if (apiVariant !in selectedApiVariants) {
+            mutateSelectedApiVariants { add(apiVariant) }
+        }
     }
 
     /**
@@ -365,16 +407,21 @@ private constructor(
      * behavior irrespective of the order.
      */
     private fun ClassItem.markExistingClassForMainApiSurface() {
-        if (!emit && forMainApiSurface) {
+        if (!emit && apiVariant.surface.isMain) {
             markForMainApiSurface()
         }
+
+        // Always record the ApiVariants to which this belongs, even if this was previously loaded.
+        // This is safe because unlike `emit` which is Boolean the `selectedApiVariants` property is
+        // a set of ApiVariants and this just adds an ApiVariant.
+        markSelectedApiVariant()
     }
 
     private fun parseApiSingleFile(
         appending: Boolean,
         path: Path,
         apiText: String,
-        forMainApiSurface: Boolean = true,
+        apiVariant: ApiVariant,
     ) {
         // Parse the header of the signature file to determine the format. If the signature file is
         // empty then `parseHeader` will return null, so it will default to `FileFormat.V2`.
@@ -398,9 +445,8 @@ private constructor(
             }
         }
 
-        // Remember whether the file being parsed is for the main API surface, so that Items
-        // created from it can be marked correctly.
-        this.forMainApiSurface = forMainApiSurface
+        // Remember the API variant of the file being parsed.
+        this.apiVariant = apiVariant
 
         val tokenizer = Tokenizer(path, apiText.toCharArray())
         while (true) {
@@ -440,6 +486,9 @@ private constructor(
             } catch (e: IllegalStateException) {
                 throw ApiParseException(e.message!!, tokenizer)
             }
+
+        // Make sure that the package records the ApiVariants to which it belongs.
+        pkg.markSelectedApiVariant()
 
         token = tokenizer.requireToken()
         if ("{" != token) {

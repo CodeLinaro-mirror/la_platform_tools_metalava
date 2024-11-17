@@ -30,6 +30,7 @@ private val FILE_FORMAT_PROPERTY_NAMES =
         "name",
         "overloaded-method-order",
         "sort-whole-extends-list",
+        "strip-java-lang-prefix",
         "surface",
     )
 

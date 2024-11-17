@@ -55,24 +55,6 @@ interface ClassItem : ClassContentItem, SelectableItem, TypeParameterListOwner {
     override val effectivelyDeprecated: Boolean
         get() = originallyDeprecated || containingClass()?.effectivelyDeprecated == true
 
-    /**
-     * The qualified name where nested classes use $ as a separator. In class foo.bar.Outer.Inner,
-     * this method will return foo.bar.Outer$Inner. (This is the name format used in ProGuard keep
-     * files for example.)
-     */
-    fun qualifiedNameWithDollarNestedClasses(): String {
-        var curr: ClassItem? = this
-        while (curr?.containingClass() != null) {
-            curr = curr.containingClass()
-        }
-
-        if (curr == null) {
-            return fullName().replace('.', '$')
-        }
-
-        return curr.containingPackage().qualifiedName() + "." + fullName().replace('.', '$')
-    }
-
     /** Returns the internal name of the class, as seen in bytecode */
     fun internalName(): String {
         var curr: ClassItem? = this

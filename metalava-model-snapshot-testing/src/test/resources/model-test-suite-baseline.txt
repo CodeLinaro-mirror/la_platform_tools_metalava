@@ -5,6 +5,9 @@ com.android.tools.metalava.model.testsuite.BootstrapSourceModelProviderTest
   260 - test doconly members[psi,java,k2]
   260 - test doconly members[turbine]
 
+com.android.tools.metalava.model.testsuite.CommonApiSurfacesTest
+  Test updating selectedApiVariants[text]
+
 com.android.tools.metalava.model.testsuite.CommonApiVariantSelectorsTest
   Test accessible[psi,java,k1]
   Test accessible[psi,java,k2]
