@@ -49,8 +49,8 @@ class KeepFileTest : DriverTest() {
                     @SuppressWarnings("ALL")
                     public interface MyInterface2<T extends Number>
                             extends MyBaseInterface {
-                        class TtsSpan<C extends MyInterface<?>> { }
-                        abstract class Range<T extends Comparable<? super T>> {
+                        public class TtsSpan<C extends MyInterface<?>> { }
+                        public abstract class Range<T extends Comparable<? super T>> {
                             protected String myString;
                         }
                     }

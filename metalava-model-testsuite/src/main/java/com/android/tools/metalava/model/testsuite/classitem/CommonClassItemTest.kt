@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.VariableTypeItem
+import com.android.tools.metalava.model.testing.testTypeString
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.KnownSourceFiles.typeUseOnlyNonNullSource
 import com.android.tools.metalava.testing.KnownSourceFiles.typeUseOnlyNullableSource
@@ -66,7 +67,6 @@ class CommonClassItemTest : BaseModelTest() {
             assertEquals("Test", testClass.fullName())
             assertEquals("test/pkg/Test", testClass.internalName())
             assertEquals("test.pkg.Test", testClass.qualifiedName())
-            assertEquals("test.pkg.Test", testClass.qualifiedNameWithDollarNestedClasses())
             assertEquals(1, testClass.constructors().size)
             assertEquals(emptyList(), testClass.methods())
             assertEquals(emptyList(), testClass.fields())
@@ -654,7 +654,7 @@ class CommonClassItemTest : BaseModelTest() {
             val superClassType = fooClass.superClassType()!!
             assertEquals(
                 "test.pkg.Generic<java.lang.String?,java.lang.Integer>",
-                superClassType.toTypeString(kotlinStyleNulls = true)
+                superClassType.testTypeString(kotlinStyleNulls = true)
             )
         }
     }
@@ -717,7 +717,7 @@ class CommonClassItemTest : BaseModelTest() {
             val superClassType = fooClass.interfaceTypes().single()
             assertEquals(
                 "test.pkg.Generic<java.lang.String?,java.lang.Integer>",
-                superClassType.toTypeString(kotlinStyleNulls = true)
+                superClassType.testTypeString(kotlinStyleNulls = true)
             )
         }
     }
@@ -1440,7 +1440,7 @@ class CommonClassItemTest : BaseModelTest() {
 
                 val parameterType = inheritedMethod.parameters().single().type()
                 assertWithMessage("testing type of $name")
-                    .that(parameterType.toTypeString(kotlinStyleNulls = true))
+                    .that(parameterType.testTypeString(kotlinStyleNulls = true))
                     .isEqualTo(expectedTypes[name])
             }
         }
@@ -1494,7 +1494,7 @@ class CommonClassItemTest : BaseModelTest() {
                 val returnType = inheritedMethod.returnType()
                 val (expectedType, expectedNullability) = expectedTypesAndNullability[name]!!
                 assertWithMessage("testing type of $name")
-                    .that(returnType.toTypeString(kotlinStyleNulls = true))
+                    .that(returnType.testTypeString(kotlinStyleNulls = true))
                     .isEqualTo(expectedType)
 
                 assertWithMessage("testing type nullability of $name")

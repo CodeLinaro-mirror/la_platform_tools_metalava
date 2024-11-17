@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.testing.testTypeString
 import com.google.common.truth.Truth.assertThat
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -64,6 +65,35 @@ interface Assertions {
         val packageItem = findPackage(pkgName)
         assertNotNull(packageItem, message = "Expected $pkgName to be defined")
         return packageItem
+    }
+
+    /**
+     * Return a dump of the state of [SelectableItem.selectedApiVariants] across this [Codebase].
+     */
+    private fun Codebase.dumpSelectedApiVariants() = buildString {
+        accept(
+            object :
+                BaseItemVisitor(
+                    preserveClassNesting = true,
+                ) {
+                private var indent = ""
+
+                override fun visitSelectableItem(item: SelectableItem) {
+                    append("$indent${item.describe()} - ${item.selectedApiVariants}\n")
+                    indent += "  "
+                }
+
+                override fun afterVisitSelectableItem(item: SelectableItem) {
+                    indent = indent.substring(2)
+                }
+            }
+        )
+    }
+
+    /** Assert that the [dumpSelectedApiVariants] matches [expected]. */
+    fun Codebase.assertSelectedApiVariants(expected: String, message: String? = null) {
+        val actual = dumpSelectedApiVariants()
+        assertEquals(expected.trimIndent(), actual.trimEnd(), message)
     }
 
     /** Get the field from the [ClassItem], failing if it does not exist. */
@@ -158,10 +188,10 @@ interface Assertions {
         append(name())
         append("(")
         parameters().joinTo(this) {
-            "${it.name()}: ${it.type().toTypeString(kotlinStyleNulls = true)}"
+            "${it.name()}: ${it.type().testTypeString(kotlinStyleNulls = true)}"
         }
         append("): ")
-        append(returnType().toTypeString(kotlinStyleNulls = true))
+        append(returnType().testTypeString(kotlinStyleNulls = true))
     }
 
     /** Get the list of fully qualified annotation names associated with the [TypeItem]. */

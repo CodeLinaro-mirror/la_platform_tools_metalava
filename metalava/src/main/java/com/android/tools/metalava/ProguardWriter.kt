@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava
 
-import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DelegatedVisitor
@@ -24,6 +23,7 @@ import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.TypeStringConfiguration
 import com.android.tools.metalava.model.VisibilityLevel
 import java.io.PrintWriter
 
@@ -33,7 +33,7 @@ class ProguardWriter(
 
     override fun visitClass(cls: ClassItem) {
         writer.print("-keep class ")
-        writer.print(cls.qualifiedNameWithDollarNestedClasses())
+        writer.print(getCleanTypeName(cls.type()))
         writer.print(" {\n")
     }
 
@@ -117,9 +117,15 @@ class ProguardWriter(
     }
 
     private fun getCleanTypeName(t: TypeItem?): String {
-        t ?: return ""
-        if (t is ArrayTypeItem) return getCleanTypeName(t.componentType) + "[]"
-        val cls = t.asClass() ?: return t.toCanonicalType()
-        return cls.qualifiedNameWithDollarNestedClasses()
+        return t?.toTypeString(PROGUARD_TYPE_STRING_CONFIGURATION) ?: ""
+    }
+
+    companion object {
+        private val PROGUARD_TYPE_STRING_CONFIGURATION =
+            TypeStringConfiguration(
+                eraseGenerics = true,
+                nestedClassSeparator = '$',
+                treatVarargsAsArray = true,
+            )
     }
 }

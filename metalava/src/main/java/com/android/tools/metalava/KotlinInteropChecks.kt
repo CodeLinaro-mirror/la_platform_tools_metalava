@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
@@ -51,6 +52,12 @@ class KotlinInteropChecks(val reporter: Reporter) {
             ensureMethodNameNotKeyword(method)
             ensureParameterNamesNotKeywords(method)
             ensureLambdaLastParameter(method)
+        }
+    }
+
+    fun checkClass(cls: ClassItem, isKotlin: Boolean = cls.isKotlin()) {
+        if (isKotlin) {
+            disallowValueClasses(cls)
         }
     }
 
@@ -268,6 +275,16 @@ class KotlinInteropChecks(val reporter: Reporter) {
         }
 
         return parameter.isSamCompatibleOrKotlinLambda()
+    }
+
+    private fun disallowValueClasses(cls: ClassItem) {
+        if (cls.modifiers.isValue()) {
+            reporter.report(
+                Issues.VALUE_CLASS_DEFINITION,
+                cls,
+                "Value classes should not be public in APIs targeting Java clients."
+            )
+        }
     }
 
     private fun isKotlinHardKeyword(keyword: String): Boolean {

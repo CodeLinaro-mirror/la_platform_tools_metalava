@@ -76,9 +76,9 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
         val typedefMode: TypedefMode = TypedefMode.NONE,
         val apiPredicate: FilterPredicate = FilterPredicate { true },
         /**
-         * Provider of a [List] of [Codebase] objects that will be used when reverting flagged APIs.
+         * Provider of an optional [Codebase] object that will be used when reverting flagged APIs.
          */
-        val previouslyReleasedCodebasesProvider: () -> List<Codebase> = { emptyList() },
+        val previouslyReleasedCodebaseProvider: () -> Codebase? = { null },
     )
 
     /**
@@ -617,26 +617,21 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
     }
 
     /**
-     * Local cache of the previously released codebases to avoid calling the provider for every
+     * Local cache of the previously released codebase to avoid calling the provider for every
      * affected item.
      */
-    private val previouslyReleasedCodebases by
-        lazy(LazyThreadSafetyMode.NONE) { config.previouslyReleasedCodebasesProvider() }
+    private val previouslyReleasedCodebase by
+        lazy(LazyThreadSafetyMode.NONE) { config.previouslyReleasedCodebaseProvider() }
 
     /**
      * Find the item to which [item] will be reverted.
      *
-     * Searches first the previously released API (if present) and then the previously released
-     * removed API (if present).
+     * Searches the previously released API (if available).
      */
     private fun findRevertItem(item: SelectableItem): SelectableItem? {
-        for (oldCodebase in previouslyReleasedCodebases) {
-            item.findCorrespondingItemIn(oldCodebase)?.let {
-                return it
-            }
+        return previouslyReleasedCodebase?.let { codebase ->
+            item.findCorrespondingItemIn(codebase)
         }
-
-        return null
     }
 
     override val typedefMode: TypedefMode = config.typedefMode
