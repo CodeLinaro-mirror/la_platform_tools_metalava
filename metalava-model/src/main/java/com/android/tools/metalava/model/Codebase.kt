@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.reporter.BasicReporter
 import com.android.tools.metalava.reporter.Reporter
 import java.io.File
@@ -42,6 +43,9 @@ interface Codebase {
 
     /** The manager of annotations within this codebase. */
     val annotationManager: AnnotationManager
+
+    /** The [ApiSurfaces] that will be tracked in this [Codebase]. */
+    val apiSurfaces: ApiSurfaces
 
     /** The packages in the codebase (may include packages that are not included in the API) */
     fun getPackages(): PackageList
@@ -134,11 +138,17 @@ interface Codebase {
         /** Determines how annotations will affect the [Codebase]. */
         val annotationManager: AnnotationManager,
 
+        /** The [ApiSurfaces] that will be tracked in the [Codebase]. */
+        val apiSurfaces: ApiSurfaces = ApiSurfaces.DEFAULT,
+
         /** The reporter to use for issues found during processing of the [Codebase]. */
         val reporter: Reporter = BasicReporter.ERR,
     ) {
         companion object {
-            /** A [Config] containing a [noOpAnnotationManager] and no reporter. */
+            /**
+             * A [Config] containing a [noOpAnnotationManager], [ApiSurfaces.DEFAULT] and no
+             * reporter.
+             */
             val NOOP =
                 Config(
                     annotationManager = noOpAnnotationManager,

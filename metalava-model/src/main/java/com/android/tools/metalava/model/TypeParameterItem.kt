@@ -60,9 +60,15 @@ interface TypeParameterItem {
                         append(" ")
                     }
                     first = false
-                    append(bound.toTypeString(spaceBetweenParameters = true))
+                    append(bound.toTypeString(SOURCE_TYPE_STRING_CONFIGURATION))
                 }
             }
         }
+    }
+
+    companion object {
+        /** [TypeStringConfiguration] for use by [toSource]. */
+        private val SOURCE_TYPE_STRING_CONFIGURATION =
+            TypeStringConfiguration(spaceBetweenParameters = true)
     }
 }

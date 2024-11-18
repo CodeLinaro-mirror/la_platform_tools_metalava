@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.text
 
+import com.android.tools.metalava.model.StripJavaLangPrefix
 import java.io.LineNumberReader
 import java.io.StringReader
 import java.nio.file.Path
@@ -29,6 +30,7 @@ val DEFAULTABLE_PROPERTY_NAMES =
         "add-additional-overrides",
         "overloaded-method-order",
         "sort-whole-extends-list",
+        "strip-java-lang-prefix",
     )
 
 val DEFAULTABLE_PROPERTIES = DEFAULTABLE_PROPERTY_NAMES.joinToString { "'$it'" }
@@ -454,6 +456,25 @@ class FileFormatTest {
             format =
                 FileFormat.V5.copy(
                     specifiedOverloadedMethodOrder = FileFormat.OverloadedMethodOrder.SOURCE,
+                    migrating = "test",
+                ),
+        )
+    }
+
+    @Test
+    fun `Check header and specifier (v5 + strip-java-lang-prefix=always)`() {
+        headerAndSpecifierTest(
+            header =
+                """
+                    // Signature format: 5.0
+                    // - migrating=test
+                    // - strip-java-lang-prefix=always
+
+                """,
+            specifier = "5.0:migrating=test,strip-java-lang-prefix=always",
+            format =
+                FileFormat.V5.copy(
+                    specifiedStripJavaLangPrefix = StripJavaLangPrefix.ALWAYS,
                     migrating = "test",
                 ),
         )
