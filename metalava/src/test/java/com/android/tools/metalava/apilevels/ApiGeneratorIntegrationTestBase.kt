@@ -25,18 +25,17 @@ import org.junit.BeforeClass
 
 abstract class ApiGeneratorIntegrationTestBase : DriverTest() {
     companion object {
-        // As per ApiConstraint that uses a bit vector, API has to be between 1..61.
-        internal const val MAGIC_VERSION_INT = 57 // [SdkVersionInfo.MAX_LEVEL] - 4
+        // A version higher than SdkVersionInfo.HIGHEST_KNOWN_API.
+        // 57 was chosen because previously ApiConstraint used a bit vector requiring that an API
+        // version had to be between 1..61.
+        internal const val MAGIC_VERSION_INT = 57
         internal const val MAGIC_VERSION_STR = MAGIC_VERSION_INT.toString()
+        private val ABOVE_HIGHEST_API = ApiConstraint.above(SdkVersionInfo.HIGHEST_KNOWN_API)
 
         @JvmStatic
         @BeforeClass
         fun beforeClass() {
-            assert(MAGIC_VERSION_INT > SdkVersionInfo.HIGHEST_KNOWN_API)
-            // Trigger <clinit> of [SdkApiConstraint] to call `isValidApiLevel` in its companion
-            ApiConstraint.UNKNOWN
-            // This checks if MAGIC_VERSION_INT is not bigger than [SdkVersionInfo.MAX_LEVEL]
-            assert(ApiConstraint.SdkApiConstraint.isValidApiLevel(MAGIC_VERSION_INT))
+            assert(ABOVE_HIGHEST_API.includes(MAGIC_VERSION_INT))
         }
 
         internal val oldSdkJars by

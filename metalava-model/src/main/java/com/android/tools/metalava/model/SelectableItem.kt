@@ -16,6 +16,10 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.api.surface.ApiVariant
+import com.android.tools.metalava.model.api.surface.ApiVariantSet
+import com.android.tools.metalava.model.api.surface.MutableApiVariantSet
+
 /**
  * An [Item] that can be selected to be a part of an API in its own right.
  *
@@ -27,6 +31,18 @@ package com.android.tools.metalava.model
  * an indivisible part of the [ParameterItem.containingCallable].
  */
 interface SelectableItem : Item {
+    /** The [ApiVariant]s for which this [Item] has been selected. */
+    val selectedApiVariants: ApiVariantSet
+
+    /**
+     * Mutate [selectedApiVariants].
+     *
+     * Provides a [MutableApiVariantSet] of the [selectedApiVariants] that can be modified by
+     * [mutator]. Once the mutator exits [selectedApiVariants] will be updated. The
+     * [MutableApiVariantSet] must not be accessed from outside [mutator].
+     */
+    fun mutateSelectedApiVariants(mutator: MutableApiVariantSet.() -> Unit)
+
     /** Whether this element will be printed in the signature file */
     var emit: Boolean
 

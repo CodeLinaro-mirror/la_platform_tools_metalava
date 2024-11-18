@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.testsuite.methoditem
 
 import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.testTypeString
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
@@ -310,7 +311,7 @@ class CommonParameterItemTest : BaseModelTest() {
                 // outermost type is affected by the not-type-use nullability annotation.
                 val type = method.parameters().single().type()
                 assertWithMessage(name)
-                    .that(type.toTypeString(kotlinStyleNulls = true))
+                    .that(type.testTypeString(kotlinStyleNulls = true))
                     .isEqualTo(expectedType)
             }
         }
@@ -372,7 +373,7 @@ class CommonParameterItemTest : BaseModelTest() {
                 // outermost type is affected by the not-type-use nullability annotation.
                 val type = method.parameters().single().type()
                 assertWithMessage(name)
-                    .that(type.toTypeString(kotlinStyleNulls = true))
+                    .that(type.testTypeString(kotlinStyleNulls = true))
                     .isEqualTo(expectedType)
             }
         }
@@ -429,7 +430,7 @@ class CommonParameterItemTest : BaseModelTest() {
                 // outermost type is affected by the not-type-use nullability annotation.
                 val type = method.parameters().single().type()
                 assertWithMessage(name)
-                    .that(type.toTypeString(kotlinStyleNulls = true))
+                    .that(type.testTypeString(kotlinStyleNulls = true))
                     .isEqualTo(expectedType)
             }
         }
@@ -480,7 +481,7 @@ class CommonParameterItemTest : BaseModelTest() {
                 val type = parameterItem.type()
                 val expectedType = expectedTypes[name]!!
                 assertWithMessage("$name type")
-                    .that(type.toTypeString(kotlinStyleNulls = true))
+                    .that(type.testTypeString(kotlinStyleNulls = true))
                     .isEqualTo(expectedType)
             }
         }
@@ -517,7 +518,7 @@ class CommonParameterItemTest : BaseModelTest() {
                 val type = parameterItem.type()
                 val expectedType = expectedTypes[name]!!
                 assertWithMessage(name)
-                    .that(type.toTypeString(kotlinStyleNulls = true))
+                    .that(type.testTypeString(kotlinStyleNulls = true))
                     .isEqualTo(expectedType)
             }
         }
@@ -554,7 +555,7 @@ class CommonParameterItemTest : BaseModelTest() {
                 val type = parameterItem.type()
                 val expectedType = expectedTypes[name]!!
                 assertWithMessage("$name type")
-                    .that(type.toTypeString(kotlinStyleNulls = true))
+                    .that(type.testTypeString(kotlinStyleNulls = true))
                     .isEqualTo(expectedType)
             }
         }

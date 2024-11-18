@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.testsuite.classitem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
+import com.android.tools.metalava.model.testing.testTypeString
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.kotlin
 import com.google.common.truth.Truth.assertThat
@@ -52,7 +53,7 @@ class CommonDataClassTest : BaseModelTest() {
 
             val fields =
                 fooClass.fields().joinToString(separator = "\n") {
-                    "${it.name()}: ${it.type().toTypeString(kotlinStyleNulls = true)}"
+                    "${it.name()}: ${it.type().testTypeString(kotlinStyleNulls = true)}"
                 }
             assertEquals(
                 """
@@ -170,7 +171,7 @@ class CommonDataClassTest : BaseModelTest() {
 
             val allMembers =
                 (fooClass.fields().asSequence().map {
-                        "${it.name()}: ${it.type().toTypeString(kotlinStyleNulls = true)}"
+                        "${it.name()}: ${it.type().testTypeString(kotlinStyleNulls = true)}"
                     } +
                         (fooClass.constructors().asSequence() + fooClass.methods().asSequence())
                             .map { it.kotlinLikeDescription() })
