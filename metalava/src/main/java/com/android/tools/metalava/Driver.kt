@@ -235,7 +235,6 @@ internal fun processFlags(
                 ApiGenerator.SdkExtensionsArguments(
                     sdkJarRoot,
                     sdkInfoFile,
-                    options.latestReleasedSdkExtension
                 )
             } else {
                 null
@@ -267,7 +266,7 @@ internal fun processFlags(
             apiLevelJars,
             options.firstApiLevel,
             options.currentApiLevel,
-            options.isDeveloperPreviewBuild(),
+            options.isDeveloperPreviewBuild,
             androidApiLevelXml,
             codebaseFragment,
             sdkExtArgs,
@@ -280,7 +279,15 @@ internal fun processFlags(
             error("Codebase does not support documentation, so it cannot be enhanced.")
         }
         progressTracker.progress("Enhancing docs: ")
-        val docAnalyzer = DocAnalyzer(executionEnvironment, codebase, reporter)
+        val docAnalyzer =
+            DocAnalyzer(
+                executionEnvironment,
+                codebase,
+                reporter,
+                options.apiLevelLabelProvider,
+                options.includeApiLevelInDocumentation,
+                options.apiPredicateConfig,
+            )
         docAnalyzer.enhance()
         val applyApiLevelsXml = options.applyApiLevelsXml
         if (applyApiLevelsXml != null) {

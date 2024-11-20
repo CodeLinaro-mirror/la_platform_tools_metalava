@@ -278,11 +278,6 @@ $EXPECTED_HELP
 
     @Test
     fun `Test deprecated lowercase matching in issue configuration options`() {
-        // Temporarily set [options] as it is needed by the [ReporterOptions.reporter] when
-        // reporting [Issues.DEPRECATED_OPTION].
-        @Suppress("DEPRECATION")
-        options = Options()
-
         commandTest {
             args +=
                 listOf(

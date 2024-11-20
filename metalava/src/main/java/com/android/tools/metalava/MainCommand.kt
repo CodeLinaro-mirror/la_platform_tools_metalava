@@ -139,6 +139,7 @@ class MainCommand(
      */
     internal val optionGroup by
         Options(
+            executionEnvironment = executionEnvironment,
             commonOptions = commonOptions,
             sourceOptions = sourceOptions,
             issueReportingOptions = issueReportingOptions,
@@ -179,7 +180,7 @@ class MainCommand(
         val remainingArgs = flags.toTypedArray()
 
         // Parse any remaining arguments
-        optionGroup.parse(executionEnvironment, remainingArgs)
+        optionGroup.parse(remainingArgs)
 
         // Update the global options.
         @Suppress("DEPRECATION")

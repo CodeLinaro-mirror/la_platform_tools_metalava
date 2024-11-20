@@ -58,7 +58,6 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
                     notFinalizedApiLevel,
                     sdkExtensionsArguments.sdkExtJarRoot,
                     sdkExtensionsArguments.sdkExtInfoFile,
-                    sdkExtensionsArguments.skipVersionsGreaterThan
                 )
         }
         api.clean()
@@ -155,10 +154,9 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
         apiLevelNotInAndroidSdk: Int,
         sdkJarRoot: File,
         filterPath: File,
-        skipVersionsGreaterThan: Int?
     ): Set<SdkIdentifier> {
         val rules = filterPath.readText()
-        val map = findExtensionSdkJarFiles(sdkJarRoot, skipVersionsGreaterThan)
+        val map = findExtensionSdkJarFiles(sdkJarRoot)
         require(map.isNotEmpty()) { "no extension sdk jar files found in $sdkJarRoot" }
         val moduleMaps: MutableMap<String, ApiToExtensionsMap> = HashMap()
         for ((mainlineModule, value) in map) {
@@ -241,6 +239,5 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
     data class SdkExtensionsArguments(
         var sdkExtJarRoot: File,
         var sdkExtInfoFile: File,
-        var skipVersionsGreaterThan: Int?
     )
 }

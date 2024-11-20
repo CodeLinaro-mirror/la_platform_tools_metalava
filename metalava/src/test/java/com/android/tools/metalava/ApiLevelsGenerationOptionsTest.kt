@@ -40,7 +40,6 @@ Api Levels Generation:
                                              character that will be replaced with each API level that is being included
                                              and if the result is an existing jar file then it will be taken as the
                                              definition of the API at that level.
-  --current-jar <android-jar>                Points to the current API jar, if any.
   --sdk-extensions-root <sdk-jar-root>       Points to root of prebuilt extension SDK jars, if any. This directory is
                                              expected to contain snapshots of historical extension SDK versions in the
                                              form of stub jars. The paths should be on the format
@@ -61,9 +60,6 @@ Api Levels Generation:
                                              SDK). Fields are separated by whitespace. A mainline module may be listed
                                              multiple times. The special pattern \"*\" refers to all APIs in the given
                                              mainline module. Lines beginning with # are comments.
-  --hide-sdk-extensions-newer-than <numeric-version>
-                                             Ignore SDK extensions version INT and above. Used to exclude finalized but
-                                             not yet released SDK extensions.
     """
         .trimIndent()
 

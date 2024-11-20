@@ -40,7 +40,6 @@ const val ARG_FIRST_VERSION = "--first-version"
 const val ARG_CURRENT_CODENAME = "--current-codename"
 
 const val ARG_ANDROID_JAR_PATTERN = "--android-jar-pattern"
-const val ARG_CURRENT_JAR = "--current-jar"
 
 const val ARG_SDK_JAR_ROOT = "--sdk-extensions-root"
 const val ARG_SDK_INFO_FILE = "--sdk-extensions-info"
@@ -123,7 +122,7 @@ class ApiLevelsGenerationOptions :
      * The codename of the codebase: non-null string if this is a developer preview build, null if
      * this is a release build.
      */
-    val currentCodeName: String? by
+    private val currentCodeName: String? by
         option(
                 ARG_CURRENT_CODENAME,
                 metavar = "<version-codename>",
@@ -134,6 +133,10 @@ class ApiLevelsGenerationOptions :
                         .trimIndent(),
             )
             .map { if (it == "REL") null else it }
+
+    /** True if [currentCodeName] is specified, false otherwise. */
+    val isDeveloperPreviewBuild
+        get() = currentCodeName != null
 
     /** The list of patterns used to find matching jars in the set of files visible to Metalava. */
     val androidJarPatterns: List<String> by
@@ -158,22 +161,6 @@ class ApiLevelsGenerationOptions :
                     add("prebuilts/sdk/%/public/android.jar")
                 }
             }
-
-    /**
-     * Optional path to a jar that defines the current API surface for which API levels are being
-     * generated.
-     */
-    val currentJar: File? by
-        option(
-                ARG_CURRENT_JAR,
-                metavar = "<android-jar>",
-                help =
-                    """
-                        Points to the current API jar, if any.
-                    """
-                        .trimIndent(),
-            )
-            .existingFile()
 
     /** Directory of prebuilt extension SDK jars that contribute to the API */
     val sdkJarRoot: File? by
@@ -223,22 +210,34 @@ class ApiLevelsGenerationOptions :
             .existingFile()
 
     /**
-     * The latest publicly released SDK extension version. When generating docs for d.android.com,
-     * the SDK extensions that have been finalized but not yet publicly released should be excluded
-     * from the docs.
+     * Get label for [level].
      *
-     * If null, the docs will include all SDK extensions.
+     * If a codename has been specified and [level] is greater than the current API level (which
+     * defaults to `-1` when not set) then use the codename as the label, otherwise use the number
+     * itself.
      */
-    val latestReleasedSdkExtension by
-        option(
-                "--hide-sdk-extensions-newer-than",
-                metavar = "<numeric-version>",
-                help =
-                    """
-                        Ignore SDK extensions version INT and above. Used to exclude finalized but 
-                        not yet released SDK extensions.
-                    """
-                        .trimIndent()
-            )
-            .int()
+    fun getApiLevelLabel(level: Int): String {
+        val codename = currentCodeName
+        val current = currentApiLevel
+        return if (current == null || codename == null || level <= current) level.toString()
+        else codename
+    }
+
+    /**
+     * Check whether [level] should be included in documentation.
+     *
+     * If [isDeveloperPreviewBuild] is `true` then allow any API level as the documentation is not
+     * going to be published outside Android, so it is safe to include all API levels, including the
+     * next one.
+     *
+     * If no [currentApiLevel] has been provided then allow any API level as there is no way to
+     * determine whether the API level is a future API or not.
+     *
+     * Otherwise, it is a release build so ignore any API levels after the current one.
+     */
+    fun includeApiLevelInDocumentation(level: Int): Boolean {
+        if (isDeveloperPreviewBuild) return true
+        val current = currentApiLevel ?: return true
+        return level <= current
+    }
 }

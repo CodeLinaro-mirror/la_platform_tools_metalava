@@ -42,6 +42,8 @@ import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions.Ch
 import com.android.tools.metalava.cli.lint.ApiLintOptions
 import com.android.tools.metalava.cli.signature.SignatureFormatOptions
 import com.android.tools.metalava.config.ConfigParser
+import com.android.tools.metalava.doc.ApiLevelFilter
+import com.android.tools.metalava.doc.ApiLevelLabelProvider
 import com.android.tools.metalava.manifest.Manifest
 import com.android.tools.metalava.manifest.emptyManifest
 import com.android.tools.metalava.model.AnnotationManager
@@ -193,6 +195,7 @@ const val ARG_SOURCE_MODEL_PROVIDER = "--source-model-provider"
 const val ARG_CONFIG_FILE = "--config-file"
 
 class Options(
+    private val executionEnvironment: ExecutionEnvironment = ExecutionEnvironment(),
     private val commonOptions: CommonOptions = CommonOptions(),
     private val sourceOptions: SourceOptions = SourceOptions(),
     private val issueReportingOptions: IssueReportingOptions =
@@ -207,9 +210,6 @@ class Options(
     private val apiLevelsGenerationOptions: ApiLevelsGenerationOptions =
         ApiLevelsGenerationOptions(),
 ) : OptionGroup() {
-    /** Execution environment; initialized in [parse]. */
-    private lateinit var executionEnvironment: ExecutionEnvironment
-
     /** Writer to direct output to. */
     val stdout: PrintWriter
         get() = executionEnvironment.stdout
@@ -616,10 +616,6 @@ class Options(
     /** mapping from API level to android.jar files, if computing API levels */
     var apiLevelJars: Array<File>? = null
 
-    /** Get the [ARG_CURRENT_VERSION] or if that was not specified then return [default]. */
-    fun currentApiLevelOrDefault(default: Int): Int =
-        apiLevelsGenerationOptions.currentApiLevel ?: default
-
     /**
      * Get the current API level.
      *
@@ -635,12 +631,17 @@ class Options(
 
     val firstApiLevel by apiLevelsGenerationOptions::firstApiLevel
 
-    val currentCodeName by apiLevelsGenerationOptions::currentCodeName
+    val isDeveloperPreviewBuild by apiLevelsGenerationOptions::isDeveloperPreviewBuild
 
     val generateApiLevelXml by apiLevelsGenerationOptions::generateApiLevelXml
 
     val removeMissingClassesInApiLevels by
         apiLevelsGenerationOptions::removeMissingClassReferencesInApiLevels
+
+    val apiLevelLabelProvider: ApiLevelLabelProvider = apiLevelsGenerationOptions::getApiLevelLabel
+
+    val includeApiLevelInDocumentation: ApiLevelFilter =
+        apiLevelsGenerationOptions::includeApiLevelInDocumentation
 
     /** Reads API XML file to apply into documentation */
     var applyApiLevelsXml: File? = null
@@ -648,8 +649,6 @@ class Options(
     val sdkJarRoot: File? by apiLevelsGenerationOptions::sdkJarRoot
 
     val sdkInfoFile: File? by apiLevelsGenerationOptions::sdkInfoFile
-
-    val latestReleasedSdkExtension by apiLevelsGenerationOptions::latestReleasedSdkExtension
 
     /** API version history JSON file to generate */
     var generateApiVersionsJson: File? = null
@@ -741,12 +740,7 @@ class Options(
                     .trimIndent()
             )
 
-    fun parse(
-        executionEnvironment: ExecutionEnvironment,
-        args: Array<String>,
-    ) {
-        this.executionEnvironment = executionEnvironment
-
+    fun parse(args: Array<String>) {
         var index = 0
         while (index < args.size) {
             when (val arg = args[index]) {
@@ -890,8 +884,7 @@ class Options(
                 findAndroidJars(
                     patterns,
                     firstApiLevel,
-                    currentApiLevel + if (isDeveloperPreviewBuild()) 1 else 0,
-                    apiLevelsGenerationOptions.currentJar,
+                    currentApiLevel + if (isDeveloperPreviewBuild) 1 else 0,
                 )
         }
 
@@ -993,8 +986,6 @@ class Options(
             config = issueReportingOptions.reporterConfig,
         )
 
-    fun isDeveloperPreviewBuild(): Boolean = currentCodeName != null
-
     /** Update the classpath to insert android.jar or JDK classpath elements if necessary */
     private fun updateClassPath() {
         val sdkHome = sdkHome
@@ -1032,7 +1023,6 @@ class Options(
         androidJarPatterns: List<String>,
         minApi: Int,
         currentApiLevel: Int,
-        currentJar: File?
     ): Array<File> {
         val apiLevelFiles = mutableListOf<File>()
         // api level 0: placeholder, should not be processed.
@@ -1046,13 +1036,7 @@ class Options(
         // Get all the android.jar. They are in platforms-#
         for (apiLevel in minApi.rangeTo(currentApiLevel)) {
             try {
-                var jar: File? = null
-                if (apiLevel == currentApiLevel) {
-                    jar = currentJar
-                }
-                if (jar == null) {
-                    jar = getAndroidJarFile(apiLevel, androidJarPatterns)
-                }
+                val jar = getAndroidJarFile(apiLevel, androidJarPatterns)
                 if (jar == null || !jar.isFile) {
                     if (verbose) {
                         stdout.println("Last API level found: ${apiLevel - 1}")
