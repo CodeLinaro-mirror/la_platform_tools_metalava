@@ -17,21 +17,18 @@
 package com.android.tools.metalava.apilevels
 
 import com.google.gson.GsonBuilder
-import java.io.File
-import java.io.PrintStream
+import java.io.PrintWriter
 
 /**
  * Handles converting an [Api] to a JSON version history file.
  *
  * @param apiVersionNames The names of the API versions, ordered starting from version 1.
  */
-internal class ApiJsonPrinter(private val apiVersionNames: List<String>) {
-    /** Writes the [api] as JSON to the [outputFile] */
-    fun print(api: Api, outputFile: File) {
+internal class ApiJsonPrinter(private val apiVersionNames: List<String>) : ApiPrinter {
+    override fun print(api: Api, writer: PrintWriter) {
         val gson = GsonBuilder().disableHtmlEscaping().create()
         val json = api.toJson()
-        val printStream = PrintStream(outputFile)
-        gson.toJson(json, printStream)
+        gson.toJson(json, writer)
     }
 
     private fun Api.toJson() = classes.map { it.toJson() }

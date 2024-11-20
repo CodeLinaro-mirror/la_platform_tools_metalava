@@ -27,8 +27,8 @@ class SnapshotCodebaseTransformer : CodebaseTransformer {
         val fragment =
             CodebaseFragment.create(
                     codebase,
-                    // Emit only those Items from the original which have `emit=true`.
-                    ::EmittableDelegatingVisitor,
+                    // Copy every Item from the input.
+                    ::NonFilteringDelegatingVisitor,
                 )
                 .snapshotIncludingRevertedItems(
                     // Allow references to any Item in the original.

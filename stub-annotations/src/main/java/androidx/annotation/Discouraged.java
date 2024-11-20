@@ -21,13 +21,13 @@ import static java.lang.annotation.ElementType.FIELD;
 import static java.lang.annotation.ElementType.METHOD;
 import static java.lang.annotation.ElementType.PARAMETER;
 import static java.lang.annotation.ElementType.TYPE;
-import static java.lang.annotation.RetentionPolicy.SOURCE;
+import static java.lang.annotation.RetentionPolicy.CLASS;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.Target;
 
 /** Stub only annotation. Do not use directly. */
-@Retention(SOURCE)
+@Retention(CLASS)
 @Target({CONSTRUCTOR, FIELD, METHOD, PARAMETER, TYPE})
 public @interface Discouraged {
     /**

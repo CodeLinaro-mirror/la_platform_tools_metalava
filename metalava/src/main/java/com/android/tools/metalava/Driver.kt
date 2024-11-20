@@ -55,8 +55,11 @@ import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.tools.metalava.model.text.SignatureFile
 import com.android.tools.metalava.model.visitors.ApiFilters
+import com.android.tools.metalava.model.visitors.ApiPredicate
+import com.android.tools.metalava.model.visitors.ApiType
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.model.visitors.FilteringApiVisitor
+import com.android.tools.metalava.model.visitors.MatchOverridingMethodPredicate
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.stub.StubConstructorManager
 import com.android.tools.metalava.stub.StubWriter
@@ -222,8 +225,6 @@ internal fun processFlags(
     val apiLevelJars = options.apiLevelJars
     val apiGenerator = ApiGenerator(signatureFileCache)
     if (androidApiLevelXml != null && apiLevelJars != null) {
-        assert(options.currentApiLevel != -1)
-
         progressTracker.progress(
             "Generating API levels XML descriptor file, ${androidApiLevelXml.name}: "
         )
@@ -234,7 +235,6 @@ internal fun processFlags(
                 ApiGenerator.SdkExtensionsArguments(
                     sdkJarRoot,
                     sdkInfoFile,
-                    options.latestReleasedSdkExtension
                 )
             } else {
                 null
@@ -266,7 +266,7 @@ internal fun processFlags(
             apiLevelJars,
             options.firstApiLevel,
             options.currentApiLevel,
-            options.isDeveloperPreviewBuild(),
+            options.isDeveloperPreviewBuild,
             androidApiLevelXml,
             codebaseFragment,
             sdkExtArgs,
@@ -279,7 +279,15 @@ internal fun processFlags(
             error("Codebase does not support documentation, so it cannot be enhanced.")
         }
         progressTracker.progress("Enhancing docs: ")
-        val docAnalyzer = DocAnalyzer(executionEnvironment, codebase, reporter)
+        val docAnalyzer =
+            DocAnalyzer(
+                executionEnvironment,
+                codebase,
+                reporter,
+                options.apiLevelLabelProvider,
+                options.includeApiLevelInDocumentation,
+                options.apiPredicateConfig,
+            )
         docAnalyzer.enhance()
         val applyApiLevelsXml = options.applyApiLevelsXml
         if (applyApiLevelsXml != null) {
@@ -406,9 +414,10 @@ internal fun processFlags(
     }
 
     options.proguard?.let { proguard ->
-        val apiPredicateConfigIgnoreShown = options.apiPredicateConfig.copy(ignoreShown = true)
+        val apiPredicateConfig = options.apiPredicateConfig
+        val apiPredicateConfigIgnoreShown = apiPredicateConfig.copy(ignoreShown = true)
         val apiReferenceIgnoreShown = ApiPredicate(config = apiPredicateConfigIgnoreShown)
-        val apiEmit = MatchOverridingMethodPredicate(ApiPredicate())
+        val apiEmit = MatchOverridingMethodPredicate(ApiPredicate(config = apiPredicateConfig))
         val apiFilters = ApiFilters(emit = apiEmit, reference = apiReferenceIgnoreShown)
         createReportFile(progressTracker, codebase, proguard, "Proguard file") { printWriter ->
             ProguardWriter(printWriter).let { proguardWriter ->
