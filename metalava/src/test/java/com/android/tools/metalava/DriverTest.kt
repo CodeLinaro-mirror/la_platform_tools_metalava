@@ -486,7 +486,12 @@ abstract class DriverTest :
         includeSystemApiAnnotations: Boolean = false,
         /** Whether we should warn about super classes that are stripped because they are hidden */
         includeStrippedSuperclassWarnings: Boolean = false,
-        /** Apply level to XML */
+        /**
+         * Apply level to XML.
+         *
+         * This can either be the name of a file or the contents of the XML file. In the latter case
+         * the contents are trimmed and written to a file.
+         */
         applyApiLevelsXml: String? = null,
         /** Corresponds to SDK constants file broadcast_actions.txt */
         sdkBroadcastActions: String? = null,
@@ -909,7 +914,6 @@ abstract class DriverTest :
                 emptyArray()
             }
 
-        val applyApiLevelsXmlFile: File?
         val applyApiLevelsXmlArgs =
             if (applyApiLevelsXml != null) {
                 ApiLookup::class
@@ -917,8 +921,10 @@ abstract class DriverTest :
                     .getDeclaredMethod("dispose")
                     .apply { isAccessible = true }
                     .invoke(null)
-                applyApiLevelsXmlFile = temporaryFolder.newFile("api-versions.xml")
-                applyApiLevelsXmlFile?.writeText(applyApiLevelsXml.trimIndent())
+                val applyApiLevelsXmlFile =
+                    useExistingFileOrCreateNewFile(project, applyApiLevelsXml, "api-versions.xml") {
+                        it.trimIndent()
+                    }
                 arrayOf(ARG_APPLY_API_LEVELS, applyApiLevelsXmlFile.path)
             } else {
                 emptyArray()
@@ -1386,7 +1392,7 @@ abstract class DriverTest :
         }
 
         /**
-         * Get an optional signature API [File] from either a file path or its contents.
+         * Get a signature API [File] from either a file path or its contents.
          *
          * @param project the directory in which to create a new file.
          * @param fileOrFileContents either a path to an existing file or the contents of the
@@ -1396,16 +1402,34 @@ abstract class DriverTest :
          */
         private fun useExistingSignatureFileOrCreateNewFile(
             project: File,
-            fileOrFileContents: String?,
+            fileOrFileContents: String,
             newBasename: String
         ) =
-            fileOrFileContents?.let {
-                val maybeFile = File(fileOrFileContents)
+            useExistingFileOrCreateNewFile(project, fileOrFileContents, newBasename) {
+                prepareSignatureFileForTest(it, FileFormat.V2)
+            }
+
+        /**
+         * Get an optional [File] from either a file path or its contents.
+         *
+         * @param project the directory in which to create a new file.
+         * @param fileOrFileContents either a path to an existing file or the contents of the file.
+         *   If the latter the [transformer] will be applied to [fileOrFileContents] and written to
+         *   a new file created within [project].
+         * @param newBasename the basename of a new file created.
+         */
+        private fun useExistingFileOrCreateNewFile(
+            project: File,
+            fileOrFileContents: String,
+            newBasename: String,
+            transformer: (String) -> String,
+        ) =
+            File(fileOrFileContents).let { maybeFile ->
                 if (maybeFile.isFile) {
                     maybeFile
                 } else {
                     val file = findNonExistentFile(project, newBasename)
-                    file.writeSignatureText(fileOrFileContents)
+                    file.writeText(transformer(fileOrFileContents))
                     file
                 }
             }
@@ -1429,9 +1453,7 @@ abstract class DriverTest :
         ): Array<String> {
             if (isEmpty()) return emptyArray()
 
-            val paths = mapNotNull {
-                useExistingSignatureFileOrCreateNewFile(project, it, baseName)?.path
-            }
+            val paths = map { useExistingSignatureFileOrCreateNewFile(project, it, baseName).path }
 
             // For each path in the list generate an option with the path as the value.
             return paths.flatMap { listOf(optionName, it) }.toTypedArray()

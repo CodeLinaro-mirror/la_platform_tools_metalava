@@ -74,7 +74,6 @@ import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.unique
 import com.github.ajalt.clikt.parameters.types.choice
 import com.github.ajalt.clikt.parameters.types.file
-import com.github.ajalt.clikt.parameters.types.int
 import java.io.File
 import java.io.IOException
 import java.io.PrintWriter
@@ -173,14 +172,6 @@ const val ARG_REVERT_ANNOTATION = "--revert-annotation"
 const val ARG_SUPPRESS_COMPATIBILITY_META_ANNOTATION = "--suppress-compatibility-meta-annotation"
 const val ARG_SHOW_UNANNOTATED = "--show-unannotated"
 const val ARG_APPLY_API_LEVELS = "--apply-api-levels"
-const val ARG_GENERATE_API_LEVELS = "--generate-api-levels"
-const val ARG_REMOVE_MISSING_CLASS_REFERENCES_IN_API_LEVELS =
-    "--remove-missing-class-references-in-api-levels"
-const val ARG_ANDROID_JAR_PATTERN = "--android-jar-pattern"
-const val ARG_CURRENT_VERSION = "--current-version"
-const val ARG_FIRST_VERSION = "--first-version"
-const val ARG_CURRENT_CODENAME = "--current-codename"
-const val ARG_CURRENT_JAR = "--current-jar"
 const val ARG_GENERATE_API_VERSION_HISTORY = "--generate-api-version-history"
 const val ARG_API_VERSION_SIGNATURE_FILES = "--api-version-signature-files"
 const val ARG_API_VERSION_NAMES = "--api-version-names"
@@ -196,8 +187,6 @@ const val ARG_DELETE_EMPTY_REMOVED_SIGNATURES = "--delete-empty-removed-signatur
 const val ARG_SUBTRACT_API = "--subtract-api"
 const val ARG_TYPEDEFS_IN_SIGNATURES = "--typedefs-in-signatures"
 const val ARG_IGNORE_CLASSES_ON_CLASSPATH = "--ignore-classes-on-classpath"
-const val ARG_SDK_JAR_ROOT = "--sdk-extensions-root"
-const val ARG_SDK_INFO_FILE = "--sdk-extensions-info"
 const val ARG_USE_K2_UAST = "--Xuse-k2-uast"
 const val ARG_PROJECT = "--project"
 const val ARG_SOURCE_MODEL_PROVIDER = "--source-model-provider"
@@ -215,6 +204,8 @@ class Options(
     signatureFileOptions: SignatureFileOptions = SignatureFileOptions(),
     signatureFormatOptions: SignatureFormatOptions = SignatureFormatOptions(),
     stubGenerationOptions: StubGenerationOptions = StubGenerationOptions(),
+    private val apiLevelsGenerationOptions: ApiLevelsGenerationOptions =
+        ApiLevelsGenerationOptions(),
 ) : OptionGroup() {
     /** Execution environment; initialized in [parse]. */
     private lateinit var executionEnvironment: ExecutionEnvironment
@@ -625,53 +616,40 @@ class Options(
     /** mapping from API level to android.jar files, if computing API levels */
     var apiLevelJars: Array<File>? = null
 
-    /** The api level of the codebase, or -1 if not known/specified */
-    var currentApiLevel = -1
+    /** Get the [ARG_CURRENT_VERSION] or if that was not specified then return [default]. */
+    fun currentApiLevelOrDefault(default: Int): Int =
+        apiLevelsGenerationOptions.currentApiLevel ?: default
 
     /**
-     * The first api level of the codebase; typically 1 but can be higher for example for the System
-     * API.
+     * Get the current API level.
+     *
+     * This must only be called if needed as it will fail if [ARG_CURRENT_VERSION] has not been
+     * specified.
      */
-    var firstApiLevel = 1
+    val currentApiLevel: Int
+        get() =
+            apiLevelsGenerationOptions.currentApiLevel
+                ?: throw MetalavaCliException(
+                    stderr = "$ARG_GENERATE_API_LEVELS requires $ARG_CURRENT_VERSION"
+                )
 
-    /**
-     * The codename of the codebase: non-null string if this is a developer preview build, null if
-     * this is a release build.
-     */
-    var currentCodeName: String? = null
+    val firstApiLevel by apiLevelsGenerationOptions::firstApiLevel
 
-    /** API level XML file to generate */
-    var generateApiLevelXml: File? = null
+    val currentCodeName by apiLevelsGenerationOptions::currentCodeName
 
-    /** Whether references to missing classes should be removed from the api levels file. */
-    var removeMissingClassesInApiLevels: Boolean = false
+    val generateApiLevelXml by apiLevelsGenerationOptions::generateApiLevelXml
+
+    val removeMissingClassesInApiLevels by
+        apiLevelsGenerationOptions::removeMissingClassReferencesInApiLevels
 
     /** Reads API XML file to apply into documentation */
     var applyApiLevelsXml: File? = null
 
-    /** Directory of prebuilt extension SDK jars that contribute to the API */
-    var sdkJarRoot: File? = null
+    val sdkJarRoot: File? by apiLevelsGenerationOptions::sdkJarRoot
 
-    /**
-     * Rules to filter out some extension SDK APIs from the API, and assign extensions to the APIs
-     * that are kept
-     */
-    var sdkInfoFile: File? = null
+    val sdkInfoFile: File? by apiLevelsGenerationOptions::sdkInfoFile
 
-    /**
-     * The latest publicly released SDK extension version. When generating docs for d.android.com,
-     * the SDK extensions that have been finalized but not yet publicly released should be excluded
-     * from the docs.
-     *
-     * If null, the docs will include all SDK extensions.
-     */
-    val latestReleasedSdkExtension by
-        option(
-                "--hide-sdk-extensions-newer-than",
-                help =
-                    "Ignore SDK extensions version INT and above. Used to exclude finalized but not yet released SDK extensions."
-            )
-            .int()
+    val latestReleasedSdkExtension by apiLevelsGenerationOptions::latestReleasedSdkExtension
 
     /** API version history JSON file to generate */
     var generateApiVersionsJson: File? = null
@@ -769,9 +747,6 @@ class Options(
     ) {
         this.executionEnvironment = executionEnvironment
 
-        var androidJarPatterns: MutableList<String>? = null
-        var currentJar: File? = null
-
         var index = 0
         while (index < args.size) {
             when (val arg = args[index]) {
@@ -844,42 +819,9 @@ class Options(
                     externalAnnotations = stringToNewFile(getValue(args, ++index))
 
                 // Extracting API levels
-                ARG_ANDROID_JAR_PATTERN -> {
-                    val list =
-                        androidJarPatterns
-                            ?: run {
-                                val list = arrayListOf<String>()
-                                androidJarPatterns = list
-                                list
-                            }
-                    list.add(getValue(args, ++index))
-                }
-                ARG_CURRENT_VERSION -> {
-                    currentApiLevel = Integer.parseInt(getValue(args, ++index))
-                    if (currentApiLevel <= 26) {
-                        throw MetalavaCliException(
-                            "Suspicious currentApi=$currentApiLevel, expected at least 27"
-                        )
-                    }
-                }
-                ARG_FIRST_VERSION -> {
-                    firstApiLevel = Integer.parseInt(getValue(args, ++index))
-                }
-                ARG_CURRENT_CODENAME -> {
-                    val codeName = getValue(args, ++index)
-                    if (codeName != "REL") {
-                        currentCodeName = codeName
-                    }
-                }
-                ARG_CURRENT_JAR -> {
-                    currentJar = stringToExistingFile(getValue(args, ++index))
-                }
-                ARG_GENERATE_API_LEVELS -> {
-                    generateApiLevelXml = stringToNewFile(getValue(args, ++index))
-                }
                 ARG_APPLY_API_LEVELS -> {
                     applyApiLevelsXml =
-                        if (args.contains(ARG_GENERATE_API_LEVELS)) {
+                        if (apiLevelsGenerationOptions.generateApiLevelXml != null) {
                             // If generating the API file at the same time, it doesn't have
                             // to already exist
                             stringToNewFile(getValue(args, ++index))
@@ -887,8 +829,6 @@ class Options(
                             stringToExistingFile(getValue(args, ++index))
                         }
                 }
-                ARG_REMOVE_MISSING_CLASS_REFERENCES_IN_API_LEVELS ->
-                    removeMissingClassesInApiLevels = true
                 ARG_GENERATE_API_VERSION_HISTORY -> {
                     generateApiVersionsJson = stringToNewFile(getValue(args, ++index))
                 }
@@ -919,12 +859,6 @@ class Options(
                 ARG_PROJECT -> {
                     projectDescription = stringToExistingFile(getValue(args, ++index))
                 }
-                ARG_SDK_JAR_ROOT -> {
-                    sdkJarRoot = stringToExistingDir(getValue(args, ++index))
-                }
-                ARG_SDK_INFO_FILE -> {
-                    sdkInfoFile = stringToExistingFile(getValue(args, ++index))
-                }
                 "--temp-folder" -> {
                     tempFolder = stringToNewOrExistingDir(getValue(args, ++index))
                 }
@@ -951,26 +885,13 @@ class Options(
         }
 
         if (generateApiLevelXml != null) {
-            if (currentApiLevel == -1) {
-                throw MetalavaCliException(
-                    stderr = "$ARG_GENERATE_API_LEVELS requires $ARG_CURRENT_VERSION"
-                )
-            }
-
-            // <String> is redundant here but while IDE (with newer type inference engine
-            // understands that) the current 1.3.x compiler does not
-            @Suppress("RemoveExplicitTypeArguments")
-            val patterns = androidJarPatterns ?: run { mutableListOf<String>() }
-            // Fallbacks
-            patterns.add("prebuilts/tools/common/api-versions/android-%/android.jar")
-            patterns.add("prebuilts/sdk/%/public/android.jar")
+            val patterns = apiLevelsGenerationOptions.androidJarPatterns
             apiLevelJars =
                 findAndroidJars(
-                    args,
                     patterns,
                     firstApiLevel,
                     currentApiLevel + if (isDeveloperPreviewBuild()) 1 else 0,
-                    currentJar
+                    apiLevelsGenerationOptions.currentJar,
                 )
         }
 
@@ -1106,15 +1027,8 @@ class Options(
         }
     }
 
-    /**
-     * Find an android stub jar that matches the given criteria.
-     *
-     * Note because the default baseline file is not explicitly set in the command line, this file
-     * would trigger a --strict-input-files violation. To avoid that, use
-     * --strict-input-files-exempt to exempt the jar directory.
-     */
+    /** Find an android stub jar that matches the given criteria. */
     private fun findAndroidJars(
-        args: Array<String>,
         androidJarPatterns: List<String>,
         minApi: Int,
         currentApiLevel: Int,
@@ -1147,16 +1061,11 @@ class Options(
                     if (apiLevel < 28) {
                         // Clearly something is wrong with the patterns; this should result in a
                         // build error
-                        val argList = mutableListOf<String>()
-                        args.forEachIndexed { index, arg ->
-                            if (arg == ARG_ANDROID_JAR_PATTERN) {
-                                argList.add(args[index + 1])
-                            }
-                        }
                         throw MetalavaCliException(
                             stderr =
                                 "Could not find android.jar for API level $apiLevel; the " +
-                                    "$ARG_ANDROID_JAR_PATTERN set might be invalid: ${argList.joinToString()}"
+                                    "$ARG_ANDROID_JAR_PATTERN set might be invalid see:" +
+                                    " ${androidJarPatterns.joinToString()} (the last two entries are defaults)"
                         )
                     }
 
@@ -1359,49 +1268,6 @@ object OptionsHelp {
                 "$ARG_APPLY_API_LEVELS <api-versions.xml>",
                 "Reads an XML file containing API level descriptions " +
                     "and merges the information into the documentation",
-                "",
-                "Extracting API Levels:",
-                "$ARG_GENERATE_API_LEVELS <xmlfile>",
-                "Reads android.jar SDK files and generates an XML file recording " +
-                    "the API level for each class, method and field",
-                ARG_REMOVE_MISSING_CLASS_REFERENCES_IN_API_LEVELS,
-                "Removes references to missing classes when generating the API levels XML file. " +
-                    "This can happen when generating the XML file for the non-updatable portions of " +
-                    "the module-lib sdk, as those non-updatable portions can reference classes that are " +
-                    "part of an updatable apex.",
-                "$ARG_ANDROID_JAR_PATTERN <pattern>",
-                "Patterns to use to locate Android JAR files. The default " +
-                    "is \$ANDROID_HOME/platforms/android-%/android.jar.",
-                ARG_FIRST_VERSION,
-                "Sets the first API level to generate an API database from; usually 1",
-                ARG_CURRENT_VERSION,
-                "Sets the current API level of the current source code",
-                ARG_CURRENT_CODENAME,
-                "Sets the code name for the current source code",
-                ARG_CURRENT_JAR,
-                "Points to the current API jar, if any",
-                ARG_SDK_JAR_ROOT,
-                "Points to root of prebuilt extension SDK jars, if any. This directory is expected to " +
-                    "contain snapshots of historical extension SDK versions in the form of stub jars. " +
-                    "The paths should be on the format \"<int>/public/<module-name>.jar\", where <int> " +
-                    "corresponds to the extension SDK version, and <module-name> to the name of the mainline module.",
-                ARG_SDK_INFO_FILE,
-                "Points to map of extension SDK APIs to include, if any. The file is a plain text file " +
-                    "and describes, per extension SDK, what APIs from that extension to include in the " +
-                    "file created via $ARG_GENERATE_API_LEVELS. The format of each line is one of the following: " +
-                    "\"<module-name> <pattern> <ext-name> [<ext-name> [...]]\", where <module-name> is the " +
-                    "name of the mainline module this line refers to, <pattern> is a common Java name prefix " +
-                    "of the APIs this line refers to, and <ext-name> is a list of extension SDK names " +
-                    "in which these SDKs first appeared, or \"<ext-name> <ext-id> <type>\", where " +
-                    "<ext-name> is the name of an SDK, " +
-                    "<ext-id> its numerical ID and <type> is one of " +
-                    "\"platform\" (the Android platform SDK), " +
-                    "\"platform-ext\" (an extension to the Android platform SDK), " +
-                    "\"standalone\" (a separate SDK). " +
-                    "Fields are separated by whitespace. " +
-                    "A mainline module may be listed multiple times. " +
-                    "The special pattern \"*\" refers to all APIs in the given mainline module. " +
-                    "Lines beginning with # are comments.",
                 "",
                 "Generating API version history:",
                 "$ARG_GENERATE_API_VERSION_HISTORY <jsonfile>",

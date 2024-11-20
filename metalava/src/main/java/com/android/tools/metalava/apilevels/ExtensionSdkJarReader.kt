@@ -19,7 +19,7 @@ import com.android.SdkConstants
 import com.android.SdkConstants.PLATFORM_WINDOWS
 import java.io.File
 
-class ExtensionSdkJarReader() {
+class ExtensionSdkJarReader {
 
     companion object {
         private val REGEX_JAR_PATH = run {

@@ -788,8 +788,7 @@ class DocAnalyzer(
             }
             if (
                 !options.isDeveloperPreviewBuild() &&
-                    options.currentApiLevel != -1 &&
-                    level > options.currentApiLevel
+                    level > options.currentApiLevelOrDefault(Int.MAX_VALUE)
             ) {
                 // api-versions.xml currently assigns api+1 to APIs that have not yet been finalized
                 // in a dessert (only in an extension), but for release builds, we don't want to
@@ -799,7 +798,7 @@ class DocAnalyzer(
 
             val currentCodeName = options.currentCodeName
             val code: String =
-                if (currentCodeName != null && level > options.currentApiLevel) {
+                if (currentCodeName != null && level > options.currentApiLevelOrDefault(-1)) {
                     currentCodeName
                 } else {
                     level.toString()
@@ -862,7 +861,7 @@ class DocAnalyzer(
             }
             val currentCodeName = options.currentCodeName
             val code: String =
-                if (currentCodeName != null && level > options.currentApiLevel) {
+                if (currentCodeName != null && level > options.currentApiLevelOrDefault(-1)) {
                     currentCodeName
                 } else {
                     level.toString()

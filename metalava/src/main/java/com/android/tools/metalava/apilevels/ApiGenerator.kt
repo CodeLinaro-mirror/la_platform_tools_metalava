@@ -21,13 +21,10 @@ import com.android.tools.metalava.apilevels.ApiToExtensionsMap.Companion.fromXml
 import com.android.tools.metalava.apilevels.ExtensionSdkJarReader.Companion.findExtensionSdkJarFiles
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.CodebaseFragment
-import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.snapshot.NonFilteringDelegatingVisitor
 import com.android.tools.metalava.model.text.SignatureFile
 import java.io.File
 import java.io.IOException
-import java.io.PrintStream
-import java.nio.charset.StandardCharsets
 
 /**
  * Main class for command line command to convert the existing API XML/TXT files into diff-based
@@ -64,16 +61,14 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
                     sdkExtensionsArguments.skipVersionsGreaterThan
                 )
         }
-        api.inlineFromHiddenSuperClasses()
-        api.removeImplicitInterfaces()
-        api.removeOverridingMethods()
-        api.prunePackagePrivateClasses()
+        api.clean()
         if (removeMissingClasses) {
             api.removeMissingClasses()
         } else {
             api.verifyNoMissingClasses()
         }
-        return createApiLevelsXml(outputFile, api, sdkIdentifiers)
+        val printer = ApiXmlPrinter(sdkIdentifiers, firstApiLevel)
+        return createApiLevelsFile(outputFile, printer, api)
     }
 
     /**
@@ -86,7 +81,7 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
     private fun createApiFromSignatureFiles(previousApiFiles: List<File>): Api {
         // Starts at level 1 because 0 is not a valid API level.
         var apiLevel = 1
-        val api = Api(apiLevel)
+        val api = Api()
         for (apiFile in previousApiFiles) {
             val codebase: Codebase = signatureFileCache.load(SignatureFile.fromFiles(apiFile))
             val codebaseFragment =
@@ -108,9 +103,6 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
      * @param apiVersionNames The names of the API versions, ordered starting from version 1. This
      *   should include the names of all the [pastApiVersions], then the name of the
      *   [currentApiVersion].
-     * @param filterEmit The filter to use to determine if an [Item] should be included in the API.
-     * @param filterReference The filter to use to determine if a reference to an [Item] should be
-     *   included in the API.
      */
     fun generateJson(
         pastApiVersions: List<File>,
@@ -126,11 +118,11 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
             false,
         )
         val printer = ApiJsonPrinter(apiVersionNames)
-        printer.print(api, outputFile)
+        createApiLevelsFile(outputFile, printer, api)
     }
 
     private fun createApiFromAndroidJars(apiLevels: Array<File>, firstApiLevel: Int): Api {
-        val api = Api(firstApiLevel)
+        val api = Api()
         for (apiLevel in firstApiLevel until apiLevels.size) {
             val jar = apiLevels[apiLevel]
             api.readAndroidJar(apiLevel, jar)
@@ -152,7 +144,7 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
      * @param apiLevelNotInAndroidSdk fallback API level for APIs not in the Android SDK
      * @param sdkJarRoot path to directory containing extension SDK jars (usually
      *   $ANDROID_ROOT/prebuilts/sdk/extensions)
-     * @param filterPath: path to the filter file. @see ApiToExtensionsMap
+     * @param filterPath path to the filter file. @see ApiToExtensionsMap
      * @throws IOException if the filter file can not be read
      * @throws IllegalArgumentException if an error is detected in the filter file, or if no jar
      *   files were found
@@ -218,16 +210,16 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
     }
 
     /**
-     * Creates the simplified diff-based API level.
+     * Creates a file containing the [api].
      *
      * @param outFile the output file
+     * @param printer the [ApiPrinter] to use to write the file.
      * @param api the api to write
-     * @param sdkIdentifiers SDKs referenced by the api
      */
-    private fun createApiLevelsXml(
+    private fun createApiLevelsFile(
         outFile: File,
+        printer: ApiPrinter,
         api: Api,
-        sdkIdentifiers: Set<SdkIdentifier>
     ): Boolean {
         val parentFile = outFile.parentFile
         if (!parentFile.exists()) {
@@ -238,10 +230,7 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
             }
         }
         try {
-            PrintStream(outFile, StandardCharsets.UTF_8).use { stream ->
-                stream.println("<?xml version=\"1.0\" encoding=\"utf-8\"?>")
-                api.print(stream, sdkIdentifiers)
-            }
+            outFile.printWriter().use { writer -> printer.print(api, writer) }
         } catch (e: Exception) {
             e.printStackTrace()
             return false

@@ -15,41 +15,13 @@
  */
 package com.android.tools.metalava.apilevels
 
-import com.android.tools.metalava.SdkIdentifier
-import java.io.PrintStream
 import java.util.Collections
 import java.util.TreeMap
 import java.util.TreeSet
 
 /** Represents the whole Android API. */
-class Api(private val mMin: Int) : ApiElement("Android API") {
+class Api : ApiElement("Android API") {
     private val mClasses: MutableMap<String, ApiClass> = HashMap()
-
-    /**
-     * Prints the whole API definition to a stream.
-     *
-     * @param stream the stream to print the XML elements to
-     */
-    fun print(stream: PrintStream, sdkIdentifiers: Set<SdkIdentifier>) {
-        stream.print("<api version=\"3\"")
-        if (mMin > 1) {
-            stream.print(" min=\"$mMin\"")
-        }
-        stream.println(">")
-        for ((id, shortname, name, reference) in sdkIdentifiers) {
-            stream.println(
-                String.format(
-                    "\t<sdk id=\"%d\" shortname=\"%s\" name=\"%s\" reference=\"%s\"/>",
-                    id,
-                    shortname,
-                    name,
-                    reference
-                )
-            )
-        }
-        print(mClasses.values, "class", "\t", stream)
-        printClosingTag("api", "", stream)
-    }
 
     /**
      * Adds or updates a class.
@@ -117,20 +89,20 @@ class Api(private val mMin: Int) : ApiElement("Android API") {
      * that have interfaces, we check up the inheritance chain to see if it has already been
      * introduced in a super class at an earlier API level.
      */
-    fun removeImplicitInterfaces() {
+    private fun removeImplicitInterfaces() {
         for (classElement in mClasses.values) {
             classElement.removeImplicitInterfaces(mClasses)
         }
     }
 
     /** @see ApiClass.removeOverridingMethods */
-    fun removeOverridingMethods() {
+    private fun removeOverridingMethods() {
         for (classElement in mClasses.values) {
             classElement.removeOverridingMethods(mClasses)
         }
     }
 
-    fun inlineFromHiddenSuperClasses() {
+    private fun inlineFromHiddenSuperClasses() {
         val hidden: MutableMap<String, ApiClass> = HashMap()
         for (classElement in mClasses.values) {
             if (
@@ -144,7 +116,7 @@ class Api(private val mMin: Int) : ApiElement("Android API") {
         }
     }
 
-    fun prunePackagePrivateClasses() {
+    private fun prunePackagePrivateClasses() {
         for (cls in mClasses.values) {
             cls.removeHiddenSuperClasses(mClasses)
         }
