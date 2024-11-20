@@ -1832,46 +1832,7 @@ val systemServiceSource: TestFile =
         )
         .indented()
 
-val systemApiSource: TestFile =
-    java(
-            """
-    package android.annotation;
-    import static java.lang.annotation.ElementType.*;
-    import java.lang.annotation.*;
-    @Target({TYPE, FIELD, METHOD, CONSTRUCTOR, ANNOTATION_TYPE, PACKAGE})
-    @Retention(RetentionPolicy.SOURCE)
-    public @interface SystemApi {
-        enum Client {
-            /**
-             * Specifies that the intended clients of a SystemApi are privileged apps.
-             * This is the default value for {@link #client}.
-             */
-            PRIVILEGED_APPS,
-
-            /**
-             * Specifies that the intended clients of a SystemApi are used by classes in
-             * <pre>BOOTCLASSPATH</pre> in mainline modules. Mainline modules can also expose
-             * this type of system APIs too when they're used only by the non-updatable
-             * platform code.
-             */
-            MODULE_LIBRARIES,
-
-            /**
-             * Specifies that the system API is available only in the system server process.
-             * Use this to expose APIs from code loaded by the system server process <em>but</em>
-             * not in <pre>BOOTCLASSPATH</pre>.
-             */
-            SYSTEM_SERVER
-        }
-
-        /**
-         * The intended client of this SystemAPI.
-         */
-        Client client() default android.annotation.SystemApi.Client.PRIVILEGED_APPS;
-    }
-    """
-        )
-        .indented()
+val systemApiSource = KnownSourceFiles.systemApiSource
 
 val testApiSource: TestFile =
     java(

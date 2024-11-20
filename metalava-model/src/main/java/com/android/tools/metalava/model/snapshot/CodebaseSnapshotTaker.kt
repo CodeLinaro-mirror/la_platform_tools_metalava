@@ -147,7 +147,9 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
         // incorrect. However, that should not be a problem as the packages are visited in order
         // such that a containing package is visited before any contained packages.
         val packageDocs = packageDocsForPackageItem(this)
-        return snapshotCodebase.findOrCreatePackage(packageName, packageDocs)
+        val newPackageItem = snapshotCodebase.findOrCreatePackage(packageName, packageDocs)
+        newPackageItem.copySelectedApiVariants(this)
+        return newPackageItem
     }
 
     /**
@@ -186,6 +188,11 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
     private fun ClassItem.getSnapshotClass(): DefaultClassItem =
         snapshotCodebase.resolveClass(qualifiedName()) as DefaultClassItem
 
+    /** Copy [SelectableItem.selectedApiVariants] from [original] to this. */
+    private fun <T : SelectableItem> T.copySelectedApiVariants(original: T) {
+        selectedApiVariants = original.selectedApiVariants
+    }
+
     override fun visitClass(cls: ClassItem) {
         val classToSnapshot = cls.actualItemToSnapshot
 
@@ -212,21 +219,23 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
             classToSnapshot.interfaceTypes().map { classTypeItemFactory.getInterfaceType(it) }
 
         // Create the class and register it in the codebase.
-        itemFactory.createClassItem(
-            fileLocation = classToSnapshot.fileLocation,
-            itemLanguage = classToSnapshot.itemLanguage,
-            modifiers = classToSnapshot.modifiers.snapshot(),
-            documentationFactory = snapshotDocumentation(classToSnapshot, cls),
-            source = cls.sourceFile(),
-            classKind = classToSnapshot.classKind,
-            containingClass = containingClass,
-            containingPackage = containingPackage,
-            qualifiedName = classToSnapshot.qualifiedName(),
-            typeParameterList = typeParameterList,
-            origin = classToSnapshot.origin,
-            superClassType = snapshotSuperClassType,
-            interfaceTypes = snapshotInterfaceTypes,
-        )
+        val newClass =
+            itemFactory.createClassItem(
+                fileLocation = classToSnapshot.fileLocation,
+                itemLanguage = classToSnapshot.itemLanguage,
+                modifiers = classToSnapshot.modifiers.snapshot(),
+                documentationFactory = snapshotDocumentation(classToSnapshot, cls),
+                source = cls.sourceFile(),
+                classKind = classToSnapshot.classKind,
+                containingClass = containingClass,
+                containingPackage = containingPackage,
+                qualifiedName = classToSnapshot.qualifiedName(),
+                typeParameterList = typeParameterList,
+                origin = classToSnapshot.origin,
+                superClassType = snapshotSuperClassType,
+                interfaceTypes = snapshotInterfaceTypes,
+            )
+        newClass.copySelectedApiVariants(classToSnapshot)
     }
 
     /** Execute [body] within [SnapshotTypeItemFactoryContext]. */
@@ -271,6 +280,7 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
                     isPrimary = constructorToSnapshot.isPrimary,
                 )
             }
+        newConstructor.copySelectedApiVariants(constructorToSnapshot)
 
         containingClass.addConstructor(newConstructor)
     }
@@ -308,6 +318,7 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
                     annotationDefault = methodToSnapshot.defaultValue(),
                 )
             }
+        newMethod.copySelectedApiVariants(methodToSnapshot)
 
         containingClass.addMethod(newMethod)
     }
@@ -332,6 +343,7 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
                     fieldValue = fieldToSnapshot.fieldValue?.snapshot(),
                 )
             }
+        newField.copySelectedApiVariants(fieldToSnapshot)
 
         containingClass.addField(newField)
     }
@@ -358,6 +370,7 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
                     backingField = property.backingField,
                 )
             }
+        newProperty.copySelectedApiVariants(propertyToSnapshot)
 
         containingClass.addProperty(newProperty)
     }

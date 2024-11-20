@@ -34,13 +34,16 @@ import com.intellij.psi.PsiPackage
 import com.intellij.psi.PsiParameter
 import com.intellij.psi.impl.light.LightElement
 import java.nio.file.Path
+import org.jetbrains.kotlin.fileClasses.javaFileFacadeFqName
 import org.jetbrains.kotlin.psi.KtClass
+import org.jetbrains.kotlin.psi.KtFunction
 import org.jetbrains.kotlin.psi.KtModifierListOwner
 import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.psiUtil.containingClass
 import org.jetbrains.kotlin.psi.psiUtil.parameterIndex
 import org.jetbrains.uast.UClass
 import org.jetbrains.uast.UElement
+import org.jetbrains.uast.toUElement
 
 /** A [FileLocation] that wraps [psiElement] and computes the [path] and [line] number on demand. */
 class PsiFileLocation(private val psiElement: PsiElement) : FileLocation() {
@@ -208,13 +211,13 @@ class PsiFileLocation(private val psiElement: PsiElement) : FileLocation() {
                     }
                 }
                 is KtProperty -> {
-                    val containingClass = element.containingClass()
+                    val containingClass =
+                        element.containingClass()?.let { getElementId(it) }
+                        // If there is no containing class, find the file facade class because that
+                        // will be the containing class in the Codebase.
+                        ?: element.containingKtFile.javaFileFacadeFqName.asString()
                     val name = element.nameAsSafeName.asString()
-                    if (containingClass != null) {
-                        getElementId(containingClass) + "#" + name
-                    } else {
-                        name
-                    }
+                    "$containingClass#$name"
                 }
                 is PsiPackage -> element.qualifiedName
                 is PsiParameter -> {
@@ -224,6 +227,11 @@ class PsiFileLocation(private val psiElement: PsiElement) : FileLocation() {
                     } else {
                         "?"
                     }
+                }
+                is KtFunction -> {
+                    // Try converting this to the Java API view (as a PsiMethod)
+                    (element.toUElement()?.javaPsi as? PsiMethod)?.let { getElementId(it) }
+                        ?: element.toString()
                 }
                 else -> element.toString()
             }

@@ -46,6 +46,7 @@ import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.annotation.AnnotationFilter
 import com.android.tools.metalava.model.source.SourceParser
+import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
