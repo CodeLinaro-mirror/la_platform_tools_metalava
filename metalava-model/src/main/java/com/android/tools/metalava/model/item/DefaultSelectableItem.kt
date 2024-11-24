@@ -47,7 +47,6 @@ abstract class DefaultSelectableItem(
     SelectableItem {
 
     final override var selectedApiVariants: ApiVariantSet = codebase.apiSurfaces.emptyVariantSet
-        private set
 
     override fun mutateSelectedApiVariants(mutator: MutableApiVariantSet.() -> Unit) {
         val mutable = selectedApiVariants.toMutable()

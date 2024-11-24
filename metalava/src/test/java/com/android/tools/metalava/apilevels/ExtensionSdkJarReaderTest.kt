@@ -16,104 +16,54 @@
 
 package com.android.tools.metalava.apilevels
 
+import com.android.tools.metalava.testing.TemporaryFolderOwner
 import java.io.File
-import java.io.FileNotFoundException
-import java.nio.file.Files
 import kotlin.test.Test
 import org.junit.Assert.assertEquals
+import org.junit.Rule
+import org.junit.rules.TemporaryFolder
 
-class ExtensionSdkJarReaderTest {
-    @Test
-    fun `Verify findExtensionSdkJarFiles`() {
-        TemporaryDirectoryHierarchy(
-                listOf(
-                    "1/public/foo.jar",
-                    "1/public/bar.jar",
-                    "2/public/foo.jar",
-                    "2/public/bar.jar",
-                    "2/public/baz.jar",
-                )
-            )
-            .use {
-                val root = it.root
-                val expected =
-                    mapOf(
-                        "foo" to
-                            listOf(
-                                VersionAndPath(1, File(root, "1/public/foo.jar")),
-                                VersionAndPath(2, File(root, "2/public/foo.jar"))
-                            ),
-                        "bar" to
-                            listOf(
-                                VersionAndPath(1, File(root, "1/public/bar.jar")),
-                                VersionAndPath(2, File(root, "2/public/bar.jar"))
-                            ),
-                        "baz" to listOf(VersionAndPath(2, File(root, "2/public/baz.jar"))),
-                    )
-                val actual = ExtensionSdkJarReader.findExtensionSdkJarFiles(root, null)
-                assertEquals(expected, actual)
-            }
-    }
+class ExtensionSdkJarReaderTest : TemporaryFolderOwner {
 
-    @Test
-    fun `Verify findExtensionSdkJarFiles exclude unreleased`() {
-        TemporaryDirectoryHierarchy(
-                listOf(
-                    "1/public/foo.jar",
-                    "2/public/foo.jar",
-                    "3/public/foo.jar",
-                    "4/public/foo.jar",
-                )
-            )
-            .use {
-                val root = it.root
-                val expected =
-                    mapOf(
-                        "foo" to
-                            listOf(
-                                VersionAndPath(1, File(root, "1/public/foo.jar")),
-                                VersionAndPath(2, File(root, "2/public/foo.jar"))
-                            )
-                    )
-                val actual = ExtensionSdkJarReader.findExtensionSdkJarFiles(root, 2)
-                assertEquals(expected, actual)
-            }
-    }
-}
+    /** Provides access to temporary files. */
+    @get:Rule override val temporaryFolder = TemporaryFolder()
 
-private class TemporaryDirectoryHierarchy(filenames: List<String>) : AutoCloseable {
-    val root: File
-
-    init {
-        root = Files.createTempDirectory("metalava").toFile()
-        for (file in filenames.map { File(root, it) }) {
-            createDirectoryRecursively(file.parentFile)
+    private fun createDirectoryHierarchy(vararg paths: String): File {
+        val root = temporaryFolder.newFolder("metalava")
+        for (path in paths) {
+            val file = root.resolve(path)
+            file.parentFile.mkdirs()
             file.createNewFile()
         }
+        return root
     }
 
-    override fun close() {
-        deleteDirectoryRecursively(root)
-    }
+    @Test
+    fun `Verify findExtensionSdkJarFiles`() {
+        val root =
+            createDirectoryHierarchy(
+                "1/public/foo.jar",
+                "1/public/bar.jar",
+                "2/public/foo.jar",
+                "2/public/bar.jar",
+                "2/public/baz.jar",
+            )
 
-    companion object {
-        private fun createDirectoryRecursively(file: File) {
-            val parent = file.parentFile ?: throw FileNotFoundException("$file has no parent")
-            if (!parent.exists()) {
-                createDirectoryRecursively(parent)
-            }
-            file.mkdir()
-        }
-
-        private fun deleteDirectoryRecursively(root: File) {
-            for (file in root.listFiles()) {
-                if (file.isDirectory()) {
-                    deleteDirectoryRecursively(file)
-                } else {
-                    file.delete()
-                }
-            }
-            root.delete()
-        }
+        val expected =
+            mapOf(
+                "foo" to
+                    listOf(
+                        VersionAndPath(1, File(root, "1/public/foo.jar")),
+                        VersionAndPath(2, File(root, "2/public/foo.jar"))
+                    ),
+                "bar" to
+                    listOf(
+                        VersionAndPath(1, File(root, "1/public/bar.jar")),
+                        VersionAndPath(2, File(root, "2/public/bar.jar"))
+                    ),
+                "baz" to listOf(VersionAndPath(2, File(root, "2/public/baz.jar"))),
+            )
+        val actual = ExtensionSdkJarReader.findExtensionSdkJarFiles(root)
+        assertEquals(expected, actual)
     }
 }

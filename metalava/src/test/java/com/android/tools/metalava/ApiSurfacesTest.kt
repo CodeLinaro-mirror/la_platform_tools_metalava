@@ -25,7 +25,6 @@ import kotlin.test.assertNull
 import kotlin.test.assertSame
 import org.junit.Test
 
-@Suppress("JavadocDeclaration")
 class ApiSurfacesTest : DriverTest() {
 
     /** Encapsulate the data to check in the lambda supplied to [checkApiSurfaces], */
@@ -127,79 +126,6 @@ class ApiSurfacesTest : DriverTest() {
             ANDROID_SYSTEM_API,
         ) {
             apiSurfaces.assertBaseWasCreated()
-        }
-    }
-
-    @Test
-    fun `Test previously released codebases`() {
-        check(
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                            package test.pkg;
-
-                            public class Test {
-                                public int field;
-                                /** @removed */
-                                public int removed;
-                                public void foo(int p) {}
-                                public static class Nested {
-                                }
-                                /** @removed */
-                                public static class Removed {
-                                }
-                            }
-                        """
-                    )
-                ),
-            checkCompatibilityApiReleasedList =
-                listOf(
-                    """
-                        // Signature format: 2.0
-                        package test.pkg {
-                          public class Test {
-                            ctor public Test();
-                            field public int field;
-                            method public void foo(int);
-                          }
-                          public static class Test.Nested {
-                            ctor public Test.Nested();
-                          }
-                        }
-                    """
-                ),
-            checkCompatibilityRemovedApiReleasedList =
-                listOf(
-                    """
-                        // Signature format: 2.0
-                        package test.pkg {
-                          public class Test {
-                            field public int removed;
-                          }
-                          public static class Test.Removed {
-                            ctor public Test.Removed();
-                          }
-                        }
-                    """
-                ),
-        ) {
-            val previouslyReleasedCodebase = options.previouslyReleasedCodebase!!
-
-            previouslyReleasedCodebase.assertSelectedApiVariants(
-                """
-                    package test.pkg - ApiVariantSet[main(CR)]
-                      class test.pkg.Test - ApiVariantSet[main(CR)]
-                        constructor test.pkg.Test() - ApiVariantSet[main(C)]
-                        method test.pkg.Test.foo(int) - ApiVariantSet[main(C)]
-                        field test.pkg.Test.field - ApiVariantSet[main(C)]
-                        field test.pkg.Test.removed - ApiVariantSet[main(R)]
-                        class test.pkg.Test.Nested - ApiVariantSet[main(C)]
-                          constructor test.pkg.Test.Nested() - ApiVariantSet[main(C)]
-                        class test.pkg.Test.Removed - ApiVariantSet[main(R)]
-                          constructor test.pkg.Test.Removed() - ApiVariantSet[main(R)]
-                """
-            )
         }
     }
 }

@@ -18,11 +18,11 @@ package com.android.tools.metalava.compatibility
 
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.lint.checks.infrastructure.TestFiles
-import com.android.tools.metalava.ApiType
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.fastPathCheckResult
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.stripBlankLines
+import com.android.tools.metalava.model.visitors.ApiType
 import com.android.tools.metalava.testing.getAndroidJar
 import com.android.tools.metalava.testing.java
 import org.junit.Assert

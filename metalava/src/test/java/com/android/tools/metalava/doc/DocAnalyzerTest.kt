@@ -922,6 +922,62 @@ class DocAnalyzerTest : DriverTest() {
     }
 
     @Test
+    fun `Api levels current codename but no current version`() {
+        check(
+            extraArguments =
+                arrayOf(
+                    ARG_CURRENT_CODENAME,
+                    "Z",
+                ),
+            includeSystemApiAnnotations = true,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package android.pkg;
+                            public class Test {
+                               public static final String UNIT_TEST_1 = "unit.test.1";
+                               public static final String UNIT_TEST_2 = "unit.test.2";
+                            }
+                        """
+                    ),
+                ),
+            applyApiLevelsXml =
+                """
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <api version="2">
+                        <class name="android/pkg/Test" since="1">
+                            <field name="UNIT_TEST_1" since="24" deprecated="30"/>
+                            <field name="UNIT_TEST_2" since="36"/>
+                        </class>
+                    </api>
+                """,
+            checkCompilation = true,
+            docStubs = true,
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package android.pkg;
+                            /** @apiSince 1 */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Test {
+                            public Test() { throw new RuntimeException("Stub!"); }
+                            /**
+                             * @apiSince 24
+                             * @deprecatedSince 30
+                             */
+                            public static final java.lang.String UNIT_TEST_1 = "unit.test.1";
+                            /** @apiSince 36 */
+                            public static final java.lang.String UNIT_TEST_2 = "unit.test.2";
+                            }
+                        """
+                    )
+                )
+        )
+    }
+
+    @Test
     fun `No api levels on SystemApi only elements`() {
         // @SystemApi, @TestApi etc cannot get api versions since we don't have
         // accurate android.jar files (or even reliable api.txt/api.xml files) for them.

@@ -37,13 +37,17 @@ private const val DESSERT_RELEASE_INDEPENDENT_SDK_BASE = 1000000
  * Internally, the filters are represented as a tree, where each node in the tree matches a part of
  * a package, class or member name. For example, given the patterns
  *
+ * ```
  * com.example.Foo -> [A] com.example.Foo#someMethod -> [B] com.example.Bar -> [A, C]
+ * ```
  *
  * (anything prefixed with com.example.Foo is allowed and part of the A extension, except for
  * com.example.Foo#someMethod which is part of B; anything prefixed with com.example.Bar is part of
  * both A and C), the internal tree looks like
  *
+ * ```
  * root -> null com -> null example -> null Foo -> [A] someMethod -> [B] Bar -> [A, C]
+ * ```
  */
 class ApiToExtensionsMap
 private constructor(
@@ -92,7 +96,9 @@ private constructor(
      *
      * The format of `sdks` is
      *
+     * ```
      * sdks="ext:version[,ext:version[,...]]
+     * ```
      *
      * where <ext> is the numerical ID of the SDK, and <version> is the version in which the API was
      * introduced.
@@ -109,11 +115,11 @@ private constructor(
      *   notFinalizedValue if this symbol has not been finalized in an Android dessert
      * @param notFinalizedValue value used together with the Android SDK ID to indicate that this
      *   symbol has not been finalized at all
-     * @param extensions names of the SDK extensions in which this symbol has been finalized (may be
-     *   non-empty even if extensionsSince is ApiElement.NEVER)
+     * @param extensions names of the SDK extensions in which this symbol has been finalized; may be
+     *   non-empty even if extensionsSince is [ApiElement.NEVER].
      * @param extensionsSince the version of the SDK extensions in which this API was initially
-     *   introduced (same value for all SDK extensions), or ApiElement.NEVER if this symbol has not
-     *   been finalized in any SDK extension (regardless of the extensions argument)
+     *   introduced (same value for all SDK extensions), or [ApiElement.NEVER] if this symbol has
+     *   not been finalized in any SDK extension (regardless of the [extensions] argument)
      * @return an `sdks` value suitable for including verbatim in XML
      */
     fun calculateSdksAttr(

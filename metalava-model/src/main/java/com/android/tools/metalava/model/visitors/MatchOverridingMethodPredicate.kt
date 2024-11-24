@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2020 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,16 +14,15 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava
+package com.android.tools.metalava.model.visitors
 
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.SelectableItem
-import java.util.function.Predicate
 
 /**
- * A [Predicate] that will match a [SelectableItem] if [wrapped] matches it, or it is a [MethodItem]
- * and [wrapped] matches any of its super methods.
+ * A [FilterPredicate] that will match a [SelectableItem] if [wrapped] matches it, or it is a
+ * [MethodItem] and [wrapped] matches any of its super methods.
  *
  * In other words this will match any [SelectableItem] that is matched by [wrapped] and any
  * [MethodItem] that overrides a method which is matched by [wrapped].

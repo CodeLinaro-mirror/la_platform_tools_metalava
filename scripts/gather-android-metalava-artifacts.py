@@ -87,6 +87,8 @@ def default_api_version_files():
         "out/soong/lint/api_versions_system.xml",
         "out/soong/lint/api_versions_module_lib.xml",
         "out/soong/lint/api_versions_system_server.xml",
+        "out/target/common/obj/PACKAGING/api_versions_module_lib_complete_generated-api-versions.xml",
+        "out/target/common/obj/PACKAGING/api_versions_system_server_complete_generated-api-versions.xml",
     ]
 
 
