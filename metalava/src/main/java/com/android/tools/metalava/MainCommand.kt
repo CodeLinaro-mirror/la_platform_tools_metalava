@@ -130,12 +130,16 @@ class MainCommand(
     /** Stub generation options. */
     private val stubGenerationOptions by StubGenerationOptions()
 
+    /** Api levels generation options. */
+    private val apiLevelsGenerationOptions by ApiLevelsGenerationOptions()
+
     /**
      * Add [Options] (an [OptionGroup]) so that any Clikt defined properties will be processed by
      * Clikt.
      */
     internal val optionGroup by
         Options(
+            executionEnvironment = executionEnvironment,
             commonOptions = commonOptions,
             sourceOptions = sourceOptions,
             issueReportingOptions = issueReportingOptions,
@@ -146,6 +150,7 @@ class MainCommand(
             signatureFileOptions = signatureFileOptions,
             signatureFormatOptions = signatureFormatOptions,
             stubGenerationOptions = stubGenerationOptions,
+            apiLevelsGenerationOptions = apiLevelsGenerationOptions,
         )
 
     override fun run() {
@@ -175,7 +180,7 @@ class MainCommand(
         val remainingArgs = flags.toTypedArray()
 
         // Parse any remaining arguments
-        optionGroup.parse(executionEnvironment, remainingArgs)
+        optionGroup.parse(remainingArgs)
 
         // Update the global options.
         @Suppress("DEPRECATION")

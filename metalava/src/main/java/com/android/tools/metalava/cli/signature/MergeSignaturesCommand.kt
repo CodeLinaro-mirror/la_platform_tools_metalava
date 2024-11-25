@@ -16,8 +16,6 @@
 
 package com.android.tools.metalava.cli.signature
 
-import com.android.tools.metalava.ApiPredicate
-import com.android.tools.metalava.ApiType
 import com.android.tools.metalava.OptionsDelegate
 import com.android.tools.metalava.SignatureWriter
 import com.android.tools.metalava.cli.common.MetalavaCliException
@@ -30,6 +28,8 @@ import com.android.tools.metalava.createReportFile
 import com.android.tools.metalava.model.text.ApiFile
 import com.android.tools.metalava.model.text.ApiParseException
 import com.android.tools.metalava.model.text.SignatureFile
+import com.android.tools.metalava.model.visitors.ApiPredicate
+import com.android.tools.metalava.model.visitors.ApiType
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.arguments.multiple
 import com.github.ajalt.clikt.parameters.groups.provideDelegate

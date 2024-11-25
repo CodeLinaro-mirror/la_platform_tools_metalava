@@ -49,6 +49,11 @@ fun RawArgument.existingFile(): ProcessedArgument<File, File> {
     return fileConversion(::stringToExistingFile)
 }
 
+/** Convert the option to a [File] that represents an existing directory. */
+fun RawOption.existingDir(): NullableOption<File, File> {
+    return fileConversion(::stringToExistingDir)
+}
+
 /** Convert the argument to a [File] that represents an existing directory. */
 fun RawArgument.existingDir(): ProcessedArgument<File, File> {
     return fileConversion(::stringToExistingDir)

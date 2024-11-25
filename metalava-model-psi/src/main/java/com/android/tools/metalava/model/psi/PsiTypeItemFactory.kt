@@ -284,7 +284,9 @@ internal class PsiTypeItemFactory(
                 throw IllegalStateException(
                     "Invalid type in API surface: $psiType${
                     if (kotlinType != null) {
-                        " in file " + kotlinType.context.containingFile.name
+                        val location = PsiFileLocation.fromPsiElement(kotlinType.context)
+                        " for element ${location.baselineKey?.elementId()}" +
+                            " in file ${location.path}:${location.line}"
                     } else ""
                 }"
                 )

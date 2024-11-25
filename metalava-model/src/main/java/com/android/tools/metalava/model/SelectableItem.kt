@@ -32,7 +32,7 @@ import com.android.tools.metalava.model.api.surface.MutableApiVariantSet
  */
 interface SelectableItem : Item {
     /** The [ApiVariant]s for which this [Item] has been selected. */
-    val selectedApiVariants: ApiVariantSet
+    var selectedApiVariants: ApiVariantSet
 
     /**
      * Mutate [selectedApiVariants].
