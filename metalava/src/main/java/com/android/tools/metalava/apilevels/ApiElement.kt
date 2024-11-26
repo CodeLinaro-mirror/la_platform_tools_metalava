@@ -15,8 +15,6 @@
  */
 package com.android.tools.metalava.apilevels
 
-import java.io.PrintStream
-
 /** Represents an API element, e.g. class, method or field. */
 open class ApiElement : Comparable<ApiElement> {
     /** Returns the name of the API element. */
@@ -39,7 +37,9 @@ open class ApiElement : Comparable<ApiElement> {
      *
      * This field is a super-set of mSince, and if non-null/non-empty, should be preferred.
      */
-    private var mSdks: String? = null
+    var sdks: String? = null
+        private set
+
     var mainlineModule: String? = null
         private set
 
@@ -49,7 +49,8 @@ open class ApiElement : Comparable<ApiElement> {
     var deprecatedIn = 0
         private set
 
-    private var mLastPresentIn = 0
+    var lastPresentIn = 0
+        private set
 
     /**
      * @param name the name of the API element
@@ -60,7 +61,7 @@ open class ApiElement : Comparable<ApiElement> {
     internal constructor(name: String, version: Int, deprecated: Boolean = false) {
         this.name = name
         since = version
-        mLastPresentIn = version
+        lastPresentIn = version
         if (deprecated) {
             deprecatedIn = version
         }
@@ -92,8 +93,8 @@ open class ApiElement : Comparable<ApiElement> {
         if (since > version) {
             since = version
         }
-        if (mLastPresentIn < version) {
-            mLastPresentIn = version
+        if (lastPresentIn < version) {
+            lastPresentIn = version
         }
         if (deprecated) {
             // If it was not previously deprecated or was deprecated in a later version than this
@@ -132,7 +133,7 @@ open class ApiElement : Comparable<ApiElement> {
     }
 
     fun updateSdks(sdks: String?) {
-        mSdks = sdks
+        this.sdks = sdks
     }
 
     fun updateMainlineModule(module: String?) {
@@ -143,138 +144,11 @@ open class ApiElement : Comparable<ApiElement> {
         /** Checks whether the API element is deprecated or not. */
         get() = deprecatedIn != 0
 
-    /**
-     * Prints an XML representation of the element to a stream terminated by a line break.
-     * Attributes with values matching the parent API element are omitted.
-     *
-     * @param tag the tag of the XML element
-     * @param parentElement the parent API element
-     * @param indent the whitespace prefix to insert before the XML element
-     * @param stream the stream to print the XML element to
-     */
-    open fun print(tag: String?, parentElement: ApiElement, indent: String, stream: PrintStream) {
-        print(tag, true, parentElement, indent, stream)
-    }
-
-    /**
-     * Prints an XML representation of the element to a stream terminated by a line break.
-     * Attributes with values matching the parent API element are omitted.
-     *
-     * @param tag the tag of the XML element
-     * @param closeTag if true the XML element is terminated by "/>", otherwise the closing tag of
-     *   the element is not printed
-     * @param parentElement the parent API element
-     * @param indent the whitespace prefix to insert before the XML element
-     * @param stream the stream to print the XML element to
-     * @see .printClosingTag
-     */
-    fun print(
-        tag: String?,
-        closeTag: Boolean,
-        parentElement: ApiElement,
-        indent: String?,
-        stream: PrintStream
-    ) {
-        stream.print(indent)
-        stream.print('<')
-        stream.print(tag)
-        stream.print(" name=\"")
-        stream.print(encodeAttribute(name))
-        if (!isEmpty(mainlineModule) && !isEmpty(mSdks)) {
-            stream.print("\" module=\"")
-            stream.print(encodeAttribute(mainlineModule!!))
-        }
-        if (since > parentElement.since) {
-            stream.print("\" since=\"")
-            stream.print(since)
-        }
-        if (!isEmpty(mSdks) && mSdks != parentElement.mSdks) {
-            stream.print("\" sdks=\"")
-            stream.print(mSdks)
-        }
-        if (deprecatedIn != 0 && deprecatedIn != parentElement.deprecatedIn) {
-            stream.print("\" deprecated=\"")
-            stream.print(deprecatedIn)
-        }
-        if (mLastPresentIn < parentElement.mLastPresentIn) {
-            stream.print("\" removed=\"")
-            stream.print(mLastPresentIn + 1)
-        }
-        stream.print('"')
-        if (closeTag) {
-            stream.print('/')
-        }
-        stream.println('>')
-    }
-
-    private fun isEmpty(s: String?): Boolean {
-        return s.isNullOrEmpty()
-    }
-
-    /**
-     * Prints homogeneous XML elements to a stream. Each element is printed on a separate line.
-     * Attributes with values matching the parent API element are omitted.
-     *
-     * @param elements the elements to print
-     * @param tag the tag of the XML elements
-     * @param indent the whitespace prefix to insert before each XML element
-     * @param stream the stream to print the XML elements to
-     */
-    fun print(elements: Collection<ApiElement>, tag: String?, indent: String, stream: PrintStream) {
-        for (element in elements.sorted()) {
-            element.print(tag, this, indent, stream)
-        }
-    }
-
     override fun compareTo(other: ApiElement): Int {
         return name.compareTo(other.name)
     }
 
     companion object {
         const val NEVER = Int.MAX_VALUE
-
-        /**
-         * Prints a closing tag of an XML element terminated by a line break.
-         *
-         * @param tag the tag of the element
-         * @param indent the whitespace prefix to insert before the closing tag
-         * @param stream the stream to print the XML element to
-         */
-        fun printClosingTag(tag: String?, indent: String?, stream: PrintStream) {
-            stream.print(indent)
-            stream.print("</")
-            stream.print(tag)
-            stream.println('>')
-        }
-
-        private fun encodeAttribute(attribute: String): String {
-            return buildString {
-                val n = attribute.length
-                // &, ", ' and < are illegal in attributes; see
-                // http://www.w3.org/TR/REC-xml/#NT-AttValue
-                // (' legal in a " string and " is legal in a ' string but here we'll stay on the
-                // safe
-                // side).
-                for (i in 0 until n) {
-                    when (val c = attribute[i]) {
-                        '"' -> {
-                            append("&quot;") // $NON-NLS-1$
-                        }
-                        '<' -> {
-                            append("&lt;") // $NON-NLS-1$
-                        }
-                        '\'' -> {
-                            append("&apos;") // $NON-NLS-1$
-                        }
-                        '&' -> {
-                            append("&amp;") // $NON-NLS-1$
-                        }
-                        else -> {
-                            append(c)
-                        }
-                    }
-                }
-            }
-        }
     }
 }

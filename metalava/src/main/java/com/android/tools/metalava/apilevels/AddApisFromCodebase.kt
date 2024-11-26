@@ -24,12 +24,11 @@ import com.android.tools.metalava.model.DelegatedVisitor
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
-import com.android.tools.metalava.model.visitors.ApiVisitor
 
 /**
- * Visits the API codebase and inserts into the [Api] the classes, methods and fields. If
- * [apiFilters] is non-null, it is used to determine which [Item]s should be added to the [api].
- * Otherwise, the [ApiVisitor.defaultFilters] are used.
+ * Visits the API codebase and inserts into the [Api] the classes, methods and fields.
+ *
+ * The [Item]s to be visited is determined by the [codebaseFragment].
  */
 fun addApisFromCodebase(
     api: Api,
