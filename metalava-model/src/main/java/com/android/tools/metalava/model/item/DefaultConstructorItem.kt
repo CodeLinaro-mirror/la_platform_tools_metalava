@@ -49,6 +49,7 @@ open class DefaultConstructorItem(
     throwsTypes: List<ExceptionTypeItem>,
     callableBodyFactory: CallableBodyFactory,
     private val implicitConstructor: Boolean,
+    override val isPrimary: Boolean = false,
 ) :
     DefaultCallableItem(
         codebase = codebase,

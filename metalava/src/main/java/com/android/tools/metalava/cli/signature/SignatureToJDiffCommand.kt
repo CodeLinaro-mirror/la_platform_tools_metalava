@@ -132,13 +132,17 @@ class SignatureToJDiffCommand :
         OptionsDelegate.disallowAccess()
 
         val annotationManager = DefaultAnnotationManager()
+        val codebaseConfig =
+            Codebase.Config(
+                annotationManager = annotationManager,
+            )
         val signatureFileLoader =
             SignatureFileLoader(
-                annotationManager = annotationManager,
+                codebaseConfig = codebaseConfig,
                 formatForLegacyFiles = formatForLegacyFiles,
             )
 
-        val signatureApi = signatureFileLoader.load(SignatureFile.fromFile(apiFile))
+        val signatureApi = signatureFileLoader.loadFiles(SignatureFile.fromFiles(apiFile))
 
         val apiPredicateConfig = ApiPredicate.Config()
         val apiType = ApiType.ALL
@@ -153,7 +157,7 @@ class SignatureToJDiffCommand :
         val outputApi =
             if (baseFile != null) {
                 // Convert base on a diff
-                val baseApi = signatureFileLoader.load(SignatureFile.fromFile(baseFile))
+                val baseApi = signatureFileLoader.loadFiles(SignatureFile.fromFiles(baseFile))
                 computeDelta(baseFile, baseApi, signatureApi, apiPredicateConfig)
             } else {
                 signatureApi
@@ -205,7 +209,7 @@ private fun computeDelta(
     return TextCodebaseBuilder.build(
         location = baseFile,
         description = "Delta between $baseApi and $signatureApi",
-        annotationManager = signatureApi.annotationManager,
+        codebaseConfig = signatureApi.config,
     ) {
         CodebaseComparator()
             .compare(

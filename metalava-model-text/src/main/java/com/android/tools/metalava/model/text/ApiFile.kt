@@ -19,7 +19,6 @@ import com.android.tools.metalava.model.ANDROIDX_NONNULL
 import com.android.tools.metalava.model.ANDROIDX_NULLABLE
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationItem.Companion.unshortenAnnotation
-import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
@@ -59,7 +58,6 @@ import com.android.tools.metalava.model.item.DefaultValue
 import com.android.tools.metalava.model.item.MutablePackageDoc
 import com.android.tools.metalava.model.item.PackageDocs
 import com.android.tools.metalava.model.javaUnescapeString
-import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.type.MethodFingerprint
 import com.android.tools.metalava.reporter.FileLocation
 import java.io.File
@@ -71,28 +69,96 @@ import java.util.IdentityHashMap
 import kotlin.text.Charsets.UTF_8
 
 /** Encapsulates information needed to process a signature file. */
-data class SignatureFile(
+sealed interface SignatureFile {
     /** The underlying signature [File]. */
-    val file: File,
+    val file: File
 
     /**
-     * Indicates whether [file] is for the current API surface, i.e. the one that is being created.
+     * Indicates whether [file] is for the main API surface, i.e. the one that is being created.
      *
      * This will be stored in [Item.emit].
      */
-    val forCurrentApiSurface: Boolean = true,
-) {
-    companion object {
-        /** Create a [SignatureFile] from a [File]. */
-        fun fromFile(file: File) = SignatureFile(file)
+    val forMainApiSurface: Boolean
+        get() = true
 
-        /** Create a list of [SignatureFile]s from a list of [File]s. */
-        fun fromFiles(files: List<File>): List<SignatureFile> =
+    /** Read the contents of this signature file. */
+    fun readContents(): String
+
+    companion object {
+        /** Create a list of [SignatureFile]s from a varargs array of [File]s. */
+        fun fromFiles(vararg files: File): List<SignatureFile> =
             files.map {
-                SignatureFile(
+                SignatureFileFromFile(
                     it,
                 )
             }
+
+        /**
+         * Create a list of [SignatureFile]s from a list of [File]s.
+         *
+         * @param files the list of [File]s.
+         * @param forMainApiSurfacePredicate A predicate that will be called with the index and
+         *   [File] of each item in [files] and whose return value will be stored in
+         *   [SignatureFile.forMainApiSurface].
+         */
+        fun fromFiles(
+            files: List<File>,
+            forMainApiSurfacePredicate: (Int, File) -> Boolean = { _, _ -> true },
+        ): List<SignatureFile> =
+            files.mapIndexed { index, file ->
+                SignatureFileFromFile(
+                    file,
+                    forMainApiSurface = forMainApiSurfacePredicate(index, file),
+                )
+            }
+
+        /** Create a [SignatureFile] that wraps an [InputStream]. */
+        fun fromStream(filename: String, inputStream: InputStream): SignatureFile {
+            return SignatureFileFromStream(File(filename), inputStream)
+        }
+
+        /**
+         * Create a [SignatureFile] that wraps a [String].
+         *
+         * @param filename the name of the file, used for error reporting.
+         * @param contents the contents of the file, will be trimmed using [String.trimIndent].
+         */
+        fun fromText(filename: String, contents: String): SignatureFile {
+            return SignatureFileFromText(File(filename), contents.trimIndent())
+        }
+    }
+
+    /** A [SignatureFile] that will read the text from the [file]. */
+    private data class SignatureFileFromFile(
+        override val file: File,
+        override val forMainApiSurface: Boolean = true,
+    ) : SignatureFile {
+        override fun readContents() =
+            try {
+                file.readText(UTF_8)
+            } catch (ex: IOException) {
+                throw ApiParseException(
+                    "Error reading API file",
+                    location = FileLocation.createLocation(file.toPath()),
+                    cause = ex
+                )
+            }
+    }
+
+    /** A [SignatureFile] that wraps an [InputStream]. */
+    private data class SignatureFileFromStream(
+        override val file: File,
+        val inputStream: InputStream,
+    ) : SignatureFile {
+        override fun readContents() = inputStream.bufferedReader().readText()
+    }
+
+    /** A [SignatureFile] that wraps a [String]. */
+    private data class SignatureFileFromText(
+        override val file: File,
+        val contents: String,
+    ) : SignatureFile {
+        override fun readContents() = contents
     }
 }
 
@@ -137,12 +203,12 @@ private constructor(
     lateinit var format: FileFormat
 
     /**
-     * Indicates whether the file currently being parsed is for the current API surface, i.e. the
-     * one that is being created.
+     * Indicates whether the file currently being parsed is for the main API surface, i.e. the one
+     * that is being created.
      *
-     * See [SignatureFile.forCurrentApiSurface].
+     * See [SignatureFile.forMainApiSurface].
      */
-    private var forCurrentApiSurface: Boolean = true
+    private var forMainApiSurface: Boolean = true
 
     /** Map from [ClassItem] to [TextTypeItemFactory]. */
     private val classToTypeItemFactory = IdentityHashMap<ClassItem, TextTypeItemFactory>()
@@ -159,22 +225,6 @@ private constructor(
         ) = parseApi(SignatureFile.fromFiles(files))
 
         /**
-         * Same as `parseApi(List<SignatureFile>, ...)`, but takes a single file for convenience.
-         *
-         * @param signatureFile input signature file
-         */
-        fun parseApi(
-            signatureFile: SignatureFile,
-            annotationManager: AnnotationManager,
-            description: String? = null,
-        ) =
-            parseApi(
-                signatureFiles = listOf(signatureFile),
-                annotationManager = annotationManager,
-                description = description,
-            )
-
-        /**
          * Read API signature files into a [DefaultCodebase].
          *
          * Note: when reading from them multiple files, [DefaultCodebase.location] would refer to
@@ -185,7 +235,7 @@ private constructor(
          */
         fun parseApi(
             signatureFiles: List<SignatureFile>,
-            annotationManager: AnnotationManager = noOpAnnotationManager,
+            codebaseConfig: Codebase.Config = Codebase.Config.NOOP,
             description: String? = null,
             classResolver: ClassResolver? = null,
             formatForLegacyFiles: FileFormat? = null,
@@ -203,28 +253,19 @@ private constructor(
                 TextCodebaseAssembler.createAssembler(
                     location = signatureFiles[0].file,
                     description = actualDescription,
-                    annotationManager = annotationManager,
+                    codebaseConfig = codebaseConfig,
                     classResolver = classResolver,
                 )
             val parser = ApiFile(assembler, formatForLegacyFiles)
             var first = true
             for (signatureFile in signatureFiles) {
                 val file = signatureFile.file
-                val apiText: String =
-                    try {
-                        file.readText(UTF_8)
-                    } catch (ex: IOException) {
-                        throw ApiParseException(
-                            "Error reading API file",
-                            location = FileLocation.createLocation(file.toPath()),
-                            cause = ex
-                        )
-                    }
+                val apiText = signatureFile.readContents()
                 parser.parseApiSingleFile(
                     appending = !first,
                     path = file.toPath(),
                     apiText = apiText,
-                    forCurrentApiSurface = signatureFile.forCurrentApiSurface,
+                    forMainApiSurface = signatureFile.forMainApiSurface,
                 )
                 first = false
             }
@@ -232,22 +273,6 @@ private constructor(
             apiStatsConsumer(parser.stats)
 
             return assembler.codebase
-        }
-
-        /** <p>DO NOT MODIFY - used by com/android/gts/api/ApprovedApis.java */
-        @Deprecated("Exists only for external callers.")
-        @JvmStatic
-        @MetalavaApi
-        @Throws(ApiParseException::class)
-        fun parseApi(
-            filename: String,
-            apiText: String,
-            @Suppress("UNUSED_PARAMETER") kotlinStyleNulls: Boolean?,
-        ): Codebase {
-            return parseApi(
-                filename,
-                apiText,
-            )
         }
 
         /**
@@ -260,34 +285,8 @@ private constructor(
         @MetalavaApi
         @Throws(ApiParseException::class)
         fun parseApi(filename: String, inputStream: InputStream): Codebase {
-            val apiText = inputStream.bufferedReader().readText()
-            return parseApi(filename, apiText)
-        }
-
-        /** Entry point for testing. Take a filename and content separately. */
-        fun parseApi(
-            filename: String,
-            apiText: String,
-            classResolver: ClassResolver? = null,
-            formatForLegacyFiles: FileFormat? = null,
-        ): Codebase {
-            val path = Path.of(filename)
-            val assembler =
-                TextCodebaseAssembler.createAssembler(
-                    location = path.toFile(),
-                    description = "Codebase loaded from $filename",
-                    annotationManager = noOpAnnotationManager,
-                    classResolver = classResolver,
-                )
-            val parser = ApiFile(assembler, formatForLegacyFiles)
-            parser.parseApiSingleFile(
-                appending = false,
-                path = path,
-                apiText = apiText,
-                forCurrentApiSurface = true,
-            )
-
-            return assembler.codebase
+            val signatureFile = SignatureFile.fromStream(filename, inputStream)
+            return parseApi(listOf(signatureFile))
         }
 
         /**
@@ -339,25 +338,24 @@ private constructor(
     }
 
     /**
-     * Mark this [Item] as being part of the current API surface, i.e. the one that is being
-     * created.
+     * Mark this [Item] as being part of the main API surface, i.e. the one that is being created.
      *
-     * See [SignatureFile.forCurrentApiSurface].
+     * See [SignatureFile.forMainApiSurface].
      *
-     * This will set [Item.emit] to [forCurrentApiSurface] and should only be called on [Item]s
-     * which have been created from the current signature file.
+     * This will set [Item.emit] to [forMainApiSurface] and should only be called on [Item]s which
+     * have been created from the main signature file.
      */
-    private fun Item.markForCurrentApiSurface() {
-        emit = forCurrentApiSurface
+    private fun Item.markForMainApiSurface() {
+        emit = forMainApiSurface
     }
 
     /**
-     * It is only necessary to mark an existing class as being part of the current API surface, if
-     * it should be but is not already.
+     * It is only necessary to mark an existing class as being part of the main API surface, if it
+     * should be but is not already.
      *
-     * This will set [Item.emit] to `true` iff it was previously `false` and [forCurrentApiSurface]
-     * is `true`. That ensures that a class that is not in the current API surface can be included
-     * in it by another signature file, but once it is included it cannot be removed.
+     * This will set [Item.emit] to `true` iff it was previously `false` and [forMainApiSurface] is
+     * `true`. That ensures that a class that is not in the main API surface can be included in it
+     * by another signature file, but once it is included it cannot be removed.
      *
      * e.g. Imagine that there are two files, `public.txt` and `system.txt` where the second extends
      * the first. When generating the system API classes in the `public.txt` will not be considered
@@ -365,9 +363,9 @@ private constructor(
      * created in `public.txt`. While `public.txt` should come first this ensures the correct
      * behavior irrespective of the order.
      */
-    private fun ClassItem.markExistingClassForCurrentApiSurface() {
-        if (!emit && forCurrentApiSurface) {
-            markForCurrentApiSurface()
+    private fun ClassItem.markExistingClassForMainApiSurface() {
+        if (!emit && forMainApiSurface) {
+            markForMainApiSurface()
         }
     }
 
@@ -375,7 +373,7 @@ private constructor(
         appending: Boolean,
         path: Path,
         apiText: String,
-        forCurrentApiSurface: Boolean = true,
+        forMainApiSurface: Boolean = true,
     ) {
         // Parse the header of the signature file to determine the format. If the signature file is
         // empty then `parseHeader` will return null, so it will default to `FileFormat.V2`.
@@ -399,9 +397,9 @@ private constructor(
             }
         }
 
-        // Remember whether the file being parsed is for the current API surface, so that Items
+        // Remember whether the file being parsed is for the main API surface, so that Items
         // created from it can be marked correctly.
-        this.forCurrentApiSurface = forCurrentApiSurface
+        this.forMainApiSurface = forMainApiSurface
 
         val tokenizer = Tokenizer(path, apiText.toCharArray())
         while (true) {
@@ -607,7 +605,7 @@ private constructor(
                 superClassType = superClassType,
                 interfaceTypes = interfaceTypes.toList(),
             )
-        cl.markForCurrentApiSurface()
+        cl.markForMainApiSurface()
 
         // Store the [TypeItemFactory] for this [ClassItem] so it can be retrieved later in
         // [typeItemFactoryForClass].
@@ -670,8 +668,8 @@ private constructor(
         parseClassBody(tokenizer, existingClass, typeItemFactoryForClass(existingClass))
 
         // Although the class was first defined in a separate file it is being modified in the
-        // current file so that may include it in the current API surface.
-        existingClass.markExistingClassForCurrentApiSurface()
+        // current file so that may include it in the main API surface.
+        existingClass.markExistingClassForMainApiSurface()
 
         return true
     }
@@ -1009,7 +1007,7 @@ private constructor(
                 // on the API surface.
                 implicitConstructor = false,
             )
-        method.markForCurrentApiSurface()
+        method.markForMainApiSurface()
 
         if (!containingClass.constructors().contains(method)) {
             containingClass.addConstructor(method)
@@ -1122,7 +1120,7 @@ private constructor(
         // ensure that the resulting Codebase is consistent with the original source Codebase.
         if (method.isEnumSyntheticMethod()) return
 
-        method.markForCurrentApiSurface()
+        method.markForMainApiSurface()
 
         // If the method already exists in the class item because it was defined in a previous
         // signature file then replace it with this one, otherwise just add this method.
@@ -1197,7 +1195,7 @@ private constructor(
                 isEnumConstant = isEnumConstant,
                 fieldValue = fieldValue,
             )
-        field.markForCurrentApiSurface()
+        field.markForMainApiSurface()
         cl.addField(field)
     }
 
@@ -1430,7 +1428,7 @@ private constructor(
                 containingClass = cl,
                 type = type,
             )
-        property.markForCurrentApiSurface()
+        property.markForMainApiSurface()
         cl.addProperty(property)
     }
 
@@ -1738,7 +1736,7 @@ private constructor(
                     defaultValueFactory = { defaultValue },
                 )
 
-            parameter.markForCurrentApiSurface()
+            parameter.markForMainApiSurface()
 
             return parameter
         }

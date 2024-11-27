@@ -46,7 +46,6 @@ interface ConstructorItem : CallableItem {
 
     /** True if this is the primary constructor in Kotlin. */
     val isPrimary: Boolean
-        get() = false
 
     /**
      * True if this is a [ConstructorItem] that was created implicitly by the compiler and so does

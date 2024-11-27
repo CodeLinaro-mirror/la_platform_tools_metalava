@@ -16,15 +16,13 @@
 
 package com.android.tools.metalava.model.psi
 
-import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassOrigin
+import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.MutableCodebase
 import com.android.tools.metalava.model.item.DefaultCodebase
-import com.android.tools.metalava.reporter.Reporter
 import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiField
@@ -49,8 +47,7 @@ const val METHOD_ESTIMATE = 1000
 internal class PsiBasedCodebase(
     location: File,
     description: String = "Unknown",
-    annotationManager: AnnotationManager,
-    override val reporter: Reporter,
+    config: Codebase.Config,
     val allowReadingComments: Boolean,
     val fromClasspath: Boolean = false,
     assembler: PsiCodebaseAssembler,
@@ -59,12 +56,11 @@ internal class PsiBasedCodebase(
         location = location,
         description = description,
         preFiltered = false,
-        annotationManager = annotationManager,
+        config = config,
         trustedApi = false,
         supportsDocumentation = true,
         assembler = assembler,
-    ),
-    MutableCodebase {
+    ) {
 
     internal val psiAssembler = assembler
 

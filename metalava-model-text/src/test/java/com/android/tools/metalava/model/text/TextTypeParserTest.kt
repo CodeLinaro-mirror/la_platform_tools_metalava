@@ -28,7 +28,11 @@ import org.junit.Assert
 import org.junit.Test
 
 class TextTypeParserTest : BaseTextCodebaseTest() {
-    private val typeParser = TextTypeParser(ApiFile.parseApi("test", ""))
+    private val typeParser = run {
+        val signatureFile = SignatureFile.fromText("test", "")
+        val codebase = ApiFile.parseApi(listOf(signatureFile))
+        TextTypeParser(codebase)
+    }
 
     private fun parseType(type: String) =
         typeParser.obtainTypeFromString(type, TypeParameterScope.empty)

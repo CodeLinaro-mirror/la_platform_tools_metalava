@@ -23,11 +23,9 @@ import com.android.tools.metalava.model.testing.transformer.CodebaseTransformer
 import com.android.tools.metalava.model.testsuite.ModelSuiteRunner
 import com.android.tools.metalava.model.testsuite.ModelSuiteRunner.SourceDir
 import com.android.tools.metalava.model.testsuite.ModelSuiteRunner.TestConfiguration
-import com.android.tools.metalava.reporter.BasicReporter
 import com.android.tools.metalava.testing.getAndroidJar
 import com.android.tools.metalava.testing.getKotlinStdlibPaths
 import java.io.File
-import java.io.PrintWriter
 
 /** A [ModelSuiteRunner] that is implemented using a [SourceModelProvider]. */
 class SourceModelSuiteRunner(private val sourceModelProvider: SourceModelProvider) :
@@ -76,11 +74,13 @@ class SourceModelSuiteRunner(private val sourceModelProvider: SourceModelProvide
         inputs: ModelSuiteRunner.TestInputs,
         classPath: List<File>,
     ): Codebase {
-        val reporter = BasicReporter(PrintWriter(System.err))
+        val codebaseConfig =
+            Codebase.Config(
+                annotationManager = inputs.annotationManager,
+            )
         val sourceParser =
             environmentManager.createSourceParser(
-                reporter = reporter,
-                annotationManager = inputs.annotationManager,
+                codebaseConfig = codebaseConfig,
                 modelOptions = inputs.modelOptions,
             )
         return sourceParser.parseSources(

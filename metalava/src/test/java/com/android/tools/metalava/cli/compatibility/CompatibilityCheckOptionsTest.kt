@@ -21,7 +21,8 @@ import com.android.tools.metalava.SignatureFileCache
 import com.android.tools.metalava.cli.common.BaseOptionGroupTest
 import com.android.tools.metalava.cli.common.JarBasedApi
 import com.android.tools.metalava.cli.common.SignatureBasedApi
-import com.android.tools.metalava.model.noOpAnnotationManager
+import com.android.tools.metalava.cli.common.SignatureFileLoader
+import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.testing.signature
 import com.android.tools.metalava.testing.source
 import com.google.common.truth.Truth.assertThat
@@ -215,7 +216,8 @@ class CompatibilityCheckOptionsTest :
 
             val exception =
                 assertThrows(IllegalStateException::class.java) {
-                    options.previouslyReleasedCodebases(SignatureFileCache(noOpAnnotationManager))
+                    val signatureFileLoader = SignatureFileLoader(Codebase.Config.NOOP)
+                    options.previouslyReleasedCodebases(SignatureFileCache(signatureFileLoader))
                 }
 
             assertThat(exception.message)
