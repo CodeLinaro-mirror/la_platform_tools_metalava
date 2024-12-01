@@ -100,7 +100,7 @@ class ApiXmlPrinter(
         indent: String,
         writer: PrintWriter
     ) {
-        if (hiddenUntil < 0) {
+        if (alwaysHidden) {
             return
         }
         print(tag, false, parentElement, indent, writer)
@@ -148,7 +148,7 @@ class ApiXmlPrinter(
             writer.print("\" sdks=\"")
             writer.print(sdks)
         }
-        if (deprecatedIn != 0 && deprecatedIn != parentElement.deprecatedIn) {
+        if (deprecatedIn != null && deprecatedIn != parentElement.deprecatedIn) {
             writer.print("\" deprecated=\"")
             writer.print(deprecatedIn)
         }

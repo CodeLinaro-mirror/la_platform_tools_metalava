@@ -221,25 +221,12 @@ internal fun processFlags(
         actionContext.subtractApi(signatureFileCache, codebase, it)
     }
 
-    val androidApiLevelXml = options.generateApiLevelXml
-    val apiLevelJars = options.apiLevelJars
+    val generateXmlConfig = options.apiLevelsGenerationOptions.generateXmlConfig
     val apiGenerator = ApiGenerator(signatureFileCache)
-    if (androidApiLevelXml != null && apiLevelJars != null) {
+    if (generateXmlConfig != null) {
         progressTracker.progress(
-            "Generating API levels XML descriptor file, ${androidApiLevelXml.name}: "
+            "Generating API levels XML descriptor file, ${generateXmlConfig.outputFile.name}: "
         )
-        val sdkJarRoot = options.sdkJarRoot
-        val sdkInfoFile = options.sdkInfoFile
-        val sdkExtArgs: ApiGenerator.SdkExtensionsArguments? =
-            if (sdkJarRoot != null && sdkInfoFile != null) {
-                ApiGenerator.SdkExtensionsArguments(
-                    sdkJarRoot,
-                    sdkInfoFile,
-                )
-            } else {
-                null
-            }
-
         var codebaseFragment =
             CodebaseFragment.create(codebase) { delegatedVisitor ->
                 FilteringApiVisitor(
@@ -262,16 +249,7 @@ internal fun processFlags(
                 )
         }
 
-        apiGenerator.generateXml(
-            apiLevelJars,
-            options.firstApiLevel,
-            options.currentApiLevel,
-            options.isDeveloperPreviewBuild,
-            androidApiLevelXml,
-            codebaseFragment,
-            sdkExtArgs,
-            options.removeMissingClassesInApiLevels
-        )
+        apiGenerator.generateXml(codebaseFragment, generateXmlConfig)
     }
 
     if (options.docStubsDir != null || options.enhanceDocumentation) {

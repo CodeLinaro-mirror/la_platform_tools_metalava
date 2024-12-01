@@ -472,12 +472,12 @@ class ApiGeneratorTest : DriverTest() {
                     ARG_GENERATE_API_VERSION_HISTORY,
                     output.path,
                     ARG_API_VERSION_NAMES,
-                    "0.0.0"
+                    "0.0.0-alpha01"
                 )
         )
 
         val expectedJson =
-            "[{\"class\":\"test.pkg.Foo\",\"addedIn\":\"0.0.0\",\"methods\":[{\"method\":\"foo(java.lang.String)\",\"addedIn\":\"0.0.0\"}],\"fields\":[]}]"
+            "[{\"class\":\"test.pkg.Foo\",\"addedIn\":\"0.0.0-alpha01\",\"methods\":[{\"method\":\"foo(java.lang.String)\",\"addedIn\":\"0.0.0-alpha01\"}],\"fields\":[]}]"
         assertEquals(expectedJson, output.readText())
     }
 

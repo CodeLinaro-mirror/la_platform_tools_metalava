@@ -25,16 +25,26 @@ import org.objectweb.asm.tree.ClassNode
 import org.objectweb.asm.tree.FieldNode
 import org.objectweb.asm.tree.MethodNode
 
-fun Api.readAndroidJar(apiLevel: Int, jar: File) {
-    update(apiLevel)
-    readJar(apiLevel, jar)
+fun Api.readAndroidJar(sdkVersion: SdkVersion, jar: File) {
+    update(sdkVersion)
+    readJar(sdkVersion, jar)
 }
 
-fun Api.readExtensionJar(extensionVersion: Int, module: String, jar: File, nextApiLevel: Int) {
-    readJar(nextApiLevel, jar, extensionVersion, module)
+fun Api.readExtensionJar(
+    extVersion: ExtVersion,
+    module: String,
+    jar: File,
+    nextSdkVersion: SdkVersion
+) {
+    readJar(nextSdkVersion, jar, extVersion, module)
 }
 
-fun Api.readJar(apiLevel: Int, jar: File, extensionVersion: Int? = null, module: String? = null) {
+fun Api.readJar(
+    sdkVersion: SdkVersion,
+    jar: File,
+    extVersion: ExtVersion? = null,
+    module: String? = null
+) {
     val fis = FileInputStream(jar)
     ZipInputStream(fis).use { zis ->
         var entry = zis.nextEntry
@@ -52,22 +62,22 @@ fun Api.readJar(apiLevel: Int, jar: File, extensionVersion: Int? = null, module:
             val theClass =
                 addClass(
                     classNode.name,
-                    apiLevel,
+                    sdkVersion,
                     classDeprecated,
                 )
-            extensionVersion?.let { theClass.updateExtension(extensionVersion) }
+            extVersion?.let { theClass.updateExtension(extVersion) }
             module?.let { theClass.updateMainlineModule(module) }
 
-            theClass.updateHidden(apiLevel, (classNode.access and Opcodes.ACC_PUBLIC) == 0)
+            theClass.updateHidden((classNode.access and Opcodes.ACC_PUBLIC) == 0)
 
             // super class
             if (classNode.superName != null) {
-                theClass.addSuperClass(classNode.superName, apiLevel)
+                theClass.addSuperClass(classNode.superName, sdkVersion)
             }
 
             // interfaces
             for (interfaceName in classNode.interfaces) {
-                theClass.addInterface(interfaceName, apiLevel)
+                theClass.addInterface(interfaceName, sdkVersion)
             }
 
             // fields
@@ -80,10 +90,10 @@ fun Api.readJar(apiLevel: Int, jar: File, extensionVersion: Int? = null, module:
                     val apiField =
                         theClass.addField(
                             fieldNode.name,
-                            apiLevel,
+                            sdkVersion,
                             classDeprecated || isDeprecated(fieldNode.access),
                         )
-                    extensionVersion?.let { apiField.updateExtension(extensionVersion) }
+                    extVersion?.let { apiField.updateExtension(extVersion) }
                 }
             }
 
@@ -97,10 +107,10 @@ fun Api.readJar(apiLevel: Int, jar: File, extensionVersion: Int? = null, module:
                     val apiMethod =
                         theClass.addMethod(
                             methodNode.name + methodNode.desc,
-                            apiLevel,
+                            sdkVersion,
                             classDeprecated || isDeprecated(methodNode.access),
                         )
-                    extensionVersion?.let { apiMethod.updateExtension(extensionVersion) }
+                    extVersion?.let { apiMethod.updateExtension(extVersion) }
                 }
             }
 

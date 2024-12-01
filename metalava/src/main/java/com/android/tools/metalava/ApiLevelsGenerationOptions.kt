@@ -16,9 +16,14 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.apilevels.ApiGenerator
+import com.android.tools.metalava.apilevels.GenerateXmlConfig
+import com.android.tools.metalava.cli.common.EarlyOptions
+import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.cli.common.existingDir
 import com.android.tools.metalava.cli.common.existingFile
+import com.android.tools.metalava.cli.common.fileForPathInner
 import com.android.tools.metalava.cli.common.map
 import com.android.tools.metalava.cli.common.newFile
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
@@ -29,6 +34,7 @@ import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.validate
 import com.github.ajalt.clikt.parameters.types.int
 import java.io.File
+import java.io.IOException
 
 const val ARG_GENERATE_API_LEVELS = "--generate-api-levels"
 
@@ -44,7 +50,10 @@ const val ARG_ANDROID_JAR_PATTERN = "--android-jar-pattern"
 const val ARG_SDK_JAR_ROOT = "--sdk-extensions-root"
 const val ARG_SDK_INFO_FILE = "--sdk-extensions-info"
 
-class ApiLevelsGenerationOptions :
+class ApiLevelsGenerationOptions(
+    private val executionEnvironment: ExecutionEnvironment = ExecutionEnvironment(),
+    private val earlyOptions: EarlyOptions = EarlyOptions(),
+) :
     OptionGroup(
         name = "Api Levels Generation",
         help =
@@ -68,7 +77,7 @@ class ApiLevelsGenerationOptions :
             .newFile()
 
     /** Whether references to missing classes should be removed from the api levels file. */
-    val removeMissingClassReferencesInApiLevels: Boolean by
+    private val removeMissingClassReferencesInApiLevels: Boolean by
         option(
                 ARG_REMOVE_MISSING_CLASS_REFERENCES_IN_API_LEVELS,
                 help =
@@ -86,7 +95,7 @@ class ApiLevelsGenerationOptions :
      * The first api level of the codebase; typically 1 but can be higher for example for the System
      * API.
      */
-    val firstApiLevel: Int by
+    private val firstApiLevel: Int by
         option(
                 ARG_FIRST_VERSION,
                 metavar = "<numeric-version>",
@@ -99,8 +108,16 @@ class ApiLevelsGenerationOptions :
             .int()
             .default(1)
 
+    /**
+     * The last api level.
+     *
+     * This is one more than [currentApiLevel] if this is a developer preview build.
+     */
+    private val lastApiLevel
+        get() = currentApiLevel + if (isDeveloperPreviewBuild) 1 else 0
+
     /** The api level of the codebase, or null if not known/specified */
-    val currentApiLevel: Int? by
+    private val optionalCurrentApiLevel: Int? by
         option(
                 ARG_CURRENT_VERSION,
                 metavar = "<numeric-version>",
@@ -119,6 +136,19 @@ class ApiLevelsGenerationOptions :
             }
 
     /**
+     * Get the current API level.
+     *
+     * This must only be called if needed as it will fail if [ARG_CURRENT_VERSION] has not been
+     * specified.
+     */
+    private val currentApiLevel: Int
+        get() =
+            optionalCurrentApiLevel
+                ?: throw MetalavaCliException(
+                    stderr = "$ARG_GENERATE_API_LEVELS requires $ARG_CURRENT_VERSION"
+                )
+
+    /**
      * The codename of the codebase: non-null string if this is a developer preview build, null if
      * this is a release build.
      */
@@ -135,11 +165,11 @@ class ApiLevelsGenerationOptions :
             .map { if (it == "REL") null else it }
 
     /** True if [currentCodeName] is specified, false otherwise. */
-    val isDeveloperPreviewBuild
+    private val isDeveloperPreviewBuild
         get() = currentCodeName != null
 
     /** The list of patterns used to find matching jars in the set of files visible to Metalava. */
-    val androidJarPatterns: List<String> by
+    private val androidJarPatterns: List<String> by
         option(
                 ARG_ANDROID_JAR_PATTERN,
                 metavar = "<android-jar-pattern>",
@@ -163,7 +193,7 @@ class ApiLevelsGenerationOptions :
             }
 
     /** Directory of prebuilt extension SDK jars that contribute to the API */
-    val sdkJarRoot: File? by
+    private val sdkJarRoot: File? by
         option(
                 ARG_SDK_JAR_ROOT,
                 metavar = "<sdk-jar-root>",
@@ -178,12 +208,13 @@ class ApiLevelsGenerationOptions :
                         .trimIndent(),
             )
             .existingDir()
+            .validate { checkSdkJarRootAndSdkInfoFile() }
 
     /**
      * Rules to filter out some extension SDK APIs from the API, and assign extensions to the APIs
      * that are kept
      */
-    val sdkInfoFile: File? by
+    private val sdkInfoFile: File? by
         option(
                 ARG_SDK_INFO_FILE,
                 metavar = "<sdk-info-file>",
@@ -208,6 +239,22 @@ class ApiLevelsGenerationOptions :
                         .trimIndent(),
             )
             .existingFile()
+            .validate { checkSdkJarRootAndSdkInfoFile() }
+
+    /**
+     * Check the [sdkJarRoot] and [sdkInfoFile] to make sure that if one is specified they are both
+     * specified
+     *
+     * This is called if either of those is set to a non-null value so all this needs to do is make
+     * sure that neither are `null`.
+     */
+    private fun checkSdkJarRootAndSdkInfoFile() {
+        if ((sdkJarRoot == null) || (sdkInfoFile == null)) {
+            throw MetalavaCliException(
+                stderr = "$ARG_SDK_JAR_ROOT and $ARG_SDK_INFO_FILE must both be supplied"
+            )
+        }
+    }
 
     /**
      * Get label for [level].
@@ -218,7 +265,7 @@ class ApiLevelsGenerationOptions :
      */
     fun getApiLevelLabel(level: Int): String {
         val codename = currentCodeName
-        val current = currentApiLevel
+        val current = optionalCurrentApiLevel
         return if (current == null || codename == null || level <= current) level.toString()
         else codename
     }
@@ -237,7 +284,96 @@ class ApiLevelsGenerationOptions :
      */
     fun includeApiLevelInDocumentation(level: Int): Boolean {
         if (isDeveloperPreviewBuild) return true
-        val current = currentApiLevel ?: return true
+        val current = optionalCurrentApiLevel ?: return true
         return level <= current
     }
+
+    /**
+     * The list of jar files from which the API levels file will be populated. One for each API
+     * level, indexed by API level, starting from 1. The 0th element plus any element less than
+     * [firstApiLevel] is a placeholder that is an invalid file and should not be used.
+     */
+    private val apiLevelJars
+        get() = findAndroidJars()
+
+    /** Find an android stub jar that matches the given criteria. */
+    private fun findAndroidJars(): List<File> {
+        val apiLevelFiles = mutableListOf<File>()
+        // api level 0: placeholder, should not be processed.
+        // (This is here because we want the array index to match
+        // the API level)
+        val element = File("not an api: the starting API index is $firstApiLevel")
+        for (i in 0 until firstApiLevel) {
+            apiLevelFiles.add(element)
+        }
+
+        // Get all the android.jar. They are in platforms-#
+        for (apiLevel in firstApiLevel.rangeTo(lastApiLevel)) {
+            try {
+                val jar = getAndroidJarFile(apiLevel, androidJarPatterns)
+                if (jar == null || !jar.isFile) {
+                    verbosePrint { "Last API level found: ${apiLevel - 1}" }
+
+                    if (apiLevel < 28) {
+                        // Clearly something is wrong with the patterns; this should result in a
+                        // build error
+                        throw MetalavaCliException(
+                            stderr =
+                                "Could not find android.jar for API level $apiLevel; the " +
+                                    "$ARG_ANDROID_JAR_PATTERN set might be invalid see:" +
+                                    " ${androidJarPatterns.joinToString()} (the last two entries are defaults)"
+                        )
+                    }
+
+                    break
+                }
+
+                verbosePrint { "Found API $apiLevel at ${jar.path}" }
+
+                apiLevelFiles.add(jar)
+            } catch (e: IOException) {
+                e.printStackTrace()
+            }
+        }
+
+        return apiLevelFiles.toList()
+    }
+
+    /** Print string returned by [message] if verbose output has been requested. */
+    private inline fun verbosePrint(message: () -> String) {
+        if (earlyOptions.verbosity.verbose) {
+            executionEnvironment.stdout.println(message())
+        }
+    }
+
+    private fun getAndroidJarFile(apiLevel: Int, patterns: List<String>): File? {
+        return patterns
+            .map { fileForPathInner(it.replace("%", apiLevel.toString())) }
+            .firstOrNull { it.isFile }
+    }
+
+    private val sdkExtensionsArguments
+        get() =
+            if (sdkJarRoot != null && sdkInfoFile != null) {
+                ApiGenerator.SdkExtensionsArguments(
+                    sdkJarRoot!!,
+                    sdkInfoFile!!,
+                )
+            } else {
+                null
+            }
+
+    val generateXmlConfig
+        get() =
+            generateApiLevelXml?.let { outputFile ->
+                GenerateXmlConfig(
+                    apiLevels = apiLevelJars,
+                    firstApiLevel = firstApiLevel,
+                    currentApiLevel = currentApiLevel,
+                    isDeveloperPreviewBuild = isDeveloperPreviewBuild,
+                    outputFile = outputFile,
+                    sdkExtensionsArguments = sdkExtensionsArguments,
+                    removeMissingClasses = removeMissingClassReferencesInApiLevels,
+                )
+            }
 }

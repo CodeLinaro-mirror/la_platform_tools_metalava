@@ -123,10 +123,10 @@ private constructor(
      * @return an `sdks` value suitable for including verbatim in XML
      */
     fun calculateSdksAttr(
-        androidSince: Int,
-        notFinalizedValue: Int,
+        androidSince: SdkVersion,
+        notFinalizedValue: SdkVersion,
         extensions: List<String>,
-        extensionsSince: Int
+        extensionsSince: ExtVersion
     ): String {
         // Special case: symbol not finalized anywhere -> "ANDROID_SDK:next_dessert_int"
         if (androidSince == notFinalizedValue && extensionsSince == ApiElement.NEVER) {
@@ -134,6 +134,7 @@ private constructor(
         }
 
         val versions = mutableSetOf<String>()
+        val sinceLevel = androidSince.level
         // Only include SDK extensions if the symbol has been finalized in at least one
         if (extensionsSince != ApiElement.NEVER) {
             for (ext in extensions) {
@@ -141,7 +142,7 @@ private constructor(
                     sdkIdentifiers.find { it.shortname == ext }
                         ?: throw IllegalStateException("unknown extension SDK \"$ext\"")
                 assert(ident.id != ANDROID_PLATFORM_SDK_ID) // invariant
-                if (ident.id >= DESSERT_RELEASE_INDEPENDENT_SDK_BASE || ident.id <= androidSince) {
+                if (ident.id >= DESSERT_RELEASE_INDEPENDENT_SDK_BASE || ident.id <= sinceLevel) {
                     versions.add("${ident.id}:$extensionsSince")
                 }
             }

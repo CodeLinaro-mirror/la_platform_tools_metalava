@@ -131,7 +131,11 @@ class MainCommand(
     private val stubGenerationOptions by StubGenerationOptions()
 
     /** Api levels generation options. */
-    private val apiLevelsGenerationOptions by ApiLevelsGenerationOptions()
+    private val apiLevelsGenerationOptions by
+        ApiLevelsGenerationOptions(
+            executionEnvironment = executionEnvironment,
+            earlyOptions = commonOptions,
+        )
 
     /**
      * Add [Options] (an [OptionGroup]) so that any Clikt defined properties will be processed by

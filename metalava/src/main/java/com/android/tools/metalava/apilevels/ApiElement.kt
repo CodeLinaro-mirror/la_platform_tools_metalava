@@ -15,16 +15,31 @@
  */
 package com.android.tools.metalava.apilevels
 
-/** Represents an API element, e.g. class, method or field. */
-open class ApiElement : Comparable<ApiElement> {
-    /** Returns the name of the API element. */
-    val name: String
-    /** The Android API level of this ApiElement. */
-    /** The Android platform SDK version this API was first introduced in. */
-    var since = 0
+/**
+ * Represents an API element, e.g. class, method or field.
+ *
+ * @param name the name of the API element
+ * @param sdkVersion an API version for which the API element existed, or -1 if the class does not
+ *   yet exist in the Android SDK (only in extension SDKs)
+ * @param deprecated whether the API element was deprecated in the API version in question
+ */
+open class ApiElement(
+    val name: String,
+    sdkVersion: SdkVersion,
+    deprecated: Boolean = false,
+) : Comparable<ApiElement> {
+
+    /**
+     * The Android API level of this ApiElement. i.e. The Android platform SDK version this API was
+     * first introduced in.
+     */
+    var since = sdkVersion
         private set
-    /** The extension version of this ApiElement. */
-    /** The Android extension SDK version this API was first introduced in. */
+
+    /**
+     * The extension version of this ApiElement. i.e. The Android extension SDK version this API was
+     * first introduced in.
+     */
     var sinceExtension = NEVER
         private set
 
@@ -43,34 +58,12 @@ open class ApiElement : Comparable<ApiElement> {
     var mainlineModule: String? = null
         private set
 
-    /**
-     * The API level this element was deprecated in, should only be used if [isDeprecated] is true.
-     */
-    var deprecatedIn = 0
+    /** The optional API level this element was deprecated in. */
+    var deprecatedIn = if (deprecated) sdkVersion else null
         private set
 
-    var lastPresentIn = 0
+    var lastPresentIn = sdkVersion
         private set
-
-    /**
-     * @param name the name of the API element
-     * @param version an API version for which the API element existed, or -1 if the class does not
-     *   yet exist in the Android SDK (only in extension SDKs)
-     * @param deprecated whether the API element was deprecated in the API version in question
-     */
-    internal constructor(name: String, version: Int, deprecated: Boolean = false) {
-        this.name = name
-        since = version
-        lastPresentIn = version
-        if (deprecated) {
-            deprecatedIn = version
-        }
-    }
-
-    /** @param name the name of the API element */
-    internal constructor(name: String) {
-        this.name = name
-    }
 
     /**
      * Checks if this API element was introduced not later than another API element.
@@ -85,28 +78,29 @@ open class ApiElement : Comparable<ApiElement> {
     /**
      * Updates the API element with information for a specific API version.
      *
-     * @param version an API version for which the API element existed
+     * @param sdkVersion an API version for which the API element existed
      * @param deprecated whether the API element was deprecated in the API version in question
      */
-    fun update(version: Int, deprecated: Boolean) {
-        assert(version > 0)
-        if (since > version) {
-            since = version
+    fun update(sdkVersion: SdkVersion, deprecated: Boolean) {
+        assert(sdkVersion.isValid)
+        if (since > sdkVersion) {
+            since = sdkVersion
         }
-        if (lastPresentIn < version) {
-            lastPresentIn = version
+        if (lastPresentIn < sdkVersion) {
+            lastPresentIn = sdkVersion
         }
+        val deprecatedVersion = deprecatedIn
         if (deprecated) {
             // If it was not previously deprecated or was deprecated in a later version than this
             // one then deprecate it in this version.
-            if (deprecatedIn == 0 || deprecatedIn > version) {
-                deprecatedIn = version
+            if (deprecatedVersion == null || deprecatedVersion > sdkVersion) {
+                deprecatedIn = sdkVersion
             }
         } else {
             // If it was previously deprecated and was deprecated in an earlier version than this
             // one then treat it as being undeprecated.
-            if (deprecatedIn != 0 && deprecatedIn < version) {
-                deprecatedIn = 0
+            if (deprecatedVersion != null && deprecatedVersion < sdkVersion) {
+                deprecatedIn = null
             }
         }
     }
@@ -114,21 +108,21 @@ open class ApiElement : Comparable<ApiElement> {
     /**
      * Updates the API element with information for a specific API version.
      *
-     * @param version an API version for which the API element existed
+     * @param sdkVersion an API version for which the API element existed
      */
-    fun update(version: Int) {
-        update(version, isDeprecated)
+    fun update(sdkVersion: SdkVersion) {
+        update(sdkVersion, deprecatedIn != null)
     }
 
     /**
      * Analogous to update(), but for extensions sdk versions.
      *
-     * @param version an extension SDK version for which the API element existed
+     * @param extVersion an extension SDK version for which the API element existed
      */
-    fun updateExtension(version: Int) {
-        assert(version > 0)
-        if (sinceExtension > version) {
-            sinceExtension = version
+    fun updateExtension(extVersion: ExtVersion) {
+        assert(extVersion.isValid)
+        if (sinceExtension > extVersion) {
+            sinceExtension = extVersion
         }
     }
 
@@ -140,15 +134,11 @@ open class ApiElement : Comparable<ApiElement> {
         mainlineModule = module
     }
 
-    val isDeprecated: Boolean
-        /** Checks whether the API element is deprecated or not. */
-        get() = deprecatedIn != 0
-
     override fun compareTo(other: ApiElement): Int {
         return name.compareTo(other.name)
     }
 
     companion object {
-        const val NEVER = Int.MAX_VALUE
+        val NEVER = ExtVersion.HIGHEST
     }
 }

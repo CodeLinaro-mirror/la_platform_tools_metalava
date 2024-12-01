@@ -17,6 +17,8 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.cli.common.BaseOptionGroupTest
+import com.google.common.truth.Truth.assertThat
+import org.junit.Test
 
 val API_LEVELS_GENERATION_OPTIONS_HELP =
     """
@@ -68,4 +70,22 @@ class ApiLevelsGenerationOptionsTest :
         API_LEVELS_GENERATION_OPTIONS_HELP,
     ) {
     override fun createOptions() = ApiLevelsGenerationOptions()
+
+    @Test
+    fun `sdkJarRoot without sdkInfoFile`() {
+        val file = temporaryFolder.newFolder("sdk-jar-root")
+        runTest(ARG_SDK_JAR_ROOT, file.path) {
+            assertThat(stderr)
+                .isEqualTo("--sdk-extensions-root and --sdk-extensions-info must both be supplied")
+        }
+    }
+
+    @Test
+    fun `sdkInfoFile without sdkJarRoot`() {
+        val file = temporaryFolder.newFile("sdk-info-file.xml")
+        runTest(ARG_SDK_INFO_FILE, file.path) {
+            assertThat(stderr)
+                .isEqualTo("--sdk-extensions-root and --sdk-extensions-info must both be supplied")
+        }
+    }
 }

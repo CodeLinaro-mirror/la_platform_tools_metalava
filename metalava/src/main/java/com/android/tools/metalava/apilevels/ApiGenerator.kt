@@ -31,43 +31,49 @@ import java.io.IOException
  * simple text files.
  */
 class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
-    @Throws(IOException::class, IllegalArgumentException::class)
+    /**
+     * Generates an XML API version history file based on the API surfaces of the versions provided.
+     *
+     * @param codebaseFragment A [CodebaseFragment] representing the current API surface.
+     * @param config Configuration provided from command line options.
+     */
     fun generateXml(
-        apiLevels: Array<File>,
-        firstApiLevel: Int,
-        currentApiLevel: Int,
-        isDeveloperPreviewBuild: Boolean,
-        outputFile: File,
         codebaseFragment: CodebaseFragment,
-        sdkExtensionsArguments: SdkExtensionsArguments?,
-        removeMissingClasses: Boolean
+        config: GenerateXmlConfig,
     ): Boolean {
-        val notFinalizedApiLevel = currentApiLevel + 1
+        val apiLevels = config.apiLevels
+        val firstApiLevel = config.firstApiLevel
+        val currentApiLevel = config.currentApiLevel
+        val currentSdkVersion = SdkVersion.fromLevel(currentApiLevel)
+        val notFinalizedSdkVersion = currentSdkVersion + 1
         val api = createApiFromAndroidJars(apiLevels, firstApiLevel)
+        val isDeveloperPreviewBuild = config.isDeveloperPreviewBuild
         if (isDeveloperPreviewBuild || apiLevels.size - 1 < currentApiLevel) {
             // Only include codebase if we don't have a prebuilt, finalized jar for it.
-            val apiLevel = if (isDeveloperPreviewBuild) notFinalizedApiLevel else currentApiLevel
-            addApisFromCodebase(api, apiLevel, codebaseFragment, true)
+            val sdkVersion =
+                if (isDeveloperPreviewBuild) notFinalizedSdkVersion else currentSdkVersion
+            addApisFromCodebase(api, sdkVersion, codebaseFragment, true)
         }
         api.backfillHistoricalFixes()
         var sdkIdentifiers = emptySet<SdkIdentifier>()
+        val sdkExtensionsArguments = config.sdkExtensionsArguments
         if (sdkExtensionsArguments != null) {
             sdkIdentifiers =
                 processExtensionSdkApis(
                     api,
-                    notFinalizedApiLevel,
+                    notFinalizedSdkVersion,
                     sdkExtensionsArguments.sdkExtJarRoot,
                     sdkExtensionsArguments.sdkExtInfoFile,
                 )
         }
         api.clean()
-        if (removeMissingClasses) {
+        if (config.removeMissingClasses) {
             api.removeMissingClasses()
         } else {
             api.verifyNoMissingClasses()
         }
         val printer = ApiXmlPrinter(sdkIdentifiers, firstApiLevel)
-        return createApiLevelsFile(outputFile, printer, api)
+        return createApiLevelsFile(config.outputFile, printer, api)
     }
 
     /**
@@ -85,7 +91,8 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
             val codebase: Codebase = signatureFileCache.load(SignatureFile.fromFiles(apiFile))
             val codebaseFragment =
                 CodebaseFragment.create(codebase, ::NonFilteringDelegatingVisitor)
-            addApisFromCodebase(api, apiLevel, codebaseFragment, false)
+            val sdkVersion = SdkVersion.fromLevel(apiLevel)
+            addApisFromCodebase(api, sdkVersion, codebaseFragment, false)
             apiLevel += 1
         }
         api.clean()
@@ -93,38 +100,40 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
     }
 
     /**
-     * Generates an API version history file based on the API surfaces of the versions provided.
+     * Generates a JSON API version history file based on the API surfaces of the versions provided.
      *
      * @param pastApiVersions A list of API signature files, ordered from the oldest API version to
      *   newest.
-     * @param currentApiVersion A codebase representing the current API surface.
+     * @param codebaseFragment A [CodebaseFragment] representing the current API surface.
      * @param outputFile Path of the JSON file to write output to.
      * @param apiVersionNames The names of the API versions, ordered starting from version 1. This
      *   should include the names of all the [pastApiVersions], then the name of the
-     *   [currentApiVersion].
+     *   [codebaseFragment].
      */
     fun generateJson(
         pastApiVersions: List<File>,
-        currentApiVersion: CodebaseFragment,
+        codebaseFragment: CodebaseFragment,
         outputFile: File,
         apiVersionNames: List<String>,
     ) {
         val api = createApiFromSignatureFiles(pastApiVersions)
+        val currentSdkVersion = SdkVersion.fromLevel(apiVersionNames.size)
         addApisFromCodebase(
             api,
-            apiVersionNames.size,
-            currentApiVersion,
+            currentSdkVersion,
+            codebaseFragment,
             false,
         )
         val printer = ApiJsonPrinter(apiVersionNames)
         createApiLevelsFile(outputFile, printer, api)
     }
 
-    private fun createApiFromAndroidJars(apiLevels: Array<File>, firstApiLevel: Int): Api {
+    private fun createApiFromAndroidJars(apiLevels: List<File>, firstApiLevel: Int): Api {
         val api = Api()
         for (apiLevel in firstApiLevel until apiLevels.size) {
             val jar = apiLevels[apiLevel]
-            api.readAndroidJar(apiLevel, jar)
+            val sdkVersion = SdkVersion.fromLevel(apiLevel)
+            api.readAndroidJar(sdkVersion, jar)
         }
         return api
     }
@@ -140,7 +149,7 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
      * which is what non-finalized APIs use.
      *
      * @param api the api to modify
-     * @param apiLevelNotInAndroidSdk fallback API level for APIs not in the Android SDK
+     * @param versionNotInAndroidSdk fallback API level for APIs not in the Android SDK
      * @param sdkJarRoot path to directory containing extension SDK jars (usually
      *   $ANDROID_ROOT/prebuilts/sdk/extensions)
      * @param filterPath path to the filter file. @see ApiToExtensionsMap
@@ -148,10 +157,9 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
      * @throws IllegalArgumentException if an error is detected in the filter file, or if no jar
      *   files were found
      */
-    @Throws(IOException::class, IllegalArgumentException::class)
     private fun processExtensionSdkApis(
         api: Api,
-        apiLevelNotInAndroidSdk: Int,
+        versionNotInAndroidSdk: SdkVersion,
         sdkJarRoot: File,
         filterPath: File,
     ): Set<SdkIdentifier> {
@@ -164,8 +172,9 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
             if (moduleMap.isEmpty())
                 continue // TODO(b/259115852): remove this (though it is an optimization too).
             moduleMaps[mainlineModule] = moduleMap
-            for ((version, path) in value) {
-                api.readExtensionJar(version, mainlineModule, path, apiLevelNotInAndroidSdk)
+            for ((level, path) in value) {
+                val extVersion = ExtVersion.fromLevel(level)
+                api.readExtensionJar(extVersion, mainlineModule, path, versionNotInAndroidSdk)
             }
         }
         for (clazz in api.classes) {
@@ -174,7 +183,7 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
             var sdks =
                 extensionsMap!!.calculateSdksAttr(
                     clazz.since,
-                    apiLevelNotInAndroidSdk,
+                    versionNotInAndroidSdk,
                     extensionsMap.getExtensions(clazz),
                     clazz.sinceExtension
                 )
@@ -185,7 +194,7 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
                 sdks =
                     extensionsMap.calculateSdksAttr(
                         field.since,
-                        apiLevelNotInAndroidSdk,
+                        versionNotInAndroidSdk,
                         extensionsMap.getExtensions(clazz, field),
                         field.sinceExtension
                     )
@@ -197,7 +206,7 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
                 sdks =
                     extensionsMap.calculateSdksAttr(
                         method.since,
-                        apiLevelNotInAndroidSdk,
+                        versionNotInAndroidSdk,
                         extensionsMap.getExtensions(clazz, method),
                         method.sinceExtension
                     )

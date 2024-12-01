@@ -32,7 +32,7 @@ import com.android.tools.metalava.model.MethodItem
  */
 fun addApisFromCodebase(
     api: Api,
-    apiLevel: Int,
+    sdkVersion: SdkVersion,
     codebaseFragment: CodebaseFragment,
     useInternalNames: Boolean,
 ) {
@@ -46,34 +46,34 @@ fun addApisFromCodebase(
             }
 
             override fun visitClass(cls: ClassItem) {
-                val newClass = api.addClass(cls.nameInApi(), apiLevel, cls.effectivelyDeprecated)
+                val newClass = api.addClass(cls.nameInApi(), sdkVersion, cls.effectivelyDeprecated)
                 currentClass = newClass
 
                 if (cls.isClass()) {
                     val superClass = cls.superClass()
                     if (superClass != null) {
-                        newClass.addSuperClass(superClass.nameInApi(), apiLevel)
+                        newClass.addSuperClass(superClass.nameInApi(), sdkVersion)
                     }
                 } else if (cls.isInterface()) {
                     val superClass = cls.superClass()
                     if (superClass != null && !superClass.isJavaLangObject()) {
-                        newClass.addInterface(superClass.nameInApi(), apiLevel)
+                        newClass.addInterface(superClass.nameInApi(), sdkVersion)
                     }
                 } else if (cls.isEnum()) {
                     // Implicit super class; match convention from bytecode
                     if (newClass.name != enumClass) {
-                        newClass.addSuperClass(enumClass, apiLevel)
+                        newClass.addSuperClass(enumClass, sdkVersion)
                     }
 
                     // Mimic doclava enum methods
                     enumMethodNames(newClass.name).forEach { name ->
-                        newClass.addMethod(name, apiLevel, false)
+                        newClass.addMethod(name, sdkVersion, false)
                     }
                 } else if (cls.isAnnotationType()) {
                     // Implicit super class; match convention from bytecode
                     if (newClass.name != annotationClass) {
-                        newClass.addSuperClass(objectClass, apiLevel)
-                        newClass.addInterface(annotationClass, apiLevel)
+                        newClass.addSuperClass(objectClass, sdkVersion)
+                        newClass.addInterface(annotationClass, sdkVersion)
                     }
                 }
 
@@ -92,12 +92,12 @@ fun addApisFromCodebase(
                         newClass.superClasses.size == 1 &&
                         newClass.superClasses[0].name == objectClass
                 ) {
-                    newClass.addSuperClass(objectClass, apiLevel)
+                    newClass.addSuperClass(objectClass, sdkVersion)
                 }
 
                 for (interfaceType in cls.interfaceTypes()) {
                     val interfaceClass = interfaceType.asClass() ?: return
-                    newClass.addInterface(interfaceClass.nameInApi(), apiLevel)
+                    newClass.addInterface(interfaceClass.nameInApi(), sdkVersion)
                 }
             }
 
@@ -107,7 +107,7 @@ fun addApisFromCodebase(
                 }
                 currentClass?.addMethod(
                     callable.nameInApi(),
-                    apiLevel,
+                    sdkVersion,
                     callable.effectivelyDeprecated
                 )
             }
@@ -124,7 +124,7 @@ fun addApisFromCodebase(
                 if (field.isPrivate || field.isPackagePrivate) {
                     return
                 }
-                currentClass?.addField(field.nameInApi(), apiLevel, field.effectivelyDeprecated)
+                currentClass?.addField(field.nameInApi(), sdkVersion, field.effectivelyDeprecated)
             }
 
             /** The name of the field in this [Api], based on [useInternalNames] */
