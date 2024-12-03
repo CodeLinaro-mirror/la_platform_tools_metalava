@@ -274,11 +274,9 @@ internal fun processFlags(
         }
     }
 
-    val apiVersionsJson = options.generateApiVersionsJson
-    val apiVersionNames = options.apiVersionNames
-    if (apiVersionsJson != null && apiVersionNames != null) {
+    options.apiLevelsGenerationOptions.generateApiVersionsFromSignatureFilesConfig?.let { config ->
         progressTracker.progress(
-            "Generating API version history JSON file, ${apiVersionsJson.name}: "
+            "Generating API version history ${config.printer} file, ${config.outputFile.name}: "
         )
 
         val apiType = ApiType.PUBLIC_API
@@ -293,13 +291,7 @@ internal fun processFlags(
                 )
             }
 
-        apiGenerator.generateJson(
-            // The signature files can be null if the current version is the only version
-            options.apiVersionSignatureFiles ?: emptyList(),
-            codebaseFragment,
-            apiVersionsJson,
-            apiVersionNames,
-        )
+        apiGenerator.generateFromSignatureFiles(codebaseFragment, config)
     }
 
     // Generate the documentation stubs *before* we migrate nullness information.

@@ -62,6 +62,21 @@ Api Levels Generation:
                                              SDK). Fields are separated by whitespace. A mainline module may be listed
                                              multiple times. The special pattern \"*\" refers to all APIs in the given
                                              mainline module. Lines beginning with # are comments.
+  --generate-api-version-history <output-file>
+                                             Reads API signature files and generates a JSON or XML file depending on the
+                                             extension, which must be one of `json` or `xml` respectively. The JSON file
+                                             will record the API version in which each class, method, and field. was
+                                             added in and (if applicable) deprecated in. The XML file will include that
+                                             information and more but will be optimized to exclude information from
+                                             class members which is the same as the containing class.
+  --api-version-signature-files <files>      An ordered list of text API signature files. The oldest API version should
+                                             be first, the newest last. This should not include a signature file for the
+                                             current API version, which will be parsed from the provided source files.
+                                             Not required to generate API version JSON if the current version is the
+                                             only version.
+  --api-version-names <api-versions>         An ordered list of strings with the names to use for the API versions from
+                                             --api-version-signature-files, and the name of the current API version.
+                                             Required for --generate-api-version-history.
     """
         .trimIndent()
 
