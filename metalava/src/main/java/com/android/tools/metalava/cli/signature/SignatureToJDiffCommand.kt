@@ -20,8 +20,8 @@ import com.android.tools.metalava.CodebaseComparator
 import com.android.tools.metalava.ComparisonVisitor
 import com.android.tools.metalava.JDiffXmlWriter
 import com.android.tools.metalava.OptionsDelegate
+import com.android.tools.metalava.cli.common.DefaultSignatureFileLoader
 import com.android.tools.metalava.cli.common.MetalavaSubCommand
-import com.android.tools.metalava.cli.common.SignatureFileLoader
 import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.newFile
 import com.android.tools.metalava.cli.common.progressTracker
@@ -137,12 +137,12 @@ class SignatureToJDiffCommand :
                 annotationManager = annotationManager,
             )
         val signatureFileLoader =
-            SignatureFileLoader(
+            DefaultSignatureFileLoader(
                 codebaseConfig = codebaseConfig,
                 formatForLegacyFiles = formatForLegacyFiles,
             )
 
-        val signatureApi = signatureFileLoader.loadFiles(SignatureFile.fromFiles(apiFile))
+        val signatureApi = signatureFileLoader.load(SignatureFile.fromFiles(apiFile))
 
         val apiPredicateConfig = ApiPredicate.Config()
         val apiType = ApiType.ALL
@@ -157,7 +157,7 @@ class SignatureToJDiffCommand :
         val outputApi =
             if (baseFile != null) {
                 // Convert base on a diff
-                val baseApi = signatureFileLoader.loadFiles(SignatureFile.fromFiles(baseFile))
+                val baseApi = signatureFileLoader.load(SignatureFile.fromFiles(baseFile))
                 computeDelta(baseFile, baseApi, signatureApi, apiPredicateConfig)
             } else {
                 signatureApi

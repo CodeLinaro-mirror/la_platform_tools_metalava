@@ -23,23 +23,30 @@ import com.android.tools.metalava.model.text.ApiParseException
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.SignatureFile
 
+/** Supports loading [SignatureFile]s into a [Codebase] using an optional [ClassResolver]. */
+interface SignatureFileLoader {
+    /** Load [signatureFiles] into a [Codebase] using the optional [classResolver]. */
+    fun load(signatureFiles: List<SignatureFile>, classResolver: ClassResolver? = null): Codebase
+}
+
 /**
  * Helper object to load signature files and rethrow any [ApiParseException] as a
  * [MetalavaCliException].
  */
-class SignatureFileLoader(
+class DefaultSignatureFileLoader(
     private val codebaseConfig: Codebase.Config,
     private val formatForLegacyFiles: FileFormat? = null,
-) {
-    fun loadFiles(
-        files: List<SignatureFile>,
-        classResolver: ClassResolver? = null,
+) : SignatureFileLoader {
+
+    override fun load(
+        signatureFiles: List<SignatureFile>,
+        classResolver: ClassResolver?,
     ): Codebase {
-        require(files.isNotEmpty()) { "files must not be empty" }
+        require(signatureFiles.isNotEmpty()) { "files must not be empty" }
 
         try {
             return ApiFile.parseApi(
-                signatureFiles = files,
+                signatureFiles = signatureFiles,
                 codebaseConfig = codebaseConfig,
                 classResolver = classResolver,
                 formatForLegacyFiles = formatForLegacyFiles,

@@ -15,7 +15,7 @@
  */
 package com.android.tools.metalava
 
-import com.android.tools.metalava.apilevels.SdkVersion
+import com.android.tools.metalava.apilevels.ApiVersion
 
 /**
  * ID and aliases for a given SDK extension.
@@ -48,7 +48,7 @@ private constructor(
      *
      * @param androidSdkVersion the version of the Android SDK in which an API element was added.
      */
-    abstract fun supersedesAndroidSdkVersion(androidSdkVersion: SdkVersion): Boolean
+    abstract fun supersedesAndroidSdkVersion(androidSdkVersion: ApiVersion): Boolean
 
     init {
         require(id >= 1) { "SDK extensions cannot have an id less than 1 but it is $id" }
@@ -93,12 +93,12 @@ private constructor(
     ) : SdkExtension(id, shortname, name, reference) {
 
         /**
-         * The base [SdkVersion] of this extension. This the version of the Android SDK to which
+         * The base [ApiVersion] of this extension. This the version of the Android SDK to which
          * this extension applies.
          */
-        private val baseSdkVersion = SdkVersion.fromLevel(id)
+        private val baseSdkVersion = ApiVersion.fromLevel(id)
 
-        override fun supersedesAndroidSdkVersion(androidSdkVersion: SdkVersion) =
+        override fun supersedesAndroidSdkVersion(androidSdkVersion: ApiVersion) =
             baseSdkVersion <= androidSdkVersion
     }
 
@@ -109,6 +109,6 @@ private constructor(
         name: String,
         reference: String,
     ) : SdkExtension(id, shortname, name, reference) {
-        override fun supersedesAndroidSdkVersion(androidSdkVersion: SdkVersion) = true
+        override fun supersedesAndroidSdkVersion(androidSdkVersion: ApiVersion) = true
     }
 }
