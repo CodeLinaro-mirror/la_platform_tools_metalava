@@ -41,7 +41,7 @@ fun addApisFromCodebase(
 
     val delegatedVisitor =
         object : DelegatedVisitor {
-            val updater = ApiElement.Updater.forApiVersion(apiVersion)
+            val updater = ApiHistoryUpdater.forApiVersion(apiVersion)
 
             var currentClass: ApiClass? = null
 

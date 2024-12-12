@@ -255,7 +255,7 @@ class ApiGeneratorTest : DriverTest() {
         val expected =
             """
             <?xml version="1.0" encoding="utf-8"?>
-            <api version="3" min="30">
+            <api version="3" min="33">
                 <class name="android/test/ClassThatImplementsMethodFromApex" since="33">
                     <method name="&lt;init>()V"/>
                 </class>
@@ -465,7 +465,7 @@ class ApiGeneratorTest : DriverTest() {
         apiVersionsXml.checkApiVersionsXmlContent(
             """
                 <?xml version="1.0" encoding="utf-8"?>
-                <api version="3">
+                <api version="3" min="1.1.0">
                     <class name="test.pkg.Foo" since="1.1.0">
                         <extends name="java.lang.Object"/>
                         <method name="methodV1&lt;T extends java.lang.String>(T)" deprecated="1.3.0"/>
@@ -530,7 +530,7 @@ class ApiGeneratorTest : DriverTest() {
         apiVersionsXml.checkApiVersionsXmlContent(
             """
                 <?xml version="1.0" encoding="utf-8"?>
-                <api version="3">
+                <api version="3" min="1.1.0">
                     <class name="test.pkg.Bar" since="1.1.0" removed="1.2.0">
                         <extends name="java.lang.Object"/>
                         <field name="barField"/>

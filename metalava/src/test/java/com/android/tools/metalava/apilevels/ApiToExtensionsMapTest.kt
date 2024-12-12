@@ -24,6 +24,10 @@ import org.junit.Assert
 
 class ApiToExtensionsMapTest {
 
+    /** Get the [ApiToExtensionsMap] instance for [jar] from [xml]. */
+    private fun fromXml(jar: String, xml: String) =
+        SdkExtensionInfo.fromXml(xml).extensionsMapForJarOrEmpty(jar)
+
     /** Get an SDK version for [level]. */
     private fun sdkVersion(level: Int) = ApiVersion.fromLevel(level)
 
@@ -43,7 +47,7 @@ class ApiToExtensionsMapTest {
             </sdk-extensions-info>
         """
                 .trimIndent()
-        val map = ApiToExtensionsMap.fromXml("no-module", xml)
+        val map = fromXml("no-module", xml)
 
         assertTrue(map.getExtensions("com.foo.Bar").isEmpty())
     }
@@ -60,7 +64,7 @@ class ApiToExtensionsMapTest {
             </sdk-extensions-info>
         """
                 .trimIndent()
-        val map = ApiToExtensionsMap.fromXml("mod", xml)
+        val map = fromXml("mod", xml)
 
         assertEquals(map.getExtensions("com.foo.Bar"), listOf("A"))
         assertEquals(map.getExtensions("com.foo.SomeOtherBar"), listOf("A"))
@@ -79,7 +83,7 @@ class ApiToExtensionsMapTest {
             </sdk-extensions-info>
         """
                 .trimIndent()
-        val map = ApiToExtensionsMap.fromXml("mod", xml)
+        val map = fromXml("mod", xml)
 
         assertEquals(map.getExtensions("com.foo.Bar"), listOf("A"))
         assertEquals(map.getExtensions("com.foo.Bar#FIELD"), listOf("A"))
@@ -113,7 +117,7 @@ class ApiToExtensionsMapTest {
             </sdk-extensions-info>
         """
                 .trimIndent()
-        val map = ApiToExtensionsMap.fromXml("mod", xml)
+        val map = fromXml("mod", xml)
 
         assertEquals(listOf("A", "B", "FOO", "BAR"), map.getExtensions("com.foo.Bar"))
     }
@@ -136,7 +140,7 @@ class ApiToExtensionsMapTest {
             </sdk-extensions-info>
         """
                 .trimIndent()
-        val map = ApiToExtensionsMap.fromXml("mod", xml)
+        val map = fromXml("mod", xml)
 
         assertEquals(map.getExtensions("anything"), listOf("A"))
 
@@ -164,9 +168,9 @@ class ApiToExtensionsMapTest {
             </sdk-extensions-info>
         """
                 .trimIndent()
-        val allowListA = ApiToExtensionsMap.fromXml("foo", xml)
-        val allowListB = ApiToExtensionsMap.fromXml("bar", xml)
-        val allowListC = ApiToExtensionsMap.fromXml("baz", xml)
+        val allowListA = fromXml("foo", xml)
+        val allowListB = fromXml("bar", xml)
+        val allowListC = fromXml("baz", xml)
 
         assertEquals(allowListA.getExtensions("anything"), listOf("A"))
         assertEquals(allowListB.getExtensions("anything"), listOf("B"))
@@ -186,7 +190,7 @@ class ApiToExtensionsMapTest {
             </sdk-extensions-info>
         """
                 .trimIndent()
-        val map = ApiToExtensionsMap.fromXml("foo", xml)
+        val map = fromXml("foo", xml)
 
         assertEquals(map.getExtensions("com.foo.Bar"), listOf("A", "B"))
     }
@@ -194,7 +198,7 @@ class ApiToExtensionsMapTest {
     @Test
     fun `bad input`() {
         assertFailsWith<IllegalArgumentException> {
-            ApiToExtensionsMap.fromXml(
+            fromXml(
                 "mod",
                 """
                     <?xml version="1.0" encoding="utf-8"?>
@@ -207,7 +211,7 @@ class ApiToExtensionsMapTest {
         }
 
         assertFailsWith<IllegalArgumentException> {
-            ApiToExtensionsMap.fromXml(
+            fromXml(
                 "mod",
                 """
                     <?xml version="1.0" encoding="utf-8"?>
@@ -224,7 +228,7 @@ class ApiToExtensionsMapTest {
         }
 
         assertFailsWith<IllegalArgumentException> {
-            ApiToExtensionsMap.fromXml(
+            fromXml(
                 "mod",
                 """
                     <?xml version="1.0" encoding="utf-8"?>
@@ -239,7 +243,7 @@ class ApiToExtensionsMapTest {
         }
 
         assertFailsWith<IllegalArgumentException> {
-            ApiToExtensionsMap.fromXml(
+            fromXml(
                 "mod",
                 """
                     <?xml version="1.0" encoding="utf-8"?>
@@ -254,7 +258,7 @@ class ApiToExtensionsMapTest {
         }
 
         assertFailsWith<IllegalArgumentException> {
-            ApiToExtensionsMap.fromXml(
+            fromXml(
                 "mod",
                 """
                     <?xml version="1.0" encoding="utf-8"?>
@@ -270,7 +274,7 @@ class ApiToExtensionsMapTest {
         }
 
         assertFailsWith<IllegalArgumentException> {
-            ApiToExtensionsMap.fromXml(
+            fromXml(
                 "mod",
                 """
                     <?xml version="1.0" encoding="utf-8"?>
@@ -285,7 +289,7 @@ class ApiToExtensionsMapTest {
         }
 
         assertFailsWith<IllegalArgumentException> {
-            ApiToExtensionsMap.fromXml(
+            fromXml(
                 "mod",
                 """
                     <?xml version="1.0" encoding="utf-8"?>
@@ -301,7 +305,7 @@ class ApiToExtensionsMapTest {
         }
 
         assertFailsWith<IllegalArgumentException> {
-            ApiToExtensionsMap.fromXml(
+            fromXml(
                 "mod",
                 """
                     <?xml version="1.0" encoding="utf-8"?>
@@ -317,7 +321,7 @@ class ApiToExtensionsMapTest {
         }
 
         assertFailsWith<IllegalArgumentException> {
-            ApiToExtensionsMap.fromXml(
+            fromXml(
                 "mod",
                 """
                     <?xml version="1.0" encoding="utf-8"?>
@@ -333,7 +337,7 @@ class ApiToExtensionsMapTest {
         }
 
         assertFailsWith<IllegalArgumentException> {
-            ApiToExtensionsMap.fromXml(
+            fromXml(
                 "mod",
                 """
                     <?xml version="1.0" encoding="utf-8"?>
@@ -349,7 +353,7 @@ class ApiToExtensionsMapTest {
         }
 
         assertFailsWith<IllegalArgumentException> {
-            ApiToExtensionsMap.fromXml(
+            fromXml(
                 "mod",
                 """
                     <?xml version="1.0" encoding="utf-8"?>
@@ -380,7 +384,7 @@ class ApiToExtensionsMapTest {
             </sdk-extensions-info>
         """
                 .trimIndent()
-        val filter = ApiToExtensionsMap.fromXml("mod", xml)
+        val filter = fromXml("mod", xml)
 
         val sdk21 = sdkVersion(21)
         val sdk30 = sdkVersion(30)
