@@ -35,14 +35,42 @@ import com.google.common.truth.Truth.assertThat
 import com.google.gson.GsonBuilder
 import com.google.gson.JsonElement
 import java.io.File
-import kotlin.text.Charsets.UTF_8
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
 
+// Constants to avoid having to quote $ in expected XML contents.
+const val VERSION_CODES = "${'\$'}VERSION_CODES"
+const val R = "${'\$'}R"
+const val S = "${'\$'}S"
+
 class ApiGeneratorTest : DriverTest() {
+
+    /** Check this `api-versions.xml` file has the correct content. */
+    private fun File.checkApiVersionsXmlContent(expectedContent: String) {
+        assertTrue("$this was expected to be a plain file but is not", isFile)
+        val xml = readText()
+
+        // The generated XML is indented using tabs which do not work well in a raw string as
+        // editors can replace them with normal spaces. So, this replaces all tabs with 4 spaces.
+        val indentedWithSpaces = xml.replace("\t", "    ").trim()
+        assertEquals(expectedContent.trimIndent(), indentedWithSpaces)
+    }
+
+    /** Check this `api-versions.json` file has the correct content. */
+    private fun File.checkApiVersionsJsonContent(expectedContent: String) {
+        assertTrue("$this was expected to be a plain file but is not", isFile)
+        val json = readText()
+
+        // Read output and reprint with pretty printing enabled to make test failures easier to read
+        val gson = GsonBuilder().disableHtmlEscaping().setPrettyPrinting().create()
+        val outputJson = gson.fromJson(json, JsonElement::class.java)
+        val prettyOutput = gson.toJson(outputJson)
+
+        assertEquals(expectedContent.trimIndent(), prettyOutput)
+    }
 
     @Test
     fun `Generate API for test prebuilts`() {
@@ -124,61 +152,64 @@ class ApiGeneratorTest : DriverTest() {
                 ),
         )
 
-        assertTrue(apiVersionsXml.isFile)
-        val xml = apiVersionsXml.readText(UTF_8)
-
         val expected =
             """
-            <?xml version="1.0" encoding="utf-8"?>
-            <api version="3" min="30">
-                <sdk id="30" shortname="R-ext" name="R Extensions" reference="android/os/Build${'$'}VERSION_CODES${'$'}R"/>
-                <sdk id="31" shortname="S-ext" name="S Extensions" reference="android/os/Build${'$'}VERSION_CODES${'$'}S"/>
-                <class name="android/test/ClassAddedAndDeprecatedInApi30" since="30" deprecated="30">
-                <extends name="java/lang/Object"/>
-                <method name="&lt;init>(F)V"/>
-                <method name="&lt;init>(I)V"/>
-                <method name="methodExplicitlyDeprecated()V"/>
-                <method name="methodImplicitlyDeprecated()V"/>
-                <field name="FIELD_EXPLICITLY_DEPRECATED"/>
-                <field name="FIELD_IMPLICITLY_DEPRECATED"/>
-                </class>
-                <class name="android/test/ClassAddedInApi30" since="30">
-                    <extends name="java/lang/Object"/>
-                    <method name="methodAddedInApi30()V"/>
-                    <method name="methodAddedInApi31()V" since="31"/>
-                </class>
-                <class name="android/test/ClassAddedInApi31AndExt2" module="framework-ext" since="31" sdks="30:2,31:2,0:31">
-                    <extends name="java/lang/Object"/>
-                    <method name="methodAddedInApi31AndExt2()V"/>
-                    <method name="methodAddedInExt3()V" since="33" sdks="30:3,31:3"/>
-                    <method name="methodNotFinalized()V" since="33" sdks="0:33"/>
-                    <field name="FIELD_ADDED_IN_API_31_AND_EXT_2"/>
-                    <field name="FIELD_ADDED_IN_EXT_3" since="33" sdks="30:3,31:3"/>
-                </class>
-                <class name="android/test/ClassAddedInExt1" module="framework-ext" since="31" sdks="30:1,31:1,0:31">
-                    <extends name="java/lang/Object"/>
-                    <method name="methodAddedInApi31AndExt2()V" sdks="30:2,31:2,0:31"/>
-                    <method name="methodAddedInExt1()V"/>
-                    <method name="methodAddedInExt3()V" since="33" sdks="30:3,31:3"/>
-                    <field name="FIELD_ADDED_IN_API_31_AND_EXT_2" sdks="30:2,31:2,0:31"/>
-                    <field name="FIELD_ADDED_IN_EXT_1"/>
-                    <field name="FIELD_ADDED_IN_EXT_3" since="33" sdks="30:3,31:3"/>
-                </class>
-                <class name="android/test/ClassAddedInExt3" module="framework-ext" since="33" sdks="30:3,31:3">
-                    <extends name="java/lang/Object"/>
-                    <method name="methodAddedInExt3()V"/>
-                    <field name="FIELD_ADDED_IN_EXT_3"/>
-                </class>
-                <class name="java/lang/Object" since="30">
-                    <method name="&lt;init>()V"/>
-                </class>
-            </api>
-        """
+                <?xml version="1.0" encoding="utf-8"?>
+                <api version="3" min="30">
+                    <sdk id="30" shortname="R-ext" name="R Extensions" reference="android/os/Build$VERSION_CODES$R"/>
+                    <sdk id="31" shortname="S-ext" name="S Extensions" reference="android/os/Build$VERSION_CODES$S"/>
+                    <class name="android/test/ClassAddedAndDeprecatedInApi30" since="30" deprecated="30">
+                        <extends name="java/lang/Object"/>
+                        <method name="&lt;init>(F)V"/>
+                        <method name="&lt;init>(I)V"/>
+                        <method name="methodExplicitlyDeprecated()V"/>
+                        <method name="methodImplicitlyDeprecated()V"/>
+                        <field name="FIELD_EXPLICITLY_DEPRECATED"/>
+                        <field name="FIELD_IMPLICITLY_DEPRECATED"/>
+                    </class>
+                    <class name="android/test/ClassAddedInApi30" module="framework-ext" since="30" sdks="30:2,0:30">
+                        <extends name="android/test/MarkerSuperClass" since="33" sdks="30:2,31:2"/>
+                        <extends name="java/lang/Object" removed="33"/>
+                        <implements name="android/test/MarkerInterface" since="33" sdks="30:2,31:2"/>
+                        <method name="methodAddedInApi30()V"/>
+                        <method name="methodAddedInApi31()V" since="31" sdks="30:2,31:2,0:31"/>
+                    </class>
+                    <class name="android/test/ClassAddedInApi31AndExt2" module="framework-ext" since="31" sdks="30:2,31:2,0:31">
+                        <extends name="java/lang/Object"/>
+                        <method name="methodAddedInApi31AndExt2()V"/>
+                        <method name="methodAddedInExt3()V" since="33" sdks="30:3,31:3"/>
+                        <method name="methodNotFinalized()V" since="33" sdks="0:33"/>
+                        <field name="FIELD_ADDED_IN_API_31_AND_EXT_2"/>
+                        <field name="FIELD_ADDED_IN_EXT_3" since="33" sdks="30:3,31:3"/>
+                    </class>
+                    <class name="android/test/ClassAddedInExt1" module="framework-ext" since="31" sdks="30:1,31:1,0:31">
+                        <extends name="java/lang/Object"/>
+                        <method name="methodAddedInApi31AndExt2()V" sdks="30:2,31:2,0:31"/>
+                        <method name="methodAddedInExt1()V"/>
+                        <method name="methodAddedInExt3()V" since="33" sdks="30:3,31:3"/>
+                        <field name="FIELD_ADDED_IN_API_31_AND_EXT_2" sdks="30:2,31:2,0:31"/>
+                        <field name="FIELD_ADDED_IN_EXT_1"/>
+                        <field name="FIELD_ADDED_IN_EXT_3" since="33" sdks="30:3,31:3"/>
+                    </class>
+                    <class name="android/test/ClassAddedInExt3" module="framework-ext" since="33" sdks="30:3,31:3">
+                        <extends name="java/lang/Object"/>
+                        <method name="methodAddedInExt3()V"/>
+                        <field name="FIELD_ADDED_IN_EXT_3"/>
+                    </class>
+                    <class name="android/test/MarkerInterface" module="framework-ext" since="33" sdks="30:2,31:2">
+                        <extends name="java/lang/Object"/>
+                    </class>
+                    <class name="android/test/MarkerSuperClass" module="framework-ext" since="33" sdks="30:2,31:2">
+                        <extends name="java/lang/Object"/>
+                        <method name="&lt;init>()V"/>
+                    </class>
+                    <class name="java/lang/Object" since="30">
+                        <method name="&lt;init>()V"/>
+                    </class>
+                </api>
+            """
 
-        fun String.trimEachLine(): String =
-            lines().map { it.trim() }.filter { it.isNotEmpty() }.joinToString("\n")
-
-        assertEquals(expected.trimEachLine(), xml.trimEachLine())
+        apiVersionsXml.checkApiVersionsXmlContent(expected)
     }
 
     @Test
@@ -210,9 +241,6 @@ class ApiGeneratorTest : DriverTest() {
                 )
         )
 
-        assertTrue(apiVersionsXml.isFile)
-        val xml = apiVersionsXml.readText(UTF_8)
-
         val expected =
             """
             <?xml version="1.0" encoding="utf-8"?>
@@ -223,10 +251,7 @@ class ApiGeneratorTest : DriverTest() {
             </api>
         """
 
-        fun String.trimEachLine(): String =
-            lines().map { it.trim() }.filter { it.isNotEmpty() }.joinToString("\n")
-
-        assertEquals(expected.trimEachLine(), xml.trimEachLine())
+        apiVersionsXml.checkApiVersionsXmlContent(expected)
     }
 
     @Test
@@ -283,7 +308,7 @@ class ApiGeneratorTest : DriverTest() {
     }
 
     @Test
-    fun `Create API levels from signature files`() {
+    fun `Create JSON and XML API versions from signature files`() {
         val pastVersions =
             listOf(
                 createTextFile(
@@ -350,28 +375,24 @@ class ApiGeneratorTest : DriverTest() {
                 }
             """
 
-        val output = temporaryFolder.newFile("api-info.json")
+        val apiVersionsJson = temporaryFolder.newFile("api-info.json")
+
+        fun createExtraArguments(output: File) =
+            arrayOf(
+                ARG_GENERATE_API_VERSION_HISTORY,
+                output.path,
+                ARG_API_VERSION_SIGNATURE_FILES,
+                pastVersions.joinToString(":") { it.absolutePath },
+                ARG_API_VERSION_NAMES,
+                listOf("1.1.0", "1.2.0", "1.3.0", "1.4.0").joinToString(" "),
+            )
 
         check(
             signatureSource = currentVersion,
-            extraArguments =
-                arrayOf(
-                    ARG_GENERATE_API_VERSION_HISTORY,
-                    output.path,
-                    ARG_API_VERSION_SIGNATURE_FILES,
-                    pastVersions.joinToString(":") { it.absolutePath },
-                    ARG_API_VERSION_NAMES,
-                    listOf("1.1.0", "1.2.0", "1.3.0", "1.4.0").joinToString(" "),
-                )
+            extraArguments = createExtraArguments(apiVersionsJson),
         )
 
-        assertTrue(output.isFile)
-
-        // Read output and reprint with pretty printing enabled to make test failures easier to read
-        val gson = GsonBuilder().disableHtmlEscaping().setPrettyPrinting().create()
-        val outputJson = gson.fromJson(output.readText(), JsonElement::class.java)
-        val prettyOutput = gson.toJson(outputJson)
-        assertEquals(
+        apiVersionsJson.checkApiVersionsJsonContent(
             """
                 [
                   {
@@ -421,8 +442,34 @@ class ApiGeneratorTest : DriverTest() {
                   }
                 ]
             """
-                .trimIndent(),
-            prettyOutput
+        )
+
+        val apiVersionsXml = temporaryFolder.newFile("api-versions.xml")
+
+        check(
+            signatureSource = currentVersion,
+            extraArguments = createExtraArguments(apiVersionsXml),
+        )
+
+        apiVersionsXml.checkApiVersionsXmlContent(
+            """
+                <?xml version="1.0" encoding="utf-8"?>
+                <api version="3">
+                    <class name="test.pkg.Foo" since="1.1.0">
+                        <extends name="java.lang.Object"/>
+                        <method name="methodV1&lt;T extends java.lang.String>(T)" deprecated="1.3.0"/>
+                        <method name="methodV2&lt;T>(java.lang.String)" since="1.2.0" removed="1.4.0"/>
+                        <method name="methodV2&lt;T>(java.lang.String,int)" since="1.2.0" deprecated="1.2.0" removed="1.3.0"/>
+                        <method name="methodV3()" since="1.3.0"/>
+                        <method name="methodV4()" since="1.4.0"/>
+                        <field name="fieldV1"/>
+                        <field name="fieldV2" since="1.2.0"/>
+                    </class>
+                    <class name="test.pkg.Foo.Bar" since="1.1.0" deprecated="1.3.0">
+                        <extends name="java.lang.Object"/>
+                    </class>
+                </api>
+            """
         )
     }
 
@@ -472,18 +519,18 @@ class ApiGeneratorTest : DriverTest() {
                     ARG_GENERATE_API_VERSION_HISTORY,
                     output.path,
                     ARG_API_VERSION_NAMES,
-                    "0.0.0"
+                    "0.0.0-alpha01"
                 )
         )
 
         val expectedJson =
-            "[{\"class\":\"test.pkg.Foo\",\"addedIn\":\"0.0.0\",\"methods\":[{\"method\":\"foo(java.lang.String)\",\"addedIn\":\"0.0.0\"}],\"fields\":[]}]"
+            "[{\"class\":\"test.pkg.Foo\",\"addedIn\":\"0.0.0-alpha01\",\"methods\":[{\"method\":\"foo(java.lang.String)\",\"addedIn\":\"0.0.0-alpha01\"}],\"fields\":[]}]"
         assertEquals(expectedJson, output.readText())
     }
 
     @Test
     fun `API levels using source as current version does not include inherited methods excluded from signatures`() {
-        val output = temporaryFolder.newFile("api-info.json")
+        val apiVersionsJson = temporaryFolder.newFile("api-info.json")
 
         val pastVersions =
             listOf(
@@ -531,7 +578,7 @@ class ApiGeneratorTest : DriverTest() {
             extraArguments =
                 arrayOf(
                     ARG_GENERATE_API_VERSION_HISTORY,
-                    output.path,
+                    apiVersionsJson.path,
                     ARG_API_VERSION_SIGNATURE_FILES,
                     pastVersions.joinToString(":") { it.absolutePath },
                     ARG_API_VERSION_NAMES,
@@ -539,13 +586,7 @@ class ApiGeneratorTest : DriverTest() {
                 )
         )
 
-        assertTrue(output.isFile)
-
-        // Read output and reprint with pretty printing enabled to make test failures easier to read
-        val gson = GsonBuilder().disableHtmlEscaping().setPrettyPrinting().create()
-        val outputJson = gson.fromJson(output.readText(), JsonElement::class.java)
-        val prettyOutput = gson.toJson(outputJson)
-        assertEquals(
+        apiVersionsJson.checkApiVersionsJsonContent(
             """
                 [
                   {
@@ -576,14 +617,12 @@ class ApiGeneratorTest : DriverTest() {
                   }
                 ]
             """
-                .trimIndent(),
-            prettyOutput
         )
     }
 
     @Test
     fun `APIs annotated with suppress-compatibility-meta-annotations appear in output`() {
-        val output = temporaryFolder.newFile("api-info.json")
+        val apiVersionsJson = temporaryFolder.newFile("api-info.json")
 
         val pastVersions =
             listOf(
@@ -621,7 +660,7 @@ class ApiGeneratorTest : DriverTest() {
             extraArguments =
                 arrayOf(
                     ARG_GENERATE_API_VERSION_HISTORY,
-                    output.path,
+                    apiVersionsJson.path,
                     ARG_API_VERSION_SIGNATURE_FILES,
                     pastVersions.joinToString(":") { it.absolutePath },
                     ARG_API_VERSION_NAMES,
@@ -629,13 +668,7 @@ class ApiGeneratorTest : DriverTest() {
                 )
         )
 
-        assertTrue(output.isFile)
-
-        // Read output and reprint with pretty printing enabled to make test failures easier to read
-        val gson = GsonBuilder().disableHtmlEscaping().setPrettyPrinting().create()
-        val outputJson = gson.fromJson(output.readText(), JsonElement::class.java)
-        val prettyOutput = gson.toJson(outputJson)
-        assertEquals(
+        apiVersionsJson.checkApiVersionsJsonContent(
             """
                 [
                   {
@@ -663,8 +696,6 @@ class ApiGeneratorTest : DriverTest() {
                   }
                 ]
             """
-                .trimIndent(),
-            prettyOutput
         )
     }
 

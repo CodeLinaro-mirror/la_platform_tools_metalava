@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 The Android Open Source Project
+ * Copyright (C) 2024 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,8 +16,8 @@
 
 package android.test;
 
-public class ClassAddedInExt1 {
-    private ClassAddedInExt1() {}
-    public static final int FIELD_ADDED_IN_EXT_1 = 1;
-    public void methodAddedInExt1() { throw new RuntimeException("Stub!"); }
+public class ClassAddedInApi30 extends MarkerSuperClass implements MarkerInterface {
+    private ClassAddedInApi30() {}
+    public void methodAddedInApi30() { throw new RuntimeException("Stub!"); }
+    public void methodAddedInApi31() { throw new RuntimeException("Stub!"); }
 }

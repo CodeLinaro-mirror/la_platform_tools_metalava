@@ -39,6 +39,7 @@ import com.android.tools.metalava.model.AnnotationRetention
 import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.BaseAnnotationManager
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.JAVA_LANG_PREFIX
@@ -564,7 +565,14 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
             // If any of a method's super methods are part of a unstable API that needs to be
             // reverted then treat the method as if it is too.
             val revertUnstableApi =
-                item.superMethods().any { methodItem -> methodItem.showability.revertUnstableApi() }
+                item.superMethods().any { methodItem ->
+                    methodItem.showability.revertUnstableApi() &&
+                        // Ignore overridden methods that are not part of the API being generated if
+                        // there is no previously released API as that will always result in the
+                        // overriding method being removed which can cause problems.
+                        !(methodItem.origin != ClassOrigin.COMMAND_LINE &&
+                            previouslyReleasedCodebase == null)
+                }
             if (revertUnstableApi) {
                 itemShowability =
                     itemShowability.combineWith(LazyAnnotationInfo.REVERT_UNSTABLE_API)
