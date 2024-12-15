@@ -43,7 +43,7 @@ class CorrectApiLevelForReleaseTest : ApiGeneratorIntegrationTestBase() {
                     ARG_ANDROID_JAR_PATTERN,
                     "${oldSdkJars.path}/android-%/android.jar",
                     ARG_ANDROID_JAR_PATTERN,
-                    "${platformJars.path}/%/public/android.jar",
+                    androidPublicJarsPattern,
                     ARG_CURRENT_CODENAME,
                     "REL",
                     ARG_CURRENT_VERSION,

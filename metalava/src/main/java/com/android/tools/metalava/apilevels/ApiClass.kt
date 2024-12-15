@@ -17,37 +17,56 @@ package com.android.tools.metalava.apilevels
 
 import com.google.common.collect.Iterables
 import java.util.concurrent.ConcurrentHashMap
-import kotlin.math.abs
-import kotlin.math.min
 
 /**
  * Represents a class or an interface and its methods/fields. This is used to write the simplified
  * XML file containing all the public API.
  */
-class ApiClass(name: String, version: Int, deprecated: Boolean) :
-    ApiElement(name, version, deprecated) {
-    private val mSuperClasses: MutableList<ApiElement> = ArrayList()
-    private val mInterfaces: MutableList<ApiElement> = ArrayList()
+class ApiClass(name: String) : ApiElement(name) {
+
+    private val mSuperClasses = mutableMapOf<String, ApiElement>()
+    private val mInterfaces = mutableMapOf<String, ApiElement>()
+
+    /** If `true`, never seen as public. */
+    var alwaysHidden = false // Package private class?
+    private val mFields = ConcurrentHashMap<String, ApiElement>()
+    private val mMethods = ConcurrentHashMap<String, ApiElement>()
 
     /**
-     * If negative, never seen as public. The absolute value is the last api level it is seen as
-     * hidden in. E.g. "-5" means a class that was hidden in api levels 1-5, then it was deleted,
-     * and "8" means a class that was hidden in api levels 1-8 then made public in 9.
+     * Updates the [ApiElement] for field with [name], creating and adding one if necessary.
+     *
+     * @param name the name of the field.
+     * @param updater the [ApiElement.Updater] that will update the element with information about
+     *   the version to which it belongs.
+     * @param deprecated the deprecated status.
      */
-    var hiddenUntil = 0 // Package private class?
-    private val mFields: MutableMap<String, ApiElement> = ConcurrentHashMap()
-    private val mMethods: MutableMap<String, ApiElement> = ConcurrentHashMap()
-
-    fun addField(name: String, version: Int, deprecated: Boolean): ApiElement {
-        return addToMap(mFields, name, version, deprecated)
+    fun updateField(
+        name: String,
+        updater: Updater,
+        deprecated: Boolean,
+    ): ApiElement {
+        return updateElementInMap(mFields, name, updater, deprecated)
     }
 
     val fields: Collection<ApiElement>
         get() = mFields.values
 
-    fun addMethod(name: String, version: Int, deprecated: Boolean): ApiElement {
+    /**
+     * Updates the [ApiElement] for method with [signature], creating and adding one if necessary.
+     *
+     * @param signature the signature of the method, which includes the name and parameter/return
+     *   types
+     * @param updater the [ApiElement.Updater] that will update the element with information about
+     *   the version to which it belongs.
+     * @param deprecated the deprecated status.
+     */
+    fun updateMethod(
+        signature: String,
+        updater: Updater,
+        deprecated: Boolean,
+    ): ApiElement {
         // Correct historical mistake in android.jar files
-        var correctedName = name
+        var correctedName = signature
         if (correctedName.endsWith(")Ljava/lang/AbstractStringBuilder;")) {
             correctedName =
                 correctedName.substring(
@@ -55,72 +74,64 @@ class ApiClass(name: String, version: Int, deprecated: Boolean) :
                     correctedName.length - ")Ljava/lang/AbstractStringBuilder;".length
                 ) + ")L" + this.name + ";"
         }
-        return addToMap(mMethods, correctedName, version, deprecated)
+        return updateElementInMap(mMethods, correctedName, updater, deprecated)
     }
 
     val methods: Collection<ApiElement>
         get() = mMethods.values
 
-    fun addSuperClass(superClass: String, since: Int): ApiElement {
-        return addToArray(mSuperClasses, superClass, since)
+    /**
+     * Updates an element for [superClassType], creating and adding one if necessary.
+     *
+     * @param superClassType the name of the super class type.
+     * @param updater the [ApiElement.Updater] that will update the element with information about
+     *   the version to which it belongs.
+     */
+    fun updateSuperClass(superClassType: String, updater: Updater) =
+        updateElementInMap(
+            mSuperClasses,
+            superClassType,
+            updater,
+            // References to super classes can never be deprecated.
+            false,
+        )
+
+    val superClasses: Collection<ApiElement>
+        get() = mSuperClasses.values
+
+    fun updateHidden(hidden: Boolean) {
+        alwaysHidden = hidden
     }
 
-    val superClasses: List<ApiElement>
-        get() = mSuperClasses
+    /**
+     * Updates an element for [interfaceType], creating and adding one if necessary.
+     *
+     * @param interfaceType the interface type.
+     * @param updater the [ApiElement.Updater] that will update the element with information about
+     *   the version to which it belongs.
+     */
+    fun updateInterface(interfaceType: String, updater: Updater) =
+        updateElementInMap(
+            mInterfaces,
+            interfaceType,
+            updater,
+            // References to interfaces can never be deprecated.
+            false,
+        )
 
-    fun updateHidden(api: Int, hidden: Boolean) {
-        hiddenUntil = if (hidden) -api else abs(api)
-    }
+    val interfaces: Collection<ApiElement>
+        get() = mInterfaces.values
 
-    private fun alwaysHidden(): Boolean {
-        return hiddenUntil < 0
-    }
-
-    fun addInterface(interfaceClass: String, since: Int) {
-        addToArray(mInterfaces, interfaceClass, since)
-    }
-
-    val interfaces: List<ApiElement>
-        get() = mInterfaces
-
-    private fun addToMap(
+    private fun updateElementInMap(
         elements: MutableMap<String, ApiElement>,
         name: String,
-        version: Int,
-        deprecated: Boolean
+        updater: Updater,
+        deprecated: Boolean,
     ): ApiElement {
-        var element = elements[name]
-        if (element == null) {
-            element = ApiElement(name, version, deprecated)
-            elements[name] = element
-        } else {
-            element.update(version, deprecated)
-        }
+        val existing = elements[name]
+        val element = existing ?: ApiElement(name).apply { elements[name] = this }
+        updater.update(element, deprecated)
         return element
-    }
-
-    private fun addToArray(
-        elements: MutableCollection<ApiElement>,
-        name: String,
-        version: Int
-    ): ApiElement {
-        var element = findByName(elements, name)
-        if (element == null) {
-            element = ApiElement(name, version)
-            elements.add(element)
-        } else {
-            element.update(version)
-        }
-        return element
-    }
-
-    private fun findByName(collection: Collection<ApiElement>, name: String): ApiElement? {
-        for (element in collection) {
-            if (element.name == name) {
-                return element
-            }
-        }
-        return null
     }
 
     /**
@@ -133,10 +144,10 @@ class ApiClass(name: String, version: Int, deprecated: Boolean) :
         if (mInterfaces.isEmpty() || mSuperClasses.isEmpty()) {
             return
         }
-        val iterator = mInterfaces.iterator()
+        val iterator = mInterfaces.values.iterator()
         while (iterator.hasNext()) {
             val interfaceElement = iterator.next()
-            for (superClass in mSuperClasses) {
+            for (superClass in superClasses) {
                 if (superClass.introducedNotLaterThan(interfaceElement)) {
                     val cls = allClasses[superClass.name]
                     if (cls != null && cls.implementsInterface(interfaceElement, allClasses)) {
@@ -152,7 +163,7 @@ class ApiClass(name: String, version: Int, deprecated: Boolean) :
         interfaceElement: ApiElement,
         allClasses: Map<String, ApiClass>
     ): Boolean {
-        for (localInterface in mInterfaces) {
+        for (localInterface in interfaces) {
             if (localInterface.introducedNotLaterThan(interfaceElement)) {
                 if (interfaceElement.name == localInterface.name) {
                     return true
@@ -164,7 +175,7 @@ class ApiClass(name: String, version: Int, deprecated: Boolean) :
                 }
             }
         }
-        for (superClass in mSuperClasses) {
+        for (superClass in superClasses) {
             if (superClass.introducedNotLaterThan(interfaceElement)) {
                 val cls = allClasses[superClass.name]
                 if (cls != null && cls.implementsInterface(interfaceElement, allClasses)) {
@@ -219,7 +230,7 @@ class ApiClass(name: String, version: Int, deprecated: Boolean) :
         allClasses: Map<String, ApiClass>
     ): Boolean {
         // Check this class' parents.
-        for (parent in Iterables.concat(mSuperClasses, mInterfaces)) {
+        for (parent in Iterables.concat(superClasses, interfaces)) {
             // Only check the parent if it was a parent class at the introduction of the method.
             if (parent!!.introducedNotLaterThan(method)) {
                 val cls = allClasses[parent.name]
@@ -229,10 +240,6 @@ class ApiClass(name: String, version: Int, deprecated: Boolean) :
             }
         }
         return false
-    }
-
-    override fun toString(): String {
-        return name
     }
 
     private var haveInlined = false
@@ -267,16 +274,16 @@ class ApiClass(name: String, version: Int, deprecated: Boolean) :
         // android.jar files)
         // remove these here and replace with the filtered super classes, updating API levels in the
         // process
-        val iterator = mSuperClasses.listIterator()
-        var min = Int.MAX_VALUE
+        val iterator = mSuperClasses.values.iterator()
+        var min = SdkVersion.HIGHEST
         while (iterator.hasNext()) {
             val next = iterator.next()
-            min = min(min, next.since)
+            min = minOf(min, next.since)
             val extendsClass = api[next.name]
-            if (extendsClass != null && extendsClass.alwaysHidden()) {
+            if (extendsClass != null && extendsClass.alwaysHidden) {
                 val since = extendsClass.since
                 iterator.remove()
-                for (other in mSuperClasses) {
+                for (other in superClasses) {
                     if (other.since >= since) {
                         other.update(min)
                     }
@@ -294,14 +301,14 @@ class ApiClass(name: String, version: Int, deprecated: Boolean) :
     // Connectivity apex, but being implemented by NrQosSessionAttributes from
     // frameworks/base/telephony.
     fun removeMissingClasses(api: Map<String, ApiClass>) {
-        val superClassIter = mSuperClasses.iterator()
+        val superClassIter = mSuperClasses.values.iterator()
         while (superClassIter.hasNext()) {
             val superClass = superClassIter.next()
             if (!api.containsKey(superClass.name)) {
                 superClassIter.remove()
             }
         }
-        val interfacesIter = mInterfaces.iterator()
+        val interfacesIter = mInterfaces.values.iterator()
         while (interfacesIter.hasNext()) {
             val intf = interfacesIter.next()
             if (!api.containsKey(intf.name)) {
@@ -313,26 +320,16 @@ class ApiClass(name: String, version: Int, deprecated: Boolean) :
     // Returns the set of superclasses or interfaces are not present in the provided api map
     fun findMissingClasses(api: Map<String, ApiClass>): Set<ApiElement> {
         val result: MutableSet<ApiElement> = HashSet()
-        for (superClass in mSuperClasses) {
+        for (superClass in superClasses) {
             if (!api.containsKey(superClass.name)) {
                 result.add(superClass)
             }
         }
-        for (intf in mInterfaces) {
+        for (intf in interfaces) {
             if (!api.containsKey(intf.name)) {
                 result.add(intf)
             }
         }
         return result
-    }
-
-    val fieldIterator: Iterator<ApiElement>
-        get() = mFields.values.iterator()
-
-    val methodIterator: Iterator<ApiElement>
-        get() = mMethods.values.iterator()
-
-    fun getMethod(name: String?): ApiElement? {
-        return mMethods[name]
     }
 }
