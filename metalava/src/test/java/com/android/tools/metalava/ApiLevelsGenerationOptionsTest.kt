@@ -17,6 +17,8 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.cli.common.BaseOptionGroupTest
+import com.google.common.truth.Truth.assertThat
+import org.junit.Test
 
 val API_LEVELS_GENERATION_OPTIONS_HELP =
     """
@@ -60,6 +62,21 @@ Api Levels Generation:
                                              SDK). Fields are separated by whitespace. A mainline module may be listed
                                              multiple times. The special pattern \"*\" refers to all APIs in the given
                                              mainline module. Lines beginning with # are comments.
+  --generate-api-version-history <output-file>
+                                             Reads API signature files and generates a JSON or XML file depending on the
+                                             extension, which must be one of `json` or `xml` respectively. The JSON file
+                                             will record the API version in which each class, method, and field. was
+                                             added in and (if applicable) deprecated in. The XML file will include that
+                                             information and more but will be optimized to exclude information from
+                                             class members which is the same as the containing class.
+  --api-version-signature-files <files>      An ordered list of text API signature files. The oldest API version should
+                                             be first, the newest last. This should not include a signature file for the
+                                             current API version, which will be parsed from the provided source files.
+                                             Not required to generate API version JSON if the current version is the
+                                             only version.
+  --api-version-names <api-versions>         An ordered list of strings with the names to use for the API versions from
+                                             --api-version-signature-files, and the name of the current API version.
+                                             Required for --generate-api-version-history.
     """
         .trimIndent()
 
@@ -68,4 +85,22 @@ class ApiLevelsGenerationOptionsTest :
         API_LEVELS_GENERATION_OPTIONS_HELP,
     ) {
     override fun createOptions() = ApiLevelsGenerationOptions()
+
+    @Test
+    fun `sdkJarRoot without sdkInfoFile`() {
+        val file = temporaryFolder.newFolder("sdk-jar-root")
+        runTest(ARG_SDK_JAR_ROOT, file.path) {
+            assertThat(stderr)
+                .isEqualTo("--sdk-extensions-root and --sdk-extensions-info must both be supplied")
+        }
+    }
+
+    @Test
+    fun `sdkInfoFile without sdkJarRoot`() {
+        val file = temporaryFolder.newFile("sdk-info-file.xml")
+        runTest(ARG_SDK_INFO_FILE, file.path) {
+            assertThat(stderr)
+                .isEqualTo("--sdk-extensions-root and --sdk-extensions-info must both be supplied")
+        }
+    }
 }

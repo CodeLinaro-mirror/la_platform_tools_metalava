@@ -264,7 +264,6 @@ class SdkFileWriter(val codebase: Codebase, private val outputDir: File) {
      * @param prefix the prefix to put at the beginning of the line.
      * @throws IOException
      */
-    @Throws(IOException::class)
     private fun writeClass(writer: BufferedWriter, clazz: ClassItem, prefix: Char) {
         writer.append(prefix).append(clazz.qualifiedName())
         for (superClass in clazz.allSuperClasses()) {

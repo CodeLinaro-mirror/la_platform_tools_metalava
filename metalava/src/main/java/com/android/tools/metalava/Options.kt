@@ -77,7 +77,6 @@ import com.github.ajalt.clikt.parameters.options.unique
 import com.github.ajalt.clikt.parameters.types.choice
 import com.github.ajalt.clikt.parameters.types.file
 import java.io.File
-import java.io.IOException
 import java.io.PrintWriter
 import java.io.StringWriter
 import java.util.Optional
@@ -174,9 +173,6 @@ const val ARG_REVERT_ANNOTATION = "--revert-annotation"
 const val ARG_SUPPRESS_COMPATIBILITY_META_ANNOTATION = "--suppress-compatibility-meta-annotation"
 const val ARG_SHOW_UNANNOTATED = "--show-unannotated"
 const val ARG_APPLY_API_LEVELS = "--apply-api-levels"
-const val ARG_GENERATE_API_VERSION_HISTORY = "--generate-api-version-history"
-const val ARG_API_VERSION_SIGNATURE_FILES = "--api-version-signature-files"
-const val ARG_API_VERSION_NAMES = "--api-version-names"
 const val ARG_JAVA_SOURCE = "--java-source"
 const val ARG_KOTLIN_SOURCE = "--kotlin-source"
 const val ARG_SDK_HOME = "--sdk-home"
@@ -207,7 +203,7 @@ class Options(
     signatureFileOptions: SignatureFileOptions = SignatureFileOptions(),
     signatureFormatOptions: SignatureFormatOptions = SignatureFormatOptions(),
     stubGenerationOptions: StubGenerationOptions = StubGenerationOptions(),
-    private val apiLevelsGenerationOptions: ApiLevelsGenerationOptions =
+    internal val apiLevelsGenerationOptions: ApiLevelsGenerationOptions =
         ApiLevelsGenerationOptions(),
 ) : OptionGroup() {
     /** Writer to direct output to. */
@@ -613,31 +609,6 @@ class Options(
     private var mergeQualifierAnnotations: List<File> = mutableMergeQualifierAnnotations
     private var mergeInclusionAnnotations: List<File> = mutableMergeInclusionAnnotations
 
-    /** mapping from API level to android.jar files, if computing API levels */
-    var apiLevelJars: Array<File>? = null
-
-    /**
-     * Get the current API level.
-     *
-     * This must only be called if needed as it will fail if [ARG_CURRENT_VERSION] has not been
-     * specified.
-     */
-    val currentApiLevel: Int
-        get() =
-            apiLevelsGenerationOptions.currentApiLevel
-                ?: throw MetalavaCliException(
-                    stderr = "$ARG_GENERATE_API_LEVELS requires $ARG_CURRENT_VERSION"
-                )
-
-    val firstApiLevel by apiLevelsGenerationOptions::firstApiLevel
-
-    val isDeveloperPreviewBuild by apiLevelsGenerationOptions::isDeveloperPreviewBuild
-
-    val generateApiLevelXml by apiLevelsGenerationOptions::generateApiLevelXml
-
-    val removeMissingClassesInApiLevels by
-        apiLevelsGenerationOptions::removeMissingClassReferencesInApiLevels
-
     val apiLevelLabelProvider: ApiLevelLabelProvider = apiLevelsGenerationOptions::getApiLevelLabel
 
     val includeApiLevelInDocumentation: ApiLevelFilter =
@@ -645,22 +616,6 @@ class Options(
 
     /** Reads API XML file to apply into documentation */
     var applyApiLevelsXml: File? = null
-
-    val sdkJarRoot: File? by apiLevelsGenerationOptions::sdkJarRoot
-
-    val sdkInfoFile: File? by apiLevelsGenerationOptions::sdkInfoFile
-
-    /** API version history JSON file to generate */
-    var generateApiVersionsJson: File? = null
-
-    /** Ordered list of signatures for each past API version, if generating an API version JSON */
-    var apiVersionSignatureFiles: List<File>? = null
-
-    /**
-     * The names of the API versions in [apiVersionSignatureFiles], in the same order, and the name
-     * of the current API version
-     */
-    var apiVersionNames: List<String>? = null
 
     /** Whether to include the signature file format version header in removed signature files */
     val includeSignatureFormatVersionRemoved: EmitFileHeader
@@ -823,15 +778,6 @@ class Options(
                             stringToExistingFile(getValue(args, ++index))
                         }
                 }
-                ARG_GENERATE_API_VERSION_HISTORY -> {
-                    generateApiVersionsJson = stringToNewFile(getValue(args, ++index))
-                }
-                ARG_API_VERSION_SIGNATURE_FILES -> {
-                    apiVersionSignatureFiles = stringToExistingFiles(getValue(args, ++index))
-                }
-                ARG_API_VERSION_NAMES -> {
-                    apiVersionNames = getValue(args, ++index).split(' ')
-                }
                 ARG_JAVA_SOURCE -> {
                     val value = getValue(args, ++index)
                     javaLanguageLevelAsString = value
@@ -876,32 +822,6 @@ class Options(
             }
 
             ++index
-        }
-
-        if (generateApiLevelXml != null) {
-            val patterns = apiLevelsGenerationOptions.androidJarPatterns
-            apiLevelJars =
-                findAndroidJars(
-                    patterns,
-                    firstApiLevel,
-                    currentApiLevel + if (isDeveloperPreviewBuild) 1 else 0,
-                )
-        }
-
-        if ((sdkJarRoot == null) != (sdkInfoFile == null)) {
-            throw MetalavaCliException(
-                stderr = "$ARG_SDK_JAR_ROOT and $ARG_SDK_INFO_FILE must both be supplied"
-            )
-        }
-
-        // apiVersionNames will include the current version but apiVersionSignatureFiles will not,
-        // so there should be 1 more name than signature file (or both can be null)
-        val numVersionNames = apiVersionNames?.size ?: 0
-        val numVersionFiles = apiVersionSignatureFiles?.size ?: 0
-        if (numVersionNames != 0 && numVersionNames != numVersionFiles + 1) {
-            throw MetalavaCliException(
-                "$ARG_API_VERSION_NAMES must have one more version than $ARG_API_VERSION_SIGNATURE_FILES to include the current version name"
-            )
         }
 
         // If the caller has not explicitly requested that unannotated classes and
@@ -1016,61 +936,6 @@ class Options(
             val roots = JavaSdkUtil.getJdkClassesRoots(jdkHome.toPath(), isJre).map { it.toFile() }
             mutableClassPath.addAll(roots)
         }
-    }
-
-    /** Find an android stub jar that matches the given criteria. */
-    private fun findAndroidJars(
-        androidJarPatterns: List<String>,
-        minApi: Int,
-        currentApiLevel: Int,
-    ): Array<File> {
-        val apiLevelFiles = mutableListOf<File>()
-        // api level 0: placeholder, should not be processed.
-        // (This is here because we want the array index to match
-        // the API level)
-        val element = File("not an api: the starting API index is $minApi")
-        for (i in 0 until minApi) {
-            apiLevelFiles.add(element)
-        }
-
-        // Get all the android.jar. They are in platforms-#
-        for (apiLevel in minApi.rangeTo(currentApiLevel)) {
-            try {
-                val jar = getAndroidJarFile(apiLevel, androidJarPatterns)
-                if (jar == null || !jar.isFile) {
-                    if (verbose) {
-                        stdout.println("Last API level found: ${apiLevel - 1}")
-                    }
-
-                    if (apiLevel < 28) {
-                        // Clearly something is wrong with the patterns; this should result in a
-                        // build error
-                        throw MetalavaCliException(
-                            stderr =
-                                "Could not find android.jar for API level $apiLevel; the " +
-                                    "$ARG_ANDROID_JAR_PATTERN set might be invalid see:" +
-                                    " ${androidJarPatterns.joinToString()} (the last two entries are defaults)"
-                        )
-                    }
-
-                    break
-                }
-                if (verbose) {
-                    stdout.println("Found API $apiLevel at ${jar.path}")
-                }
-                apiLevelFiles.add(jar)
-            } catch (e: IOException) {
-                e.printStackTrace()
-            }
-        }
-
-        return apiLevelFiles.toTypedArray()
-    }
-
-    private fun getAndroidJarFile(apiLevel: Int, patterns: List<String>): File? {
-        return patterns
-            .map { fileForPathInner(it.replace("%", apiLevel.toString())) }
-            .firstOrNull { it.isFile }
     }
 
     private fun getValue(args: Array<String>, index: Int): String {
@@ -1252,21 +1117,6 @@ object OptionsHelp {
                 "$ARG_APPLY_API_LEVELS <api-versions.xml>",
                 "Reads an XML file containing API level descriptions " +
                     "and merges the information into the documentation",
-                "",
-                "Generating API version history:",
-                "$ARG_GENERATE_API_VERSION_HISTORY <jsonfile>",
-                "Reads API signature files and generates a JSON file recording the API version each " +
-                    "class, method, and field was added in and (if applicable) deprecated in. " +
-                    "Required to generate API version JSON.",
-                "$ARG_API_VERSION_SIGNATURE_FILES <files>",
-                "An ordered list of text API signature files. The oldest API version should be " +
-                    "first, the newest last. This should not include a signature file for the " +
-                    "current API version, which will be parsed from the provided source files. Not " +
-                    "required to generate API version JSON if the current version is the only version.",
-                "$ARG_API_VERSION_NAMES <strings>",
-                "An ordered list of strings with the names to use for the API versions from " +
-                    "$ARG_API_VERSION_SIGNATURE_FILES, and the name of the current API version. " +
-                    "Required to generate API version JSON.",
                 "",
                 "Environment Variables:",
                 ENV_VAR_METALAVA_DUMP_ARGV,
