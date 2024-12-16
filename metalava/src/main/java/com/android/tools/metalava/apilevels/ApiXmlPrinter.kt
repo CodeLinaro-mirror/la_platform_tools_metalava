@@ -29,7 +29,7 @@ import java.io.PrintWriter
 class ApiXmlPrinter(
     private val availableSdkExtensions: AvailableSdkExtensions?,
     private val firstApiLevel: Int,
-    allVersions: List<SdkVersion>,
+    allVersions: List<ApiVersion>,
 ) : ApiPrinter {
     /**
      * Map from version to the next version. This is used to compute the version in which an API

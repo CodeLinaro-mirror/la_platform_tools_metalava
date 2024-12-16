@@ -25,7 +25,7 @@ import org.junit.Assert
 class ApiToExtensionsMapTest {
 
     /** Get an SDK version for [level]. */
-    private fun sdkVersion(level: Int) = SdkVersion.fromLevel(level)
+    private fun sdkVersion(level: Int) = ApiVersion.fromLevel(level)
 
     /** Get an extension version for [level]. */
     private fun extensionVersion(level: Int) = ExtVersion.fromLevel(level)

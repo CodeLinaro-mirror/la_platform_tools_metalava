@@ -16,22 +16,13 @@
 
 package com.android.tools.metalava.apilevels
 
-import java.io.File
-
 /**
- * Properties for the [ApiGenerator.generateFromSignatureFiles] method that come from comment line
- * options.
+ * Represents a specific [ApiVersion] of an API.
+ *
+ * Supports updating [Api] with information from the [apiVersion] of the API that is defined in
+ * * the signature [file].
  */
-data class GenerateApiVersionsFromSignatureFilesConfig(
-    /** A list of versioned signature files, ordered from the oldest API version to newest. */
-    val versionedSignatureApis: List<VersionedSignatureApi>,
-
-    /** The version for the current API from sources. */
-    val currentVersion: SdkVersion,
-
-    /** The api versions file that will be generated. */
-    val outputFile: File,
-
-    /** The [ApiPrinter] to use to write the API versions to [outputFile]. */
-    val printer: ApiPrinter,
-)
+interface VersionedApi {
+    /** Update [api] with information from this version of the API. */
+    fun updateApi(api: Api)
+}

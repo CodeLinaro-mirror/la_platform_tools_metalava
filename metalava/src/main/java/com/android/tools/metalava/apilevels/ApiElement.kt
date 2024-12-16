@@ -18,13 +18,13 @@ package com.android.tools.metalava.apilevels
 /** Represents a parent of [ApiElement]. */
 interface ParentApiElement {
     /** The API version this API was first introduced in. */
-    val since: SdkVersion
+    val since: ApiVersion
 
     /**
      * The version in which this API last appeared, if this is not the latest API then it will be
      * treated as having been removed in the next API version, i.e. [lastPresentIn] + 1.
      */
-    val lastPresentIn: SdkVersion
+    val lastPresentIn: ApiVersion
 
     /**
      * The SDKs and their versions this API was first introduced in.
@@ -38,7 +38,7 @@ interface ParentApiElement {
     val sdks: String?
 
     /** The optional API level this element was deprecated in. */
-    val deprecatedIn: SdkVersion?
+    val deprecatedIn: ApiVersion?
 }
 
 /**
@@ -52,7 +52,7 @@ open class ApiElement(val name: String) : ParentApiElement, Comparable<ApiElemen
      * The Android API level of this ApiElement. i.e. The Android platform SDK version this API was
      * first introduced in.
      */
-    final override lateinit var since: SdkVersion
+    final override lateinit var since: ApiVersion
         private set
 
     /**
@@ -69,10 +69,10 @@ open class ApiElement(val name: String) : ParentApiElement, Comparable<ApiElemen
         private set
 
     /** The optional API level this element was deprecated in. */
-    final override var deprecatedIn: SdkVersion? = null
+    final override var deprecatedIn: ApiVersion? = null
         private set
 
-    final override lateinit var lastPresentIn: SdkVersion
+    final override lateinit var lastPresentIn: ApiVersion
         private set
 
     override fun toString(): String {
@@ -92,28 +92,28 @@ open class ApiElement(val name: String) : ParentApiElement, Comparable<ApiElemen
     /**
      * Updates the API element with information for a specific API version.
      *
-     * @param sdkVersion an API version for which the API element existed
+     * @param apiVersion an API version for which the API element existed
      * @param deprecated whether the API element was deprecated in the API version in question
      */
-    fun update(sdkVersion: SdkVersion, deprecated: Boolean = deprecatedIn != null) {
-        assert(sdkVersion.isValid)
-        if (!::since.isInitialized || since > sdkVersion) {
-            since = sdkVersion
+    fun update(apiVersion: ApiVersion, deprecated: Boolean = deprecatedIn != null) {
+        assert(apiVersion.isValid)
+        if (!::since.isInitialized || since > apiVersion) {
+            since = apiVersion
         }
-        if (!::lastPresentIn.isInitialized || lastPresentIn < sdkVersion) {
-            lastPresentIn = sdkVersion
+        if (!::lastPresentIn.isInitialized || lastPresentIn < apiVersion) {
+            lastPresentIn = apiVersion
         }
         val deprecatedVersion = deprecatedIn
         if (deprecated) {
             // If it was not previously deprecated or was deprecated in a later version than this
             // one then deprecate it in this version.
-            if (deprecatedVersion == null || deprecatedVersion > sdkVersion) {
-                deprecatedIn = sdkVersion
+            if (deprecatedVersion == null || deprecatedVersion > apiVersion) {
+                deprecatedIn = apiVersion
             }
         } else {
             // If it was previously deprecated and was deprecated in an earlier version than this
             // one then treat it as being undeprecated.
-            if (deprecatedVersion != null && deprecatedVersion < sdkVersion) {
+            if (deprecatedVersion != null && deprecatedVersion < apiVersion) {
                 deprecatedIn = null
             }
         }
@@ -171,21 +171,21 @@ open class ApiElement(val name: String) : ParentApiElement, Comparable<ApiElemen
         )
 
         /** Updates the [ApiElement] by calling [ApiElement.update]. */
-        private open class SdkVersionUpdater(private val sdkVersion: SdkVersion) : Updater {
+        private open class ApiVersionUpdater(private val apiVersion: ApiVersion) : Updater {
             override fun update(apiElement: ApiElement, deprecated: Boolean) {
-                apiElement.update(sdkVersion, deprecated)
+                apiElement.update(apiVersion, deprecated)
             }
         }
 
         /**
-         * Extends [SdkVersionUpdater] to also update the [ApiElement.sinceExtension] and
+         * Extends [ApiVersionUpdater] to also update the [ApiElement.sinceExtension] and
          * [ApiElement.mainlineModule] properties.
          */
         private class ExtensionUpdater(
-            nextSdkVersion: SdkVersion,
+            nextSdkVersion: ApiVersion,
             private val extVersion: ExtVersion,
             private val module: String
-        ) : SdkVersionUpdater(nextSdkVersion) {
+        ) : ApiVersionUpdater(nextSdkVersion) {
             override fun update(apiElement: ApiElement, deprecated: Boolean) {
                 super.update(apiElement, deprecated)
                 apiElement.updateExtension(extVersion)
@@ -196,13 +196,13 @@ open class ApiElement(val name: String) : ParentApiElement, Comparable<ApiElemen
         }
 
         companion object {
-            /** Create an [Updater] for [sdkVersion]. */
-            fun forSdkVersion(sdkVersion: SdkVersion): Updater {
-                return SdkVersionUpdater(sdkVersion)
+            /** Create an [Updater] for [apiVersion]. */
+            fun forApiVersion(apiVersion: ApiVersion): Updater {
+                return ApiVersionUpdater(apiVersion)
             }
 
             fun forExtVersion(
-                nextSdkVersion: SdkVersion,
+                nextSdkVersion: ApiVersion,
                 extVersion: ExtVersion,
                 module: String
             ): Updater {
@@ -211,3 +211,8 @@ open class ApiElement(val name: String) : ParentApiElement, Comparable<ApiElemen
         }
     }
 }
+
+operator fun ApiVersion?.compareTo(other: ApiVersion?): Int =
+    if (this == null) {
+        if (other == null) 0 else -1
+    } else if (other == null) +1 else this.compareTo(other)

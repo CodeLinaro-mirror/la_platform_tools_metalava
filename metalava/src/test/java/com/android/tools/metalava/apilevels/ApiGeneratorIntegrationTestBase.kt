@@ -24,6 +24,7 @@ import java.util.regex.Pattern
 import org.junit.Assert
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.BeforeClass
 
 abstract class ApiGeneratorIntegrationTestBase : DriverTest() {
@@ -131,5 +132,17 @@ abstract class ApiGeneratorIntegrationTestBase : DriverTest() {
                     }
                 }
             }
+    }
+
+    /** The output file into which the API version history will be written. */
+    protected lateinit var output: File
+
+    /** The path of [output]. */
+    protected lateinit var outputPath: String
+
+    @Before
+    fun setUp() {
+        output = temporaryFolder.newFile("api-info.xml")
+        outputPath = output.path
     }
 }
