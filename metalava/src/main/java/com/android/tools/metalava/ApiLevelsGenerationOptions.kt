@@ -18,19 +18,23 @@ package com.android.tools.metalava
 
 import com.android.tools.metalava.apilevels.ApiGenerator
 import com.android.tools.metalava.apilevels.ApiJsonPrinter
+import com.android.tools.metalava.apilevels.ApiVersion
 import com.android.tools.metalava.apilevels.ApiXmlPrinter
-import com.android.tools.metalava.apilevels.GenerateApiVersionsFromSignatureFilesConfig
+import com.android.tools.metalava.apilevels.GenerateApiVersionsFromVersionedApisConfig
 import com.android.tools.metalava.apilevels.GenerateXmlConfig
-import com.android.tools.metalava.apilevels.SdkVersion
 import com.android.tools.metalava.apilevels.VersionedSignatureApi
+import com.android.tools.metalava.apilevels.VersionedSourceApi
 import com.android.tools.metalava.cli.common.EarlyOptions
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.cli.common.MetalavaCliException
+import com.android.tools.metalava.cli.common.SignatureFileLoader
 import com.android.tools.metalava.cli.common.existingDir
 import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.fileForPathInner
 import com.android.tools.metalava.cli.common.map
 import com.android.tools.metalava.cli.common.newFile
+import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.CodebaseFragment
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.flag
@@ -381,7 +385,7 @@ class ApiLevelsGenerationOptions(
                 GenerateXmlConfig(
                     apiLevels = apiLevelJars,
                     firstApiLevel = firstApiLevel,
-                    currentApiLevel = currentApiLevel,
+                    currentSdkVersion = ApiVersion.fromLevel(currentApiLevel),
                     isDeveloperPreviewBuild = isDeveloperPreviewBuild,
                     outputFile = outputFile,
                     sdkExtensionsArguments = sdkExtensionsArguments,
@@ -446,53 +450,70 @@ class ApiLevelsGenerationOptions(
             )
             .split(" ")
 
-    /** Construct the [GenerateApiVersionsFromSignatureFilesConfig] from the options. */
-    val generateApiVersionsFromSignatureFilesConfig by
-        lazy(LazyThreadSafetyMode.NONE) {
-            // apiVersionNames will include the current version but apiVersionSignatureFiles will
-            // not,
-            // so there should be 1 more name than signature file (or both can be null)
-            val numVersionNames = apiVersionNames?.size ?: 0
-            val numVersionFiles = apiVersionSignatureFiles?.size ?: 0
-            if (numVersionNames != 0 && numVersionNames != numVersionFiles + 1) {
-                throw MetalavaCliException(
-                    "$ARG_API_VERSION_NAMES must have one more version than $ARG_API_VERSION_SIGNATURE_FILES to include the current version name"
-                )
-            }
-
-            val apiVersionsFile = generateApiVersionHistory
-            val apiVersionNames = apiVersionNames
-            if (apiVersionsFile != null && apiVersionNames != null) {
-                // The signature files can be null if the current version is the only version
-                val pastApiVersions = apiVersionSignatureFiles ?: emptyList()
-
-                val allVersions = apiVersionNames.map { SdkVersion.fromString(it) }
-
-                // Combine the `pastApiVersions` and `apiVersionNames` into a list of
-                // `VersionedSignatureApi`s.
-                val versionedSignatureApis =
-                    pastApiVersions.mapIndexed { index, file ->
-                        VersionedSignatureApi(allVersions[index], file)
-                    }
-
-                val printer =
-                    when (val extension = apiVersionsFile.extension) {
-                        "xml" -> ApiXmlPrinter(null, 1, allVersions)
-                        "json" -> ApiJsonPrinter()
-                        else ->
-                            error(
-                                "unexpected extension for $apiVersionsFile, expected 'xml', or 'json' got '$extension'"
-                            )
-                    }
-
-                GenerateApiVersionsFromSignatureFilesConfig(
-                    versionedSignatureApis = versionedSignatureApis,
-                    currentVersion = allVersions.last(),
-                    outputFile = apiVersionsFile,
-                    printer = printer,
-                )
-            } else {
-                null
-            }
+    /**
+     * Construct the [GenerateApiVersionsFromVersionedApisConfig] from the options.
+     *
+     * If no relevant command line options were provided then this will return `null`, otherwise it
+     * will validate the options and if all is well construct and return a
+     * [GenerateApiVersionsFromVersionedApisConfig] object.
+     *
+     * @param signatureFileLoader used for loading [Codebase]s from signature files.
+     * @param codebaseFragmentProvider provides access to the [CodebaseFragment] for the API defined
+     *   in the sources. This will only be called if a [GenerateApiVersionsFromVersionedApisConfig]
+     *   needs to be created.
+     */
+    fun fromSignatureFilesConfig(
+        signatureFileLoader: SignatureFileLoader,
+        codebaseFragmentProvider: () -> CodebaseFragment,
+    ): GenerateApiVersionsFromVersionedApisConfig? {
+        // apiVersionNames will include the current version but apiVersionSignatureFiles will not,
+        // so there should be 1 more name than signature file (or both can be null)
+        val numVersionNames = apiVersionNames?.size ?: 0
+        val numVersionFiles = apiVersionSignatureFiles?.size ?: 0
+        if (numVersionNames != 0 && numVersionNames != numVersionFiles + 1) {
+            throw MetalavaCliException(
+                "$ARG_API_VERSION_NAMES must have one more version than $ARG_API_VERSION_SIGNATURE_FILES to include the current version name"
+            )
         }
+
+        val apiVersionsFile = generateApiVersionHistory
+        val apiVersionNames = apiVersionNames
+        return if (apiVersionsFile != null && apiVersionNames != null) {
+            // The signature files can be null if the current version is the only version
+            val pastApiVersions = apiVersionSignatureFiles ?: emptyList()
+
+            val allVersions = apiVersionNames.map { ApiVersion.fromString(it) }
+
+            val sourceVersion = allVersions.last()
+
+            // Combine the `pastApiVersions` and `apiVersionNames` into a list of
+            // `VersionedSignatureApi`s.
+            val versionedApis = buildList {
+                pastApiVersions.mapIndexedTo(this) { index, file ->
+                    VersionedSignatureApi(signatureFileLoader, file, allVersions[index])
+                }
+                // Add a VersionedSourceApi for the source code.
+                val codebaseFragment = codebaseFragmentProvider()
+                add(VersionedSourceApi(codebaseFragment, sourceVersion))
+            }
+
+            val printer =
+                when (val extension = apiVersionsFile.extension) {
+                    "xml" -> ApiXmlPrinter(null, 1, allVersions)
+                    "json" -> ApiJsonPrinter()
+                    else ->
+                        error(
+                            "unexpected extension for $apiVersionsFile, expected 'xml', or 'json' got '$extension'"
+                        )
+                }
+
+            GenerateApiVersionsFromVersionedApisConfig(
+                versionedApis = versionedApis,
+                outputFile = apiVersionsFile,
+                printer = printer,
+            )
+        } else {
+            null
+        }
+    }
 }

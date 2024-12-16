@@ -111,8 +111,8 @@ private constructor(
      * @return an `sdks` value suitable for including verbatim in XML
      */
     fun calculateSdksAttr(
-        androidSince: SdkVersion,
-        notFinalizedValue: SdkVersion,
+        androidSince: ApiVersion,
+        notFinalizedValue: ApiVersion,
         shortExtensionNames: List<String>,
         extensionsSince: ExtVersion?,
     ): String {

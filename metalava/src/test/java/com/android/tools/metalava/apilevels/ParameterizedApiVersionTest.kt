@@ -22,7 +22,7 @@ import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
 @RunWith(Parameterized::class)
-class ParameterizedSdkVersionTest {
+class ParameterizedApiVersionTest {
 
     data class TestData(
         val input: String,
@@ -86,8 +86,8 @@ class ParameterizedSdkVersionTest {
             )
     }
 
-    /** Get an [SdkVersion] from [text]. */
-    private fun getSdkVersionFromString(text: String) = SdkVersion.fromString(text)
+    /** Get an [ApiVersion] from [text]. */
+    private fun getSdkVersionFromString(text: String) = ApiVersion.fromString(text)
 
     @Test
     fun test() {

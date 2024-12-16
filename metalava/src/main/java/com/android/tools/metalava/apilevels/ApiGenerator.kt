@@ -15,11 +15,9 @@
  */
 package com.android.tools.metalava.apilevels
 
-import com.android.tools.metalava.SignatureFileCache
 import com.android.tools.metalava.apilevels.ApiToExtensionsMap.Companion.fromXml
 import com.android.tools.metalava.apilevels.ExtensionSdkJarReader.Companion.findExtensionSdkJarFiles
 import com.android.tools.metalava.model.CodebaseFragment
-import com.android.tools.metalava.model.snapshot.NonFilteringDelegatingVisitor
 import java.io.File
 import java.io.IOException
 
@@ -27,7 +25,7 @@ import java.io.IOException
  * Main class for command line command to convert the existing API XML/TXT files into diff-based
  * simple text files.
  */
-class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
+class ApiGenerator {
     /**
      * Generates an XML API version history file based on the API surfaces of the versions provided.
      *
@@ -39,11 +37,17 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
         config: GenerateXmlConfig,
     ): Boolean {
         val apiLevels = config.apiLevels
+        val lastApiVersion = ApiVersion.fromLevel(apiLevels.size - 1)
         val firstApiLevel = config.firstApiLevel
-        val currentApiLevel = config.currentApiLevel
-        val currentSdkVersion = SdkVersion.fromLevel(currentApiLevel)
+        val currentSdkVersion = config.currentSdkVersion
         val notFinalizedSdkVersion = currentSdkVersion + 1
-        val api = createApiFromAndroidJars(apiLevels, firstApiLevel)
+        val versionedApis =
+            (firstApiLevel until apiLevels.size).map { apiLevel ->
+                val jar = apiLevels[apiLevel]
+                val sdkVersion = ApiVersion.fromLevel(apiLevel)
+                VersionedJarApi(jar, sdkVersion)
+            }
+        val api = createApiFromVersionedApis(versionedApis)
         val isDeveloperPreviewBuild = config.isDeveloperPreviewBuild
 
         // Compute the version to use for the current codebase.
@@ -55,7 +59,7 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
 
                 // There is no prebuilt, finalized jar matching the current API level so use the
                 // current codebase for the current API version.
-                apiLevels.size - 1 < currentApiLevel -> currentSdkVersion
+                lastApiVersion < currentSdkVersion -> currentSdkVersion
 
                 // Else do not include the current codebase.
                 else -> null
@@ -63,7 +67,7 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
 
         // Get a list of all versions, including the codebase version, if necessary.
         val allVersions = buildList {
-            (firstApiLevel until apiLevels.size).mapTo(this) { SdkVersion.fromLevel(it) }
+            (firstApiLevel until apiLevels.size).mapTo(this) { ApiVersion.fromLevel(it) }
             if (codebaseSdkVersion != null) add(codebaseSdkVersion)
         }
 
@@ -93,53 +97,30 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
     }
 
     /**
-     * Creates an [Api] from a list of past API signature files. In the generated [Api], the oldest
-     * API version will be represented as level 1, the next as level 2, etc.
+     * Creates an [Api] from a list of [VersionedApi]s.
      *
-     * @param previousApiFiles A list of API signature files, one for each version of the API, in
-     *   order from oldest to newest API version.
+     * @param versionedApis A list of [VersionedApi]s, one for each version of the API, in order
+     *   from oldest to newest API version.
      */
-    private fun createApiFromSignatureFiles(previousApiFiles: List<VersionedSignatureApi>): Api {
+    private fun createApiFromVersionedApis(versionedApis: List<VersionedApi>): Api {
         val api = Api()
-        for (versionedSignatureFile in previousApiFiles) {
-            val codebase = versionedSignatureFile.load(signatureFileCache)
-            val codebaseFragment =
-                CodebaseFragment.create(codebase, ::NonFilteringDelegatingVisitor)
-            val sdkVersion = versionedSignatureFile.sdkVersion
-            addApisFromCodebase(api, sdkVersion, codebaseFragment, false)
+        for (versionedApi in versionedApis) {
+            versionedApi.updateApi(api)
         }
-        api.clean()
         return api
     }
 
     /**
      * Generates an API version history file based on the API surfaces of the versions provided.
      *
-     * @param codebaseFragment A [CodebaseFragment] representing the current API surface.
      * @param config Configuration provided from command line options.
      */
-    fun generateFromSignatureFiles(
-        codebaseFragment: CodebaseFragment,
-        config: GenerateApiVersionsFromSignatureFilesConfig,
+    fun generateFromVersionedApis(
+        config: GenerateApiVersionsFromVersionedApisConfig,
     ) {
-        val api = createApiFromSignatureFiles(config.versionedSignatureApis)
-        addApisFromCodebase(
-            api,
-            config.currentVersion,
-            codebaseFragment,
-            false,
-        )
+        val api = createApiFromVersionedApis(config.versionedApis)
+        api.clean()
         createApiLevelsFile(config.outputFile, config.printer, api)
-    }
-
-    private fun createApiFromAndroidJars(apiLevels: List<File>, firstApiLevel: Int): Api {
-        val api = Api()
-        for (apiLevel in firstApiLevel until apiLevels.size) {
-            val jar = apiLevels[apiLevel]
-            val sdkVersion = SdkVersion.fromLevel(apiLevel)
-            api.readAndroidJar(sdkVersion, jar)
-        }
-        return api
     }
 
     /**
@@ -163,7 +144,7 @@ class ApiGenerator(private val signatureFileCache: SignatureFileCache) {
      */
     private fun processExtensionSdkApis(
         api: Api,
-        versionNotInAndroidSdk: SdkVersion,
+        versionNotInAndroidSdk: ApiVersion,
         sdkJarRoot: File,
         filterPath: File,
     ): AvailableSdkExtensions {

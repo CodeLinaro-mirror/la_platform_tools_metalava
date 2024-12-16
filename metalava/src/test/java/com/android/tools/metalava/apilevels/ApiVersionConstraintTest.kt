@@ -22,9 +22,9 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
-/** Verifies the constraints on [SdkVersion] properties. */
+/** Verifies the constraints on [ApiVersion] properties. */
 @RunWith(Parameterized::class)
-class SdkVersionConstraintTest {
+class ApiVersionConstraintTest {
 
     data class TestData(
         val name: String,
@@ -82,7 +82,7 @@ class SdkVersionConstraintTest {
     fun testConstraints() {
         val exception =
             assertThrows(IllegalArgumentException::class.java) {
-                SdkVersion(
+                ApiVersion(
                     testData.major,
                     testData.minor,
                     testData.patch,
