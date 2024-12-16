@@ -92,7 +92,9 @@ internal class PsiDefaultValue(private val item: PsiParameterItem) : DefaultValu
                             as? UExpression
                             ?: return INVALID_VALUE
                     val constant = defaultExpression.evaluate()
-                    return if (constant != null && constant !is Pair<*, *>) {
+                    return if (
+                        constant != null && (constant is String || constant.javaClass.isPrimitive)
+                    ) {
                         CodePrinter.constantToSource(constant)
                     } else {
                         // Expression: Compute from UAST rather than just using the source text

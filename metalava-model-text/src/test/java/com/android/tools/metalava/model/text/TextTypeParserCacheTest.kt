@@ -24,6 +24,7 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.WildcardTypeItem
+import com.android.tools.metalava.model.testing.testTypeString
 import com.android.tools.metalava.testing.getAndroidTxt
 import com.google.common.truth.Truth.assertThat
 import com.google.common.truth.Truth.assertWithMessage
@@ -299,8 +300,8 @@ class TextTypeParserCacheTest : BaseTextCodebaseTest() {
             assertWithMessage(
                     "string representation of withAnno1.deepestComponent() and withAnno1TwoDims.deepestComponent()"
                 )
-                .that(withAnno1TwoDims.deepestComponent().toTypeString(annotations = true))
-                .isEqualTo(withAnno1.deepestComponent().toTypeString(annotations = true))
+                .that(withAnno1TwoDims.deepestComponent().testTypeString(annotations = true))
+                .isEqualTo(withAnno1.deepestComponent().testTypeString(annotations = true))
 
             // But they are different instances as types with annotations are not cached..
             assertWithMessage(

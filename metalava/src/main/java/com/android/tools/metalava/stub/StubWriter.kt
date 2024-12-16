@@ -16,8 +16,6 @@
 
 package com.android.tools.metalava.stub
 
-import com.android.tools.metalava.ApiPredicate
-import com.android.tools.metalava.FilterPredicate
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ConstructorItem
@@ -32,8 +30,10 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.item.ResourceFile
 import com.android.tools.metalava.model.psi.trimDocIndent
 import com.android.tools.metalava.model.visitors.ApiFilters
+import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.model.visitors.FilteringApiVisitor
+import com.android.tools.metalava.model.visitors.MatchOverridingMethodPredicate
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import java.io.BufferedWriter
@@ -278,7 +278,7 @@ fun createFilteringVisitorForStubs(
             includeDocOnly = docStubs,
             config = apiPredicateConfig.copy(ignoreShown = true),
         )
-    val filterEmit = FilterPredicate(filterReference)
+    val filterEmit = MatchOverridingMethodPredicate(filterReference)
     val apiFilters =
         ApiFilters(
             emit = filterEmit,

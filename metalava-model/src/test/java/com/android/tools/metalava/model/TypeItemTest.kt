@@ -21,13 +21,8 @@ import org.junit.Test
 
 class TypeItemTest {
     @Test
-    fun test() {
+    fun `test shortenTypes`() {
         assertThat(TypeItem.shortenTypes("@androidx.annotation.Nullable")).isEqualTo("@Nullable")
-        assertThat(TypeItem.shortenTypes(JAVA_LANG_STRING)).isEqualTo("String")
-        assertThat(TypeItem.shortenTypes("java.lang.reflect.Method"))
-            .isEqualTo("java.lang.reflect.Method")
-        assertThat(TypeItem.shortenTypes("java.util.List<java.lang.String>"))
-            .isEqualTo("java.util.List<java.lang.String>")
         assertThat(
                 TypeItem.shortenTypes(
                     "java.util.List<@androidx.annotation.NonNull java.lang.String>"

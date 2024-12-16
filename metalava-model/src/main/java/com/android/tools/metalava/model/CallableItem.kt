@@ -17,7 +17,6 @@
 package com.android.tools.metalava.model
 
 import java.util.Objects
-import java.util.function.Predicate
 
 /** Common to [MethodItem] and [ConstructorItem]. */
 @MetalavaApi
@@ -56,7 +55,7 @@ interface CallableItem : MemberItem, TypeParameterListOwner {
         return false
     }
 
-    fun filteredThrowsTypes(predicate: Predicate<Item>): Collection<ExceptionTypeItem> {
+    fun filteredThrowsTypes(predicate: FilterPredicate): Collection<ExceptionTypeItem> {
         if (throwsTypes().isEmpty()) {
             return emptyList()
         }
@@ -64,7 +63,7 @@ interface CallableItem : MemberItem, TypeParameterListOwner {
     }
 
     private fun filteredThrowsTypes(
-        predicate: Predicate<Item>,
+        predicate: FilterPredicate,
         throwsTypes: LinkedHashSet<ExceptionTypeItem>
     ): LinkedHashSet<ExceptionTypeItem> {
         for (exceptionType in throwsTypes()) {
@@ -201,7 +200,7 @@ interface CallableItem : MemberItem, TypeParameterListOwner {
      * Returns whether this callable has any types in its signature that does not match the given
      * filter.
      */
-    fun hasHiddenType(filterReference: Predicate<Item>): Boolean {
+    fun hasHiddenType(filterReference: FilterPredicate): Boolean {
         for (parameter in parameters()) {
             if (parameter.type().hasHiddenType(filterReference)) return true
         }
@@ -216,7 +215,7 @@ interface CallableItem : MemberItem, TypeParameterListOwner {
     }
 
     /** Checks if there is a reference to a hidden class anywhere in the type. */
-    private fun TypeItem.hasHiddenType(filterReference: Predicate<Item>): Boolean {
+    private fun TypeItem.hasHiddenType(filterReference: FilterPredicate): Boolean {
         return when (this) {
             is PrimitiveTypeItem -> false
             is ArrayTypeItem -> componentType.hasHiddenType(filterReference)
@@ -224,7 +223,12 @@ interface CallableItem : MemberItem, TypeParameterListOwner {
                 asClass()?.let { !filterReference.test(it) } == true ||
                     outerClassType?.hasHiddenType(filterReference) == true ||
                     arguments.any { it.hasHiddenType(filterReference) }
-            is VariableTypeItem -> !filterReference.test(asTypeParameter)
+            is VariableTypeItem ->
+                // There is no need to check if a type variable contains a reference to a hidden
+                // class as it is only a reference to a type parameter, and they are checked above
+                // to make sure that their type bounds do not contain a reference to a hidden
+                // class.
+                false
             is WildcardTypeItem ->
                 extendsBound?.hasHiddenType(filterReference) == true ||
                     superBound?.hasHiddenType(filterReference) == true

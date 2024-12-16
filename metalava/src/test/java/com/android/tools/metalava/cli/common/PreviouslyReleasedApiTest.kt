@@ -64,9 +64,14 @@ class PreviouslyReleasedApiTest : TemporaryFolderOwner {
     @Test
     fun `check jar file`() {
         val jarFile = fakeJar("some.jar")
-        val previouslyReleasedApi =
-            PreviouslyReleasedApi.optionalPreviouslyReleasedApi(OPTION_NAME, listOf(jarFile))
-        assertThat(previouslyReleasedApi).isEqualTo(JarBasedApi(jarFile))
+        val exception =
+            assertThrows(IllegalStateException::class.java) {
+                PreviouslyReleasedApi.optionalPreviouslyReleasedApi(OPTION_NAME, listOf(jarFile))
+            }
+        assertThat(exception.message)
+            .isEqualTo(
+                "$OPTION_NAME: Can no longer check compatibility against jar files like $jarFile please use equivalent signature files"
+            )
     }
 
     @Test
@@ -82,7 +87,7 @@ class PreviouslyReleasedApiTest : TemporaryFolderOwner {
             }
         assertThat(exception.message)
             .isEqualTo(
-                "$OPTION_NAME: Cannot have more than one jar file, found: $jarFile1, $jarFile2"
+                "$OPTION_NAME: Can no longer check compatibility against jar files like $jarFile1, $jarFile2 please use equivalent signature files"
             )
     }
 
@@ -102,7 +107,7 @@ class PreviouslyReleasedApiTest : TemporaryFolderOwner {
 
         assertThat(exception.message)
             .isEqualTo(
-                "$OPTION_NAME: Cannot mix jar files (e.g. $jarFile) and signature files (e.g. $signatureFile)"
+                "$OPTION_NAME: Can no longer check compatibility against jar files like $jarFile please use equivalent signature files"
             )
     }
 }

@@ -22,7 +22,9 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.SelectableItem
+import com.android.tools.metalava.model.api.surface.ApiSurfaces
+import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.testing.getAndroidJar
 import com.google.common.truth.Truth.assertThat
 import kotlin.test.assertEquals
@@ -529,15 +531,29 @@ class ApiFileTest : BaseTextCodebaseTest() {
 
         val files = testFiles.map { it.createFile(temporaryFolder.newFolder()) }
         val signatureFiles =
-            SignatureFile.fromFiles(files) { _, file -> file.name == "current.txt" }
+            SignatureFile.fromFiles(
+                files,
+                forMainApiSurfacePredicate = { _, file -> file.name == "current.txt" },
+            )
 
+        val apiSurfaces = ApiSurfaces.create(needsBase = true)
+        val codebaseConfig =
+            Codebase.Config(
+                annotationManager = noOpAnnotationManager,
+                apiSurfaces = apiSurfaces,
+            )
         val classResolver = ClassLoaderBasedClassResolver(getAndroidJar())
-        val codebase = ApiFile.parseApi(signatureFiles, classResolver = classResolver)
+        val codebase =
+            ApiFile.parseApi(
+                signatureFiles,
+                codebaseConfig = codebaseConfig,
+                classResolver = classResolver,
+            )
 
         val current = buildList {
             codebase.accept(
-                object : BaseItemVisitor() {
-                    override fun visitItem(item: Item) {
+                object : BaseItemVisitor(visitParameterItems = false) {
+                    override fun visitSelectableItem(item: SelectableItem) {
                         if (item.emit) {
                             add(item)
                         }
@@ -551,11 +567,8 @@ class ApiFileTest : BaseTextCodebaseTest() {
                 package test.pkg
                 class test.pkg.Foo
                 constructor test.pkg.Foo.Foo(int)
-                parameter currentCtorParameter
                 method test.pkg.Foo.extensibleMethod(int)
-                parameter parameter
                 method test.pkg.Foo.currentMethod(int)
-                parameter currentMethodParameter
                 field Foo.currentField
                 class test.pkg.Outer.Middle.Inner
                 method test.pkg.Outer.Middle.Inner.currentInnerMethod()

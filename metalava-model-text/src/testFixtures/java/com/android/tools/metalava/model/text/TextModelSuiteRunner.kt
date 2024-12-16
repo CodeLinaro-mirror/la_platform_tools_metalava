@@ -51,12 +51,10 @@ class TextModelSuiteRunner : ModelSuiteRunner {
             error("text model does not support common sources")
         }
 
-        val codebaseConfig =
-            Codebase.Config(
-                annotationManager = inputs.annotationManager,
-            )
+        val testFixture = inputs.testFixture
+        val codebaseConfig = testFixture.codebaseConfig
 
-        val signatureFiles = SignatureFile.fromFiles(inputs.mainSourceDir.createFiles())
+        val signatureFiles = SignatureFile.forTest(inputs.mainSourceDir.createFiles())
         val resolver = ClassLoaderBasedClassResolver(getAndroidJar(), codebaseConfig)
         val codebase =
             ApiFile.parseApi(

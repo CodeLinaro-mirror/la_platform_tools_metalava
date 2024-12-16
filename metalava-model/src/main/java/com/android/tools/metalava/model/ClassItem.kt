@@ -16,8 +16,6 @@
 
 package com.android.tools.metalava.model
 
-import java.util.function.Predicate
-
 /**
  * Represents a {@link https://docs.oracle.com/javase/8/docs/api/java/lang/Class.html Class}
  *
@@ -56,24 +54,6 @@ interface ClassItem : ClassContentItem, SelectableItem, TypeParameterListOwner {
 
     override val effectivelyDeprecated: Boolean
         get() = originallyDeprecated || containingClass()?.effectivelyDeprecated == true
-
-    /**
-     * The qualified name where nested classes use $ as a separator. In class foo.bar.Outer.Inner,
-     * this method will return foo.bar.Outer$Inner. (This is the name format used in ProGuard keep
-     * files for example.)
-     */
-    fun qualifiedNameWithDollarNestedClasses(): String {
-        var curr: ClassItem? = this
-        while (curr?.containingClass() != null) {
-            curr = curr.containingClass()
-        }
-
-        if (curr == null) {
-            return fullName().replace('.', '$')
-        }
-
-        return curr.containingPackage().qualifiedName() + "." + fullName().replace('.', '$')
-    }
 
     /** Returns the internal name of the class, as seen in bytecode */
     fun internalName(): String {
@@ -349,7 +329,7 @@ interface ClassItem : ClassContentItem, SelectableItem, TypeParameterListOwner {
      * Finds a method matching the given method that satisfies the given predicate, considering all
      * methods defined on this class and its super classes
      */
-    fun findPredicateMethodWithSuper(template: MethodItem, filter: Predicate<Item>?): MethodItem? {
+    fun findPredicateMethodWithSuper(template: MethodItem, filter: FilterPredicate?): MethodItem? {
         val method = findMethod(template, true, true)
         if (method == null) {
             return null
@@ -480,7 +460,7 @@ interface ClassItem : ClassContentItem, SelectableItem, TypeParameterListOwner {
      * Return superclass matching the given predicate. When a superclass doesn't match, we'll keep
      * crawling up the tree until we find someone who matches.
      */
-    fun filteredSuperclass(predicate: Predicate<Item>): ClassItem? {
+    fun filteredSuperclass(predicate: FilterPredicate): ClassItem? {
         val superClass = superClass() ?: return null
         return if (predicate.test(superClass)) {
             superClass
@@ -489,7 +469,7 @@ interface ClassItem : ClassContentItem, SelectableItem, TypeParameterListOwner {
         }
     }
 
-    fun filteredSuperClassType(predicate: Predicate<Item>): ClassTypeItem? {
+    fun filteredSuperClassType(predicate: FilterPredicate): ClassTypeItem? {
         var superClassType: ClassTypeItem? = superClassType() ?: return null
         var prev: ClassItem? = null
         while (superClassType != null) {
@@ -519,7 +499,7 @@ interface ClassItem : ClassContentItem, SelectableItem, TypeParameterListOwner {
      * matching method in an ancestor class.
      */
     fun filteredMethods(
-        predicate: Predicate<Item>,
+        predicate: FilterPredicate,
         includeSuperClassMethods: Boolean = false
     ): Collection<MethodItem> {
         val methods = LinkedHashSet<MethodItem>()
@@ -540,7 +520,7 @@ interface ClassItem : ClassContentItem, SelectableItem, TypeParameterListOwner {
     }
 
     /** Returns the constructors that match the given predicate */
-    fun filteredConstructors(predicate: Predicate<Item>): Sequence<ConstructorItem> {
+    fun filteredConstructors(predicate: FilterPredicate): Sequence<ConstructorItem> {
         return constructors().asSequence().filter { predicate.test(it) }
     }
 
@@ -548,7 +528,7 @@ interface ClassItem : ClassContentItem, SelectableItem, TypeParameterListOwner {
      * Return fields matching the given predicate. Also clones fields from ancestors that would
      * match had they been defined in this class.
      */
-    fun filteredFields(predicate: Predicate<Item>, showUnannotated: Boolean): List<FieldItem> {
+    fun filteredFields(predicate: FilterPredicate, showUnannotated: Boolean): List<FieldItem> {
         val fields = LinkedHashSet<FieldItem>()
         if (showUnannotated) {
             for (clazz in allInterfaces()) {
@@ -608,7 +588,7 @@ interface ClassItem : ClassContentItem, SelectableItem, TypeParameterListOwner {
         return list
     }
 
-    fun filteredInterfaceTypes(predicate: Predicate<Item>): Collection<ClassTypeItem> {
+    fun filteredInterfaceTypes(predicate: FilterPredicate): Collection<ClassTypeItem> {
         val interfaceTypes =
             filteredInterfaceTypes(
                 predicate,
@@ -621,7 +601,7 @@ interface ClassItem : ClassContentItem, SelectableItem, TypeParameterListOwner {
         return interfaceTypes
     }
 
-    fun allInterfaceTypes(predicate: Predicate<Item>): Collection<TypeItem> {
+    fun allInterfaceTypes(predicate: FilterPredicate): Collection<TypeItem> {
         val interfaceTypes =
             filteredInterfaceTypes(
                 predicate,
@@ -638,7 +618,7 @@ interface ClassItem : ClassContentItem, SelectableItem, TypeParameterListOwner {
     }
 
     private fun filteredInterfaceTypes(
-        predicate: Predicate<Item>,
+        predicate: FilterPredicate,
         types: LinkedHashSet<ClassTypeItem>,
         includeSelf: Boolean,
         includeParents: Boolean,

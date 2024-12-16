@@ -16,36 +16,24 @@
 
 package com.android.tools.metalava.model.item
 
-import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.BoundsTypeItem
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.DefaultItem
-import com.android.tools.metalava.model.ItemDocumentation
-import com.android.tools.metalava.model.ItemLanguage
+import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.type.DefaultTypeModifiers
 import com.android.tools.metalava.model.type.DefaultVariableTypeItem
-import com.android.tools.metalava.reporter.FileLocation
 
 /** A [TypeParameterItem] implementation suitable for use by multiple models. */
 open class DefaultTypeParameterItem(
-    codebase: Codebase,
-    itemLanguage: ItemLanguage,
+    override val codebase: Codebase,
     modifiers: BaseModifierList,
     private val name: String,
     private val isReified: Boolean,
-) :
-    DefaultItem(
-        codebase = codebase,
-        fileLocation = FileLocation.UNKNOWN,
-        itemLanguage = itemLanguage,
-        modifiers = modifiers,
-        documentationFactory = ItemDocumentation.NONE_FACTORY,
-        variantSelectorsFactory = ApiVariantSelectors.IMMUTABLE_FACTORY,
-    ),
-    TypeParameterItem {
+) : TypeParameterItem {
+
+    final override val modifiers: ModifierList = modifiers.toImmutable()
 
     final override fun name() = name
 
@@ -68,4 +56,27 @@ open class DefaultTypeParameterItem(
     final override fun typeBounds(): List<BoundsTypeItem> = bounds
 
     final override fun isReified(): Boolean = isReified
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is TypeParameterItem) return false
+
+        return name() == other.name()
+    }
+
+    override fun hashCode(): Int {
+        return name().hashCode()
+    }
+
+    override fun toString(): String =
+        if (typeBounds().isEmpty() && !isReified()) name()
+        else
+            buildString {
+                if (isReified()) append("reified ")
+                append(name())
+                if (typeBounds().isNotEmpty()) {
+                    append(" extends ")
+                    typeBounds().joinTo(this, " & ")
+                }
+            }
 }

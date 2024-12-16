@@ -14,19 +14,12 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model.visitors
+package com.android.tools.metalava.apilevels
 
-import com.android.tools.metalava.model.Item
-import java.util.function.Predicate
+import java.io.PrintWriter
 
-/** Encapsulates filters needed by [ApiVisitor]. */
-class ApiFilters(
-    /** Returns `true` for [Item]s that should be defined in the API and emitted as part of it. */
-    val emit: Predicate<Item>,
-
-    /**
-     * Returns `true` for [Item]s that can be referenced from the API, this is a super set of
-     * [Item]s that can be emitted.
-     */
-    val reference: Predicate<Item>,
-)
+/** Prints [Api] instances. */
+interface ApiPrinter {
+    /** Writes the [api] to [writer]. */
+    fun print(api: Api, writer: PrintWriter)
+}

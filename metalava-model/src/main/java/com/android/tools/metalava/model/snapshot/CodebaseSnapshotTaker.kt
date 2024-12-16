@@ -34,6 +34,7 @@ import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
+import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.Showability
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
@@ -146,7 +147,9 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
         // incorrect. However, that should not be a problem as the packages are visited in order
         // such that a containing package is visited before any contained packages.
         val packageDocs = packageDocsForPackageItem(this)
-        return snapshotCodebase.findOrCreatePackage(packageName, packageDocs)
+        val newPackageItem = snapshotCodebase.findOrCreatePackage(packageName, packageDocs)
+        newPackageItem.copySelectedApiVariants(this)
+        return newPackageItem
     }
 
     /**
@@ -185,6 +188,11 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
     private fun ClassItem.getSnapshotClass(): DefaultClassItem =
         snapshotCodebase.resolveClass(qualifiedName()) as DefaultClassItem
 
+    /** Copy [SelectableItem.selectedApiVariants] from [original] to this. */
+    private fun <T : SelectableItem> T.copySelectedApiVariants(original: T) {
+        selectedApiVariants = original.selectedApiVariants
+    }
+
     override fun visitClass(cls: ClassItem) {
         val classToSnapshot = cls.actualItemToSnapshot
 
@@ -211,21 +219,23 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
             classToSnapshot.interfaceTypes().map { classTypeItemFactory.getInterfaceType(it) }
 
         // Create the class and register it in the codebase.
-        itemFactory.createClassItem(
-            fileLocation = classToSnapshot.fileLocation,
-            itemLanguage = classToSnapshot.itemLanguage,
-            modifiers = classToSnapshot.modifiers.snapshot(),
-            documentationFactory = snapshotDocumentation(classToSnapshot, cls),
-            source = cls.sourceFile(),
-            classKind = classToSnapshot.classKind,
-            containingClass = containingClass,
-            containingPackage = containingPackage,
-            qualifiedName = classToSnapshot.qualifiedName(),
-            typeParameterList = typeParameterList,
-            origin = classToSnapshot.origin,
-            superClassType = snapshotSuperClassType,
-            interfaceTypes = snapshotInterfaceTypes,
-        )
+        val newClass =
+            itemFactory.createClassItem(
+                fileLocation = classToSnapshot.fileLocation,
+                itemLanguage = classToSnapshot.itemLanguage,
+                modifiers = classToSnapshot.modifiers.snapshot(),
+                documentationFactory = snapshotDocumentation(classToSnapshot, cls),
+                source = cls.sourceFile(),
+                classKind = classToSnapshot.classKind,
+                containingClass = containingClass,
+                containingPackage = containingPackage,
+                qualifiedName = classToSnapshot.qualifiedName(),
+                typeParameterList = typeParameterList,
+                origin = classToSnapshot.origin,
+                superClassType = snapshotSuperClassType,
+                interfaceTypes = snapshotInterfaceTypes,
+            )
+        newClass.copySelectedApiVariants(classToSnapshot)
     }
 
     /** Execute [body] within [SnapshotTypeItemFactoryContext]. */
@@ -270,6 +280,7 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
                     isPrimary = constructorToSnapshot.isPrimary,
                 )
             }
+        newConstructor.copySelectedApiVariants(constructorToSnapshot)
 
         containingClass.addConstructor(newConstructor)
     }
@@ -307,6 +318,7 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
                     annotationDefault = methodToSnapshot.defaultValue(),
                 )
             }
+        newMethod.copySelectedApiVariants(methodToSnapshot)
 
         containingClass.addMethod(newMethod)
     }
@@ -331,6 +343,7 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
                     fieldValue = fieldToSnapshot.fieldValue?.snapshot(),
                 )
             }
+        newField.copySelectedApiVariants(fieldToSnapshot)
 
         containingClass.addField(newField)
     }
@@ -357,6 +370,7 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
                     backingField = property.backingField,
                 )
             }
+        newProperty.copySelectedApiVariants(propertyToSnapshot)
 
         containingClass.addProperty(newProperty)
     }
@@ -433,7 +447,6 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
                     { typeParameterItem ->
                         DefaultTypeParameterItem(
                             codebase = snapshotCodebase,
-                            itemLanguage = typeParameterItem.itemLanguage,
                             modifiers = typeParameterItem.modifiers.snapshot(),
                             name = typeParameterItem.name(),
                             isReified = typeParameterItem.isReified()
@@ -498,12 +511,12 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
 /**
  * Get the actual item to snapshot, this takes into account whether the item has been reverted.
  *
- * The [Showability.revertItem] is only set to a non-null value if changes to this [Item] have been
- * reverted AND this [Item] existed in the previously released API.
+ * The [Showability.revertItem] is only set to a non-null value if changes to this [SelectableItem]
+ * have been reverted AND this [SelectableItem] existed in the previously released API.
  *
  * This casts the [Showability.revertItem] to the same type as this is called upon. That is safe as,
- * if set to a non-null value the [Showability.revertItem] will always point to an [Item] of the
- * same type.
+ * if set to a non-null value the [Showability.revertItem] will always point to a [SelectableItem]
+ * of the same type.
  */
-private val <reified T : Item> T.actualItemToSnapshot: T
+private val <reified T : SelectableItem> T.actualItemToSnapshot: T
     inline get() = (showability.revertItem ?: this) as T

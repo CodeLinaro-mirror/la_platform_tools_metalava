@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.compatibility
 
-import com.android.tools.metalava.ApiType
 import com.android.tools.metalava.CodebaseComparator
 import com.android.tools.metalava.ComparisonVisitor
 import com.android.tools.metalava.JVM_DEFAULT_WITH_COMPATIBILITY
@@ -29,6 +28,7 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem
+import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.Item.Companion.describe
 import com.android.tools.metalava.model.ItemLanguage
@@ -41,6 +41,7 @@ import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.VariableTypeItem
+import com.android.tools.metalava.model.visitors.ApiType
 import com.android.tools.metalava.options
 import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.IssueConfiguration
@@ -49,14 +50,13 @@ import com.android.tools.metalava.reporter.Issues.Issue
 import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.reporter.Severity
 import com.intellij.psi.PsiField
-import java.util.function.Predicate
 
 /**
  * Compares the current API with a previous version and makes sure the changes are compatible. For
  * example, you can make a previously nullable parameter non null, but not vice versa.
  */
 class CompatibilityCheck(
-    val filterReference: Predicate<Item>,
+    val filterReference: FilterPredicate,
     private val apiType: ApiType,
     private val reporter: Reporter,
     private val issueConfiguration: IssueConfiguration,
@@ -172,7 +172,7 @@ class CompatibilityCheck(
         }
     }
 
-    override fun compare(old: Item, new: Item) {
+    override fun compareItems(old: Item, new: Item) {
         val oldModifiers = old.modifiers
         val newModifiers = new.modifiers
         if (oldModifiers.isOperator() && !newModifiers.isOperator()) {
@@ -221,7 +221,7 @@ class CompatibilityCheck(
         compareItemNullability(old, new)
     }
 
-    override fun compare(old: ParameterItem, new: ParameterItem) {
+    override fun compareParameterItems(old: ParameterItem, new: ParameterItem) {
         val prevName = old.publicName()
         val newName = new.publicName()
         if (prevName != null) {
@@ -266,7 +266,7 @@ class CompatibilityCheck(
         }
     }
 
-    override fun compare(old: ClassItem, new: ClassItem) {
+    override fun compareClassItems(old: ClassItem, new: ClassItem) {
         val oldModifiers = old.modifiers
         val newModifiers = new.modifiers
 
@@ -481,7 +481,7 @@ class CompatibilityCheck(
         }
     }
 
-    override fun compare(old: CallableItem, new: CallableItem) {
+    override fun compareCallableItems(old: CallableItem, new: CallableItem) {
         val oldModifiers = old.modifiers
         val newModifiers = new.modifiers
 
@@ -542,7 +542,7 @@ class CompatibilityCheck(
         }
     }
 
-    override fun compare(old: MethodItem, new: MethodItem) {
+    override fun compareMethodItems(old: MethodItem, new: MethodItem) {
         val oldModifiers = old.modifiers
         val newModifiers = new.modifiers
 
@@ -714,7 +714,7 @@ class CompatibilityCheck(
         }
     }
 
-    override fun compare(old: FieldItem, new: FieldItem) {
+    override fun compareFieldItems(old: FieldItem, new: FieldItem) {
         val oldModifiers = old.modifiers
         val newModifiers = new.modifiers
 
@@ -847,7 +847,7 @@ class CompatibilityCheck(
         report(issue, item, message)
     }
 
-    private fun handleRemoved(issue: Issue, item: Item) {
+    private fun handleRemoved(issue: Issue, item: SelectableItem) {
         if (!item.emit) {
             // It's a stub; this can happen when analyzing partial APIs
             // such as a signature file for a library referencing types
@@ -862,11 +862,11 @@ class CompatibilityCheck(
         )
     }
 
-    override fun added(new: PackageItem) {
+    override fun addedPackageItem(new: PackageItem) {
         handleAdded(Issues.ADDED_PACKAGE, new)
     }
 
-    override fun added(new: ClassItem) {
+    override fun addedClassItem(new: ClassItem) {
         val error =
             if (new.isInterface()) {
                 Issues.ADDED_INTERFACE
@@ -876,7 +876,7 @@ class CompatibilityCheck(
         handleAdded(error, new)
     }
 
-    override fun added(new: CallableItem) {
+    override fun addedCallableItem(new: CallableItem) {
         if (new is MethodItem) {
             // *Overriding* methods from super classes that are outside the
             // API is OK (e.g. overriding toString() from java.lang.Object)
@@ -941,15 +941,15 @@ class CompatibilityCheck(
         }
     }
 
-    override fun added(new: FieldItem) {
+    override fun addedFieldItem(new: FieldItem) {
         handleAdded(Issues.ADDED_FIELD, new)
     }
 
-    override fun removed(old: PackageItem, from: Item?) {
+    override fun removedPackageItem(old: PackageItem, from: PackageItem?) {
         handleRemoved(Issues.REMOVED_PACKAGE, old)
     }
 
-    override fun removed(old: ClassItem, from: Item?) {
+    override fun removedClassItem(old: ClassItem, from: SelectableItem) {
         val error =
             when {
                 old.isInterface() -> Issues.REMOVED_INTERFACE
@@ -960,13 +960,13 @@ class CompatibilityCheck(
         handleRemoved(error, old)
     }
 
-    override fun removed(old: CallableItem, from: ClassItem?) {
+    override fun removedCallableItem(old: CallableItem, from: ClassItem) {
         // See if there's a member from inherited class
         val inherited =
             if (old is MethodItem) {
                 // This can also return self, specially handled below
                 from
-                    ?.findMethod(
+                    .findMethod(
                         old,
                         includeSuperClasses = true,
                         includeInterfaces = from.isInterface()
@@ -1000,9 +1000,9 @@ class CompatibilityCheck(
     private fun MethodItem.treatAsRemoved(possibleMatch: MethodItem) =
         !showability.revertUnstableApi() && (isHiddenOrRemoved() || this != possibleMatch)
 
-    override fun removed(old: FieldItem, from: ClassItem?) {
+    override fun removedFieldItem(old: FieldItem, from: ClassItem) {
         val inherited =
-            from?.findField(
+            from.findField(
                 old.name(),
                 includeSuperClasses = true,
                 includeInterfaces = from.isInterface()

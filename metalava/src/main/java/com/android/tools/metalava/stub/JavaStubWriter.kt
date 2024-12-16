@@ -306,7 +306,7 @@ internal class JavaStubWriter(
         generateTypeParameterList(typeList = method.typeParameterList, addSpace = true)
 
         val returnType = method.returnType()
-        writer.print(returnType.toTypeString(annotations = false))
+        writer.print(returnType.toTypeString())
 
         writer.print(' ')
         writer.print(method.name())
@@ -340,7 +340,7 @@ internal class JavaStubWriter(
 
         appendDocumentation(field, writer, config)
         appendModifiers(field)
-        writer.print(field.type().toTypeString(annotations = false))
+        writer.print(field.type().toTypeString())
         writer.print(' ')
         writer.print(field.name())
         val needsInitialization =
@@ -373,7 +373,7 @@ internal class JavaStubWriter(
                 writer.print(", ")
             }
             appendModifiers(parameter)
-            writer.print(parameter.type().toTypeString(annotations = false))
+            writer.print(parameter.type().toTypeString())
             writer.print(' ')
             val name = parameter.publicName() ?: parameter.name()
             writer.print(name)

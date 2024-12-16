@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.Assertions
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
+import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.CodebaseCreatorConfig
 import com.android.tools.metalava.model.testing.CodebaseCreatorConfigAware
@@ -163,7 +164,17 @@ abstract class BaseModelTest() :
          * this is unspecified then all packages can contribute to the API.
          */
         val apiPackages: PackageFilter? = null,
-    )
+
+        /** The set of [ApiSurfaces] used in the test. */
+        val apiSurfaces: ApiSurfaces = ApiSurfaces.DEFAULT
+    ) {
+        /** The [Codebase.Config] to use when creating a [Codebase] to test. */
+        val codebaseConfig =
+            Codebase.Config(
+                annotationManager = annotationManager,
+                apiSurfaces = apiSurfaces,
+            )
+    }
 
     /**
      * Create a [Codebase] from one of the supplied [inputSets] and then run a test on that
@@ -198,8 +209,7 @@ abstract class BaseModelTest() :
                         mainSourceDir = mainSourceDir,
                         additionalMainSourceDir = additionalSourceDir,
                         commonSourceDir = commonSourceDir,
-                        annotationManager = testFixture.annotationManager,
-                        apiPackages = testFixture.apiPackages,
+                        testFixture = testFixture,
                     )
                 runner.createCodebaseAndRun(inputs) { codebase ->
                     val context = DefaultCodebaseContext(codebase, mainSourceDir.dir)

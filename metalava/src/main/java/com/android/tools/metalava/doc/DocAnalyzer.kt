@@ -39,11 +39,12 @@ import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.getAttributeValue
 import com.android.tools.metalava.model.getCallableParameterDescriptorUsingDots
 import com.android.tools.metalava.model.psi.containsLinkTags
+import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiVisitor
-import com.android.tools.metalava.options
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import java.io.File
@@ -57,6 +58,15 @@ import org.xml.sax.helpers.DefaultHandler
 private const val DEFAULT_ENFORCEMENT = "android.content.pm.PackageManager#hasSystemFeature"
 
 private const val CARRIER_PRIVILEGES_MARKER = "carrier privileges"
+
+/** Lambda that when given an API level will return a string label for it. */
+typealias ApiLevelLabelProvider = (Int) -> String
+
+/**
+ * Lambda that when given an API level will return `true` if it can be referenced from within the
+ * documentation and `false` if it cannot.
+ */
+typealias ApiLevelFilter = (Int) -> Boolean
 
 /**
  * Walk over the API and apply tweaks to the documentation, such as
@@ -74,10 +84,16 @@ class DocAnalyzer(
     /** The codebase to analyze */
     private val codebase: Codebase,
     private val reporter: Reporter,
+
+    /** Provides a string label for each API level. */
+    private val apiLevelLabelProvider: ApiLevelLabelProvider,
+
+    /** Filter that determines whether an API level should be mentioned in the documentation. */
+    private val apiLevelFilter: ApiLevelFilter,
+
+    /** Selects [Item]s whose documentation will be analyzed and/or enhanced. */
+    private val apiPredicateConfig: ApiPredicate.Config,
 ) {
-
-    private val apiPredicateConfig = @Suppress("DEPRECATION") options.apiPredicateConfig
-
     /** Computes the visible part of the API from all the available code in the codebase */
     fun enhance() {
         // Apply options for packages that should be hidden
@@ -201,7 +217,10 @@ class DocAnalyzer(
                         "androidx.annotation.StringDef" -> handleTypeDef(annotation, item)
                         "android.annotation.RequiresFeature" ->
                             handleRequiresFeature(annotation, item)
-                        "androidx.annotation.RequiresApi" -> handleRequiresApi(annotation, item)
+                        "androidx.annotation.RequiresApi" ->
+                            // The RequiresApi annotation can only be applied to SelectableItems,
+                            // i.e. not ParameterItems, so ignore it on them.
+                            if (item is SelectableItem) handleRequiresApi(annotation, item)
                         "android.provider.Column" -> handleColumn(annotation, item)
                         "kotlin.Deprecated" -> handleKotlinDeprecation(annotation, item)
                     }
@@ -512,7 +531,11 @@ class DocAnalyzer(
                     appendDocumentation(doc, item, false)
                 }
 
-                private fun handleRequiresApi(annotation: AnnotationItem, item: Item) {
+                /**
+                 * Handle `RequiresApi` annotations which can only be applied to classes, methods,
+                 * constructors, fields and/or properties, i.e. not parameters.
+                 */
+                private fun handleRequiresApi(annotation: AnnotationItem, item: SelectableItem) {
                     val level = run {
                         val api =
                             annotation.findAttribute("api")?.leafValues()?.firstOrNull()?.value()
@@ -676,8 +699,20 @@ class DocAnalyzer(
 
     private fun tweakGrammar() {
         codebase.accept(
-            object : ApiVisitor(apiPredicateConfig = apiPredicateConfig) {
-                override fun visitItem(item: Item) {
+            object :
+                ApiVisitor(
+                    // Do not visit [ParameterItem]s as they do not have their own summary line that
+                    // could become truncated.
+                    visitParameterItems = false,
+                    apiPredicateConfig = apiPredicateConfig,
+                ) {
+                /**
+                 * Work around an issue with JavaDoc summary truncation.
+                 *
+                 * This is not called for [ParameterItem]s as they do not have their own summary
+                 * line that could become truncated.
+                 */
+                override fun visitSelectableItem(item: SelectableItem) {
                     item.documentation.workAroundJavaDocSummaryTruncationIssue()
                 }
             }
@@ -696,6 +731,8 @@ class DocAnalyzer(
         codebase.accept(
             object :
                 ApiVisitor(
+                    // Only SelectableItems have documentation associated with them.
+                    visitParameterItems = false,
                     apiPredicateConfig = apiPredicateConfig,
                 ) {
 
@@ -751,39 +788,32 @@ class DocAnalyzer(
         }
     }
 
-    @Suppress("DEPRECATION")
-    private fun addApiLevelDocumentation(level: Int, item: Item) {
+    /**
+     * Add API level documentation to the [item].
+     *
+     * This only applies to classes and class members, i.e. not parameters.
+     */
+    private fun addApiLevelDocumentation(level: Int, item: SelectableItem) {
         if (level > 0) {
             if (item.originallyHidden) {
                 // @SystemApi, @TestApi etc -- don't apply API levels here since we don't have
                 // accurate historical data
                 return
             }
-            if (
-                !options.isDeveloperPreviewBuild() &&
-                    options.currentApiLevel != -1 &&
-                    level > options.currentApiLevel
-            ) {
-                // api-versions.xml currently assigns api+1 to APIs that have not yet been finalized
-                // in a dessert (only in an extension), but for release builds, we don't want to
-                // include a "future" SDK_INT
+
+            // Check to see whether an API level should not be included in the documentation.
+            if (!apiLevelFilter(level)) {
                 return
             }
 
-            val currentCodeName = options.currentCodeName
-            val code: String =
-                if (currentCodeName != null && level > options.currentApiLevel) {
-                    currentCodeName
-                } else {
-                    level.toString()
-                }
+            val apiLevelLabel = apiLevelLabelProvider(level)
 
             // Also add @since tag, unless already manually entered.
             // TODO: Override it everywhere in case the existing doc is wrong (we know
             // better), and at least for OpenJDK sources we *should* since the since tags
             // are talking about language levels rather than API levels!
             if (!item.documentation.contains("@apiSince")) {
-                item.appendDocumentation(code, "@apiSince")
+                item.appendDocumentation(apiLevelLabel, "@apiSince")
             } else {
                 reporter.report(
                     Issues.FORBIDDEN_TAG,
@@ -795,7 +825,15 @@ class DocAnalyzer(
         }
     }
 
-    private fun addApiExtensionsDocumentation(sdkExtSince: List<SdkAndVersion>, item: Item) {
+    /**
+     * Add API extension documentation to the [item].
+     *
+     * This only applies to classes and class members, i.e. not parameters.
+     */
+    private fun addApiExtensionsDocumentation(
+        sdkExtSince: List<SdkAndVersion>,
+        item: SelectableItem
+    ) {
         if (item.documentation.contains("@sdkExtSince")) {
             reporter.report(
                 Issues.FORBIDDEN_TAG,
@@ -812,24 +850,22 @@ class DocAnalyzer(
             ?.let { item.appendDocumentation("${it.name} ${it.version}", "@sdkExtSince") }
     }
 
-    @Suppress("DEPRECATION")
-    private fun addDeprecatedDocumentation(level: Int, item: Item) {
+    /**
+     * Add deprecated documentation to the [item].
+     *
+     * This only applies to classes and class members, i.e. not parameters.
+     */
+    private fun addDeprecatedDocumentation(level: Int, item: SelectableItem) {
         if (level > 0) {
             if (item.originallyHidden) {
                 // @SystemApi, @TestApi etc -- don't apply API levels here since we don't have
                 // accurate historical data
                 return
             }
-            val currentCodeName = options.currentCodeName
-            val code: String =
-                if (currentCodeName != null && level > options.currentApiLevel) {
-                    currentCodeName
-                } else {
-                    level.toString()
-                }
+            val apiLevelLabel = apiLevelLabelProvider(level)
 
             if (!item.documentation.contains("@deprecatedSince")) {
-                item.appendDocumentation(code, "@deprecatedSince")
+                item.appendDocumentation(apiLevelLabel, "@deprecatedSince")
             } else {
                 reporter.report(
                     Issues.FORBIDDEN_TAG,

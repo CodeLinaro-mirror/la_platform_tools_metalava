@@ -19,7 +19,7 @@ import com.android.SdkConstants
 import com.android.SdkConstants.PLATFORM_WINDOWS
 import java.io.File
 
-class ExtensionSdkJarReader() {
+class ExtensionSdkJarReader {
 
     companion object {
         private val REGEX_JAR_PATH = run {
@@ -36,10 +36,7 @@ class ExtensionSdkJarReader() {
          * @return a mapping SDK jar file -> list of VersionAndPath objects, sorted from earliest to
          *   last version
          */
-        fun findExtensionSdkJarFiles(
-            root: File,
-            skipVersionsGreaterThan: Int?
-        ): Map<String, List<VersionAndPath>> {
+        fun findExtensionSdkJarFiles(root: File): Map<String, List<VersionAndPath>> {
             val map = mutableMapOf<String, MutableList<VersionAndPath>>()
             root
                 .walk()
@@ -47,13 +44,6 @@ class ExtensionSdkJarReader() {
                 .mapNotNull { file ->
                     REGEX_JAR_PATH.matchEntire(file.path)?.groups?.let { groups ->
                         Triple(groups[2]!!.value, groups[1]!!.value.toInt(), file)
-                    }
-                }
-                .filter {
-                    if (skipVersionsGreaterThan != null) {
-                        it.second <= skipVersionsGreaterThan
-                    } else {
-                        true
                     }
                 }
                 .sortedBy { it.second }

@@ -16,13 +16,10 @@
 
 package com.android.tools.metalava.cli.compatibility
 
-import com.android.tools.metalava.ApiType
-import com.android.tools.metalava.SignatureFileCache
 import com.android.tools.metalava.cli.common.BaseOptionGroupTest
-import com.android.tools.metalava.cli.common.JarBasedApi
 import com.android.tools.metalava.cli.common.SignatureBasedApi
-import com.android.tools.metalava.cli.common.SignatureFileLoader
-import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.api.surface.ApiVariantType
+import com.android.tools.metalava.model.visitors.ApiType
 import com.android.tools.metalava.testing.signature
 import com.android.tools.metalava.testing.source
 import com.google.common.truth.Truth.assertThat
@@ -130,7 +127,11 @@ class CompatibilityCheckOptionsTest :
                 .isEqualTo(
                     listOf(
                         CompatibilityCheckOptions.CheckRequest(
-                            previouslyReleasedApi = SignatureBasedApi.fromFiles(listOf(file)),
+                            previouslyReleasedApi =
+                                SignatureBasedApi.fromFiles(
+                                    listOf(file),
+                                    apiVariantType = ApiVariantType.REMOVED,
+                                ),
                             apiType = ApiType.REMOVED,
                         ),
                     )
@@ -147,17 +148,17 @@ class CompatibilityCheckOptionsTest :
     @Test
     fun `check compatibility api released from jar`() {
         val jarFile = fakeJar()
-        runTest(ARG_CHECK_COMPATIBILITY_API_RELEASED, jarFile.path) {
-            assertThat(options.compatibilityChecks)
-                .isEqualTo(
-                    listOf(
-                        CompatibilityCheckOptions.CheckRequest(
-                            previouslyReleasedApi = JarBasedApi(jarFile),
-                            apiType = ApiType.PUBLIC_API,
-                        ),
-                    )
-                )
-        }
+        val exception =
+            assertThrows(IllegalStateException::class.java) {
+                runTest(ARG_CHECK_COMPATIBILITY_API_RELEASED, jarFile.path) {
+                    options.compatibilityChecks
+                }
+            }
+
+        assertThat(exception.message)
+            .isEqualTo(
+                "$ARG_CHECK_COMPATIBILITY_API_RELEASED: Can no longer check compatibility against jar files like $jarFile please use equivalent signature files"
+            )
     }
 
     @Test
@@ -180,7 +181,7 @@ class CompatibilityCheckOptionsTest :
 
         assertThat(exception.message)
             .isEqualTo(
-                "--check-compatibility:api:released: Cannot mix jar files (e.g. $jarFile) and signature files (e.g. $signatureFile)"
+                "$ARG_CHECK_COMPATIBILITY_API_RELEASED: Can no longer check compatibility against jar files like $jarFile please use equivalent signature files"
             )
     }
 
@@ -196,35 +197,8 @@ class CompatibilityCheckOptionsTest :
             }
         assertThat(exception.message)
             .isEqualTo(
-                "--check-compatibility:removed:released: Cannot specify jar files for removed API but found $jarFile"
+                "$ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED: Can no longer check compatibility against jar files like $jarFile please use equivalent signature files"
             )
-    }
-
-    @Test
-    fun `check compatibility api released jar is not supported for --revert-annotation`() {
-        val jarFile = fakeJar()
-        runTest(ARG_CHECK_COMPATIBILITY_API_RELEASED, jarFile.path) {
-            assertThat(options.compatibilityChecks)
-                .isEqualTo(
-                    listOf(
-                        CompatibilityCheckOptions.CheckRequest(
-                            previouslyReleasedApi = JarBasedApi(jarFile),
-                            apiType = ApiType.PUBLIC_API,
-                        ),
-                    )
-                )
-
-            val exception =
-                assertThrows(IllegalStateException::class.java) {
-                    val signatureFileLoader = SignatureFileLoader(Codebase.Config.NOOP)
-                    options.previouslyReleasedCodebases(SignatureFileCache(signatureFileLoader))
-                }
-
-            assertThat(exception.message)
-                .isEqualTo(
-                    "Unexpected file $jarFile: jar files do not work with --revert-annotation"
-                )
-        }
     }
 
     @Test
