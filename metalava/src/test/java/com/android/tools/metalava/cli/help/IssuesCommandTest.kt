@@ -227,7 +227,7 @@ Available Issues                             |  Category                |   Defa
   UseParcelFileDescriptor                    |  api_lint                |   error
   UserHandle                                 |  api_lint                |   warning
   UserHandleName                             |  api_lint                |   warning
-  ValueClassDefinition                       |  api_lint                |   hidden
+  ValueClassDefinition                       |  api_lint                |   error
   VarargRemoval                              |  compatibility           |   error
   VisiblySynchronized                        |  api_lint                |   error
 """
