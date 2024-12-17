@@ -38,13 +38,13 @@ data class GenerateXmlConfig(
      * sources will be added to the API levels file for this API level unless
      * [isDeveloperPreviewBuild] is `true`.
      */
-    val currentApiLevel: Int,
+    val currentSdkVersion: ApiVersion,
 
     /**
-     * True if the [currentApiLevel] level is for a developer preview build.
+     * True if the [currentSdkVersion] level is for a developer preview build.
      *
      * If this is `true` then the API defined in the sources will be added to the API levels file
-     * with an API level of [currentApiLevel]` - 1`.
+     * with an API level of [currentSdkVersion]` - 1`.
      */
     val isDeveloperPreviewBuild: Boolean,
 

@@ -27,16 +27,17 @@ private data class CacheKey(
 )
 
 /** Loads signature files, caching them for reuse where appropriate. */
-class SignatureFileCache(private val signatureFileLoader: SignatureFileLoader) {
+class SignatureFileCache(private val signatureFileLoader: SignatureFileLoader) :
+    SignatureFileLoader {
     private val map = mutableMapOf<CacheKey, Codebase>()
 
-    fun load(signatureFile: SignatureFile, classResolver: ClassResolver? = null): Codebase =
-        load(listOf(signatureFile), classResolver)
-
-    fun load(signatureFiles: List<SignatureFile>, classResolver: ClassResolver? = null): Codebase {
+    override fun load(
+        signatureFiles: List<SignatureFile>,
+        classResolver: ClassResolver?,
+    ): Codebase {
         val key = CacheKey(signatureFiles, classResolver)
         return map.computeIfAbsent(key) { k ->
-            signatureFileLoader.loadFiles(k.signatureFiles, k.classResolver).apply {
+            signatureFileLoader.load(k.signatureFiles, k.classResolver).apply {
                 // Freeze the classes before caching to avoid any changes being made to cached and
                 // potentially shared objects.
                 freezeClasses()

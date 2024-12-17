@@ -275,7 +275,7 @@ class ApiClass(name: String) : ApiElement(name) {
         // remove these here and replace with the filtered super classes, updating API levels in the
         // process
         val iterator = mSuperClasses.values.iterator()
-        var min = SdkVersion.HIGHEST
+        var min = ApiVersion.HIGHEST
         while (iterator.hasNext()) {
             val next = iterator.next()
             min = minOf(min, next.since)

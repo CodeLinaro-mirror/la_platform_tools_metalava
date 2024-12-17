@@ -23,7 +23,6 @@ import com.android.tools.metalava.ARG_GENERATE_API_LEVELS
 import com.android.tools.metalava.ARG_SDK_INFO_FILE
 import com.android.tools.metalava.ARG_SDK_JAR_ROOT
 import com.android.tools.metalava.doc.getApiLookup
-import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -32,10 +31,6 @@ class ExtractSystemApiLevelsTest : ApiGeneratorIntegrationTestBase() {
     @Test
     fun `Extract System API`() {
         val androidJarPattern = "${platformJars.path}/%/system/android.jar"
-
-        val output = File.createTempFile("api-info", "xml")
-        output.deleteOnExit()
-        val outputPath = output.path
 
         check(
             extraArguments =

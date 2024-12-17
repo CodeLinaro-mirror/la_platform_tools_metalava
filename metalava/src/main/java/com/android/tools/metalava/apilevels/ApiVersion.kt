@@ -16,11 +16,11 @@
 
 package com.android.tools.metalava.apilevels
 
-import com.android.tools.metalava.apilevels.SdkVersion.Companion.toString
+import com.android.tools.metalava.apilevels.ApiVersion.Companion.toString
 import java.util.regex.Pattern
 
 /** Version of an SDK, e.g. Android or AndroidX. */
-data class SdkVersion
+data class ApiVersion
 internal constructor(
     /** The major version. */
     private val major: Int,
@@ -56,7 +56,7 @@ internal constructor(
      * alphanumerically they appear in order from the lowest quality to the highest quality.
      */
     private val preReleaseQuality: String? = null,
-) : Comparable<SdkVersion> {
+) : Comparable<ApiVersion> {
 
     // Check constraints.
     init {
@@ -105,7 +105,7 @@ internal constructor(
         }
     }
 
-    override operator fun compareTo(other: SdkVersion) =
+    override operator fun compareTo(other: ApiVersion) =
         compareValuesBy(
             this,
             other,
@@ -120,14 +120,14 @@ internal constructor(
         )
 
     operator fun plus(increment: Int) =
-        SdkVersion(major + increment, minor, patch, preReleaseQuality)
+        ApiVersion(major + increment, minor, patch, preReleaseQuality)
 
     override fun toString() = text
 
     companion object {
-        /** Get the [SdkVersion] for [level], which must be greater than 0. */
+        /** Get the [ApiVersion] for [level], which must be greater than 0. */
         fun fromLevel(level: Int) =
-            if (level > 0) SdkVersion(level)
+            if (level > 0) ApiVersion(level)
             else error("level must be greater than 0 but was $level")
 
         /** Pattern for acceptable input to [fromString]. */
@@ -146,14 +146,14 @@ internal constructor(
         private const val QUALITY_GROUP = 7
 
         /**
-         * Get the [SdkVersion] for [text], which must be match
+         * Get the [ApiVersion] for [text], which must be match
          * `major(.minor(.patch(-quality)?)?)?`.
          *
          * Where `major`, `minor` and `patch` are all non-negative integers and `quality` is a
          * string chosen such that qualities sort lexicographically from the lowest quality to the
          * highest quality, e.g. `alpha`, `beta`, `rc` and not `good`, `bad`, `worse`.
          */
-        fun fromString(text: String): SdkVersion {
+        fun fromString(text: String): ApiVersion {
             val matcher = VERSION_REGEX.matcher(text)
             if (!matcher.matches()) {
                 error("Can not parse version: $text")
@@ -164,20 +164,20 @@ internal constructor(
             val patch = matcher.group(PATCH_GROUP)?.toInt()
             val quality = matcher.group(QUALITY_GROUP)
 
-            return SdkVersion(major, minor, patch, quality)
+            return ApiVersion(major, minor, patch, quality)
         }
 
         /**
-         * The lowest [SdkVersion], used as the default value when higher versions override lower
+         * The lowest [ApiVersion], used as the default value when higher versions override lower
          * ones.
          */
-        val LOWEST = SdkVersion(0)
+        val LOWEST = ApiVersion(0)
 
         /**
-         * The highest [SdkVersion], used as the default value when lower versions override higher
+         * The highest [ApiVersion], used as the default value when lower versions override higher
          * ones.
          */
-        val HIGHEST = SdkVersion(Int.MAX_VALUE)
+        val HIGHEST = ApiVersion(Int.MAX_VALUE)
     }
 }
 
