@@ -156,9 +156,3 @@ interface Codebase {
         }
     }
 }
-
-sealed class MinSdkVersion
-
-data class SetMinSdkVersion(val value: Int) : MinSdkVersion()
-
-object UnsetMinSdkVersion : MinSdkVersion()

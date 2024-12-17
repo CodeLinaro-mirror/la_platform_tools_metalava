@@ -192,7 +192,7 @@ internal fun processFlags(
                     )
                 }
             val signatureFileLoader = options.signatureFileLoader
-            signatureFileLoader.loadFiles(
+            signatureFileLoader.load(
                 SignatureFile.fromFiles(sources),
                 classResolverProvider.classResolver,
             )
@@ -222,7 +222,7 @@ internal fun processFlags(
     }
 
     val generateXmlConfig = options.apiLevelsGenerationOptions.generateXmlConfig
-    val apiGenerator = ApiGenerator(signatureFileCache)
+    val apiGenerator = ApiGenerator()
     if (generateXmlConfig != null) {
         progressTracker.progress(
             "Generating API levels XML descriptor file, ${generateXmlConfig.outputFile.name}: "
@@ -274,25 +274,34 @@ internal fun processFlags(
         }
     }
 
-    options.apiLevelsGenerationOptions.generateApiVersionsFromSignatureFilesConfig?.let { config ->
-        progressTracker.progress(
-            "Generating API version history ${config.printer} file, ${config.outputFile.name}: "
-        )
+    options.apiLevelsGenerationOptions
+        .fromSignatureFilesConfig(
+            // Do not use a cache here as each file loaded is only loaded once and the created
+            // Codebase is discarded immediately after use so caching just uses memory for no
+            // performance benefit.
+            options.signatureFileLoader,
+            // Provide a CodebaseFragment from the sources that will be included in the generated
+            // version history.
+            codebaseFragmentProvider = {
+                val apiType = ApiType.PUBLIC_API
+                val apiFilters = apiType.getApiFilters(options.apiPredicateConfig)
 
-        val apiType = ApiType.PUBLIC_API
-        val apiFilters = apiType.getApiFilters(options.apiPredicateConfig)
-
-        val codebaseFragment =
-            CodebaseFragment.create(codebase) { delegatedVisitor ->
-                FilteringApiVisitor(
-                    delegate = delegatedVisitor,
-                    apiFilters = apiFilters,
-                    preFiltered = false,
-                )
+                CodebaseFragment.create(codebase) { delegatedVisitor ->
+                    FilteringApiVisitor(
+                        delegate = delegatedVisitor,
+                        apiFilters = apiFilters,
+                        preFiltered = false,
+                    )
+                }
             }
+        )
+        ?.let { config ->
+            progressTracker.progress(
+                "Generating API version history ${config.printer} file, ${config.outputFile.name}: "
+            )
 
-        apiGenerator.generateFromSignatureFiles(codebaseFragment, config)
-    }
+            apiGenerator.generateFromVersionedApis(config)
+        }
 
     // Generate the documentation stubs *before* we migrate nullness information.
     options.docStubsDir?.let {

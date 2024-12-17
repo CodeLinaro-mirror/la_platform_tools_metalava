@@ -17,9 +17,6 @@
 package com.android.tools.metalava.manifest
 
 import com.android.SdkConstants
-import com.android.tools.metalava.model.MinSdkVersion
-import com.android.tools.metalava.model.SetMinSdkVersion
-import com.android.tools.metalava.model.UnsetMinSdkVersion
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.xml.parseDocument
@@ -118,3 +115,9 @@ class Manifest(private val manifest: File?, private val reporter: Reporter?) {
         return manifest.toString()
     }
 }
+
+sealed class MinSdkVersion
+
+data class SetMinSdkVersion(val value: Int) : MinSdkVersion()
+
+object UnsetMinSdkVersion : MinSdkVersion()

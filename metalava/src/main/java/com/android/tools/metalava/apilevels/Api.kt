@@ -25,26 +25,26 @@ class Api : ParentApiElement {
      * This has to behave as if it exists since before any specific version (so that every class
      * always specifies its `since` attribute.
      */
-    override val since = SdkVersion.LOWEST
+    override val since: ApiVersion = ApiVersion.LOWEST
 
     override var lastPresentIn = since
         private set
 
     override val sdks: String? = null
 
-    override val deprecatedIn: SdkVersion? = null
+    override val deprecatedIn: ApiVersion? = null
 
     private val mClasses: MutableMap<String, ApiClass> = HashMap()
 
     /**
      * Updates this with information for a specific API version.
      *
-     * @param sdkVersion an API version that this contains.
+     * @param apiVersion an API version that this contains.
      */
-    fun update(sdkVersion: SdkVersion) {
+    fun update(apiVersion: ApiVersion) {
         // Track the last version added to this.
-        if (lastPresentIn < sdkVersion) {
-            lastPresentIn = sdkVersion
+        if (lastPresentIn < apiVersion) {
+            lastPresentIn = apiVersion
         }
     }
 
@@ -90,9 +90,9 @@ class Api : ParentApiElement {
     }
 
     private fun backfillSdkExtensions() {
-        val sdk30 = SdkVersion.fromLevel(30)
-        val sdk31 = SdkVersion.fromLevel(31)
-        val sdk33 = SdkVersion.fromLevel(33)
+        val sdk30 = ApiVersion.fromLevel(30)
+        val sdk31 = ApiVersion.fromLevel(31)
+        val sdk33 = ApiVersion.fromLevel(33)
         val sdkExtensions = findClass("android/os/ext/SdkExtensions")
         if (sdkExtensions != null && sdkExtensions.since != sdk30 && sdkExtensions.since != sdk33) {
             throw AssertionError("Received unexpected historical data")
@@ -109,8 +109,8 @@ class Api : ParentApiElement {
             sdkExtensions.update(sdk30, false)
         }
 
-        val sdk30Updater = ApiElement.Updater.forSdkVersion(sdk30)
-        val sdk31Updater = ApiElement.Updater.forSdkVersion(sdk31)
+        val sdk30Updater = ApiElement.Updater.forApiVersion(sdk30)
+        val sdk31Updater = ApiElement.Updater.forApiVersion(sdk31)
 
         // Remove the sdks attribute from the extends for public and system.
         sdkExtensions.updateSuperClass("java/lang/Object", sdk30Updater).apply {
