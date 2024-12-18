@@ -25,7 +25,7 @@ import org.gradle.api.tasks.bundling.Zip
 
 const val CREATE_ARCHIVE_TASK = "createArchive"
 
-fun configurePublishingArchive(
+internal fun configurePublishingArchive(
     project: Project,
     publicationName: String,
     repositoryName: String,
