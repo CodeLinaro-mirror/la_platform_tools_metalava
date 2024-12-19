@@ -19,14 +19,15 @@ package com.android.tools.metalava.apilevels
 import java.io.File
 
 /**
- * Supports updating [Api] with information from the [sdkVersion] of the API that is defined in
- * [jar].
+ * Supports updating [Api] with information from the version of the API that is defined in [jar].
+ *
+ * The [updater] is responsible for updating the [Api].
  */
 class VersionedJarApi(
     private val jar: File,
-    private val sdkVersion: ApiVersion,
+    private val updater: ApiHistoryUpdater,
 ) : VersionedApi {
     override fun updateApi(api: Api) {
-        api.readAndroidJar(sdkVersion, jar)
+        api.readJar(jar, updater)
     }
 }

@@ -254,7 +254,11 @@ object Issues {
         return null
     }
 
-    fun findCategoryById(id: String?): Category? = Category.values().find { it.id == id }
+    fun findCategoryById(id: String?): Category =
+        Category.values().find { it.id == id }
+            ?: error(
+                "Unknown category: '$id', expected one of ${Category.values().joinToString { it.id }}"
+            )
 
     fun findIssuesByCategory(category: Category?): List<Issue> =
         allIssues.filter { it.category == category }
