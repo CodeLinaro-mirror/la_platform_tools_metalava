@@ -1394,7 +1394,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                         expectedApiVersions =
                             """
                                 <?xml version="1.0" encoding="utf-8"?>
-                                <api version="3" min="30">
+                                <api version="3" min="33">
                                   <class name="test/pkg/Foo" since="33">
                                     <method name="&lt;init>()V"/>
                                     <method name="abstractMethod()V"/>
@@ -1425,7 +1425,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                         expectedApiVersions =
                             """
                                 <?xml version="1.0" encoding="utf-8"?>
-                                <api version="3" min="30">
+                                <api version="3" min="33">
                                   <class name="test/pkg/Foo" since="33">
                                     <method name="&lt;init>()V"/>
                                     <method name="abstractMethod()V"/>
@@ -1698,7 +1698,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                         expectedApiVersions =
                             """
                                 <?xml version="1.0" encoding="utf-8"?>
-                                <api version="3" min="30">
+                                <api version="3" min="33">
                                   <class name="test/pkg/Bar" since="33" deprecated="33">
                                     <method name="&lt;init>()V"/>
                                     <method name="method()V"/>
@@ -1743,7 +1743,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                         expectedApiVersions =
                             """
                                 <?xml version="1.0" encoding="utf-8"?>
-                                <api version="3" min="30">
+                                <api version="3" min="33">
                                   <class name="test/pkg/Bar" since="33">
                                     <method name="&lt;init>()V"/>
                                     <method name="method()V"/>

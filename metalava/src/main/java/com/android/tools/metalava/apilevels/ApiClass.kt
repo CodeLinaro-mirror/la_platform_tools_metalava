@@ -36,13 +36,13 @@ class ApiClass(name: String) : ApiElement(name) {
      * Updates the [ApiElement] for field with [name], creating and adding one if necessary.
      *
      * @param name the name of the field.
-     * @param updater the [ApiElement.Updater] that will update the element with information about
+     * @param updater the [ApiHistoryUpdater] that will update the element with information about
      *   the version to which it belongs.
      * @param deprecated the deprecated status.
      */
     fun updateField(
         name: String,
-        updater: Updater,
+        updater: ApiHistoryUpdater,
         deprecated: Boolean,
     ): ApiElement {
         return updateElementInMap(mFields, name, updater, deprecated)
@@ -56,13 +56,13 @@ class ApiClass(name: String) : ApiElement(name) {
      *
      * @param signature the signature of the method, which includes the name and parameter/return
      *   types
-     * @param updater the [ApiElement.Updater] that will update the element with information about
+     * @param updater the [ApiHistoryUpdater] that will update the element with information about
      *   the version to which it belongs.
      * @param deprecated the deprecated status.
      */
     fun updateMethod(
         signature: String,
-        updater: Updater,
+        updater: ApiHistoryUpdater,
         deprecated: Boolean,
     ): ApiElement {
         // Correct historical mistake in android.jar files
@@ -84,10 +84,10 @@ class ApiClass(name: String) : ApiElement(name) {
      * Updates an element for [superClassType], creating and adding one if necessary.
      *
      * @param superClassType the name of the super class type.
-     * @param updater the [ApiElement.Updater] that will update the element with information about
+     * @param updater the [ApiHistoryUpdater] that will update the element with information about
      *   the version to which it belongs.
      */
-    fun updateSuperClass(superClassType: String, updater: Updater) =
+    fun updateSuperClass(superClassType: String, updater: ApiHistoryUpdater) =
         updateElementInMap(
             mSuperClasses,
             superClassType,
@@ -107,10 +107,10 @@ class ApiClass(name: String) : ApiElement(name) {
      * Updates an element for [interfaceType], creating and adding one if necessary.
      *
      * @param interfaceType the interface type.
-     * @param updater the [ApiElement.Updater] that will update the element with information about
+     * @param updater the [ApiHistoryUpdater] that will update the element with information about
      *   the version to which it belongs.
      */
-    fun updateInterface(interfaceType: String, updater: Updater) =
+    fun updateInterface(interfaceType: String, updater: ApiHistoryUpdater) =
         updateElementInMap(
             mInterfaces,
             interfaceType,
@@ -125,7 +125,7 @@ class ApiClass(name: String) : ApiElement(name) {
     private fun updateElementInMap(
         elements: MutableMap<String, ApiElement>,
         name: String,
-        updater: Updater,
+        updater: ApiHistoryUpdater,
         deprecated: Boolean,
     ): ApiElement {
         val existing = elements[name]

@@ -17,11 +17,14 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.apilevels.ApiGenerator
+import com.android.tools.metalava.apilevels.ApiHistoryUpdater
 import com.android.tools.metalava.apilevels.ApiJsonPrinter
 import com.android.tools.metalava.apilevels.ApiVersion
 import com.android.tools.metalava.apilevels.ApiXmlPrinter
-import com.android.tools.metalava.apilevels.GenerateApiVersionsFromVersionedApisConfig
-import com.android.tools.metalava.apilevels.GenerateXmlConfig
+import com.android.tools.metalava.apilevels.ExtensionSdkJarReader.addVersionedExtensionApis
+import com.android.tools.metalava.apilevels.GenerateApiHistoryConfig
+import com.android.tools.metalava.apilevels.MissingClassAction
+import com.android.tools.metalava.apilevels.VersionedJarApi
 import com.android.tools.metalava.apilevels.VersionedSignatureApi
 import com.android.tools.metalava.apilevels.VersionedSourceApi
 import com.android.tools.metalava.cli.common.EarlyOptions
@@ -180,7 +183,12 @@ class ApiLevelsGenerationOptions(
             )
             .map { if (it == "REL") null else it }
 
-    /** True if [currentCodeName] is specified, false otherwise. */
+    /**
+     * True if [currentCodeName] is specified, false otherwise.
+     *
+     * If this is `true` then the API defined in the sources will be added to the API levels file
+     * with an API level of [currentApiLevel]` - 1`.
+     */
     private val isDeveloperPreviewBuild
         get() = currentCodeName != null
 
@@ -305,24 +313,16 @@ class ApiLevelsGenerationOptions(
     }
 
     /**
-     * The list of jar files from which the API levels file will be populated. One for each API
-     * level, indexed by API level, starting from 1. The 0th element plus any element less than
-     * [firstApiLevel] is a placeholder that is an invalid file and should not be used.
+     * The Map from [ApiVersion] to associated jar [File].
+     *
+     * Entries are in order from lowest [ApiVersion] to highest.
      */
-    private val apiLevelJars
+    private val versionToJar
         get() = findAndroidJars()
 
-    /** Find an android stub jar that matches the given criteria. */
-    private fun findAndroidJars(): List<File> {
-        val apiLevelFiles = mutableListOf<File>()
-        // api level 0: placeholder, should not be processed.
-        // (This is here because we want the array index to match
-        // the API level)
-        val element = File("not an api: the starting API index is $firstApiLevel")
-        for (i in 0 until firstApiLevel) {
-            apiLevelFiles.add(element)
-        }
-
+    /** Find all android stub jars that matches the given criteria. */
+    private fun findAndroidJars(): Map<ApiVersion, File> {
+        val versionToJar = mutableMapOf<ApiVersion, File>()
         // Get all the android.jar. They are in platforms-#
         for (apiLevel in firstApiLevel.rangeTo(lastApiLevel)) {
             try {
@@ -346,13 +346,13 @@ class ApiLevelsGenerationOptions(
 
                 verbosePrint { "Found API $apiLevel at ${jar.path}" }
 
-                apiLevelFiles.add(jar)
+                versionToJar[ApiVersion.fromLevel(apiLevel)] = jar
             } catch (e: IOException) {
                 e.printStackTrace()
             }
         }
 
-        return apiLevelFiles.toList()
+        return versionToJar
     }
 
     /** Print string returned by [message] if verbose output has been requested. */
@@ -368,30 +368,101 @@ class ApiLevelsGenerationOptions(
             .firstOrNull { it.isFile }
     }
 
-    private val sdkExtensionsArguments
-        get() =
-            if (sdkJarRoot != null && sdkInfoFile != null) {
-                ApiGenerator.SdkExtensionsArguments(
-                    sdkJarRoot!!,
-                    sdkInfoFile!!,
-                )
-            } else {
-                null
+    /**
+     * Get the [GenerateApiHistoryConfig] for Android.
+     *
+     * This has some Android specific code, e.g. structure of SDK extensions.
+     */
+    fun forAndroidConfig(
+        codebaseFragmentProvider: () -> CodebaseFragment,
+    ) =
+        generateApiLevelXml?.let { outputFile ->
+            val currentSdkVersion = ApiVersion.fromLevel(currentApiLevel)
+            val notFinalizedSdkVersion = currentSdkVersion + 1
+            val lastApiVersion = versionToJar.keys.lastOrNull()
+
+            // Compute the version to use for the current codebase.
+            val codebaseSdkVersion =
+                when {
+                    // The current codebase is a developer preview so use the next, in the
+                    // process of being finalized version.
+                    isDeveloperPreviewBuild -> notFinalizedSdkVersion
+
+                    // If no historical versions were provided or the last historical version is
+                    // less than the current version then use the current version as the version
+                    // of the codebase.
+                    lastApiVersion == null || lastApiVersion < currentSdkVersion ->
+                        currentSdkVersion
+
+                    // Else do not include the current codebase.
+                    else -> null
+                }
+
+            // Get the optional SDK extension arguments.
+            val sdkExtensionsArguments =
+                if (sdkJarRoot != null && sdkInfoFile != null) {
+                    ApiGenerator.SdkExtensionsArguments(
+                        sdkJarRoot!!,
+                        sdkInfoFile!!,
+                        notFinalizedSdkVersion,
+                    )
+                } else {
+                    null
+                }
+
+            // Create a list of VersionedApis that need to be incorporated into the Api history.
+            val versionedApis = buildList {
+                for ((sdkVersion, jar) in versionToJar) {
+                    val updater = ApiHistoryUpdater.forApiVersion(sdkVersion)
+                    add(VersionedJarApi(jar, updater))
+                }
+
+                // Add a VersionedSourceApi for the current codebase if required.
+                if (codebaseSdkVersion != null) {
+                    add(
+                        VersionedSourceApi(
+                            codebaseFragmentProvider(),
+                            codebaseSdkVersion,
+                            useInternalNames = true,
+                        )
+                    )
+                }
+
+                // Add any VersionedApis for SDK extensions. These must be added after all
+                // VersionedApis
+                // for SDK versions as their behavior depends on whether an API was defined in an
+                // SDK
+                // version.
+                if (sdkExtensionsArguments != null) {
+                    addVersionedExtensionApis(
+                        this,
+                        notFinalizedSdkVersion,
+                        sdkExtensionsArguments.sdkExtJarRoot,
+                        sdkExtensionsArguments.sdkExtensionInfo,
+                    )
+                }
             }
 
-    val generateXmlConfig
-        get() =
-            generateApiLevelXml?.let { outputFile ->
-                GenerateXmlConfig(
-                    apiLevels = apiLevelJars,
-                    firstApiLevel = firstApiLevel,
-                    currentSdkVersion = ApiVersion.fromLevel(currentApiLevel),
-                    isDeveloperPreviewBuild = isDeveloperPreviewBuild,
-                    outputFile = outputFile,
-                    sdkExtensionsArguments = sdkExtensionsArguments,
-                    removeMissingClasses = removeMissingClassReferencesInApiLevels,
-                )
+            // Get a list of all versions, including the codebase version, if necessary.
+            val allVersions = buildList {
+                addAll(versionToJar.keys)
+                if (codebaseSdkVersion != null) add(codebaseSdkVersion)
             }
+
+            val availableSdkExtensions =
+                sdkExtensionsArguments?.sdkExtensionInfo?.availableSdkExtensions
+            val printer = ApiXmlPrinter(availableSdkExtensions, allVersions)
+
+            GenerateApiHistoryConfig(
+                versionedApis = versionedApis,
+                outputFile = outputFile,
+                printer = printer,
+                sdkExtensionsArguments = sdkExtensionsArguments,
+                missingClassAction =
+                    if (removeMissingClassReferencesInApiLevels) MissingClassAction.REMOVE
+                    else MissingClassAction.REPORT,
+            )
+        }
 
     /** API version history file to generate */
     private val generateApiVersionHistory by
@@ -451,21 +522,21 @@ class ApiLevelsGenerationOptions(
             .split(" ")
 
     /**
-     * Construct the [GenerateApiVersionsFromVersionedApisConfig] from the options.
+     * Construct the [GenerateApiHistoryConfig] from the options.
      *
      * If no relevant command line options were provided then this will return `null`, otherwise it
      * will validate the options and if all is well construct and return a
-     * [GenerateApiVersionsFromVersionedApisConfig] object.
+     * [GenerateApiHistoryConfig] object.
      *
      * @param signatureFileLoader used for loading [Codebase]s from signature files.
      * @param codebaseFragmentProvider provides access to the [CodebaseFragment] for the API defined
-     *   in the sources. This will only be called if a [GenerateApiVersionsFromVersionedApisConfig]
-     *   needs to be created.
+     *   in the sources. This will only be called if a [GenerateApiHistoryConfig] needs to be
+     *   created.
      */
     fun fromSignatureFilesConfig(
         signatureFileLoader: SignatureFileLoader,
         codebaseFragmentProvider: () -> CodebaseFragment,
-    ): GenerateApiVersionsFromVersionedApisConfig? {
+    ): GenerateApiHistoryConfig? {
         // apiVersionNames will include the current version but apiVersionSignatureFiles will not,
         // so there should be 1 more name than signature file (or both can be null)
         val numVersionNames = apiVersionNames?.size ?: 0
@@ -494,12 +565,12 @@ class ApiLevelsGenerationOptions(
                 }
                 // Add a VersionedSourceApi for the source code.
                 val codebaseFragment = codebaseFragmentProvider()
-                add(VersionedSourceApi(codebaseFragment, sourceVersion))
+                add(VersionedSourceApi(codebaseFragment, sourceVersion, useInternalNames = false))
             }
 
             val printer =
                 when (val extension = apiVersionsFile.extension) {
-                    "xml" -> ApiXmlPrinter(null, 1, allVersions)
+                    "xml" -> ApiXmlPrinter(null, allVersions)
                     "json" -> ApiJsonPrinter()
                     else ->
                         error(
@@ -507,10 +578,14 @@ class ApiLevelsGenerationOptions(
                         )
                 }
 
-            GenerateApiVersionsFromVersionedApisConfig(
+            GenerateApiHistoryConfig(
                 versionedApis = versionedApis,
                 outputFile = apiVersionsFile,
                 printer = printer,
+                // None are available when generating from signature files.
+                sdkExtensionsArguments = null,
+                // Keep any references to missing classes.
+                missingClassAction = MissingClassAction.KEEP,
             )
         } else {
             null

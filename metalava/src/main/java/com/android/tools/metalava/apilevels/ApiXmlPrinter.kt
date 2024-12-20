@@ -22,15 +22,17 @@ import java.io.PrintWriter
  * Printer that will write an XML representation of an [Api] instance.
  *
  * @param availableSdkExtensions the optional set of [AvailableSdkExtensions].
- * @param firstApiLevel the first API level which the file contains, used to populate the `<api
- *   min="..."...>` attribute.
- * @param allVersions the list of all the versions in order, from earliest to latest.
+ * @param allVersions the list of all the versions in order, from earliest to latest. Must include
+ *   at least one version. The first API version is used to populate the `<api min="..."...>`
+ *   attribute, if it is later than version `1`.
  */
 class ApiXmlPrinter(
     private val availableSdkExtensions: AvailableSdkExtensions?,
-    private val firstApiLevel: Int,
     allVersions: List<ApiVersion>,
 ) : ApiPrinter {
+    /** Get the first [ApiVersion]. */
+    private val firstApiVersion = allVersions.first()
+
     /**
      * Map from version to the next version. This is used to compute the version in which an API
      * element was removed by finding the version after the version it was last present in.
@@ -51,8 +53,8 @@ class ApiXmlPrinter(
      */
     private fun Api.print(writer: PrintWriter, availableSdkExtensions: AvailableSdkExtensions?) {
         writer.print("<api version=\"3\"")
-        if (firstApiLevel > 1) {
-            writer.print(" min=\"$firstApiLevel\"")
+        if (firstApiVersion > DEFAULT_MIN_VERSION) {
+            writer.print(" min=\"$firstApiVersion\"")
         }
         writer.println(">")
         if (availableSdkExtensions != null) {
@@ -184,6 +186,9 @@ class ApiXmlPrinter(
     }
 
     companion object {
+        /** The default minimum [ApiVersion] expected by consumers of `api-versions.xml`. */
+        private val DEFAULT_MIN_VERSION = ApiVersion.fromLevel(1)
+
         /**
          * Prints a closing tag of an XML element terminated by a line break.
          *
