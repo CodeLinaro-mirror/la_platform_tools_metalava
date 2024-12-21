@@ -135,7 +135,7 @@ open class ApiElement(val name: String) : ParentApiElement, Comparable<ApiElemen
     /**
      * Clears the sdk extension information from this [ApiElement].
      *
-     * This is only intended for use by [Api.backfillSdkExtensions].
+     * This is only intended for use by [Api.patchSdkExtensionsHistory].
      */
     fun clearSdkExtensionInfo() {
         this.sinceExtension = null
@@ -152,63 +152,6 @@ open class ApiElement(val name: String) : ParentApiElement, Comparable<ApiElemen
 
     override fun compareTo(other: ApiElement): Int {
         return name.compareTo(other.name)
-    }
-
-    /**
-     * Encapsulates the process of updating an [ApiElement] to mark it as being included in a
-     * specific API version.
-     */
-    sealed interface Updater {
-        /**
-         * Updates the API element with information for a specific API version.
-         *
-         * @param apiElement the [ApiElement] to update.
-         * @param deprecated whether the API element was deprecated in the API version in question
-         */
-        fun update(
-            apiElement: ApiElement,
-            deprecated: Boolean = apiElement.deprecatedIn != null,
-        )
-
-        /** Updates the [ApiElement] by calling [ApiElement.update]. */
-        private open class ApiVersionUpdater(private val apiVersion: ApiVersion) : Updater {
-            override fun update(apiElement: ApiElement, deprecated: Boolean) {
-                apiElement.update(apiVersion, deprecated)
-            }
-        }
-
-        /**
-         * Extends [ApiVersionUpdater] to also update the [ApiElement.sinceExtension] and
-         * [ApiElement.mainlineModule] properties.
-         */
-        private class ExtensionUpdater(
-            nextSdkVersion: ApiVersion,
-            private val extVersion: ExtVersion,
-            private val module: String
-        ) : ApiVersionUpdater(nextSdkVersion) {
-            override fun update(apiElement: ApiElement, deprecated: Boolean) {
-                super.update(apiElement, deprecated)
-                apiElement.updateExtension(extVersion)
-                if (apiElement is ApiClass) {
-                    apiElement.updateMainlineModule(module)
-                }
-            }
-        }
-
-        companion object {
-            /** Create an [Updater] for [apiVersion]. */
-            fun forApiVersion(apiVersion: ApiVersion): Updater {
-                return ApiVersionUpdater(apiVersion)
-            }
-
-            fun forExtVersion(
-                nextSdkVersion: ApiVersion,
-                extVersion: ExtVersion,
-                module: String
-            ): Updater {
-                return ExtensionUpdater(nextSdkVersion, extVersion, module)
-            }
-        }
     }
 }
 

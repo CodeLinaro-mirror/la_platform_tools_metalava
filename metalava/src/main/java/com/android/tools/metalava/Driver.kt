@@ -221,35 +221,42 @@ internal fun processFlags(
         actionContext.subtractApi(signatureFileCache, codebase, it)
     }
 
-    val generateXmlConfig = options.apiLevelsGenerationOptions.generateXmlConfig
+    val generateXmlConfig =
+        options.apiLevelsGenerationOptions.forAndroidConfig {
+            var codebaseFragment =
+                CodebaseFragment.create(codebase) { delegatedVisitor ->
+                    FilteringApiVisitor(
+                        delegate = delegatedVisitor,
+                        apiFilters = ApiVisitor.defaultFilters(options.apiPredicateConfig),
+                        preFiltered = false,
+                    )
+                }
+
+            // If reverting some changes then create a snapshot that combines the items from the
+            // sources
+            // for any un-reverted changes and items from the previously released API for any
+            // reverted
+            // changes.
+            if (options.revertAnnotations.isNotEmpty()) {
+                codebaseFragment =
+                    codebaseFragment.snapshotIncludingRevertedItems(
+                        // Allow references to any of the ClassItems in the original Codebase. This
+                        // should not be a problem for api-versions.xml files as they only refer to
+                        // them
+                        // by name and do not care about their contents.
+                        referenceVisitorFactory = ::NonFilteringDelegatingVisitor,
+                    )
+            }
+
+            codebaseFragment
+        }
     val apiGenerator = ApiGenerator()
     if (generateXmlConfig != null) {
         progressTracker.progress(
             "Generating API levels XML descriptor file, ${generateXmlConfig.outputFile.name}: "
         )
-        var codebaseFragment =
-            CodebaseFragment.create(codebase) { delegatedVisitor ->
-                FilteringApiVisitor(
-                    delegate = delegatedVisitor,
-                    apiFilters = ApiVisitor.defaultFilters(options.apiPredicateConfig),
-                    preFiltered = false,
-                )
-            }
 
-        // If reverting some changes then create a snapshot that combines the items from the sources
-        // for any un-reverted changes and items from the previously released API for any reverted
-        // changes.
-        if (options.revertAnnotations.isNotEmpty()) {
-            codebaseFragment =
-                codebaseFragment.snapshotIncludingRevertedItems(
-                    // Allow references to any of the ClassItems in the original Codebase. This
-                    // should not be a problem for api-versions.xml files as they only refer to them
-                    // by name and do not care about their contents.
-                    referenceVisitorFactory = ::NonFilteringDelegatingVisitor,
-                )
-        }
-
-        apiGenerator.generateXml(codebaseFragment, generateXmlConfig)
+        apiGenerator.generateApiHistory(generateXmlConfig)
     }
 
     if (options.docStubsDir != null || options.enhanceDocumentation) {
@@ -300,7 +307,7 @@ internal fun processFlags(
                 "Generating API version history ${config.printer} file, ${config.outputFile.name}: "
             )
 
-            apiGenerator.generateFromVersionedApis(config)
+            apiGenerator.generateApiHistory(config)
         }
 
     // Generate the documentation stubs *before* we migrate nullness information.

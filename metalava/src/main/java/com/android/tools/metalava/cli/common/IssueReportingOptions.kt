@@ -213,11 +213,13 @@ private enum class ConfigurableAspect {
             severity: Severity,
             id: String
         ) {
-            val issues =
-                Issues.findCategoryById(id)?.let { Issues.findIssuesByCategory(it) }
-                    ?: throw MetalavaCliException("Unknown category: $optionName $id")
+            try {
+                val issues = Issues.findCategoryById(id).let { Issues.findIssuesByCategory(it) }
 
-            issues.forEach { configuration.setSeverity(it, severity) }
+                issues.forEach { configuration.setSeverity(it, severity) }
+            } catch (e: Exception) {
+                throw MetalavaCliException("Option $optionName is invalid: ${e.message}", cause = e)
+            }
         }
     };
 

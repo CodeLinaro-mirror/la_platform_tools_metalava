@@ -25,8 +25,9 @@ import com.android.tools.metalava.model.CodebaseFragment
 class VersionedSourceApi(
     private val codebaseFragment: CodebaseFragment,
     private val apiVersion: ApiVersion,
+    private val useInternalNames: Boolean,
 ) : VersionedApi {
     override fun updateApi(api: Api) {
-        addApisFromCodebase(api, apiVersion, codebaseFragment, useInternalNames = false)
+        addApisFromCodebase(api, apiVersion, codebaseFragment, useInternalNames)
     }
 }

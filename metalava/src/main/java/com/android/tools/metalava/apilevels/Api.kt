@@ -54,14 +54,14 @@ class Api : ParentApiElement {
      * Updates the [ApiClass] for the class called [name], creating and adding one if necessary.
      *
      * @param name the name of the class
-     * @param updater the [ApiElement.Updater] that will update the element with information about
+     * @param updater the [ApiHistoryUpdater] that will update the element with information about
      *   the version to which it belongs.
      * @param deprecated whether the class was deprecated in the API version
      * @return the newly created or a previously existed class
      */
     fun updateClass(
         name: String,
-        updater: ApiElement.Updater,
+        updater: ApiHistoryUpdater,
         deprecated: Boolean,
     ): ApiClass {
         val existing = mClasses[name]
@@ -85,21 +85,25 @@ class Api : ParentApiElement {
     val classes: Collection<ApiClass>
         get() = Collections.unmodifiableCollection(mClasses.values)
 
-    fun backfillHistoricalFixes() {
-        backfillSdkExtensions()
-    }
+    /**
+     * Patch up the `android.os.ext.SdkExtensions` history to improve backward compatibility.
+     *
+     * This does nothing if the class is not defined in this [Api].
+     */
+    fun patchSdkExtensionsHistory() {
+        val sdkExtensions =
+            findClass("android/os/ext/SdkExtensions")
+            // This is either for the module-lib/system-server (null) or for a non-Android API.
+            // Either way it does not need patching.
+            ?: return
 
-    private fun backfillSdkExtensions() {
         val sdk30 = ApiVersion.fromLevel(30)
         val sdk31 = ApiVersion.fromLevel(31)
         val sdk33 = ApiVersion.fromLevel(33)
-        val sdkExtensions = findClass("android/os/ext/SdkExtensions")
-        if (sdkExtensions != null && sdkExtensions.since != sdk30 && sdkExtensions.since != sdk33) {
+        val sdkExtensionsSince = sdkExtensions.since
+        if (sdkExtensionsSince != sdk30 && sdkExtensionsSince != sdk33) {
             throw AssertionError("Received unexpected historical data")
-        } else if (sdkExtensions == null) {
-            // This is the module-lib/system-server dbs (null) and so don't need patching.
-            return
-        } else if (sdkExtensions.since == sdk30) {
+        } else if (sdkExtensionsSince == sdk30) {
             // This is the system API db (30). The class does not need patching but the members do.
             // Drop through.
         } else {
@@ -109,8 +113,8 @@ class Api : ParentApiElement {
             sdkExtensions.update(sdk30, false)
         }
 
-        val sdk30Updater = ApiElement.Updater.forApiVersion(sdk30)
-        val sdk31Updater = ApiElement.Updater.forApiVersion(sdk31)
+        val sdk30Updater = ApiHistoryUpdater.forApiVersion(sdk30)
+        val sdk31Updater = ApiHistoryUpdater.forApiVersion(sdk31)
 
         // Remove the sdks attribute from the extends for public and system.
         sdkExtensions.updateSuperClass("java/lang/Object", sdk30Updater).apply {
