@@ -29,7 +29,7 @@ import java.io.File
 class VersionedSignatureApi(
     private val signatureFileLoader: SignatureFileLoader,
     private val file: File,
-    private val apiVersion: ApiVersion,
+    override val apiVersion: ApiVersion,
 ) : VersionedApi {
     override fun updateApi(api: Api) {
         val codebase = signatureFileLoader.load(SignatureFile.fromFiles(file))
