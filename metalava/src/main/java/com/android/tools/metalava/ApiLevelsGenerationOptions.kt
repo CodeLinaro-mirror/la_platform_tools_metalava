@@ -24,6 +24,7 @@ import com.android.tools.metalava.apilevels.ApiXmlPrinter
 import com.android.tools.metalava.apilevels.ExtensionSdkJarReader.addVersionedExtensionApis
 import com.android.tools.metalava.apilevels.GenerateApiHistoryConfig
 import com.android.tools.metalava.apilevels.MissingClassAction
+import com.android.tools.metalava.apilevels.VersionedApi
 import com.android.tools.metalava.apilevels.VersionedJarApi
 import com.android.tools.metalava.apilevels.VersionedSignatureApi
 import com.android.tools.metalava.apilevels.VersionedSourceApi
@@ -313,16 +314,12 @@ class ApiLevelsGenerationOptions(
     }
 
     /**
-     * The Map from [ApiVersion] to associated jar [File].
+     * Find all android stub jars that matches the given criteria.
      *
-     * Entries are in order from lowest [ApiVersion] to highest.
+     * Returns a list of [VersionedApi]s from lowest [VersionedApi.apiVersion] to highest.
      */
-    private val versionToJar
-        get() = findAndroidJars()
-
-    /** Find all android stub jars that matches the given criteria. */
-    private fun findAndroidJars(): Map<ApiVersion, File> {
-        val versionToJar = mutableMapOf<ApiVersion, File>()
+    private fun findAndroidJars(): List<VersionedApi> {
+        val versionedHistoricalApis = mutableListOf<VersionedApi>()
         // Get all the android.jar. They are in platforms-#
         for (apiLevel in firstApiLevel.rangeTo(lastApiLevel)) {
             try {
@@ -346,13 +343,16 @@ class ApiLevelsGenerationOptions(
 
                 verbosePrint { "Found API $apiLevel at ${jar.path}" }
 
-                versionToJar[ApiVersion.fromLevel(apiLevel)] = jar
+                val apiVersion = ApiVersion.fromLevel(apiLevel)
+                val updater = ApiHistoryUpdater.forApiVersion(apiVersion)
+                val versionedJar = VersionedJarApi(jar, updater)
+                versionedHistoricalApis += versionedJar
             } catch (e: IOException) {
                 e.printStackTrace()
             }
         }
 
-        return versionToJar
+        return versionedHistoricalApis.toList()
     }
 
     /** Print string returned by [message] if verbose output has been requested. */
@@ -377,9 +377,11 @@ class ApiLevelsGenerationOptions(
         codebaseFragmentProvider: () -> CodebaseFragment,
     ) =
         generateApiLevelXml?.let { outputFile ->
+            val versionedHistoricalApis = findAndroidJars()
+
             val currentSdkVersion = ApiVersion.fromLevel(currentApiLevel)
             val notFinalizedSdkVersion = currentSdkVersion + 1
-            val lastApiVersion = versionToJar.keys.lastOrNull()
+            val lastApiVersion = versionedHistoricalApis.lastOrNull()?.apiVersion
 
             // Compute the version to use for the current codebase.
             val codebaseSdkVersion =
@@ -412,10 +414,7 @@ class ApiLevelsGenerationOptions(
 
             // Create a list of VersionedApis that need to be incorporated into the Api history.
             val versionedApis = buildList {
-                for ((sdkVersion, jar) in versionToJar) {
-                    val updater = ApiHistoryUpdater.forApiVersion(sdkVersion)
-                    add(VersionedJarApi(jar, updater))
-                }
+                addAll(versionedHistoricalApis)
 
                 // Add a VersionedSourceApi for the current codebase if required.
                 if (codebaseSdkVersion != null) {
@@ -445,7 +444,7 @@ class ApiLevelsGenerationOptions(
 
             // Get a list of all versions, including the codebase version, if necessary.
             val allVersions = buildList {
-                addAll(versionToJar.keys)
+                versionedHistoricalApis.mapTo(this) { it.apiVersion }
                 if (codebaseSdkVersion != null) add(codebaseSdkVersion)
             }
 

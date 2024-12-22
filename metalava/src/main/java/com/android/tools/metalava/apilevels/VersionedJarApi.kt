@@ -27,6 +27,9 @@ class VersionedJarApi(
     private val jar: File,
     private val updater: ApiHistoryUpdater,
 ) : VersionedApi {
+    override val apiVersion
+        get() = updater.apiVersion
+
     override fun updateApi(api: Api) {
         api.readJar(jar, updater)
     }
