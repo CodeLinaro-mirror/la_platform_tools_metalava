@@ -17,6 +17,7 @@
 import com.android.tools.metalava.CREATE_ARCHIVE_TASK
 import com.android.tools.metalava.buildinfo.CREATE_BUILD_INFO_TASK
 import com.android.tools.metalava.buildinfo.CreateAggregateLibraryBuildInfoFileTask.Companion.CREATE_AGGREGATE_BUILD_INFO_FILES_TASK
+import com.android.tools.metalava.buildinfo.setUpAggregateBuildInfoFileTask
 
 defaultTasks =
     mutableListOf(
@@ -30,7 +31,4 @@ defaultTasks =
         "ktCheck",
     )
 
-project.tasks.register(
-    CREATE_AGGREGATE_BUILD_INFO_FILES_TASK,
-    com.android.tools.metalava.buildinfo.CreateAggregateLibraryBuildInfoFileTask::class
-)
+setUpAggregateBuildInfoFileTask()

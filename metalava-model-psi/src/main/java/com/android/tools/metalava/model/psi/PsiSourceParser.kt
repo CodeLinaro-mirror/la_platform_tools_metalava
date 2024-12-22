@@ -322,7 +322,20 @@ internal class PsiSourceParser(
         //  * UastEnvironment Module simply reuses existing Lint Project model.
         computeMetadata(lintClient, projectDescription)
         config.addModules(
-            lintClient.knownProjects.map { lintProject ->
+            lintClient.knownProjects.mapNotNull { lintProject ->
+                // TODO(b/383457595): For the given root dir,
+                //   Lint creates a bogus, uninitialized [Project]
+                if (
+                    // The default project name, if not given, is directory name
+                    // not something we provided, like `androidMain`.
+                    lintProject.name == lintProject.dir.name &&
+                        // source folder might be still the root dir
+                        // but libraries would be empty / not computed.
+                        (lintProject.javaSourceFolders.isEmpty() ||
+                            lintProject.javaLibraries.isEmpty())
+                ) {
+                    return@mapNotNull null
+                }
                 lintProject.kotlinLanguageLevel = kotlinLanguageLevel
                 UastEnvironment.Module(
                     lintProject,
