@@ -18,9 +18,12 @@ package com.android.tools.metalava.apilevels
 
 /**
  * Encapsulates the process of updating the API history by marking an [ApiElement] as being included
- * in a specific API version.
+ * in a specific [apiVersion].
  */
 sealed interface ApiHistoryUpdater {
+    /** The [ApiVersion] that this will use to update the [Api]. */
+    val apiVersion: ApiVersion
+
     /**
      * Updates the API with information for a specific API version.
      *
@@ -40,7 +43,7 @@ sealed interface ApiHistoryUpdater {
     )
 
     /** Updates the [ApiElement] by calling [ApiElement.update]. */
-    private open class ApiVersionUpdater(private val apiVersion: ApiVersion) : ApiHistoryUpdater {
+    private open class ApiVersionUpdater(override val apiVersion: ApiVersion) : ApiHistoryUpdater {
         override fun update(api: Api) {
             api.update(apiVersion)
         }

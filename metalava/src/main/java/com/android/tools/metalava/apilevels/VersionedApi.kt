@@ -19,10 +19,13 @@ package com.android.tools.metalava.apilevels
 /**
  * Represents a specific [ApiVersion] of an API.
  *
- * Supports updating [Api] with information from the [apiVersion] of the API that is defined in
- * * the signature [file].
+ * Supports updating [Api] with information from the [apiVersion] of the API that is defined by
+ * this.
  */
 interface VersionedApi {
+    /** The [ApiVersion] of the API defined by this. */
+    val apiVersion: ApiVersion
+
     /** Update [api] with information from this version of the API. */
     fun updateApi(api: Api)
 }
