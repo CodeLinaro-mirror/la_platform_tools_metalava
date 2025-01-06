@@ -22,7 +22,6 @@ import com.android.tools.metalava.ARG_CURRENT_VERSION
 import com.android.tools.metalava.ARG_GENERATE_API_LEVELS
 import com.android.tools.metalava.doc.getApiLookup
 import com.android.tools.metalava.testing.java
-import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -31,10 +30,6 @@ class CorrectApiLevelForReleaseTest : ApiGeneratorIntegrationTestBase() {
 
     @Test
     fun `Correct API Level for release`() {
-        val output = File.createTempFile("api-info", "xml")
-        output.deleteOnExit()
-        val outputPath = output.path
-
         check(
             extraArguments =
                 arrayOf(
@@ -43,7 +38,7 @@ class CorrectApiLevelForReleaseTest : ApiGeneratorIntegrationTestBase() {
                     ARG_ANDROID_JAR_PATTERN,
                     "${oldSdkJars.path}/android-%/android.jar",
                     ARG_ANDROID_JAR_PATTERN,
-                    "${platformJars.path}/%/public/android.jar",
+                    androidPublicJarsPattern,
                     ARG_CURRENT_CODENAME,
                     "REL",
                     ARG_CURRENT_VERSION,

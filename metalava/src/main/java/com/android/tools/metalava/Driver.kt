@@ -192,7 +192,7 @@ internal fun processFlags(
                     )
                 }
             val signatureFileLoader = options.signatureFileLoader
-            signatureFileLoader.loadFiles(
+            signatureFileLoader.load(
                 SignatureFile.fromFiles(sources),
                 classResolverProvider.classResolver,
             )
@@ -221,25 +221,12 @@ internal fun processFlags(
         actionContext.subtractApi(signatureFileCache, codebase, it)
     }
 
-    val androidApiLevelXml = options.generateApiLevelXml
-    val apiLevelJars = options.apiLevelJars
-    val apiGenerator = ApiGenerator(signatureFileCache)
-    if (androidApiLevelXml != null && apiLevelJars != null) {
+    val generateXmlConfig = options.apiLevelsGenerationOptions.generateXmlConfig
+    val apiGenerator = ApiGenerator()
+    if (generateXmlConfig != null) {
         progressTracker.progress(
-            "Generating API levels XML descriptor file, ${androidApiLevelXml.name}: "
+            "Generating API levels XML descriptor file, ${generateXmlConfig.outputFile.name}: "
         )
-        val sdkJarRoot = options.sdkJarRoot
-        val sdkInfoFile = options.sdkInfoFile
-        val sdkExtArgs: ApiGenerator.SdkExtensionsArguments? =
-            if (sdkJarRoot != null && sdkInfoFile != null) {
-                ApiGenerator.SdkExtensionsArguments(
-                    sdkJarRoot,
-                    sdkInfoFile,
-                )
-            } else {
-                null
-            }
-
         var codebaseFragment =
             CodebaseFragment.create(codebase) { delegatedVisitor ->
                 FilteringApiVisitor(
@@ -262,16 +249,7 @@ internal fun processFlags(
                 )
         }
 
-        apiGenerator.generateXml(
-            apiLevelJars,
-            options.firstApiLevel,
-            options.currentApiLevel,
-            options.isDeveloperPreviewBuild,
-            androidApiLevelXml,
-            codebaseFragment,
-            sdkExtArgs,
-            options.removeMissingClassesInApiLevels
-        )
+        apiGenerator.generateXml(codebaseFragment, generateXmlConfig)
     }
 
     if (options.docStubsDir != null || options.enhanceDocumentation) {
@@ -296,33 +274,34 @@ internal fun processFlags(
         }
     }
 
-    val apiVersionsJson = options.generateApiVersionsJson
-    val apiVersionNames = options.apiVersionNames
-    if (apiVersionsJson != null && apiVersionNames != null) {
-        progressTracker.progress(
-            "Generating API version history JSON file, ${apiVersionsJson.name}: "
-        )
+    options.apiLevelsGenerationOptions
+        .fromSignatureFilesConfig(
+            // Do not use a cache here as each file loaded is only loaded once and the created
+            // Codebase is discarded immediately after use so caching just uses memory for no
+            // performance benefit.
+            options.signatureFileLoader,
+            // Provide a CodebaseFragment from the sources that will be included in the generated
+            // version history.
+            codebaseFragmentProvider = {
+                val apiType = ApiType.PUBLIC_API
+                val apiFilters = apiType.getApiFilters(options.apiPredicateConfig)
 
-        val apiType = ApiType.PUBLIC_API
-        val apiFilters = apiType.getApiFilters(options.apiPredicateConfig)
-
-        val codebaseFragment =
-            CodebaseFragment.create(codebase) { delegatedVisitor ->
-                FilteringApiVisitor(
-                    delegate = delegatedVisitor,
-                    apiFilters = apiFilters,
-                    preFiltered = false,
-                )
+                CodebaseFragment.create(codebase) { delegatedVisitor ->
+                    FilteringApiVisitor(
+                        delegate = delegatedVisitor,
+                        apiFilters = apiFilters,
+                        preFiltered = false,
+                    )
+                }
             }
-
-        apiGenerator.generateJson(
-            // The signature files can be null if the current version is the only version
-            options.apiVersionSignatureFiles ?: emptyList(),
-            codebaseFragment,
-            apiVersionsJson,
-            apiVersionNames,
         )
-    }
+        ?.let { config ->
+            progressTracker.progress(
+                "Generating API version history ${config.printer} file, ${config.outputFile.name}: "
+            )
+
+            apiGenerator.generateFromVersionedApis(config)
+        }
 
     // Generate the documentation stubs *before* we migrate nullness information.
     options.docStubsDir?.let {

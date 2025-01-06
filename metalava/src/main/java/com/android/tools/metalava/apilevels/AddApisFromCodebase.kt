@@ -32,12 +32,16 @@ import com.android.tools.metalava.model.MethodItem
  */
 fun addApisFromCodebase(
     api: Api,
-    apiLevel: Int,
+    apiVersion: ApiVersion,
     codebaseFragment: CodebaseFragment,
     useInternalNames: Boolean,
 ) {
+    // Keep track of the versions added to this api.
+    api.update(apiVersion)
+
     val delegatedVisitor =
         object : DelegatedVisitor {
+            val updater = ApiElement.Updater.forApiVersion(apiVersion)
 
             var currentClass: ApiClass? = null
 
@@ -46,34 +50,34 @@ fun addApisFromCodebase(
             }
 
             override fun visitClass(cls: ClassItem) {
-                val newClass = api.addClass(cls.nameInApi(), apiLevel, cls.effectivelyDeprecated)
+                val newClass = api.updateClass(cls.nameInApi(), updater, cls.effectivelyDeprecated)
                 currentClass = newClass
 
                 if (cls.isClass()) {
                     val superClass = cls.superClass()
                     if (superClass != null) {
-                        newClass.addSuperClass(superClass.nameInApi(), apiLevel)
+                        newClass.updateSuperClass(superClass.nameInApi(), updater)
                     }
                 } else if (cls.isInterface()) {
                     val superClass = cls.superClass()
                     if (superClass != null && !superClass.isJavaLangObject()) {
-                        newClass.addInterface(superClass.nameInApi(), apiLevel)
+                        newClass.updateInterface(superClass.nameInApi(), updater)
                     }
                 } else if (cls.isEnum()) {
                     // Implicit super class; match convention from bytecode
                     if (newClass.name != enumClass) {
-                        newClass.addSuperClass(enumClass, apiLevel)
+                        newClass.updateSuperClass(enumClass, updater)
                     }
 
                     // Mimic doclava enum methods
                     enumMethodNames(newClass.name).forEach { name ->
-                        newClass.addMethod(name, apiLevel, false)
+                        newClass.updateMethod(name, updater, false)
                     }
                 } else if (cls.isAnnotationType()) {
                     // Implicit super class; match convention from bytecode
                     if (newClass.name != annotationClass) {
-                        newClass.addSuperClass(objectClass, apiLevel)
-                        newClass.addInterface(annotationClass, apiLevel)
+                        newClass.updateSuperClass(objectClass, updater)
+                        newClass.updateInterface(annotationClass, updater)
                     }
                 }
 
@@ -89,15 +93,14 @@ fun addApisFromCodebase(
                 // previously extend object and now extends something else.
                 if (
                     (cls.isClass() || cls.isInterface()) &&
-                        newClass.superClasses.size == 1 &&
-                        newClass.superClasses[0].name == objectClass
+                        newClass.superClasses.singleOrNull()?.name == objectClass
                 ) {
-                    newClass.addSuperClass(objectClass, apiLevel)
+                    newClass.updateSuperClass(objectClass, updater)
                 }
 
                 for (interfaceType in cls.interfaceTypes()) {
                     val interfaceClass = interfaceType.asClass() ?: return
-                    newClass.addInterface(interfaceClass.nameInApi(), apiLevel)
+                    newClass.updateInterface(interfaceClass.nameInApi(), updater)
                 }
             }
 
@@ -105,9 +108,9 @@ fun addApisFromCodebase(
                 if (callable.isPrivate || callable.isPackagePrivate) {
                     return
                 }
-                currentClass?.addMethod(
+                currentClass?.updateMethod(
                     callable.nameInApi(),
-                    apiLevel,
+                    updater,
                     callable.effectivelyDeprecated
                 )
             }
@@ -124,7 +127,7 @@ fun addApisFromCodebase(
                 if (field.isPrivate || field.isPackagePrivate) {
                     return
                 }
-                currentClass?.addField(field.nameInApi(), apiLevel, field.effectivelyDeprecated)
+                currentClass?.updateField(field.nameInApi(), updater, field.effectivelyDeprecated)
             }
 
             /** The name of the field in this [Api], based on [useInternalNames] */

@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava
 
-import com.android.tools.metalava.cli.common.ARG_ERROR
 import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.lint.DefaultLintErrorMessage
 import com.android.tools.metalava.model.provider.Capability
@@ -373,7 +372,6 @@ class KotlinInteropChecksTest : DriverTest() {
     fun `Check value classes are banned`() {
         check(
             apiLint = "",
-            extraArguments = arrayOf(ARG_ERROR, "ValueClassDefinition"),
             expectedIssues =
                 """
                     src/test/pkg/Container.kt:4: error: Value classes should not be public in APIs targeting Java clients. [ValueClassDefinition]

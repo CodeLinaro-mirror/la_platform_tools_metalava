@@ -23,65 +23,14 @@ import com.android.tools.metalava.ARG_GENERATE_API_LEVELS
 import com.android.tools.metalava.ARG_SDK_INFO_FILE
 import com.android.tools.metalava.ARG_SDK_JAR_ROOT
 import com.android.tools.metalava.doc.getApiLookup
-import com.android.tools.metalava.doc.minApiLevel
-import java.io.File
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ExtractSystemApiLevelsTest : ApiGeneratorIntegrationTestBase() {
     @Test
     fun `Extract System API`() {
-        // These are the wrong jar paths but this test doesn't actually care what the
-        // content of the jar files, just checking the logic of starting the database
-        // at some higher number than 1
-        val androidJarPattern = "${platformJars.path}/%/public/android.jar"
-
-        val filter = File.createTempFile("filter", "txt")
-        filter.deleteOnExit()
-        filter.writeText(
-            """
-                <sdk-extensions-info>
-                <!-- SDK definitions -->
-                <sdk shortname="R" name="R Extensions" id="30" reference="android/os/Build${'$'}VERSION_CODES${'$'}R" />
-                <sdk shortname="S" name="S Extensions" id="31" reference="android/os/Build${'$'}VERSION_CODES${'$'}S" />
-                <sdk shortname="T" name="T Extensions" id="33" reference="android/os/Build${'$'}VERSION_CODES${'$'}T" />
-
-                <!-- Rules -->
-                <symbol jar="art.module.public.api" pattern="*" sdks="R" />
-                <symbol jar="conscrypt.module.intra.core.api " pattern="" sdks="R" />
-                <symbol jar="conscrypt.module.platform.api" pattern="*" sdks="R" />
-                <symbol jar="conscrypt.module.public.api" pattern="*" sdks="R" />
-                <symbol jar="framework-mediaprovider" pattern="*" sdks="R" />
-                <symbol jar="framework-mediaprovider" pattern="android.provider.MediaStore#canManageMedia" sdks="T" />
-                <symbol jar="framework-permission-s" pattern="*" sdks="R" />
-                <symbol jar="framework-permission" pattern="*" sdks="R" />
-                <symbol jar="framework-sdkextensions" pattern="*" sdks="R" />
-                <symbol jar="framework-scheduling" pattern="*" sdks="R" />
-                <symbol jar="framework-statsd" pattern="*" sdks="R" />
-                <symbol jar="framework-tethering" pattern="*" sdks="R" />
-                <symbol jar="legacy.art.module.platform.api" pattern="*" sdks="R" />
-                <symbol jar="service-media-s" pattern="*" sdks="R" />
-                <symbol jar="service-permission" pattern="*" sdks="R" />
-
-                <!-- use framework-permissions-s to test the order of multiple SDKs is respected -->
-                <symbol jar="android.net.ipsec.ike" pattern="android.net.eap.EapAkaInfo" sdks="R,S,T" />
-                <symbol jar="android.net.ipsec.ike" pattern="android.net.eap.EapInfo" sdks="T,S,R" />
-                <symbol jar="android.net.ipsec.ike" pattern="*" sdks="R" />
-
-                <!-- framework-connectivity: only android.net.CaptivePortal should have the 'sdks' attribute -->
-                <symbol jar="framework-connectivity" pattern="android.net.CaptivePortalData" sdks="R" />
-
-                <!-- framework-media explicitly omitted: nothing in this module should have the 'sdks' attribute -->
-                </sdk-extensions-info>
-            """
-                .trimIndent()
-        )
-
-        val output = File.createTempFile("api-info", "xml")
-        output.deleteOnExit()
-        val outputPath = output.path
+        val androidJarPattern = "${platformJars.path}/%/system/android.jar"
 
         check(
             extraArguments =
@@ -91,9 +40,9 @@ class ExtractSystemApiLevelsTest : ApiGeneratorIntegrationTestBase() {
                     ARG_ANDROID_JAR_PATTERN,
                     androidJarPattern,
                     ARG_SDK_JAR_ROOT,
-                    "$extensionSdkJars",
+                    extensionSdkJars.path,
                     ARG_SDK_INFO_FILE,
-                    filter.path,
+                    createSdkExtensionInfoFile().path,
                     ARG_FIRST_VERSION,
                     "21",
                     ARG_CURRENT_VERSION,
@@ -168,7 +117,7 @@ class ExtractSystemApiLevelsTest : ApiGeneratorIntegrationTestBase() {
         // has the module/sdks attributes
         assertTrue(
             xml.contains(
-                "<class name=\"android/net/CaptivePortalData\" module=\"framework-connectivity\" since=\"34\" sdks=\"30:1\">"
+                "<class name=\"android/net/CaptivePortalData\" module=\"framework-connectivity\" since=\"30\" sdks=\"30:1,0:30\">"
             )
         )
         assertTrue(
@@ -189,28 +138,17 @@ class ExtractSystemApiLevelsTest : ApiGeneratorIntegrationTestBase() {
             )
         )
 
-        // Verify historical backfill
-        assertEquals(30, apiLookup.getClassVersions("android/os/ext/SdkExtensions").minApiLevel())
-        assertEquals(
-            30,
-            apiLookup
-                .getMethodVersions("android/os/ext/SdkExtensions", "getExtensionVersion", "(I)I")
-                .minApiLevel()
+        // Verify historical backfill by checking the section for android/os/ext/SdkExtensions
+        xml.checkClass(
+            "android/os/ext/SdkExtensions",
+            """
+                <class name="android/os/ext/SdkExtensions" since="30">
+                    <extends name="java/lang/Object"/>
+                    <method name="getAllExtensionVersions()Ljava/util/Map;" since="31"/>
+                    <method name="getExtensionVersion(I)I"/>
+                    <field name="AD_SERVICES" since="34" sdks="30:4"/>
+                </class>
+            """
         )
-        assertEquals(
-            31,
-            apiLookup
-                .getMethodVersions(
-                    "android/os/ext/SdkExtensions",
-                    "getAllExtensionVersions",
-                    "()Ljava/util/Map;"
-                )
-                .minApiLevel()
-        )
-
-        // Verify there's no extension versions listed for SdkExtensions
-        val sdkExtClassLine =
-            xml.lines().first { it.contains("<class name=\"android/os/ext/SdkExtensions\"") }
-        assertFalse(sdkExtClassLine.contains("sdks="))
     }
 }

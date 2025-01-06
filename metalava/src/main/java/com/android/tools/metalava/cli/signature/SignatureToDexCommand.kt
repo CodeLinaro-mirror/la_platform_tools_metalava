@@ -17,8 +17,8 @@
 package com.android.tools.metalava.cli.signature
 
 import com.android.tools.metalava.OptionsDelegate
+import com.android.tools.metalava.cli.common.DefaultSignatureFileLoader
 import com.android.tools.metalava.cli.common.MetalavaSubCommand
-import com.android.tools.metalava.cli.common.SignatureFileLoader
 import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.newFile
 import com.android.tools.metalava.cli.common.progressTracker
@@ -62,8 +62,8 @@ class SignatureToDexCommand :
         OptionsDelegate.disallowAccess()
 
         val codebaseConfig = Codebase.Config.NOOP
-        val signatureFileLoader = SignatureFileLoader(codebaseConfig)
-        val signatureApi = signatureFileLoader.loadFiles(SignatureFile.fromFiles(apiFiles))
+        val signatureFileLoader = DefaultSignatureFileLoader(codebaseConfig)
+        val signatureApi = signatureFileLoader.load(SignatureFile.fromFiles(apiFiles))
 
         val apiPredicateConfig = ApiPredicate.Config()
         val apiType = ApiType.ALL
