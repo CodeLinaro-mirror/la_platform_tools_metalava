@@ -19,15 +19,17 @@ package com.android.tools.metalava.buildinfo
 import com.android.tools.metalava.buildinfo.CreateAggregateLibraryBuildInfoFileTask.Companion.CREATE_AGGREGATE_BUILD_INFO_FILES_TASK
 import com.android.tools.metalava.getDistributionDirectory
 import com.google.gson.Gson
-import java.io.File
 import org.gradle.api.DefaultTask
 import org.gradle.api.Project
-import org.gradle.api.provider.ListProperty
-import org.gradle.api.provider.Provider
-import org.gradle.api.tasks.Input
+import org.gradle.api.attributes.AttributeContainer
+import org.gradle.api.attributes.Category
+import org.gradle.api.file.ConfigurableFileCollection
+import org.gradle.api.tasks.InputFiles
 import org.gradle.api.tasks.OutputFile
 import org.gradle.api.tasks.TaskAction
+import org.gradle.kotlin.dsl.named
 import org.gradle.work.DisableCachingByDefault
+import java.io.File
 
 /** Task for a json file of all dependencies for each artifactId */
 @DisableCachingByDefault(because = "Not worth caching")
@@ -38,7 +40,8 @@ abstract class CreateAggregateLibraryBuildInfoFileTask : DefaultTask() {
     }
 
     /** List of each build_info.txt file for each project. */
-    @get:Input abstract val libraryBuildInfoFiles: ListProperty<File>
+    @get:InputFiles
+    abstract val libraryBuildInfoFiles: ConfigurableFileCollection
 
     @OutputFile
     val outputFile =
@@ -80,7 +83,7 @@ abstract class CreateAggregateLibraryBuildInfoFileTask : DefaultTask() {
         val output = StringBuilder()
         output.append("{ \"artifacts\": [\n")
         val artifactList = mutableListOf<String>()
-        for (infoFile in libraryBuildInfoFiles.get()) {
+        for (infoFile in libraryBuildInfoFiles.files) {
             if (
                 (infoFile.isFile and (infoFile.name != outputFile.name)) and
                     (infoFile.name.contains("_build_info.txt"))
@@ -104,11 +107,29 @@ abstract class CreateAggregateLibraryBuildInfoFileTask : DefaultTask() {
     }
 }
 
-fun Project.addTaskToAggregateBuildInfoFileTask(task: Provider<CreateLibraryBuildInfoTask>) {
-    rootProject.tasks.named(CREATE_AGGREGATE_BUILD_INFO_FILES_TASK).configure {
-        val aggregateLibraryBuildInfoFileTask = it as CreateAggregateLibraryBuildInfoFileTask
-        aggregateLibraryBuildInfoFileTask.libraryBuildInfoFiles.add(
-            task.flatMap { task -> task.outputFile }
-        )
+internal fun AttributeContainer.setBuildInfoAttributes(project: Project) {
+    attribute(Category.CATEGORY_ATTRIBUTE, project.objects.named("build-info"))
+
+}
+
+fun Project.setUpAggregateBuildInfoFileTask() {
+    val buildInfoConsumer = configurations.register("buildInfoConsumer") { configuration ->
+        configuration.isCanBeConsumed = false
+        configuration.isCanBeResolved = true
+        configuration.attributes.setBuildInfoAttributes(project)
+    }
+    subprojects { subproject ->
+        buildInfoConsumer.configure {
+            it.dependencies.add(dependencies.create(subproject))
+        }
+    }
+    val buildInfoCollection = buildInfoConsumer.map {
+        it.incoming.artifactView { it.lenient(true) }.files
+    }
+    tasks.create(
+        CREATE_AGGREGATE_BUILD_INFO_FILES_TASK,
+        CreateAggregateLibraryBuildInfoFileTask::class.java
+    ) {
+        it.libraryBuildInfoFiles.from(buildInfoCollection)
     }
 }

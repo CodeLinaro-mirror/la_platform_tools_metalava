@@ -19,12 +19,7 @@ package com.android.tools.metalava.buildinfo
 import com.android.tools.metalava.buildinfo.LibraryBuildInfoFile.Check
 import com.android.tools.metalava.version
 import com.google.gson.GsonBuilder
-import java.io.File
-import java.io.Serializable
-import java.util.Objects
-import java.util.concurrent.TimeUnit
 import org.gradle.api.DefaultTask
-import org.gradle.api.GradleException
 import org.gradle.api.Project
 import org.gradle.api.artifacts.Dependency
 import org.gradle.api.artifacts.ProjectDependency
@@ -37,6 +32,9 @@ import org.gradle.api.tasks.OutputFile
 import org.gradle.api.tasks.TaskAction
 import org.gradle.api.tasks.TaskProvider
 import org.gradle.api.tasks.bundling.Zip
+import java.io.File
+import java.io.Serializable
+import java.util.Objects
 
 const val CREATE_BUILD_INFO_TASK = "createBuildInfo"
 
@@ -77,7 +75,7 @@ internal fun configureBuildInfoTask(
     inCI: Boolean,
     distributionDirectory: File,
     archiveTaskProvider: TaskProvider<Zip>
-): TaskProvider<CreateLibraryBuildInfoTask> {
+) {
     // Unfortunately, dependency information is only available through internal API
     // (See https://github.com/gradle/gradle/issues/21345).
     val dependencies =
@@ -85,7 +83,7 @@ internal fun configureBuildInfoTask(
             it.usages.orEmpty().flatMap { it.dependencies }
         }
 
-    return project.tasks.register(CREATE_BUILD_INFO_TASK, CreateLibraryBuildInfoTask::class.java) {
+    val buildInfoTask = project.tasks.register(CREATE_BUILD_INFO_TASK, CreateLibraryBuildInfoTask::class.java) {
         it.artifactId.set(project.provider { project.name })
         it.groupId.set(project.provider { project.group as String })
         it.version.set(project.version())
@@ -112,7 +110,12 @@ internal fun configureBuildInfoTask(
         // This should always be "metalava" unless the target changes
         it.target.set("metalava")
     }
+    project.configurations.consumable(BUILD_INFO_PROVIDER_CONFIGURATION) { configuration ->
+        configuration.attributes.setBuildInfoAttributes(project)
+    }
+    project.artifacts.add(BUILD_INFO_PROVIDER_CONFIGURATION, buildInfoTask)
 }
+private const val BUILD_INFO_PROVIDER_CONFIGURATION = "buildInfoProvider"
 
 fun List<Dependency>.asBuildInfoDependencies() =
     filter { it.group?.startsWith("com.android.tools.metalava") ?: false }

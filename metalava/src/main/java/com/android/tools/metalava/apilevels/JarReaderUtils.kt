@@ -25,26 +25,12 @@ import org.objectweb.asm.tree.ClassNode
 import org.objectweb.asm.tree.FieldNode
 import org.objectweb.asm.tree.MethodNode
 
-fun Api.readAndroidJar(sdkVersion: ApiVersion, jar: File) {
-    update(sdkVersion)
-    val updater = ApiElement.Updater.forApiVersion(sdkVersion)
-    readJar(jar, updater)
-}
-
-fun Api.readExtensionJar(
-    extVersion: ExtVersion,
-    module: String,
+fun Api.readJar(
     jar: File,
-    nextSdkVersion: ApiVersion
+    updater: ApiHistoryUpdater,
 ) {
-    val updater = ApiElement.Updater.forExtVersion(nextSdkVersion, extVersion, module)
-    readJar(jar, updater)
-}
-
-private fun Api.readJar(
-    jar: File,
-    updater: ApiElement.Updater,
-) {
+    // Update the Api for this version of the jar.
+    updater.update(this)
     val fis = FileInputStream(jar)
     ZipInputStream(fis).use { zis ->
         var entry = zis.nextEntry
