@@ -32,6 +32,8 @@ import com.android.tools.metalava.model.ModifierFlags.Companion.INLINE
 import com.android.tools.metalava.model.ModifierFlags.Companion.NATIVE
 import com.android.tools.metalava.model.ModifierFlags.Companion.OPERATOR
 import com.android.tools.metalava.model.ModifierFlags.Companion.PACKAGE_PRIVATE
+import com.android.tools.metalava.model.ModifierFlags.Companion.PRIVATE
+import com.android.tools.metalava.model.ModifierFlags.Companion.PROTECTED
 import com.android.tools.metalava.model.ModifierFlags.Companion.SEALED
 import com.android.tools.metalava.model.ModifierFlags.Companion.STATIC
 import com.android.tools.metalava.model.ModifierFlags.Companion.STRICT_FP
@@ -537,11 +539,70 @@ fun createMutableModifiers(
 }
 
 /**
+ * Modifies the modifier flags based on the `VisibleForTesting` annotation's `otherwise` value.
+ *
+ * @param otherwiseValue the value of the `otherwise` attribute, or `""` if no attribute is
+ *   provided.
+ */
+private fun useVisibilityFromVisibleForTesting(otherwiseValue: String, flags: Int): Int {
+    /** Check to see if this matches [visibility] or numeric [value]. */
+    fun String.matchesVisibility(visibility: String, value: Int) =
+        endsWith(visibility) || equals(value.toString())
+
+    val visibilityFlags =
+        when {
+            otherwiseValue.matchesVisibility("PROTECTED", VisibleForTesting.PROTECTED) -> {
+                PROTECTED
+            }
+            otherwiseValue.matchesVisibility(
+                "PACKAGE_PRIVATE",
+                VisibleForTesting.PACKAGE_PRIVATE
+            ) -> {
+                PACKAGE_PRIVATE
+            }
+            otherwiseValue.matchesVisibility("PRIVATE", VisibleForTesting.PRIVATE) ||
+                otherwiseValue.matchesVisibility("NONE", VisibleForTesting.NONE) -> {
+                PRIVATE
+            }
+            else -> {
+                // Return the flags without changes.
+                return flags
+            }
+        }
+
+    return (flags and VISIBILITY_MASK.inv()) or visibilityFlags
+}
+
+/**
  * Create a [MutableModifierList] from a set of [flags] and an optional list of [AnnotationItem]s.
  */
 fun createMutableModifiers(
     flags: Int,
     annotations: List<AnnotationItem> = emptyList(),
 ): MutableModifierList {
-    return DefaultMutableModifierList(flags, annotations)
+    val actualFlags =
+        annotations
+            .find { it.qualifiedName == ANDROIDX_VISIBLE_FOR_TESTING }
+            ?.let { visibleForTesting ->
+                visibleForTesting.findAttribute(ATTR_OTHERWISE)?.value?.let { otherwiseValue ->
+                    useVisibilityFromVisibleForTesting(otherwiseValue.toSource(), flags)
+                }
+            }
+            ?: flags
+
+    return DefaultMutableModifierList(actualFlags, annotations)
+}
+
+private const val ANDROIDX_VISIBLE_FOR_TESTING = "androidx.annotation.VisibleForTesting"
+private const val ATTR_OTHERWISE = "otherwise"
+
+/** Defines the numeric values of the symbols used in tests that use numbers instead of symbols. */
+// TODO(b/387992791): Use a real VisibleForTesting annotation.
+interface VisibleForTesting {
+    companion object {
+        const val PRIVATE = 2
+        const val PACKAGE_PRIVATE = 3
+        const val PROTECTED = 4
+        const val NONE = 5
+    }
 }
