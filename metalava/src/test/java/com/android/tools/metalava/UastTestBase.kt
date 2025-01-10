@@ -24,6 +24,7 @@ import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.createAndroidModuleDescription
 import com.android.tools.metalava.testing.createCommonModuleDescription
+import com.android.tools.metalava.testing.createModuleDescription
 import com.android.tools.metalava.testing.createProjectDescription
 import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
@@ -1685,6 +1686,224 @@ abstract class UastTestBase : DriverTest() {
                   }
                 }
                 """
+        )
+    }
+
+    @Test
+    fun `internal value class extension property`() {
+        // b/385148821
+        val baseApi =
+            """
+            package test.pkg {
+              @kotlin.jvm.JvmInline public final value class IntValue {
+                ctor public IntValue(int value);
+                method public int getValue();
+                property public final int value;
+              }
+
+            """
+                .trimIndent()
+        // With K2 an incorrect version of the internal isValid extension property is added.
+        val expectedApi =
+            baseApi +
+                if (isK2) {
+                    """
+                      public final class IntValueKt {
+                        method public boolean isValid();
+                        property public boolean isValid;
+                      }
+                    }
+                    """
+                        .trimIndent()
+                } else {
+                    """
+                    }
+                    """
+                        .trimIndent()
+                }
+        check(
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                            package test.pkg
+                            @JvmInline
+                            value class IntValue(val value: Int)
+                            internal val IntValue.isValid
+                                get() = this.value != 0
+                        """
+                    )
+                ),
+            api = expectedApi
+        )
+    }
+
+    @Test
+    fun `default parameter value from common, with android=false for common`() {
+        val commonSource =
+            kotlin(
+                "commonMain/src/test/pkg/Foo.kt",
+                """
+                    package test.pkg
+                    expect class Foo {
+                        expect fun foo(i: Int = 0): Int
+                    }
+                """
+            )
+        val androidSource =
+            kotlin(
+                "androidMain/src/test/pkg/JvmDefaultWithCompatibility.kt",
+                """
+                    package test.pkg
+                    actual class Foo {
+                        actual fun foo(i: Int) = i
+                    }
+                """
+            )
+        check(
+            sourceFiles = arrayOf(androidSource, commonSource),
+            projectDescription =
+                createProjectDescription(
+                    createAndroidModuleDescription(arrayOf(androidSource)),
+                    createCommonModuleDescription(arrayOf(commonSource)),
+                ),
+            api =
+                """
+                    package test.pkg {
+                      public final class Foo {
+                        ctor public Foo();
+                        method public int foo(optional int i);
+                      }
+                    }
+                """
+        )
+    }
+
+    @Test
+    fun `default parameter value from common, with android=true for common`() {
+        // b/322156458
+        val modifier =
+            if (isK2) {
+                ""
+            } else {
+                "optional "
+            }
+        val commonSource =
+            kotlin(
+                "commonMain/src/test/pkg/Foo.kt",
+                """
+                    package test.pkg
+                    expect class Foo {
+                        expect fun foo(i: Int = 0): Int
+                    }
+                """
+            )
+        val androidSource =
+            kotlin(
+                "androidMain/src/test/pkg/JvmDefaultWithCompatibility.kt",
+                """
+                    package test.pkg
+                    actual class Foo {
+                        actual fun foo(i: Int) = i
+                    }
+                """
+            )
+        check(
+            sourceFiles = arrayOf(androidSource, commonSource),
+            projectDescription =
+                createProjectDescription(
+                    createAndroidModuleDescription(arrayOf(androidSource)),
+                    createModuleDescription(
+                        moduleName = "commonMain",
+                        android = true,
+                        sourceFiles = arrayOf(commonSource),
+                        dependsOn = emptyList()
+                    ),
+                ),
+            api =
+                """
+                    package test.pkg {
+                      public final class Foo {
+                        ctor public Foo();
+                        method public int foo(${modifier}int i);
+                      }
+                    }
+                """
+        )
+    }
+
+    @Test
+    fun `Vararg parameter followed by value class type parameter`() {
+        // b/388030457
+        val varargParamType =
+            if (isK2) {
+                "java.lang.String..."
+            } else {
+                "String[]"
+            }
+        check(
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+                        fun foo(vararg varargParam: String, valueParam: IntValue) = Unit
+                        @JvmInline
+                        value class IntValue(val value: Int)
+                    """
+                    )
+                ),
+            api =
+                """
+                package test.pkg {
+                  @kotlin.jvm.JvmInline public final value class IntValue {
+                    ctor public IntValue(int value);
+                    method public int getValue();
+                    property public final int value;
+                  }
+                  public final class IntValueKt {
+                    method public static void foo($varargParamType varargParam, int valueParam);
+                  }
+                }
+            """
+        )
+    }
+
+    @Test
+    fun `Data class with value class type`() {
+        // b/388244267
+        val copySuffix =
+            if (isK2) {
+                ""
+            } else {
+                "-Vxmw0xk"
+            }
+        check(
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+                        @JvmInline
+                        value class IntValue(val value: Int)
+                        data class IntValueData(private val intValue: IntValue)
+                    """
+                    )
+                ),
+            api =
+                """
+                package test.pkg {
+                  @kotlin.jvm.JvmInline public final value class IntValue {
+                    ctor public IntValue(int value);
+                    method public int getValue();
+                    property public final int value;
+                  }
+                  public final class IntValueData {
+                    ctor public IntValueData(int intValue);
+                    method public test.pkg.IntValueData copy$copySuffix(int intValue);
+                  }
+                }
+            """
         )
     }
 }

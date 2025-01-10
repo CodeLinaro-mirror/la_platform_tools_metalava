@@ -200,10 +200,10 @@ class ApiLevelsGenerationOptions(
                 metavar = "<android-jar-pattern>",
                 help =
                     """
-                        Pattern to use to locate Android JAR files. Each pattern must contain a %
-                        character that will be replaced with each API level that is being included
-                        and if the result is an existing jar file then it will be taken as the
-                        definition of the API at that level.
+                        Pattern to use to locate Android JAR files. Each pattern must contain a
+                        {version:level} placeholder that will be replaced with each API level that
+                        is being included and if the result is an existing jar file then it will be
+                        taken as the definition of the API at that level.
                     """
                         .trimIndent(),
             )
@@ -212,8 +212,8 @@ class ApiLevelsGenerationOptions(
                 buildList {
                     addAll(it)
                     // Fallbacks
-                    add("prebuilts/tools/common/api-versions/android-%/android.jar")
-                    add("prebuilts/sdk/%/public/android.jar")
+                    add("prebuilts/tools/common/api-versions/android-{version:level}/android.jar")
+                    add("prebuilts/sdk/{version:level}/public/android.jar")
                 }
             }
 

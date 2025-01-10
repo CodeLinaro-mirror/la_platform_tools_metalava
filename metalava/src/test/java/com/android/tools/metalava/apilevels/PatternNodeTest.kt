@@ -38,7 +38,7 @@ class PatternNodeTest {
         val exception =
             assertThrows(IllegalStateException::class.java) { PatternNode.parsePatterns(patterns) }
         assertEquals(
-            "Pattern 'prebuilts/sdk/3/public/android.jar' does not contain '%' or {version:level}",
+            "Pattern 'prebuilts/sdk/3/public/android.jar' does not contain {version:level}",
             exception.message
         )
     }
@@ -47,13 +47,13 @@ class PatternNodeTest {
     fun `Invalid multiple API placeholders`() {
         val patterns =
             listOf(
-                "prebuilts/sdk/%/public/android-%.jar",
+                "prebuilts/sdk/{version:level}/public/android-{version:level}.jar",
             )
 
         val exception =
             assertThrows(IllegalStateException::class.java) { PatternNode.parsePatterns(patterns) }
         assertEquals(
-            "Pattern 'prebuilts/sdk/%/public/android-%.jar' contains more than one '%' or {version:level}",
+            "Pattern 'prebuilts/sdk/{version:level}/public/android-{version:level}.jar' contains more than one {version:level}",
             exception.message
         )
     }
@@ -62,13 +62,13 @@ class PatternNodeTest {
     fun `Unknown placeholder`() {
         val patterns =
             listOf(
-                "prebuilts/sdk/{unknown}/public/android-%.jar",
+                "prebuilts/sdk/{unknown}/public/android-{version:level}.jar",
             )
 
         val exception =
             assertThrows(IllegalStateException::class.java) { PatternNode.parsePatterns(patterns) }
         assertEquals(
-            "Pattern 'prebuilts/sdk/{unknown}/public/android-%.jar' contains an unknown placeholder '{unknown}'",
+            "Pattern 'prebuilts/sdk/{unknown}/public/android-{version:level}.jar' contains an unknown placeholder '{unknown}'",
             exception.message
         )
     }
@@ -80,10 +80,10 @@ class PatternNodeTest {
                 "prebuilts/sdk/{version:level}/public/android.jar",
                 // This pattern never matches, but it is provided by Soong as it treats all
                 // directories as being the same structure as prebuilts/sdk.
-                "prebuilts/tools/common/api-versions/%/public/android.jar",
+                "prebuilts/tools/common/api-versions/{version:level}/public/android.jar",
                 // The following are fallbacks which are always added.
-                "prebuilts/tools/common/api-versions/android-%/android.jar",
-                "prebuilts/sdk/%/public/android.jar",
+                "prebuilts/tools/common/api-versions/android-{version:level}/android.jar",
+                "prebuilts/sdk/{version:level}/public/android.jar",
             )
 
         val patternNode = PatternNode.parsePatterns(patterns)
@@ -111,17 +111,17 @@ class PatternNodeTest {
     fun `Parse common Android system patterns`() {
         val patterns =
             listOf(
-                "prebuilts/sdk/%/system/android.jar",
+                "prebuilts/sdk/{version:level}/system/android.jar",
                 // This pattern never matches, but it is provided by Soong as it treats all
                 // directories as being the same structure as prebuilts/sdk.
-                "prebuilts/tools/common/api-versions/%/system/android.jar",
-                "prebuilts/sdk/%/public/android.jar",
+                "prebuilts/tools/common/api-versions/{version:level}/system/android.jar",
+                "prebuilts/sdk/{version:level}/public/android.jar",
                 // This pattern never matches, but it is provided by Soong as it treats all
                 // directories as being the same structure as prebuilts/sdk.
-                "prebuilts/tools/common/api-versions/%/public/android.jar",
+                "prebuilts/tools/common/api-versions/{version:level}/public/android.jar",
                 // The following are fallbacks which are always added.
-                "prebuilts/tools/common/api-versions/android-%/android.jar",
-                "prebuilts/sdk/%/public/android.jar",
+                "prebuilts/tools/common/api-versions/android-{version:level}/android.jar",
+                "prebuilts/sdk/{version:level}/public/android.jar",
             )
 
         val patternNode = PatternNode.parsePatterns(patterns)
@@ -153,21 +153,21 @@ class PatternNodeTest {
     fun `Parse common Android module-lib patterns`() {
         val patterns =
             listOf(
-                "prebuilts/sdk/%/module-lib/android.jar",
+                "prebuilts/sdk/{version:level}/module-lib/android.jar",
                 // This pattern never matches, but it is provided by Soong as it treats all
                 // directories as being the same structure as prebuilts/sdk.
-                "prebuilts/tools/common/api-versions/%/module-lib/android.jar",
-                "prebuilts/sdk/%/system/android.jar",
+                "prebuilts/tools/common/api-versions/{version:level}/module-lib/android.jar",
+                "prebuilts/sdk/{version:level}/system/android.jar",
                 // This pattern never matches, but it is provided by Soong as it treats all
                 // directories as being the same structure as prebuilts/sdk.
-                "prebuilts/tools/common/api-versions/%/system/android.jar",
-                "prebuilts/sdk/%/public/android.jar",
+                "prebuilts/tools/common/api-versions/{version:level}/system/android.jar",
+                "prebuilts/sdk/{version:level}/public/android.jar",
                 // This pattern never matches, but it is provided by Soong as it treats all
                 // directories as being the same structure as prebuilts/sdk.
-                "prebuilts/tools/common/api-versions/%/public/android.jar",
+                "prebuilts/tools/common/api-versions/{version:level}/public/android.jar",
                 // The following are fallbacks which are always added.
-                "prebuilts/tools/common/api-versions/android-%/android.jar",
-                "prebuilts/sdk/%/public/android.jar",
+                "prebuilts/tools/common/api-versions/android-{version:level}/android.jar",
+                "prebuilts/sdk/{version:level}/public/android.jar",
             )
 
         val patternNode = PatternNode.parsePatterns(patterns)
@@ -205,8 +205,8 @@ class PatternNodeTest {
 
         val patterns =
             listOf(
-                "prebuilts/sdk/%/public/android.jar",
-                "prebuilts/tools/common/api-versions/android-%/android.jar",
+                "prebuilts/sdk/{version:level}/public/android.jar",
+                "prebuilts/tools/common/api-versions/android-{version:level}/android.jar",
             )
         val node = PatternNode.parsePatterns(patterns)
         val range = ApiVersion.fromLevel(1).rangeTo(ApiVersion.fromLevel(5))
@@ -246,8 +246,8 @@ class PatternNodeTest {
                 // Check system first and then fall back to public. As there are both public and
                 // system for versions 21 onwards these patterns will match both the public and
                 // system versions but only the system one will be used as it would be found first.
-                "prebuilts/sdk/%/system/android.jar",
-                "prebuilts/sdk/%/public/android.jar",
+                "prebuilts/sdk/{version:level}/system/android.jar",
+                "prebuilts/sdk/{version:level}/public/android.jar",
             )
         val node = PatternNode.parsePatterns(patterns)
         val range = ApiVersion.fromLevel(20).rangeTo(ApiVersion.fromLevel(22))
@@ -280,8 +280,8 @@ class PatternNodeTest {
             listOf(
                 // Check the public first, this should never fall back to system as it will always
                 // find a public jar.
-                "prebuilts/sdk/%/public/android.jar",
-                "prebuilts/sdk/%/system/android.jar",
+                "prebuilts/sdk/{version:level}/public/android.jar",
+                "prebuilts/sdk/{version:level}/system/android.jar",
             )
         val node = PatternNode.parsePatterns(patterns)
         val range = ApiVersion.fromLevel(20).rangeTo(ApiVersion.fromLevel(22))
@@ -310,7 +310,7 @@ class PatternNodeTest {
 
         val patterns =
             listOf(
-                "prebuilts/sdk/%",
+                "prebuilts/sdk/{version:level}",
             )
         val node = PatternNode.parsePatterns(patterns)
         val range = ApiVersion.fromLevel(21).rangeTo(ApiVersion.fromLevel(23))
