@@ -38,10 +38,10 @@ Api Levels Generation:
                                              or equal to 27.
   --current-codename <version-codename>      Sets the code name for the current source code.
   --android-jar-pattern <android-jar-pattern>
-                                             Pattern to use to locate Android JAR files. Each pattern must contain a %
-                                             character that will be replaced with each API level that is being included
-                                             and if the result is an existing jar file then it will be taken as the
-                                             definition of the API at that level.
+                                             Pattern to use to locate Android JAR files. Each pattern must contain a
+                                             {version:level} placeholder that will be replaced with each API level that
+                                             is being included and if the result is an existing jar file then it will be
+                                             taken as the definition of the API at that level.
   --sdk-extensions-root <sdk-jar-root>       Points to root of prebuilt extension SDK jars, if any. This directory is
                                              expected to contain snapshots of historical extension SDK versions in the
                                              form of stub jars. The paths should be on the format

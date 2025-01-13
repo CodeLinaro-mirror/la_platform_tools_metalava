@@ -21,19 +21,19 @@ import java.io.File
 /**
  * A node in a tree of path patterns used to select historical API files.
  *
- * e.g. the nodes of `prebuilts/sdk/%/public/android.jar` would be:
+ * e.g. the nodes of `prebuilts/sdk/{version:level}/public/android.jar` would be:
  * 1. The root element.
  * 2. `prebuilts`
  * 3. `sdk`
- * 4. `%` - a wild card representing any numbered directory.
+ * 4. `{version:level}` - a wild card representing any numbered directory.
  * 5. `public`
  * 6. `android.jar`
  *
  * Where each node is the child of the preceding node.
  *
  * If two or more patterns had matching nodes, then they will share the nodes. e.g.
- * `prebuilts/sdk/%/system/android.jar` would share the first 4 nodes with above followed by two
- * more nodes `system` and `android.jar`.
+ * `prebuilts/sdk/{version:level}/system/android.jar` would share the first 4 nodes with above
+ * followed by two more nodes `system` and `android.jar`.
  *
  * These will be used to either find matching files in the file system by scanning through matching
  * directories or determine whether a specific file path that is passed in matches the pattern. In
@@ -253,8 +253,8 @@ sealed class PatternNode {
         /**
          * Parse a list of [patterns] into a tree of [PatternNode]s.
          *
-         * Each pattern in [patterns] must contain a single '%' or a single `{version:level}` that
-         * is a placeholder for the version number.
+         * Each pattern in [patterns] must contain a single `{version:level}` that is a placeholder
+         * for the version number.
          */
         fun parsePatterns(patterns: List<String>): PatternNode {
             val root = RootPatternNode()
@@ -272,16 +272,13 @@ sealed class PatternNode {
          * into the [root], reusing existing [PatternNode]s where possible.
          */
         private fun addPattern(root: PatternNode, pathPattern: String) {
-            // Normalize the pattern by replacing % with {version:level}.
-            val normalizedPattern = pathPattern.replace("%", PLACEHOLDER_VERSION_LEVEL)
-
             // The list of nodes used for the pattern.
             val nodes = mutableListOf<PatternNode>()
 
             var parent = root
             // Split the pattern using `/` and iterate over each of the parts adding them into the
             // tree structure.
-            for (namePattern in normalizedPattern.split("/")) {
+            for (namePattern in pathPattern.split("/")) {
                 // Create a node for the pattern.
                 val node =
                     when {
@@ -305,10 +302,8 @@ sealed class PatternNode {
             // Check to make sure that exactly one of the nodes will match an API version.
             val count = nodes.count { it is ApiVersionPatternNode }
             when {
-                count == 0 ->
-                    error("Pattern '$pathPattern' does not contain '%' or {version:level}")
-                count > 1 ->
-                    error("Pattern '$pathPattern' contains more than one '%' or {version:level}")
+                count == 0 -> error("Pattern '$pathPattern' does not contain {version:level}")
+                count > 1 -> error("Pattern '$pathPattern' contains more than one {version:level}")
             }
         }
 
@@ -317,7 +312,7 @@ sealed class PatternNode {
 
         private const val PLACEHOLDER_VERSION_LEVEL = "{version:level}"
 
-        /** Parse a parameterized pattern, i.e. one with '%'. */
+        /** Parse a parameterized pattern, i.e. one with a placeholder like '{version:level}'. */
         private fun parseParameterizedPattern(pathPattern: String, pattern: String): PatternNode {
             val regexBuilder = StringBuilder()
             var literalStart = 0

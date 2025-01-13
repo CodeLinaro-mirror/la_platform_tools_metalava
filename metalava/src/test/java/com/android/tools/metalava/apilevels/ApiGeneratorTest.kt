@@ -89,7 +89,7 @@ class ApiGeneratorTest : DriverTest() {
                     ARG_GENERATE_API_LEVELS,
                     apiVersionsXml.path,
                     ARG_ANDROID_JAR_PATTERN,
-                    "${testPrebuiltsRoot.path}/%/public/android.jar",
+                    "${testPrebuiltsRoot.path}/{version:level}/public/android.jar",
                     ARG_SDK_JAR_ROOT,
                     "${testPrebuiltsRoot.path}/extensions",
                     ARG_SDK_INFO_FILE,
