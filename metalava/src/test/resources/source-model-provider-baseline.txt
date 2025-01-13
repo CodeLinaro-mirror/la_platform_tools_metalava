@@ -134,6 +134,9 @@ com.android.tools.metalava.TypeUseAnnotationFilteringTest
 com.android.tools.metalava.UnhideApisTest
   Including private interfaces from types[turbine]
 
+com.android.tools.metalava.VisibleForTestingTest
+  Test VisibleForTesting constants - java[turbine]
+
 com.android.tools.metalava.apilevels.ApiGeneratorTest
   APIs annotated with suppress-compatibility-meta-annotations appear in output[turbine]
 

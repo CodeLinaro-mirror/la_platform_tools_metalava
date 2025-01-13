@@ -136,10 +136,10 @@ class AnnotationsMerger(
                 val javaStubsCodebase =
                     sourceParser.parseSources(
                         SourceSet(javaStubFiles, roots),
-                        SourceSet.empty(),
                         "Codebase loaded from stubs",
                         classPath = options.classpath,
                         apiPackages = options.apiPackages,
+                        projectDescription = null,
                     )
                 mergeJavaStubsCodebase(javaStubsCodebase)
             }

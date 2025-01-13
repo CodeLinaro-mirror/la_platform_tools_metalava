@@ -24,6 +24,7 @@ import com.android.tools.metalava.apilevels.ApiXmlPrinter
 import com.android.tools.metalava.apilevels.ExtensionSdkJarReader.addVersionedExtensionApis
 import com.android.tools.metalava.apilevels.GenerateApiHistoryConfig
 import com.android.tools.metalava.apilevels.MissingClassAction
+import com.android.tools.metalava.apilevels.PatternNode
 import com.android.tools.metalava.apilevels.VersionedApi
 import com.android.tools.metalava.apilevels.VersionedJarApi
 import com.android.tools.metalava.apilevels.VersionedSignatureApi
@@ -48,7 +49,6 @@ import com.github.ajalt.clikt.parameters.options.split
 import com.github.ajalt.clikt.parameters.options.validate
 import com.github.ajalt.clikt.parameters.types.int
 import java.io.File
-import java.io.IOException
 
 // XML API version related arguments.
 const val ARG_GENERATE_API_LEVELS = "--generate-api-levels"
@@ -319,40 +319,23 @@ class ApiLevelsGenerationOptions(
      * Returns a list of [VersionedApi]s from lowest [VersionedApi.apiVersion] to highest.
      */
     private fun findAndroidJars(): List<VersionedApi> {
-        val versionedHistoricalApis = mutableListOf<VersionedApi>()
-        // Get all the android.jar. They are in platforms-#
-        for (apiLevel in firstApiLevel.rangeTo(lastApiLevel)) {
-            try {
-                val jar = getAndroidJarFile(apiLevel, androidJarPatterns)
-                if (jar == null || !jar.isFile) {
-                    verbosePrint { "Last API level found: ${apiLevel - 1}" }
+        // Find all the android.jar files for versions within the required range.
+        val patternNode = PatternNode.parsePatterns(androidJarPatterns)
+        val versionRange =
+            ApiVersion.fromLevel(firstApiLevel).rangeTo(ApiVersion.fromLevel(lastApiLevel))
+        val scanConfig =
+            PatternNode.ScanConfig(dir = fileForPathInner("."), apiVersionRange = versionRange)
+        val matchedFiles = patternNode.scan(scanConfig)
 
-                    if (apiLevel < 28) {
-                        // Clearly something is wrong with the patterns; this should result in a
-                        // build error
-                        throw MetalavaCliException(
-                            stderr =
-                                "Could not find android.jar for API level $apiLevel; the " +
-                                    "$ARG_ANDROID_JAR_PATTERN set might be invalid see:" +
-                                    " ${androidJarPatterns.joinToString()} (the last two entries are defaults)"
-                        )
-                    }
+        // TODO(b/383288863): Check to make sure that there is one jar file for every major version
+        //  in the range.
 
-                    break
-                }
-
-                verbosePrint { "Found API $apiLevel at ${jar.path}" }
-
-                val apiVersion = ApiVersion.fromLevel(apiLevel)
-                val updater = ApiHistoryUpdater.forApiVersion(apiVersion)
-                val versionedJar = VersionedJarApi(jar, updater)
-                versionedHistoricalApis += versionedJar
-            } catch (e: IOException) {
-                e.printStackTrace()
-            }
+        // Convert the MatchedPatternFiles into VersionedJarApis.
+        return matchedFiles.map { (jar, apiVersion) ->
+            verbosePrint { "Found API $apiVersion at $jar" }
+            val updater = ApiHistoryUpdater.forApiVersion(apiVersion)
+            VersionedJarApi(jar, updater)
         }
-
-        return versionedHistoricalApis.toList()
     }
 
     /** Print string returned by [message] if verbose output has been requested. */
@@ -360,12 +343,6 @@ class ApiLevelsGenerationOptions(
         if (earlyOptions.verbosity.verbose) {
             executionEnvironment.stdout.println(message())
         }
-    }
-
-    private fun getAndroidJarFile(apiLevel: Int, patterns: List<String>): File? {
-        return patterns
-            .map { fileForPathInner(it.replace("%", apiLevel.toString())) }
-            .firstOrNull { it.isFile }
     }
 
     /**

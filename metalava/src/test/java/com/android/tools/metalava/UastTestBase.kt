@@ -22,6 +22,9 @@ import com.android.tools.metalava.model.testing.FilterByProvider
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.testing.KnownSourceFiles
+import com.android.tools.metalava.testing.createAndroidModuleDescription
+import com.android.tools.metalava.testing.createCommonModuleDescription
+import com.android.tools.metalava.testing.createProjectDescription
 import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
 
@@ -1439,12 +1442,10 @@ abstract class UastTestBase : DriverTest() {
                         class PointerKeyboardModifiers(internal val packedValue: NativePointerKeyboardModifiers)
                         """
             )
-        check(
-            sourceFiles =
-                arrayOf(
-                    kotlin(
-                        "androidMain/src/test/pkg/PointerEvent.android.kt",
-                        """
+        val androidSource =
+            kotlin(
+                "androidMain/src/test/pkg/PointerEvent.android.kt",
+                """
                         package test.pkg
 
                         actual class PointerEvent {
@@ -1453,10 +1454,14 @@ abstract class UastTestBase : DriverTest() {
 
                         internal actual typealias NativePointerKeyboardModifiers = Int
                         """
-                    ),
-                    commonSource,
+            )
+        check(
+            sourceFiles = arrayOf(androidSource, commonSource),
+            projectDescription =
+                createProjectDescription(
+                    createAndroidModuleDescription(arrayOf(androidSource)),
+                    createCommonModuleDescription(arrayOf(commonSource)),
                 ),
-            commonSourceFiles = arrayOf(commonSource),
             api =
                 """
                 package test.pkg {
@@ -1547,12 +1552,10 @@ abstract class UastTestBase : DriverTest() {
                         value class PointerKeyboardModifiers(internal val packedValue: NativePointerKeyboardModifiers)
                         """
             )
-        check(
-            sourceFiles =
-                arrayOf(
-                    kotlin(
-                        "androidMain/src/test/pkg/PointerEvent.android.kt",
-                        """
+        val androidSource =
+            kotlin(
+                "androidMain/src/test/pkg/PointerEvent.android.kt",
+                """
                         package test.pkg
 
                         actual class PointerEvent {
@@ -1561,10 +1564,14 @@ abstract class UastTestBase : DriverTest() {
 
                         internal actual typealias NativePointerKeyboardModifiers = Int
                         """
-                    ),
-                    commonSource,
+            )
+        check(
+            sourceFiles = arrayOf(androidSource, commonSource),
+            projectDescription =
+                createProjectDescription(
+                    createAndroidModuleDescription(arrayOf(androidSource)),
+                    createCommonModuleDescription(arrayOf(commonSource)),
                 ),
-            commonSourceFiles = arrayOf(commonSource),
             api =
                 """
                 package test.pkg {
@@ -1595,12 +1602,10 @@ abstract class UastTestBase : DriverTest() {
                     public expect inline fun TestClass.test2(a: Int = 0)
                 """
             )
-        check(
-            sourceFiles =
-                arrayOf(
-                    kotlin(
-                        "androidMain/src/pkg/TestClass.kt",
-                        """
+        val androidSource =
+            kotlin(
+                "androidMain/src/pkg/TestClass.kt",
+                """
                             package pkg
                             public actual class TestClass {
                               public actual fun test1(a: Int) {}
@@ -1608,10 +1613,14 @@ abstract class UastTestBase : DriverTest() {
                             public actual inline fun TestClass.test2(a: Int) {
                             }
                         """
-                    ),
-                    commonSource,
+            )
+        check(
+            sourceFiles = arrayOf(androidSource, commonSource),
+            projectDescription =
+                createProjectDescription(
+                    createAndroidModuleDescription(arrayOf(androidSource)),
+                    createCommonModuleDescription(arrayOf(commonSource)),
                 ),
-            commonSourceFiles = arrayOf(commonSource),
             api =
                 """
                 package pkg {
@@ -1621,6 +1630,58 @@ abstract class UastTestBase : DriverTest() {
                   }
                   public final class TestClassKt {
                     method public static inline void test2(pkg.TestClass, optional int a);
+                  }
+                }
+                """
+        )
+    }
+
+    @Test
+    fun `JvmDefaultWithCompatibility as typealias actual`() {
+        val anno = if (isK2) "" else "@kotlin.jvm.JvmDefaultWithCompatibility "
+        val commonSources =
+            arrayOf(
+                kotlin(
+                    "commonMain/src/pkg/JvmDefaultWithCompatibility.kt",
+                    """
+                    package pkg
+                    internal expect annotation class JvmDefaultWithCompatibility()
+                """
+                ),
+                kotlin(
+                    "commonMain/src/pkg2/TestInterface.kt",
+                    """
+                    package pkg2
+
+                    import pkg.JvmDefaultWithCompatibility
+
+                    @JvmDefaultWithCompatibility()
+                    interface TestInterface {
+                      fun foo()
+                    }
+                """
+                ),
+            )
+        val androidSource =
+            kotlin(
+                "androidMain/src/pkg/JvmDefaultWithCompatibility.kt",
+                """
+                            package pkg
+                            internal actual typealias JvmDefaultWithCompatibility = kotlin.jvm.JvmDefaultWithCompatibility
+                        """
+            )
+        check(
+            sourceFiles = arrayOf(androidSource, *commonSources),
+            projectDescription =
+                createProjectDescription(
+                    createAndroidModuleDescription(arrayOf(androidSource)),
+                    createCommonModuleDescription(commonSources),
+                ),
+            api =
+                """
+                package pkg2 {
+                  ${anno}public interface TestInterface {
+                    method public void foo();
                   }
                 }
                 """

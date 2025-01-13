@@ -36,6 +36,8 @@ const val ARG_ERROR_MESSAGE_API_LINT = "--error-message:api-lint"
 const val ARG_BASELINE_API_LINT = "--baseline:api-lint"
 const val ARG_UPDATE_BASELINE_API_LINT = "--update-baseline:api-lint"
 
+const val ARG_ALLOWED_ACRONYM = "--api-lint-allowed-acronym"
+
 /** The name of the group, can be used in help text to refer to the options in this group. */
 const val API_LINT_GROUP = "Api Lint"
 
@@ -110,6 +112,18 @@ class ApiLintOptions(
             )
             .default(DefaultLintErrorMessage, defaultForHelp = "")
             .allowStructuredOptionName()
+
+    internal val allowedAcronyms: List<String> by
+        option(
+                ARG_ALLOWED_ACRONYM,
+                help =
+                    """
+                    An acronym that should be allowed by API lint. Can be specified multiple times.
+                    """
+                        .trimIndent(),
+                metavar = "<acronym>"
+            )
+            .multiple()
 
     private val baselineOptionsMixin =
         BaselineOptionsMixin(
