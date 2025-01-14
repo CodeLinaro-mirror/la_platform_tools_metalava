@@ -29,7 +29,7 @@ import org.junit.BeforeClass
 
 abstract class ApiGeneratorIntegrationTestBase : DriverTest() {
 
-    val androidPublicJarsPattern = "${platformJars.path}/%/public/android.jar"
+    val androidPublicJarsPattern = "${platformJars.path}/{version:level}/public/android.jar"
 
     protected fun createSdkExtensionInfoFile(): File {
         val file = File.createTempFile("filter", "txt")

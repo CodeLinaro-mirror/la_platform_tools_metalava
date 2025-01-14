@@ -299,9 +299,6 @@ class Options(
      */
     var allowReadingComments = true
 
-    /** Ths list of source roots in the common module */
-    val commonSourcePath: List<File> by sourceOptions::commonSourcePath
-
     /** The list of source roots */
     val sourcePath: List<File> by sourceOptions::sourcePath
 

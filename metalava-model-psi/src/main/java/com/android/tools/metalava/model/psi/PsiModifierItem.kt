@@ -47,7 +47,6 @@ import com.android.tools.metalava.model.ModifierFlags.Companion.SYNCHRONIZED
 import com.android.tools.metalava.model.ModifierFlags.Companion.TRANSIENT
 import com.android.tools.metalava.model.ModifierFlags.Companion.VALUE
 import com.android.tools.metalava.model.ModifierFlags.Companion.VARARG
-import com.android.tools.metalava.model.ModifierFlags.Companion.VISIBILITY_MASK
 import com.android.tools.metalava.model.ModifierFlags.Companion.VOLATILE
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.VisibilityLevel
@@ -507,24 +506,7 @@ internal object PsiModifierItem {
                     .distinct()
                     // Remove any type-use annotations that psi incorrectly applied to the item.
                     .filterIncorrectTypeUseAnnotations(element)
-                    .mapNotNull {
-                        val qualifiedName = it.qualifiedName
-                        // Consider also supporting
-                        // com.android.internal.annotations.VisibleForTesting?
-                        if (qualifiedName == ANDROIDX_VISIBLE_FOR_TESTING) {
-                            val otherwise = it.findAttributeValue(ATTR_OTHERWISE)
-                            val ref =
-                                when {
-                                    otherwise is PsiReferenceExpression -> otherwise.referenceName
-                                            ?: ""
-                                    otherwise != null -> otherwise.text
-                                    else -> ""
-                                }
-                            flags = getVisibilityFlag(ref, flags)
-                        }
-
-                        PsiAnnotationItem.create(codebase, it)
-                    }
+                    .mapNotNull { PsiAnnotationItem.create(codebase, it) }
                     .filter { !it.isDeprecatedForSdk() }
             createMutableModifiers(flags, annotations)
         }
@@ -564,22 +546,7 @@ internal object PsiModifierItem {
                             it.qualifiedName == null ||
                             !it.isKotlinNullabilityAnnotation
                     }
-                    .mapNotNull {
-                        val qualifiedName = it.qualifiedName
-                        if (qualifiedName == ANDROIDX_VISIBLE_FOR_TESTING) {
-                            val otherwise = it.findAttributeValue(ATTR_OTHERWISE)
-                            val ref =
-                                when {
-                                    otherwise is PsiReferenceExpression -> otherwise.referenceName
-                                            ?: ""
-                                    otherwise != null -> otherwise.asSourceString()
-                                    else -> ""
-                                }
-                            flags = getVisibilityFlag(ref, flags)
-                        }
-
-                        UAnnotationItem.create(codebase, it)
-                    }
+                    .mapNotNull { UAnnotationItem.create(codebase, it) }
                     .filter { !it.isDeprecatedForSdk() }
 
             if (!isPrimitiveVariable) {
@@ -627,24 +594,6 @@ internal object PsiModifierItem {
 
     private val UAnnotation.isKotlinNullabilityAnnotation: Boolean
         get() = qualifiedName == NOT_NULL || qualifiedName == NULLABLE
-
-    /** Modifies the modifier flags based on the VisibleForTesting otherwise constants */
-    private fun getVisibilityFlag(ref: String, flags: Int): Int {
-        val visibilityFlags =
-            if (ref.endsWith("PROTECTED")) {
-                PROTECTED
-            } else if (ref.endsWith("PACKAGE_PRIVATE")) {
-                PACKAGE_PRIVATE
-            } else if (ref.endsWith("PRIVATE") || ref.endsWith("NONE")) {
-                PRIVATE
-            } else {
-                flags and VISIBILITY_MASK
-            }
-
-        return (flags and VISIBILITY_MASK.inv()) or visibilityFlags
-    }
 }
 
-private const val ANDROIDX_VISIBLE_FOR_TESTING = "androidx.annotation.VisibleForTesting"
-private const val ATTR_OTHERWISE = "otherwise"
 private const val ATTR_ALLOW_IN = "allowIn"
