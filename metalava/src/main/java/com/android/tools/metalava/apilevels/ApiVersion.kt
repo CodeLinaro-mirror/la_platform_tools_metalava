@@ -23,7 +23,7 @@ import java.util.regex.Pattern
 data class ApiVersion
 internal constructor(
     /** The major version. */
-    private val major: Int,
+    val major: Int,
 
     /**
      * The optional minor version.
