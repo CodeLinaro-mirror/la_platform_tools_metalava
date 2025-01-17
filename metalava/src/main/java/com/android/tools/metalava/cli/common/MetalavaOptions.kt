@@ -238,6 +238,9 @@ internal fun stringToNewOrExistingFile(value: String): File {
 // collapsing the `\n` into adjacent spaces. Acts like an HTML <br/>.
 const val HARD_NEWLINE = "\u0085"
 
+// Two consecutive newline characters will result in a blank line in the Clikt formatted output.
+const val BLANK_LINE = "\n\n"
+
 /**
  * Create a property delegate for an enum.
  *
@@ -279,32 +282,55 @@ internal fun <T : Enum<T>> ParameterHolder.nonInlineEnumOption(
     enumValues: Array<T>,
     help: String,
     enumValueHelpGetter: (T) -> String,
-    key: (T) -> String,
+    enumLabelGetter: (T) -> String,
     default: T
 ): OptionWithValues<T, T, T> {
-    // Filter out any enum values that do not provide any help.
-    val optionToValue = enumValues.filter { enumValueHelpGetter(it) != "" }.associateBy { key(it) }
+    val labelToEnumValue =
+        enumValues
+            // Filter out any enum values that do not provide any help.
+            .filter { enumValueHelpGetter(it) != "" }
+            // Convert to a map from label to enum value.
+            .associateBy { enumLabelGetter(it) }
 
     // Get the help representation of the default value.
-    val defaultForHelp = key(default)
+    val defaultForHelp = enumLabelGetter(default)
 
     val constructedHelp = buildString {
         append(help)
-        append(HARD_NEWLINE)
-        for (enumValue in optionToValue.values) {
-            val value = key(enumValue)
-            // This must match the pattern used in MetalavaHelpFormatter.styleEnumHelpTextIfNeeded
-            // which is used to deconstruct this.
-            append(constructStyleableChoiceOption(value))
-            append(" - ")
-            append(enumValueHelpGetter(enumValue))
-            append(HARD_NEWLINE)
-        }
+        appendDefinitionListHelp(
+            labelToEnumValue.entries.map { (label, enumValue) ->
+                label to enumValueHelpGetter(enumValue)
+            }
+        )
     }
 
     return option(names = names, help = constructedHelp)
-        .choice(optionToValue)
+        .choice(labelToEnumValue)
         .default(default, defaultForHelp = defaultForHelp)
+}
+
+/**
+ * Append help for what is effectively a definition list, e.g. `<dl>...</dl>` in HTML.
+ *
+ * Each entry in the list has a term that is being defined and the definition of that term. If the
+ * terminal supports it then the term will be in bold. The term and definition are separate by ` -
+ * `.
+ *
+ * @param definitionList is a list of [Pair]s, where [Pair.first] is the term being defined and
+ *   [Pair.second] is the definition of that term.
+ */
+private fun StringBuilder.appendDefinitionListHelp(
+    definitionList: List<Pair<String, String>>,
+) {
+    append(BLANK_LINE)
+    for ((term, body) in definitionList) {
+        // This must match the pattern used in MetalavaHelpFormatter.styleEnumHelpTextIfNeeded
+        // which is used to deconstruct this.
+        append(constructStyleableChoiceOption(term))
+        append(" - ")
+        append(body)
+        append(BLANK_LINE)
+    }
 }
 
 /**
@@ -314,13 +340,25 @@ internal fun <T : Enum<T>> ParameterHolder.nonInlineEnumOption(
  * in the help text using [deconstructStyleableChoiceOption] and replaced with actual styling
  * sequences if needed.
  */
-private fun constructStyleableChoiceOption(value: String) = "$HARD_NEWLINE**$value**"
+private fun constructStyleableChoiceOption(value: String) = "$BLANK_LINE**$value**"
 
 /**
  * A regular expression that will match choice options created using
  * [constructStyleableChoiceOption].
  */
-private val deconstructStyleableChoiceOption = """$HARD_NEWLINE\*\*([^*]+)\*\*""".toRegex()
+private val deconstructStyleableChoiceOption = """$BLANK_LINE(\*\*([^*]+)\*\*)""".toRegex()
+
+/**
+ * The index of the group in [deconstructStyleableChoiceOption] that must be replaced by
+ * [replaceChoiceOption].
+ */
+private const val REPLACEMENT_GROUP_INDEX = 1
+
+/**
+ * The index of the group in [deconstructStyleableChoiceOption] that contains the label that will be
+ * transformed by [replaceChoiceOption].
+ */
+private const val LABEL_GROUP_INDEX = REPLACEMENT_GROUP_INDEX + 1
 
 /**
  * Replace the choice option (i.e. the value passed to [constructStyleableChoiceOption]) with the
@@ -333,11 +371,20 @@ private fun MatchResult.replaceChoiceOption(
     builder: StringBuilder,
     transformer: (String) -> String
 ) {
-    val group = groups[1] ?: throw IllegalStateException("group 1 not found in $this")
-    val choiceOption = group.value
-    val replacementText = transformer(choiceOption)
-    // Replace the choice option and the surrounding style markers but not the leading NEL.
-    builder.replace(range.first + 1, range.last + 1, replacementText)
+    // Get the text for the label of the choice option.
+    val labelGroup =
+        groups[LABEL_GROUP_INDEX] ?: error("label group $LABEL_GROUP_INDEX not found in $this")
+    val label = labelGroup.value
+
+    // Transform the label.
+    val transformedLabel = transformer(label)
+
+    // Replace the label and the surrounding style markers but not the leading blank line with the
+    // transformed label.
+    val replacementGroup =
+        groups[REPLACEMENT_GROUP_INDEX]
+            ?: error("replacement group $REPLACEMENT_GROUP_INDEX not found in $this")
+    builder.replace(replacementGroup.range.first, replacementGroup.range.last + 1, transformedLabel)
 }
 
 /**
