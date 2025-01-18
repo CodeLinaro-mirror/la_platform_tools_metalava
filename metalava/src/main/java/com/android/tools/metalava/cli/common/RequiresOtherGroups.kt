@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2024 The Android Open Source Project
+ * Copyright (C) 2025 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,20 +14,18 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.apilevels
+package com.android.tools.metalava.cli.common
+
+import com.github.ajalt.clikt.parameters.groups.OptionGroup
 
 /**
- * Represents a specific [ApiVersion] of an API.
+ * Interface for [OptionGroup] implementations that depend on, and access command line options from
+ * other [OptionGroup]s and so need to make sure that those other groups are initialized (by being
+ * parsed by Clikt).
  *
- * Supports updating [Api] with information from the [apiVersion] of the API that is defined by
- * this.
+ * At the moment this is only used for testing purposes.
  */
-interface VersionedApi {
-    /** The [ApiVersion] of the API defined by this. */
-    val apiVersion: ApiVersion
-
-    /** Update [api] with information from this version of the API. */
-    fun updateApi(api: Api)
-
-    fun forExtension() = false
+interface RequiresOtherGroups {
+    /** The list of [OptionGroup]s required by this. */
+    val requiredGroups: List<OptionGroup>
 }
