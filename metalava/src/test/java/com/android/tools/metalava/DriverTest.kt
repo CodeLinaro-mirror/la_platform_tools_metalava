@@ -872,7 +872,7 @@ abstract class DriverTest :
             }
 
         // Always pass apiArgs and generate API text file in runDriver
-        val apiFile: File = newFile("public-api.txt")
+        val apiFile: File = getOrCreateFile("public-api.txt")
         val apiArgs = arrayOf(ARG_API, apiFile.path)
 
         val subtractApiFile: File?
@@ -888,7 +888,7 @@ abstract class DriverTest :
         var stubsDir: File? = null
         val stubsArgs =
             if (stubFiles.isNotEmpty() || stubPaths != null) {
-                stubsDir = newFolder("stubs")
+                stubsDir = getOrCreateFolder("stubs")
                 if (docStubs) {
                     arrayOf(ARG_DOC_STUBS, stubsDir.path)
                 } else {
@@ -1026,7 +1026,7 @@ abstract class DriverTest :
                 // test root folder such that we clean up the output strings referencing
                 // paths to the temp folder
                 "--temp-folder",
-                newFolder("temp").path,
+                getOrCreateFolder("temp").path,
 
                 // Annotation generation temporarily turned off by default while integrating with
                 // SDK builds; tests need these

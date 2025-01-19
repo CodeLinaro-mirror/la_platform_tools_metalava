@@ -31,29 +31,67 @@ interface TemporaryFolderOwner {
      * write the files to the folder and then return the folder.
      */
     fun createProject(files: Array<TestFile>): File {
-        val dir = newFolder("project")
+        val dir = getOrCreateFolder("project")
 
         files.map { it.createFile(dir) }.forEach { assertNotNull(it) }
 
         return dir
     }
 
-    fun newFolder(children: String = ""): File {
-        val dir = File(temporaryFolder.root.path, children)
-        return if (dir.exists()) {
+    /**
+     * Get a folder with a path [relative] to the root.
+     *
+     * Use an existing folder, or create a new one if necessary. It is an error if a file exists but
+     * is not a directory.
+     */
+    fun getOrCreateFolder(relative: String = ""): File {
+        val dir = temporaryFolder.root.resolve(relative)
+        // If the directory exists and is a directory then use it, otherwise drop through to create
+        // a new one. If the directory exists but is not a directory then attempting to create a new
+        // one will report an issue.
+        return if (dir.isDirectory) {
             dir
         } else {
-            temporaryFolder.newFolder(children)
+            temporaryFolder.newFolder(relative)
         }
     }
 
-    fun newFile(children: String = ""): File {
-        val dir = File(temporaryFolder.root.path, children)
-        return if (dir.exists()) {
-            dir
+    /**
+     * Get a file with a path [relative] to the root.
+     *
+     * Use an existing file, or create an empty new one if necessary. It is an error if a file
+     * exists but is not a normal file.
+     */
+    fun getOrCreateFile(relative: String = ""): File {
+        val file = temporaryFolder.root.resolve(relative)
+        // If the file exists and is a normal file then use it, otherwise drop through to create
+        // a new one. If the file exists but is not a normal file then attempting to create a new
+        // one will report an issue.
+        return if (file.isFile) {
+            file
         } else {
-            temporaryFolder.newFile(children)
+            file.parentFile.mkdirs()
+            temporaryFolder.newFile(relative)
         }
+    }
+
+    /** Create a file (and containing directory if necessary) with a path [relative] to the root. */
+    fun newFile(relative: String = ""): File {
+        val file = temporaryFolder.root.resolve(relative)
+        file.parentFile.mkdirs()
+        return temporaryFolder.newFile(relative)
+    }
+
+    /**
+     * Build a file structure in the directory [relative] to the root.
+     *
+     * Creates the directory first, if needed. Then creates a [DirectoryBuilder] for the directory
+     * and then invokes [body] on it to populate the directory.
+     */
+    fun buildFileStructure(relative: String = "", body: DirectoryBuilder.() -> Unit): File {
+        val dir = getOrCreateFolder(relative)
+        dir.buildFileStructure(body)
+        return dir
     }
 
     /** Hides path prefixes from /tmp folders used by the testing infrastructure */

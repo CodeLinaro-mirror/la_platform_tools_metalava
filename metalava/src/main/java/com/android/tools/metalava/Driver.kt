@@ -221,7 +221,9 @@ internal fun processFlags(
     }
 
     val generateXmlConfig =
-        options.apiLevelsGenerationOptions.forAndroidConfig {
+        options.apiLevelsGenerationOptions.forAndroidConfig(
+            options.apiSelectionOptions.apiSurface,
+        ) {
             var codebaseFragment =
                 CodebaseFragment.create(codebase) { delegatedVisitor ->
                     FilteringApiVisitor(
