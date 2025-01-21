@@ -70,7 +70,7 @@ Arguments:
                     source.path,
                 )
 
-            val target = newFolder("private-annotations")
+            val target = getOrCreateFolder("private-annotations")
             args += target.path
 
             verify {
@@ -146,7 +146,7 @@ Arguments:
 
         commandTest {
             // Copy the stub-annotations sources and add a new file.
-            val source = newFolder("annotations-copy")
+            val source = getOrCreateFolder("annotations-copy")
             stubAnnotationsDir.copyRecursively(source)
             assertTrue(source.path, source.isDirectory)
             inputFile("android/annotation/Unknown.java", fooSource, source)
@@ -157,7 +157,7 @@ Arguments:
                     source.path,
                 )
 
-            val target = newFolder("private-annotations")
+            val target = getOrCreateFolder("private-annotations")
             args += target.path
 
             expectedStderr =

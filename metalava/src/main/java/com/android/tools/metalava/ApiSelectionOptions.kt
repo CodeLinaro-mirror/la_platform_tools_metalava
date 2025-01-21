@@ -21,6 +21,7 @@ import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import com.github.ajalt.clikt.parameters.options.multiple
 import com.github.ajalt.clikt.parameters.options.option
 
+const val ARG_API_SURFACE = "--api-surface"
 const val ARG_SHOW_ANNOTATION = "--show-annotation"
 const val ARG_SHOW_SINGLE_ANNOTATION = "--show-single-annotation"
 const val ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION = "--show-for-stub-purposes-annotation"
@@ -31,7 +32,7 @@ const val API_SELECTION_OPTIONS_GROUP = "Api Selection"
 /**
  * Options related to selecting which parts of the source files will be part of the generated API.
  */
-class ApiSelectionOptions() :
+class ApiSelectionOptions :
     OptionGroup(
         name = API_SELECTION_OPTIONS_GROUP,
         help =
@@ -41,6 +42,18 @@ class ApiSelectionOptions() :
             """
                 .trimIndent()
     ) {
+
+    val apiSurface by
+        option(
+            ARG_API_SURFACE,
+            metavar = "<surface>",
+            help =
+                """
+                    The API surface currently being generated.
+
+                    Currently, only used for testing purposes.
+                """,
+        )
 
     private val showAnnotationValues by
         option(

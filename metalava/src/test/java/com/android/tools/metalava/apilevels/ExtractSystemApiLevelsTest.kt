@@ -17,6 +17,7 @@
 package com.android.tools.metalava.apilevels
 
 import com.android.tools.metalava.ARG_ANDROID_JAR_PATTERN
+import com.android.tools.metalava.ARG_API_SURFACE
 import com.android.tools.metalava.ARG_CURRENT_VERSION
 import com.android.tools.metalava.ARG_FIRST_VERSION
 import com.android.tools.metalava.ARG_GENERATE_API_LEVELS
@@ -35,6 +36,9 @@ class ExtractSystemApiLevelsTest : ApiGeneratorIntegrationTestBase() {
         check(
             extraArguments =
                 arrayOf(
+                    // Make sure to only use system extension jars.
+                    ARG_API_SURFACE,
+                    "system",
                     ARG_GENERATE_API_LEVELS,
                     outputPath,
                     ARG_ANDROID_JAR_PATTERN,
@@ -86,7 +90,7 @@ class ExtractSystemApiLevelsTest : ApiGeneratorIntegrationTestBase() {
         // method with different sdks attribute than containing class
         assertTrue(
             xml.contains(
-                "<method name=\"setBrowserRoleHolder(Ljava/lang/String;I)Z\" since=\"34\" sdks=\"30:1\"/>"
+                "<method name=\"isBypassingRoleQualification()Z\" since=\"31\" sdks=\"30:1,0:31\"/>"
             )
         )
 
