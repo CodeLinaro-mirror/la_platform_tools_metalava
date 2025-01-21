@@ -30,7 +30,7 @@ import org.junit.Test
 class ExtractSystemApiLevelsTest : ApiGeneratorIntegrationTestBase() {
     @Test
     fun `Extract System API`() {
-        val androidJarPattern = "${platformJars.path}/%/system/android.jar"
+        val androidJarPattern = "${platformJars.path}/{version:level}/system/android.jar"
 
         check(
             extraArguments =
