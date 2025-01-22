@@ -17,6 +17,9 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.testsuite.BaseModelTest
+import com.android.tools.metalava.testing.createAndroidModuleDescription
+import com.android.tools.metalava.testing.createCommonModuleDescription
+import com.android.tools.metalava.testing.createProjectDescription
 import com.android.tools.metalava.testing.kotlin
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -56,11 +59,10 @@ class PsiParameterItemTest : BaseModelTest() {
                     }
                 """
             )
-        runCodebaseTest(
-            inputSet(
-                kotlin(
-                    "jvmMain/src/Actual.kt",
-                    """
+        val androidSource =
+            kotlin(
+                "androidMain/src/Actual.kt",
+                """
                     actual suspend fun String.testFun(param: String) {}
                     actual class Test actual constructor(param: String) {
                         actual fun something(
@@ -70,10 +72,17 @@ class PsiParameterItemTest : BaseModelTest() {
                         ) {}
                     }
                     """
-                ),
+            )
+        runCodebaseTest(
+            inputSet(
+                androidSource,
                 commonSource,
             ),
-            commonSources = arrayOf(inputSet(commonSource)),
+            projectDescription =
+                createProjectDescription(
+                    createAndroidModuleDescription(arrayOf(androidSource)),
+                    createCommonModuleDescription(arrayOf(commonSource)),
+                )
         ) {
             // Expect classes are ignored by UAST/Kotlin light classes, verify we test actual
             // classes.

@@ -160,7 +160,6 @@ internal fun processFlags(
             modelOptions = modelOptions,
             allowReadingComments = options.allowReadingComments,
             jdkHome = options.jdkHome,
-            projectDescription = options.projectDescription,
         )
 
     val signatureFileCache = options.signatureFileCache
@@ -626,19 +625,14 @@ private fun ActionContext.loadFromSources(
             SourceSet(options.sources, options.sourcePath)
         }
 
-    val commonSourceSet =
-        if (options.commonSourcePath.isNotEmpty())
-            SourceSet.createFromSourcePath(options.reporter, options.commonSourcePath)
-        else SourceSet.empty()
-
     progressTracker.progress("Reading Codebase: ")
     val codebase =
         sourceParser.parseSources(
             sourceSet,
-            commonSourceSet,
             "Codebase loaded from source folders",
             classPath = options.classpath,
             apiPackages = options.apiPackages,
+            projectDescription = options.projectDescription,
         )
 
     progressTracker.progress("Analyzing API: ")
@@ -690,6 +684,7 @@ private fun ActionContext.loadFromSources(
             reporter,
             options.manifest,
             options.apiPredicateConfig,
+            options.apiLintOptions.allowedAcronyms,
         )
         progressTracker.progress(
             "$PROGRAM_NAME ran api-lint in ${localTimer.elapsed(SECONDS)} seconds"

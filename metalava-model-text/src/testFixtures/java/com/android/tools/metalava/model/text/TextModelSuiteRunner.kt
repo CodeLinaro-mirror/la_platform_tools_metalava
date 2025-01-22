@@ -47,8 +47,8 @@ class TextModelSuiteRunner : ModelSuiteRunner {
         inputs: ModelSuiteRunner.TestInputs,
         test: (Codebase) -> Unit
     ) {
-        if (inputs.commonSourceDir != null) {
-            error("text model does not support common sources")
+        if (inputs.projectDescription != null) {
+            error("text model does not support project description")
         }
 
         val testFixture = inputs.testFixture

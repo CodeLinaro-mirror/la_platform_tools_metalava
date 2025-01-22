@@ -30,7 +30,6 @@ import com.android.tools.lint.checks.infrastructure.TestFiles.java
 import com.android.tools.lint.checks.infrastructure.TestFiles.kotlin
 import com.android.tools.lint.checks.infrastructure.stripComments
 import com.android.tools.lint.client.api.LintClient
-import com.android.tools.metalava.cli.common.ARG_COMMON_SOURCE_PATH
 import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.cli.common.ARG_NO_COLOR
 import com.android.tools.metalava.cli.common.ARG_QUIET
@@ -541,8 +540,6 @@ abstract class DriverTest :
         @Language("TEXT") apiLint: String? = null,
         /** The source files to pass to the analyzer */
         sourceFiles: Array<TestFile> = emptyArray(),
-        /** The common source files to pass to the analyzer */
-        commonSourceFiles: Array<TestFile> = emptyArray(),
         /** Lint project description */
         projectDescription: TestFile? = null,
         /** [ARG_REPEAT_ERRORS_MAX] */
@@ -571,9 +568,7 @@ abstract class DriverTest :
 
         // Verify that a test that provided kotlin code is only being run against a provider that
         // supports kotlin code.
-        val anyKotlin =
-            sourceFiles.any { it.targetPath.endsWith(DOT_KT) } ||
-                commonSourceFiles.any { it.targetPath.endsWith(DOT_KT) }
+        val anyKotlin = sourceFiles.any { it.targetPath.endsWith(DOT_KT) }
         if (anyKotlin && Capability.KOTLIN !in codebaseCreatorConfig.creator.capabilities) {
             error(
                 "Provider ${codebaseCreatorConfig.providerName} does not support Kotlin; please add `@RequiresCapabilities(Capability.KOTLIN)` to the test"
@@ -608,7 +603,7 @@ abstract class DriverTest :
         // Unit test which checks that a signature file is as expected
         val androidJar = getAndroidJar()
 
-        val project = createProject(sourceFiles + commonSourceFiles)
+        val project = createProject(sourceFiles)
 
         val sourcePathDir = File(project, "src")
         if (!sourcePathDir.isDirectory) {
@@ -616,7 +611,6 @@ abstract class DriverTest :
         }
 
         var sourcePath = sourcePathDir.path
-        var commonSourcePath: String? = null
 
         // Make it easy to configure a source path with more than one source root: src and src2
         if (sourceFiles.any { it.targetPath.startsWith("src2") }) {
@@ -624,16 +618,6 @@ abstract class DriverTest :
         }
 
         fun pathUnderProject(path: String): String = File(project, path).path
-
-        if (commonSourceFiles.isNotEmpty()) {
-            // Assume common/source are placed in different folders, e.g., commonMain, androidMain
-            sourcePath =
-                pathUnderProject(sourceFiles.first().targetPath.substringBefore("src") + "src")
-            commonSourcePath =
-                pathUnderProject(
-                    commonSourceFiles.first().targetPath.substringBefore("src") + "src"
-                )
-        }
 
         val projectDescriptionFile = projectDescription?.createFile(project)
 
@@ -668,7 +652,7 @@ abstract class DriverTest :
                 }
                 arrayOf(apiJar.path)
             } else {
-                (sourceFiles + commonSourceFiles)
+                sourceFiles
                     .asSequence()
                     .map { pathUnderProject(it.targetPath) }
                     .toList()
@@ -1049,10 +1033,7 @@ abstract class DriverTest :
                 ARG_INCLUDE_ANNOTATIONS,
                 ARG_SOURCE_PATH,
                 sourcePath,
-                ARG_CLASS_PATH,
-                androidJar.path,
-                *classpathArgs,
-                *kotlinPathArgs,
+                *sourceList,
                 *configFileArgs,
                 *removedArgs,
                 *apiArgs,
@@ -1094,16 +1075,16 @@ abstract class DriverTest :
             ) +
                 buildList {
                         if (projectDescriptionFile != null) {
+                            // Classpath isn't needed when it is specified through the project xml
                             add(ARG_PROJECT)
                             add(projectDescriptionFile.absolutePath)
                             // When project description is provided,
                             // skip listing (common) sources
                         } else {
-                            addAll(sourceList)
-                            if (commonSourcePath != null) {
-                                add(ARG_COMMON_SOURCE_PATH)
-                                add(commonSourcePath)
-                            }
+                            add(ARG_CLASS_PATH)
+                            add(androidJar.path)
+                            addAll(classpathArgs)
+                            addAll(kotlinPathArgs)
                         }
                     }
                     .toTypedArray()

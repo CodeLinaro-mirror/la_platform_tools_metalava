@@ -134,7 +134,7 @@ interface FieldItem : MemberItem, InheritableItem {
     }
 
     /**
-     * If this field has an initial value, it just writes ";", otherwise it writes " = value;" with
+     * If this field has no initial value, it just writes ";", otherwise it writes " = value;" with
      * the correct Java syntax for the initial value
      */
     fun writeValueWithSemicolon(
