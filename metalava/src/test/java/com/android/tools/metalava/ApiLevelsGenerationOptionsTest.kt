@@ -53,15 +53,6 @@ Api Levels Generation:
                                              {version:level} placeholder that will be replaced with each API level that
                                              is being included and if the result is an existing jar file then it will be
                                              taken as the definition of the API at that level.
-  --sdk-extensions-root <sdk-jar-root>       Points to root of prebuilt extension SDK jars, if any. This directory is
-                                             expected to contain snapshots of historical extension SDK versions in the
-                                             form of stub jars. The paths should be on the format
-                                             \"<int>/public/<module-name>.jar\", where <int> corresponds to the
-                                             extension SDK version, and <module-name> to the name of the mainline
-                                             module.
-
-                                             Deprecated: Add <sdk-jar-root>/{version:extension}/*/{module}.jar to
-                                             --android-jar-pattern instead.
   --sdk-extensions-info <sdk-info-file>      Points to map of extension SDK APIs to include, if any. The file is a plain
                                              text file and describes, per extension SDK, what APIs from that extension
                                              to include in the file created via --generate-api-levels. The format of
@@ -251,8 +242,7 @@ class ApiLevelsGenerationOptionsTest :
             ARG_SDK_INFO_FILE,
             sdkExtensionsInfoXml.path,
         ) {
-            val apiHistoryConfig =
-                options.forAndroidConfig(apiSurface = null) { error("no codebase fragment") }
+            val apiHistoryConfig = options.forAndroidConfig { error("no codebase fragment") }
             assertThat(apiHistoryConfig).isNotNull()
 
             // Make sure that there were some versioned jar files found.
@@ -291,14 +281,14 @@ class ApiLevelsGenerationOptionsTest :
             "30",
             ARG_GENERATE_API_LEVELS,
             apiVersionsXml.path,
-            ARG_SDK_JAR_ROOT,
-            root.path,
+            ARG_ANDROID_JAR_PATTERN,
+            "$root/{version:extension}/*/{module}.jar",
             ARG_SDK_INFO_FILE,
             sdkExtensionsInfoXml.path,
         ) {
             val exception =
                 assertThrows(IllegalArgumentException::class.java) {
-                    options.forAndroidConfig(apiSurface = null) { error("no codebase fragment") }
+                    options.forAndroidConfig { error("no codebase fragment") }
                 }
 
             assertThat(exception.message)
