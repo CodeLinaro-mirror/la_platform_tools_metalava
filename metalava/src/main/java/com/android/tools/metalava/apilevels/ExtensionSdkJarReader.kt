@@ -15,41 +15,35 @@
  */
 package com.android.tools.metalava.apilevels
 
-import com.android.SdkConstants
-import com.android.SdkConstants.PLATFORM_WINDOWS
 import java.io.File
 
-object ExtensionSdkJarReader {
-
-    private val REGEX_JAR_PATH = run {
-        var pattern = ".*/(\\d+)/[^/]+/(.*)\\.jar$"
-        if (SdkConstants.currentPlatform() == PLATFORM_WINDOWS) {
-            pattern = pattern.replace("/", "\\\\")
-        }
-        Regex(pattern)
-    }
+/**
+ * Scan for and read extension jars.
+ *
+ * @param surface the optional surface of extension jars to read. If specified then only extension
+ *   jars in the `extensions/<version>/<surface>` directories will be used. Otherwise, any available
+ *   jar in the `extensions/<version>/<any>` directories will be used. The latter is used in the
+ *   Android build as it uses a sandbox to provide only those extension jars in the correct surface
+ *   anyway.
+ */
+class ExtensionSdkJarReader(private val surface: String?) {
 
     /**
      * Find extension SDK jar files in an extension SDK tree.
      *
-     * @return a mapping SDK jar file -> list of VersionAndPath objects, sorted from earliest to
-     *   last version
+     * @return a mapping from SDK module name -> list of [MatchedPatternFile] objects, sorted from
+     *   earliest to last version.
      */
-    internal fun findExtensionSdkJarFiles(root: File): Map<String, List<VersionAndPath>> {
-        val map = mutableMapOf<String, MutableList<VersionAndPath>>()
-        root
-            .walk()
-            .maxDepth(3)
-            .mapNotNull { file ->
-                REGEX_JAR_PATH.matchEntire(file.path)?.groups?.let { groups ->
-                    Triple(groups[2]!!.value, groups[1]!!.value.toInt(), file)
-                }
-            }
-            .sortedBy { it.second }
-            .forEach {
-                map.getOrPut(it.first) { mutableListOf() }.add(VersionAndPath(it.second, it.third))
-            }
-        return map
+    internal fun findExtensionSdkJarFiles(root: File): Map<String, List<MatchedPatternFile>> {
+        val node =
+            PatternNode.parsePatterns(
+                listOf(
+                    "{version:level}/${surface?:"*"}/{module}.jar",
+                )
+            )
+        return node.scan(PatternNode.ScanConfig(dir = root)).groupBy({ it.module!! }) {
+            it.copy(file = root.resolve(it.file).normalize())
+        }
     }
 
     /**
@@ -81,18 +75,16 @@ object ExtensionSdkJarReader {
             val moduleMap = sdkExtensionInfo.extensionsMapForJarOrEmpty(mainlineModule)
             if (moduleMap.isEmpty())
                 continue // TODO(b/259115852): remove this (though it is an optimization too).
-            for ((level, path) in value) {
-                val extVersion = ExtVersion.fromLevel(level)
+            for ((file, version) in value) {
+                val extVersion = ExtVersion.fromLevel(version.major)
                 val updater =
                     ApiHistoryUpdater.forExtVersion(
                         versionNotInAndroidSdk,
                         extVersion,
                         mainlineModule,
                     )
-                list.add(VersionedJarApi(path, updater))
+                list.add(VersionedJarApi(file, updater))
             }
         }
     }
 }
-
-data class VersionAndPath(@JvmField val version: Int, @JvmField val path: File)

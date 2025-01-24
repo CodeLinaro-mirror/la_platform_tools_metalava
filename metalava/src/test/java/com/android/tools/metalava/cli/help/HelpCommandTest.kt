@@ -30,7 +30,7 @@ class HelpCommandTest : BaseCommandTest<HelpCommand>({ HelpCommand() }) {
                 """
 Usage: metalava help <concept>...
 
-  Provides help for general metalava concepts
+  Provides help for general metalava concepts.
 
 Concepts
   issues                                     Provides help related to issues and issue reporting

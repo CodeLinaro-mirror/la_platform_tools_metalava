@@ -16,8 +16,14 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.apilevels.GenerateApiHistoryConfig
 import com.android.tools.metalava.cli.common.BaseOptionGroupTest
+import com.android.tools.metalava.cli.common.MetalavaCliException
+import com.android.tools.metalava.cli.common.SignatureFileLoader
+import com.android.tools.metalava.model.ClassResolver
+import com.android.tools.metalava.model.text.SignatureFile
 import com.google.common.truth.Truth.assertThat
+import org.junit.Assert.assertThrows
 import org.junit.Test
 
 val API_LEVELS_GENERATION_OPTIONS_HELP =
@@ -27,15 +33,19 @@ Api Levels Generation:
   Options controlling the API levels file, e.g. `api-versions.xml` file.
 
   --generate-api-levels <xmlfile>            Reads android.jar SDK files and generates an XML file recording the API
-                                             level for each class, method and field
+                                             level for each class, method and field. The --current-version must also be
+                                             provided and must be greater than or equal to 27.
   --remove-missing-class-references-in-api-levels
                                              Removes references to missing classes when generating the API levels XML
                                              file. This can happen when generating the XML file for the non-updatable
                                              portions of the module-lib sdk, as those non-updatable portions can
                                              reference classes that are part of an updatable apex.
-  --first-version <numeric-version>          Sets the first API level to generate an API database from. (default: 1)
-  --current-version <numeric-version>        Sets the current API level of the current source code. Must be greater than
-                                             or equal to 27.
+  --first-version <api-version>              Sets the first API version to include in the API history file. See
+                                             --current-version for acceptable `<api-version>`s. (default: 1)
+  --current-version <api-version>            Sets the current API version of the current source code. This supports a
+                                             single integer level, `major.minor`, `major.minor.patch` and
+                                             `major.minor.patch-quality` formats. Where `major`, `minor` and `patch` are
+                                             all non-negative integers and `quality` is an alphanumeric string.
   --current-codename <version-codename>      Sets the code name for the current source code.
   --android-jar-pattern <android-jar-pattern>
                                              Pattern to use to locate Android JAR files. Each pattern must contain a
@@ -75,8 +85,9 @@ Api Levels Generation:
                                              Not required to generate API version JSON if the current version is the
                                              only version.
   --api-version-names <api-versions>         An ordered list of strings with the names to use for the API versions from
-                                             --api-version-signature-files, and the name of the current API version.
-                                             Required for --generate-api-version-history.
+                                             --api-version-signature-files. If --current-version is not provided then
+                                             this must include an additional version at the end which is used for the
+                                             current API version. Required for --generate-api-version-history.
     """
         .trimIndent()
 
@@ -85,6 +96,21 @@ class ApiLevelsGenerationOptionsTest :
         API_LEVELS_GENERATION_OPTIONS_HELP,
     ) {
     override fun createOptions() = ApiLevelsGenerationOptions()
+
+    /** Get an optional [GenerateApiHistoryConfig] for a fake set of signature files. */
+    private fun ApiLevelsGenerationOptions.fromFakeSignatureFiles(): GenerateApiHistoryConfig? =
+        fromSignatureFilesConfig(
+            signatureFileLoader =
+                object : SignatureFileLoader {
+                    override fun load(
+                        signatureFiles: List<SignatureFile>,
+                        classResolver: ClassResolver?
+                    ) = error("Fake signature file loader cannot load signature files")
+                },
+            codebaseFragmentProvider = {
+                error("Fake CodebaseFragment provider cannot create CodebaseFragment")
+            },
+        )
 
     @Test
     fun `sdkJarRoot without sdkInfoFile`() {
@@ -101,6 +127,87 @@ class ApiLevelsGenerationOptionsTest :
         runTest(ARG_SDK_INFO_FILE, file.path) {
             assertThat(stderr)
                 .isEqualTo("--sdk-extensions-root and --sdk-extensions-info must both be supplied")
+        }
+    }
+
+    @Test
+    fun `Test current version supports major-minor`() {
+        runTest(ARG_CURRENT_VERSION, "1.2") {
+            assertThat(options.currentApiVersion.toString()).isEqualTo("1.2")
+        }
+    }
+
+    @Test
+    fun `Test current version supports major-minor-patch`() {
+        runTest(ARG_CURRENT_VERSION, "1.2.3") {
+            assertThat(options.currentApiVersion.toString()).isEqualTo("1.2.3")
+        }
+    }
+
+    @Test
+    fun `Test current version supports major-minor-patch-preRelease`() {
+        runTest(ARG_CURRENT_VERSION, "1.2.3-beta01") {
+            assertThat(options.currentApiVersion.toString()).isEqualTo("1.2.3-beta01")
+        }
+    }
+
+    @Test
+    fun `Test --generate-api-version-history without --api-version-names`() {
+        val apiVersionsJson = temporaryFolder.newFile("api-versions.json")
+        val exception =
+            assertThrows(MetalavaCliException::class.java) {
+                runTest(
+                    ARG_GENERATE_API_VERSION_HISTORY,
+                    apiVersionsJson.path,
+                ) {
+                    val apiHistoryConfig = options.fromFakeSignatureFiles()
+                    assertThat(apiHistoryConfig).isNotNull()
+                    val apiVersions =
+                        apiHistoryConfig!!.versionedApis.map { it.apiVersion }.joinToString()
+                    assertThat(apiVersions).isEqualTo("1.2.3-beta01")
+                }
+            }
+
+        assertThat(exception.message)
+            .isEqualTo(
+                "Must specify --api-version-names and/or --current-version with --generate-api-version-history"
+            )
+    }
+
+    @Test
+    fun `Test --current-version used alone with --generate-api-version-history`() {
+        val apiVersionsJson = newFile("api-versions.json")
+        runTest(
+            ARG_CURRENT_VERSION,
+            "1.2.3-beta01",
+            ARG_GENERATE_API_VERSION_HISTORY,
+            apiVersionsJson.path
+        ) {
+            val apiHistoryConfig = options.fromFakeSignatureFiles()
+            assertThat(apiHistoryConfig).isNotNull()
+            val apiVersions = apiHistoryConfig!!.versionedApis.map { it.apiVersion }.joinToString()
+            assertThat(apiVersions).isEqualTo("1.2.3-beta01")
+        }
+    }
+
+    @Test
+    fun `Test --current-version used with --generate-api-version-history and --api-version-names`() {
+        val signatureFile = newFile("1.2.0-alpha01/api.txt")
+        val apiVersionsJson = temporaryFolder.newFile("api-versions.json")
+        runTest(
+            ARG_CURRENT_VERSION,
+            "1.2.3-beta01",
+            ARG_GENERATE_API_VERSION_HISTORY,
+            apiVersionsJson.path,
+            ARG_API_VERSION_SIGNATURE_FILES,
+            signatureFile.path,
+            ARG_API_VERSION_NAMES,
+            "1.2.0",
+        ) {
+            val apiHistoryConfig = options.fromFakeSignatureFiles()
+            assertThat(apiHistoryConfig).isNotNull()
+            val apiVersions = apiHistoryConfig!!.versionedApis.map { it.apiVersion }.joinToString()
+            assertThat(apiVersions).isEqualTo("1.2.0, 1.2.3-beta01")
         }
     }
 }

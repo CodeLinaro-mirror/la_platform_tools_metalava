@@ -87,7 +87,7 @@ Sub-commands:
   main                                       The default sub-command that is run if no sub-command is specified.
   android-jars-to-signatures                 Rewrite the signature files in the `prebuilts/sdk` directory in the Android
                                              source tree.
-  help                                       Provides help for general metalava concepts
+  help                                       Provides help for general metalava concepts.
   jar-to-jdiff                               Convert a jar file into a file in the JDiff XML format.
   merge-signatures                           Merge multiple signature files together into a single file.
   signature-to-dex                           Convert API signature files into a file containing a list of DEX

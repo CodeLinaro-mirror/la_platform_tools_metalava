@@ -1834,13 +1834,6 @@ abstract class UastTestBase : DriverTest() {
 
     @Test
     fun `Vararg parameter followed by value class type parameter`() {
-        // b/388030457
-        val varargParamType =
-            if (isK2) {
-                "java.lang.String..."
-            } else {
-                "String[]"
-            }
         check(
             sourceFiles =
                 arrayOf(
@@ -1862,7 +1855,7 @@ abstract class UastTestBase : DriverTest() {
                     property public final int value;
                   }
                   public final class IntValueKt {
-                    method public static void foo($varargParamType varargParam, int valueParam);
+                    method public static void foo(String[] varargParam, int valueParam);
                   }
                 }
             """

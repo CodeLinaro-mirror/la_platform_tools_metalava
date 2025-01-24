@@ -395,7 +395,9 @@ class ApiGeneratorTest : DriverTest() {
                 ARG_API_VERSION_SIGNATURE_FILES,
                 pastVersions.joinToString(":") { it.absolutePath },
                 ARG_API_VERSION_NAMES,
-                listOf("1.1.0", "1.2.0", "1.3.0", "1.4.0").joinToString(" "),
+                listOf("1.1.0", "1.2.0", "1.3.0").joinToString(" "),
+                ARG_CURRENT_VERSION,
+                "1.4.0",
             )
 
         check(
@@ -566,7 +568,7 @@ class ApiGeneratorTest : DriverTest() {
                     listOf("1.1.0", "1.2.0").joinToString(" ")
                 ),
             expectedFail =
-                "Aborting: --api-version-names must have one more version than --api-version-signature-files to include the current version name"
+                "Aborting: --api-version-names must have one more version than --api-version-signature-files to include the current version name as --current-version is not provided"
         )
     }
 
@@ -591,6 +593,36 @@ class ApiGeneratorTest : DriverTest() {
                     ARG_GENERATE_API_VERSION_HISTORY,
                     output.path,
                     ARG_API_VERSION_NAMES,
+                    "0.0.0-alpha01"
+                )
+        )
+
+        val expectedJson =
+            "[{\"class\":\"test.pkg.Foo\",\"addedIn\":\"0.0.0-alpha01\",\"methods\":[{\"method\":\"foo(java.lang.String)\",\"addedIn\":\"0.0.0-alpha01\"}],\"fields\":[]}]"
+        assertEquals(expectedJson, output.readText())
+    }
+
+    @Test
+    fun `API levels can be generated from just the current codebase using --current-version`() {
+        val output = temporaryFolder.newFile("api-info.json")
+
+        val api =
+            """
+                // Signature format: 3.0
+                package test.pkg {
+                  public class Foo {
+                    method public void foo(String?);
+                  }
+                }
+            """
+
+        check(
+            signatureSource = api,
+            extraArguments =
+                arrayOf(
+                    ARG_GENERATE_API_VERSION_HISTORY,
+                    output.path,
+                    ARG_CURRENT_VERSION,
                     "0.0.0-alpha01"
                 )
         )

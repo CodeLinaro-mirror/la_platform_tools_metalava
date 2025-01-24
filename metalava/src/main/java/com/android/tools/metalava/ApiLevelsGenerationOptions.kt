@@ -21,7 +21,7 @@ import com.android.tools.metalava.apilevels.ApiHistoryUpdater
 import com.android.tools.metalava.apilevels.ApiJsonPrinter
 import com.android.tools.metalava.apilevels.ApiVersion
 import com.android.tools.metalava.apilevels.ApiXmlPrinter
-import com.android.tools.metalava.apilevels.ExtensionSdkJarReader.addVersionedExtensionApis
+import com.android.tools.metalava.apilevels.ExtensionSdkJarReader
 import com.android.tools.metalava.apilevels.GenerateApiHistoryConfig
 import com.android.tools.metalava.apilevels.MissingClassAction
 import com.android.tools.metalava.apilevels.PatternNode
@@ -41,13 +41,14 @@ import com.android.tools.metalava.cli.common.newFile
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.CodebaseFragment
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
+import com.github.ajalt.clikt.parameters.options.OptionWithValues
+import com.github.ajalt.clikt.parameters.options.convert
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.multiple
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.split
 import com.github.ajalt.clikt.parameters.options.validate
-import com.github.ajalt.clikt.parameters.types.int
 import java.io.File
 
 // XML API version related arguments.
@@ -90,7 +91,8 @@ class ApiLevelsGenerationOptions(
                 help =
                     """
                         Reads android.jar SDK files and generates an XML file recording the API
-                        level for each class, method and field
+                        level for each class, method and field. The $ARG_CURRENT_VERSION must also
+                        be provided and must be greater than or equal to 27.
                     """
                         .trimIndent(),
             )
@@ -111,59 +113,62 @@ class ApiLevelsGenerationOptions(
             )
             .flag()
 
+    /** Convert an option value to an [ApiVersion]. */
+    fun OptionWithValues<String?, String, String>.apiVersion() = convert {
+        ApiVersion.fromString(it)
+    }
+
     /**
-     * The first api level of the codebase; typically 1 but can be higher for example for the System
-     * API.
+     * The first api version of the codebase; typically 1 but can be higher for example for the
+     * System API.
      */
-    private val firstApiLevel: Int by
+    private val firstApiVersion: ApiVersion by
         option(
                 ARG_FIRST_VERSION,
-                metavar = "<numeric-version>",
+                metavar = "<api-version>",
                 help =
                     """
-                        Sets the first API level to generate an API database from.
+                        Sets the first API version to include in the API history file. See
+                        $ARG_CURRENT_VERSION for acceptable `<api-version>`s.
                     """
                         .trimIndent()
             )
-            .int()
-            .default(1)
+            .apiVersion()
+            .default(ApiVersion.fromLevel(1))
 
     /**
      * The last api level.
      *
-     * This is one more than [currentApiLevel] if this is a developer preview build.
+     * This is one more than [currentApiVersion] if this is a developer preview build.
      */
-    private val lastApiLevel
-        get() = currentApiLevel + if (isDeveloperPreviewBuild) 1 else 0
+    private val lastApiVersion
+        get() = currentApiVersion + if (isDeveloperPreviewBuild) 1 else 0
 
-    /** The api level of the codebase, or null if not known/specified */
-    private val optionalCurrentApiLevel: Int? by
+    /** The [ApiVersion] of the codebase, or null if not known/specified */
+    private val optionalCurrentApiVersion: ApiVersion? by
         option(
                 ARG_CURRENT_VERSION,
-                metavar = "<numeric-version>",
+                metavar = "<api-version>",
                 help =
                     """
-                        Sets the current API level of the current source code. Must be greater than
-                        or equal to 27.
+                        Sets the current API version of the current source code. This supports a
+                        single integer level, `major.minor`, `major.minor.patch` and
+                        `major.minor.patch-quality` formats. Where `major`, `minor` and `patch` are
+                        all non-negative integers and `quality` is an alphanumeric string.
                     """
                         .trimIndent(),
             )
-            .int()
-            .validate {
-                if (it <= 26) {
-                    throw MetalavaCliException("Suspicious currentApi=$it, expected at least 27")
-                }
-            }
+            .apiVersion()
 
     /**
-     * Get the current API level.
+     * Get the current API version.
      *
      * This must only be called if needed as it will fail if [ARG_CURRENT_VERSION] has not been
      * specified.
      */
-    private val currentApiLevel: Int
+    internal val currentApiVersion: ApiVersion
         get() =
-            optionalCurrentApiLevel
+            optionalCurrentApiVersion
                 ?: throw MetalavaCliException(
                     stderr = "$ARG_GENERATE_API_LEVELS requires $ARG_CURRENT_VERSION"
                 )
@@ -188,7 +193,7 @@ class ApiLevelsGenerationOptions(
      * True if [currentCodeName] is specified, false otherwise.
      *
      * If this is `true` then the API defined in the sources will be added to the API levels file
-     * with an API level of [currentApiLevel]` - 1`.
+     * with an API level of [currentApiVersion]` - 1`.
      */
     private val isDeveloperPreviewBuild
         get() = currentCodeName != null
@@ -290,7 +295,7 @@ class ApiLevelsGenerationOptions(
      */
     fun getApiLevelLabel(level: Int): String {
         val codename = currentCodeName
-        val current = optionalCurrentApiLevel
+        val current = optionalCurrentApiVersion?.major
         return if (current == null || codename == null || level <= current) level.toString()
         else codename
     }
@@ -302,14 +307,14 @@ class ApiLevelsGenerationOptions(
      * going to be published outside Android, so it is safe to include all API levels, including the
      * next one.
      *
-     * If no [currentApiLevel] has been provided then allow any API level as there is no way to
+     * If no [currentApiVersion] has been provided then allow any API level as there is no way to
      * determine whether the API level is a future API or not.
      *
      * Otherwise, it is a release build so ignore any API levels after the current one.
      */
     fun includeApiLevelInDocumentation(level: Int): Boolean {
         if (isDeveloperPreviewBuild) return true
-        val current = optionalCurrentApiLevel ?: return true
+        val current = optionalCurrentApiVersion?.major ?: return true
         return level <= current
     }
 
@@ -321,8 +326,7 @@ class ApiLevelsGenerationOptions(
     private fun findAndroidJars(): List<VersionedApi> {
         // Find all the android.jar files for versions within the required range.
         val patternNode = PatternNode.parsePatterns(androidJarPatterns)
-        val versionRange =
-            ApiVersion.fromLevel(firstApiLevel).rangeTo(ApiVersion.fromLevel(lastApiLevel))
+        val versionRange = firstApiVersion.rangeTo(lastApiVersion)
         val scanConfig =
             PatternNode.ScanConfig(dir = fileForPathInner("."), apiVersionRange = versionRange)
         val matchedFiles = patternNode.scan(scanConfig)
@@ -349,14 +353,24 @@ class ApiLevelsGenerationOptions(
      * Get the [GenerateApiHistoryConfig] for Android.
      *
      * This has some Android specific code, e.g. structure of SDK extensions.
+     *
+     * @param apiSurface the optional API surface to use to limit access to extension jars. If
+     *   `null` then all extension jars that are visible will be used.
      */
     fun forAndroidConfig(
+        apiSurface: String?,
         codebaseFragmentProvider: () -> CodebaseFragment,
     ) =
         generateApiLevelXml?.let { outputFile ->
             val versionedHistoricalApis = findAndroidJars()
 
-            val currentSdkVersion = ApiVersion.fromLevel(currentApiLevel)
+            val currentSdkVersion = currentApiVersion
+            if (currentSdkVersion.major <= 26) {
+                throw MetalavaCliException(
+                    "Suspicious $ARG_CURRENT_VERSION $currentSdkVersion, expected at least 27"
+                )
+            }
+
             val notFinalizedSdkVersion = currentSdkVersion + 1
             val lastApiVersion = versionedHistoricalApis.lastOrNull()?.apiVersion
 
@@ -397,7 +411,7 @@ class ApiLevelsGenerationOptions(
                 if (codebaseSdkVersion != null) {
                     add(
                         VersionedSourceApi(
-                            codebaseFragmentProvider(),
+                            codebaseFragmentProvider,
                             codebaseSdkVersion,
                             useInternalNames = true,
                         )
@@ -410,12 +424,13 @@ class ApiLevelsGenerationOptions(
                 // SDK
                 // version.
                 if (sdkExtensionsArguments != null) {
-                    addVersionedExtensionApis(
-                        this,
-                        notFinalizedSdkVersion,
-                        sdkExtensionsArguments.sdkExtJarRoot,
-                        sdkExtensionsArguments.sdkExtensionInfo,
-                    )
+                    ExtensionSdkJarReader(apiSurface)
+                        .addVersionedExtensionApis(
+                            this,
+                            notFinalizedSdkVersion,
+                            sdkExtensionsArguments.sdkExtJarRoot,
+                            sdkExtensionsArguments.sdkExtensionInfo,
+                        )
                 }
             }
 
@@ -481,7 +496,7 @@ class ApiLevelsGenerationOptions(
 
     /**
      * The names of the API versions in [apiVersionSignatureFiles], in the same order, and the name
-     * of the current API version
+     * of the current API version (if it is not provided by [optionalCurrentApiVersion]).
      */
     private val apiVersionNames by
         option(
@@ -490,8 +505,9 @@ class ApiLevelsGenerationOptions(
                 help =
                     """
                         An ordered list of strings with the names to use for the API versions from
-                        $ARG_API_VERSION_SIGNATURE_FILES, and the name of the current API version.
-                        Required for $ARG_GENERATE_API_VERSION_HISTORY.
+                        $ARG_API_VERSION_SIGNATURE_FILES. If $ARG_CURRENT_VERSION is not provided
+                        then this must include an additional version at the end which is used for
+                        the current API version. Required for $ARG_GENERATE_API_VERSION_HISTORY.
                     """
                         .trimIndent()
             )
@@ -513,23 +529,38 @@ class ApiLevelsGenerationOptions(
         signatureFileLoader: SignatureFileLoader,
         codebaseFragmentProvider: () -> CodebaseFragment,
     ): GenerateApiHistoryConfig? {
-        // apiVersionNames will include the current version but apiVersionSignatureFiles will not,
-        // so there should be 1 more name than signature file (or both can be null)
-        val numVersionNames = apiVersionNames?.size ?: 0
-        val numVersionFiles = apiVersionSignatureFiles?.size ?: 0
-        if (numVersionNames != 0 && numVersionNames != numVersionFiles + 1) {
-            throw MetalavaCliException(
-                "$ARG_API_VERSION_NAMES must have one more version than $ARG_API_VERSION_SIGNATURE_FILES to include the current version name"
-            )
-        }
-
         val apiVersionsFile = generateApiVersionHistory
-        val apiVersionNames = apiVersionNames
-        return if (apiVersionsFile != null && apiVersionNames != null) {
+        return if (apiVersionsFile != null) {
             // The signature files can be null if the current version is the only version
             val pastApiVersions = apiVersionSignatureFiles ?: emptyList()
 
-            val allVersions = apiVersionNames.map { ApiVersion.fromString(it) }
+            val currentApiVersion = optionalCurrentApiVersion
+            val allVersions = buildList {
+                apiVersionNames?.mapTo(this) { ApiVersion.fromString(it) }
+                if (currentApiVersion != null) add(currentApiVersion)
+            }
+
+            // Get the number of version names and signature files, defaulting to 0 if not provided.
+            val numVersionNames = allVersions.size
+            if (numVersionNames == 0) {
+                throw MetalavaCliException(
+                    "Must specify $ARG_API_VERSION_NAMES and/or $ARG_CURRENT_VERSION with $ARG_GENERATE_API_VERSION_HISTORY"
+                )
+            }
+            val numVersionFiles = apiVersionSignatureFiles?.size ?: 0
+            // allVersions will include the current version but apiVersionSignatureFiles will not,
+            // so there should be 1 more name than signature files.
+            if (numVersionNames != numVersionFiles + 1) {
+                if (currentApiVersion == null) {
+                    throw MetalavaCliException(
+                        "$ARG_API_VERSION_NAMES must have one more version than $ARG_API_VERSION_SIGNATURE_FILES to include the current version name as $ARG_CURRENT_VERSION is not provided"
+                    )
+                } else {
+                    throw MetalavaCliException(
+                        "$ARG_API_VERSION_NAMES must have the same number of versions as $ARG_API_VERSION_SIGNATURE_FILES has files as $ARG_CURRENT_VERSION is provided"
+                    )
+                }
+            }
 
             val sourceVersion = allVersions.last()
 
@@ -540,8 +571,13 @@ class ApiLevelsGenerationOptions(
                     VersionedSignatureApi(signatureFileLoader, file, allVersions[index])
                 }
                 // Add a VersionedSourceApi for the source code.
-                val codebaseFragment = codebaseFragmentProvider()
-                add(VersionedSourceApi(codebaseFragment, sourceVersion, useInternalNames = false))
+                add(
+                    VersionedSourceApi(
+                        codebaseFragmentProvider,
+                        sourceVersion,
+                        useInternalNames = false
+                    )
+                )
             }
 
             val printer =

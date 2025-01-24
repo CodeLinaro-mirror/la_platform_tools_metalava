@@ -203,6 +203,8 @@ data class FileFormat(
     enum class Version(
         /** The version number of this as a string, e.g. "3.0". */
         internal val versionNumber: String,
+        /** The optional legacy alias used on the command line, for the `--format` option. */
+        val legacyCommandLineAlias: String? = null,
 
         /** Indicates whether the version supports properties fully or just for migrating. */
         internal val propertySupport: PropertySupport = PropertySupport.FOR_MIGRATING_ONLY,
@@ -215,6 +217,7 @@ data class FileFormat(
     ) {
         V2(
             versionNumber = "2.0",
+            legacyCommandLineAlias = "v2",
             factory = { version ->
                 FileFormat(
                     version = version,
@@ -225,6 +228,7 @@ data class FileFormat(
         ),
         V3(
             versionNumber = "3.0",
+            legacyCommandLineAlias = "v3",
             factory = { version ->
                 V2.defaults.copy(
                     version = version,
@@ -235,6 +239,7 @@ data class FileFormat(
         ),
         V4(
             versionNumber = "4.0",
+            legacyCommandLineAlias = "v4",
             factory = { version ->
                 V3.defaults.copy(
                     version = version,
@@ -261,7 +266,7 @@ data class FileFormat(
          * It is initialized via a factory to break the cycle where the [Version] constructor
          * depends on the [FileFormat] constructor and vice versa.
          */
-        internal val defaults = factory(this)
+        val defaults = factory(this)
 
         /**
          * Get the version defaults plus any language defaults, if available.
