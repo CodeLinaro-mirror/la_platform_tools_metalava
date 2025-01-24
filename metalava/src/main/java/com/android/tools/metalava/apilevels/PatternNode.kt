@@ -48,6 +48,9 @@ sealed class PatternNode {
      */
     private val children = mutableListOf<PatternNode>()
 
+    /** Check to see if this node has any children. */
+    internal fun hasChildren() = children.isNotEmpty()
+
     /**
      * Dump the contents of this node and return as a string.
      *
@@ -74,7 +77,7 @@ sealed class PatternNode {
      * a directory.
      */
     protected fun withDirectorySuffixIfHasChildren(text: String) =
-        text + if (children.isEmpty()) "" else "/"
+        text + if (children.isEmpty() || text == "/") "" else "/"
 
     /**
      * Get an existing child node that matches [child] or if none exist add [child] and return it.
@@ -260,6 +263,7 @@ sealed class PatternNode {
             config: ScanConfig,
             state: PatternFileState
         ): Sequence<MatchedPatternFile> {
+            if (!hasChildren()) return emptySequence()
             return scanChildrenOrReturnMatching(config, state)
         }
 
@@ -367,7 +371,7 @@ sealed class PatternNode {
                     // Extract the value and store it in the appropriate [PatternFileState]
                     // property.
                     newState =
-                        placeholder.property.track(config, newState, matchGroup.value)
+                        placeholder.property.track(config, newState, matchGroup.value, placeholder)
                             ?: return@flatMap emptySequence()
                 }
 
@@ -386,16 +390,19 @@ sealed class PatternNode {
             override fun track(
                 config: ScanConfig,
                 state: PatternFileState,
-                value: String
+                value: String,
+                placeholder: Placeholder,
             ): PatternFileState? {
-                // Extract the API version from the value and make sure that it is within the
-                // allowable
-                // range (if one was specified). If it is not then ignore this file and all its
-                // contents
-                // by returning an empty sequence.
+                // Extract the API version from the value.
                 val version = ApiVersion.fromString(value)
-                config.apiVersionRange?.let { apiVersionRange ->
-                    if (version !in apiVersionRange) return null
+
+                // Make sure that it is within the allowable range (if one was specified). If it is
+                // not then ignore this file and all its contents by returning an empty sequence.
+                // The range does not apply to extension versions, all extension versions are used.
+                if (placeholder != Placeholder.VERSION_EXTENSION) {
+                    config.apiVersionRange?.let { apiVersionRange ->
+                        if (version !in apiVersionRange) return null
+                    }
                 }
 
                 return state.copy(version = version)
@@ -406,8 +413,12 @@ sealed class PatternNode {
          * properties.
          */
         MODULE("module") {
-            override fun track(config: ScanConfig, state: PatternFileState, value: String) =
-                state.copy(module = value)
+            override fun track(
+                config: ScanConfig,
+                state: PatternFileState,
+                value: String,
+                placeholder: Placeholder,
+            ) = state.copy(module = value)
         },
         ;
 
@@ -420,12 +431,14 @@ sealed class PatternNode {
          *
          * @param config configuration that affects the matching.
          * @param state the input [PatternFileState].
-         * @param value the
+         * @param value the value of the placeholder extracted from the path.
+         * @param placeholder the [Placeholder] for which this is being called.
          */
         abstract fun track(
             config: ScanConfig,
             state: PatternFileState,
             value: String,
+            placeholder: Placeholder,
         ): PatternFileState?
 
         override fun toString() = propertyName
@@ -460,6 +473,7 @@ sealed class PatternNode {
             // Match either a single major version or a major and minor version together.
             pattern = """\d+(?:\.\d+)?""",
         ),
+
         /** The {version:major.minor.patch} placeholder. */
         VERSION_MAJOR_MINOR_PATCH(
             property = Property.VERSION,
@@ -467,6 +481,16 @@ sealed class PatternNode {
             // Only match a version with major, minor and patch components.
             pattern = """\d+\.\d+\.\d+""",
         ),
+
+        /** The {version:extension} placeholder. */
+        VERSION_EXTENSION(
+            property = Property.VERSION,
+            format = "extension",
+            // Only match a version with extension version.
+            pattern = """\d+""",
+        ),
+
+        /** The {module} placeholder. */
         MODULE(
             property = Property.MODULE,
             format = null,
@@ -677,10 +701,23 @@ internal data class PatternFileState(
         if (version == null) error("matching pattern could not extract version from $file")
         else
             MatchedPatternFile(
-                file.relativeTo(dir),
+                file.relativeDescendantOfOrSelf(dir),
                 version,
                 module,
             )
+
+    /**
+     * If this [File] is a descendant of [base] then return a relative path from [base] to this,
+     * otherwise just return this.
+     *
+     * This ensures that an absolute path does not end up being turned into an even more complicated
+     * relative path that starts with lots of `../../`. This is only needed for tests that use
+     * patterns in a temporary directory which is not relative to the current directory in which the
+     * scanning is performed. It should not be an issue in practice as callers typically run with
+     * patterns relative to the current directory.
+     */
+    private fun File.relativeDescendantOfOrSelf(base: File) =
+        relativeTo(base).let { relative -> if (relative.startsWith("../")) file else relative }
 }
 
 /** Represents a [File] that matches a pattern encapsulate in a hierarchy of [PatternNode]s. */
@@ -705,8 +742,8 @@ data class MatchedPatternFile(
  */
 private val matchedPatternFileComparator: Comparator<MatchedPatternFile> =
     compareBy(
-        // Sort them from the lowest version to the highest version.
-        { it.version },
-        // Then into those without modules ("") followed by those with in module order.
+        // Group into those without modules ("") and then by those with module, in order.
         { it.module ?: "" },
+        // Then sort them from the lowest version to the highest version.
+        { it.version },
     )

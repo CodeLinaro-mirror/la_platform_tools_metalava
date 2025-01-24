@@ -24,7 +24,7 @@ import java.io.File
  * The [updater] is responsible for updating the [Api].
  */
 class VersionedJarApi(
-    private val jar: File,
+    val jar: File,
     private val updater: ApiHistoryUpdater,
 ) : VersionedApi {
     override val apiVersion
@@ -33,4 +33,6 @@ class VersionedJarApi(
     override fun updateApi(api: Api) {
         api.readJar(jar, updater)
     }
+
+    override fun forExtension() = updater.forExtension()
 }
