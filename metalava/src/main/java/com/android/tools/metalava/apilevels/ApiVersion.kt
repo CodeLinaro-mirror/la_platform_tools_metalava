@@ -20,6 +20,7 @@ import com.android.tools.metalava.apilevels.ApiVersion.Companion.toString
 import java.util.regex.Pattern
 
 /** Version of an SDK, e.g. Android or AndroidX. */
+@ConsistentCopyVisibility
 data class ApiVersion
 internal constructor(
     /** The major version. */
