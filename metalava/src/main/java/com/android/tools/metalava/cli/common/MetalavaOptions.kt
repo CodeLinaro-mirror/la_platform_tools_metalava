@@ -310,6 +310,21 @@ internal fun <T : Enum<T>> ParameterHolder.nonInlineEnumOption(
 }
 
 /**
+ * Build definition list help.
+ *
+ * @param definitionList is a list of [Pair]s, where [Pair.first] is the term being defined and
+ *   [Pair.second] is the definition of that term.
+ * @param termPrefix the prefix to add before each term being defined, e.g. `* ` to represent a
+ *   bullet list.
+ */
+fun buildDefinitionListHelp(
+    definitionList: List<Pair<String, String>>,
+    termPrefix: String = "",
+): String {
+    return buildString { appendDefinitionListHelp(definitionList, termPrefix) }
+}
+
+/**
  * Append help for what is effectively a definition list, e.g. `<dl>...</dl>` in HTML.
  *
  * Each entry in the list has a term that is being defined and the definition of that term. If the

@@ -14,26 +14,33 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.config
+package com.android.tools.metalava
 
-import com.android.tools.lint.checks.infrastructure.TestFiles
-import com.android.tools.metalava.DriverTest
+import com.android.tools.lint.checks.infrastructure.TestFiles.xml
+import com.android.tools.metalava.config.Config
+import com.google.common.truth.Truth.assertThat
 import org.junit.Test
 
-class ConfigTest : DriverTest() {
+/**
+ * Tests to verify that config files are read correctly by the main command and that errors are
+ * surface correctly.
+ */
+class ConfigFilesTest : DriverTest() {
     @Test
     fun `Empty config file`() {
         check(
             configFiles =
                 arrayOf(
-                    TestFiles.xml(
+                    xml(
                         "config.xml",
                         """
                             <config xmlns="http://www.google.com/tools/metalava/config"/>
                         """,
-                    )
+                    ),
                 ),
-        )
+        ) {
+            assertThat(options.config).isEqualTo(Config())
+        }
     }
 
     @Test
@@ -41,15 +48,38 @@ class ConfigTest : DriverTest() {
         check(
             configFiles =
                 arrayOf(
-                    TestFiles.xml(
+                    xml(
                         "config.xml",
                         """
                             <invalid xmlns="http://www.google.com/tools/metalava/config"/>
                         """,
-                    )
+                    ),
                 ),
             expectedIssues =
                 "config.xml:1: error: Problem parsing configuration file: cvc-elt.1.a: Cannot find the declaration of element 'invalid'. [ConfigFileProblem]",
         )
+    }
+
+    @Test
+    fun `Multiple config files`() {
+        check(
+            configFiles =
+                arrayOf(
+                    xml(
+                        "config1.xml",
+                        """
+                            <config xmlns="http://www.google.com/tools/metalava/config"/>
+                        """,
+                    ),
+                    xml(
+                        "config2.xml",
+                        """
+                            <config xmlns="http://www.google.com/tools/metalava/config"/>
+                        """,
+                    ),
+                ),
+        ) {
+            assertThat(options.config).isEqualTo(Config())
+        }
     }
 }

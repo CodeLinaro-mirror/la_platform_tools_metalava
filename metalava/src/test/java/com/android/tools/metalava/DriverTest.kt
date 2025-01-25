@@ -1619,6 +1619,37 @@ val requiresApiSource: TestFile =
         )
         .indented()
 
+val restrictedForEnvironment: TestFile =
+    java(
+            """
+    package androidx.annotation;
+    import java.lang.annotation.*;
+    import static java.lang.annotation.ElementType.*;
+    import static java.lang.annotation.RetentionPolicy.SOURCE;
+    @Retention(SOURCE)
+    @Target({TYPE})
+    public @interface RestrictedForEnvironment {
+      Environment[] environments();
+      int from();
+      enum Environment {
+        SDK_SANDBOX {
+            @Override
+            public String toString() {
+                return "SDK Runtime";
+            }
+        }
+    }
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target(TYPE)
+    @interface Container {
+        RestrictedForEnvironment[] value();
+    }
+
+    }
+    """
+        )
+        .indented()
+
 val sdkConstantSource: TestFile =
     java(
             """

@@ -96,7 +96,13 @@ private constructor(
             codebase: PsiBasedCodebase,
             uAnnotation: UAnnotation,
         ): AnnotationItem? {
-            val originalName = uAnnotation.qualifiedName ?: return null
+            // If the qualified name is a typealias, convert it to the aliased type because that is
+            // the version that will be present as a class in the codebase.
+            val originalName =
+                uAnnotation.qualifiedName?.let {
+                    (codebase.typeAliases[it] as? PsiClassTypeItem)?.qualifiedName ?: it
+                }
+                    ?: return null
             val qualifiedName =
                 codebase.annotationManager.normalizeInputName(originalName) ?: return null
             return UAnnotationItem(

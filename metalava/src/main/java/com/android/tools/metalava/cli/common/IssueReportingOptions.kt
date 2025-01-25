@@ -109,7 +109,7 @@ class IssueReportingOptions(
         val issueOption =
             compositeSideEffectOption(
                 // Create one side effect option per label.
-                ConfigLabel.values().map {
+                ConfigLabel.entries.map {
                     sideEffectOption(it.optionName, help = it.help) {
                         // if `--hide id1,id2` was supplied on the command line then this will split
                         // it into
@@ -301,7 +301,7 @@ private enum class ConfigLabel(
     }
 
     companion object {
-        private val optionNameToLabel = ConfigLabel.values().associateBy { it.optionName }
+        private val optionNameToLabel = entries.associateBy { it.optionName }
 
         /**
          * Get the label for the option name. This is only called with an option name that has been

@@ -35,7 +35,7 @@ class ApiLintFilteringTest(private val previouslyReleasedApiUse: PreviouslyRelea
         /** Run each test with and without the previously released API. */
         @JvmStatic
         @Parameterized.Parameters(name = "{0}")
-        fun testParameters() = PreviouslyReleasedApiUse.values()
+        fun testParameters() = PreviouslyReleasedApiUse.entries
     }
 
     private fun checkFiltering(
