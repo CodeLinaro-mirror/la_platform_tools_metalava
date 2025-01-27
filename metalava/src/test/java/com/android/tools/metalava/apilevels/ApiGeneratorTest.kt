@@ -26,7 +26,6 @@ import com.android.tools.metalava.ARG_GENERATE_API_LEVELS
 import com.android.tools.metalava.ARG_GENERATE_API_VERSION_HISTORY
 import com.android.tools.metalava.ARG_REMOVE_MISSING_CLASS_REFERENCES_IN_API_LEVELS
 import com.android.tools.metalava.ARG_SDK_INFO_FILE
-import com.android.tools.metalava.ARG_SDK_JAR_ROOT
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
@@ -90,8 +89,8 @@ class ApiGeneratorTest : DriverTest() {
                     apiVersionsXml.path,
                     ARG_ANDROID_JAR_PATTERN,
                     "${testPrebuiltsRoot.path}/{version:level}/public/android.jar",
-                    ARG_SDK_JAR_ROOT,
-                    "${testPrebuiltsRoot.path}/extensions",
+                    ARG_ANDROID_JAR_PATTERN,
+                    "${testPrebuiltsRoot.path}/extensions/{version:extension}/*/{module}.jar",
                     ARG_SDK_INFO_FILE,
                     "${testPrebuiltsRoot.path}/sdk-extensions-info.xml",
                     ARG_FIRST_VERSION,
@@ -467,7 +466,7 @@ class ApiGeneratorTest : DriverTest() {
         apiVersionsXml.checkApiVersionsXmlContent(
             """
                 <?xml version="1.0" encoding="utf-8"?>
-                <api version="3" min="1.1.0">
+                <api version="4" min="1.1.0">
                     <class name="test.pkg.Foo" since="1.1.0">
                         <extends name="java.lang.Object"/>
                         <method name="methodV1&lt;T extends java.lang.String>(T)" deprecated="1.3.0"/>
@@ -532,7 +531,7 @@ class ApiGeneratorTest : DriverTest() {
         apiVersionsXml.checkApiVersionsXmlContent(
             """
                 <?xml version="1.0" encoding="utf-8"?>
-                <api version="3" min="1.1.0">
+                <api version="4" min="1.1.0">
                     <class name="test.pkg.Bar" since="1.1.0" removed="1.2.0">
                         <extends name="java.lang.Object"/>
                         <field name="barField"/>
@@ -805,4 +804,76 @@ class ApiGeneratorTest : DriverTest() {
 
     private fun createTextFile(name: String, contents: String) =
         signature(name, contents).createFile(temporaryFolder.newFolder())
+
+    @Test
+    fun `Support major minor versions in generated api-versions xml file`() {
+        val pastVersions =
+            listOf(
+                createTextFile(
+                    "1.2",
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          public class Bar {
+                          }
+                        }
+                    """
+                ),
+                createTextFile(
+                    "1.3",
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          public class Bar {
+                          }
+                          public class Foo extends test.pkg.Bar {
+                          }
+                        }
+                    """
+                ),
+            )
+        val currentVersion =
+            """
+                // Signature format: 2.0
+                package test.pkg {
+                  public class Bar {
+                  }
+                  public class Foo extends test.pkg.Bar {
+                    field public int field;
+                  }
+                }
+            """
+
+        val apiVersionsXml = temporaryFolder.newFile("api-versions.xml")
+
+        check(
+            signatureSource = currentVersion,
+            extraArguments =
+                arrayOf(
+                    ARG_GENERATE_API_VERSION_HISTORY,
+                    apiVersionsXml.path,
+                    ARG_API_VERSION_SIGNATURE_FILES,
+                    pastVersions.joinToString(":") { it.absolutePath },
+                    ARG_API_VERSION_NAMES,
+                    listOf("1.2", "1.3").joinToString(" "),
+                    ARG_CURRENT_VERSION,
+                    "2.0",
+                ),
+        )
+
+        apiVersionsXml.checkApiVersionsXmlContent(
+            """
+                <?xml version="1.0" encoding="utf-8"?>
+                <api version="4" min="1.2">
+                    <class name="test.pkg.Bar" since="1.2">
+                        <extends name="java.lang.Object"/>
+                    </class>
+                    <class name="test.pkg.Foo" since="1.3">
+                        <extends name="test.pkg.Bar"/>
+                        <field name="field" since="2.0"/>
+                    </class>
+                </api>
+            """
+        )
+    }
 }

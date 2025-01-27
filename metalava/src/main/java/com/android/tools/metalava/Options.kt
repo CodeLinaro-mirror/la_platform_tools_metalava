@@ -42,8 +42,8 @@ import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions.Ch
 import com.android.tools.metalava.cli.lint.ApiLintOptions
 import com.android.tools.metalava.cli.signature.SignatureFormatOptions
 import com.android.tools.metalava.config.ConfigParser
-import com.android.tools.metalava.doc.ApiLevelFilter
-import com.android.tools.metalava.doc.ApiLevelLabelProvider
+import com.android.tools.metalava.doc.ApiVersionFilter
+import com.android.tools.metalava.doc.ApiVersionLabelProvider
 import com.android.tools.metalava.manifest.Manifest
 import com.android.tools.metalava.manifest.emptyManifest
 import com.android.tools.metalava.model.AnnotationManager
@@ -606,10 +606,11 @@ class Options(
     private var mergeQualifierAnnotations: List<File> = mutableMergeQualifierAnnotations
     private var mergeInclusionAnnotations: List<File> = mutableMergeInclusionAnnotations
 
-    val apiLevelLabelProvider: ApiLevelLabelProvider = apiLevelsGenerationOptions::getApiLevelLabel
+    val apiVersionLabelProvider: ApiVersionLabelProvider =
+        apiLevelsGenerationOptions::getApiVersionLabel
 
-    val includeApiLevelInDocumentation: ApiLevelFilter =
-        apiLevelsGenerationOptions::includeApiLevelInDocumentation
+    val includeApiLevelInDocumentation: ApiVersionFilter =
+        apiLevelsGenerationOptions::includeApiVersionInDocumentation
 
     /** Reads API XML file to apply into documentation */
     var applyApiLevelsXml: File? = null

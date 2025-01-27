@@ -58,12 +58,7 @@ class ConvertJarsToSignatureFiles(
     fun convertJars(jarCodebaseLoader: JarCodebaseLoader, root: File) {
         var api = 1
         while (true) {
-            val apiJar =
-                File(
-                    root,
-                    if (api <= 3) "prebuilts/tools/common/api-versions/android-$api/android.jar"
-                    else "prebuilts/sdk/$api/public/android.jar"
-                )
+            val apiJar = File(root, "prebuilts/sdk/$api/public/android.jar")
             if (!apiJar.isFile) {
                 break
             }

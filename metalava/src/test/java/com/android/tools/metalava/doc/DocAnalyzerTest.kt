@@ -163,6 +163,55 @@ class DocAnalyzerTest : DriverTest() {
     }
 
     @Test
+    fun `Check construct ApiLookup works correctly for major-minor`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            public class Foo {
+                                public Foo() {}
+                                public Foo(int i) { this.i = i; }
+
+                                private int i;
+                            }
+                        """
+                    ),
+                ),
+            checkCompilation = true,
+            docStubs = true,
+            applyApiLevelsXml =
+                """
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <api version="4">
+                        <class name="test/pkg/Foo" since="17">
+                            <method name="&lt;init>()V" since="18.0"/>
+                            <method name="&lt;init>(I)V" since="19.3"/>
+                        </class>
+                    </api>
+                """,
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            /** @apiSince 17 */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Foo {
+                            /** @apiSince 18 */
+                            public Foo() { throw new RuntimeException("Stub!"); }
+                            /** @apiSince 19.3 */
+                            public Foo(int i) { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                ),
+        )
+    }
+
+    @Test
     fun `Fix first sentence handling`() {
         check(
             sourceFiles =

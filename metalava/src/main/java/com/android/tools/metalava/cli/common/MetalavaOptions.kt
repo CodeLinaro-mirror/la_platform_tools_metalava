@@ -318,15 +318,18 @@ internal fun <T : Enum<T>> ParameterHolder.nonInlineEnumOption(
  *
  * @param definitionList is a list of [Pair]s, where [Pair.first] is the term being defined and
  *   [Pair.second] is the definition of that term.
+ * @param termPrefix the prefix to add before each term being defined, e.g. `* ` to represent a
+ *   bullet list.
  */
 private fun StringBuilder.appendDefinitionListHelp(
     definitionList: List<Pair<String, String>>,
+    termPrefix: String = "",
 ) {
     append(BLANK_LINE)
     for ((term, body) in definitionList) {
         // This must match the pattern used in MetalavaHelpFormatter.styleEnumHelpTextIfNeeded
         // which is used to deconstruct this.
-        append(constructStyleableChoiceOption(term))
+        append(constructStyleableChoiceOption(term, termPrefix))
         append(" - ")
         append(body)
         append(BLANK_LINE)
@@ -340,19 +343,26 @@ private fun StringBuilder.appendDefinitionListHelp(
  * in the help text using [deconstructStyleableChoiceOption] and replaced with actual styling
  * sequences if needed.
  */
-private fun constructStyleableChoiceOption(value: String) = "$BLANK_LINE**$value**"
+private fun constructStyleableChoiceOption(value: String, prefix: String = "") =
+    "$BLANK_LINE$prefix**$value**"
 
 /**
  * A regular expression that will match choice options created using
  * [constructStyleableChoiceOption].
  */
-private val deconstructStyleableChoiceOption = """$BLANK_LINE(\*\*([^*]+)\*\*)""".toRegex()
+private val deconstructStyleableChoiceOption = """$BLANK_LINE(.*?)(\*\*([^*]+)\*\*)""".toRegex()
+
+/**
+ * The index of the group in [deconstructStyleableChoiceOption] that matches the prefix provided to
+ * [constructStyleableChoiceOption].
+ */
+private const val PREFIX_GROUP_INDEX = 1
 
 /**
  * The index of the group in [deconstructStyleableChoiceOption] that must be replaced by
  * [replaceChoiceOption].
  */
-private const val REPLACEMENT_GROUP_INDEX = 1
+private const val REPLACEMENT_GROUP_INDEX = PREFIX_GROUP_INDEX + 1
 
 /**
  * The index of the group in [deconstructStyleableChoiceOption] that contains the label that will be
@@ -379,8 +389,8 @@ private fun MatchResult.replaceChoiceOption(
     // Transform the label.
     val transformedLabel = transformer(label)
 
-    // Replace the label and the surrounding style markers but not the leading blank line with the
-    // transformed label.
+    // Replace the label and the surrounding style markers but not the leading blank line or prefix
+    // with the transformed label.
     val replacementGroup =
         groups[REPLACEMENT_GROUP_INDEX]
             ?: error("replacement group $REPLACEMENT_GROUP_INDEX not found in $this")

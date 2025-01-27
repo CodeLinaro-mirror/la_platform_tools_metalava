@@ -31,6 +31,7 @@ com.android.tools.metalava.DuplicateClassTest
 com.android.tools.metalava.ExtractAnnotationsTest
   Check java typedef extraction and warning about non-source retention of typedefs[turbine]
   Check warning about unexpected returns from typedef method[turbine]
+  Extract annotations from class[turbine]
   Extract permission annotations[turbine]
   Include merged annotations in exported source annotations[turbine]
   Inlining typedef signatures in api files[turbine]
