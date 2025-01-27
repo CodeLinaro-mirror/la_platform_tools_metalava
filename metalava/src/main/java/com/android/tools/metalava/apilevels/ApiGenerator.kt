@@ -146,12 +146,6 @@ class ApiGenerator {
 
     data class SdkExtensionsArguments(
         /**
-         * Root of the directory containing released versions of the SDK extensions, e.g.
-         * `prebuilts/sdk/extensions/`.
-         */
-        val sdkExtJarRoot: File,
-
-        /**
          * The `sdk-extension-info.xml` file containing information about the available sdk
          * extensions and the APIs each module contributes to them.
          */

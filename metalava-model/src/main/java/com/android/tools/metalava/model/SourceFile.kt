@@ -122,6 +122,7 @@ interface SourceFile {
 }
 
 /** Encapsulates information about the imports used in a [SourceFile]. */
+@ConsistentCopyVisibility
 data class Import
 internal constructor(
     /**

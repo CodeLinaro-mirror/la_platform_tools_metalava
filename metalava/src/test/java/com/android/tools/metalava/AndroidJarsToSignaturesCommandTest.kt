@@ -83,9 +83,6 @@ Arguments:
             // Copy the android.jar into a temporary folder structure.
             val androidRootDir = folder("android-root-dir")
 
-            fun oldAndroidJarFile(apiVersion: Int): String {
-                return "prebuilts/tools/common/api-versions/android-$apiVersion/android.jar"
-            }
             fun currentVersionDir(apiVersion: Int): String {
                 return "prebuilts/sdk/$apiVersion/public"
             }
@@ -106,15 +103,8 @@ Arguments:
             )
             val apiVersionsInfo = mutableListOf<ApiVersionInfo>()
 
-            // The first few android.jars are not in prebuilts/sdk
-            // However, the android.txt files are still output to prebuilts/sdk.
-            for (apiVersion in 1..3) {
-                val versionJar = androidRootDir.resolve(oldAndroidJarFile(apiVersion))
-                // Add to the list of api versions.
-                apiVersionsInfo.add(ApiVersionInfo(apiVersion, versionJar))
-            }
-            // The remaining android.jars are in prebuilts/sdk/<N>/public/android.jar.
-            for (apiVersion in 4..5) {
+            // All android.jars are in prebuilts/sdk/<N>/public/android.jar.
+            for (apiVersion in 1..5) {
                 val versionJar = androidRootDir.resolve(currentAndroidJarFile(apiVersion))
 
                 // Some android.jar files already have a corresponding android.txt file.
