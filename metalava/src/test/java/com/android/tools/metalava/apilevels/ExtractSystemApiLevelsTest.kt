@@ -17,12 +17,10 @@
 package com.android.tools.metalava.apilevels
 
 import com.android.tools.metalava.ARG_ANDROID_JAR_PATTERN
-import com.android.tools.metalava.ARG_API_SURFACE
 import com.android.tools.metalava.ARG_CURRENT_VERSION
 import com.android.tools.metalava.ARG_FIRST_VERSION
 import com.android.tools.metalava.ARG_GENERATE_API_LEVELS
 import com.android.tools.metalava.ARG_SDK_INFO_FILE
-import com.android.tools.metalava.ARG_SDK_JAR_ROOT
 import com.android.tools.metalava.doc.getApiLookup
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -36,15 +34,13 @@ class ExtractSystemApiLevelsTest : ApiGeneratorIntegrationTestBase() {
         check(
             extraArguments =
                 arrayOf(
-                    // Make sure to only use system extension jars.
-                    ARG_API_SURFACE,
-                    "system",
                     ARG_GENERATE_API_LEVELS,
                     outputPath,
                     ARG_ANDROID_JAR_PATTERN,
                     androidJarPattern,
-                    ARG_SDK_JAR_ROOT,
-                    extensionSdkJars.path,
+                    ARG_ANDROID_JAR_PATTERN,
+                    // Make sure to only use system extension jars.
+                    "${extensionSdkJars.path}/{version:extension}/system/{module}.jar",
                     ARG_SDK_INFO_FILE,
                     createSdkExtensionInfoFile().path,
                     ARG_FIRST_VERSION,

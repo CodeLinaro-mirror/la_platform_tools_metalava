@@ -88,7 +88,7 @@ class PatternNodeTest : TemporaryFolderOwner {
         val exception =
             assertThrows(IllegalStateException::class.java) { PatternNode.parsePatterns(patterns) }
         assertEquals(
-            "Pattern 'prebuilts/sdk/{unknown}/public/android-{version:level}.jar' contains an unknown placeholder '{unknown}', expected one of '{version:level}', '{version:major.minor?}', '{version:major.minor.patch}', '{module}'",
+            "Pattern 'prebuilts/sdk/{unknown}/public/android-{version:level}.jar' contains an unknown placeholder '{unknown}', expected one of '{version:level}', '{version:major.minor?}', '{version:major.minor.patch}', '{version:extension}', '{module}'",
             exception.message
         )
     }
@@ -97,12 +97,6 @@ class PatternNodeTest : TemporaryFolderOwner {
     fun `Parse common Android public patterns`() {
         val patterns =
             listOf(
-                "prebuilts/sdk/{version:level}/public/android.jar",
-                // This pattern never matches, but it is provided by Soong as it treats all
-                // directories as being the same structure as prebuilts/sdk.
-                "prebuilts/tools/common/api-versions/{version:level}/public/android.jar",
-                // The following are fallbacks which are always added.
-                "prebuilts/tools/common/api-versions/android-{version:level}/android.jar",
                 "prebuilts/sdk/{version:level}/public/android.jar",
             )
 
@@ -115,14 +109,6 @@ class PatternNodeTest : TemporaryFolderOwner {
                       (\d+)/
                         public/
                           android.jar
-                    tools/
-                      common/
-                        api-versions/
-                          (\d+)/
-                            public/
-                              android.jar
-                          \Qandroid-\E(\d+)/
-                            android.jar
             """
         )
     }
@@ -132,15 +118,6 @@ class PatternNodeTest : TemporaryFolderOwner {
         val patterns =
             listOf(
                 "prebuilts/sdk/{version:level}/system/android.jar",
-                // This pattern never matches, but it is provided by Soong as it treats all
-                // directories as being the same structure as prebuilts/sdk.
-                "prebuilts/tools/common/api-versions/{version:level}/system/android.jar",
-                "prebuilts/sdk/{version:level}/public/android.jar",
-                // This pattern never matches, but it is provided by Soong as it treats all
-                // directories as being the same structure as prebuilts/sdk.
-                "prebuilts/tools/common/api-versions/{version:level}/public/android.jar",
-                // The following are fallbacks which are always added.
-                "prebuilts/tools/common/api-versions/android-{version:level}/android.jar",
                 "prebuilts/sdk/{version:level}/public/android.jar",
             )
 
@@ -155,16 +132,6 @@ class PatternNodeTest : TemporaryFolderOwner {
                           android.jar
                         public/
                           android.jar
-                    tools/
-                      common/
-                        api-versions/
-                          (\d+)/
-                            system/
-                              android.jar
-                            public/
-                              android.jar
-                          \Qandroid-\E(\d+)/
-                            android.jar
             """
         )
     }
@@ -174,19 +141,7 @@ class PatternNodeTest : TemporaryFolderOwner {
         val patterns =
             listOf(
                 "prebuilts/sdk/{version:level}/module-lib/android.jar",
-                // This pattern never matches, but it is provided by Soong as it treats all
-                // directories as being the same structure as prebuilts/sdk.
-                "prebuilts/tools/common/api-versions/{version:level}/module-lib/android.jar",
                 "prebuilts/sdk/{version:level}/system/android.jar",
-                // This pattern never matches, but it is provided by Soong as it treats all
-                // directories as being the same structure as prebuilts/sdk.
-                "prebuilts/tools/common/api-versions/{version:level}/system/android.jar",
-                "prebuilts/sdk/{version:level}/public/android.jar",
-                // This pattern never matches, but it is provided by Soong as it treats all
-                // directories as being the same structure as prebuilts/sdk.
-                "prebuilts/tools/common/api-versions/{version:level}/public/android.jar",
-                // The following are fallbacks which are always added.
-                "prebuilts/tools/common/api-versions/android-{version:level}/android.jar",
                 "prebuilts/sdk/{version:level}/public/android.jar",
             )
 
@@ -203,18 +158,25 @@ class PatternNodeTest : TemporaryFolderOwner {
                           android.jar
                         public/
                           android.jar
-                    tools/
-                      common/
-                        api-versions/
-                          (\d+)/
-                            module-lib/
-                              android.jar
-                            system/
-                              android.jar
-                            public/
-                              android.jar
-                          \Qandroid-\E(\d+)/
-                            android.jar
+            """
+        )
+    }
+
+    @Test
+    fun `Parse pattern with absolute path`() {
+        val patterns =
+            listOf(
+                "/absolute/path/{version:level}.txt",
+            )
+
+        val patternNode = PatternNode.parsePatterns(patterns)
+        patternNode.assertStructure(
+            """
+                <root>
+                  /
+                    absolute/
+                      path/
+                        (\d+)\Q.txt\E
             """
         )
     }
@@ -226,7 +188,6 @@ class PatternNodeTest : TemporaryFolderOwner {
         val patterns =
             listOf(
                 "prebuilts/sdk/{version:level}/public/android.jar",
-                "prebuilts/tools/common/api-versions/android-{version:level}/android.jar",
             )
         val node = PatternNode.parsePatterns(patterns)
         val range = ApiVersion.fromLevel(1).rangeTo(ApiVersion.fromLevel(5))
@@ -234,15 +195,15 @@ class PatternNodeTest : TemporaryFolderOwner {
         val expected =
             listOf(
                 MatchedPatternFile(
-                    File("prebuilts/tools/common/api-versions/android-1/android.jar"),
+                    File("prebuilts/sdk/1/public/android.jar"),
                     ApiVersion.fromLevel(1)
                 ),
                 MatchedPatternFile(
-                    File("prebuilts/tools/common/api-versions/android-2/android.jar"),
+                    File("prebuilts/sdk/2/public/android.jar"),
                     ApiVersion.fromLevel(2)
                 ),
                 MatchedPatternFile(
-                    File("prebuilts/tools/common/api-versions/android-3/android.jar"),
+                    File("prebuilts/sdk/3/public/android.jar"),
                     ApiVersion.fromLevel(3)
                 ),
                 MatchedPatternFile(
@@ -404,6 +365,14 @@ class PatternNodeTest : TemporaryFolderOwner {
     }
 
     @Test
+    fun `Scan with empty patterns`() {
+        val rootDir = createApiFileStructure()
+        val node = PatternNode.parsePatterns(emptyList())
+        val files = node.scan(PatternNode.ScanConfig(rootDir, apiVersionRange = null))
+        assertEquals(emptyList(), files)
+    }
+
+    @Test
     fun `Scan for major minor`() {
         val rootDir = createApiFileStructure()
 
@@ -463,6 +432,26 @@ class PatternNodeTest : TemporaryFolderOwner {
     }
 
     @Test
+    fun `Scan for extension version`() {
+        val rootDir = createApiFileStructure()
+
+        val patterns =
+            listOf(
+                "{version:extension}/api.txt",
+            )
+        val node = PatternNode.parsePatterns(patterns)
+        // This range should have no effect on extension versions.
+        val range = ApiVersion.fromLevel(20).rangeTo(ApiVersion.fromLevel(22))
+        val files = node.scan(PatternNode.ScanConfig(rootDir, apiVersionRange = range))
+        val expected =
+            listOf(
+                MatchedPatternFile(File("1/api.txt"), ApiVersion.fromString("1")),
+                MatchedPatternFile(File("2/api.txt"), ApiVersion.fromString("2")),
+            )
+        assertEquals(expected, files)
+    }
+
+    @Test
     fun `Scan for module`() {
         fun DirectoryBuilder.apiFile(module: String) = emptyFile("$module.txt")
         val rootDir = buildFileStructure {
@@ -481,7 +470,7 @@ class PatternNodeTest : TemporaryFolderOwner {
 
         val patterns =
             listOf(
-                "extensions/{version:level}/{module}.txt",
+                "extensions/{version:extension}/{module}.txt",
             )
         val node = PatternNode.parsePatterns(patterns)
         val files = node.scan(PatternNode.ScanConfig(rootDir))
@@ -493,24 +482,24 @@ class PatternNodeTest : TemporaryFolderOwner {
                     module = "module-one",
                 ),
                 MatchedPatternFile(
+                    File("extensions/3/module-one.txt"),
+                    ApiVersion.fromLevel(3),
+                    module = "module-one",
+                ),
+                MatchedPatternFile(
                     File("extensions/2/module-two.txt"),
                     ApiVersion.fromLevel(2),
+                    module = "module-two",
+                ),
+                MatchedPatternFile(
+                    File("extensions/3/module-two.txt"),
+                    ApiVersion.fromLevel(3),
                     module = "module-two",
                 ),
                 MatchedPatternFile(
                     File("extensions/2/module.three.txt"),
                     ApiVersion.fromLevel(2),
                     module = "module.three",
-                ),
-                MatchedPatternFile(
-                    File("extensions/3/module-one.txt"),
-                    ApiVersion.fromLevel(3),
-                    module = "module-one",
-                ),
-                MatchedPatternFile(
-                    File("extensions/3/module-two.txt"),
-                    ApiVersion.fromLevel(3),
-                    module = "module-two",
                 ),
             )
         assertEquals(expected, files)

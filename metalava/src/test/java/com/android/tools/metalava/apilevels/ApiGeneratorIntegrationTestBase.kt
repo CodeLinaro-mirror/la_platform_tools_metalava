@@ -106,15 +106,6 @@ abstract class ApiGeneratorIntegrationTestBase : DriverTest() {
             assert(ABOVE_HIGHEST_API.includes(MAGIC_VERSION_INT))
         }
 
-        internal val oldSdkJars by
-            lazy(LazyThreadSafetyMode.NONE) {
-                File("../../../prebuilts/tools/common/api-versions").apply {
-                    if (!isDirectory) {
-                        Assert.fail("prebuilts for old sdk jars not found: $this")
-                    }
-                }
-            }
-
         internal val platformJars by
             lazy(LazyThreadSafetyMode.NONE) {
                 File("../../../prebuilts/sdk").apply {

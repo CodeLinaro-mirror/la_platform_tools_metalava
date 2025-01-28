@@ -39,6 +39,9 @@ class ApiXmlPrinter(
      */
     private val versionToNext = allVersions.zipWithNext().toMap()
 
+    /** True if the [Api] being printed has any minor versions. */
+    private val hasMinorVersions = allVersions.any { it.minor != null }
+
     override fun print(api: Api, writer: PrintWriter) {
         writer.println("<?xml version=\"1.0\" encoding=\"utf-8\"?>")
         api.print(writer, availableSdkExtensions)
@@ -52,7 +55,10 @@ class ApiXmlPrinter(
      * @param writer the writer to which the XML elements will be written.
      */
     private fun Api.print(writer: PrintWriter, availableSdkExtensions: AvailableSdkExtensions?) {
-        writer.print("<api version=\"3\"")
+        // Select the lowest version that supports the necessary capabilities.
+        val fileVersion = if (hasMinorVersions) 4 else 3
+
+        writer.print("<api version=\"$fileVersion\"")
         if (firstApiVersion > DEFAULT_MIN_VERSION) {
             writer.print(" min=\"$firstApiVersion\"")
         }

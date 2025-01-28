@@ -828,4 +828,42 @@ class ExtractAnnotationsTest : DriverTest() {
                 )
         )
     }
+
+    @Test
+    fun `Extract annotations from class`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            import androidx.annotation.UiThread;
+
+                            @UiThread
+                            public class Test {
+                                @UiThread
+                                public Test() {}
+                            }
+                        """
+                    ),
+                    uiThreadSource,
+                ),
+            extractAnnotations =
+                mapOf(
+                    "test.pkg" to
+                        """
+                            <?xml version="1.0" encoding="UTF-8"?>
+                            <root>
+                              <item name="test.pkg.Test">
+                                <annotation name="androidx.annotation.UiThread"/>
+                              </item>
+                              <item name="test.pkg.Test Test()">
+                                <annotation name="androidx.annotation.UiThread"/>
+                              </item>
+                            </root>
+                        """,
+                ),
+        )
+    }
 }
