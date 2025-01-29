@@ -136,7 +136,7 @@ internal fun fileForPathInner(path: String): File {
 internal fun stringToExistingDir(value: String): File {
     val file = fileForPathInner(value)
     if (!file.isDirectory) {
-        throw MetalavaCliException("$file is not a directory")
+        cliError("$file is not a directory")
     }
     return file
 }
@@ -164,7 +164,7 @@ internal fun stringToNewDir(value: String): File {
             output.mkdirs()
         }
     if (!ok) {
-        throw MetalavaCliException("Could not create $output")
+        cliError("Could not create $output")
     }
 
     return output
@@ -179,7 +179,7 @@ internal fun stringToNewDir(value: String): File {
 internal fun stringToExistingFile(value: String): File {
     val file = fileForPathInner(value)
     if (!file.isFile) {
-        throw MetalavaCliException("$file is not a file")
+        cliError("$file is not a file")
     }
     return file
 }
@@ -197,16 +197,16 @@ internal fun stringToNewFile(value: String): File {
 
     if (output.exists()) {
         if (output.isDirectory) {
-            throw MetalavaCliException("$output is a directory")
+            cliError("$output is a directory")
         }
         val deleted = output.delete()
         if (!deleted) {
-            throw MetalavaCliException("Could not delete previous version of $output")
+            cliError("Could not delete previous version of $output")
         }
     } else if (output.parentFile != null && !output.parentFile.exists()) {
         val ok = output.parentFile.mkdirs()
         if (!ok) {
-            throw MetalavaCliException("Could not create ${output.parentFile}")
+            cliError("Could not create ${output.parentFile}")
         }
     }
 
@@ -227,7 +227,7 @@ internal fun stringToNewOrExistingFile(value: String): File {
         if (parentFile != null && !parentFile.isDirectory) {
             val ok = parentFile.mkdirs()
             if (!ok) {
-                throw MetalavaCliException("Could not create $parentFile")
+                cliError("Could not create $parentFile")
             }
         }
     }

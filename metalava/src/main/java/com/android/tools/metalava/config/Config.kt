@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.config
 
+import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlProperty
 import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlRootElement
@@ -33,12 +34,16 @@ data class Config(
 data class ApiSurfacesConfig(
     @field:JacksonXmlProperty(localName = "api-surface", namespace = CONFIG_NAMESPACE)
     val apiSurfaceList: List<ApiSurfaceConfig> = emptyList(),
-)
+) {
+    /** Map of [ApiSurfaceConfig]s by [ApiSurfaceConfig.name]. */
+    @get:JsonIgnore
+    val byName by lazy(LazyThreadSafetyMode.NONE) { apiSurfaceList.associateBy { it.name } }
+}
 
 /** An API surface that Metalava could generate. */
 data class ApiSurfaceConfig(
     /** The name of the API surface, e.g. `public`, `restricted`, etc. */
-    @field:JacksonXmlProperty(isAttribute = true) val name: String?,
+    @field:JacksonXmlProperty(isAttribute = true) val name: String,
 
     /** The optional name of the API surface that this surface extends, e.g. `public`. */
     @field:JacksonXmlProperty(isAttribute = true) val extends: String? = null,

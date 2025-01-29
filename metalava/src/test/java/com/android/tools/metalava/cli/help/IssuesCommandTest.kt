@@ -59,7 +59,6 @@ Available Issues                             |  Category                |   Defa
   BecameUnchecked                            |  compatibility           |   error
   BothPackageInfoAndHtml                     |  documentation           |   warning
   BroadcastBehavior                          |  documentation           |   error
-  BrokenArtifactFile                         |  documentation           |   error
   BuilderSetStyle                            |  api_lint                |   warning
   CallbackInterface                          |  api_lint                |   hidden
   CallbackMethodName                         |  api_lint                |   error
@@ -72,9 +71,7 @@ Available Issues                             |  Category                |   Defa
   ChangedScope                               |  compatibility           |   error
   ChangedStatic                              |  compatibility           |   error
   ChangedSuperclass                          |  compatibility           |   error
-  ChangedSynchronized                        |  compatibility           |   hidden
   ChangedThrows                              |  compatibility           |   error
-  ChangedTransient                           |  compatibility           |   error
   ChangedType                                |  compatibility           |   error
   ChangedValue                               |  compatibility           |   error
   ChangedVolatile                            |  compatibility           |   error
@@ -83,12 +80,10 @@ Available Issues                             |  Category                |   Defa
   ConditionalRequiresPermissionNotExplained  |  api_lint                |   hidden
   ConfigFieldName                            |  api_lint                |   error
   ConfigFileProblem                          |  unknown                 |   error
-  ConflictingShowAnnotations                 |  unknown                 |   error
   ContextFirst                               |  api_lint                |   error
   ContextNameSuffix                          |  api_lint                |   error
   DefaultValueChange                         |  compatibility           |   error
   Deprecated                                 |  documentation           |   hidden
-  DeprecatedOption                           |  unknown                 |   warning
   DeprecationMismatch                        |  documentation           |   error
   DocumentExceptions                         |  api_lint                |   error
   DuplicateSourceClass                       |  unknown                 |   warning
@@ -115,7 +110,6 @@ Available Issues                             |  Category                |   Defa
   HiddenTypeParameter                        |  documentation           |   warning
   HiddenTypedefConstant                      |  unknown                 |   error
   IgnoringSymlink                            |  unknown                 |   info
-  IllegalStateException                      |  api_lint                |   warning
   InconsistentMergeAnnotation                |  api_lint                |   warning_error_when_new
   InfixRemoval                               |  compatibility           |   error
   IntDef                                     |  documentation           |   hidden
@@ -156,7 +150,6 @@ Available Issues                             |  Category                |   Defa
   MissingPermission                          |  documentation           |   error
   MultipleThreadAnnotations                  |  documentation           |   error
   MutableBareField                           |  api_lint                |   error
-  NoArtifactData                             |  documentation           |   hidden
   NoByteOrShort                              |  api_lint                |   warning
   NoClone                                    |  api_lint                |   error
   NoSettingsProvider                         |  api_lint                |   hidden
@@ -183,7 +176,6 @@ Available Issues                             |  Category                |   Defa
   RawAidl                                    |  api_lint                |   error
   ReferencesDeprecated                       |  api_lint                |   hidden
   ReferencesHidden                           |  api_lint                |   error
-  RegistrationName                           |  api_lint                |   error
   RemovedAnnotation                          |  compatibility           |   error
   RemovedClass                               |  compatibility           |   error
   RemovedDeprecatedClass                     |  compatibility           |   inherit
@@ -223,7 +215,6 @@ Available Issues                             |  Category                |   Defa
   UnhiddenSystemApi                          |  api_lint                |   error
   UniqueKotlinOperator                       |  api_lint                |   error
   UnmatchedMergeAnnotation                   |  api_lint                |   error
-  UnresolvedClass                            |  documentation           |   error
   UnresolvedImport                           |  unknown                 |   info
   UnresolvedLink                             |  documentation           |   error
   UseIcu                                     |  api_lint                |   warning

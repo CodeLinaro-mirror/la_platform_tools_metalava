@@ -92,10 +92,21 @@ abstract class BaseOptionGroupTest<O : OptionGroup>(
     @Test
     fun `Test help`() {
         runTest(
+            "--help",
             // Do not include dependent groups when generating the help.
             includeDependentGroups = false,
         ) {
-            Assert.assertEquals(expectedHelp, stdout)
+            val trimmedOut =
+                stdout.removePrefix(
+                    """
+                        Options:
+                          --help                                     Show this message and exit
+
+
+                    """
+                        .trimIndent()
+                )
+            Assert.assertEquals(expectedHelp, trimmedOut)
         }
     }
 }
@@ -145,7 +156,7 @@ private class DependentGroupsProvider(
  *   [BaseOptionGroupTest.runTest] for more details.
  */
 private class MockCommand<O : OptionGroup>(factory: () -> O, includeDependentGroups: Boolean) :
-    CliktCommand(printHelpOnEmptyArgs = true) {
+    CliktCommand() {
     val options by factory()
 
     /**
@@ -162,6 +173,7 @@ private class MockCommand<O : OptionGroup>(factory: () -> O, includeDependentGro
         context {
             localization = MetalavaLocalization()
             helpFormatter = MetalavaHelpFormatter(::plainTerminal, localization)
+            helpOptionNames = setOf("--help")
         }
     }
 

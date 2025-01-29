@@ -24,9 +24,9 @@ import com.android.tools.metalava.cli.common.ActionContext
 import com.android.tools.metalava.cli.common.CheckerContext
 import com.android.tools.metalava.cli.common.EarlyOptions
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
-import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.cli.common.MetalavaCommand
 import com.android.tools.metalava.cli.common.VersionCommand
+import com.android.tools.metalava.cli.common.cliError
 import com.android.tools.metalava.cli.common.commonOptions
 import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions.CheckRequest
 import com.android.tools.metalava.cli.help.HelpCommand
@@ -186,7 +186,7 @@ internal fun processFlags(
             sources
                 .firstOrNull { !it.path.endsWith(DOT_TXT) }
                 ?.let {
-                    throw MetalavaCliException(
+                    cliError(
                         "Inconsistent input file types: The first file is of $DOT_TXT, but detected different extension in ${it.path}"
                     )
                 }
@@ -476,7 +476,7 @@ private fun ActionContext.subtractApi(
                 signatureFileCache.load(SignatureFile.fromFiles(subtractApiFile))
             path.endsWith(DOT_JAR) -> loadFromJarFile(subtractApiFile)
             else ->
-                throw MetalavaCliException(
+                cliError(
                     "Unsupported $ARG_SUBTRACT_API format, expected .txt or .jar: ${subtractApiFile.name}"
                 )
         }

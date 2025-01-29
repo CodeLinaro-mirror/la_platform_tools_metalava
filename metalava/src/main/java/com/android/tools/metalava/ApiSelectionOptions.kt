@@ -16,23 +16,41 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.cli.common.MetalavaCliException
+import com.android.tools.metalava.config.ApiSurfaceConfig
+import com.android.tools.metalava.config.ApiSurfacesConfig
 import com.android.tools.metalava.model.annotation.AnnotationFilter
+import com.android.tools.metalava.model.api.surface.ApiSurface
+import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
+import com.github.ajalt.clikt.parameters.options.defaultLazy
 import com.github.ajalt.clikt.parameters.options.multiple
 import com.github.ajalt.clikt.parameters.options.option
+import com.github.ajalt.clikt.parameters.options.switch
 
 const val ARG_API_SURFACE = "--api-surface"
+const val ARG_SHOW_UNANNOTATED = "--show-unannotated"
 const val ARG_SHOW_ANNOTATION = "--show-annotation"
 const val ARG_SHOW_SINGLE_ANNOTATION = "--show-single-annotation"
 const val ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION = "--show-for-stub-purposes-annotation"
+
+const val ARG_HIDE_ANNOTATION = "--hide-annotation"
 
 /** The name of the group, can be used in help text to refer to the options in this group. */
 const val API_SELECTION_OPTIONS_GROUP = "Api Selection"
 
 /**
  * Options related to selecting which parts of the source files will be part of the generated API.
+ *
+ * @param apiSurfacesConfigProvider Provides the [ApiSurfacesConfig] that was provided in an
+ *   [ARG_CONFIG_FILE], if any. This must only be called after all the options have been parsed.
+ * @param ignoreShowAnnotationsProvider Provides an indication whether show annotations are going to
+ *   be used or not, `true` if they are not, `false` if they are.
  */
-class ApiSelectionOptions :
+class ApiSelectionOptions(
+    private val apiSurfacesConfigProvider: () -> ApiSurfacesConfig? = { null },
+    private val ignoreShowAnnotationsProvider: () -> Boolean = { false },
+) :
     OptionGroup(
         name = API_SELECTION_OPTIONS_GROUP,
         help =
@@ -43,17 +61,26 @@ class ApiSelectionOptions :
                 .trimIndent()
     ) {
 
-    val apiSurface by
+    private val apiSurface by
         option(
             ARG_API_SURFACE,
             metavar = "<surface>",
             help =
                 """
-                    The API surface currently being generated.
-
-                    Currently, only used for testing purposes.
+                    The API surface currently being generated. Must correspond to an <api-surface>
+                    element in a $ARG_CONFIG_FILE.
                 """,
         )
+
+    val showUnannotated by
+        option(help = "Include un-annotated public APIs in the signature file as well.")
+            .switch(ARG_SHOW_UNANNOTATED to true)
+            .defaultLazy(defaultForHelp = "true if no --show*-annotation options specified") {
+                // If the caller has not explicitly requested that unannotated classes and members
+                // should be shown in the output then only show them if no show annotations were
+                // provided.
+                allShowAnnotations.isEmpty()
+            }
 
     private val showAnnotationValues by
         option(
@@ -92,6 +119,14 @@ class ApiSelectionOptions :
                         and API lint.
                     """
                         .trimIndent(),
+                metavar = "<annotation-filter>",
+            )
+            .multiple()
+
+    private val hideAnnotationValues by
+        option(
+                ARG_HIDE_ANNOTATION,
+                help = "Treat any elements annotated with the given annotation as hidden.",
                 metavar = "<annotation-filter>",
             )
             .multiple()
@@ -137,4 +172,115 @@ class ApiSelectionOptions :
         lazy(LazyThreadSafetyMode.NONE) {
             AnnotationFilter.create(showForStubPurposesAnnotationValues)
         }
+
+    /** Annotations that mark items which should be treated as hidden. */
+    internal val hideAnnotations by
+        lazy(LazyThreadSafetyMode.NONE) { AnnotationFilter.create(hideAnnotationValues) }
+
+    val apiSurfaces by
+        lazy(LazyThreadSafetyMode.NONE) {
+            val apiSurfacesConfig = apiSurfacesConfigProvider()
+            val ignoreShowAnnotations = ignoreShowAnnotationsProvider()
+            createApiSurfaces(
+                showUnannotated,
+                apiSurface,
+                apiSurfacesConfig,
+                ignoreShowAnnotations,
+            )
+        }
+
+    companion object {
+        /**
+         * Create [ApiSurfaces] and associated [ApiSurface] objects from these options.
+         *
+         * @param showUnannotated true if unannotated items should be included in the API, false
+         *   otherwise.
+         * @param targetApiSurface the optional name of the target API surface to be created. If
+         *   supplied it MUST reference an [ApiSurfaceConfig] in [apiSurfacesConfig].
+         * @param apiSurfacesConfig the optional [ApiSurfacesConfig].
+         * @param ignoreShowAnnotations if true then the show annotations should be ignored,
+         *   otherwise they should be used when create [ApiSurfaces]. This will be set to `true`
+         *   when the API is not being created from source files, e.g. when it is being created from
+         *   signature files as the show annotations only affect source files.
+         */
+        private fun createApiSurfaces(
+            showUnannotated: Boolean,
+            targetApiSurface: String?,
+            apiSurfacesConfig: ApiSurfacesConfig?,
+            ignoreShowAnnotations: Boolean,
+        ): ApiSurfaces {
+            // A base API surface is needed if and only if the main API surface being generated
+            // extends another API surface. That is not currently explicitly specified on the
+            // command line so has to be inferred from the existing arguments. There are four main
+            // supported cases:
+            //
+            // * Public which does not extend another API surface so does not need a base. This
+            //   happens by default unless one or more `--show*annotation` options were specified.
+            //   In that case it behaves as if `--show-unannotated` was specified.
+            //
+            // * Restricted API in AndroidX which is basically public + other and does not need a
+            //   base. This happens when `--show-unannotated` was provided (the public part) as well
+            //   as `--show-annotation RestrictTo(...)` (the other part).
+            //
+            // * System delta on public in Android build. This happens when --show-unannotated was
+            //   not specified (so the public part is not included in signature files at least) but
+            //   `--show-annotation SystemApi` was.
+            //
+            // * Test API delta on system (or similar) in Android build. This happens when
+            //   `--show-unannotated` was not specified (so the public part is not included),
+            //   `--show-for-stub-purposes-only SystemApi` was (so system API is included in the
+            //   stubs but not the signature files) and `--show-annotation TestApi` was.
+            //
+            // There are other combinations of the `--show*` options which are not used, and it is
+            // not clear whether they make any sense so this does not cover them.
+            //
+            // This does not need a base if --show-unannotated was specified, or it defaulted to
+            // behaving as if it was.
+            val needsBase = !showUnannotated
+
+            // If an --api-surface option was provided then check to make sure that the command line
+            // options are consistent with the configured API surfaces.
+            if (targetApiSurface != null) {
+                if (apiSurfacesConfig == null || apiSurfacesConfig.apiSurfaceList.isEmpty()) {
+                    throw MetalavaCliException(
+                        "$ARG_API_SURFACE requires at least one <api-surface> to have been configured in a --config-file"
+                    )
+                }
+
+                val targetApiSurfaceConfig =
+                    apiSurfacesConfig.byName[targetApiSurface]
+                        ?: throw MetalavaCliException(
+                            "$ARG_API_SURFACE (`$targetApiSurface`) does not match an <api-surface> in a --config-file, expected one of ${apiSurfacesConfig.byName.keys.joinToString { "`$it`" }}"
+                        )
+
+                val extendedSurface = targetApiSurfaceConfig.extends
+                val extendsSurface = extendedSurface != null
+
+                // If show annotations should be ignored then there is no need to check consistency
+                // of them so just create the ApiSurfaces from the configuration.
+                if (ignoreShowAnnotations) {
+                    return ApiSurfaces.create(
+                        needsBase = extendsSurface,
+                    )
+                }
+
+                // Perform a consistency check to ensure that the configuration and command line
+                // options are compatible.
+                if (extendsSurface != needsBase) {
+                    val reason =
+                        if (extendsSurface)
+                            "extends $extendedSurface which requires that it not show unannotated items but $ARG_SHOW_UNANNOTATED is true"
+                        else
+                            "does not extend another surface which requires that it show unannotated items but $ARG_SHOW_UNANNOTATED is false"
+                    throw MetalavaCliException(
+                        """Configuration of `<api-surface name="$targetApiSurface">` is inconsistent with command line options because `$targetApiSurface` $reason"""
+                    )
+                }
+            }
+
+            return ApiSurfaces.create(
+                needsBase = needsBase,
+            )
+        }
+    }
 }

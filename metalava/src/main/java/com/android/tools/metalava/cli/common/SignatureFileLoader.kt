@@ -52,7 +52,7 @@ class DefaultSignatureFileLoader(
                 formatForLegacyFiles = formatForLegacyFiles,
             )
         } catch (ex: ApiParseException) {
-            throw MetalavaCliException("Unable to parse signature file: ${ex.message}")
+            cliError("Unable to parse signature file: ${ex.message}")
         }
     }
 }

@@ -17,7 +17,7 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.apilevels.GenerateApiHistoryConfig
-import com.android.tools.metalava.apilevels.VersionedJarApi
+import com.android.tools.metalava.apilevels.VersionedApi
 import com.android.tools.metalava.cli.common.BaseOptionGroupTest
 import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.cli.common.SignatureFileLoader
@@ -212,6 +212,9 @@ class ApiLevelsGenerationOptionsTest :
             )
         }
 
+    /** Dump the contents of this list to a string. */
+    private fun List<VersionedApi>.dump() = cleanupString(joinToString("\n"))
+
     @Test
     fun `Test extension jar files in forAndroidConfig`() {
         val root = buildFileStructure {
@@ -245,25 +248,16 @@ class ApiLevelsGenerationOptionsTest :
             val apiHistoryConfig = options.forAndroidConfig { error("no codebase fragment") }
             assertThat(apiHistoryConfig).isNotNull()
 
-            // Make sure that there were some versioned jar files found.
-            val versionedJarFiles =
-                apiHistoryConfig!!.versionedApis.mapNotNull { it as? VersionedJarApi }
-            assertThat(versionedJarFiles).isNotEmpty()
-
-            // Compute the list of versioned jar files for extensions.
-            val extensionJarFiles =
-                versionedJarFiles
-                    .filter { it.forExtension() }
-                    .joinToString("\n") { it.jar.relativeTo(root).path }
-                    .trim()
-            assertThat(extensionJarFiles)
+            // Compute the list of versioned files.
+            assertThat(apiHistoryConfig!!.versionedApis.dump())
                 .isEqualTo(
                     """
-                        1/public/bar.jar
-                        2/public/bar.jar
-                        2/public/baz.jar
-                        1/public/foo.jar
-                        2/public/foo.jar
+                        VersionedSourceApi(version=30)
+                        VersionedJarApi(jar=TESTROOT/1/public/bar.jar, updater=ExtensionUpdater(extVersion=1, module=bar, nextSdkVersion=30))
+                        VersionedJarApi(jar=TESTROOT/2/public/bar.jar, updater=ExtensionUpdater(extVersion=2, module=bar, nextSdkVersion=30))
+                        VersionedJarApi(jar=TESTROOT/2/public/baz.jar, updater=ExtensionUpdater(extVersion=2, module=baz, nextSdkVersion=30))
+                        VersionedJarApi(jar=TESTROOT/1/public/foo.jar, updater=ExtensionUpdater(extVersion=1, module=foo, nextSdkVersion=30))
+                        VersionedJarApi(jar=TESTROOT/2/public/foo.jar, updater=ExtensionUpdater(extVersion=2, module=foo, nextSdkVersion=30))
                     """
                         .trimIndent()
                 )
@@ -294,6 +288,54 @@ class ApiLevelsGenerationOptionsTest :
             assertThat(exception.message)
                 .isEqualTo(
                     "no extension sdk jar files found in $root/{version:extension}/*/{module}.jar"
+                )
+        }
+    }
+
+    @Test
+    fun `Test generating api versions during finalization`() {
+        val root = buildFileStructure {
+            dir("31") { dir("public") { emptyFile("android.jar") } }
+            dir("32") { dir("public") { emptyFile("android.jar") } }
+            dir("extensions") {
+                dir("1") { dir("public") { emptyFile("bar.jar") } }
+                dir("2") {
+                    dir("public") {
+                        emptyFile("bar.jar")
+                        emptyFile("foo.jar")
+                    }
+                }
+            }
+        }
+
+        val apiVersionsXml = temporaryFolder.newFile("api-versions.xml")
+        val sdkExtensionsInfoXml = createSdkExtensionsInfoXml()
+        runTest(
+            ARG_CURRENT_VERSION,
+            "33",
+            ARG_GENERATE_API_LEVELS,
+            apiVersionsXml.path,
+            ARG_ANDROID_JAR_PATTERN,
+            "$root/{version:level}/*/android.jar",
+            ARG_ANDROID_JAR_PATTERN,
+            "$root/extensions/{version:extension}/*/{module}.jar",
+            ARG_SDK_INFO_FILE,
+            sdkExtensionsInfoXml.path,
+        ) {
+            val apiHistoryConfig = options.forAndroidConfig { error("no codebase fragment") }
+            assertThat(apiHistoryConfig).isNotNull()
+
+            assertThat(apiHistoryConfig!!.versionedApis.dump())
+                .isEqualTo(
+                    """
+                        VersionedJarApi(jar=TESTROOT/31/public/android.jar, updater=ApiVersionUpdater(version=31))
+                        VersionedJarApi(jar=TESTROOT/32/public/android.jar, updater=ApiVersionUpdater(version=32))
+                        VersionedSourceApi(version=33)
+                        VersionedJarApi(jar=TESTROOT/extensions/1/public/bar.jar, updater=ExtensionUpdater(extVersion=1, module=bar, nextSdkVersion=33))
+                        VersionedJarApi(jar=TESTROOT/extensions/2/public/bar.jar, updater=ExtensionUpdater(extVersion=2, module=bar, nextSdkVersion=33))
+                        VersionedJarApi(jar=TESTROOT/extensions/2/public/foo.jar, updater=ExtensionUpdater(extVersion=2, module=foo, nextSdkVersion=33))
+                    """
+                        .trimIndent()
                 )
         }
     }
