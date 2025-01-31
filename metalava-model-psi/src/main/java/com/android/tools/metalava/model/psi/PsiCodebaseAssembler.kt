@@ -89,6 +89,7 @@ import org.jetbrains.kotlin.psi.KtFunction
 import org.jetbrains.kotlin.psi.KtParameter
 import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
+import org.jetbrains.kotlin.psi.KtTypeAlias
 import org.jetbrains.kotlin.psi.KtTypeReference
 import org.jetbrains.kotlin.psi.psiUtil.isPropertyParameter
 import org.jetbrains.kotlin.util.collectionUtils.filterIsInstanceAnd
@@ -920,6 +921,8 @@ internal class PsiCodebaseAssembler(
         // Create the initial set of packages that were found in the source files.
         codebase.packageTracker.createInitialPackages(packageDocs)
 
+        findTypeAliases(psiClasses, codebase)
+
         // Process the `PsiClass`es.
         for (psiClass in psiClasses) {
             // If a package filter is supplied then ignore any classes that do not match it.
@@ -936,6 +939,25 @@ internal class PsiCodebaseAssembler(
                 )
                     ?: continue
             codebase.addTopLevelClassFromSource(classItem)
+        }
+    }
+
+    /**
+     * Finds all type aliases declared in the [KtFile]s underlying any file facade classes in
+     * [psiClasses] and adds them to the codebase.
+     */
+    private fun findTypeAliases(psiClasses: List<PsiClass>, codebase: PsiBasedCodebase) {
+        val facadeClasses =
+            psiClasses.mapNotNull { (it as? UClass)?.javaPsi as? KtLightClassForFacade }
+        val typeAliases =
+            facadeClasses
+                .flatMap { it.files }
+                .flatMap { it.declarations }
+                .filterIsInstance<KtTypeAlias>()
+        for (typeAlias in typeAliases) {
+            val qualifiedTypeAliasName = typeAlias.getClassId()?.asFqNameString() ?: continue
+            val value = codebase.globalTypeItemFactory.getTypeForKtElement(typeAlias) ?: continue
+            codebase.typeAliases[qualifiedTypeAliasName] = value
         }
     }
 

@@ -18,9 +18,11 @@ package com.android.tools.metalava.cli.help
 
 import com.android.tools.metalava.cli.common.ARG_STUB_PACKAGES
 import com.android.tools.metalava.cli.common.MetalavaHelpFormatter
+import com.android.tools.metalava.cli.common.buildDefinitionListHelp
 import com.android.tools.metalava.cli.common.stdout
 import com.android.tools.metalava.cli.common.terminal
 import com.android.tools.metalava.cli.signature.ARG_FORMAT
+import com.android.tools.metalava.model.text.FileFormat
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.context
 import com.github.ajalt.clikt.core.subcommands
@@ -53,7 +55,7 @@ class HelpCommand :
         subcommands(
             IssuesCommand(),
             packageFilterHelp,
-            signatureFileFormatsHelp,
+            signatureFileFormatsHelp(),
         )
     }
 
@@ -92,8 +94,48 @@ will match `foo` and `foo.bar` and `foo.bar.baz` but not `foobar`.
                 .trimIndent()
     )
 
-private val signatureFileFormatsHelp =
-    SimpleHelpCommand(
+private fun signatureFileFormatsHelp(): CliktCommand {
+    /** Construct help for the different [FileFormat.Version]s. */
+    fun versionHelp(): String {
+        /** Generate a label for a [FileFormat.Version]. */
+        fun FileFormat.Version.labelGetter() = buildString {
+            append('`')
+            append(versionNumber)
+            append('`')
+            if (legacyCommandLineAlias != null) {
+                append(" (")
+                append(ARG_FORMAT)
+                append("=")
+                append(legacyCommandLineAlias)
+                append(")")
+            }
+        }
+
+        return buildDefinitionListHelp(
+            FileFormat.Version.entries.map { it.labelGetter() to it.help.trimIndent() },
+            termPrefix = "* ",
+        )
+    }
+
+    /**
+     * Construct help for the different [FileFormat.CustomizableProperty]s.
+     *
+     * @param filter filter the properties for which help will be provided.
+     */
+    fun customizablePropertyHelp(filter: (FileFormat.CustomizableProperty) -> Boolean): String {
+        fun FileFormat.CustomizableProperty.labelGetter() = "`$propertyName = $valueSyntax`"
+        return buildDefinitionListHelp(
+            FileFormat.CustomizableProperty.entries.mapNotNull {
+                if (!filter(it)) return@mapNotNull null
+                val help = it.help
+                if (help == "") return@mapNotNull null
+                it.labelGetter() to help.trimIndent()
+            },
+            termPrefix = "* ",
+        )
+    }
+
+    return SimpleHelpCommand(
         name = "signature-file-formats",
         help =
             """
@@ -106,55 +148,15 @@ that will be output to the API signature file and how it is represented. A forma
 a set of defaults for those properties.
 
 The supported properties are:
-
-* `kotlin-style-nulls = yes|no` - if `no` then the signature file will use `@Nullable` and `@NonNull`
-  annotations to indicate that the annotated item accepts `null` and does not accept `null`
-  respectively and neither indicates that it's not defined.
-
-  If `yes` then the signature file will use a type suffix of `?`, no type suffix and a type suffix
-  of `!` to indicate the that the type accepts `null`, does not accept `null` or it's not defined
-  respectively.
-
-* `concise-default-values = yes|no` - if `no` then Kotlin parameters that have a default value will
-  include that value in the signature file. If `yes` then those parameters will simply be prefixed
-  with `optional`, as if it was a keyword and no value will be included.
+${customizablePropertyHelp {!it.defaultable}}
 
 Plus the following properties which can have their default changed using the `--format-defaults`
 option.
-
-* `overloaded-method-order = source|signature` - Specifies the order of overloaded methods in
-  signature files. Applies to the contents of the files specified on `--api` and `--removed-api`.
-
-  `source` - preserves the order in which overloaded methods appear in the source files. This means
-   that refactorings of the source files which change the order but not the API can cause
-   unnecessary changes in the API signature files.
-
-  `signature` (default) - sorts overloaded methods by their signature. This means that refactorings
-  of the source files which change the order but not the API will have no effect on the API
-  signature files.
+${customizablePropertyHelp {it.defaultable}}
 
 Currently, metalava supports the following versions:
-
-* `2.0` ($ARG_FORMAT=v2) - this is the base version (more details in `FORMAT.md`) on which all the
-  others are based. It sets the properties as follows:
-```
-+ kotlin-style-nulls = no
-+ concise-default-values = no
-```
-
-* `3.0` ($ARG_FORMAT=v3) - this is `2.0` plus `kotlin-style-nulls = yes` giving the following
-properties:
-```
-+ kotlin-style-nulls = yes
-+ concise-default-values = no
-```
-
-* `4.0` ($ARG_FORMAT=v4) - this is 3.0` plus `concise-default-values = yes` giving the following
-properties:
-```
-+ kotlin-style-nulls = yes
-+ concise-default-values = yes
-```
+${versionHelp()}
             """
                 .trimIndent()
     )
+}

@@ -92,16 +92,16 @@ Usage: metalava help signature-file-formats
 
   The supported properties are:
 
-  * `kotlin-style-nulls = yes|no` - if `no` then the signature file will use `@Nullable` and `@NonNull` annotations to
+  * `concise-default-values = yes|no` - If `no` then the signature file will use `@Nullable` and `@NonNull` annotations
+  to indicate that the annotated item accepts `null` and does not accept `null` respectively and neither indicates that
+  it's not defined.
+
+  * `kotlin-style-nulls = yes|no` - If `no` then the signature file will use `@Nullable` and `@NonNull` annotations to
   indicate that the annotated item accepts `null` and does not accept `null` respectively and neither indicates that
   it's not defined.
 
   If `yes` then the signature file will use a type suffix of `?`, no type suffix and a type suffix of `!` to indicate
   the that the type accepts `null`, does not accept `null` or it's not defined respectively.
-
-  * `concise-default-values = yes|no` - if `no` then Kotlin parameters that have a default value will include that value
-  in the signature file. If `yes` then those parameters will simply be prefixed with `optional`, as if it was a keyword
-  and no value will be included.
 
   Plus the following properties which can have their default changed using the `--format-defaults` option.
 
@@ -116,21 +116,25 @@ Usage: metalava help signature-file-formats
 
   Currently, metalava supports the following versions:
 
-  * `2.0` (--format=v2) - this is the base version (more details in `FORMAT.md`) on which all the others are based. It
+  * `2.0` (--format=v2) - This is the base version (more details in `FORMAT.md`) on which all the others are based. It
   sets the properties as follows:
 
   + kotlin-style-nulls = no
   + concise-default-values = no
 
-  * `3.0` (--format=v3) - this is `2.0` plus `kotlin-style-nulls = yes` giving the following properties:
+  * `3.0` (--format=v3) - This is `2.0` plus `kotlin-style-nulls = yes` giving the following properties:
 
   + kotlin-style-nulls = yes
   + concise-default-values = no
 
-  * `4.0` (--format=v4) - this is 3.0` plus `concise-default-values = yes` giving the following properties:
+  * `4.0` (--format=v4) - This is `3.0` plus `concise-default-values = yes` giving the following properties:
 
   + kotlin-style-nulls = yes
   + concise-default-values = yes
+
+  * `5.0` - This is the first version that has full support for properties in the signature header. As such it does not
+  add any new defaults to `4.0`. The intent is that properties will be explicitly defined in the signature file avoiding
+  reliance on version specific defaults.
                 """
                     .trimIndent()
         }

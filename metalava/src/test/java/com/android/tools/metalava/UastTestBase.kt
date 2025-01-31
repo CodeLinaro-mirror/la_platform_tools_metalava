@@ -1482,7 +1482,6 @@ abstract class UastTestBase : DriverTest() {
     @Test
     fun `actual typealias -- without common split`() {
         // https://youtrack.jetbrains.com/issue/KT-55085
-        val typeAliasExpanded = if (isK2) "test.pkg.NativePointerKeyboardModifiers" else "int"
         check(
             sourceFiles =
                 arrayOf(
@@ -1519,11 +1518,11 @@ abstract class UastTestBase : DriverTest() {
                 package test.pkg {
                   public final class PointerEvent {
                     ctor public PointerEvent();
-                    method public $typeAliasExpanded getKeyboardModifiers();
-                    property public final $typeAliasExpanded keyboardModifiers;
+                    method public int getKeyboardModifiers();
+                    property public final int keyboardModifiers;
                   }
                   @kotlin.jvm.JvmInline public final value class PointerKeyboardModifiers {
-                    ctor public PointerKeyboardModifiers($typeAliasExpanded packedValue);
+                    ctor public PointerKeyboardModifiers(int packedValue);
                   }
                 }
                 """
@@ -1639,7 +1638,6 @@ abstract class UastTestBase : DriverTest() {
 
     @Test
     fun `JvmDefaultWithCompatibility as typealias actual`() {
-        val anno = if (isK2) "" else "@kotlin.jvm.JvmDefaultWithCompatibility "
         val commonSources =
             arrayOf(
                 kotlin(
@@ -1681,7 +1679,111 @@ abstract class UastTestBase : DriverTest() {
             api =
                 """
                 package pkg2 {
-                  ${anno}public interface TestInterface {
+                  @kotlin.jvm.JvmDefaultWithCompatibility public interface TestInterface {
+                    method public void foo();
+                  }
+                }
+                """
+        )
+    }
+
+    @Test
+    fun `JvmDefaultWithCompatibility as typealias actual using renamed import`() {
+        val commonSources =
+            arrayOf(
+                kotlin(
+                    "commonMain/src/pkg/JvmDefaultWithCompatibility.kt",
+                    """
+                    package pkg
+                    internal expect annotation class JvmDefaultWithCompatibility()
+                """
+                ),
+                kotlin(
+                    "commonMain/src/pkg2/TestInterface.kt",
+                    """
+                    package pkg2
+
+                    import pkg.JvmDefaultWithCompatibility
+
+                    @JvmDefaultWithCompatibility
+                    interface TestInterface {
+                      fun foo()
+                    }
+                """
+                ),
+            )
+        val androidSource =
+            kotlin(
+                "androidMain/src/pkg/JvmDefaultWithCompatibility.kt",
+                """
+                            package pkg
+                            import kotlin.jvm.JvmDefaultWithCompatibility as Compat
+                            internal actual typealias JvmDefaultWithCompatibility = Compat
+                        """
+            )
+        check(
+            sourceFiles = arrayOf(androidSource, *commonSources),
+            projectDescription =
+                createProjectDescription(
+                    createAndroidModuleDescription(arrayOf(androidSource)),
+                    createCommonModuleDescription(commonSources),
+                ),
+            api =
+                """
+                package pkg2 {
+                  @kotlin.jvm.JvmDefaultWithCompatibility public interface TestInterface {
+                    method public void foo();
+                  }
+                }
+                """
+        )
+    }
+
+    @Test
+    fun `JvmDefaultWithCompatibility as typealias actual using chained typealiases`() {
+        val commonSources =
+            arrayOf(
+                kotlin(
+                    "commonMain/src/pkg/JvmDefaultWithCompatibility.kt",
+                    """
+                    package pkg
+                    internal expect annotation class JvmDefaultWithCompatibility()
+                """
+                ),
+                kotlin(
+                    "commonMain/src/pkg2/TestInterface.kt",
+                    """
+                    package pkg2
+
+                    import pkg.JvmDefaultWithCompatibility
+
+                    @JvmDefaultWithCompatibility
+                    interface TestInterface {
+                      fun foo()
+                    }
+                """
+                ),
+            )
+        val androidSource =
+            kotlin(
+                "androidMain/src/pkg/JvmDefaultWithCompatibility.kt",
+                """
+                            package pkg
+                            private typealias Compat = kotlin.jvm.JvmDefaultWithCompatibility
+                            internal actual typealias JvmDefaultWithCompatibility = Compat
+                        """
+            )
+        check(
+            sourceFiles = arrayOf(androidSource, *commonSources),
+            projectDescription =
+                createProjectDescription(
+                    createAndroidModuleDescription(arrayOf(androidSource)),
+                    createCommonModuleDescription(commonSources),
+                ),
+            api =
+                """
+                package pkg2 {
+                  @kotlin.jvm.JvmDefaultWithCompatibility public interface TestInterface {
                     method public void foo();
                   }
                 }

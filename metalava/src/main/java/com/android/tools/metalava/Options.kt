@@ -41,6 +41,7 @@ import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions
 import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions.CheckRequest
 import com.android.tools.metalava.cli.lint.ApiLintOptions
 import com.android.tools.metalava.cli.signature.SignatureFormatOptions
+import com.android.tools.metalava.config.Config
 import com.android.tools.metalava.config.ConfigParser
 import com.android.tools.metalava.doc.ApiVersionFilter
 import com.android.tools.metalava.doc.ApiVersionLabelProvider
@@ -324,6 +325,9 @@ class Options(
             )
             .existingFile()
             .multiple(required = false)
+
+    /** The [Config] loaded from [configFiles]. */
+    val config by lazy(LazyThreadSafetyMode.NONE) { ConfigParser.parse(reporter, configFiles) }
 
     val apiClassResolution by
         enumOption(
@@ -883,7 +887,7 @@ class Options(
         updateClassPath()
 
         // Make sure that any config files are processed.
-        ConfigParser.parse(reporter, configFiles)
+        config
     }
 
     /**
