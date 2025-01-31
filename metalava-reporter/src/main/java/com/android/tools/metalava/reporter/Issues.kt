@@ -47,7 +47,6 @@ object Issues {
     val REMOVED_INTERFACE by Issue(Severity.ERROR, Category.COMPATIBILITY)
     val CHANGED_STATIC by Issue(Severity.ERROR, Category.COMPATIBILITY)
     val ADDED_FINAL by Issue(Severity.ERROR, Category.COMPATIBILITY)
-    val CHANGED_TRANSIENT by Issue(Severity.ERROR, Category.COMPATIBILITY)
     val CHANGED_VOLATILE by Issue(Severity.ERROR, Category.COMPATIBILITY)
     val CHANGED_TYPE by Issue(Severity.ERROR, Category.COMPATIBILITY)
     val CHANGED_VALUE by Issue(Severity.ERROR, Category.COMPATIBILITY)
@@ -59,8 +58,6 @@ object Issues {
     val CHANGED_NATIVE by Issue(Severity.HIDDEN, Category.COMPATIBILITY)
     val CHANGED_CLASS by Issue(Severity.ERROR, Category.COMPATIBILITY)
     val CHANGED_DEPRECATED by Issue(Severity.HIDDEN, Category.COMPATIBILITY)
-    val CHANGED_SYNCHRONIZED by Issue(Severity.HIDDEN, Category.COMPATIBILITY)
-    val CONFLICTING_SHOW_ANNOTATIONS by Issue(Severity.ERROR, Category.UNKNOWN)
     val ADDED_FINAL_UNINSTANTIABLE by Issue(Severity.HIDDEN, Category.COMPATIBILITY)
     val REMOVED_FINAL by Issue(Severity.ERROR, Category.COMPATIBILITY)
     val REMOVED_FINAL_STRICT by Issue(Severity.ERROR, Category.COMPATIBILITY)
@@ -86,8 +83,6 @@ object Issues {
     val BROADCAST_BEHAVIOR by Issue(Severity.ERROR, Category.DOCUMENTATION)
     val SDK_CONSTANT by Issue(Severity.ERROR, Category.DOCUMENTATION)
     val TODO by Issue(Severity.ERROR, Category.DOCUMENTATION)
-    val NO_ARTIFACT_DATA by Issue(Severity.HIDDEN, Category.DOCUMENTATION)
-    val BROKEN_ARTIFACT_FILE by Issue(Severity.ERROR, Category.DOCUMENTATION)
 
     // Metalava warnings (not from doclava)
 
@@ -95,7 +90,6 @@ object Issues {
 
     val MISSING_PERMISSION by Issue(Severity.ERROR, Category.DOCUMENTATION)
     val MULTIPLE_THREAD_ANNOTATIONS by Issue(Severity.ERROR, Category.DOCUMENTATION)
-    val UNRESOLVED_CLASS by Issue(Severity.ERROR, Category.DOCUMENTATION)
     val INVALID_NULL_CONVERSION by Issue(Severity.ERROR, Category.COMPATIBILITY)
     val PARAMETER_NAME_CHANGE by Issue(Severity.ERROR, Category.COMPATIBILITY)
     val OPERATOR_REMOVAL by Issue(Severity.ERROR, Category.COMPATIBILITY)
@@ -109,7 +103,6 @@ object Issues {
     val HIDDEN_TYPEDEF_CONSTANT by Issue(Severity.ERROR)
     val INTERNAL_ERROR by Issue(Severity.ERROR)
     val RETURNING_UNEXPECTED_CONSTANT by Issue(Severity.WARNING)
-    val DEPRECATED_OPTION by Issue(Severity.WARNING)
     val BOTH_PACKAGE_INFO_AND_HTML by Issue(Severity.WARNING, Category.DOCUMENTATION)
     val UNMATCHED_MERGE_ANNOTATION by Issue(Severity.ERROR, Category.API_LINT)
     val INCONSISTENT_MERGE_ANNOTATION by Issue(Severity.WARNING_ERROR_WHEN_NEW, Category.API_LINT)
@@ -156,7 +149,6 @@ object Issues {
     val PARCEL_CONSTRUCTOR by Issue(Severity.ERROR, Category.API_LINT)
     val PROTECTED_MEMBER by Issue(Severity.ERROR, Category.API_LINT)
     val PAIRED_REGISTRATION by Issue(Severity.ERROR, Category.API_LINT)
-    val REGISTRATION_NAME by Issue(Severity.ERROR, Category.API_LINT)
     val VISIBLY_SYNCHRONIZED by Issue(Severity.ERROR, Category.API_LINT)
     val INTENT_BUILDER_NAME by Issue(Severity.WARNING, Category.API_LINT)
     val CONTEXT_NAME_SUFFIX by Issue(Severity.ERROR, Category.API_LINT)
@@ -173,7 +165,6 @@ object Issues {
     val CONCRETE_COLLECTION by Issue(Severity.ERROR, Category.API_LINT)
     val OVERLAPPING_CONSTANTS by Issue(Severity.WARNING, Category.API_LINT)
     val GENERIC_EXCEPTION by Issue(Severity.ERROR, Category.API_LINT)
-    val ILLEGAL_STATE_EXCEPTION by Issue(Severity.WARNING, Category.API_LINT)
     val RETHROW_REMOTE_EXCEPTION by Issue(Severity.ERROR, Category.API_LINT)
     val MENTIONS_GOOGLE by Issue(Severity.ERROR, Category.API_LINT)
     val HEAVY_BIT_SET by Issue(Severity.ERROR, Category.API_LINT)
@@ -246,15 +237,6 @@ object Issues {
 
     fun findIssueById(id: String?): Issue? {
         return nameToIssue[id]
-    }
-
-    fun findIssueByIdIgnoringCase(id: String): Issue? {
-        for (e in allIssues) {
-            if (id.equals(e.name, ignoreCase = true)) {
-                return e
-            }
-        }
-        return null
     }
 
     fun findCategoryById(id: String?): Category =

@@ -18,8 +18,8 @@ package com.android.tools.metalava.cli.signature
 
 import com.android.tools.metalava.OptionsDelegate
 import com.android.tools.metalava.SignatureWriter
-import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.cli.common.MetalavaSubCommand
+import com.android.tools.metalava.cli.common.cliError
 import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.newFile
 import com.android.tools.metalava.cli.common.progressTracker
@@ -103,7 +103,7 @@ class MergeSignaturesCommand :
                 )
             }
         } catch (e: ApiParseException) {
-            throw MetalavaCliException(stderr = e.message)
+            cliError(e.message)
         }
     }
 }

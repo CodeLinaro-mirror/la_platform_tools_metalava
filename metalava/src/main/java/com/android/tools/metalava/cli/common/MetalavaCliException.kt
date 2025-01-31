@@ -33,3 +33,9 @@ class MetalavaCliException(
     /** Optional cause. */
     cause: Throwable? = null,
 ) : RuntimeException(stdout + stderr, cause)
+
+/**
+ * Throw a [MetalavaCliException] printing [message] to [stderr] and exiting with a non-zero exit
+ * code.
+ */
+fun cliError(message: String): Nothing = throw MetalavaCliException(stderr = message)
