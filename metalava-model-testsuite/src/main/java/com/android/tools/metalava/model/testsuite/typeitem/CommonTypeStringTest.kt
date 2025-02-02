@@ -249,7 +249,7 @@ class CommonTypeStringTest : BaseModelTest() {
         private val testCases =
             // Test primitives besides void (the test setup puts the type in parameter position, and
             // void can't be a parameter type).
-            PrimitiveTypeItem.Primitive.values()
+            PrimitiveTypeItem.Primitive.entries
                 .filter { it != PrimitiveTypeItem.Primitive.VOID }
                 .map { TypeStringParameters(name = it.primitiveName) } +
                 // Test additional types

@@ -80,6 +80,9 @@ internal class PsiBasedCodebase(
     private val methodMap: MutableMap<ClassItem, MutableMap<PsiMethod, PsiCallableItem>> =
         HashMap(METHOD_ESTIMATE)
 
+    /** A mapping from qualified typealias name to the aliased type. */
+    internal val typeAliases = mutableMapOf<String, PsiTypeItem>()
+
     /** [PsiTypeItemFactory] used to create [PsiTypeItem]s. */
     internal val globalTypeItemFactory
         get() = psiAssembler.globalTypeItemFactory

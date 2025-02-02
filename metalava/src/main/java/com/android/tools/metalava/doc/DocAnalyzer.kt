@@ -223,6 +223,8 @@ class DocAnalyzer(
                             if (item is SelectableItem) handleRequiresApi(annotation, item)
                         "android.provider.Column" -> handleColumn(annotation, item)
                         "kotlin.Deprecated" -> handleKotlinDeprecation(annotation, item)
+                        "androidx.annotation.RestrictedForEnvironment" ->
+                            handleRestrictedForEnvironment(annotation, item)
                     }
 
                     visitedClasses.add(name)
@@ -550,6 +552,39 @@ class DocAnalyzer(
                     if (level is Int) {
                         addApiVersionDocumentation(ApiVersion.fromLevel(level), item)
                     }
+                }
+
+                private fun handleRestrictedForEnvironment(
+                    annotationItem: AnnotationItem,
+                    item: Item
+                ) {
+                    val environmentsValue: String? =
+                        annotationItem.findAttribute("environments")?.value?.toSource()
+                    val fromValue: String? = annotationItem.findAttribute("from")?.value?.toSource()
+
+                    if (environmentsValue == null || !environmentsValue.endsWith("SDK_SANDBOX")) {
+                        reporter.report(
+                            Issues.INVALID_ENVIRONMENT_IN_RESTRICTED_FOR_ENVIRONMENT,
+                            item,
+                            "Invalid 'environments' value '$environmentsValue', must be 'SDK_SANDBOX'"
+                        )
+                        return
+                    }
+
+                    if (fromValue == null) {
+                        reporter.report(
+                            Issues.MISSING_FROM_VALUE,
+                            item,
+                            "Missing 'from' value for @RestrictedForEnvironment annotation"
+                        )
+                        return
+                    }
+
+                    appendDocumentation(
+                        "Restricted for SDK Runtime environment in API level $fromValue.\n",
+                        item,
+                        false
+                    )
                 }
 
                 private fun handleColumn(annotation: AnnotationItem, item: Item) {

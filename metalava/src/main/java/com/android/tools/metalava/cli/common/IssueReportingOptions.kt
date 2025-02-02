@@ -17,12 +17,9 @@
 package com.android.tools.metalava.cli.common
 
 import com.android.tools.metalava.reporter.DefaultReporter
-import com.android.tools.metalava.reporter.DefaultReporterEnvironment
 import com.android.tools.metalava.reporter.ERROR_WHEN_NEW_SUFFIX
 import com.android.tools.metalava.reporter.IssueConfiguration
 import com.android.tools.metalava.reporter.Issues
-import com.android.tools.metalava.reporter.Reporter
-import com.android.tools.metalava.reporter.ReporterEnvironment
 import com.android.tools.metalava.reporter.Severity
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import com.github.ajalt.clikt.parameters.options.default
@@ -30,7 +27,6 @@ import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.types.int
 import com.github.ajalt.clikt.parameters.types.restrictTo
-import java.io.File
 
 const val ARG_ERROR = "--error"
 const val ARG_ERROR_WHEN_NEW = "--error-when-new"
@@ -49,7 +45,6 @@ const val ARG_REPORT_EVEN_IF_SUPPRESSED = "--report-even-if-suppressed"
 const val REPORTING_OPTIONS_GROUP = "Issue Reporting"
 
 class IssueReportingOptions(
-    reporterEnvironment: ReporterEnvironment = DefaultReporterEnvironment(),
     commonOptions: CommonOptions = CommonOptions(),
 ) :
     OptionGroup(
@@ -68,18 +63,6 @@ class IssueReportingOptions(
     /** The [IssueConfiguration] that is configured by these options. */
     val issueConfiguration = IssueConfiguration()
 
-    /**
-     * The [Reporter] that is used to report issues encountered while parsing these options.
-     *
-     * A slight complexity is that this [Reporter] and its [IssueConfiguration] are both modified
-     * and used during the process of processing the options.
-     */
-    internal val bootstrapReporter: DefaultReporter =
-        DefaultReporter(
-            reporterEnvironment,
-            issueConfiguration,
-        )
-
     init {
         // Create a Clikt option for handling the issue options and updating them as a side effect.
         // This needs to be a single option for handling all the issue options in one go because the
@@ -94,13 +77,10 @@ class IssueReportingOptions(
         // However, when processed after grouping they would be equivalent to one of the following
         // depending on which was processed last:
         //     --hide Foo,Bar
-        //     --error Foo,Bar
+        //     --error Bar,Foo
         //
-        // Instead, this creates a single Clikt option to handle all the issue options but they are
-        // still collated before processing so if they are interleaved with other options whose
-        // parsing makes use of the `reporter` then there is the potential for a change in behavior.
-        // However, currently it does not look as though that is the case except for reporting
-        // issues with deprecated options which is tested.
+        // Instead, this creates a single Clikt option to handle all the issue options, but they are
+        // still collated before processing.
         //
         // Having a single Clikt option with lots of different option names does make the help hard
         // to read as it produces a single line with all the option names on it. So, this uses a
@@ -109,19 +89,16 @@ class IssueReportingOptions(
         val issueOption =
             compositeSideEffectOption(
                 // Create one side effect option per label.
-                ConfigLabel.values().map {
-                    sideEffectOption(it.optionName, help = it.help) {
+                ConfigLabel.entries.map { label ->
+                    sideEffectOption(label.optionName, help = label.help) { optionValue ->
                         // if `--hide id1,id2` was supplied on the command line then this will split
-                        // it into
-                        // ["id1", "id2"]
-                        val values = it.split(",")
-
-                        // Get the label from the name of the option.
-                        val label = ConfigLabel.fromOptionName(name)
+                        // it into ["id1", "id2"]
+                        val values = optionValue.split(",")
 
                         // Update the configuration immediately
-                        values.forEach {
-                            label.setAspectForId(bootstrapReporter, issueConfiguration, it.trim())
+                        for (value in values) {
+                            val trimmed = value.trim()
+                            label.setAspectForId(issueConfiguration, trimmed)
                         }
                     }
                 }
@@ -183,23 +160,13 @@ private enum class ConfigurableAspect {
     /** A single issue needs configuring. */
     ISSUE {
         override fun setAspectSeverityForId(
-            reporter: Reporter,
             configuration: IssueConfiguration,
             optionName: String,
             severity: Severity,
             id: String
         ) {
             val issue =
-                Issues.findIssueById(id)
-                    ?: Issues.findIssueByIdIgnoringCase(id)?.also {
-                        reporter.report(
-                            Issues.DEPRECATED_OPTION,
-                            null as File?,
-                            "Case-insensitive issue matching is deprecated, use " +
-                                "$optionName ${it.name} instead of $optionName $id"
-                        )
-                    }
-                        ?: throw MetalavaCliException("Unknown issue id: '$optionName' '$id'")
+                Issues.findIssueById(id) ?: cliError("Unknown issue id: '$optionName' '$id'")
 
             configuration.setSeverity(issue, severity)
         }
@@ -207,7 +174,6 @@ private enum class ConfigurableAspect {
     /** A whole category of issues needs configuring. */
     CATEGORY {
         override fun setAspectSeverityForId(
-            reporter: Reporter,
             configuration: IssueConfiguration,
             optionName: String,
             severity: Severity,
@@ -225,7 +191,6 @@ private enum class ConfigurableAspect {
 
     /** Configure the [IssueConfiguration] appropriately. */
     abstract fun setAspectSeverityForId(
-        reporter: Reporter,
         configuration: IssueConfiguration,
         optionName: String,
         severity: Severity,
@@ -296,17 +261,7 @@ private enum class ConfigLabel(
     );
 
     /** Configure the aspect identified by [id] into the [configuration]. */
-    fun setAspectForId(reporter: Reporter, configuration: IssueConfiguration, id: String) {
-        aspect.setAspectSeverityForId(reporter, configuration, optionName, severity, id)
-    }
-
-    companion object {
-        private val optionNameToLabel = ConfigLabel.values().associateBy { it.optionName }
-
-        /**
-         * Get the label for the option name. This is only called with an option name that has been
-         * obtained from [ConfigLabel.optionName] so it is known that it must match.
-         */
-        fun fromOptionName(option: String): ConfigLabel = optionNameToLabel[option]!!
+    fun setAspectForId(configuration: IssueConfiguration, id: String) {
+        aspect.setAspectSeverityForId(configuration, optionName, severity, id)
     }
 }

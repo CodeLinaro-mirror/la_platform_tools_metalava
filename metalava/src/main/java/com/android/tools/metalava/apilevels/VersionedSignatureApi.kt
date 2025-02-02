@@ -36,4 +36,6 @@ class VersionedSignatureApi(
         val codebaseFragment = CodebaseFragment.create(codebase, ::NonFilteringDelegatingVisitor)
         addApisFromCodebase(api, apiVersion, codebaseFragment, false)
     }
+
+    override fun toString() = "VersionedSignatureApi(file=$file, version=$apiVersion)"
 }

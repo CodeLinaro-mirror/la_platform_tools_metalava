@@ -180,7 +180,7 @@ class ApiXmlPrinter(
         if (lastPresentIn < parentApiElement.lastPresentIn) {
             val removedFrom =
                 versionToNext[lastPresentIn]
-                    ?: error("could not find next version for $lastPresentIn")
+                    ?: error("could not find next version for $lastPresentIn in $name")
             writer.print("\" removed=\"")
             writer.print(removedFrom)
         }

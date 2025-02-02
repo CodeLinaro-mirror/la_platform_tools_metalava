@@ -16,7 +16,7 @@
 
 package com.android.tools.metalava
 
-import com.android.tools.metalava.cli.common.MetalavaCliException
+import com.android.tools.metalava.cli.common.cliError
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.CallableItem
@@ -88,7 +88,7 @@ class NullabilityAnnotationsValidator(
         for (topLevelClassName in topLevelClassNames) {
             val topLevelClass =
                 codebase.findClass(topLevelClassName)
-                    ?: throw MetalavaCliException(
+                    ?: cliError(
                         "Trying to validate nullability annotations for class $topLevelClassName which could not be found in main codebase"
                     )
             // Visit methods to check their return type, and parameters to check them. Don't visit
@@ -136,7 +136,7 @@ class NullabilityAnnotationsValidator(
 
     private fun checkItem(callable: CallableItem, label: String, type: TypeItem?, item: Item) {
         if (type == null) {
-            throw MetalavaCliException("Missing type on $callable item $label")
+            cliError("Missing type on $callable item $label")
         }
         val annotations = item.modifiers.annotations()
         val nullabilityAnnotations = annotations.filter(this::isAnyNullabilityAnnotation)
