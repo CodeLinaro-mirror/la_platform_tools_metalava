@@ -52,7 +52,7 @@ class CommonCopyMethodItemTest : CommonCopyMemberItemTest<MethodItem>() {
     }
 
     companion object {
-        @JvmStatic @Parameterized.Parameters fun comparisons() = CopyMethod.values()
+        @JvmStatic @Parameterized.Parameters fun comparisons() = CopyMethod.entries
     }
 
     /**

@@ -20,6 +20,10 @@ import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.reporter.Severity
+import com.fasterxml.jackson.annotation.JsonInclude
+import com.fasterxml.jackson.databind.SerializationFeature
+import com.fasterxml.jackson.dataformat.xml.XmlMapper
+import com.fasterxml.jackson.module.kotlin.kotlinModule
 import java.io.File
 import java.net.URI
 import java.nio.file.Paths
@@ -29,9 +33,10 @@ import javax.xml.validation.SchemaFactory
 import org.xml.sax.SAXParseException
 import org.xml.sax.helpers.DefaultHandler
 
-/** Parser for XML configuration files. */
-class ConfigParser(private val reporter: Reporter) : DefaultHandler() {
+const val CONFIG_NAMESPACE = "http://www.google.com/tools/metalava/config"
 
+/** Parser for XML configuration files. */
+class ConfigParser private constructor(private val reporter: Reporter) : DefaultHandler() {
     private fun reportParseException(exception: SAXParseException, severity: Severity) {
         val systemIdAsURI = URI.create(exception.systemId)
         val location = FileLocation.createLocation(Paths.get(systemIdAsURI), exception.lineNumber)
@@ -69,10 +74,53 @@ class ConfigParser(private val reporter: Reporter) : DefaultHandler() {
             saxParserFactory.schema = schema
             val saxParser = saxParserFactory.newSAXParser()
             val configParser = ConfigParser(reporter)
-            for (file in files) {
-                saxParser.parse(file, configParser)
-            }
-            return Config()
+            val xmlMapper = configXmlMapper()
+            return files
+                .map { file ->
+
+                    // Parse the configuration file to validate against the schema first.
+                    saxParser.parse(file, configParser)
+
+                    // Read the configuration file into a Config object.
+                    xmlMapper.readValue(file, Config::class.java)
+                }
+                // Merge the config objects together.
+                .reduceOrNull { configLeft, configRight -> merge(configLeft, configRight) }
+            // If no configuration files were created then return an empty Config.
+            ?: Config()
         }
+
+        /**
+         * Get an [XmlMapper] that can be used to serialize and deserialize [Config] objects.
+         *
+         * While serializing a [Config] object is not something that is used by Metalava it is
+         * helpful to be able to do that for debugging and also for development. e.g. it is easy to
+         * work out what the [XmlMapper] can read by simply seeing what it writes out as it
+         * generally supports reading what it writes. Tweaking it to match what is defined in the
+         * schema just requires adding the correct annotations to the object.
+         */
+        internal fun configXmlMapper(): XmlMapper {
+            return XmlMapper.builder()
+                // Do not add extra wrapper elements around collections.
+                .defaultUseWrapper(false)
+                // Pretty print, indenting each level by 2 spaces.
+                .enable(SerializationFeature.INDENT_OUTPUT)
+                // Exclude any `null` values from being serialized.
+                .serializationInclusion(JsonInclude.Include.NON_NULL)
+                // Add support for using Kotlin data classes.
+                .addModule(kotlinModule())
+                .build()
+        }
+
+        /** Merge two Config objects together returning an object that combines them both. */
+        internal fun merge(configLeft: Config, configRight: Config): Config {
+            val apiSurfaces = merge(configLeft.apiSurfaces, configRight.apiSurfaces)
+            return Config(apiSurfaces)
+        }
+
+        internal fun merge(apiSurfaces1: ApiSurfacesConfig?, apiSurfaces2: ApiSurfacesConfig?) =
+            if (apiSurfaces1 == null) apiSurfaces2
+            else if (apiSurfaces2 == null) apiSurfaces1
+            else ApiSurfacesConfig(apiSurfaces1.apiSurfaceList + apiSurfaces2.apiSurfaceList)
     }
 }

@@ -202,7 +202,7 @@ data class FileFormat(
     /** The base version of the file format. */
     enum class Version(
         /** The version number of this as a string, e.g. "3.0". */
-        internal val versionNumber: String,
+        val versionNumber: String,
         /** The optional legacy alias used on the command line, for the `--format` option. */
         val legacyCommandLineAlias: String? = null,
 
@@ -214,6 +214,8 @@ data class FileFormat(
          * version.
          */
         factory: (Version) -> FileFormat,
+        /** Help text to use on the command line. */
+        val help: String,
     ) {
         V2(
             versionNumber = "2.0",
@@ -224,7 +226,16 @@ data class FileFormat(
                     kotlinStyleNulls = false,
                     conciseDefaultValues = false,
                 )
-            }
+            },
+            help =
+                """
+                    This is the base version (more details in `FORMAT.md`) on which all the others
+                    are based. It sets the properties as follows:
+                    ```
+                    + kotlin-style-nulls = no
+                    + concise-default-values = no
+                    ```
+                """,
         ),
         V3(
             versionNumber = "3.0",
@@ -235,7 +246,15 @@ data class FileFormat(
                     // This adds kotlinStyleNulls = true
                     kotlinStyleNulls = true,
                 )
-            }
+            },
+            help =
+                """
+                    This is `2.0` plus `kotlin-style-nulls = yes` giving the following properties:
+                    ```
+                    + kotlin-style-nulls = yes
+                    + concise-default-values = no
+                    ```
+                """,
         ),
         V4(
             versionNumber = "4.0",
@@ -246,7 +265,16 @@ data class FileFormat(
                     // This adds conciseDefaultValues = true
                     conciseDefaultValues = true,
                 )
-            }
+            },
+            help =
+                """
+                    This is `3.0` plus `concise-default-values = yes` giving the following
+                    properties:
+                    ```
+                    + kotlin-style-nulls = yes
+                    + concise-default-values = yes
+                    ```
+                """,
         ),
         V5(
             versionNumber = "5.0",
@@ -257,7 +285,14 @@ data class FileFormat(
                     version = version,
                     // This does not add any property defaults, just full property support.
                 )
-            }
+            },
+            help =
+                """
+                    This is the first version that has full support for properties in the signature
+                    header. As such it does not add any new defaults to `4.0`. The intent is that
+                    properties will be explicitly defined in the signature file avoiding reliance on
+                    version specific defaults.
+                """,
         );
 
         /**
@@ -382,7 +417,7 @@ data class FileFormat(
     private fun iterateOverCustomizableProperties(consumer: (String, String) -> Unit) {
         val defaults = version.defaultsIncludingLanguage(language)
         if (this@FileFormat != defaults) {
-            CustomizableProperty.values().forEach { prop ->
+            CustomizableProperty.entries.forEach { prop ->
                 // Get the string value of this property, if null then it was not specified so skip
                 // the property.
                 val thisValue = prop.stringFromFormat(this@FileFormat) ?: return@forEach
@@ -425,9 +460,9 @@ data class FileFormat(
     }
 
     companion object {
-        private val allDefaults = Version.values().map { it.defaults }.toList()
+        private val allDefaults = Version.entries.map { it.defaults }.toList()
 
-        private val versionByNumber = Version.values().associateBy { it.versionNumber }
+        private val versionByNumber = Version.entries.associateBy { it.versionNumber }
 
         // The defaults associated with version 2.0.
         val V2 = Version.V2.defaults
@@ -707,7 +742,7 @@ data class FileFormat(
          * Get the names of the [CustomizableProperty] that are [CustomizableProperty.defaultable].
          */
         fun defaultableProperties(): List<String> {
-            return CustomizableProperty.values()
+            return CustomizableProperty.entries
                 .filter { it.defaultable }
                 .map { it.propertyName }
                 .sorted()
@@ -756,7 +791,13 @@ data class FileFormat(
     }
 
     /** Information about the different customizable properties in [FileFormat]. */
-    private enum class CustomizableProperty(val defaultable: Boolean = false) {
+    enum class CustomizableProperty(
+        val defaultable: Boolean = false,
+        /** Syntax of command line values. */
+        val valueSyntax: String = "",
+        /** Help text to use on the command line. */
+        val help: String = "",
+    ) {
         // The order of values in this is significant as it determines the order of the properties
         // in signature headers. The values in this block are not in alphabetical order because it
         // is important that they are at the start of the signature header.
@@ -798,7 +839,15 @@ data class FileFormat(
                 format.specifiedAddAdditionalOverrides?.let { yesNo(it) }
         },
         /** concise-default-values=[yes|no] */
-        CONCISE_DEFAULT_VALUES {
+        CONCISE_DEFAULT_VALUES(
+            valueSyntax = "yes|no",
+            help =
+                """
+                    If `no` then the signature file will use `@Nullable` and `@NonNull` annotations
+                    to indicate that the annotated item accepts `null` and does not accept `null`
+                    respectively and neither indicates that it's not defined.
+                """,
+        ) {
             override fun setFromString(builder: Builder, value: String) {
                 builder.conciseDefaultValues = yesNo(value)
             }
@@ -825,7 +874,19 @@ data class FileFormat(
                 yesNo(format.kotlinNameTypeOrder)
         },
         /** kotlin-style-nulls=[yes|no] */
-        KOTLIN_STYLE_NULLS {
+        KOTLIN_STYLE_NULLS(
+            valueSyntax = "yes|no",
+            help =
+                """
+                    If `no` then the signature file will use `@Nullable` and `@NonNull` annotations
+                    to indicate that the annotated item accepts `null` and does not accept `null`
+                    respectively and neither indicates that it's not defined.
+
+                    If `yes` then the signature file will use a type suffix of `?`, no type suffix
+                    and a type suffix of `!` to indicate the that the type accepts `null`, does not
+                    accept `null` or it's not defined respectively.
+                """,
+        ) {
             override fun setFromString(builder: Builder, value: String) {
                 builder.kotlinStyleNulls = yesNo(value)
             }
@@ -841,7 +902,23 @@ data class FileFormat(
             override fun stringFromFormat(format: FileFormat): String? = format.migrating
         },
         /** overloaded-method-other=[source|signature] */
-        OVERLOADED_METHOD_ORDER(defaultable = true) {
+        OVERLOADED_METHOD_ORDER(
+            defaultable = true,
+            valueSyntax = "source|signature",
+            help =
+                """
+                    Specifies the order of overloaded methods in signature files. Applies to the
+                    contents of the files specified on `--api` and `--removed-api`.
+
+                    `source` - preserves the order in which overloaded methods appear in the source
+                    files. This means that refactorings of the source files which change the order
+                    but not the API can cause unnecessary changes in the API signature files.
+
+                    `signature` (default) - sorts overloaded methods by their signature. This means
+                    that refactorings of the source files which change the order but not the API
+                    will have no effect on the API signature files.
+                """,
+        ) {
             override fun setFromString(builder: Builder, value: String) {
                 builder.overloadedMethodOrder = enumFromString<OverloadedMethodOrder>(value)
             }
@@ -873,13 +950,13 @@ data class FileFormat(
          * Set the corresponding property in the supplied [Builder] to the value corresponding to
          * the string representation [value].
          */
-        abstract fun setFromString(builder: Builder, value: String)
+        internal abstract fun setFromString(builder: Builder, value: String)
 
         /**
          * Get the string representation of the corresponding property from the supplied
          * [FileFormat].
          */
-        abstract fun stringFromFormat(format: FileFormat): String?
+        internal abstract fun stringFromFormat(format: FileFormat): String?
 
         /** Inline function to map from a string value to an enum value of the required type. */
         inline fun <reified T : Enum<T>> enumFromString(value: String): T {
@@ -929,7 +1006,7 @@ data class FileFormat(
         fun yesNo(value: Boolean): String = if (value) "yes" else "no"
 
         companion object {
-            val byPropertyName = values().associateBy { it.propertyName }
+            val byPropertyName = entries.associateBy { it.propertyName }
 
             /**
              * Get the [CustomizableProperty] by name, throwing an [ApiParseException] if it could

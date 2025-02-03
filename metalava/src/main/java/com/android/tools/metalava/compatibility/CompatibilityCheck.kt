@@ -19,7 +19,7 @@ package com.android.tools.metalava.compatibility
 import com.android.tools.metalava.CodebaseComparator
 import com.android.tools.metalava.ComparisonVisitor
 import com.android.tools.metalava.JVM_DEFAULT_WITH_COMPATIBILITY
-import com.android.tools.metalava.cli.common.MetalavaCliException
+import com.android.tools.metalava.cli.common.cliError
 import com.android.tools.metalava.model.ANDROID_SYSTEM_API
 import com.android.tools.metalava.model.ANDROID_TEST_API
 import com.android.tools.metalava.model.ArrayTypeItem
@@ -1081,7 +1081,7 @@ class CompatibilityCheck(
                     "the ${apiType.displayName} API (${newCodebase.location}) against the API in ${oldCodebase.location}"
 
             if (checker.foundProblems) {
-                throw MetalavaCliException(exitCode = -1, stderr = message)
+                cliError(message)
             }
         }
     }

@@ -16,6 +16,7 @@
 package com.android.tools.metalava.apilevels
 
 import java.io.File
+import java.io.IOException
 
 /** Generates API version history. */
 class ApiGenerator {
@@ -24,7 +25,7 @@ class ApiGenerator {
      *
      * @param config Configuration provided from command line options.
      */
-    fun generateApiHistory(config: GenerateApiHistoryConfig): Boolean {
+    fun generateApiHistory(config: GenerateApiHistoryConfig) {
         val api = createApiFromVersionedApis(config.versionedApis)
 
         // If necessary, update the sdks properties.
@@ -44,7 +45,7 @@ class ApiGenerator {
         // Apply the appropriate action for missing classes.
         config.missingClassAction.apply(api)
 
-        return createApiLevelsFile(config.outputFile, config.printer, api)
+        createApiLevelsFile(config.outputFile, config.printer, api)
     }
 
     /**
@@ -126,22 +127,19 @@ class ApiGenerator {
         outFile: File,
         printer: ApiPrinter,
         api: Api,
-    ): Boolean {
+    ) {
         val parentFile = outFile.parentFile
         if (!parentFile.exists()) {
             val ok = parentFile.mkdirs()
             if (!ok) {
-                System.err.println("Could not create directory $parentFile")
-                return false
+                throw IOException("Could not create directory $parentFile")
             }
         }
-        try {
-            outFile.printWriter().use { writer -> printer.print(api, writer) }
-        } catch (e: Exception) {
-            e.printStackTrace()
-            return false
+
+        outFile.printWriter().use { writer ->
+            printer.print(api, writer)
+            if (writer.checkError()) throw IOException("Error writing $outFile")
         }
-        return true
     }
 
     data class SdkExtensionsArguments(

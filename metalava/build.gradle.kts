@@ -47,6 +47,8 @@ dependencies {
     implementation(libs.asm)
     implementation(libs.asmTree)
     implementation(libs.gson)
+    implementation(libs.jacksonDataformatXml)
+    implementation(libs.jacksonModuleKotlin)
 
     testImplementation(project(":metalava-model-turbine"))
     testImplementation(project(":metalava-testing"))

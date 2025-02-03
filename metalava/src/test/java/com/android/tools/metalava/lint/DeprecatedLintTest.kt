@@ -48,7 +48,7 @@ class DeprecatedLintTest(private val deprecatedState: DeprecatedState) : DriverT
     companion object {
         @JvmStatic
         @Parameterized.Parameters(name = "{0}")
-        fun testParameters() = DeprecatedState.values()
+        fun testParameters() = DeprecatedState.entries
     }
 
     data class Context(val deprecatedClass: String, val deprecatedMember: String)
