@@ -79,7 +79,6 @@ Available Issues                             |  Category                |   Defa
   ConcreteCollection                         |  api_lint                |   error
   ConditionalRequiresPermissionNotExplained  |  api_lint                |   hidden
   ConfigFieldName                            |  api_lint                |   error
-  ConfigFileProblem                          |  unknown                 |   error
   ContextFirst                               |  api_lint                |   error
   ContextNameSuffix                          |  api_lint                |   error
   DefaultValueChange                         |  compatibility           |   error

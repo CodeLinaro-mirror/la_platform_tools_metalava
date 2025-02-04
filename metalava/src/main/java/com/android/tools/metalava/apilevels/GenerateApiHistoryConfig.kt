@@ -40,9 +40,6 @@ data class GenerateApiHistoryConfig(
     /** The API levels file that will be generated. */
     val outputFile: File,
 
-    /** The [ApiPrinter] to use to write the API versions to [outputFile]. */
-    val printer: ApiPrinter,
-
     /**
      * Optional SDK extensions arguments.
      *

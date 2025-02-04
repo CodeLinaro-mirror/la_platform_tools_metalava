@@ -18,10 +18,8 @@ package com.android.tools.metalava.config
 
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.lint.checks.infrastructure.TestFiles.xml
-import com.android.tools.metalava.reporter.BasicReporter
 import com.android.tools.metalava.testing.TemporaryFolderOwner
 import com.google.common.truth.Truth.assertThat
-import java.io.StringWriter
 import org.intellij.lang.annotations.Language
 import org.junit.Rule
 import org.junit.Test
@@ -35,24 +33,36 @@ class ConfigParserTest : TemporaryFolderOwner {
      * Run the test.
      *
      * @param configFiles The config files to parse.
-     * @param expectedIssues The expected issues.
+     * @param expectedFail The expected failure.
      * @param body the body of the test which checks the state of the [Config] object which is made
      *   available as [TestContext.config].
      */
     private fun runTest(
         vararg configFiles: TestFile,
-        expectedIssues: String = "",
-        body: TestContext.() -> Unit = {},
+        expectedFail: String = "",
+        body: (TestContext.() -> Unit)? = null,
     ) {
         val dir = temporaryFolder.newFolder()
-        val writer = StringWriter()
-        val reporter = BasicReporter(writer)
-        val config =
-            ConfigParser.parse(reporter, configFiles.map { it.indented().createFile(dir) }.toList())
-        val output = cleanupString(writer.toString(), project = dir)
-        assertThat(output.trimIndent()).isEqualTo(expectedIssues.trimIndent())
-        val context = TestContext(config = config)
-        context.body()
+        val expectingFailure = expectedFail != ""
+        val hasBody = body != null
+
+        // If expecting a failure then it should not provide a body and if it is not expecting a
+        // failure then it must provide a body.
+        if (expectingFailure == hasBody) {
+            if (expectingFailure) error("Should not provide a body when expecting a failure")
+            else error("Must provide a body when not expecting a failure")
+        }
+
+        var errors = ""
+        try {
+            val files = configFiles.map { it.indented().createFile(dir) }.toList()
+            val config = ConfigParser.parse(files)
+            val context = TestContext(config = config)
+            if (body != null) context.body()
+        } catch (e: Exception) {
+            errors = cleanupString(e.message ?: "", project = dir)
+        }
+        assertThat(errors.trimIndent()).isEqualTo(expectedFail.trimIndent())
     }
 
     /** Context for the tests. */
@@ -113,8 +123,29 @@ class ConfigParserTest : TemporaryFolderOwner {
                     <invalid xmlns="http://www.google.com/tools/metalava/config"/>
                 """,
             ),
-            expectedIssues =
-                "TESTROOT/config.xml:1: error: Problem parsing configuration file: cvc-elt.1.a: Cannot find the declaration of element 'invalid'. [ConfigFileProblem]",
+            expectedFail =
+                """
+                    Errors found while parsing configuration file(s):
+                        file:TESTROOT/config.xml:1: cvc-elt.1.a: Cannot find the declaration of element 'invalid'.
+                """,
+        )
+    }
+
+    @Test
+    fun `Syntactically incorrect config file`() {
+        runTest(
+            xml(
+                "config.xml",
+                """
+                    <!-- Comment -->
+                    <config xmlns="http://www.google.com/tools/metalava/config"></other>
+                """,
+            ),
+            expectedFail =
+                """
+                    Errors found while parsing configuration file(s):
+                        file:TESTROOT/config.xml:2: The element type "config" must be terminated by the matching end-tag "</config>".
+                """,
         )
     }
 
@@ -140,23 +171,14 @@ class ConfigParserTest : TemporaryFolderOwner {
 
     @Test
     fun `Empty api-surfaces config`() {
-        runTest(
-            xml(
-                "config.xml",
-                """
-                    <config xmlns="http://www.google.com/tools/metalava/config">
-                        <api-surfaces/>
-                    </config>
-                """,
-            ),
-        ) {
-            assertThat(config)
-                .isEqualTo(
-                    Config(
-                        apiSurfaces = ApiSurfacesConfig(),
-                    )
-                )
-        }
+        roundTrip(
+            Config(apiSurfaces = ApiSurfacesConfig()),
+            """
+                <config xmlns="http://www.google.com/tools/metalava/config">
+                  <api-surfaces/>
+                </config>
+            """,
+        )
     }
 
     @Test
@@ -201,10 +223,11 @@ class ConfigParserTest : TemporaryFolderOwner {
                     </config>
                 """,
             ),
-            expectedIssues =
+            expectedFail =
                 """
-                    TESTROOT/config.xml:3: error: Problem parsing configuration file: cvc-pattern-valid: Value 'public2' is not facet-valid with respect to pattern '[a-z-]+' for type 'ApiSurfaceNameType'. [ConfigFileProblem]
-                    TESTROOT/config.xml:3: error: Problem parsing configuration file: cvc-attribute.3: The value 'public2' of attribute 'name' on element 'api-surface' is not valid with respect to its type, 'ApiSurfaceNameType'. [ConfigFileProblem]
+                    Errors found while parsing configuration file(s):
+                        file:TESTROOT/config.xml:3: cvc-pattern-valid: Value 'public2' is not facet-valid with respect to pattern '[a-z-]+' for type 'ApiSurfaceNameType'.
+                        file:TESTROOT/config.xml:3: cvc-attribute.3: The value 'public2' of attribute 'name' on element 'api-surface' is not valid with respect to its type, 'ApiSurfaceNameType'.
                 """,
         )
     }
@@ -222,8 +245,11 @@ class ConfigParserTest : TemporaryFolderOwner {
                     </config>
                 """,
             ),
-            expectedIssues =
-                "TESTROOT/config.xml:5: error: Problem parsing configuration file: cvc-identity-constraint.4.3: Key 'ApiSurfaceExtendsKeyRef' with value 'missing' not found for identity constraint of element 'config'. [ConfigFileProblem]",
+            expectedFail =
+                """
+                    Errors found while parsing configuration file(s):
+                        file:TESTROOT/config.xml:5: cvc-identity-constraint.4.3: Key 'ApiSurfaceExtendsKeyRef' with value 'missing' not found for identity constraint of element 'config'.
+                """,
         )
     }
 
@@ -241,8 +267,11 @@ class ConfigParserTest : TemporaryFolderOwner {
                     </config>
                 """,
             ),
-            expectedIssues =
-                "TESTROOT/config.xml:4: error: Problem parsing configuration file: cvc-identity-constraint.4.2.2: Duplicate key value [duplicate] declared for identity constraint \"ApiSurfaceByName\" of element \"config\". [ConfigFileProblem]"
+            expectedFail =
+                """
+                    Errors found while parsing configuration file(s):
+                        file:TESTROOT/config.xml:4: cvc-identity-constraint.4.2.2: Duplicate key value [duplicate] declared for identity constraint "ApiSurfaceByName" of element "config".
+                """,
         )
     }
 
@@ -287,6 +316,104 @@ class ConfigParserTest : TemporaryFolderOwner {
                             ),
                     )
                 )
+        }
+    }
+
+    @Test
+    fun `Duplicate api-surfaces across config files`() {
+        runTest(
+            xml(
+                "config1.xml",
+                """
+                    <config xmlns="http://www.google.com/tools/metalava/config">
+                      <api-surfaces>
+                        <api-surface name="public"/>
+                      </api-surfaces>
+                    </config>
+                """,
+            ),
+            xml(
+                "config2.xml",
+                """
+                    <config xmlns="http://www.google.com/tools/metalava/config">
+                      <api-surfaces>
+                        <api-surface name="public"/>
+                      </api-surfaces>
+                    </config>
+                """,
+            ),
+            expectedFail = "Found duplicate surfaces called `public`"
+        )
+    }
+
+    @Test
+    fun `Cycle in api-surfaces`() {
+        runTest(
+            xml(
+                "config1.xml",
+                """
+                    <config xmlns="http://www.google.com/tools/metalava/config">
+                      <api-surfaces>
+                        <api-surface name="public" extends="module-lib"/>
+                        <api-surface name="system" extends="public"/>
+                        <api-surface name="module-lib" extends="system"/>
+                      </api-surfaces>
+                    </config>
+                """,
+            ),
+            expectedFail =
+                "Cycle detected in extends relationship: `public` -> `module-lib` -> `system` -> `public`.",
+        )
+    }
+
+    @Test
+    fun `Dag in api-surfaces, module-lib first`() {
+        runTest(
+            xml(
+                "config1.xml",
+                """
+                    <config xmlns="http://www.google.com/tools/metalava/config">
+                      <api-surfaces>
+                        <api-surface name="system" extends="public"/>
+                        <api-surface name="module-lib" extends="system"/>
+                        <api-surface name="test" extends="system"/>
+                        <api-surface name="public"/>
+                      </api-surfaces>
+                    </config>
+                """,
+            ),
+        ) {
+            // The extends property defines a partial order to those surfaces that have an
+            // extends relationship but configuration order is preserved otherwise. So, as
+            // `module-lib` comes before `test` in the configuration it comes first in the ordered
+            // set.
+            assertThat(config.apiSurfaces?.orderedSurfaces?.map { it.name })
+                .isEqualTo(listOf("public", "system", "module-lib", "test"))
+        }
+    }
+
+    @Test
+    fun `Dag in api-surfaces, test first`() {
+        runTest(
+            xml(
+                "config1.xml",
+                """
+                    <config xmlns="http://www.google.com/tools/metalava/config">
+                      <api-surfaces>
+                        <api-surface name="system" extends="public"/>
+                        <api-surface name="test" extends="system"/>
+                        <api-surface name="module-lib" extends="system"/>
+                        <api-surface name="public"/>
+                      </api-surfaces>
+                    </config>
+                """,
+            ),
+        ) {
+            // The extends property defines a partial order to those surfaces that have an
+            // extends relationship but configuration order is preserved otherwise. So, as `test`
+            // comes before `module-lib` in the configuration it comes first in the ordered set.
+            assertThat(config.apiSurfaces?.orderedSurfaces?.map { it.name })
+                .isEqualTo(listOf("public", "system", "test", "module-lib"))
         }
     }
 }
