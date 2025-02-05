@@ -27,9 +27,7 @@ import com.android.tools.metalava.cli.lint.API_LINT_OPTIONS_HELP
 import com.android.tools.metalava.cli.signature.SIGNATURE_FORMAT_OPTIONS_HELP
 import com.android.tools.metalava.model.source.DEFAULT_JAVA_LANGUAGE_LEVEL
 import com.android.tools.metalava.model.source.DEFAULT_KOTLIN_LANGUAGE_LEVEL
-import com.android.tools.metalava.reporter.Issues
 import java.io.File
-import java.util.Locale
 import kotlin.test.assertEquals
 import org.junit.Assert
 import org.junit.Test
@@ -147,10 +145,6 @@ API sources:
                                              Specifies that errors encountered during validation of nullability
                                              annotations should not be treated as errors. They will be written out to
                                              the file specified in --nullability-warnings-txt instead.
---hide-annotation <annotation class>
-                                             Treat any elements annotated with the given annotation as hidden
---show-unannotated
-                                             Include un-annotated public APIs in the signature file as well
 --java-source <level>
                                              Sets the source level for Java source files; default is ${DEFAULT_JAVA_LANGUAGE_LEVEL}.
 --kotlin-source <level>
@@ -256,28 +250,6 @@ Aborting: Error: no such option: "--blah-blah-blah"
 $EXPECTED_HELP
                 """
                     .trimIndent()
-        }
-    }
-
-    @Test
-    fun `Test deprecated lowercase matching in issue configuration options`() {
-        commandTest {
-            args +=
-                listOf(
-                    "main",
-                    "--error",
-                    Issues.DEPRECATED_OPTION.name,
-                    "--hide",
-                    Issues.ADDED_FINAL.name.lowercase(Locale.US),
-                )
-
-            expectedStderr =
-                """
-error: Case-insensitive issue matching is deprecated, use --hide AddedFinal instead of --hide addedfinal [DeprecatedOption]
-                """
-                    .trimIndent()
-
-            verify { assertEquals(-1, exitCode, message = "exitCode") }
         }
     }
 

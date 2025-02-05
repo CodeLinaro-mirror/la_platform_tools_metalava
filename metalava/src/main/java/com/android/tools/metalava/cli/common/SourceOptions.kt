@@ -65,7 +65,7 @@ class SourceOptions :
         } else {
             path.split(File.pathSeparator).map {
                 if (it.endsWith(SdkConstants.DOT_JAVA)) {
-                    throw MetalavaCliException(
+                    cliError(
                         "$argName should point to a source root directory, not a source file ($it)"
                     )
                 }

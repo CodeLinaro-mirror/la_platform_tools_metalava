@@ -120,8 +120,17 @@ internal open class MetalavaHelpFormatter(
                 .sortedBy { (it as? Option)?.groupName != defaultOptionGroupName }
                 .toList()
 
+        // Scan for enum help text and style for the terminal.
+        val styledProlog = styleEnumHelpTextIfNeeded(prolog, mutableMapOf(), terminal)
+
         // Use the default help format.
-        val help = super.formatHelp(prolog, epilog, transformedParameters, formattedProgramName)
+        val help =
+            super.formatHelp(
+                styledProlog,
+                epilog,
+                transformedParameters,
+                formattedProgramName,
+            )
 
         return removePadding(help)
     }

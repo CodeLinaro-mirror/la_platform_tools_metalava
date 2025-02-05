@@ -16,8 +16,8 @@
 
 package com.android.tools.metalava
 
-import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.cli.common.MetalavaSubCommand
+import com.android.tools.metalava.cli.common.cliError
 import com.android.tools.metalava.cli.common.executionEnvironment
 import com.android.tools.metalava.cli.common.existingDir
 import com.android.tools.metalava.cli.common.progressTracker
@@ -55,9 +55,7 @@ class AndroidJarsToSignaturesCommand :
             .existingDir()
             .validate {
                 require(it.resolve("prebuilts/sdk").isDirectory) {
-                    throw MetalavaCliException(
-                        "$ARG_ANDROID_ROOT_DIR does not point to an Android source tree"
-                    )
+                    cliError("$ARG_ANDROID_ROOT_DIR does not point to an Android source tree")
                 }
             }
 

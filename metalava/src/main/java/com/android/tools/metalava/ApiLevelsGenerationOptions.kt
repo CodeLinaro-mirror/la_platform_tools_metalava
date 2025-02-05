@@ -33,9 +33,9 @@ import com.android.tools.metalava.apilevels.VersionedSignatureApi
 import com.android.tools.metalava.apilevels.VersionedSourceApi
 import com.android.tools.metalava.cli.common.EarlyOptions
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
-import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.cli.common.RequiresOtherGroups
 import com.android.tools.metalava.cli.common.SignatureFileLoader
+import com.android.tools.metalava.cli.common.cliError
 import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.fileForPathInner
 import com.android.tools.metalava.cli.common.map
@@ -175,9 +175,7 @@ class ApiLevelsGenerationOptions(
     internal val currentApiVersion: ApiVersion
         get() =
             optionalCurrentApiVersion
-                ?: throw MetalavaCliException(
-                    stderr = "$ARG_GENERATE_API_LEVELS requires $ARG_CURRENT_VERSION"
-                )
+                ?: cliError("$ARG_GENERATE_API_LEVELS requires $ARG_CURRENT_VERSION")
 
     /**
      * The codename of the codebase: non-null string if this is a developer preview build, null if
@@ -349,25 +347,25 @@ class ApiLevelsGenerationOptions(
 
             val currentSdkVersion = currentApiVersion
             if (currentSdkVersion.major <= 26) {
-                throw MetalavaCliException(
-                    "Suspicious $ARG_CURRENT_VERSION $currentSdkVersion, expected at least 27"
-                )
+                cliError("Suspicious $ARG_CURRENT_VERSION $currentSdkVersion, expected at least 27")
             }
 
-            val notFinalizedSdkVersion = currentSdkVersion + 1
-            val lastApiVersion = versionedHistoricalApis.lastOrNull()?.apiVersion
+            val nextSdkVersion = currentSdkVersion + 1
+            val lastFinalizedVersion = versionedHistoricalApis.lastOrNull()?.apiVersion
 
-            // Compute the version to use for the current codebase.
+            // Compute the version to use for the current codebase, or null if the current codebase
+            // should not be added to the API history. If a non-null version is selected it will
+            // always be after the last historical version.
             val codebaseSdkVersion =
                 when {
                     // The current codebase is a developer preview so use the next, in the
                     // process of being finalized version.
-                    isDeveloperPreviewBuild -> notFinalizedSdkVersion
+                    isDeveloperPreviewBuild -> nextSdkVersion
 
-                    // If no historical versions were provided or the last historical version is
-                    // less than the current version then use the current version as the version
-                    // of the codebase.
-                    lastApiVersion == null || lastApiVersion < currentSdkVersion ->
+                    // If no finalized versions were provided or the last finalized version is less
+                    // than the current version then use the current version as the version of the
+                    // codebase.
+                    lastFinalizedVersion == null || lastFinalizedVersion < currentSdkVersion ->
                         currentSdkVersion
 
                     // Else do not include the current codebase.
@@ -377,6 +375,10 @@ class ApiLevelsGenerationOptions(
             // Get the optional SDK extension arguments.
             val sdkExtensionsArguments =
                 if (sdkInfoFile != null) {
+                    // The not finalized SDK version is the version after the last historical
+                    // version. That is either the version used for the current codebase or the
+                    // next version.
+                    val notFinalizedSdkVersion = codebaseSdkVersion ?: nextSdkVersion
                     ApiGenerator.SdkExtensionsArguments(
                         sdkInfoFile!!,
                         notFinalizedSdkVersion,
@@ -409,17 +411,23 @@ class ApiLevelsGenerationOptions(
                     }
                     addVersionedExtensionApis(
                         this,
-                        notFinalizedSdkVersion,
+                        sdkExtensionsArguments.notFinalizedSdkVersion,
                         extensionJarFiles,
                         sdkExtensionsArguments.sdkExtensionInfo,
                     )
                 }
             }
 
-            // Get a list of all versions, including the codebase version, if necessary.
+            // Get a list of all versions, including the codebase version, if necessary. This is in
+            // version order and is used to compute the version in which an API element has been
+            // removed based on the last version it was present in. See [ApiXmlPrinter].
             val allVersions = buildList {
                 versionedHistoricalApis.mapTo(this) { it.apiVersion }
-                if (codebaseSdkVersion != null) add(codebaseSdkVersion)
+
+                // Add the highest version. That is either the version used for the current
+                // codebase, if present, or the next version. That ensures that the [ApiXmlPrinter]
+                // can always compute the version in which an API element was removed.
+                add(codebaseSdkVersion ?: nextSdkVersion)
             }
 
             val availableSdkExtensions =
@@ -563,7 +571,7 @@ class ApiLevelsGenerationOptions(
             // Get the number of version names and signature files, defaulting to 0 if not provided.
             val numVersionNames = allVersions.size
             if (numVersionNames == 0) {
-                throw MetalavaCliException(
+                cliError(
                     "Must specify $ARG_API_VERSION_NAMES and/or $ARG_CURRENT_VERSION with $ARG_GENERATE_API_VERSION_HISTORY"
                 )
             }
@@ -572,11 +580,11 @@ class ApiLevelsGenerationOptions(
             // so there should be 1 more name than signature files.
             if (numVersionNames != numVersionFiles + 1) {
                 if (currentApiVersion == null) {
-                    throw MetalavaCliException(
+                    cliError(
                         "$ARG_API_VERSION_NAMES must have one more version than $ARG_API_VERSION_SIGNATURE_FILES to include the current version name as $ARG_CURRENT_VERSION is not provided"
                     )
                 } else {
-                    throw MetalavaCliException(
+                    cliError(
                         "$ARG_API_VERSION_NAMES must have the same number of versions as $ARG_API_VERSION_SIGNATURE_FILES has files as $ARG_CURRENT_VERSION is provided"
                     )
                 }

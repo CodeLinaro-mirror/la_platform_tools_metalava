@@ -32,6 +32,7 @@ import org.jetbrains.kotlin.psi.KtFunction
 import org.jetbrains.kotlin.psi.KtParameter
 import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
+import org.jetbrains.kotlin.psi.KtTypeAlias
 import org.jetbrains.kotlin.psi.KtTypeReference
 import org.jetbrains.kotlin.psi.psiUtil.hasSuspendModifier
 import org.jetbrains.uast.UElement
@@ -231,6 +232,11 @@ private constructor(
                         (ktElement.symbol as? KaNamedClassSymbol)?.let { symbol ->
                             KotlinTypeInfo(this, symbol.defaultType, ktElement)
                         }
+                    }
+                }
+                is KtTypeAlias -> {
+                    analyze(ktElement) {
+                        KotlinTypeInfo(this, ktElement.getTypeReference()?.type, ktElement)
                     }
                 }
                 else -> null

@@ -136,7 +136,7 @@ internal fun fileForPathInner(path: String): File {
 internal fun stringToExistingDir(value: String): File {
     val file = fileForPathInner(value)
     if (!file.isDirectory) {
-        throw MetalavaCliException("$file is not a directory")
+        cliError("$file is not a directory")
     }
     return file
 }
@@ -164,7 +164,7 @@ internal fun stringToNewDir(value: String): File {
             output.mkdirs()
         }
     if (!ok) {
-        throw MetalavaCliException("Could not create $output")
+        cliError("Could not create $output")
     }
 
     return output
@@ -179,7 +179,7 @@ internal fun stringToNewDir(value: String): File {
 internal fun stringToExistingFile(value: String): File {
     val file = fileForPathInner(value)
     if (!file.isFile) {
-        throw MetalavaCliException("$file is not a file")
+        cliError("$file is not a file")
     }
     return file
 }
@@ -197,16 +197,16 @@ internal fun stringToNewFile(value: String): File {
 
     if (output.exists()) {
         if (output.isDirectory) {
-            throw MetalavaCliException("$output is a directory")
+            cliError("$output is a directory")
         }
         val deleted = output.delete()
         if (!deleted) {
-            throw MetalavaCliException("Could not delete previous version of $output")
+            cliError("Could not delete previous version of $output")
         }
     } else if (output.parentFile != null && !output.parentFile.exists()) {
         val ok = output.parentFile.mkdirs()
         if (!ok) {
-            throw MetalavaCliException("Could not create ${output.parentFile}")
+            cliError("Could not create ${output.parentFile}")
         }
     }
 
@@ -227,7 +227,7 @@ internal fun stringToNewOrExistingFile(value: String): File {
         if (parentFile != null && !parentFile.isDirectory) {
             val ok = parentFile.mkdirs()
             if (!ok) {
-                throw MetalavaCliException("Could not create $parentFile")
+                cliError("Could not create $parentFile")
             }
         }
     }
@@ -307,6 +307,21 @@ internal fun <T : Enum<T>> ParameterHolder.nonInlineEnumOption(
     return option(names = names, help = constructedHelp)
         .choice(labelToEnumValue)
         .default(default, defaultForHelp = defaultForHelp)
+}
+
+/**
+ * Build definition list help.
+ *
+ * @param definitionList is a list of [Pair]s, where [Pair.first] is the term being defined and
+ *   [Pair.second] is the definition of that term.
+ * @param termPrefix the prefix to add before each term being defined, e.g. `* ` to represent a
+ *   bullet list.
+ */
+fun buildDefinitionListHelp(
+    definitionList: List<Pair<String, String>>,
+    termPrefix: String = "",
+): String {
+    return buildString { appendDefinitionListHelp(definitionList, termPrefix) }
 }
 
 /**

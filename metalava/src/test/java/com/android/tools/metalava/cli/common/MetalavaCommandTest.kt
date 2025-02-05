@@ -136,6 +136,7 @@ class MetalavaCommandTest : TemporaryFolderOwner {
 
         val pattern =
             """\Qcom.android.tools.metalava.cli.common.MetalavaCliException: fail
+            |	at com.android.tools.metalava.cli.common.MetalavaCliExceptionKt.cliError\E\([^)]+\)\Q
             |	at com.android.tools.metalava.cli.common.MetalavaCommandTest${"$"}FailCommand.run\E\([^)]+\)
             |	at .*
             |	at .*
@@ -163,7 +164,7 @@ $separator
 
     private class FailCommand : CliktCommand() {
         override fun run() {
-            throw MetalavaCliException("fail")
+            cliError("fail")
         }
     }
 }

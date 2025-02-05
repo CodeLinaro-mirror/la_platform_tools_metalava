@@ -266,7 +266,7 @@ interface ModifierFlags {
          * An internal copy of VisibilityLevel.values() to avoid paying the cost of duplicating the
          * array on every call.
          */
-        internal val VISIBILITY_LEVEL_ENUMS = VisibilityLevel.values()
+        internal val VISIBILITY_LEVEL_ENUMS = VisibilityLevel.entries
 
         // Check that the constants above are consistent with the VisibilityLevel enum, i.e. the
         // mask is large enough

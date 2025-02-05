@@ -31,4 +31,6 @@ class VersionedSourceApi(
         val codebaseFragment = codebaseFragmentProvider()
         addApisFromCodebase(api, apiVersion, codebaseFragment, useInternalNames)
     }
+
+    override fun toString() = "VersionedSourceApi(version=$apiVersion)"
 }
