@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava.cli.help
 
+import com.android.tools.metalava.ARG_ANDROID_JAR_PATTERN
+import com.android.tools.metalava.apilevels.PatternNode
 import com.android.tools.metalava.cli.common.ARG_STUB_PACKAGES
 import com.android.tools.metalava.cli.common.MetalavaHelpFormatter
 import com.android.tools.metalava.cli.common.buildDefinitionListHelp
@@ -56,6 +58,7 @@ class HelpCommand :
             IssuesCommand(),
             packageFilterHelp,
             signatureFileFormatsHelp(),
+            historicalApiPatterns(),
         )
     }
 
@@ -156,6 +159,70 @@ ${customizablePropertyHelp {it.defaultable}}
 
 Currently, metalava supports the following versions:
 ${versionHelp()}
+            """
+                .trimIndent()
+    )
+}
+
+private fun historicalApiPatterns(): CliktCommand {
+    /** Construct help for the different [PatternNode.Placeholder]s. */
+    fun placeholderHelp(): String {
+        fun PatternNode.Placeholder.labelGetter() = "`$label`"
+        return buildDefinitionListHelp(
+            PatternNode.Placeholder.entries.mapNotNull {
+                val help = it.help()
+                if (help == "") return@mapNotNull null
+                it.labelGetter() to
+                    "Placeholder for property `${it.property}`. ${help.trimIndent()}"
+            },
+            termPrefix = "* ",
+        )
+    }
+
+    /** Construct help for the different [PatternNode.Property]s. */
+    fun propertyHelp(): String {
+        fun PatternNode.Property.labelGetter() = "`$propertyName`"
+        return buildDefinitionListHelp(
+            PatternNode.Property.entries.mapNotNull {
+                val help = it.help()
+                if (help == "") return@mapNotNull null
+                it.labelGetter() to help.trimIndent()
+            },
+            termPrefix = "* ",
+        )
+    }
+
+    return SimpleHelpCommand(
+        name = "historical-api-patterns",
+        help =
+            """
+Explains the syntax and behavior of historical API patterns used in options like $ARG_ANDROID_JAR_PATTERN.
+
+A historical API pattern is used to find historical versioned API files that are used to construct a
+history of an API surface, e.g. when items were added, removed, deprecated, etc.. It allows for
+efficiently scanning a directory for matching files, or matching a given file. In both cases
+information is extracted from the file path, e.g. version, that is used when constructing the API
+history.
+
+Each pattern contains placeholders which match part of a file name, extracts the value, possibly
+filters it and then stores it in a property. Each property can have at most a single associated
+placeholder in each pattern.
+
+A `version` placeholder is mandatory but the other options are optional. Files that match a
+pattern are assumed to provide the definition of that version of the API. e.g. given a pattern of
+`prebuilts/sdk/{version:level}/public/android.jar` then it will match a file like
+`prebuilts/sdk/1/public/android.jar` and that file is assumed to define version 1 of the API.
+
+Patterns can also include any number of wildcards:
+
+* `*` - matches any characters within  a file name, but not into sub-directories. e.g. `foo/b*h/bar`
+  will match `foo/blah/bar` but not `foo/blah/blah/bar`.
+
+The supported properties are:
+${propertyHelp()}
+
+The supported placeholders are:
+${placeholderHelp()}
             """
                 .trimIndent()
     )

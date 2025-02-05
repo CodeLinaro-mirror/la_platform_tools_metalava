@@ -29,6 +29,7 @@ fun Api.readJar(
     jar: File,
     updater: ApiHistoryUpdater,
 ) {
+    require(useInternalNames) { "Cannot add jars to Api that does not use internal names" }
     // Update the Api for this version of the jar.
     updater.update(this)
     val fis = FileInputStream(jar)
