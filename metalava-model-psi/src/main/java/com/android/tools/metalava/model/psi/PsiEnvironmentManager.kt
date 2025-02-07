@@ -132,7 +132,6 @@ class PsiEnvironmentManager(
         modelOptions: ModelOptions,
         allowReadingComments: Boolean,
         jdkHome: File?,
-        projectDescription: File?,
     ): SourceParser {
         return PsiSourceParser(
             psiEnvironmentManager = this,
@@ -142,7 +141,6 @@ class PsiEnvironmentManager(
             useK2Uast = modelOptions[PsiModelOptions.useK2Uast],
             allowReadingComments = allowReadingComments,
             jdkHome = jdkHome,
-            projectDescription = projectDescription,
         )
     }
 

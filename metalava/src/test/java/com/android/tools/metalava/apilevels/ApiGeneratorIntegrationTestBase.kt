@@ -29,7 +29,7 @@ import org.junit.BeforeClass
 
 abstract class ApiGeneratorIntegrationTestBase : DriverTest() {
 
-    val androidPublicJarsPattern = "${platformJars.path}/%/public/android.jar"
+    val androidPublicJarsPattern = "${platformJars.path}/{version:level}/public/android.jar"
 
     protected fun createSdkExtensionInfoFile(): File {
         val file = File.createTempFile("filter", "txt")
@@ -105,15 +105,6 @@ abstract class ApiGeneratorIntegrationTestBase : DriverTest() {
         fun beforeClass() {
             assert(ABOVE_HIGHEST_API.includes(MAGIC_VERSION_INT))
         }
-
-        internal val oldSdkJars by
-            lazy(LazyThreadSafetyMode.NONE) {
-                File("../../../prebuilts/tools/common/api-versions").apply {
-                    if (!isDirectory) {
-                        Assert.fail("prebuilts for old sdk jars not found: $this")
-                    }
-                }
-            }
 
         internal val platformJars by
             lazy(LazyThreadSafetyMode.NONE) {

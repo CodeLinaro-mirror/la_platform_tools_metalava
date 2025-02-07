@@ -21,7 +21,6 @@ import com.android.tools.metalava.ARG_CURRENT_CODENAME
 import com.android.tools.metalava.ARG_CURRENT_VERSION
 import com.android.tools.metalava.ARG_GENERATE_API_LEVELS
 import com.android.tools.metalava.ARG_SDK_INFO_FILE
-import com.android.tools.metalava.ARG_SDK_JAR_ROOT
 import com.android.tools.metalava.doc.getApiLookup
 import com.android.tools.metalava.testing.java
 import org.junit.Assert.assertEquals
@@ -42,11 +41,9 @@ class ExtractPublicApiLevelsTest : ApiGeneratorIntegrationTestBase() {
                     ARG_GENERATE_API_LEVELS,
                     outputPath,
                     ARG_ANDROID_JAR_PATTERN,
-                    "${oldSdkJars.path}/android-%/android.jar",
-                    ARG_ANDROID_JAR_PATTERN,
                     androidPublicJarsPattern,
-                    ARG_SDK_JAR_ROOT,
-                    extensionSdkJars.path,
+                    ARG_ANDROID_JAR_PATTERN,
+                    "${extensionSdkJars.path}/{version:extension}/*/{module}.jar",
                     ARG_SDK_INFO_FILE,
                     createSdkExtensionInfoFile().path,
                     ARG_CURRENT_CODENAME,

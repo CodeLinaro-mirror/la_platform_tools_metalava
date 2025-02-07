@@ -160,6 +160,7 @@ class ExtractAnnotations(
     private fun addItem(item: Item, annotation: AnnotationItem) {
         val pkg =
             when (item) {
+                is ClassItem -> item.containingPackage()
                 is MemberItem -> item.containingClass().containingPackage()
                 is ParameterItem -> item.containingCallable().containingClass().containingPackage()
                 else -> return
@@ -173,6 +174,10 @@ class ExtractAnnotations(
                     new
                 }
         list.add(Pair(item, annotation))
+    }
+
+    override fun visitClass(cls: ClassItem) {
+        checkItem(cls)
     }
 
     override fun visitField(field: FieldItem) {

@@ -24,6 +24,9 @@ Api Selection:
 
   Options that select which parts of the source files will be part of the generated API.
 
+  --api-surface <surface>                    The API surface currently being generated.
+
+                                             Currently, only used for testing purposes.
   --show-annotation <annotation-filter>      Unhide any hidden elements that are also annotated with the given
                                              annotation.
   --show-single-annotation <annotation-filter>

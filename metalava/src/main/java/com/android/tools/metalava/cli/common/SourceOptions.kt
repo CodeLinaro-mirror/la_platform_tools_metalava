@@ -23,7 +23,6 @@ import com.github.ajalt.clikt.parameters.options.convert
 import com.github.ajalt.clikt.parameters.options.option
 import java.io.File
 
-const val ARG_COMMON_SOURCE_PATH = "--common-source-path"
 const val ARG_SOURCE_PATH = "--source-path"
 
 const val ARG_STUB_PACKAGES = "--stub-packages"
@@ -41,20 +40,6 @@ class SourceOptions :
                 .trimIndent()
     ) {
 
-    private val commonSourcePathString by
-        option(
-            ARG_COMMON_SOURCE_PATH,
-            metavar = "<path>",
-            help =
-                """
-                    A ${File.pathSeparator} separated list of directories containing common source
-                    files (organized in a standard Java package hierarchy). Common source files
-                    are where platform-agnostic `expect` declarations for Kotlin multi-platform code
-                    as well as common business logic are defined.
-                """
-                    .trimIndent(),
-        )
-
     private val sourcePathString by
         option(
             ARG_SOURCE_PATH,
@@ -66,11 +51,6 @@ class SourceOptions :
                 """
                     .trimIndent(),
         )
-
-    internal val commonSourcePath by
-        lazy(LazyThreadSafetyMode.NONE) {
-            getSourcePath(ARG_COMMON_SOURCE_PATH, commonSourcePathString)
-        }
 
     internal val sourcePath by
         lazy(LazyThreadSafetyMode.NONE) { getSourcePath(ARG_SOURCE_PATH, sourcePathString) }

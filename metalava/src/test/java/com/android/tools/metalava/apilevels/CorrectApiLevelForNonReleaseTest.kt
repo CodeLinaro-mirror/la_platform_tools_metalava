@@ -36,8 +36,6 @@ class CorrectApiLevelForNonReleaseTest : ApiGeneratorIntegrationTestBase() {
                     ARG_GENERATE_API_LEVELS,
                     outputPath,
                     ARG_ANDROID_JAR_PATTERN,
-                    "${oldSdkJars.path}/android-%/android.jar",
-                    ARG_ANDROID_JAR_PATTERN,
                     androidPublicJarsPattern,
                     ARG_CURRENT_CODENAME,
                     "ZZZ", // not just Z, but very ZZZ

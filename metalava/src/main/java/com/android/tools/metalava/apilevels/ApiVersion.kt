@@ -20,10 +20,11 @@ import com.android.tools.metalava.apilevels.ApiVersion.Companion.toString
 import java.util.regex.Pattern
 
 /** Version of an SDK, e.g. Android or AndroidX. */
+@ConsistentCopyVisibility
 data class ApiVersion
 internal constructor(
     /** The major version. */
-    private val major: Int,
+    val major: Int,
 
     /**
      * The optional minor version.
@@ -31,7 +32,7 @@ internal constructor(
      * If it is `null` then neither it nor [patch] or [preReleaseQuality] are included in
      * [toString]. If it is not `null` then it must be greater than or equal to 0.
      */
-    private val minor: Int? = null,
+    internal val minor: Int? = null,
 
     /**
      * The optional patch version.
@@ -166,6 +167,9 @@ internal constructor(
 
             return ApiVersion(major, minor, patch, quality)
         }
+
+        /** Create an [ApiVersion] with the specified [major] and [minor] properties. */
+        fun fromMajorMinor(major: Int, minor: Int? = null) = ApiVersion(major, minor)
 
         /**
          * The lowest [ApiVersion], used as the default value when higher versions override lower

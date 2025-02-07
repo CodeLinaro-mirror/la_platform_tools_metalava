@@ -28,7 +28,7 @@ import com.github.ajalt.clikt.output.Localization
 
 class HelpCommand :
     CliktCommand(
-        help = "Provides help for general metalava concepts",
+        help = "Provides help for general metalava concepts.",
         invokeWithoutSubcommand = true,
     ) {
 

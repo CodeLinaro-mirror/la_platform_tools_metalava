@@ -62,7 +62,6 @@ internal class PsiSourceParser(
     private val useK2Uast: Boolean,
     private val allowReadingComments: Boolean,
     private val jdkHome: File?,
-    private val projectDescription: File?,
 ) : SourceParser {
 
     private val reporter = codebaseConfig.reporter
@@ -84,27 +83,27 @@ internal class PsiSourceParser(
      */
     override fun parseSources(
         sourceSet: SourceSet,
-        commonSourceSet: SourceSet,
         description: String,
         classPath: List<File>,
         apiPackages: PackageFilter?,
+        projectDescription: File?,
     ): Codebase {
         return parseAbsoluteSources(
             sourceSet.absoluteCopy().extractRoots(reporter),
-            commonSourceSet.absoluteCopy().extractRoots(reporter),
             description,
             classPath.map { it.absoluteFile },
             apiPackages,
+            projectDescription,
         )
     }
 
     /** Returns a codebase initialized from the given set of absolute files. */
     private fun parseAbsoluteSources(
         sourceSet: SourceSet,
-        commonSourceSet: SourceSet,
         description: String,
         classpath: List<File>,
         apiPackages: PackageFilter?,
+        projectDescription: File?,
     ): PsiBasedCodebase {
         val config = UastEnvironment.Configuration.create(useFirUast = useK2Uast)
         config.javaLanguageLevel = javaLanguageLevel
@@ -114,15 +113,6 @@ internal class PsiSourceParser(
         when {
             projectDescription != null -> {
                 configureUastEnvironmentFromProjectDescription(config, projectDescription)
-            }
-            commonSourceSet.sources.isNotEmpty() -> {
-                configureUastEnvironmentForKMP(
-                    config,
-                    sourceSet.sources,
-                    commonSourceSet.sources,
-                    classpath,
-                    rootDir
-                )
             }
             else -> {
                 configureUastEnvironment(config, sourceSet.sourcePath, classpath, rootDir)
@@ -217,96 +207,42 @@ internal class PsiSourceParser(
         )
     }
 
-    private fun configureUastEnvironmentForKMP(
-        config: UastEnvironment.Configuration,
-        sourceFiles: List<File>,
-        commonSourceFiles: List<File>,
-        classpath: List<File>,
-        rootDir: File,
-    ) {
-        // TODO(b/322111050): consider providing a nice DSL at Lint level
-        val projectXml = File.createTempFile("project", ".xml")
-        projectXml.deleteOnExit()
-
-        fun describeSources(sources: List<File>) = buildString {
-            for (source in sources) {
-                if (!source.isFile) continue
-                appendLine("    <src file=\"${source.absolutePath}\" />")
-            }
-        }
-
-        fun describeClasspath() = buildString {
-            for (dep in classpath) {
-                // TODO: what other kinds of dependencies?
-                if (dep.extension !in SUPPORTED_CLASSPATH_EXT) continue
-                if (dep.extension == "klib") {
-                    appendLine("    <klib file=\"${dep.absolutePath}\" />")
-                } else {
-                    appendLine("    <classpath ${dep.extension}=\"${dep.absolutePath}\" />")
-                }
-            }
-        }
-
-        // We're about to build the description of Lint's project model.
-        // Alas, no proper documentation is available. Please refer to examples at upstream Lint:
-        // https://cs.android.com/android-studio/platform/tools/base/+/mirror-goog-studio-main:lint/libs/lint-tests/src/test/java/com/android/tools/lint/ProjectInitializerTest.kt
-        //
-        // An ideal project structure would look like:
-        //
-        // <project>
-        //   <root dir="frameworks/support/compose/ui/ui"/>
-        //   <module name="commonMain" android="false">
-        //     <src file="src/commonMain/.../file1.kt" /> <!-- and so on -->
-        //     <klib file="lib/if/any.klib" />
-        //     <classpath jar="/path/to/kotlin/coroutinesCore.jar" />
-        //     ...
-        //   </module>
-        //   <module name="jvmMain" android="false">
-        //     <dep module="commonMain" kind="dependsOn" />
-        //     <src file="src/jvmMain/.../file1.kt" /> <!-- and so on -->
-        //     ...
-        //   </module>
-        //   <module name="androidMain" android="true">
-        //     <dep module="jvmMain" kind="dependsOn" />
-        //     <src file="src/androidMain/.../file1.kt" /> <!-- and so on -->
-        //     ...
-        //   </module>
-        //   ...
-        // </project>
-        //
-        // That is, there are common modules where `expect` declarations and common business logic
-        // reside, along with binary dependencies of several formats, including klib and jar.
-        // Then, platform-specific modules "depend" on common modules, and have their own source set
-        // and binary dependencies.
-        //
-        // For now, with --common-source-path, common source files are isolated, but the project
-        // structure is not fully conveyed. Therefore, we will reuse the same binary dependencies
-        // for all modules (which only(?) cause performance degradation on binary resolution).
-        val description = buildString {
-            appendLine("""<?xml version="1.0" encoding="utf-8"?>""")
-            appendLine("<project>")
-            appendLine("  <root dir=\"${rootDir.absolutePath}\" />")
-            appendLine("  <module name=\"commonMain\" android=\"false\" >")
-            append(describeSources(commonSourceFiles))
-            append(describeClasspath())
-            appendLine("  </module>")
-            appendLine("  <module name=\"app\" >")
-            appendLine("    <dep module=\"commonMain\" kind=\"dependsOn\" />")
-            // NB: While K2 requires separate common / platform-specific source roots, K1 still
-            // needs to receive all source roots at once. Thus, existing usages (e.g., androidx)
-            // often pass all source files, according to compiler configuration.
-            // To make a correct module structure, we need to filter out common source files here.
-            // TODO: once fully switching to K2 and androidx usage is adjusted, we won't need this.
-            append(describeSources(sourceFiles - commonSourceFiles))
-            append(describeClasspath())
-            appendLine("  </module>")
-            appendLine("</project>")
-        }
-        projectXml.writeText(description)
-
-        configureUastEnvironmentFromProjectDescription(config, projectXml)
-    }
-
+    /**
+     * Configures the environment based on an XML description of Lint's project model.
+     *
+     * Alas, no proper documentation is available. Please refer to examples at upstream Lint:
+     * https://cs.android.com/android-studio/platform/tools/base/+/mirror-goog-studio-main:lint/libs/lint-tests/src/test/java/com/android/tools/lint/ProjectInitializerTest.kt
+     *
+     * An ideal project structure would look like:
+     * ```
+     * <project>
+     *     <root dir="frameworks/support/compose/ui/ui"/>
+     *     <module name="commonMain" android="false">
+     *         <src file="src/commonMain/.../file1.kt" /> <!-- and so on -->
+     *         <klib file="lib/if/any.klib" />
+     *         <classpath jar="/path/to/kotlin/coroutinesCore.jar" />
+     *         ...
+     *     </module>
+     *     <module name="jvmMain" android="false">
+     *         <dep module="commonMain" kind="dependsOn" />
+     *         <src file="src/jvmMain/.../file1.kt" /> <!-- and so on -->
+     *         ...
+     *     </module>
+     *     <module name="androidMain" android="true">
+     *         <dep module="jvmMain" kind="dependsOn" />
+     *         <src file="src/androidMain/.../file1.kt" /> <!-- and so on -->
+     *         ...
+     *     </module>
+     *     ...
+     * </project>
+     * ```
+     *
+     * That is, there are common modules where `expect` declarations and common business logic
+     * reside, along with binary dependencies of several formats, including klib and jar.
+     *
+     * Then, platform-specific modules "depend" on common modules, and have their own source set and
+     * binary dependencies.
+     */
     private fun configureUastEnvironmentFromProjectDescription(
         config: UastEnvironment.Configuration,
         projectDescription: File,

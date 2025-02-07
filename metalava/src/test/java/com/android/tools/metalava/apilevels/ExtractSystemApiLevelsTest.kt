@@ -21,7 +21,6 @@ import com.android.tools.metalava.ARG_CURRENT_VERSION
 import com.android.tools.metalava.ARG_FIRST_VERSION
 import com.android.tools.metalava.ARG_GENERATE_API_LEVELS
 import com.android.tools.metalava.ARG_SDK_INFO_FILE
-import com.android.tools.metalava.ARG_SDK_JAR_ROOT
 import com.android.tools.metalava.doc.getApiLookup
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -30,7 +29,7 @@ import org.junit.Test
 class ExtractSystemApiLevelsTest : ApiGeneratorIntegrationTestBase() {
     @Test
     fun `Extract System API`() {
-        val androidJarPattern = "${platformJars.path}/%/system/android.jar"
+        val androidJarPattern = "${platformJars.path}/{version:level}/system/android.jar"
 
         check(
             extraArguments =
@@ -39,8 +38,9 @@ class ExtractSystemApiLevelsTest : ApiGeneratorIntegrationTestBase() {
                     outputPath,
                     ARG_ANDROID_JAR_PATTERN,
                     androidJarPattern,
-                    ARG_SDK_JAR_ROOT,
-                    extensionSdkJars.path,
+                    ARG_ANDROID_JAR_PATTERN,
+                    // Make sure to only use system extension jars.
+                    "${extensionSdkJars.path}/{version:extension}/system/{module}.jar",
                     ARG_SDK_INFO_FILE,
                     createSdkExtensionInfoFile().path,
                     ARG_FIRST_VERSION,
@@ -86,7 +86,7 @@ class ExtractSystemApiLevelsTest : ApiGeneratorIntegrationTestBase() {
         // method with different sdks attribute than containing class
         assertTrue(
             xml.contains(
-                "<method name=\"setBrowserRoleHolder(Ljava/lang/String;I)Z\" since=\"34\" sdks=\"30:1\"/>"
+                "<method name=\"isBypassingRoleQualification()Z\" since=\"31\" sdks=\"30:1,0:31\"/>"
             )
         )
 

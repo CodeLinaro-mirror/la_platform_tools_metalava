@@ -42,8 +42,8 @@ import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions.Ch
 import com.android.tools.metalava.cli.lint.ApiLintOptions
 import com.android.tools.metalava.cli.signature.SignatureFormatOptions
 import com.android.tools.metalava.config.ConfigParser
-import com.android.tools.metalava.doc.ApiLevelFilter
-import com.android.tools.metalava.doc.ApiLevelLabelProvider
+import com.android.tools.metalava.doc.ApiVersionFilter
+import com.android.tools.metalava.doc.ApiVersionLabelProvider
 import com.android.tools.metalava.manifest.Manifest
 import com.android.tools.metalava.manifest.emptyManifest
 import com.android.tools.metalava.model.AnnotationManager
@@ -197,7 +197,7 @@ class Options(
     private val issueReportingOptions: IssueReportingOptions =
         IssueReportingOptions(commonOptions = commonOptions),
     private val generalReportingOptions: GeneralReportingOptions = GeneralReportingOptions(),
-    private val apiSelectionOptions: ApiSelectionOptions = ApiSelectionOptions(),
+    val apiSelectionOptions: ApiSelectionOptions = ApiSelectionOptions(),
     val apiLintOptions: ApiLintOptions = ApiLintOptions(),
     private val compatibilityCheckOptions: CompatibilityCheckOptions = CompatibilityCheckOptions(),
     signatureFileOptions: SignatureFileOptions = SignatureFileOptions(),
@@ -298,9 +298,6 @@ class Options(
      * Metalava output
      */
     var allowReadingComments = true
-
-    /** Ths list of source roots in the common module */
-    val commonSourcePath: List<File> by sourceOptions::commonSourcePath
 
     /** The list of source roots */
     val sourcePath: List<File> by sourceOptions::sourcePath
@@ -609,10 +606,11 @@ class Options(
     private var mergeQualifierAnnotations: List<File> = mutableMergeQualifierAnnotations
     private var mergeInclusionAnnotations: List<File> = mutableMergeInclusionAnnotations
 
-    val apiLevelLabelProvider: ApiLevelLabelProvider = apiLevelsGenerationOptions::getApiLevelLabel
+    val apiVersionLabelProvider: ApiVersionLabelProvider =
+        apiLevelsGenerationOptions::getApiVersionLabel
 
-    val includeApiLevelInDocumentation: ApiLevelFilter =
-        apiLevelsGenerationOptions::includeApiLevelInDocumentation
+    val includeApiLevelInDocumentation: ApiVersionFilter =
+        apiLevelsGenerationOptions::includeApiVersionInDocumentation
 
     /** Reads API XML file to apply into documentation */
     var applyApiLevelsXml: File? = null

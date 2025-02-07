@@ -22,10 +22,6 @@ Sources:
 
   Options that control which source files will be processed.
 
-  --common-source-path <path>                A : separated list of directories containing common source files (organized
-                                             in a standard Java package hierarchy). Common source files are where
-                                             platform-agnostic `expect` declarations for Kotlin multi-platform code as
-                                             well as common business logic are defined.
   --source-path <path>                       A : separated list of directories containing source files (organized in a
                                              standard Java package hierarchy).
   --stub-packages <package-list>             List of packages (separated by :) which will be used to filter out
