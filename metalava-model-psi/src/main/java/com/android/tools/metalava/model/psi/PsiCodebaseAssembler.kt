@@ -92,7 +92,6 @@ import org.jetbrains.kotlin.psi.KtPropertyAccessor
 import org.jetbrains.kotlin.psi.KtTypeAlias
 import org.jetbrains.kotlin.psi.KtTypeReference
 import org.jetbrains.kotlin.psi.psiUtil.isPropertyParameter
-import org.jetbrains.kotlin.util.collectionUtils.filterIsInstanceAnd
 import org.jetbrains.uast.UClass
 import org.jetbrains.uast.UFile
 import org.jetbrains.uast.UMethod
@@ -385,59 +384,79 @@ internal class PsiCodebaseAssembler(
             // Collect all accessor methods, backing fields, and constructor parameters that could
             // be associated with the class properties.
             val accessors =
-                classItem.methods().filterIsInstanceAnd<PsiMethodItem> { it.isKotlinProperty() }
-            // Don't include data class component methods
-            val getters =
-                accessors
-                    .filter { it.parameters().isEmpty() && !it.name().startsWith("component") }
-                    .associateByNotNull { it.psiMethod.propertyForAccessor() }
-            val setters =
-                accessors
-                    .filter { it.parameters().size == 1 }
-                    .associateByNotNull { it.psiMethod.propertyForAccessor() }
+                classItem.methods().filterIsInstance<PsiMethodItem>().groupBy {
+                    it.psiMethod.propertyForAccessor()
+                }
             val backingFields =
                 classItem
                     .fields()
                     .map { it as PsiFieldItem }
                     .associateByNotNull { it.psi().sourceElement as? KtDeclaration }
-            val constructorParameters =
-                classItem.primaryConstructor
-                    ?.parameters()
-                    ?.map { it as PsiParameterItem }
-                    ?.filter { (it.sourcePsi as? KtParameter)?.isPropertyParameter() ?: false }
-                    ?.associateBy { it.name() }
-                    .orEmpty()
 
             // Properties can either be declared directly as properties or as constructor params.
+            // First find all property declarations.
             // For a file facade class containing top-level property definitions, the KtClass won't
-            // exist, so fall back to the properties underlying the getters and fields.
-            val allProperties =
-                if (ktClass != null) {
-                    ktClass.declarations.filterIsInstance<KtProperty>() +
-                        ktClass.primaryConstructor
-                            ?.valueParameters
-                            ?.filter { it.isPropertyParameter() }
-                            .orEmpty()
-                } else {
-                    (getters.keys + backingFields.keys).toSet()
-                }
-
-            for (propertyDeclaration in allProperties) {
-                val name = propertyDeclaration.name ?: continue
+            // exist, so get top level definitions from the file(s).
+            val declarations = ktClass?.declarations ?: topLevelDeclarations(psiClass)
+            val ktProperties = declarations.filterIsInstance<KtProperty>()
+            for (ktProperty in ktProperties) {
+                val name = ktProperty.name ?: continue
+                // Compute the type of the receiver, if there is one. This will be used to find the
+                // right accessors for the property.
+                val receiverType =
+                    ktProperty.receiverTypeReference?.let {
+                        classTypeItemFactory.getTypeForKtElement(it)
+                    }
+                val allAccessors = accessors[ktProperty] ?: emptyList()
                 val property =
                     PsiPropertyItem.create(
                         codebase = codebase,
-                        ktDeclaration = propertyDeclaration,
+                        ktDeclaration = ktProperty,
                         containingClass = classItem,
-                        typeItemFactory = enclosingClassTypeItemFactory,
+                        typeItemFactory = classTypeItemFactory,
                         name = name,
-                        getter = getters[propertyDeclaration],
-                        setter = setters[propertyDeclaration],
-                        constructorParameter = constructorParameters[name],
-                        backingField = backingFields[propertyDeclaration],
+                        getter = findGetter(allAccessors, receiverType),
+                        setter = findSetter(allAccessors, receiverType),
+                        constructorParameter = null,
+                        backingField = backingFields[ktProperty],
                     )
                         ?: continue
                 classItem.addProperty(property)
+            }
+
+            // Find all properties declared as constructor params
+            if (ktClass != null) {
+                val constructorParameters =
+                    classItem.primaryConstructor
+                        ?.parameters()
+                        ?.map { it as PsiParameterItem }
+                        ?.filter { (it.sourcePsi as? KtParameter)?.isPropertyParameter() ?: false }
+                        ?.associateBy { it.name() }
+                        .orEmpty()
+
+                val ktParameters =
+                    ktClass.primaryConstructor
+                        ?.valueParameters
+                        ?.filter { it.isPropertyParameter() }
+                        .orEmpty()
+                for (ktParameter in ktParameters) {
+                    val name = ktParameter.name ?: continue
+                    val allAccessors = accessors[ktParameter] ?: emptyList()
+                    val property =
+                        PsiPropertyItem.create(
+                            codebase = codebase,
+                            ktDeclaration = ktParameter,
+                            containingClass = classItem,
+                            typeItemFactory = classTypeItemFactory,
+                            name = name,
+                            getter = findGetter(allAccessors, null),
+                            setter = findSetter(allAccessors, null),
+                            constructorParameter = constructorParameters[name],
+                            backingField = backingFields[ktParameter],
+                        )
+                            ?: continue
+                    classItem.addProperty(property)
+                }
             }
         }
         // This actually gets all nested classes not just inner, i.e. non-static nested,
@@ -461,6 +480,56 @@ internal class PsiCodebaseAssembler(
             is KtPropertyAccessor -> sourceElement.property
             is KtParameter -> sourceElement
             else -> null
+        }
+    }
+
+    /**
+     * Given [allAccessors] for a property ([PsiMethodItem]s] for which the source element is the
+     * same [KtProperty]/[KtParameter]), finds the getter.
+     */
+    private fun findGetter(
+        allAccessors: List<PsiMethodItem>,
+        propertyReceiverType: PsiTypeItem?
+    ): PsiMethodItem? {
+        return if (propertyReceiverType == null) {
+            // No receiver, so the getter has no parameter. Make sure not to find a data class
+            // component method.
+            allAccessors.singleOrNull {
+                it.parameters().isEmpty() && !it.name().startsWith("component")
+            }
+        } else {
+            // If there's a receiver, the getter should have the receiver type as its parameter.
+            allAccessors.singleOrNull {
+                it.parameters().singleOrNull()?.type() == propertyReceiverType
+            }
+            // Work around a psi bug where value class extension property accessors don't include
+            // the receiver (b/385148821). This strategy does not always work, which is why the one
+            // above is used in most cases: the getter for a property parameter's source element
+            // will be a KtParameter, and the getter for a simple property declaration with no
+            // custom getter declaration will be a KtProperty, not a KtPropertyAccessor.
+            ?: allAccessors.singleOrNull {
+                    (it.psiMethod.sourceElement as? KtPropertyAccessor)?.isGetter == true
+                }
+        }
+    }
+
+    /** Like [findGetter], but finds the property setter instead. */
+    private fun findSetter(
+        allAccessors: List<PsiMethodItem>,
+        propertyReceiverType: PsiTypeItem?
+    ): PsiMethodItem? {
+        return if (propertyReceiverType == null) {
+            // No receiver, the setter has one parameter.
+            allAccessors.singleOrNull { it.parameters().size == 1 }
+        } else {
+            // The setter has a receiver parameter in addition to the normal setter parameter.
+            allAccessors.singleOrNull {
+                it.parameters().size == 2 && it.parameters()[0].type() == propertyReceiverType
+            }
+            // Work around a psi bug, see the equivalent [findGetter] case for details.
+            ?: allAccessors.singleOrNull {
+                    (it.psiMethod.sourceElement as? KtPropertyAccessor)?.isSetter == true
+                }
         }
     }
 
@@ -947,18 +1016,24 @@ internal class PsiCodebaseAssembler(
      * [psiClasses] and adds them to the codebase.
      */
     private fun findTypeAliases(psiClasses: List<PsiClass>, codebase: PsiBasedCodebase) {
-        val facadeClasses =
-            psiClasses.mapNotNull { (it as? UClass)?.javaPsi as? KtLightClassForFacade }
         val typeAliases =
-            facadeClasses
-                .flatMap { it.files }
-                .flatMap { it.declarations }
-                .filterIsInstance<KtTypeAlias>()
+            psiClasses.flatMap { topLevelDeclarations(it) }.filterIsInstance<KtTypeAlias>()
         for (typeAlias in typeAliases) {
             val qualifiedTypeAliasName = typeAlias.getClassId()?.asFqNameString() ?: continue
             val value = codebase.globalTypeItemFactory.getTypeForKtElement(typeAlias) ?: continue
             codebase.typeAliases[qualifiedTypeAliasName] = value
         }
+    }
+
+    /**
+     * Returns a list of declarations from the [fileFacadeClass]. If [fileFacadeClass] is not
+     * actually a file facade class, returns an empty list.
+     */
+    private fun topLevelDeclarations(fileFacadeClass: PsiClass): List<KtDeclaration> {
+        return ((fileFacadeClass as? UClass)?.javaPsi as? KtLightClassForFacade)?.files?.flatMap {
+            it.declarations
+        }
+            ?: emptyList()
     }
 
     /**

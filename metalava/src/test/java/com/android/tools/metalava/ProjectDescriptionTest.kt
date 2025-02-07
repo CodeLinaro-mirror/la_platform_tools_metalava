@@ -208,7 +208,7 @@ class ProjectDescriptionTest : DriverTest() {
                   public final class Foo {
                     ctor public Foo();
                     method public int getLazyVal();
-                    property public final int lazyVal;
+                    property public int lazyVal;
                   }
                 }
                 """

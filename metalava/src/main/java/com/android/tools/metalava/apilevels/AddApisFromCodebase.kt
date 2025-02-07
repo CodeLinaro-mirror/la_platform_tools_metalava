@@ -18,6 +18,7 @@ package com.android.tools.metalava.apilevels
 
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.CodebaseFragment
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DelegatedVisitor
@@ -32,17 +33,16 @@ import com.android.tools.metalava.model.MethodItem
  */
 fun addApisFromCodebase(
     api: Api,
-    apiVersion: ApiVersion,
+    updater: ApiHistoryUpdater,
     codebaseFragment: CodebaseFragment,
 ) {
     val useInternalNames = api.useInternalNames
 
-    // Keep track of the versions added to this api.
-    api.update(apiVersion)
+    // Keep track of the versions added to this api, if necessary.
+    updater.update(api)
 
     val delegatedVisitor =
         object : DelegatedVisitor {
-            val updater = ApiHistoryUpdater.forApiVersion(apiVersion)
 
             var currentClass: ApiClass? = null
 
@@ -54,31 +54,36 @@ fun addApisFromCodebase(
                 val newClass = api.updateClass(cls.nameInApi(), updater, cls.effectivelyDeprecated)
                 currentClass = newClass
 
-                if (cls.isClass()) {
-                    val superClass = cls.superClass()
-                    if (superClass != null) {
-                        newClass.updateSuperClass(superClass.nameInApi(), updater)
+                when (cls.classKind) {
+                    ClassKind.CLASS -> {
+                        val superClass = cls.superClass()
+                        if (superClass != null) {
+                            newClass.updateSuperClass(superClass.nameInApi(), updater)
+                        }
                     }
-                } else if (cls.isInterface()) {
-                    val superClass = cls.superClass()
-                    if (superClass != null && !superClass.isJavaLangObject()) {
-                        newClass.updateInterface(superClass.nameInApi(), updater)
+                    ClassKind.INTERFACE -> {
+                        val superClass = cls.superClass()
+                        if (superClass != null && !superClass.isJavaLangObject()) {
+                            newClass.updateInterface(superClass.nameInApi(), updater)
+                        }
                     }
-                } else if (cls.isEnum()) {
-                    // Implicit super class; match convention from bytecode
-                    if (newClass.name != enumClass) {
-                        newClass.updateSuperClass(enumClass, updater)
-                    }
+                    ClassKind.ENUM -> {
+                        // Implicit super class; match convention from bytecode
+                        if (newClass.name != enumClass) {
+                            newClass.updateSuperClass(enumClass, updater)
+                        }
 
-                    // Mimic doclava enum methods
-                    enumMethodNames(newClass.name).forEach { name ->
-                        newClass.updateMethod(name, updater, false)
+                        // Mimic doclava enum methods
+                        enumMethodNames(newClass.name).forEach { name ->
+                            newClass.updateMethod(name, updater, false)
+                        }
                     }
-                } else if (cls.isAnnotationType()) {
-                    // Implicit super class; match convention from bytecode
-                    if (newClass.name != annotationClass) {
-                        newClass.updateSuperClass(objectClass, updater)
-                        newClass.updateInterface(annotationClass, updater)
+                    ClassKind.ANNOTATION_TYPE -> {
+                        // Implicit super class; match convention from bytecode
+                        if (newClass.name != annotationClass) {
+                            newClass.updateSuperClass(objectClass, updater)
+                            newClass.updateInterface(annotationClass, updater)
+                        }
                     }
                 }
 

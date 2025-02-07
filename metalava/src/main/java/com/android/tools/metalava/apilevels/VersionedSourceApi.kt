@@ -24,11 +24,11 @@ import com.android.tools.metalava.model.CodebaseFragment
  */
 class VersionedSourceApi(
     private val codebaseFragmentProvider: () -> CodebaseFragment,
-    override val apiVersion: ApiVersion,
-) : VersionedApi {
+    apiVersion: ApiVersion,
+) : VersionedApi(ApiHistoryUpdater.forApiVersion(apiVersion)) {
     override fun updateApi(api: Api) {
         val codebaseFragment = codebaseFragmentProvider()
-        addApisFromCodebase(api, apiVersion, codebaseFragment)
+        addApisFromCodebase(api, updater, codebaseFragment)
     }
 
     override fun toString() = "VersionedSourceApi(version=$apiVersion)"

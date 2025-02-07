@@ -37,6 +37,8 @@ const val JAVA_LANG_PARAMETER_TARGET = "java.lang.annotation.ElementType.PARAMET
 const val JAVA_RETENTION = "java.lang.annotation.Retention"
 const val KT_RETENTION = "kotlin.annotation.Retention"
 
+const val JVM_STATIC = "kotlin.jvm.JvmStatic"
+
 /** True if the annotation name represents @Retention (either the Java or Kotlin version) */
 fun isRetention(qualifiedName: String?): Boolean =
     JAVA_RETENTION == qualifiedName || KT_RETENTION == qualifiedName

@@ -444,12 +444,12 @@ class ApiGeneratorTest : DriverTest() {
                     ],
                     "fields": [
                       {
-                        "field": "fieldV2",
-                        "addedIn": "1.2.0"
-                      },
-                      {
                         "field": "fieldV1",
                         "addedIn": "1.1.0"
+                      },
+                      {
+                        "field": "fieldV2",
+                        "addedIn": "1.2.0"
                       }
                     ]
                   }
@@ -780,11 +780,11 @@ class ApiGeneratorTest : DriverTest() {
                     "addedIn": "1.1.0",
                     "methods": [
                       {
-                        "method": "experimentalFunction()",
+                        "method": "Foo()",
                         "addedIn": "1.1.0"
                       },
                       {
-                        "method": "Foo()",
+                        "method": "experimentalFunction()",
                         "addedIn": "1.1.0"
                       },
                       {

@@ -164,9 +164,11 @@ private class DefaultApiSurfaces(initializer: ApiSurfaces.Builder.() -> Unit) : 
                         ?: error("Unknown extends surface `$it` referenced from `$name`")
                 }
 
+            val index = nameToSurface.size
             val surface =
                 DefaultApiSurface(
                     apiSurfaces,
+                    index,
                     name,
                     extendsSurface,
                     isMain,
@@ -188,11 +190,14 @@ private class DefaultApiSurfaces(initializer: ApiSurfaces.Builder.() -> Unit) : 
 /**
  * Default implementation of [ApiSurface].
  *
+ * @param index the index of this within the [ApiSurfaces], used to sort [ApiSurface] by order they
+ *   were added to [ApiSurfaces].
  * @param allVariants the list of all [ApiVariant]s belonging to [surfaces]. This must be
  *   initialised with all the [ApiVariant]s belonging to this [ApiSurface].
  */
 private class DefaultApiSurface(
     override val surfaces: ApiSurfaces,
+    private val index: Int,
     override val name: String,
     override val extends: DefaultApiSurface?,
     override val isMain: Boolean,
@@ -217,6 +222,11 @@ private class DefaultApiSurface(
 
     override fun variantFor(type: ApiVariantType): ApiVariant {
         return variants[type.ordinal]
+    }
+
+    /** * Order by index within [surfaces]. */
+    override fun compareTo(other: ApiSurface): Int {
+        return index.compareTo((other as DefaultApiSurface).index)
     }
 
     override fun toString(): String = "ApiSurface($name)"
