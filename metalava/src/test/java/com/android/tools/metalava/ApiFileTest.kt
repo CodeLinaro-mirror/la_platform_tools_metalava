@@ -27,6 +27,9 @@ import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.FileFormat.OverloadedMethodOrder
 import com.android.tools.metalava.testing.KnownSourceFiles
+import com.android.tools.metalava.testing.createAndroidModuleDescription
+import com.android.tools.metalava.testing.createCommonModuleDescription
+import com.android.tools.metalava.testing.createProjectDescription
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
@@ -4860,7 +4863,7 @@ class ApiFileTest : DriverTest() {
 
     @RequiresCapabilities(Capability.KOTLIN)
     @Test
-    fun `Kotlin expect-actual with JvmOverloads`() {
+    fun `Kotlin expect-actual with JvmOverloads constructors`() {
         check(
             format = FileFormat.V4,
             sourceFiles =
@@ -4932,6 +4935,65 @@ class ApiFileTest : DriverTest() {
                         ctor public SomeOptionalJvmOverloads(int p1, int p3, int p5);
                         ctor public SomeOptionalJvmOverloads(int p1, optional int p2, int p3, int p5);
                         ctor public SomeOptionalJvmOverloads(int p1, optional int p2, int p3, optional int p4, int p5);
+                      }
+                    }
+                """
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Kotlin expect-actual with JvmOverloads methods`() {
+        val commonSource =
+            kotlin(
+                "commonMain/src/test/pkg/Foo.kt",
+                """
+                    package test.pkg
+                    import kotlin.jvm.JvmOverloads
+                    expect class Foo {
+                        @JvmOverloads
+                        fun allOptionalJvmOverloads(p1: Int = 0, p2: Int = 0, p3: Int = 0)
+
+                        @JvmOverloads
+                        fun someOptionalJvmOverloads(p1: Int, p2: Int = 0, p3: Int, p4: Int = 0, p5: Int)
+                    }
+                """
+            )
+        // @JvmOverloads needs to be annotated on the actual fun too, but the default values can't
+        // be present on actuals
+        val androidSource =
+            kotlin(
+                "androidMain/src/test/pkg/Foo.kt",
+                """
+                    package test.pkg
+                    actual class Foo {
+                        @JvmOverloads
+                        actual fun allOptionalJvmOverloads(p1: Int, p2: Int, p3: Int) = Unit
+
+                        @JvmOverloads
+                        actual fun someOptionalJvmOverloads(p1: Int, p2: Int, p3: Int, p4: Int, p5: Int) = Unit
+                    }
+                """
+            )
+        check(
+            sourceFiles = arrayOf(androidSource, commonSource),
+            projectDescription =
+                createProjectDescription(
+                    createAndroidModuleDescription(arrayOf(androidSource)),
+                    createCommonModuleDescription(arrayOf(commonSource)),
+                ),
+            api =
+                """
+                    package test.pkg {
+                      public final class Foo {
+                        ctor public Foo();
+                        method public void allOptionalJvmOverloads();
+                        method public void allOptionalJvmOverloads(optional int p1);
+                        method public void allOptionalJvmOverloads(optional int p1, optional int p2);
+                        method public void allOptionalJvmOverloads(optional int p1, optional int p2, optional int p3);
+                        method public void someOptionalJvmOverloads(int p1, int p3, int p5);
+                        method public void someOptionalJvmOverloads(int p1, optional int p2, int p3, int p5);
+                        method public void someOptionalJvmOverloads(int p1, optional int p2, int p3, optional int p4, int p5);
                       }
                     }
                 """

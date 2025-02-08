@@ -27,7 +27,6 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.ClassTypeItem
-import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JAVA_PACKAGE_INFO
 import com.android.tools.metalava.model.MutableModifierList
@@ -315,7 +314,7 @@ internal class PsiCodebaseAssembler(
                         psiMethod,
                         classTypeItemFactory,
                     )
-                addOverloadedKotlinConstructorsIfNecessary(
+                addOverloadedKotlinCallablesIfNecessary(
                     classItem,
                     classTypeItemFactory,
                     constructor
@@ -334,6 +333,7 @@ internal class PsiCodebaseAssembler(
                 val method =
                     PsiMethodItem.create(codebase, classItem, psiMethod, classTypeItemFactory)
                 if (!method.isEnumSyntheticMethod()) {
+                    addOverloadedKotlinCallablesIfNecessary(classItem, classTypeItemFactory, method)
                     classItem.addMethod(method)
                 }
             }
@@ -650,14 +650,13 @@ internal class PsiCodebaseAssembler(
     }
 
     /**
-     * Returns true if overloads of this constructor should be checked separately when checking the
-     * signature of this constructor.
+     * Returns true if overloads of this callable should be created separately.
      *
      * This works around the issue of actual callable not generating overloads for @JvmOverloads
      * annotation when the default is specified on expect side
      * (https://youtrack.jetbrains.com/issue/KT-57537).
      */
-    private fun PsiConstructorItem.shouldExpandOverloads(): Boolean {
+    private fun PsiCallableItem.shouldExpandOverloads(): Boolean {
         val ktFunction = (psiMethod as? UMethod)?.sourcePsi as? KtFunction ?: return false
         return modifiers.isActual() &&
             psiMethod.hasAnnotation(JvmStandardClassIds.JVM_OVERLOADS_FQ_NAME.asString()) &&
@@ -668,23 +667,23 @@ internal class PsiCodebaseAssembler(
     }
 
     /**
-     * Add overloads of [constructor] if necessary.
+     * Add overloads of [callable] if necessary.
      *
      * Workaround for https://youtrack.jetbrains.com/issue/KT-57537.
      *
-     * For each parameter with a default value in [constructor] this adds a [ConstructorItem] that
+     * For each parameter with a default value in [callable] this adds a [PsiCallableItem] that
      * excludes that parameter and all following parameters with default values.
      */
-    private fun addOverloadedKotlinConstructorsIfNecessary(
+    private fun addOverloadedKotlinCallablesIfNecessary(
         classItem: PsiClassItem,
         enclosingClassTypeItemFactory: PsiTypeItemFactory,
-        constructor: PsiConstructorItem,
+        callable: PsiCallableItem,
     ) {
-        if (!constructor.shouldExpandOverloads()) {
+        if (!callable.shouldExpandOverloads()) {
             return
         }
 
-        val parameters = constructor.parameters()
+        val parameters = callable.parameters()
 
         // Create an overload of the constructor for each parameter that has a default value. The
         // constructor will exclude that parameter and all following parameters that have default
@@ -694,25 +693,40 @@ internal class PsiCodebaseAssembler(
             // There is no need to create an overload if the parameter does not have default value.
             if (!currentParameter.hasDefaultValue()) continue
 
-            // Create an overloaded constructor.
-            val overloadConstructor =
-                PsiConstructorItem.create(
-                    codebase,
-                    classItem,
-                    constructor.psiMethod,
-                    enclosingClassTypeItemFactory,
-                    psiParametersGetter = {
-                        parameters.mapIndexedNotNull { index, parameterItem ->
-                            // Ignore the current parameter as well as any following parameters
-                            // with default values.
-                            if (index >= currentParameterIndex && parameterItem.hasDefaultValue())
-                                null
-                            else (parameterItem as PsiParameterItem).psiParameter
-                        }
-                    },
-                )
+            val psiParameters =
+                parameters.mapIndexedNotNull { index, parameterItem ->
+                    // Ignore the current parameter as well as any following parameters
+                    // with default values.
+                    if (index >= currentParameterIndex && parameterItem.hasDefaultValue()) null
+                    else (parameterItem as PsiParameterItem).psiParameter
+                }
+            // Create an overloaded callable.
+            when (callable) {
+                is PsiConstructorItem -> {
+                    val overloadConstructor =
+                        PsiConstructorItem.create(
+                            codebase,
+                            classItem,
+                            callable.psiMethod,
+                            enclosingClassTypeItemFactory,
+                            psiParameters,
+                        )
 
-            classItem.addConstructor(overloadConstructor)
+                    classItem.addConstructor(overloadConstructor)
+                }
+                is PsiMethodItem -> {
+                    val overloadMethod =
+                        PsiMethodItem.create(
+                            codebase,
+                            classItem,
+                            callable.psiMethod,
+                            enclosingClassTypeItemFactory,
+                            psiParameters,
+                        )
+
+                    classItem.addMethod(overloadMethod)
+                }
+            }
         }
     }
 

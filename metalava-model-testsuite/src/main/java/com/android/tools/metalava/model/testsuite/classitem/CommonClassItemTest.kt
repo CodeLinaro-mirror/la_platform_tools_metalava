@@ -25,6 +25,8 @@ import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.testing.testTypeString
 import com.android.tools.metalava.model.testsuite.BaseModelTest
+import com.android.tools.metalava.testing.KnownSourceFiles.notTypeUseNonNullSource
+import com.android.tools.metalava.testing.KnownSourceFiles.notTypeUseNullableSource
 import com.android.tools.metalava.testing.KnownSourceFiles.typeUseOnlyNonNullSource
 import com.android.tools.metalava.testing.KnownSourceFiles.typeUseOnlyNullableSource
 import com.android.tools.metalava.testing.java
@@ -1453,8 +1455,8 @@ class CommonClassItemTest : BaseModelTest() {
         // nullability annotation.
         runSourceCodebaseTest(
             inputSet(
-                typeUseOnlyNonNullSource,
-                typeUseOnlyNullableSource,
+                notTypeUseNonNullSource,
+                notTypeUseNullableSource,
                 java(
                     """
                         package test.pkg;

@@ -38,8 +38,8 @@ class CommonSourceFileTest : BaseModelTest() {
                     """
                         package test.pkg;
 
-                        import test.pkg2.Test1.FIELD;
-                        import test.pkg2.Test1.method;
+                        import static test.pkg2.Test1.FIELD;
+                        import static test.pkg2.Test1.method;
                         import test.pkg1.*;
                         import test.Test.Inner;
                         import test.Test;
@@ -75,6 +75,11 @@ class CommonSourceFileTest : BaseModelTest() {
                         package test.pkg1;
 
                         public class Test1 {}
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg1;
 
                         public class Test2 {}
                     """

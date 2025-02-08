@@ -19,7 +19,7 @@ com.android.tools.metalava.ApiFileTest
   Check generic type signature insertion[turbine]
   Check skipping implicit final or deprecated override[turbine]
   Check various generics signature subtleties[turbine]
-  Kotlin expect-actual with JvmOverloads[psi,k2]
+  Kotlin expect-actual with JvmOverloads constructors[psi,k2]
 
 com.android.tools.metalava.CoreApiTest
   Hidden with --hide-annotation[turbine]
