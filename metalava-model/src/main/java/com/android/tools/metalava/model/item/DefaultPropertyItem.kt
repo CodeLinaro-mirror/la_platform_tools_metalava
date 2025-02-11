@@ -27,6 +27,7 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.reporter.FileLocation
 
 open class DefaultPropertyItem(
@@ -43,6 +44,8 @@ open class DefaultPropertyItem(
     override val setter: MethodItem?,
     override val constructorParameter: ParameterItem?,
     override val backingField: FieldItem?,
+    override val receiver: TypeItem?,
+    override val typeParameterList: TypeParameterList,
 ) :
     DefaultMemberItem(
         codebase,

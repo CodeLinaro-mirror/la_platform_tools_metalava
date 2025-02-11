@@ -617,7 +617,7 @@ $signatureToJdiffHelp
             api =
                 """
                     package test.pkg {
-                      public class Test extends Number implements Comparable<Test> {
+                      public class Test extends Number implements Comparable<test.pkg.Test> {
                         field public static final int FIELD = 1;
                       }
                     }
@@ -636,7 +636,7 @@ $signatureToJdiffHelp
                      deprecated="not deprecated"
                      visibility="public"
                     >
-                    <implements name="java.lang.Comparable&lt;java.lang.Test>">
+                    <implements name="java.lang.Comparable&lt;test.pkg.Test>">
                     </implements>
                     <field name="FIELD"
                      type="int"
@@ -663,7 +663,7 @@ $signatureToJdiffHelp
                 """
                     // Signature format: 2.0
                     package test.pkg {
-                      public class Test extends Number implements Comparable<Test> {
+                      public class Test extends Number implements Comparable<test.pkg.Test> {
                         field public static final int FIELD = 1;
                       }
                     }
@@ -673,7 +673,7 @@ $signatureToJdiffHelp
                 """
                     // Signature format: 2.0
                     package test.pkg {
-                      public class Test extends Number implements Comparable<Test> {
+                      public class Test extends Number implements Comparable<test.pkg.Test> {
                       }
                     }
                 """
@@ -691,7 +691,7 @@ $signatureToJdiffHelp
                      deprecated="not deprecated"
                      visibility="public"
                     >
-                    <implements name="java.lang.Comparable&lt;java.lang.Test>">
+                    <implements name="java.lang.Comparable&lt;test.pkg.Test>">
                     </implements>
                     <field name="FIELD"
                      type="int"
@@ -809,6 +809,55 @@ $signatureToJdiffHelp
                     >
                     <method name="bar"
                      return="void"
+                     abstract="true"
+                     native="false"
+                     synchronized="false"
+                     static="false"
+                     final="false"
+                     deprecated="not deprecated"
+                     visibility="public"
+                    >
+                    </method>
+                    </interface>
+                    </package>
+                    </api>
+                """
+        }
+    }
+
+    @Test
+    fun `Test conversion unknown type parameter`() {
+        jdiffConversionTest {
+            api =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public interface Test {
+                        method public T method();
+                      }
+                    }
+                """
+
+            expectedStderr =
+                """
+                    TESTROOT/jdiff-conversion/api.txt:4: hidden: Unqualified type 'T' is not in 'java.lang' and is not a type parameter in scope [UnqualifiedTypeError]
+                """
+                    .trimIndent()
+
+            expectedXml =
+                """
+                    <api name="api" xmlns:metalava="http://www.android.com/metalava/">
+                    <package name="test.pkg"
+                    >
+                    <interface name="Test"
+                     abstract="true"
+                     static="false"
+                     final="false"
+                     deprecated="not deprecated"
+                     visibility="public"
+                    >
+                    <method name="method"
+                     return="T"
                      abstract="true"
                      native="false"
                      synchronized="false"

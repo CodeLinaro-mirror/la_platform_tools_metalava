@@ -624,7 +624,7 @@ class NullnessMigrationTest : DriverTest() {
                             import androidx.annotation.NonNull;
                             import java.lang.reflect.TypeVariable;
 
-                            public class Foo {
+                            public class Foo<T> {
                                 @NonNull public java.lang.reflect.Constructor<?> @NonNull [] getConstructors() {
                                     return null;
                                 }
@@ -643,10 +643,10 @@ class NullnessMigrationTest : DriverTest() {
             migrateNullsApi =
                 """
                     package test.pkg {
-                      public class Foo {
+                      public class Foo<T> {
                         ctor public Foo();
                         method public java.lang.reflect.Constructor<?>[] getConstructors();
-                        method public synchronized java.lang.reflect.TypeVariable<@java.lang.Class<T>>[] getTypeParameters();
+                        method public synchronized java.lang.reflect.TypeVariable<java.lang.Class<T>>[] getTypeParameters();
                       }
                     }
                 """,
@@ -657,7 +657,7 @@ class NullnessMigrationTest : DriverTest() {
                             """
                                 package test.pkg;
                                 @SuppressWarnings({"unchecked", "deprecation", "all"})
-                                public class Foo {
+                                public class Foo<T> {
                                 public Foo() { throw new RuntimeException("Stub!"); }
                                 @androidx.annotation.RecentlyNonNull
                                 public java.lang.reflect.Constructor<?> @androidx.annotation.RecentlyNonNull [] getConstructors() { throw new RuntimeException("Stub!"); }
@@ -673,7 +673,7 @@ class NullnessMigrationTest : DriverTest() {
                             """
                                 package test.pkg;
                                 @SuppressWarnings({"unchecked", "deprecation", "all"})
-                                public class Foo {
+                                public class Foo<T> {
                                 public Foo() { throw new RuntimeException("Stub!"); }
                                 @androidx.annotation.RecentlyNonNull
                                 public java.lang.reflect.Constructor<?>[] getConstructors() { throw new RuntimeException("Stub!"); }
@@ -702,7 +702,7 @@ class NullnessMigrationTest : DriverTest() {
                             import androidx.annotation.Nullable;
 
                             public interface Appendable {
-                                @NonNull Appendable append(@Nullable java.lang.CharSequence csq) throws IOException;
+                                @NonNull Appendable append(@Nullable java.lang.CharSequence csq) throws java.io.IOException;
                             }
                         """
                     ),
@@ -744,7 +744,7 @@ class NullnessMigrationTest : DriverTest() {
                     """
                         package test.pkg {
                           public interface Appendable {
-                            method public Appendable append(java.lang.CharSequence csq) throws IOException;
+                            method public Appendable append(java.lang.CharSequence csq) throws java.io.IOException;
                           }
                           public class PublicClass {
                             ctor public PublicClass(String);
@@ -771,7 +771,7 @@ class NullnessMigrationTest : DriverTest() {
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
                             public interface Appendable {
                             @androidx.annotation.RecentlyNonNull
-                            public test.pkg.Appendable append(@androidx.annotation.RecentlyNullable java.lang.CharSequence csq);
+                            public test.pkg.Appendable append(@androidx.annotation.RecentlyNullable java.lang.CharSequence csq) throws java.io.IOException;
                             }
                         """
                     ),

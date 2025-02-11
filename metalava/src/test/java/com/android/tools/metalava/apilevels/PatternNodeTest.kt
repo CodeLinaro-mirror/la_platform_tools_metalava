@@ -198,7 +198,7 @@ class PatternNodeTest : TemporaryFolderOwner {
             )
         val node = PatternNode.parsePatterns(patterns)
         val range = ApiVersion.fromLevel(1).rangeTo(ApiVersion.fromLevel(5))
-        val files = node.scan(PatternNode.ScanConfig(androidDir, range))
+        val files = node.scan(PatternNode.ScanConfig(androidDir, range::contains))
         files.assertMatchedPatternFiles(
             """
                 MatchedPatternFile(file=prebuilts/sdk/1/public/android.jar, version=1)
@@ -224,7 +224,7 @@ class PatternNodeTest : TemporaryFolderOwner {
             )
         val node = PatternNode.parsePatterns(patterns)
         val range = ApiVersion.fromLevel(20).rangeTo(ApiVersion.fromLevel(22))
-        val files = node.scan(PatternNode.ScanConfig(androidDir, range))
+        val files = node.scan(PatternNode.ScanConfig(androidDir, range::contains))
         files.assertMatchedPatternFiles(
             """
                 MatchedPatternFile(file=prebuilts/sdk/20/public/android.jar, version=20)
@@ -247,7 +247,7 @@ class PatternNodeTest : TemporaryFolderOwner {
             )
         val node = PatternNode.parsePatterns(patterns)
         val range = ApiVersion.fromLevel(20).rangeTo(ApiVersion.fromLevel(22))
-        val files = node.scan(PatternNode.ScanConfig(androidDir, range))
+        val files = node.scan(PatternNode.ScanConfig(androidDir, range::contains))
         files.assertMatchedPatternFiles(
             """
                 MatchedPatternFile(file=prebuilts/sdk/20/public/android.jar, version=20)
@@ -267,7 +267,7 @@ class PatternNodeTest : TemporaryFolderOwner {
             )
         val node = PatternNode.parsePatterns(patterns)
         val range = ApiVersion.fromLevel(21).rangeTo(ApiVersion.fromLevel(23))
-        val files = node.scan(PatternNode.ScanConfig(androidDir, range))
+        val files = node.scan(PatternNode.ScanConfig(androidDir, range::contains))
         files.assertMatchedPatternFiles(
             """
                 MatchedPatternFile(file=prebuilts/sdk/21, version=21)
@@ -333,7 +333,7 @@ class PatternNodeTest : TemporaryFolderOwner {
     fun `Scan with empty patterns`() {
         val rootDir = createApiFileStructure()
         val node = PatternNode.parsePatterns(emptyList())
-        val files = node.scan(PatternNode.ScanConfig(rootDir, apiVersionRange = null))
+        val files = node.scan(PatternNode.ScanConfig(rootDir, apiVersionFilter = null))
         assertEquals(emptyList(), files)
     }
 
@@ -346,7 +346,7 @@ class PatternNodeTest : TemporaryFolderOwner {
                 "{version:major.minor?}/api.txt",
             )
         val node = PatternNode.parsePatterns(patterns)
-        val files = node.scan(PatternNode.ScanConfig(rootDir, apiVersionRange = null))
+        val files = node.scan(PatternNode.ScanConfig(rootDir, apiVersionFilter = null))
         files.assertMatchedPatternFiles(
             """
                 MatchedPatternFile(file=1/api.txt, version=1)
@@ -366,7 +366,7 @@ class PatternNodeTest : TemporaryFolderOwner {
                 "{version:major.minor.patch}/api.txt",
             )
         val node = PatternNode.parsePatterns(patterns)
-        val files = node.scan(PatternNode.ScanConfig(rootDir, apiVersionRange = null))
+        val files = node.scan(PatternNode.ScanConfig(rootDir, apiVersionFilter = null))
         files.assertMatchedPatternFiles(
             """
                 MatchedPatternFile(file=1.1.1/api.txt, version=1.1.1)
@@ -386,7 +386,7 @@ class PatternNodeTest : TemporaryFolderOwner {
                 "{version:major.minor.patch}*/api.txt",
             )
         val node = PatternNode.parsePatterns(patterns)
-        val files = node.scan(PatternNode.ScanConfig(rootDir, apiVersionRange = null))
+        val files = node.scan(PatternNode.ScanConfig(rootDir, apiVersionFilter = null))
         files.assertMatchedPatternFiles(
             """
                 MatchedPatternFile(file=1.1.1/api.txt, version=1.1.1)
@@ -421,7 +421,7 @@ class PatternNodeTest : TemporaryFolderOwner {
         val node = PatternNode.parsePatterns(patterns)
         // This range should have no effect on extension versions.
         val range = ApiVersion.fromLevel(20).rangeTo(ApiVersion.fromLevel(22))
-        val files = node.scan(PatternNode.ScanConfig(rootDir, apiVersionRange = range))
+        val files = node.scan(PatternNode.ScanConfig(rootDir, apiVersionFilter = range::contains))
         files.assertMatchedPatternFiles(
             """
                 MatchedPatternFile(file=1/api.txt, version=1, extension=true, module='api')

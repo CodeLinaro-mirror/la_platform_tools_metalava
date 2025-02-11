@@ -177,8 +177,15 @@ class RecordingReporter : AbstractBasicReporter() {
         return true
     }
 
-    val issues
+    val issues: String
         get() = stringWriter.toString().trim()
+
+    /** Remove and return any existing issues. */
+    fun removeIssues(): String {
+        val issues = stringWriter.toString().trim()
+        stringWriter.buffer.setLength(0)
+        return issues
+    }
 }
 
 /**

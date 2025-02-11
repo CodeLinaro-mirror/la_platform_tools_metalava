@@ -44,7 +44,9 @@ class ComparisonVisitorTest : TemporaryFolderOwner, Assertions {
                         // Signature format: 2.0
                         package pkg {
                             public class Outer.Inner {
-                                method public TypeInFirst foobar();
+                                method public pkg.TypeInFirst foobar();
+                            }
+                            public class TypeInFirst {
                             }
                         }
                     """
@@ -57,7 +59,9 @@ class ComparisonVisitorTest : TemporaryFolderOwner, Assertions {
                             public class Outer {
                             }
                             public class Outer.Inner {
-                                method public TypeInSecond foobar();
+                                method public pkg.TypeInSecond foobar();
+                            }
+                            public class TypeInSecond {
                             }
                         }
                     """
@@ -94,7 +98,7 @@ class ComparisonVisitorTest : TemporaryFolderOwner, Assertions {
                 old,
                 new
             )
-        assertEquals("TypeInFirst", methodType)
+        assertEquals("pkg.TypeInFirst", methodType)
     }
 
     @Test

@@ -39,6 +39,12 @@ interface PropertyItem : MemberItem {
     /** The type of this property */
     override fun type(): TypeItem
 
+    /** The receiver type of this property, if one exists. */
+    val receiver: TypeItem?
+
+    /** The type parameters of this property. */
+    val typeParameterList: TypeParameterList
+
     override fun findCorrespondingItemIn(
         codebase: Codebase,
         superMethods: Boolean,

@@ -163,6 +163,12 @@ class SignatureCatCommandTest : BaseCommandTest<SignatureCatCommand>({ Signature
                 """
                     .trimIndent()
 
+            expectedStderr =
+                """
+                    <stdin>:4: hidden: Unqualified type 'T' is not in 'java.lang' and is not a type parameter in scope [UnqualifiedTypeError]
+                """
+                    .trimIndent()
+
             expectedStdout =
                 // TODO(b/394789173): Stop prefixing T with java.lang..
                 """
@@ -170,7 +176,7 @@ class SignatureCatCommandTest : BaseCommandTest<SignatureCatCommand>({ Signature
                     package test.pkg {
 
                       public interface Foo {
-                        method public void foo(java.lang.T t);
+                        method public void foo(T t);
                       }
 
                     }
