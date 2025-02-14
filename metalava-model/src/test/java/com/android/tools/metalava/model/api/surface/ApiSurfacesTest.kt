@@ -104,4 +104,25 @@ class ApiSurfacesTest {
         assertEquals(apiSurfaces.main.name, "public")
         assertNull(apiSurfaces.base, "base is not expected")
     }
+
+    @Test
+    fun `Test sorting`() {
+        val apiSurfaces =
+            ApiSurfaces.build {
+                createSurface(name = "public")
+                createSurface(name = "system", extends = "public")
+                createSurface(name = "module-lib", extends = "system", isMain = true)
+            }
+
+        val byName = apiSurfaces.all.associateBy { it.name }
+
+        val unsorted =
+            listOf(
+                byName["system"]!!,
+                byName["module-lib"]!!,
+                byName["public"]!!,
+            )
+
+        assertEquals("public, system, module-lib", unsorted.sorted().joinToString { it.name })
+    }
 }

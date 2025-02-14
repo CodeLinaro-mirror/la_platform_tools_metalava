@@ -103,7 +103,7 @@ class ApiFileTest : DriverTest() {
                   }
                   public static final class Foo.Companion {
                     method public void sayHello();
-                    property public static final int answer;
+                    property public static int answer;
                   }
                 }
                 """,
@@ -412,20 +412,22 @@ class ApiFileTest : DriverTest() {
                     method @Nullable public String getProperty2();
                     method public void otherMethod(boolean ok, int times);
                     method public void setProperty2(@Nullable String);
-                    property @NonNull public final String property1;
-                    property @Nullable public final String property2;
-                    property public final int someField2;
+                    property @NonNull public String property1;
+                    property @Nullable public String property2;
+                    property public int someField2;
                     field @NonNull public static final test.pkg.Kotlin.Companion Companion;
                     field public static final int MY_CONST = 42; // 0x2a
                     field public int someField2;
                   }
                   public static final class Kotlin.Companion {
-                    property public static final int MY_CONST;
+                    property public static int MY_CONST;
                   }
                   public final class KotlinKt {
                     method @NonNull public static inline operator String component1(@NonNull String);
                     method public static inline int getRed(int);
                     method public static inline boolean isSrgb(long);
+                    property public static inline boolean isSrgb;
+                    property public static inline int red;
                   }
                   public class Parent {
                     ctor public Parent();
@@ -583,8 +585,8 @@ class ApiFileTest : DriverTest() {
                     ctor public MyClass();
                     method public boolean getReadOnlyVar();
                     method public boolean getReadOnlyVarWithPublicModifier();
-                    property public final boolean readOnlyVar;
-                    property public final boolean readOnlyVarWithPublicModifier;
+                    property public boolean readOnlyVar;
+                    property public boolean readOnlyVarWithPublicModifier;
                   }
                 }
                 """
@@ -975,8 +977,8 @@ class ApiFileTest : DriverTest() {
                     method public E getFirst();
                     method public E getLast();
                     method public void setLast(E);
-                    property public final E first;
-                    property public final E last;
+                    property public E first;
+                    property public E last;
                   }
                 }
             """
@@ -1086,8 +1088,8 @@ class ApiFileTest : DriverTest() {
                     ctor public NonNullableKotlinPair(F first, S second);
                     method public F getFirst();
                     method public S getSecond();
-                    property public final F first;
-                    property public final S second;
+                    property public F first;
+                    property public S second;
                   }
                   public class NullableJavaPair<F, S> {
                     ctor public NullableJavaPair(F?, S?);
@@ -1098,8 +1100,8 @@ class ApiFileTest : DriverTest() {
                     ctor public NullableKotlinPair(F? first, S? second);
                     method public F? getFirst();
                     method public S? getSecond();
-                    property public final F? first;
-                    property public final S? second;
+                    property public F? first;
+                    property public S? second;
                   }
                   public class PlatformJavaPair<F, S> {
                     ctor public PlatformJavaPair(F!, S!);
@@ -1399,8 +1401,8 @@ class ApiFileTest : DriverTest() {
                     ctor public SimpleClass();
                     method public int getNonJvmField();
                     method public void setNonJvmField(int);
-                    property public final int jvmField;
-                    property public final int nonJvmField;
+                    property public int jvmField;
+                    property public int nonJvmField;
                     field public int jvmField;
                   }
                 }
@@ -1438,8 +1440,8 @@ class ApiFileTest : DriverTest() {
                     method public int myPropertyJvmGetter();
                     method public void setAnotherProperty(int);
                     method public void setMyProperty(int);
-                    property public final int anotherProperty;
-                    property public final int myProperty;
+                    property public int anotherProperty;
+                    property public int myProperty;
                   }
                 }
             """
@@ -4318,7 +4320,7 @@ class ApiFileTest : DriverTest() {
                     ctor public KotlinClass(@IntRange(from=2L) int differentParam);
                     method public int getParam();
                     method public void myMethod(@IntRange(from=3L) int methodParam);
-                    property @IntRange(from=1L) public final int param;
+                    property @IntRange(from=1L) public int param;
                   }
                 }
             """
@@ -4392,8 +4394,8 @@ class ApiFileTest : DriverTest() {
                     ctor public KotlinClass();
                     method public boolean getPropertyWithGetter();
                     method public boolean getPropertyWithNoGetter();
-                    property public final boolean propertyWithGetter;
-                    property public final boolean propertyWithNoGetter;
+                    property public boolean propertyWithGetter;
+                    property public boolean propertyWithNoGetter;
                   }
                 }
             """
@@ -4445,7 +4447,7 @@ class ApiFileTest : DriverTest() {
                     method public String component1();
                     method public test.pkg.MyDataClass copy(String constructorProperty, String internalConstructorProperty);
                     method public String getConstructorProperty();
-                    property public final String constructorProperty;
+                    property public String constructorProperty;
                   }
                 }
             """
@@ -4708,8 +4710,8 @@ class ApiFileTest : DriverTest() {
                     method public float getValue();
                     method public inline operator float minus(float other);
                     method public inline operator float plus(float other);
-                    property public final int someBits;
-                    property public final float value;
+                    property public int someBits;
+                    property public float value;
                   }
                 }
             """
@@ -4753,8 +4755,8 @@ class ApiFileTest : DriverTest() {
                     method public float getValue();
                     method public inline operator float minus(float other);
                     method public inline operator float plus(float other);
-                    property public final int someBits;
-                    property public final float value;
+                    property public int someBits;
+                    property public float value;
                   }
                   public final class DpKt {
                     method public static void box(float p);
@@ -5059,7 +5061,7 @@ class ApiFileTest : DriverTest() {
                 package test.pkg {
                   @RestrictTo({androidx.annotation.RestrictTo.Scope.LIBRARY}) public final class TestKt {
                     method public static void bar();
-                    property public static final String CONST;
+                    property public static String CONST;
                     field public static final String CONST = "Hello";
                   }
                 }
@@ -5150,7 +5152,7 @@ class ApiFileTest : DriverTest() {
                     ctor public Foo(int bar);
                     method public int getBar();
                     method public void setBar(int);
-                    property public final int bar;
+                    property public int bar;
                   }
                 }
             """
@@ -5215,9 +5217,9 @@ class ApiFileTest : DriverTest() {
                     field public static final int SP = 2; // 0x2
                   }
                   public static final class Dimension.Companion {
-                    property public static final int DP;
-                    property public static final int PX;
-                    property public static final int SP;
+                    property public static int DP;
+                    property public static int PX;
+                    property public static int SP;
                     field public static final int DP = 0; // 0x0
                     field public static final int PX = 1; // 0x1
                     field public static final int SP = 2; // 0x2
@@ -5428,7 +5430,7 @@ class ApiFileTest : DriverTest() {
                         private val baz
 
                         class Toast {
-                            val foo: Int
+                            val foo: Int = 0
                         }
                     """
                     ),
@@ -5569,7 +5571,7 @@ class ApiFileTest : DriverTest() {
                   public final class Toast {
                     ctor public Toast();
                     method public int getFoo();
-                    property public final int foo;
+                    property public int foo;
                   }
                 }
             """
@@ -5618,8 +5620,8 @@ class ApiFileTest : DriverTest() {
                     method public static void bar(String);
                     method public static void baz(String);
                     method public static int getNonConstVal();
-                    property public static final int constVal;
-                    property public static final int nonConstVal;
+                    property public static int constVal;
+                    property public static int nonConstVal;
                     field public static final int constVal = 4; // 0x4
                   }
                 }

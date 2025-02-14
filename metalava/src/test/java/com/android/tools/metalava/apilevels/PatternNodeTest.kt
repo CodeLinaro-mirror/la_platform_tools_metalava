@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava.apilevels
 
+import com.android.tools.metalava.model.api.surface.ApiSurface
+import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.testing.DirectoryBuilder
 import com.android.tools.metalava.testing.TemporaryFolderOwner
 import com.android.tools.metalava.testing.getAndroidDir
@@ -93,7 +95,7 @@ class PatternNodeTest : TemporaryFolderOwner {
         val exception =
             assertThrows(IllegalStateException::class.java) { PatternNode.parsePatterns(patterns) }
         assertEquals(
-            "Pattern 'prebuilts/sdk/{unknown}/public/android-{version:level}.jar' contains an unknown placeholder '{unknown}', expected one of '{version:level}', '{version:major.minor?}', '{version:major.minor.patch}', '{version:extension}', '{module}'",
+            "Pattern 'prebuilts/sdk/{unknown}/public/android-{version:level}.jar' contains an unknown placeholder '{unknown}', expected one of '{version:level}', '{version:major.minor?}', '{version:major.minor.patch}', '{version:extension}', '{module}', '{surface}'",
             exception.message
         )
     }
@@ -310,9 +312,11 @@ class PatternNodeTest : TemporaryFolderOwner {
         )
     }
 
+    /** Create an API file, e.g. [name]`.txt` file in the [DirectoryBuilder]. */
+    private fun DirectoryBuilder.apiFile(name: String = "api") = emptyFile("$name.txt")
+
     /** Create a structure of versioned API files for testing. */
     private fun createApiFileStructure(): File {
-        fun DirectoryBuilder.apiFile() = emptyFile("api.txt")
         val rootDir = buildFileStructure {
             dir("1") { apiFile() }
             dir("1.1") { apiFile() }
@@ -393,12 +397,26 @@ class PatternNodeTest : TemporaryFolderOwner {
     }
 
     @Test
+    fun `Check pattern with version extension includes module`() {
+        val patterns =
+            listOf(
+                "extensions/{version:extension}/api.txt",
+            )
+        val exception =
+            assertThrows(IllegalStateException::class.java) { PatternNode.parsePatterns(patterns) }
+        assertEquals(
+            "Pattern 'extensions/{version:extension}/api.txt' contains `{version:extension}` but does not contain `{module}`",
+            exception.message
+        )
+    }
+
+    @Test
     fun `Scan for extension version`() {
         val rootDir = createApiFileStructure()
 
         val patterns =
             listOf(
-                "{version:extension}/api.txt",
+                "{version:extension}/{module}.txt",
             )
         val node = PatternNode.parsePatterns(patterns)
         // This range should have no effect on extension versions.
@@ -406,15 +424,14 @@ class PatternNodeTest : TemporaryFolderOwner {
         val files = node.scan(PatternNode.ScanConfig(rootDir, apiVersionRange = range))
         files.assertMatchedPatternFiles(
             """
-                MatchedPatternFile(file=1/api.txt, version=1)
-                MatchedPatternFile(file=2/api.txt, version=2)
+                MatchedPatternFile(file=1/api.txt, version=1, extension=true, module='api')
+                MatchedPatternFile(file=2/api.txt, version=2, extension=true, module='api')
             """
         )
     }
 
     @Test
     fun `Scan for module`() {
-        fun DirectoryBuilder.apiFile(module: String) = emptyFile("$module.txt")
         val rootDir = buildFileStructure {
             dir("extensions") {
                 dir("1") { apiFile("module-one") }
@@ -437,12 +454,124 @@ class PatternNodeTest : TemporaryFolderOwner {
         val files = node.scan(PatternNode.ScanConfig(rootDir))
         files.assertMatchedPatternFiles(
             """
-                MatchedPatternFile(file=extensions/1/module-one.txt, version=1, module='module-one')
-                MatchedPatternFile(file=extensions/3/module-one.txt, version=3, module='module-one')
-                MatchedPatternFile(file=extensions/2/module-two.txt, version=2, module='module-two')
-                MatchedPatternFile(file=extensions/3/module-two.txt, version=3, module='module-two')
-                MatchedPatternFile(file=extensions/2/module.three.txt, version=2, module='module.three')
+                MatchedPatternFile(file=extensions/1/module-one.txt, version=1, extension=true, module='module-one')
+                MatchedPatternFile(file=extensions/3/module-one.txt, version=3, extension=true, module='module-one')
+                MatchedPatternFile(file=extensions/2/module-two.txt, version=2, extension=true, module='module-two')
+                MatchedPatternFile(file=extensions/3/module-two.txt, version=3, extension=true, module='module-two')
+                MatchedPatternFile(file=extensions/2/module.three.txt, version=2, extension=true, module='module.three')
             """
+        )
+    }
+
+    @Test
+    fun `Test use surface placeholder without surfaces`() {
+        val rootDir = buildFileStructure { dir("1") { dir("public") { apiFile() } } }
+
+        val patterns =
+            listOf(
+                "{version:level}/{surface}/api.txt",
+            )
+        val node = PatternNode.parsePatterns(patterns)
+        val exception =
+            assertThrows(IllegalStateException::class.java) {
+                node.scan(PatternNode.ScanConfig(rootDir))
+            }
+        assertEquals(
+            "Must provide ScanConfig.apiSurfaceByName when {surface} is used",
+            exception.message
+        )
+    }
+
+    /**
+     * Check scanning for files that contain surfaces.
+     *
+     * @param apiSurfaces the set of allowable [ApiSurface]s.
+     * @param expectedFiles the expected set of matching files.
+     */
+    private fun checkScanningForSurfaces(apiSurfaces: ApiSurfaces, expectedFiles: String) {
+        val rootDir = buildFileStructure {
+            dir("1") { dir("public") { apiFile() } }
+            dir("2") {
+                dir("public") { apiFile() }
+                dir("system") { apiFile() }
+                // 'test' should not appear in the scanned files as it is not a supported surface.
+                dir("test") { apiFile() }
+            }
+            dir("3") {
+                dir("public") { apiFile() }
+                dir("system") { apiFile() }
+                dir("module-lib") { apiFile() }
+                // 'test' should not appear in the scanned files as it is not a supported surface.
+                dir("test") { apiFile() }
+            }
+        }
+
+        val patterns =
+            listOf(
+                "{version:level}/{surface}/api.txt",
+            )
+        val node = PatternNode.parsePatterns(patterns)
+        val apiSurfaceByName = apiSurfaces.all.associateBy { it.name }
+        val files = node.scan(PatternNode.ScanConfig(rootDir, apiSurfaceByName = apiSurfaceByName))
+        files.assertMatchedPatternFiles(expectedFiles)
+    }
+
+    @Test
+    fun `Scan for surface - public`() {
+        val apiSurfaces = ApiSurfaces.build { createSurface(name = "public", isMain = true) }
+
+        checkScanningForSurfaces(
+            apiSurfaces,
+            expectedFiles =
+                """
+                    MatchedPatternFile(file=1/public/api.txt, version=1, surface='public')
+                    MatchedPatternFile(file=2/public/api.txt, version=2, surface='public')
+                    MatchedPatternFile(file=3/public/api.txt, version=3, surface='public')
+                """,
+        )
+    }
+
+    @Test
+    fun `Scan for surface - system`() {
+        val apiSurfaces =
+            ApiSurfaces.build {
+                createSurface(name = "public")
+                createSurface(name = "system", extends = "public", isMain = true)
+            }
+
+        checkScanningForSurfaces(
+            apiSurfaces,
+            expectedFiles =
+                """
+                    MatchedPatternFile(file=1/public/api.txt, version=1, surface='public')
+                    MatchedPatternFile(file=2/public/api.txt, version=2, surface='public')
+                    MatchedPatternFile(file=2/system/api.txt, version=2, surface='system')
+                    MatchedPatternFile(file=3/public/api.txt, version=3, surface='public')
+                    MatchedPatternFile(file=3/system/api.txt, version=3, surface='system')
+                """,
+        )
+    }
+
+    @Test
+    fun `Scan for surface - module-lib`() {
+        val apiSurfaces =
+            ApiSurfaces.build {
+                createSurface(name = "public")
+                createSurface(name = "system", extends = "public")
+                createSurface(name = "module-lib", extends = "public", isMain = true)
+            }
+
+        checkScanningForSurfaces(
+            apiSurfaces,
+            expectedFiles =
+                """
+                    MatchedPatternFile(file=1/public/api.txt, version=1, surface='public')
+                    MatchedPatternFile(file=2/public/api.txt, version=2, surface='public')
+                    MatchedPatternFile(file=2/system/api.txt, version=2, surface='system')
+                    MatchedPatternFile(file=3/public/api.txt, version=3, surface='public')
+                    MatchedPatternFile(file=3/system/api.txt, version=3, surface='system')
+                    MatchedPatternFile(file=3/module-lib/api.txt, version=3, surface='module-lib')
+                """,
         )
     }
 }

@@ -16,7 +16,6 @@
 package com.android.tools.metalava.apilevels
 
 import com.google.common.collect.Iterables
-import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Represents a class or an interface and its methods/fields. This is used to write the simplified
@@ -29,8 +28,8 @@ class ApiClass(name: String) : ApiElement(name) {
 
     /** If `true`, never seen as public. */
     var alwaysHidden = false // Package private class?
-    private val mFields = ConcurrentHashMap<String, ApiElement>()
-    private val mMethods = ConcurrentHashMap<String, ApiElement>()
+    private val mFields = mutableMapOf<String, ApiElement>()
+    private val mMethods = mutableMapOf<String, ApiElement>()
 
     /**
      * Updates the [ApiElement] for field with [name], creating and adding one if necessary.

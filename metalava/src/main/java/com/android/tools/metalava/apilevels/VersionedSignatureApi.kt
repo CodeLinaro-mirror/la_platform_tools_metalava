@@ -24,18 +24,52 @@ import java.io.File
 
 /**
  * Supports updating [Api] with information from the [apiVersion] of the API that is defined in the
- * signature [file].
+ * signature [files].
  */
 class VersionedSignatureApi(
     private val signatureFileLoader: SignatureFileLoader,
-    private val file: File,
-    override val apiVersion: ApiVersion,
-) : VersionedApi {
-    override fun updateApi(api: Api) {
-        val codebase = signatureFileLoader.load(SignatureFile.fromFiles(file))
-        val codebaseFragment = CodebaseFragment.create(codebase, ::NonFilteringDelegatingVisitor)
-        addApisFromCodebase(api, apiVersion, codebaseFragment)
+    private val files: List<File>,
+    updater: ApiHistoryUpdater,
+) : VersionedApi(updater) {
+
+    init {
+        require(files.isNotEmpty()) { "files must contain at least one file" }
     }
 
-    override fun toString() = "VersionedSignatureApi(file=$file, version=$apiVersion)"
+    override fun updateApi(api: Api) {
+        val codebase = signatureFileLoader.load(SignatureFile.fromFiles(files))
+        val codebaseFragment = CodebaseFragment.create(codebase, ::NonFilteringDelegatingVisitor)
+        addApisFromCodebase(api, updater, codebaseFragment)
+    }
+
+    override fun toString(): String {
+        // Compute the string representation of the files. Listing a number of potentially long
+        // files all on one line can make it difficult to debug. As the files are likely to contain
+        // common prefixes and suffixes, e.g. `prebuilts/sdk/28/public/api/android.txt` and
+        // `prebuilts/sdk/28/system/api/android.txt` this replaces it with a string that uses bash
+        // brace expansion syntax so it would generate all the original if used in bash, e.g.
+        // `prebuilts/sdk/28/{public,system}/api/android.txt`.
+        val filesAsString = stringsToBashBraceExpansion(files.map { it.path })
+        return "VersionedSignatureApi(files=$filesAsString, updater=$updater)"
+    }
+
+    companion object {
+        /** Generate a bash string expansion that will generate [strings]. */
+        internal fun stringsToBashBraceExpansion(strings: List<String>) =
+            if (strings.size == 1) {
+                strings.first()
+            } else {
+                val commonPrefix = strings.reduce { p1, p2 -> p1.commonPrefixWith(p2) }
+                val commonSuffix = strings.reduce { p1, p2 -> p1.commonSuffixWith(p2) }
+                buildString {
+                    append(commonPrefix)
+                    append("{")
+                    strings.joinTo(this, ",") {
+                        it.removePrefix(commonPrefix).removeSuffix(commonSuffix)
+                    }
+                    append("}")
+                    append(commonSuffix)
+                }
+            }
+    }
 }

@@ -67,6 +67,16 @@ interface PropertyItem : MemberItem {
 
     override fun toStringForItem(): String = "property ${containingClass().fullName()}.${name()}"
 
+    // Inherit deprecation from the getter
+    override val effectivelyDeprecated: Boolean
+        get() =
+            originallyDeprecated ||
+                if (getter == null) {
+                    containingClass().effectivelyDeprecated
+                } else {
+                    getter!!.effectivelyDeprecated
+                }
+
     companion object {
         val comparator: java.util.Comparator<PropertyItem> = Comparator { a, b ->
             a.name().compareTo(b.name())

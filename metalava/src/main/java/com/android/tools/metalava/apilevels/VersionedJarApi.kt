@@ -25,11 +25,8 @@ import java.io.File
  */
 class VersionedJarApi(
     val jar: File,
-    private val updater: ApiHistoryUpdater,
-) : VersionedApi {
-    override val apiVersion
-        get() = updater.apiVersion
-
+    updater: ApiHistoryUpdater,
+) : VersionedApi(updater) {
     override fun updateApi(api: Api) {
         api.readJar(jar, updater)
     }
