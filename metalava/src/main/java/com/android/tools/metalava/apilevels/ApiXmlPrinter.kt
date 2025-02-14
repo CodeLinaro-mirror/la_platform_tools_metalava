@@ -17,30 +17,34 @@
 package com.android.tools.metalava.apilevels
 
 import java.io.PrintWriter
+import java.util.TreeSet
 
 /**
  * Printer that will write an XML representation of an [Api] instance.
  *
  * @param availableSdkExtensions the optional set of [AvailableSdkExtensions].
- * @param allVersions the list of all the versions in order, from earliest to latest. Must include
- *   at least one version. The first API version is used to populate the `<api min="..."...>`
- *   attribute, if it is later than version `1`.
+ * @param versionedApis the list of all the [VersionedApi]s that will provide information for the
+ *   [Api]. Must include at least one [VersionedApi]. The API version of the first is used to
+ *   populate the `<api min="..."...>` attribute, if it is later than version `1`.
  */
 class ApiXmlPrinter(
     private val availableSdkExtensions: AvailableSdkExtensions?,
-    allVersions: List<ApiVersion>,
+    versionedApis: List<VersionedApi>,
 ) : ApiPrinter {
+    /** The set of versions, sorted from lowest to highest. */
+    private val sortedVersions = versionedApis.mapTo(TreeSet()) { it.apiVersion }
+
     /** Get the first [ApiVersion]. */
-    private val firstApiVersion = allVersions.first()
+    private val firstApiVersion = sortedVersions.first()
 
     /**
      * Map from version to the next version. This is used to compute the version in which an API
      * element was removed by finding the version after the version it was last present in.
      */
-    private val versionToNext = allVersions.zipWithNext().toMap()
+    private val versionToNext = sortedVersions.zipWithNext().toMap()
 
     /** True if the [Api] being printed has any minor versions. */
-    private val hasMinorVersions = allVersions.any { it.minor != null }
+    private val hasMinorVersions = sortedVersions.any { it.minor != null }
 
     override fun print(api: Api, writer: PrintWriter) {
         writer.println("<?xml version=\"1.0\" encoding=\"utf-8\"?>")

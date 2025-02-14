@@ -303,7 +303,7 @@ internal fun processFlags(
         )
         ?.let { config ->
             progressTracker.progress(
-                "Generating API version history ${config.printer} file, ${config.outputFile.name}: "
+                "Generating API version history file ${config.outputFile.name}: "
             )
 
             apiGenerator.generateApiHistory(config)

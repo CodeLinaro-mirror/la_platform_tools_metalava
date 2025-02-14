@@ -30,8 +30,6 @@ object Issues {
     val PARSE_ERROR by Issue(Severity.ERROR)
     val DUPLICATE_SOURCE_CLASS by Issue(Severity.WARNING)
 
-    val CONFIG_FILE_PROBLEM by Issue(Severity.ERROR)
-
     // Compatibility issues
     val ADDED_ANNOTATION by Issue(Severity.ERROR, Category.COMPATIBILITY)
     val ADDED_PACKAGE by Issue(Severity.HIDDEN, Category.COMPATIBILITY)

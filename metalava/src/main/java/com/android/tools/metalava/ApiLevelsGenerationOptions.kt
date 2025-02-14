@@ -18,9 +18,7 @@ package com.android.tools.metalava
 
 import com.android.tools.metalava.apilevels.ApiGenerator
 import com.android.tools.metalava.apilevels.ApiHistoryUpdater
-import com.android.tools.metalava.apilevels.ApiJsonPrinter
 import com.android.tools.metalava.apilevels.ApiVersion
-import com.android.tools.metalava.apilevels.ApiXmlPrinter
 import com.android.tools.metalava.apilevels.ExtVersion
 import com.android.tools.metalava.apilevels.GenerateApiHistoryConfig
 import com.android.tools.metalava.apilevels.MatchedPatternFile
@@ -418,26 +416,9 @@ class ApiLevelsGenerationOptions(
                 }
             }
 
-            // Get a list of all versions, including the codebase version, if necessary. This is in
-            // version order and is used to compute the version in which an API element has been
-            // removed based on the last version it was present in. See [ApiXmlPrinter].
-            val allVersions = buildList {
-                versionedHistoricalApis.mapTo(this) { it.apiVersion }
-
-                // Add the highest version. That is either the version used for the current
-                // codebase, if present, or the next version. That ensures that the [ApiXmlPrinter]
-                // can always compute the version in which an API element was removed.
-                add(codebaseSdkVersion ?: nextSdkVersion)
-            }
-
-            val availableSdkExtensions =
-                sdkExtensionsArguments?.sdkExtensionInfo?.availableSdkExtensions
-            val printer = ApiXmlPrinter(availableSdkExtensions, allVersions)
-
             GenerateApiHistoryConfig(
                 versionedApis = versionedApis,
                 outputFile = outputFile,
-                printer = printer,
                 sdkExtensionsArguments = sdkExtensionsArguments,
                 missingClassAction =
                     if (removeMissingClassReferencesInApiLevels) MissingClassAction.REMOVE
@@ -608,20 +589,9 @@ class ApiLevelsGenerationOptions(
                 )
             }
 
-            val printer =
-                when (val extension = apiVersionsFile.extension) {
-                    "xml" -> ApiXmlPrinter(null, allVersions)
-                    "json" -> ApiJsonPrinter()
-                    else ->
-                        error(
-                            "unexpected extension for $apiVersionsFile, expected 'xml', or 'json' got '$extension'"
-                        )
-                }
-
             GenerateApiHistoryConfig(
                 versionedApis = versionedApis,
                 outputFile = apiVersionsFile,
-                printer = printer,
                 // None are available when generating from signature files.
                 sdkExtensionsArguments = null,
                 // Keep any references to missing classes.

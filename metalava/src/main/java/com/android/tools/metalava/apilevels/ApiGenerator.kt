@@ -26,7 +26,8 @@ class ApiGenerator {
      * @param config Configuration provided from command line options.
      */
     fun generateApiHistory(config: GenerateApiHistoryConfig) {
-        val api = createApiFromVersionedApis(config.versionedApis)
+        val versionedApis = config.versionedApis
+        val api = createApiFromVersionedApis(versionedApis)
 
         // If necessary, update the sdks properties.
         config.sdkExtensionsArguments?.let { sdkExtensionsArguments ->
@@ -45,7 +46,22 @@ class ApiGenerator {
         // Apply the appropriate action for missing classes.
         config.missingClassAction.apply(api)
 
-        createApiLevelsFile(config.outputFile, config.printer, api)
+        val outputFile = config.outputFile
+        val printer =
+            when (val extension = outputFile.extension) {
+                "xml" -> {
+                    val availableSdkExtensions =
+                        config.sdkExtensionsArguments?.sdkExtensionInfo?.availableSdkExtensions
+                    ApiXmlPrinter(availableSdkExtensions, versionedApis)
+                }
+                "json" -> ApiJsonPrinter()
+                else ->
+                    error(
+                        "unexpected extension for $outputFile, expected 'xml', or 'json' got '$extension'"
+                    )
+            }
+
+        createApiLevelsFile(outputFile, printer, api)
     }
 
     /**
