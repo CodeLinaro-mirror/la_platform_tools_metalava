@@ -164,11 +164,11 @@ sealed class PatternNode {
         val dir: File,
 
         /**
-         * An optional range which, if specified, will limit the versions that will be returned.
+         * An optional filter which, if specified, will limit the versions that will be returned.
          * This is provided when scanning, instead of just filtering afterward, to save time when
-         * scanning by ignoring version directories that are not in the range.
+         * scanning by ignoring version directories that are not accepted by the filter.
          */
-        val apiVersionRange: ClosedRange<ApiVersion>? = null,
+        val apiVersionFilter: ((ApiVersion) -> Boolean)? = null,
 
         /** Provides access to [File]s. */
         val fileProvider: FileProvider = WholeFileSystemProvider(),
@@ -420,12 +420,12 @@ sealed class PatternNode {
 
                 val extension = placeholder == Placeholder.VERSION_EXTENSION
 
-                // Make sure that it is within the allowable range (if one was specified). If it is
-                // not then ignore this file and all its contents by returning an empty sequence.
-                // The range does not apply to extension versions, all extension versions are used.
+                // Make sure that it is accepted by the filter (if one was specified). If it is not
+                // then ignore this file and all its contents by returning an empty sequence. The
+                // filter does not apply to extension versions, all extension versions are used.
                 if (!extension) {
-                    config.apiVersionRange?.let { apiVersionRange ->
-                        if (version !in apiVersionRange) return null
+                    config.apiVersionFilter?.let { apiVersionFilter ->
+                        if (!apiVersionFilter(version)) return null
                     }
                 }
 

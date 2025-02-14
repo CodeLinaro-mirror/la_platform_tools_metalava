@@ -400,23 +400,13 @@ internal class PsiCodebaseAssembler(
             val declarations = ktClass?.declarations ?: topLevelDeclarations(psiClass)
             val ktProperties = declarations.filterIsInstance<KtProperty>()
             for (ktProperty in ktProperties) {
-                val name = ktProperty.name ?: continue
-                // Compute the type of the receiver, if there is one. This will be used to find the
-                // right accessors for the property.
-                val receiverType =
-                    ktProperty.receiverTypeReference?.let {
-                        classTypeItemFactory.getTypeForKtElement(it)
-                    }
-                val allAccessors = accessors[ktProperty] ?: emptyList()
                 val property =
                     PsiPropertyItem.create(
                         codebase = codebase,
                         ktDeclaration = ktProperty,
                         containingClass = classItem,
-                        typeItemFactory = classTypeItemFactory,
-                        name = name,
-                        getter = findGetter(allAccessors, receiverType),
-                        setter = findSetter(allAccessors, receiverType),
+                        containingTypeItemFactory = classTypeItemFactory,
+                        accessors = accessors[ktProperty] ?: emptyList(),
                         constructorParameter = null,
                         backingField = backingFields[ktProperty],
                     )
@@ -440,18 +430,14 @@ internal class PsiCodebaseAssembler(
                         ?.filter { it.isPropertyParameter() }
                         .orEmpty()
                 for (ktParameter in ktParameters) {
-                    val name = ktParameter.name ?: continue
-                    val allAccessors = accessors[ktParameter] ?: emptyList()
                     val property =
                         PsiPropertyItem.create(
                             codebase = codebase,
                             ktDeclaration = ktParameter,
                             containingClass = classItem,
-                            typeItemFactory = classTypeItemFactory,
-                            name = name,
-                            getter = findGetter(allAccessors, null),
-                            setter = findSetter(allAccessors, null),
-                            constructorParameter = constructorParameters[name],
+                            containingTypeItemFactory = classTypeItemFactory,
+                            accessors = accessors[ktParameter] ?: emptyList(),
+                            constructorParameter = constructorParameters[ktParameter.name],
                             backingField = backingFields[ktParameter],
                         )
                             ?: continue
@@ -480,56 +466,6 @@ internal class PsiCodebaseAssembler(
             is KtPropertyAccessor -> sourceElement.property
             is KtParameter -> sourceElement
             else -> null
-        }
-    }
-
-    /**
-     * Given [allAccessors] for a property ([PsiMethodItem]s] for which the source element is the
-     * same [KtProperty]/[KtParameter]), finds the getter.
-     */
-    private fun findGetter(
-        allAccessors: List<PsiMethodItem>,
-        propertyReceiverType: PsiTypeItem?
-    ): PsiMethodItem? {
-        return if (propertyReceiverType == null) {
-            // No receiver, so the getter has no parameter. Make sure not to find a data class
-            // component method.
-            allAccessors.singleOrNull {
-                it.parameters().isEmpty() && !it.name().startsWith("component")
-            }
-        } else {
-            // If there's a receiver, the getter should have the receiver type as its parameter.
-            allAccessors.singleOrNull {
-                it.parameters().singleOrNull()?.type() == propertyReceiverType
-            }
-            // Work around a psi bug where value class extension property accessors don't include
-            // the receiver (b/385148821). This strategy does not always work, which is why the one
-            // above is used in most cases: the getter for a property parameter's source element
-            // will be a KtParameter, and the getter for a simple property declaration with no
-            // custom getter declaration will be a KtProperty, not a KtPropertyAccessor.
-            ?: allAccessors.singleOrNull {
-                    (it.psiMethod.sourceElement as? KtPropertyAccessor)?.isGetter == true
-                }
-        }
-    }
-
-    /** Like [findGetter], but finds the property setter instead. */
-    private fun findSetter(
-        allAccessors: List<PsiMethodItem>,
-        propertyReceiverType: PsiTypeItem?
-    ): PsiMethodItem? {
-        return if (propertyReceiverType == null) {
-            // No receiver, the setter has one parameter.
-            allAccessors.singleOrNull { it.parameters().size == 1 }
-        } else {
-            // The setter has a receiver parameter in addition to the normal setter parameter.
-            allAccessors.singleOrNull {
-                it.parameters().size == 2 && it.parameters()[0].type() == propertyReceiverType
-            }
-            // Work around a psi bug, see the equivalent [findGetter] case for details.
-            ?: allAccessors.singleOrNull {
-                    (it.psiMethod.sourceElement as? KtPropertyAccessor)?.isSetter == true
-                }
         }
     }
 

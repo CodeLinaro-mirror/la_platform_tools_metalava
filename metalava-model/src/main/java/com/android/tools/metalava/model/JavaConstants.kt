@@ -19,6 +19,7 @@ package com.android.tools.metalava.model
 const val JAVA_ENUM_VALUES = "values"
 const val JAVA_ENUM_VALUE_OF = "valueOf"
 
+const val JAVA_LANG_PACKAGE = "java.lang"
 const val JAVA_LANG_PREFIX = "java.lang."
 
 const val JAVA_LANG_ANNOTATION = "java.lang.annotation.Annotation"

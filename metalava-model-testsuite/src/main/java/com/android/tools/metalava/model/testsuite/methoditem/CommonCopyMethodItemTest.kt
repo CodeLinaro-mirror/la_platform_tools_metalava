@@ -85,7 +85,7 @@ class CommonCopyMethodItemTest : CommonCopyMemberItemTest<MethodItem>() {
                           public interface Source {
                             method public void method();
                           }
-                          public class Target implements Source {
+                          public class Target implements test.pkg.Source {
                           }
                         }
                     """
@@ -129,7 +129,7 @@ class CommonCopyMethodItemTest : CommonCopyMemberItemTest<MethodItem>() {
                           public interface Source {
                             method public default void method();
                           }
-                          public class Target implements Source {
+                          public class Target implements test.pkg.Source {
                           }
                         }
                     """
@@ -174,7 +174,7 @@ class CommonCopyMethodItemTest : CommonCopyMemberItemTest<MethodItem>() {
                           public interface Source {
                             method public static void method();
                           }
-                          public class Target implements Source {
+                          public class Target implements test.pkg.Source {
                           }
                         }
                     """
@@ -218,7 +218,7 @@ class CommonCopyMethodItemTest : CommonCopyMemberItemTest<MethodItem>() {
                           public class Source {
                             method public void method();
                           }
-                          public final class Target implements Source {
+                          public final class Target implements test.pkg.Source {
                           }
                         }
                     """
@@ -265,7 +265,7 @@ class CommonCopyMethodItemTest : CommonCopyMemberItemTest<MethodItem>() {
                           public class Source {
                             method public void method();
                           }
-                          @Deprecated public class Target implements Source {
+                          @Deprecated public class Target implements test.pkg.Source {
                           }
                         }
                     """
@@ -317,7 +317,7 @@ class CommonCopyMethodItemTest : CommonCopyMemberItemTest<MethodItem>() {
                           @Deprecated public class Source {
                             method public void method();
                           }
-                          public class Target implements Source {
+                          public class Target implements test.pkg.Source {
                           }
                         }
                     """
@@ -369,7 +369,7 @@ class CommonCopyMethodItemTest : CommonCopyMemberItemTest<MethodItem>() {
                           public class Source {
                             method @Deprecated public void method();
                           }
-                          public class Target implements Source {
+                          public class Target implements test.pkg.Source {
                           }
                         }
                     """

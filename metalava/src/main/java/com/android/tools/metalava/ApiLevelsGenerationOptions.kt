@@ -312,7 +312,11 @@ class ApiLevelsGenerationOptions(
         // Find all the android.jar files for versions within the required range.
         val patternNode = PatternNode.parsePatterns(patterns)
         val versionRange = firstApiVersion.rangeTo(lastApiVersion)
-        val scanConfig = PatternNode.ScanConfig(dir = dir, apiVersionRange = versionRange)
+        val scanConfig =
+            PatternNode.ScanConfig(
+                dir = dir,
+                apiVersionFilter = versionRange::contains,
+            )
         return patternNode.scan(scanConfig)
     }
 

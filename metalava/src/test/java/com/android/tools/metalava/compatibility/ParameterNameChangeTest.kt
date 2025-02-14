@@ -40,7 +40,7 @@ class ParameterNameChangeTest : DriverTest() {
                 """
                     package test.pkg {
                       public class Foo {
-                        method public void bar(Int toast);
+                        method public void bar(int toast);
                       }
                     }
                 """,
@@ -48,7 +48,7 @@ class ParameterNameChangeTest : DriverTest() {
                 """
                     package test.pkg {
                       public class Foo {
-                        method public void bar(Int bread);
+                        method public void bar(int bread);
                       }
                     }
                 """,

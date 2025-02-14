@@ -38,38 +38,40 @@ class ApiFileTest : BaseTextCodebaseTest() {
 
     @Test
     fun `Test mixture of kotlinStyleNulls settings`() {
-        val exception =
-            assertThrows(ApiParseException::class.java) {
-                runSignatureTest(
-                    signature(
-                        "file1.txt",
-                        """
-                            // Signature format: 5.0
-                            // - kotlin-style-nulls=yes
-                            package test.pkg {
-                                public class Foo {
-                                    method void foo(Object);
-                                }
-                            }
-                        """
-                    ),
-                    signature(
-                        "file2.txt",
-                        """
-                            // Signature format: 5.0
-                            // - kotlin-style-nulls=no
-                            package test.pkg {
-                                public class Bar {
-                                    method void bar(Object);
-                                }
-                            }
-                        """
-                    )
-                ) {}
-            }
+        runSignatureTest(
+            signature(
+                "file1.txt",
+                """
+                    // Signature format: 5.0
+                    // - kotlin-style-nulls=yes
+                    package test.pkg {
+                        public class Foo {
+                            method void foo(Object);
+                        }
+                    }
+                """
+            ),
+            signature(
+                "file2.txt",
+                """
+                    // Signature format: 5.0
+                    // - kotlin-style-nulls=no
+                    package test.pkg {
+                        public class Bar {
+                            method void bar(Object);
+                        }
+                    }
+                """
+            ),
+        ) {
+            assertThat(reportedIssues)
+                .isEqualTo(
+                    "MAIN_SRC/file2.txt:1: error: Preceding file MAIN_SRC/file1.txt has different setting of kotlin-style-nulls which may cause issues [SignatureFileError]"
+                )
 
-        assertThat(exception.message)
-            .contains("Cannot mix signature files with different settings of kotlinStyleNulls")
+            codebase.assertClass("test.pkg.Foo")
+            codebase.assertClass("test.pkg.Bar")
+        }
     }
 
     @Test
@@ -460,6 +462,78 @@ class ApiFileTest : BaseTextCodebaseTest() {
 
             // Make sure that the fabricated instance is of the correct structure.
             assertThat(unknownInterfaceClass.classKind).isEqualTo(ClassKind.INTERFACE)
+        }
+    }
+
+    @Test
+    fun `Test type parser issues - kotlin-style-nulls=no`() {
+        runSignatureTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                        public abstract class Foo implements Comparable<? blah1> {
+                            field public static final int? FIELD1 = 0;
+                            method public void foo(Comparable<test.pkg.Foo>blah2);
+                            field public static final int? FIELD2 = 0;
+                        }
+                        public abstract class Bar implements Comparable<? blah1> {
+                        }
+                    }
+                """
+            ),
+        ) {
+            assertThat(reportedIssues)
+                .isEqualTo(
+                    """
+                        MAIN_SRC/api.txt:3: error: Type starts with "?" but doesn't appear to be wildcard: ? blah1 [SignatureFileError]
+                        MAIN_SRC/api.txt:4: error: Format does not support Kotlin-style null type syntax: int? [SignatureFileError]
+                        MAIN_SRC/api.txt:4: error: Invalid nullability suffix on primitive: int? [SignatureFileError]
+                        MAIN_SRC/api.txt:5: error: Could not parse type `Comparable<test.pkg.Foo>blah2`. Found unexpected string after type parameters: blah2 [SignatureFileError]
+                        MAIN_SRC/api.txt:6: error: Format does not support Kotlin-style null type syntax: int? [SignatureFileError]
+                        MAIN_SRC/api.txt:6: error: Invalid nullability suffix on primitive: int? [SignatureFileError]
+                        MAIN_SRC/api.txt:8: error: Type starts with "?" but doesn't appear to be wildcard: ? blah1 [SignatureFileError]
+                    """
+                        .trimIndent()
+                )
+
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+            val barClass = codebase.assertClass("test.pkg.Bar")
+
+            // Implements lists should drop blah1 and be an unbounded wildcard.
+            assertThat(fooClass.interfaceTypes().map { it.toString() })
+                .isEqualTo(listOf("java.lang.Comparable<?>"))
+            assertThat(barClass.interfaceTypes().map { it.toString() })
+                .isEqualTo(listOf("java.lang.Comparable<?>"))
+
+            // The type of Foo.FIELD1 should just be `int`.
+            assertThat(fooClass.assertField("FIELD1").type().toString()).isEqualTo("int")
+        }
+    }
+
+    @Test
+    fun `Test type parser issues - kotlin-style-nulls=yes`() {
+        runSignatureTest(
+            signature(
+                """
+                    // Signature format: 3.0
+                    package test.pkg {
+                        public abstract class Foo {
+                            field public static final int? FIELD1 = 0;
+                        }
+                    }
+                """
+            ),
+        ) {
+            assertThat(reportedIssues)
+                .isEqualTo(
+                    "MAIN_SRC/api.txt:4: error: Invalid nullability suffix on primitive: int? [SignatureFileError]"
+                )
+
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+
+            // The type of FIELD1 should just be `int`.
+            assertThat(fooClass.assertField("FIELD1").type().toString()).isEqualTo("int")
         }
     }
 

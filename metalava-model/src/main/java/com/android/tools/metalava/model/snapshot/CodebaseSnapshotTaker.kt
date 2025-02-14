@@ -350,12 +350,18 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
 
     override fun visitProperty(property: PropertyItem) {
         val propertyToSnapshot = property.actualItemToSnapshot
-
         val containingClass = property.containingClass().getSnapshotClass()
+
+        // Create a TypeParameterList and SnapshotTypeItemFactory for the property.
+        val (typeParameterList, propertyTypeItemFactory) =
+            globalTypeItemFactory.from(containingClass).inScope {
+                propertyToSnapshot.typeParameterList.snapshot(propertyToSnapshot.describe())
+            }
+
         val newProperty =
             // Resolve any type parameters used in the property's type within the scope of the
             // containing class's SnapshotTypeItemFactory.
-            globalTypeItemFactory.from(containingClass).inScope {
+            propertyTypeItemFactory.inScope {
                 itemFactory.createPropertyItem(
                     fileLocation = propertyToSnapshot.fileLocation,
                     itemLanguage = propertyToSnapshot.itemLanguage,
@@ -368,6 +374,8 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
                     setter = property.setter,
                     constructorParameter = property.constructorParameter,
                     backingField = property.backingField,
+                    receiver = property.receiver?.snapshot(),
+                    typeParameterList = typeParameterList
                 )
             }
         newProperty.copySelectedApiVariants(propertyToSnapshot)
