@@ -32,6 +32,7 @@ import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions.Ch
 import com.android.tools.metalava.cli.help.HelpCommand
 import com.android.tools.metalava.cli.internal.MakeAnnotationsPackagePrivateCommand
 import com.android.tools.metalava.cli.signature.MergeSignaturesCommand
+import com.android.tools.metalava.cli.signature.SignatureCatCommand
 import com.android.tools.metalava.cli.signature.SignatureToDexCommand
 import com.android.tools.metalava.cli.signature.SignatureToJDiffCommand
 import com.android.tools.metalava.cli.signature.UpdateSignatureHeaderCommand
@@ -904,6 +905,7 @@ private fun createMetalavaCommand(
         JarToJDiffCommand(),
         MakeAnnotationsPackagePrivateCommand(),
         MergeSignaturesCommand(),
+        SignatureCatCommand(),
         SignatureToDexCommand(),
         SignatureToJDiffCommand(),
         UpdateSignatureHeaderCommand(),

@@ -80,7 +80,7 @@ private constructor(
             containingClass: ClassItem,
             psiMethod: PsiMethod,
             enclosingClassTypeItemFactory: PsiTypeItemFactory,
-            psiParametersGetter: (PsiMethod) -> List<PsiParameter> = { it.psiParameters },
+            psiParameters: List<PsiParameter> = psiMethod.psiParameters,
         ): PsiConstructorItem {
             assert(psiMethod.isConstructor)
             val name = psiMethod.name
@@ -122,7 +122,7 @@ private constructor(
                             psiMethod,
                             containingCallable as PsiCallableItem,
                             constructorTypeItemFactory,
-                            psiParametersGetter(psiMethod),
+                            psiParameters,
                         )
                     },
                     returnType = containingClass.type(),

@@ -65,24 +65,6 @@ class ApiGenerator {
     }
 
     /**
-     * Creates an [Api] from a list of [VersionedApi]s.
-     *
-     * @param useInternalNames `true` if JVM internal names should be used, `false` otherwise.
-     * @param versionedApis A list of [VersionedApi]s, one for each version of the API, in order
-     *   from oldest to newest API version.
-     */
-    private fun createApiFromVersionedApis(
-        useInternalNames: Boolean,
-        versionedApis: List<VersionedApi>
-    ): Api {
-        val api = Api(useInternalNames)
-        for (versionedApi in versionedApis) {
-            versionedApi.updateApi(api)
-        }
-        return api
-    }
-
-    /**
      * Traverses [api] updating the [ApiElement.sdks] properties to list the appropriate extensions.
      *
      * Some APIs only exist in extension SDKs and not in the Android SDK, but for backwards
@@ -179,4 +161,22 @@ class ApiGenerator {
         val sdkExtensionInfo by
             lazy(LazyThreadSafetyMode.NONE) { SdkExtensionInfo.fromXml(sdkExtInfoFile.readText()) }
     }
+}
+
+/**
+ * Creates an [Api] from a list of [VersionedApi]s.
+ *
+ * @param useInternalNames `true` if JVM internal names should be used, `false` otherwise.
+ * @param versionedApis A list of [VersionedApi]s, one for each version of the API, in order from
+ *   oldest to newest API version.
+ */
+internal fun createApiFromVersionedApis(
+    useInternalNames: Boolean,
+    versionedApis: List<VersionedApi>
+): Api {
+    val api = Api(useInternalNames)
+    for (versionedApi in versionedApis) {
+        versionedApi.updateApi(api)
+    }
+    return api
 }

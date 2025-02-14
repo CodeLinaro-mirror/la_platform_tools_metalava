@@ -17,8 +17,8 @@
 package com.android.tools.metalava.model
 
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
-import com.android.tools.metalava.reporter.BasicReporter
 import com.android.tools.metalava.reporter.Reporter
+import com.android.tools.metalava.reporter.ThrowingReporter
 import java.io.File
 
 /**
@@ -142,7 +142,7 @@ interface Codebase {
         val apiSurfaces: ApiSurfaces = ApiSurfaces.DEFAULT,
 
         /** The reporter to use for issues found during processing of the [Codebase]. */
-        val reporter: Reporter = BasicReporter.ERR,
+        val reporter: Reporter = ThrowingReporter.INSTANCE,
     ) {
         companion object {
             /**

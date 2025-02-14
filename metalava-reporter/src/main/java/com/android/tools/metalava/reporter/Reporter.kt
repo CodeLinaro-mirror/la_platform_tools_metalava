@@ -19,6 +19,7 @@ package com.android.tools.metalava.reporter
 import java.io.File
 import java.io.OutputStream
 import java.io.PrintWriter
+import java.io.StringWriter
 import java.io.Writer
 
 interface Reporter {
@@ -105,14 +106,10 @@ interface Reporter {
 }
 
 /**
- * Basic implementation of a [Reporter] that performs no filtering and simply outputs the message to
- * the supplied [PrintWriter].
+ * Abstract implementation of a [Reporter] that performs no filtering and delegates the handling of
+ * a report to [handleFormattedMessage].
  */
-class BasicReporter(private val stderr: PrintWriter) : Reporter {
-    constructor(writer: Writer) : this(PrintWriter(writer))
-
-    constructor(outputStream: OutputStream) : this(PrintWriter(outputStream))
-
+abstract class AbstractBasicReporter : Reporter {
     override fun report(
         id: Issues.Issue,
         reportable: Reportable?,
@@ -120,25 +117,47 @@ class BasicReporter(private val stderr: PrintWriter) : Reporter {
         location: FileLocation,
         maximumSeverity: Severity,
     ): Boolean {
-        stderr.println(
-            buildString {
-                val usableLocation = reportable?.fileLocation ?: location
-                append(usableLocation.path)
-                if (usableLocation.line > 0) {
-                    append(":")
-                    append(usableLocation.line)
-                }
-                append(": ")
-                val severity = id.defaultLevel
-                append(severity)
-                append(": ")
-                append(message)
-                append(severity.messageSuffix)
-                append(" [")
-                append(id.name)
-                append("]")
+        val formattedMessage = buildString {
+            val usableLocation = reportable?.fileLocation ?: location
+            append(usableLocation.path)
+            if (usableLocation.line > 0) {
+                append(":")
+                append(usableLocation.line)
             }
-        )
+            append(": ")
+            val severity = id.defaultLevel
+            append(severity)
+            append(": ")
+            append(message)
+            append(severity.messageSuffix)
+            append(" [")
+            append(id.name)
+            append("]")
+        }
+        return handleFormattedMessage(formattedMessage)
+    }
+
+    abstract fun handleFormattedMessage(formattedMessage: String): Boolean
+
+    override fun isSuppressed(
+        id: Issues.Issue,
+        reportable: Reportable?,
+        message: String?
+    ): Boolean = false
+}
+
+/**
+ * Basic implementation of a [Reporter] that performs no filtering and simply outputs the message to
+ * the supplied [PrintWriter].
+ */
+class BasicReporter(private val stderr: PrintWriter) : AbstractBasicReporter() {
+    constructor(writer: Writer) : this(stderr = PrintWriter(writer))
+
+    constructor(outputStream: OutputStream) : this(stderr = PrintWriter(outputStream))
+
+    override fun handleFormattedMessage(formattedMessage: String): Boolean {
+        stderr.println(formattedMessage)
+        stderr.flush()
         return true
     }
 
@@ -147,8 +166,34 @@ class BasicReporter(private val stderr: PrintWriter) : Reporter {
         reportable: Reportable?,
         message: String?
     ): Boolean = false
+}
+
+/** A [Reporter] which will record issues in an internal buffer, accessible through [issues]. */
+class RecordingReporter : AbstractBasicReporter() {
+    private val stringWriter = StringWriter()
+
+    override fun handleFormattedMessage(formattedMessage: String): Boolean {
+        stringWriter.append(formattedMessage).append("\n")
+        return true
+    }
+
+    val issues
+        get() = stringWriter.toString().trim()
+}
+
+/**
+ * A [Reporter] which will throw an exception for the first issue, even warnings or hidden, that is
+ * reported.
+ *
+ * Safe to use when no issues are expected as it will prevent any issues from being silently
+ * ignored.
+ */
+class ThrowingReporter private constructor() : AbstractBasicReporter() {
+    override fun handleFormattedMessage(formattedMessage: String): Boolean {
+        error(formattedMessage)
+    }
 
     companion object {
-        val ERR = BasicReporter(System.err)
+        val INSTANCE = ThrowingReporter()
     }
 }

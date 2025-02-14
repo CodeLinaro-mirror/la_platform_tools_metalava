@@ -19,6 +19,9 @@ package com.android.tools.metalava.model.testsuite.methoditem
 import com.android.tools.metalava.model.JAVA_LANG_THROWABLE
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.testsuite.BaseModelTest
+import com.android.tools.metalava.testing.createAndroidModuleDescription
+import com.android.tools.metalava.testing.createCommonModuleDescription
+import com.android.tools.metalava.testing.createProjectDescription
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import kotlin.test.assertEquals
@@ -392,6 +395,65 @@ class CommonMethodItemTest : BaseModelTest() {
                     "test.pkg.TestAnnotation.InnerEnum.ENUM1"
                 )
             assertEquals(values, classItem.methods().map { it.defaultValue() })
+        }
+    }
+
+    @Test
+    fun `JvmOverloads methods`() {
+        val commonSource =
+            kotlin(
+                "commonMain/src/test/pkg/Foo.kt",
+                """
+                    package test.pkg
+                    import kotlin.jvm.JvmOverloads
+                    expect class Foo {
+                        @JvmOverloads
+                        fun allOptionalJvmOverloads(p1: Int = 0, p2: Int = 0, p3: Int = 0)
+
+                        @JvmOverloads
+                        fun someOptionalJvmOverloads(p1: Int, p2: Long = 0L, p3: Int, p4: Float = 0F, p5: Int)
+                    }
+                """
+            )
+        // @JvmOverloads needs to be annotated on the actual fun too, but the default values can't
+        // be present on actuals
+        val androidSource =
+            kotlin(
+                "androidMain/src/test/pkg/Foo.kt",
+                """
+                    package test.pkg
+                    actual class Foo {
+                        @JvmOverloads
+                        actual fun allOptionalJvmOverloads(p1: Int, p2: Int, p3: Int) = Unit
+
+                        @JvmOverloads
+                        actual fun someOptionalJvmOverloads(p1: Int, p2: Long, p3: Int, p4: Float, p5: Int) = Unit
+                    }
+                """
+            )
+        runCodebaseTest(
+            inputSet(androidSource, commonSource),
+            projectDescription =
+                createProjectDescription(
+                    createAndroidModuleDescription(arrayOf(androidSource)),
+                    createCommonModuleDescription(arrayOf(commonSource)),
+                ),
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+
+            // check all overloads for `allOptionalJvmOverloads` are present
+            fooClass.assertMethod("allOptionalJvmOverloads", "")
+            fooClass.assertMethod("allOptionalJvmOverloads", "int")
+            fooClass.assertMethod("allOptionalJvmOverloads", "int,int")
+            fooClass.assertMethod("allOptionalJvmOverloads", "int,int,int")
+
+            // check all overloads for `someOptionalJvmOverloads` are present
+            fooClass.assertMethod("someOptionalJvmOverloads", "int,int,int")
+            fooClass.assertMethod("someOptionalJvmOverloads", "int,long,int,int")
+            fooClass.assertMethod("someOptionalJvmOverloads", "int,long,int,float,int")
+
+            // check that there aren't any other methods present
+            assertEquals(fooClass.methods().size, 7)
         }
     }
 }

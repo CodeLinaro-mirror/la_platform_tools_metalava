@@ -29,6 +29,7 @@ import com.github.ajalt.clikt.parameters.groups.provideDelegate
 import com.github.ajalt.clikt.parameters.options.eagerOption
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
+import java.io.InputStream
 import java.io.PrintWriter
 
 const val ARG_VERSION = "--version"
@@ -305,16 +306,20 @@ private val CliktCommand.metalavaCommand
     get() = if (this is MetalavaCommand) this else currentContext.findObject()!!
 
 /** The [ExecutionEnvironment] within which the command is being run. */
-val CliktCommand.executionEnvironment: ExecutionEnvironment
+val CliktCommand.executionEnvironment
     get() = metalavaCommand.executionEnvironment
 
 /** The [PrintWriter] to use for error output from the command. */
-val CliktCommand.stderr: PrintWriter
+val CliktCommand.stderr
     get() = executionEnvironment.stderr
 
 /** The [PrintWriter] to use for non-error output from the command. */
-val CliktCommand.stdout: PrintWriter
+val CliktCommand.stdout
     get() = executionEnvironment.stdout
+
+/** The [InputStream] to use for input to the command. */
+val CliktCommand.stdin
+    get() = executionEnvironment.stdin
 
 val CliktCommand.commonOptions
     // Retrieve the CommonOptions that is made available by the containing MetalavaCommand.

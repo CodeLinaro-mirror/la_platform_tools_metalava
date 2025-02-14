@@ -1409,7 +1409,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
                       floatValue = -0.5F,
                       intValue = -1,
                       longValue = -2L,
-                      shortValue = -3,
+                      shortValue = -3
                     )
                     public class Test {
                         public Test() {}
