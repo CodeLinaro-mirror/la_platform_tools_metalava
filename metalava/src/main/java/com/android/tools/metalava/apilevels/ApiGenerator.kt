@@ -27,7 +27,7 @@ class ApiGenerator {
      */
     fun generateApiHistory(config: GenerateApiHistoryConfig) {
         val versionedApis = config.versionedApis
-        val api = createApiFromVersionedApis(versionedApis)
+        val api = createApiFromVersionedApis(config.useInternalNames, versionedApis)
 
         // If necessary, update the sdks properties.
         config.sdkExtensionsArguments?.let { sdkExtensionsArguments ->
@@ -67,11 +67,15 @@ class ApiGenerator {
     /**
      * Creates an [Api] from a list of [VersionedApi]s.
      *
+     * @param useInternalNames `true` if JVM internal names should be used, `false` otherwise.
      * @param versionedApis A list of [VersionedApi]s, one for each version of the API, in order
      *   from oldest to newest API version.
      */
-    private fun createApiFromVersionedApis(versionedApis: List<VersionedApi>): Api {
-        val api = Api()
+    private fun createApiFromVersionedApis(
+        useInternalNames: Boolean,
+        versionedApis: List<VersionedApi>
+    ): Api {
+        val api = Api(useInternalNames)
         for (versionedApi in versionedApis) {
             versionedApi.updateApi(api)
         }

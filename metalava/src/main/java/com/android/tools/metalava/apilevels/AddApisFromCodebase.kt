@@ -34,8 +34,9 @@ fun addApisFromCodebase(
     api: Api,
     apiVersion: ApiVersion,
     codebaseFragment: CodebaseFragment,
-    useInternalNames: Boolean,
 ) {
+    val useInternalNames = api.useInternalNames
+
     // Keep track of the versions added to this api.
     api.update(apiVersion)
 
@@ -130,7 +131,7 @@ fun addApisFromCodebase(
                 currentClass?.updateField(field.nameInApi(), updater, field.effectivelyDeprecated)
             }
 
-            /** The name of the field in this [Api], based on [useInternalNames] */
+            /** The name of the field in this [Api], based on [Api.useInternalNames] */
             fun FieldItem.nameInApi(): String {
                 return if (useInternalNames) {
                     internalName()
@@ -139,7 +140,7 @@ fun addApisFromCodebase(
                 }
             }
 
-            /** The name of the method in this [Api], based on [useInternalNames] */
+            /** The name of the method in this [Api], based on [Api.useInternalNames] */
             fun CallableItem.nameInApi(): String {
                 return if (useInternalNames) {
                     internalName() +
@@ -153,7 +154,7 @@ fun addApisFromCodebase(
                 }
             }
 
-            /** The name of the class in this [Api], based on [useInternalNames] */
+            /** The name of the class in this [Api], based on [Api.useInternalNames] */
             fun ClassItem.nameInApi(): String {
                 return if (useInternalNames) {
                     internalName()
@@ -173,7 +174,7 @@ fun addApisFromCodebase(
                 return nameParts.joinToString(separator)
             }
 
-            /** The names of the doclava enum methods, based on [useInternalNames] */
+            /** The names of the doclava enum methods, based on [Api.useInternalNames] */
             fun enumMethodNames(className: String): List<String> {
                 return if (useInternalNames) {
                     listOf("valueOf(Ljava/lang/String;)L$className;", "values()[L$className;")
