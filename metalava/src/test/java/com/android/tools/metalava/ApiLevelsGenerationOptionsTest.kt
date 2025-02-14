@@ -100,7 +100,7 @@ class ApiLevelsGenerationOptionsTest :
     override fun createOptions() = ApiLevelsGenerationOptions()
 
     /** Get an optional [GenerateApiHistoryConfig] for a fake set of signature files. */
-    private fun ApiLevelsGenerationOptions.fromFakeSignatureFiles(): GenerateApiHistoryConfig? =
+    private fun ApiLevelsGenerationOptions.fromFakeSignatureFiles() =
         fromSignatureFilesConfig(
             signatureFileLoader =
                 object : SignatureFileLoader {
@@ -113,6 +113,14 @@ class ApiLevelsGenerationOptionsTest :
                 error("Fake CodebaseFragment provider cannot create CodebaseFragment")
             },
         )
+
+    /**
+     * Get an optional [GenerateApiHistoryConfig] from
+     * [ApiLevelsGenerationOptions.forAndroidConfig].
+     */
+    private fun ApiLevelsGenerationOptions.testForAndroidConfig() = forAndroidConfig {
+        error("no codebase fragment")
+    }
 
     @Test
     fun `Test current version supports major-minor`() {
@@ -324,7 +332,7 @@ class ApiLevelsGenerationOptionsTest :
             ARG_SDK_INFO_FILE,
             sdkExtensionsInfoXml.path,
         ) {
-            val apiHistoryConfig = options.forAndroidConfig { error("no codebase fragment") }
+            val apiHistoryConfig = options.testForAndroidConfig()
             assertThat(apiHistoryConfig).isNotNull()
 
             // Compute the list of versioned files.
@@ -361,12 +369,12 @@ class ApiLevelsGenerationOptionsTest :
         ) {
             val exception =
                 assertThrows(IllegalArgumentException::class.java) {
-                    options.forAndroidConfig { error("no codebase fragment") }
+                    options.testForAndroidConfig()
                 }
 
             assertThat(exception.message)
                 .isEqualTo(
-                    "no extension sdk jar files found in $root/{version:extension}/*/{module}.jar"
+                    "no extension api files found by $root/{version:extension}/*/{module}.jar"
                 )
         }
     }
@@ -401,7 +409,7 @@ class ApiLevelsGenerationOptionsTest :
             ARG_SDK_INFO_FILE,
             sdkExtensionsInfoXml.path,
         ) {
-            val apiHistoryConfig = options.forAndroidConfig { error("no codebase fragment") }
+            val apiHistoryConfig = options.testForAndroidConfig()
             assertThat(apiHistoryConfig).isNotNull()
 
             assertThat(apiHistoryConfig!!.versionedApis.dump())

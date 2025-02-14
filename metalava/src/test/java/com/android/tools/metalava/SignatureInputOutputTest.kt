@@ -25,6 +25,7 @@ import com.android.tools.metalava.model.StripJavaLangPrefix
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.text.ApiFile
 import com.android.tools.metalava.model.text.FileFormat
+import com.android.tools.metalava.model.text.FileFormat.TypeArgumentSpacing
 import com.android.tools.metalava.model.text.SignatureFile
 import com.android.tools.metalava.model.text.assertSignatureFilesMatch
 import com.android.tools.metalava.model.visitors.ApiPredicate
@@ -610,7 +611,7 @@ class SignatureInputOutputTest : Assertions {
             """
                 // Signature format: 2.0
                 package test.pkg {
-                  public class Foo extends java.util.AbstractList<java.lang.String> implements java.lang.Comparable<java.lang.String> kotlin.collections.List<java.lang.String> {
+                  public class Foo<T extends java.util.Map<java.lang.Integer, java.lang.String>> extends java.util.AbstractList<java.lang.String> implements java.lang.Comparable<java.lang.String> kotlin.collections.List<java.lang.String> {
                     method public java.lang.String foo(java.lang.String...) throws java.lang.Exception;
                   }
                 }
@@ -630,7 +631,7 @@ class SignatureInputOutputTest : Assertions {
             """
                 // Signature format: 2.0
                 package test.pkg {
-                  public class Foo extends java.util.AbstractList<java.lang.String> implements java.lang.Comparable<java.lang.String> kotlin.collections.List<java.lang.String> {
+                  public class Foo<T extends java.util.Map<java.lang.Integer, java.lang.String>> extends java.util.AbstractList<java.lang.String> implements java.lang.Comparable<java.lang.String> kotlin.collections.List<java.lang.String> {
                     method public String foo(java.lang.String...) throws java.lang.Exception;
                   }
                 }
@@ -650,7 +651,7 @@ class SignatureInputOutputTest : Assertions {
             """
                 // Signature format: 2.0
                 package test.pkg {
-                  public abstract class Foo extends java.util.AbstractList<String> implements Comparable<String> kotlin.collections.List<String> {
+                  public abstract class Foo<T extends java.util.Map<Integer, String>> extends java.util.AbstractList<String> implements Comparable<String> kotlin.collections.List<String> {
                     method public String foo(String...) throws Exception;
                   }
                 }
@@ -662,6 +663,72 @@ class SignatureInputOutputTest : Assertions {
         ) {
             checkStrippedCodebaseTypes(codebase)
         }
+    }
+
+    @Test
+    fun `Test type-argument-spacing=none`() {
+        val api =
+            """
+                // Signature format: 2.0
+                package test.pkg {
+                  public interface Foo<T extends java.util.Map<Integer,String>> extends java.util.Map<String,Integer> {
+                    method public java.util.Map<String,String> foo(java.util.Map<Integer,Integer>);
+                  }
+                }
+            """
+                .trimIndent()
+        runInputOutputTest(
+            api,
+            FileFormat.V2.copy(
+                specifiedTypeArgumentSpacing = TypeArgumentSpacing.NONE,
+                // Strip java.lang. prefix to make test less verbose.
+                specifiedStripJavaLangPrefix = StripJavaLangPrefix.ALWAYS,
+            ),
+        )
+    }
+
+    @Test
+    fun `Test type-argument-spacing=legacy`() {
+        val api =
+            """
+                // Signature format: 2.0
+                package test.pkg {
+                  public interface Foo<T extends java.util.Map<Integer, String>> extends java.util.Map<String,Integer> {
+                    method public java.util.Map<String,String> foo(java.util.Map<Integer,Integer>);
+                  }
+                }
+            """
+                .trimIndent()
+        runInputOutputTest(
+            api,
+            FileFormat.V2.copy(
+                specifiedTypeArgumentSpacing = TypeArgumentSpacing.LEGACY,
+                // Strip java.lang. prefix to make test less verbose.
+                specifiedStripJavaLangPrefix = StripJavaLangPrefix.ALWAYS,
+            ),
+        )
+    }
+
+    @Test
+    fun `Test type-argument-spacing=space`() {
+        val api =
+            """
+                // Signature format: 2.0
+                package test.pkg {
+                  public interface Foo<T extends java.util.Map<Integer, String>> extends java.util.Map<String, Integer> {
+                    method public java.util.Map<String, String> foo(java.util.Map<Integer, Integer>);
+                  }
+                }
+            """
+                .trimIndent()
+        runInputOutputTest(
+            api,
+            FileFormat.V2.copy(
+                specifiedTypeArgumentSpacing = TypeArgumentSpacing.SPACE,
+                // Strip java.lang. prefix to make test less verbose.
+                specifiedStripJavaLangPrefix = StripJavaLangPrefix.ALWAYS,
+            ),
+        )
     }
 
     companion object {

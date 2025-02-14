@@ -33,6 +33,7 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeStringConfiguration
 import com.android.tools.metalava.model.text.FileFormat
+import com.android.tools.metalava.model.text.FileFormat.TypeArgumentSpacing
 import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiType
 import com.android.tools.metalava.model.visitors.ApiVisitor
@@ -245,8 +246,21 @@ class SignatureWriter(
         orderedInterfaces.forEach { typeItem -> writeExtendsOrImplementsType(typeItem) }
     }
 
+    /** [TypeStringConfiguration] for use when writing types in [writeTypeParameterList]. */
+    private val typeParameterItemStringConfiguration =
+        TypeStringConfiguration(
+            spaceBetweenTypeArguments = fileFormat.typeArgumentSpacing != TypeArgumentSpacing.NONE,
+            stripJavaLangPrefix =
+                // Only strip `java.lang.` prefix if always requested. That is because the LEGACY
+                // behavior is not to strip `java.lang.` prefix in bounds.
+                when (fileFormat.stripJavaLangPrefix) {
+                    StripJavaLangPrefix.ALWAYS -> StripJavaLangPrefix.ALWAYS
+                    else -> StripJavaLangPrefix.NEVER
+                },
+        )
+
     private fun writeTypeParameterList(typeList: TypeParameterList, addSpace: Boolean) {
-        val typeListString = typeList.toString()
+        val typeListString = typeList.toSource(typeParameterItemStringConfiguration)
         if (typeListString.isNotEmpty()) {
             write(typeListString)
             if (addSpace) {
@@ -305,6 +319,7 @@ class SignatureWriter(
         TypeStringConfiguration(
             annotations = fileFormat.includeTypeUseAnnotations,
             kotlinStyleNulls = fileFormat.kotlinStyleNulls,
+            spaceBetweenTypeArguments = fileFormat.typeArgumentSpacing == TypeArgumentSpacing.SPACE,
             stripJavaLangPrefix = fileFormat.stripJavaLangPrefix,
         )
 

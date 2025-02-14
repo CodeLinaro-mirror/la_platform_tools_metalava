@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.TypeParameterItem.Companion.SOURCE_TYPE_STRING_CONFIGURATION
 import com.android.tools.metalava.model.item.DefaultTypeParameterItem
 import com.android.tools.metalava.model.type.TypeItemFactory
 
@@ -25,6 +26,12 @@ import com.android.tools.metalava.model.type.TypeItemFactory
  * parameter T has bounds List<String>.
  */
 interface TypeParameterList : List<TypeParameterItem> {
+    /**
+     * Returns source representation of this type parameter, using fully qualified names (possibly
+     * with java.lang. removed if requested via [configuration]).
+     */
+    fun toSource(configuration: TypeStringConfiguration = SOURCE_TYPE_STRING_CONFIGURATION): String
+
     /**
      * Returns source representation of this type parameter, using fully qualified names (possibly
      * with java.lang. removed if requested via options)
@@ -43,7 +50,11 @@ interface TypeParameterList : List<TypeParameterItem> {
         /** Type parameter list when there are no type parameters */
         val NONE: TypeParameterList =
             object : TypeParameterList, List<TypeParameterItem> by emptyListDelegate {
-                override fun toString(): String = ""
+                override fun toSource(configuration: TypeStringConfiguration): String {
+                    return ""
+                }
+
+                override fun toString() = toSource()
 
                 override fun equals(other: Any?) = emptyListDelegate == other
 
@@ -56,20 +67,20 @@ class DefaultTypeParameterList
 private constructor(private val typeParameters: List<TypeParameterItem>) :
     TypeParameterList, List<TypeParameterItem> by typeParameters {
 
-    private val toString by lazy {
-        buildString {
-            if (this@DefaultTypeParameterList.isNotEmpty()) {
-                append("<")
-                var first = true
-                for (param in this@DefaultTypeParameterList) {
-                    if (!first) {
-                        append(", ")
-                    }
-                    first = false
-                    append(param.toSource())
+    private val toString by lazy(LazyThreadSafetyMode.NONE) { toSource() }
+
+    override fun toSource(configuration: TypeStringConfiguration) = buildString {
+        if (this@DefaultTypeParameterList.isNotEmpty()) {
+            append("<")
+            var first = true
+            for (param in this@DefaultTypeParameterList) {
+                if (!first) {
+                    append(", ")
                 }
-                append(">")
+                first = false
+                append(param.toSource(configuration))
             }
+            append(">")
         }
     }
 
