@@ -17,6 +17,7 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.cli.common.BaseCommandTest
+import com.android.tools.metalava.cli.historical.AndroidJarsToSignaturesCommand
 import com.android.tools.metalava.cli.signature.SIGNATURE_FORMAT_OPTIONS_HELP
 import com.android.tools.metalava.model.text.FileFormat
 import java.io.File
@@ -111,10 +112,8 @@ Arguments:
             for (apiVersion in 1..5) {
                 val versionJar = androidRootDir.resolve(currentAndroidJarFile(apiVersion))
 
-                // Some android.jar files already have a corresponding android.txt file.
-                val androidTxtFile =
-                    if (apiVersion == 5) androidRootDir.resolve(currentApiTxtFile(apiVersion))
-                    else null
+                // All android.jar files already have a corresponding android.txt file.
+                val androidTxtFile = androidRootDir.resolve(currentApiTxtFile(apiVersion))
 
                 // Add to the list of api versions.
                 apiVersionsInfo.add(ApiVersionInfo(apiVersion, versionJar, androidTxtFile))

@@ -430,8 +430,8 @@ class ApiFileTest : DriverTest() {
                     method @NonNull public static inline operator String component1(@NonNull String);
                     method public static inline int getRed(int);
                     method public static inline boolean isSrgb(long);
-                    property public static inline boolean isSrgb;
-                    property public static inline int red;
+                    property public static inline boolean long.isSrgb;
+                    property public static inline int int.red;
                   }
                   public class Parent {
                     ctor public Parent();

@@ -40,6 +40,7 @@ import com.android.tools.metalava.cli.common.map
 import com.android.tools.metalava.cli.common.newFile
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.CodebaseFragment
+import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import com.github.ajalt.clikt.parameters.options.OptionWithValues
 import com.github.ajalt.clikt.parameters.options.convert
@@ -81,6 +82,7 @@ private typealias VersionedApiFactory =
 class ApiLevelsGenerationOptions(
     private val executionEnvironment: ExecutionEnvironment = ExecutionEnvironment(),
     private val earlyOptions: EarlyOptions = EarlyOptions(),
+    private val apiSurfacesProvider: () -> ApiSurfaces? = { null },
 ) :
     OptionGroup(
         name = "Api Levels Generation",
@@ -319,10 +321,12 @@ class ApiLevelsGenerationOptions(
         // Find all the historical files for versions within the required range.
         val patternNode = PatternNode.parsePatterns(patterns)
         val versionRange = firstApiVersion.rangeTo(lastApiVersion)
+        val apiSurfaceByName = apiSurfacesProvider()?.all?.associateBy { it.name }
         val scanConfig =
             PatternNode.ScanConfig(
                 dir = dir,
                 apiVersionFilter = versionRange::contains,
+                apiSurfaceByName = apiSurfaceByName,
             )
         return patternNode.scan(scanConfig)
     }
@@ -380,12 +384,35 @@ class ApiLevelsGenerationOptions(
      * This has some Android specific code, e.g. structure of SDK extensions.
      */
     fun forAndroidConfig(
+        signatureFileLoader: SignatureFileLoader,
         codebaseFragmentProvider: () -> CodebaseFragment,
     ) =
         generateApiLevelXml?.let { outputFile ->
             // Scan for all the files that could contribute to the API history.
-            val matchedFiles = findHistoricalFiles(fileForPathInner("."), androidJarPatterns)
-            val versionedApiFactory = ::createVersionedJarApi
+            val currentDir = fileForPathInner(".")
+            val (patterns, matchedFiles, versionedApiFactory) =
+                if (signaturePatterns.isEmpty()) {
+                    Triple(
+                        androidJarPatterns,
+                        findHistoricalFiles(currentDir, androidJarPatterns),
+                        ::createVersionedJarApi,
+                    )
+                } else if (androidJarPatterns.isNotEmpty()) {
+                    cliError(
+                        "Cannot combine $ARG_API_VERSION_SIGNATURE_PATTERN with $ARG_ANDROID_JAR_PATTERN"
+                    )
+                } else {
+                    fun createVersionedSignatureApi(
+                        updater: ApiHistoryUpdater,
+                        files: List<MatchedPatternFile>,
+                    ) = VersionedSignatureApi(signatureFileLoader, files.map { it.file }, updater)
+
+                    Triple(
+                        signaturePatterns,
+                        findHistoricalFiles(currentDir, signaturePatterns),
+                        ::createVersionedSignatureApi,
+                    )
+                }
 
             // Split the files into extension api files and primary api files.
             val (extensionApiFiles, primaryApiFiles) = matchedFiles.partition { it.extension }
@@ -455,7 +482,7 @@ class ApiLevelsGenerationOptions(
                 // defined in an SDK version.
                 if (sdkExtensionsArguments != null) {
                     require(extensionApiFiles.isNotEmpty()) {
-                        "no extension api files found by ${androidJarPatterns.joinToString()}"
+                        "no extension api files found by ${patterns.joinToString()}"
                     }
                     addVersionedExtensionApis(
                         this,

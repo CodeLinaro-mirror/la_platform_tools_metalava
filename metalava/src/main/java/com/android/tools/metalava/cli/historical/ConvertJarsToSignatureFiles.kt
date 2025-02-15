@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2018 The Android Open Source Project
+ * Copyright (C) 2025 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,12 +14,20 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava
+package com.android.tools.metalava.cli.historical
 
 import com.android.SdkConstants
+import com.android.tools.metalava.CodebaseComparator
+import com.android.tools.metalava.ComparisonVisitor
+import com.android.tools.metalava.JarCodebaseLoader
+import com.android.tools.metalava.NullnessMigration
+import com.android.tools.metalava.ProgressTracker
+import com.android.tools.metalava.SignatureWriter
 import com.android.tools.metalava.apilevels.ApiVersion
 import com.android.tools.metalava.apilevels.PatternNode
 import com.android.tools.metalava.cli.common.DefaultSignatureFileLoader
+import com.android.tools.metalava.createFilteringVisitorForSignatures
+import com.android.tools.metalava.createReportFile
 import com.android.tools.metalava.model.ANDROIDX_NONNULL
 import com.android.tools.metalava.model.ANDROIDX_NULLABLE
 import com.android.tools.metalava.model.ClassItem
@@ -60,133 +68,141 @@ class ConvertJarsToSignatureFiles(
     private val fileFormat: FileFormat,
     private val apiVersions: Set<ApiVersion>?,
     private val apiSurfaceNames: Set<String>,
+    private val jarCodebaseLoader: JarCodebaseLoader,
+    private val root: File
 ) {
-    fun convertJars(jarCodebaseLoader: JarCodebaseLoader, root: File) {
-        val reporter = BasicReporter(stderr)
+    private val reporter = BasicReporter(stderr)
 
-        val patternNode =
-            PatternNode.parsePatterns(
-                listOf(
-                    "prebuilts/sdk/{version:major.minor?}/{surface}/android.jar",
-                )
-            )
-
-        val apiSurfaces =
-            ApiSurfaces.build {
-                for ((index, apiSurfaceName) in apiSurfaceNames.withIndex()) {
-                    // The main surface is irrelevant at the moment because this always generates
-                    // the whole API surface. However, a main surface is required so this just uses
-                    // the first one as the main surface for now.
-                    val isMain = index == 0
-                    createSurface(apiSurfaceName, isMain = isMain)
-                }
+    private val apiSurfaces =
+        ApiSurfaces.build {
+            for ((index, apiSurfaceName) in apiSurfaceNames.withIndex()) {
+                // The main surface is irrelevant at the moment because this always generates
+                // the whole API surface. However, a main surface is required so this just uses
+                // the first one as the main surface for now.
+                val isMain = index == 0
+                createSurface(apiSurfaceName, isMain = isMain)
             }
+        }
 
-        val jars =
-            patternNode.scan(
-                PatternNode.ScanConfig(
-                    dir = root,
-                    apiVersionFilter = apiVersions?.let { it::contains },
-                    apiSurfaceByName = apiSurfaces.all.associateBy { it.name },
-                )
+    fun convertJars() {
+        val scanConfig =
+            PatternNode.ScanConfig(
+                dir = root,
+                apiVersionFilter = apiVersions?.let { it::contains },
+                apiSurfaceByName = apiSurfaces.all.associateBy { it.name },
             )
 
-        for (matchedPatternFile in jars) {
-            val relativeFile = matchedPatternFile.file
-            val apiJar = root.resolve(relativeFile)
-            val relativeSignatureFile =
-                relativeFile.parentFile.resolve("api/${apiJar.nameWithoutExtension}.txt")
-            val signatureFile = root.resolve(relativeSignatureFile)
+        val historicalApis =
+            HistoricalApiVersionInfo.scan(
+                reporter,
+                jarFilePattern = "prebuilts/sdk/{version:major.minor?}/{surface}/android.jar",
+                signatureFilePattern =
+                    "prebuilts/sdk/{version:major.minor?}/{surface}/api/android.txt",
+                scanConfig,
+            )
 
-            progressTracker.progress("Writing signature files $relativeSignatureFile for $apiJar")
+        for (historicalApi in historicalApis) {
+            for (surfaceInfo in historicalApi.infoBySurface.values) {
+                convertJar(historicalApi.version, surfaceInfo)
+            }
+        }
+    }
 
-            val annotationManager = DefaultAnnotationManager()
-            val codebaseConfig =
-                Codebase.Config(
-                    annotationManager = annotationManager,
-                    apiSurfaces = apiSurfaces,
-                    reporter = reporter,
-                )
-            val signatureFileLoader = DefaultSignatureFileLoader(codebaseConfig)
+    /**
+     * Convert a single jar for [version] in [SurfaceInfo.jarFile] into its corresponding signature
+     * file, i.e. [SurfaceInfo.signatureFile].
+     */
+    private fun convertJar(version: ApiVersion, surfaceInfo: SurfaceInfo) {
+        val relativeJarFile = surfaceInfo.jarFile
+        val jarFile = root.resolve(relativeJarFile)
+        val relativeSignatureFile = surfaceInfo.signatureFile
+        val signatureFile = root.resolve(relativeSignatureFile)
 
-            val jarCodebase = jarCodebaseLoader.loadFromJarFile(apiJar)
+        progressTracker.progress("Writing signature files $relativeSignatureFile for $jarFile")
 
-            if (matchedPatternFile.version.major >= 28) {
-                // As of API 28 we'll put nullness annotations into the jar but some of them
-                // may be @RecentlyNullable/@RecentlyNonNull. Translate these back into
-                // normal @Nullable/@NonNull
-                jarCodebase.accept(
-                    object :
-                        ApiVisitor(
-                            apiPredicateConfig = ApiPredicate.Config(),
-                        ) {
-                        override fun visitItem(item: Item) {
-                            unmarkRecent(item)
-                            super.visitItem(item)
-                        }
+        val annotationManager = DefaultAnnotationManager()
+        val codebaseConfig =
+            Codebase.Config(
+                annotationManager = annotationManager,
+                apiSurfaces = apiSurfaces,
+                reporter = reporter,
+            )
+        val signatureFileLoader = DefaultSignatureFileLoader(codebaseConfig)
 
-                        private fun unmarkRecent(new: Item) {
-                            val annotation = NullnessMigration.findNullnessAnnotation(new) ?: return
-                            // Nullness information change: Add migration annotation
-                            val annotationClass =
-                                if (annotation.isNullable()) ANDROIDX_NULLABLE else ANDROIDX_NONNULL
+        val jarCodebase = jarCodebaseLoader.loadFromJarFile(jarFile)
 
-                            val replacementAnnotation =
-                                new.codebase.createAnnotation("@$annotationClass", new)
-                            new.mutateModifiers {
-                                mutateAnnotations {
-                                    remove(annotation)
-                                    replacementAnnotation?.let { add(it) }
-                                }
+        if (version.major >= 28) {
+            // As of API 28 we'll put nullness annotations into the jar but some of them may be
+            // @RecentlyNullable/@RecentlyNonNull. Translate these back into normal
+            // @Nullable/@NonNull
+            jarCodebase.accept(
+                object :
+                    ApiVisitor(
+                        apiPredicateConfig = ApiPredicate.Config(),
+                    ) {
+                    override fun visitItem(item: Item) {
+                        unmarkRecent(item)
+                        super.visitItem(item)
+                    }
+
+                    private fun unmarkRecent(new: Item) {
+                        val annotation = NullnessMigration.findNullnessAnnotation(new) ?: return
+                        // Nullness information change: Add migration annotation
+                        val annotationClass =
+                            if (annotation.isNullable()) ANDROIDX_NULLABLE else ANDROIDX_NONNULL
+
+                        val replacementAnnotation =
+                            new.codebase.createAnnotation("@$annotationClass", new)
+                        new.mutateModifiers {
+                            mutateAnnotations {
+                                remove(annotation)
+                                replacementAnnotation?.let { add(it) }
                             }
                         }
                     }
-                )
-                assert(!SUPPORT_TYPE_USE_ANNOTATIONS) {
-                    "We'll need to rewrite type annotations here too"
                 }
+            )
+            assert(!SUPPORT_TYPE_USE_ANNOTATIONS) {
+                "We'll need to rewrite type annotations here too"
             }
+        }
 
-            // Read deprecated attributes. Seem to be missing from code model;
-            // try to read via ASM instead since it must clearly be there.
-            markDeprecated(jarCodebase, apiJar, apiJar.path)
+        // Read deprecated attributes. Seem to be missing from code model; try to read via ASM
+        // instead since it must clearly be there.
+        markDeprecated(jarCodebase, jarFile, jarFile.path)
 
-            // ASM doesn't seem to pick up everything that's actually there according to
-            // javap. So as another fallback, read from the existing signature files:
-            if (signatureFile.isFile) {
-                try {
-                    val oldCodebase =
-                        signatureFileLoader.load(SignatureFile.fromFiles(signatureFile))
-                    val visitor =
-                        object : ComparisonVisitor() {
-                            override fun compareItems(old: Item, new: Item) {
-                                if (old.originallyDeprecated && old !is PackageItem) {
-                                    new.deprecateIfRequired("previous signature file for $old")
-                                }
-                            }
+        // ASM doesn't seem to pick up everything that's actually there according to javap. So as
+        // another fallback, read from the existing signature files:
+        try {
+            val oldCodebase = signatureFileLoader.load(SignatureFile.fromFiles(signatureFile))
+            val visitor =
+                object : ComparisonVisitor() {
+                    override fun compareItems(old: Item, new: Item) {
+                        if (old.originallyDeprecated && old !is PackageItem) {
+                            new.deprecateIfRequired("previous signature file for $old")
                         }
-                    CodebaseComparator().compare(visitor, oldCodebase, jarCodebase, null)
-                } catch (e: Exception) {
-                    throw IllegalStateException("Could not load $signatureFile: ${e.message}", e)
+                    }
                 }
-            }
+            CodebaseComparator().compare(visitor, oldCodebase, jarCodebase, null)
+        } catch (e: Exception) {
+            throw IllegalStateException("Could not load $signatureFile: ${e.message}", e)
+        }
 
-            createReportFile(progressTracker, jarCodebase, signatureFile, "API") { printWriter ->
-                val signatureWriter =
-                    SignatureWriter(
-                        writer = printWriter,
-                        fileFormat = fileFormat,
-                    )
-
-                createFilteringVisitorForSignatures(
-                    delegate = signatureWriter,
+        createReportFile(progressTracker, jarCodebase, signatureFile, "API") { printWriter ->
+            val signatureWriter =
+                SignatureWriter(
+                    writer = printWriter,
                     fileFormat = fileFormat,
-                    apiType = ApiType.PUBLIC_API,
-                    preFiltered = jarCodebase.preFiltered,
-                    showUnannotated = false,
-                    apiPredicateConfig = ApiPredicate.Config()
                 )
-            }
+
+            createFilteringVisitorForSignatures(
+                delegate = signatureWriter,
+                fileFormat = fileFormat,
+                apiType = ApiType.PUBLIC_API,
+                preFiltered = jarCodebase.preFiltered,
+                showUnannotated = false,
+                apiPredicateConfig = ApiPredicate.Config()
+            )
         }
     }
 

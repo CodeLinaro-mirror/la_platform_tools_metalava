@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 The Android Open Source Project
+ * Copyright (C) 2025 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,8 +14,10 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava
+package com.android.tools.metalava.cli.historical
 
+import com.android.tools.metalava.OptionsDelegate
+import com.android.tools.metalava.StandaloneJarCodebaseLoader
 import com.android.tools.metalava.apilevels.ApiVersion
 import com.android.tools.metalava.cli.common.MetalavaSubCommand
 import com.android.tools.metalava.cli.common.cliError
@@ -111,8 +113,10 @@ class AndroidJarsToSignaturesCommand :
                         signatureFormat.fileFormat,
                         apiVersions,
                         apiSurfaces,
+                        jarCodebaseLoader,
+                        androidRootDir,
                     )
-                    .convertJars(jarCodebaseLoader, androidRootDir)
+                    .convertJars()
             }
     }
 }
