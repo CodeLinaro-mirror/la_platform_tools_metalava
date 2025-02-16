@@ -27,7 +27,6 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.ClassTypeItem
-import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JAVA_PACKAGE_INFO
 import com.android.tools.metalava.model.MutableModifierList
@@ -92,7 +91,6 @@ import org.jetbrains.kotlin.psi.KtPropertyAccessor
 import org.jetbrains.kotlin.psi.KtTypeAlias
 import org.jetbrains.kotlin.psi.KtTypeReference
 import org.jetbrains.kotlin.psi.psiUtil.isPropertyParameter
-import org.jetbrains.kotlin.util.collectionUtils.filterIsInstanceAnd
 import org.jetbrains.uast.UClass
 import org.jetbrains.uast.UFile
 import org.jetbrains.uast.UMethod
@@ -316,7 +314,7 @@ internal class PsiCodebaseAssembler(
                         psiMethod,
                         classTypeItemFactory,
                     )
-                addOverloadedKotlinConstructorsIfNecessary(
+                addOverloadedKotlinCallablesIfNecessary(
                     classItem,
                     classTypeItemFactory,
                     constructor
@@ -335,6 +333,7 @@ internal class PsiCodebaseAssembler(
                 val method =
                     PsiMethodItem.create(codebase, classItem, psiMethod, classTypeItemFactory)
                 if (!method.isEnumSyntheticMethod()) {
+                    addOverloadedKotlinCallablesIfNecessary(classItem, classTypeItemFactory, method)
                     classItem.addMethod(method)
                 }
             }
@@ -385,59 +384,65 @@ internal class PsiCodebaseAssembler(
             // Collect all accessor methods, backing fields, and constructor parameters that could
             // be associated with the class properties.
             val accessors =
-                classItem.methods().filterIsInstanceAnd<PsiMethodItem> { it.isKotlinProperty() }
-            // Don't include data class component methods
-            val getters =
-                accessors
-                    .filter { it.parameters().isEmpty() && !it.name().startsWith("component") }
-                    .associateByNotNull { it.psiMethod.propertyForAccessor() }
-            val setters =
-                accessors
-                    .filter { it.parameters().size == 1 }
-                    .associateByNotNull { it.psiMethod.propertyForAccessor() }
+                classItem.methods().filterIsInstance<PsiMethodItem>().groupBy {
+                    it.psiMethod.propertyForAccessor()
+                }
             val backingFields =
                 classItem
                     .fields()
                     .map { it as PsiFieldItem }
                     .associateByNotNull { it.psi().sourceElement as? KtDeclaration }
-            val constructorParameters =
-                classItem.primaryConstructor
-                    ?.parameters()
-                    ?.map { it as PsiParameterItem }
-                    ?.filter { (it.sourcePsi as? KtParameter)?.isPropertyParameter() ?: false }
-                    ?.associateBy { it.name() }
-                    .orEmpty()
 
             // Properties can either be declared directly as properties or as constructor params.
+            // First find all property declarations.
             // For a file facade class containing top-level property definitions, the KtClass won't
-            // exist, so fall back to the properties underlying the getters and fields.
-            val allProperties =
-                if (ktClass != null) {
-                    ktClass.declarations.filterIsInstance<KtProperty>() +
-                        ktClass.primaryConstructor
-                            ?.valueParameters
-                            ?.filter { it.isPropertyParameter() }
-                            .orEmpty()
-                } else {
-                    (getters.keys + backingFields.keys).toSet()
-                }
-
-            for (propertyDeclaration in allProperties) {
-                val name = propertyDeclaration.name ?: continue
+            // exist, so get top level definitions from the file(s).
+            val declarations = ktClass?.declarations ?: topLevelDeclarations(psiClass)
+            val ktProperties = declarations.filterIsInstance<KtProperty>()
+            for (ktProperty in ktProperties) {
                 val property =
                     PsiPropertyItem.create(
                         codebase = codebase,
-                        ktDeclaration = propertyDeclaration,
+                        ktDeclaration = ktProperty,
                         containingClass = classItem,
-                        typeItemFactory = enclosingClassTypeItemFactory,
-                        name = name,
-                        getter = getters[propertyDeclaration],
-                        setter = setters[propertyDeclaration],
-                        constructorParameter = constructorParameters[name],
-                        backingField = backingFields[propertyDeclaration],
+                        containingTypeItemFactory = classTypeItemFactory,
+                        accessors = accessors[ktProperty] ?: emptyList(),
+                        constructorParameter = null,
+                        backingField = backingFields[ktProperty],
                     )
                         ?: continue
                 classItem.addProperty(property)
+            }
+
+            // Find all properties declared as constructor params
+            if (ktClass != null) {
+                val constructorParameters =
+                    classItem.primaryConstructor
+                        ?.parameters()
+                        ?.map { it as PsiParameterItem }
+                        ?.filter { (it.sourcePsi as? KtParameter)?.isPropertyParameter() ?: false }
+                        ?.associateBy { it.name() }
+                        .orEmpty()
+
+                val ktParameters =
+                    ktClass.primaryConstructor
+                        ?.valueParameters
+                        ?.filter { it.isPropertyParameter() }
+                        .orEmpty()
+                for (ktParameter in ktParameters) {
+                    val property =
+                        PsiPropertyItem.create(
+                            codebase = codebase,
+                            ktDeclaration = ktParameter,
+                            containingClass = classItem,
+                            containingTypeItemFactory = classTypeItemFactory,
+                            accessors = accessors[ktParameter] ?: emptyList(),
+                            constructorParameter = constructorParameters[ktParameter.name],
+                            backingField = backingFields[ktParameter],
+                        )
+                            ?: continue
+                    classItem.addProperty(property)
+                }
             }
         }
         // This actually gets all nested classes not just inner, i.e. non-static nested,
@@ -581,14 +586,13 @@ internal class PsiCodebaseAssembler(
     }
 
     /**
-     * Returns true if overloads of this constructor should be checked separately when checking the
-     * signature of this constructor.
+     * Returns true if overloads of this callable should be created separately.
      *
      * This works around the issue of actual callable not generating overloads for @JvmOverloads
      * annotation when the default is specified on expect side
      * (https://youtrack.jetbrains.com/issue/KT-57537).
      */
-    private fun PsiConstructorItem.shouldExpandOverloads(): Boolean {
+    private fun PsiCallableItem.shouldExpandOverloads(): Boolean {
         val ktFunction = (psiMethod as? UMethod)?.sourcePsi as? KtFunction ?: return false
         return modifiers.isActual() &&
             psiMethod.hasAnnotation(JvmStandardClassIds.JVM_OVERLOADS_FQ_NAME.asString()) &&
@@ -599,23 +603,23 @@ internal class PsiCodebaseAssembler(
     }
 
     /**
-     * Add overloads of [constructor] if necessary.
+     * Add overloads of [callable] if necessary.
      *
      * Workaround for https://youtrack.jetbrains.com/issue/KT-57537.
      *
-     * For each parameter with a default value in [constructor] this adds a [ConstructorItem] that
+     * For each parameter with a default value in [callable] this adds a [PsiCallableItem] that
      * excludes that parameter and all following parameters with default values.
      */
-    private fun addOverloadedKotlinConstructorsIfNecessary(
+    private fun addOverloadedKotlinCallablesIfNecessary(
         classItem: PsiClassItem,
         enclosingClassTypeItemFactory: PsiTypeItemFactory,
-        constructor: PsiConstructorItem,
+        callable: PsiCallableItem,
     ) {
-        if (!constructor.shouldExpandOverloads()) {
+        if (!callable.shouldExpandOverloads()) {
             return
         }
 
-        val parameters = constructor.parameters()
+        val parameters = callable.parameters()
 
         // Create an overload of the constructor for each parameter that has a default value. The
         // constructor will exclude that parameter and all following parameters that have default
@@ -625,25 +629,40 @@ internal class PsiCodebaseAssembler(
             // There is no need to create an overload if the parameter does not have default value.
             if (!currentParameter.hasDefaultValue()) continue
 
-            // Create an overloaded constructor.
-            val overloadConstructor =
-                PsiConstructorItem.create(
-                    codebase,
-                    classItem,
-                    constructor.psiMethod,
-                    enclosingClassTypeItemFactory,
-                    psiParametersGetter = {
-                        parameters.mapIndexedNotNull { index, parameterItem ->
-                            // Ignore the current parameter as well as any following parameters
-                            // with default values.
-                            if (index >= currentParameterIndex && parameterItem.hasDefaultValue())
-                                null
-                            else (parameterItem as PsiParameterItem).psiParameter
-                        }
-                    },
-                )
+            val psiParameters =
+                parameters.mapIndexedNotNull { index, parameterItem ->
+                    // Ignore the current parameter as well as any following parameters
+                    // with default values.
+                    if (index >= currentParameterIndex && parameterItem.hasDefaultValue()) null
+                    else (parameterItem as PsiParameterItem).psiParameter
+                }
+            // Create an overloaded callable.
+            when (callable) {
+                is PsiConstructorItem -> {
+                    val overloadConstructor =
+                        PsiConstructorItem.create(
+                            codebase,
+                            classItem,
+                            callable.psiMethod,
+                            enclosingClassTypeItemFactory,
+                            psiParameters,
+                        )
 
-            classItem.addConstructor(overloadConstructor)
+                    classItem.addConstructor(overloadConstructor)
+                }
+                is PsiMethodItem -> {
+                    val overloadMethod =
+                        PsiMethodItem.create(
+                            codebase,
+                            classItem,
+                            callable.psiMethod,
+                            enclosingClassTypeItemFactory,
+                            psiParameters,
+                        )
+
+                    classItem.addMethod(overloadMethod)
+                }
+            }
         }
     }
 
@@ -947,18 +966,24 @@ internal class PsiCodebaseAssembler(
      * [psiClasses] and adds them to the codebase.
      */
     private fun findTypeAliases(psiClasses: List<PsiClass>, codebase: PsiBasedCodebase) {
-        val facadeClasses =
-            psiClasses.mapNotNull { (it as? UClass)?.javaPsi as? KtLightClassForFacade }
         val typeAliases =
-            facadeClasses
-                .flatMap { it.files }
-                .flatMap { it.declarations }
-                .filterIsInstance<KtTypeAlias>()
+            psiClasses.flatMap { topLevelDeclarations(it) }.filterIsInstance<KtTypeAlias>()
         for (typeAlias in typeAliases) {
             val qualifiedTypeAliasName = typeAlias.getClassId()?.asFqNameString() ?: continue
             val value = codebase.globalTypeItemFactory.getTypeForKtElement(typeAlias) ?: continue
             codebase.typeAliases[qualifiedTypeAliasName] = value
         }
+    }
+
+    /**
+     * Returns a list of declarations from the [fileFacadeClass]. If [fileFacadeClass] is not
+     * actually a file facade class, returns an empty list.
+     */
+    private fun topLevelDeclarations(fileFacadeClass: PsiClass): List<KtDeclaration> {
+        return ((fileFacadeClass as? UClass)?.javaPsi as? KtLightClassForFacade)?.files?.flatMap {
+            it.declarations
+        }
+            ?: emptyList()
     }
 
     /**

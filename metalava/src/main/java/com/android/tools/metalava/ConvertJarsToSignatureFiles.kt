@@ -17,6 +17,8 @@
 package com.android.tools.metalava
 
 import com.android.SdkConstants
+import com.android.tools.metalava.apilevels.ApiVersion
+import com.android.tools.metalava.apilevels.PatternNode
 import com.android.tools.metalava.cli.common.DefaultSignatureFileLoader
 import com.android.tools.metalava.model.ANDROIDX_NONNULL
 import com.android.tools.metalava.model.ANDROIDX_NULLABLE
@@ -29,11 +31,13 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SUPPORT_TYPE_USE_ANNOTATIONS
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
+import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.SignatureFile
 import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiType
 import com.android.tools.metalava.model.visitors.ApiVisitor
+import com.android.tools.metalava.reporter.BasicReporter
 import java.io.File
 import java.io.IOException
 import java.io.PrintWriter
@@ -54,32 +58,60 @@ class ConvertJarsToSignatureFiles(
     private val stdout: PrintWriter,
     private val progressTracker: ProgressTracker,
     private val fileFormat: FileFormat,
+    private val apiVersions: Set<ApiVersion>?,
+    private val apiSurfaceNames: Set<String>,
 ) {
     fun convertJars(jarCodebaseLoader: JarCodebaseLoader, root: File) {
-        var api = 1
-        while (true) {
-            val apiJar = File(root, "prebuilts/sdk/$api/public/android.jar")
-            if (!apiJar.isFile) {
-                break
-            }
-            val signatureFile = "prebuilts/sdk/$api/public/api/android.txt"
-            val oldApiFile = File(root, "prebuilts/sdk/$api/public/api/android.txt")
-            val newApiFile =
-                // Place new-style signature files in separate files?
-                File(root, "prebuilts/sdk/$api/public/api/android.txt")
+        val reporter = BasicReporter(stderr)
 
-            progressTracker.progress("Writing signature files $signatureFile for $apiJar")
+        val patternNode =
+            PatternNode.parsePatterns(
+                listOf(
+                    "prebuilts/sdk/{version:major.minor?}/{surface}/android.jar",
+                )
+            )
+
+        val apiSurfaces =
+            ApiSurfaces.build {
+                for ((index, apiSurfaceName) in apiSurfaceNames.withIndex()) {
+                    // The main surface is irrelevant at the moment because this always generates
+                    // the whole API surface. However, a main surface is required so this just uses
+                    // the first one as the main surface for now.
+                    val isMain = index == 0
+                    createSurface(apiSurfaceName, isMain = isMain)
+                }
+            }
+
+        val jars =
+            patternNode.scan(
+                PatternNode.ScanConfig(
+                    dir = root,
+                    apiVersionFilter = apiVersions?.let { it::contains },
+                    apiSurfaceByName = apiSurfaces.all.associateBy { it.name },
+                )
+            )
+
+        for (matchedPatternFile in jars) {
+            val relativeFile = matchedPatternFile.file
+            val apiJar = root.resolve(relativeFile)
+            val relativeSignatureFile =
+                relativeFile.parentFile.resolve("api/${apiJar.nameWithoutExtension}.txt")
+            val signatureFile = root.resolve(relativeSignatureFile)
+
+            progressTracker.progress("Writing signature files $relativeSignatureFile for $apiJar")
 
             val annotationManager = DefaultAnnotationManager()
             val codebaseConfig =
                 Codebase.Config(
                     annotationManager = annotationManager,
+                    apiSurfaces = apiSurfaces,
+                    reporter = reporter,
                 )
             val signatureFileLoader = DefaultSignatureFileLoader(codebaseConfig)
 
             val jarCodebase = jarCodebaseLoader.loadFromJarFile(apiJar)
 
-            if (api >= 28) {
+            if (matchedPatternFile.version.major >= 28) {
                 // As of API 28 we'll put nullness annotations into the jar but some of them
                 // may be @RecentlyNullable/@RecentlyNonNull. Translate these back into
                 // normal @Nullable/@NonNull
@@ -121,9 +153,10 @@ class ConvertJarsToSignatureFiles(
 
             // ASM doesn't seem to pick up everything that's actually there according to
             // javap. So as another fallback, read from the existing signature files:
-            if (oldApiFile.isFile) {
+            if (signatureFile.isFile) {
                 try {
-                    val oldCodebase = signatureFileLoader.load(SignatureFile.fromFiles(oldApiFile))
+                    val oldCodebase =
+                        signatureFileLoader.load(SignatureFile.fromFiles(signatureFile))
                     val visitor =
                         object : ComparisonVisitor() {
                             override fun compareItems(old: Item, new: Item) {
@@ -134,11 +167,11 @@ class ConvertJarsToSignatureFiles(
                         }
                     CodebaseComparator().compare(visitor, oldCodebase, jarCodebase, null)
                 } catch (e: Exception) {
-                    throw IllegalStateException("Could not load $oldApiFile: ${e.message}", e)
+                    throw IllegalStateException("Could not load $signatureFile: ${e.message}", e)
                 }
             }
 
-            createReportFile(progressTracker, jarCodebase, newApiFile, "API") { printWriter ->
+            createReportFile(progressTracker, jarCodebase, signatureFile, "API") { printWriter ->
                 val signatureWriter =
                     SignatureWriter(
                         writer = printWriter,
@@ -154,14 +187,6 @@ class ConvertJarsToSignatureFiles(
                     apiPredicateConfig = ApiPredicate.Config()
                 )
             }
-
-            // Delete older redundant .xml files
-            val xmlFile = File(newApiFile.parentFile, "android.xml")
-            if (xmlFile.isFile) {
-                xmlFile.delete()
-            }
-
-            api++
         }
     }
 

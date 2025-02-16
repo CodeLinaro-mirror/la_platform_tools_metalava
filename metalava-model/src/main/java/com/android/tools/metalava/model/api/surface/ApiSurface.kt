@@ -16,8 +16,12 @@
 
 package com.android.tools.metalava.model.api.surface
 
-/** A specific API surface. */
-sealed interface ApiSurface {
+/**
+ * A specific API surface.
+ *
+ * Their natural ordering is determined by the order in which they were created in [surfaces].
+ */
+sealed interface ApiSurface : Comparable<ApiSurface> {
     /** The set of [ApiSurface]s to which this belongs. */
     val surfaces: ApiSurfaces
 

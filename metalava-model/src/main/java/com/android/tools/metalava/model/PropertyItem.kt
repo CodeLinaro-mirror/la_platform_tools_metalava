@@ -39,6 +39,12 @@ interface PropertyItem : MemberItem {
     /** The type of this property */
     override fun type(): TypeItem
 
+    /** The receiver type of this property, if one exists. */
+    val receiver: TypeItem?
+
+    /** The type parameters of this property. */
+    val typeParameterList: TypeParameterList
+
     override fun findCorrespondingItemIn(
         codebase: Codebase,
         superMethods: Boolean,
@@ -66,6 +72,16 @@ interface PropertyItem : MemberItem {
     }
 
     override fun toStringForItem(): String = "property ${containingClass().fullName()}.${name()}"
+
+    // Inherit deprecation from the getter
+    override val effectivelyDeprecated: Boolean
+        get() =
+            originallyDeprecated ||
+                if (getter == null) {
+                    containingClass().effectivelyDeprecated
+                } else {
+                    getter!!.effectivelyDeprecated
+                }
 
     companion object {
         val comparator: java.util.Comparator<PropertyItem> = Comparator { a, b ->

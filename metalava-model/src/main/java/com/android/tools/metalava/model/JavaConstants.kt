@@ -19,6 +19,7 @@ package com.android.tools.metalava.model
 const val JAVA_ENUM_VALUES = "values"
 const val JAVA_ENUM_VALUE_OF = "valueOf"
 
+const val JAVA_LANG_PACKAGE = "java.lang"
 const val JAVA_LANG_PREFIX = "java.lang."
 
 const val JAVA_LANG_ANNOTATION = "java.lang.annotation.Annotation"
@@ -36,6 +37,8 @@ const val JAVA_LANG_PARAMETER_TARGET = "java.lang.annotation.ElementType.PARAMET
 
 const val JAVA_RETENTION = "java.lang.annotation.Retention"
 const val KT_RETENTION = "kotlin.annotation.Retention"
+
+const val JVM_STATIC = "kotlin.jvm.JvmStatic"
 
 /** True if the annotation name represents @Retention (either the Java or Kotlin version) */
 fun isRetention(qualifiedName: String?): Boolean =

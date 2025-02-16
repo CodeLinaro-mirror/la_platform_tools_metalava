@@ -404,8 +404,8 @@ class ApiAnalyzerTest : DriverTest() {
                         method @Deprecated public int getI();
                         method @Deprecated public void setB(boolean);
                         method @Deprecated public void setI(int);
-                        property @Deprecated public final boolean b;
-                        property @Deprecated public final int i;
+                        property @Deprecated public boolean b;
+                        property @Deprecated public int i;
                       }
                     }
                 """,

@@ -674,11 +674,19 @@ internal class TurbineCodebaseInitialiser(
             }
         }
 
-        // Setup the SuperClass
+        // Set up the SuperClass
         val superClassType =
-            if (classKind != ClassKind.INTERFACE) {
-                typeBoundClass.superClassType()?.let { classTypeItemFactory.getSuperClassType(it) }
-            } else null
+            when (classKind) {
+                // Normal classes and enums have a non-null super class type.
+                ClassKind.CLASS,
+                ClassKind.ENUM ->
+                    typeBoundClass.superClassType()?.let {
+                        classTypeItemFactory.getSuperClassType(it)
+                    }
+                // Interfaces and annotations (which are a form of interface) do not.
+                ClassKind.INTERFACE,
+                ClassKind.ANNOTATION_TYPE -> null
+            }
 
         // Set interface types
         val interfaceTypes =
