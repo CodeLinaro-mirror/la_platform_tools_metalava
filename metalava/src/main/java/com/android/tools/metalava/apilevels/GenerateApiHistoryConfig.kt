@@ -40,9 +40,6 @@ data class GenerateApiHistoryConfig(
     /** The API levels file that will be generated. */
     val outputFile: File,
 
-    /** The [ApiPrinter] to use to write the API versions to [outputFile]. */
-    val printer: ApiPrinter,
-
     /**
      * Optional SDK extensions arguments.
      *
@@ -58,6 +55,12 @@ data class GenerateApiHistoryConfig(
      * An undefined class is one that is not defined within any of the API versions loaded.
      */
     val missingClassAction: MissingClassAction,
+
+    /**
+     * Determines whether the [Api] should use internal names for the elements, or more source like
+     * names.
+     */
+    val useInternalNames: Boolean,
 )
 
 /**

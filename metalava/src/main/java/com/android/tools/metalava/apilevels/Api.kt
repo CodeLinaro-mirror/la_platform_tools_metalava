@@ -19,8 +19,12 @@ import java.util.Collections
 import java.util.TreeMap
 import java.util.TreeSet
 
-/** Represents the whole Android API. */
-class Api : ParentApiElement {
+/**
+ * Represents the whole Android API.
+ *
+ * @param useInternalNames `true` if JVM internal names should be used, `false` otherwise.
+ */
+class Api(val useInternalNames: Boolean) : ParentApiElement {
     /**
      * This has to behave as if it exists since before any specific version (so that every class
      * always specifies its `since` attribute.

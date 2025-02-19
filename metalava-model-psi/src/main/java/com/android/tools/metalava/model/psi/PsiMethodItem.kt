@@ -34,6 +34,7 @@ import com.android.tools.metalava.model.type.MethodFingerprint
 import com.android.tools.metalava.reporter.FileLocation
 import com.intellij.psi.PsiAnnotationMethod
 import com.intellij.psi.PsiMethod
+import com.intellij.psi.PsiParameter
 import org.jetbrains.kotlin.psi.KtNamedFunction
 import org.jetbrains.kotlin.psi.KtParameter
 import org.jetbrains.kotlin.psi.KtProperty
@@ -171,6 +172,7 @@ internal class PsiMethodItem(
             containingClass: ClassItem,
             psiMethod: PsiMethod,
             enclosingClassTypeItemFactory: PsiTypeItemFactory,
+            psiParameters: List<PsiParameter> = psiMethod.psiParameters,
         ): PsiMethodItem {
             assert(!psiMethod.isConstructor)
             // UAST workaround: @JvmName for UMethod with fake LC PSI
@@ -249,6 +251,7 @@ internal class PsiMethodItem(
                             psiMethod,
                             containingCallable as PsiCallableItem,
                             methodTypeItemFactory,
+                            psiParameters,
                         )
                     },
                     typeParameterList = typeParameterList,

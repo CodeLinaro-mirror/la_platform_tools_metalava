@@ -21,6 +21,8 @@ import com.android.tools.metalava.model.api.surface.ApiVariantType
 import com.android.tools.metalava.testing.java
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
+import kotlin.test.assertSame
+import kotlin.test.assertTrue
 import org.junit.Test
 
 @Suppress("JavadocDeclaration")
@@ -51,6 +53,7 @@ class CommonApiSurfacesTest : BaseModelTest() {
         ) {
             val apiSurfaces = codebase.apiSurfaces
             assertEquals("main", apiSurfaces.main.name, "main name")
+            assertTrue(apiSurfaces.main.isMain, "main is main")
             assertNull(apiSurfaces.base, "base not expected")
         }
     }
@@ -84,8 +87,9 @@ class CommonApiSurfacesTest : BaseModelTest() {
                 ),
         ) {
             val apiSurfaces = codebase.apiSurfaces
-            assertEquals("main", apiSurfaces.main.name, "main name")
-            assertEquals("base", apiSurfaces.base?.name, "base name")
+            // No need to check the state of the ApiSurfaces, just that it is passed through to the
+            // codebase untouched.
+            assertSame(fixtureApiSurfaces, apiSurfaces, "api surfaces gets passed through")
         }
     }
 

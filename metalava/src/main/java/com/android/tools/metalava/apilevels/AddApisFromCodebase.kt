@@ -18,6 +18,7 @@ package com.android.tools.metalava.apilevels
 
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.CodebaseFragment
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DelegatedVisitor
@@ -32,16 +33,16 @@ import com.android.tools.metalava.model.MethodItem
  */
 fun addApisFromCodebase(
     api: Api,
-    apiVersion: ApiVersion,
+    updater: ApiHistoryUpdater,
     codebaseFragment: CodebaseFragment,
-    useInternalNames: Boolean,
 ) {
-    // Keep track of the versions added to this api.
-    api.update(apiVersion)
+    val useInternalNames = api.useInternalNames
+
+    // Keep track of the versions added to this api, if necessary.
+    updater.update(api)
 
     val delegatedVisitor =
         object : DelegatedVisitor {
-            val updater = ApiHistoryUpdater.forApiVersion(apiVersion)
 
             var currentClass: ApiClass? = null
 
@@ -53,49 +54,35 @@ fun addApisFromCodebase(
                 val newClass = api.updateClass(cls.nameInApi(), updater, cls.effectivelyDeprecated)
                 currentClass = newClass
 
-                if (cls.isClass()) {
-                    val superClass = cls.superClass()
-                    if (superClass != null) {
-                        newClass.updateSuperClass(superClass.nameInApi(), updater)
+                when (cls.classKind) {
+                    ClassKind.CLASS -> {
+                        val superClass = cls.superClass()
+                        if (superClass != null) {
+                            newClass.updateSuperClass(superClass.nameInApi(), updater)
+                        }
                     }
-                } else if (cls.isInterface()) {
-                    val superClass = cls.superClass()
-                    if (superClass != null && !superClass.isJavaLangObject()) {
-                        newClass.updateInterface(superClass.nameInApi(), updater)
-                    }
-                } else if (cls.isEnum()) {
-                    // Implicit super class; match convention from bytecode
-                    if (newClass.name != enumClass) {
-                        newClass.updateSuperClass(enumClass, updater)
-                    }
-
-                    // Mimic doclava enum methods
-                    enumMethodNames(newClass.name).forEach { name ->
-                        newClass.updateMethod(name, updater, false)
-                    }
-                } else if (cls.isAnnotationType()) {
-                    // Implicit super class; match convention from bytecode
-                    if (newClass.name != annotationClass) {
+                    ClassKind.INTERFACE -> {
+                        // Implicit super class; match convention from bytecode
                         newClass.updateSuperClass(objectClass, updater)
-                        newClass.updateInterface(annotationClass, updater)
                     }
-                }
+                    ClassKind.ENUM -> {
+                        // Implicit super class; match convention from bytecode
+                        if (newClass.name != enumClass) {
+                            newClass.updateSuperClass(enumClass, updater)
+                        }
 
-                // Ensure we don't end up with
-                //    -  <extends name="java/lang/Object"/>
-                //    +  <extends name="java/lang/Object" removed="29"/>
-                // which can happen because the bytecode always explicitly contains extends
-                // java.lang.Object
-                // but in the source code we don't see it, and the lack of presence of this
-                // shouldn't be
-                // taken as a sign that we no longer extend object. But only do this if the class
-                // didn't
-                // previously extend object and now extends something else.
-                if (
-                    (cls.isClass() || cls.isInterface()) &&
-                        newClass.superClasses.singleOrNull()?.name == objectClass
-                ) {
-                    newClass.updateSuperClass(objectClass, updater)
+                        // Mimic doclava enum methods
+                        enumMethodNames(newClass.name).forEach { name ->
+                            newClass.updateMethod(name, updater, false)
+                        }
+                    }
+                    ClassKind.ANNOTATION_TYPE -> {
+                        // Implicit super class; match convention from bytecode
+                        if (newClass.name != annotationClass) {
+                            newClass.updateSuperClass(objectClass, updater)
+                            newClass.updateInterface(annotationClass, updater)
+                        }
+                    }
                 }
 
                 for (interfaceType in cls.interfaceTypes()) {
@@ -130,7 +117,7 @@ fun addApisFromCodebase(
                 currentClass?.updateField(field.nameInApi(), updater, field.effectivelyDeprecated)
             }
 
-            /** The name of the field in this [Api], based on [useInternalNames] */
+            /** The name of the field in this [Api], based on [Api.useInternalNames] */
             fun FieldItem.nameInApi(): String {
                 return if (useInternalNames) {
                     internalName()
@@ -139,7 +126,7 @@ fun addApisFromCodebase(
                 }
             }
 
-            /** The name of the method in this [Api], based on [useInternalNames] */
+            /** The name of the method in this [Api], based on [Api.useInternalNames] */
             fun CallableItem.nameInApi(): String {
                 return if (useInternalNames) {
                     internalName() +
@@ -153,7 +140,7 @@ fun addApisFromCodebase(
                 }
             }
 
-            /** The name of the class in this [Api], based on [useInternalNames] */
+            /** The name of the class in this [Api], based on [Api.useInternalNames] */
             fun ClassItem.nameInApi(): String {
                 return if (useInternalNames) {
                     internalName()
@@ -173,7 +160,7 @@ fun addApisFromCodebase(
                 return nameParts.joinToString(separator)
             }
 
-            /** The names of the doclava enum methods, based on [useInternalNames] */
+            /** The names of the doclava enum methods, based on [Api.useInternalNames] */
             fun enumMethodNames(className: String): List<String> {
                 return if (useInternalNames) {
                     listOf("valueOf(Ljava/lang/String;)L$className;", "values()[L$className;")

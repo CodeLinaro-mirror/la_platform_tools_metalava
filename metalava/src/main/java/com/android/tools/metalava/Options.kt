@@ -23,6 +23,7 @@ import com.android.tools.metalava.cli.common.CommonOptions
 import com.android.tools.metalava.cli.common.DefaultSignatureFileLoader
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.cli.common.IssueReportingOptions
+import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.cli.common.PreviouslyReleasedApi
 import com.android.tools.metalava.cli.common.SourceOptions
 import com.android.tools.metalava.cli.common.Terminal
@@ -322,7 +323,14 @@ class Options(
             .multiple(required = false)
 
     /** The [Config] loaded from [configFiles]. */
-    val config by lazy(LazyThreadSafetyMode.NONE) { ConfigParser.parse(reporter, configFiles) }
+    val config by
+        lazy(LazyThreadSafetyMode.NONE) {
+            try {
+                ConfigParser.parse(configFiles)
+            } catch (e: Exception) {
+                throw MetalavaCliException(e.message!!, cause = e)
+            }
+        }
 
     val apiClassResolution by
         enumOption(

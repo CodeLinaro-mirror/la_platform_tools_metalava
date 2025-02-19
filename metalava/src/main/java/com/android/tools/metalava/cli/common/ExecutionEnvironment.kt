@@ -21,6 +21,7 @@ import com.android.tools.metalava.ENV_VAR_METALAVA_DUMP_ARGV
 import com.android.tools.metalava.model.source.SourceModelProvider
 import com.android.tools.metalava.reporter.DefaultReporterEnvironment
 import com.android.tools.metalava.reporter.ReporterEnvironment
+import java.io.InputStream
 import java.io.OutputStreamWriter
 import java.io.PrintWriter
 import java.io.StringWriter
@@ -35,6 +36,7 @@ import java.io.StringWriter
 data class ExecutionEnvironment(
     val stdout: PrintWriter = PrintWriter(OutputStreamWriter(System.out)),
     val stderr: PrintWriter = PrintWriter(OutputStreamWriter(System.err)),
+    val stdin: InputStream = System.`in`,
     val reporterEnvironment: ReporterEnvironment = DefaultReporterEnvironment(),
     val testEnvironment: TestEnvironment? = null,
 ) {
@@ -53,7 +55,7 @@ data class ExecutionEnvironment(
 
     companion object {
         /** Get an [ExecutionEnvironment] suitable for use by tests. */
-        fun forTest(): Triple<ExecutionEnvironment, StringWriter, StringWriter> {
+        fun forTest(stdin: String = ""): Triple<ExecutionEnvironment, StringWriter, StringWriter> {
             val stdoutString = StringWriter()
             val stderrString = StringWriter()
             val stdout = PrintWriter(stdoutString)
@@ -62,6 +64,7 @@ data class ExecutionEnvironment(
                 ExecutionEnvironment(
                     stdout = stdout,
                     stderr = stderr,
+                    stdin = stdin.byteInputStream(),
                     reporterEnvironment =
                         DefaultReporterEnvironment(
                             stdout = stdout,

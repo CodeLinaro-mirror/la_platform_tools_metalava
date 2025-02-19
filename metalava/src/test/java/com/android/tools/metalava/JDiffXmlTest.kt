@@ -491,7 +491,7 @@ class JDiffXmlTest : SignatureToJDiffCommandTest() {
             api =
                 """
                     package android.accounts {
-                      public class ArgbEvaluator<D, V> implements android.animation.DefaultEvaluator<D> implements android.animation.TypeEvaluator<V> {
+                      public class ArgbEvaluator<D, V> implements android.animation.DefaultEvaluator<D> android.animation.TypeEvaluator<V> {
                       }
                     }
                     """
@@ -512,8 +512,6 @@ class JDiffXmlTest : SignatureToJDiffCommandTest() {
                     <implements name="android.animation.DefaultEvaluator&lt;D>">
                     </implements>
                     <implements name="android.animation.TypeEvaluator&lt;V>">
-                    </implements>
-                    <implements name="java.lang.implements">
                     </implements>
                     </class>
                     </package>

@@ -79,7 +79,6 @@ Available Issues                             |  Category                |   Defa
   ConcreteCollection                         |  api_lint                |   error
   ConditionalRequiresPermissionNotExplained  |  api_lint                |   hidden
   ConfigFieldName                            |  api_lint                |   error
-  ConfigFileProblem                          |  unknown                 |   error
   ContextFirst                               |  api_lint                |   error
   ContextNameSuffix                          |  api_lint                |   error
   DefaultValueChange                         |  compatibility           |   error
@@ -199,6 +198,7 @@ Available Issues                             |  Category                |   Defa
   ServiceName                                |  api_lint                |   error
   SetterReturnsThis                          |  api_lint                |   warning
   ShowingMemberInHiddenClass                 |  api_lint                |   error
+  SignatureFileError                         |  unknown                 |   error
   SingleMethodInterface                      |  api_lint                |   error
   SingletonConstructor                       |  api_lint                |   error
   SingularCallback                           |  api_lint                |   error
@@ -215,6 +215,7 @@ Available Issues                             |  Category                |   Defa
   UnhiddenSystemApi                          |  api_lint                |   error
   UniqueKotlinOperator                       |  api_lint                |   error
   UnmatchedMergeAnnotation                   |  api_lint                |   error
+  UnqualifiedTypeError                       |  unknown                 |   hidden
   UnresolvedImport                           |  unknown                 |   info
   UnresolvedLink                             |  documentation           |   error
   UseIcu                                     |  api_lint                |   warning

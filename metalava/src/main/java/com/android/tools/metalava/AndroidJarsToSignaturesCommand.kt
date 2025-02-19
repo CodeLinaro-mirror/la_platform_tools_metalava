@@ -16,10 +16,12 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.apilevels.ApiVersion
 import com.android.tools.metalava.cli.common.MetalavaSubCommand
 import com.android.tools.metalava.cli.common.cliError
 import com.android.tools.metalava.cli.common.executionEnvironment
 import com.android.tools.metalava.cli.common.existingDir
+import com.android.tools.metalava.cli.common.map
 import com.android.tools.metalava.cli.common.progressTracker
 import com.android.tools.metalava.cli.common.stderr
 import com.android.tools.metalava.cli.common.stdout
@@ -28,6 +30,8 @@ import com.android.tools.metalava.reporter.BasicReporter
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.arguments.validate
 import com.github.ajalt.clikt.parameters.groups.provideDelegate
+import com.github.ajalt.clikt.parameters.options.option
+import com.github.ajalt.clikt.parameters.options.split
 
 private const val ARG_ANDROID_ROOT_DIR = "<android-root-dir>"
 
@@ -62,6 +66,33 @@ class AndroidJarsToSignaturesCommand :
     /** Add options for controlling the format of the generated files. */
     private val signatureFormat by SignatureFormatOptions()
 
+    /** Optional set of [ApiVersion]s to convert. */
+    private val apiVersions by
+        option(
+                help =
+                    """
+                        Comma separated list of api versions to convert. If unspecified then all
+                        versions will be converted.
+                    """
+                        .trimIndent(),
+                metavar = "<api-version-list>",
+            )
+            .split(",")
+            .map { list -> list?.map { ApiVersion.fromString(it) }?.toSet() }
+
+    private val apiSurfaces by
+        option(
+                help =
+                    """
+                        Comma separated list of api surfaces to convert. If unspecified then only
+                        `public` will be converted.
+                    """
+                        .trimIndent(),
+                metavar = "<api-surface-list>",
+            )
+            .split(",")
+            .map { list -> list?.toSet() ?: setOf("public") }
+
     override fun run() {
         // Make sure that none of the code called by this command accesses the global `options`
         // property.
@@ -78,6 +109,8 @@ class AndroidJarsToSignaturesCommand :
                         stdout,
                         progressTracker,
                         signatureFormat.fileFormat,
+                        apiVersions,
+                        apiSurfaces,
                     )
                     .convertJars(jarCodebaseLoader, androidRootDir)
             }

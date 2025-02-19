@@ -125,11 +125,11 @@ class ApiSelectionOptionsTest :
             ARG_API_SURFACE,
             "unknown",
         ) {
-            assertThrowsCliError(
-                "--api-surface (`unknown`) does not match an <api-surface> in a --config-file, expected one of `public`, `system`"
-            ) {
-                options.apiSurfaces
-            }
+            val exception = assertThrows(IllegalStateException::class.java) { options.apiSurfaces }
+            assertThat(exception.message)
+                .isEqualTo(
+                    "--api-surface (`unknown`) does not match an <api-surface> in a --config-file, expected one of `public`, `system`"
+                )
         }
     }
 
@@ -156,6 +156,8 @@ class ApiSelectionOptionsTest :
             ANDROID_SYSTEM_API,
         ) {
             options.apiSurfaces.assertBaseWasCreated()
+            assertThat(options.apiSurfaces.main.name).isEqualTo("system")
+            assertThat(options.apiSurfaces.base?.name).isEqualTo("public")
         }
     }
 
@@ -182,6 +184,7 @@ class ApiSelectionOptionsTest :
             "public",
         ) {
             options.apiSurfaces.assertBaseWasNotCreated()
+            assertThat(options.apiSurfaces.main.name).isEqualTo("public")
         }
     }
 }
