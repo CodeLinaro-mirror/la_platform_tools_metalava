@@ -27,6 +27,8 @@ import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.CodebaseCreatorConfig
 import com.android.tools.metalava.model.testing.CodebaseCreatorConfigAware
+import com.android.tools.metalava.reporter.Reporter
+import com.android.tools.metalava.reporter.ThrowingReporter
 import com.android.tools.metalava.testing.TemporaryFolderOwner
 import java.io.File
 import org.junit.Rule
@@ -147,10 +149,10 @@ abstract class BaseModelTest() :
 
     inner class DefaultCodebaseContext(
         override val codebase: Codebase,
-        private val mainSourceDir: File,
+        private val fileToSymbol: Map<File, String>,
     ) : CodebaseContext {
         override fun removeTestSpecificDirectories(string: String): String {
-            return cleanupString(string, mainSourceDir)
+            return replaceFileWithSymbol(string, fileToSymbol)
         }
     }
 
@@ -166,13 +168,17 @@ abstract class BaseModelTest() :
         val apiPackages: PackageFilter? = null,
 
         /** The set of [ApiSurfaces] used in the test. */
-        val apiSurfaces: ApiSurfaces = ApiSurfaces.DEFAULT
+        val apiSurfaces: ApiSurfaces = ApiSurfaces.DEFAULT,
+
+        /** The [Reporter] to use for issues found creating the [Codebase]. */
+        val reporter: Reporter = ThrowingReporter.INSTANCE,
     ) {
         /** The [Codebase.Config] to use when creating a [Codebase] to test. */
         val codebaseConfig =
             Codebase.Config(
                 annotationManager = annotationManager,
                 apiSurfaces = apiSurfaces,
+                reporter = reporter,
             )
     }
 
@@ -208,7 +214,16 @@ abstract class BaseModelTest() :
                         projectDescription = projectDescriptionFile,
                     )
                 runner.createCodebaseAndRun(inputs) { codebase ->
-                    val context = DefaultCodebaseContext(codebase, mainSourceDir.dir)
+                    val context =
+                        DefaultCodebaseContext(
+                            codebase,
+                            buildMap {
+                                this[mainSourceDir.dir] = "MAIN_SRC"
+                                additionalSourceDir?.dir?.let { dir ->
+                                    this[dir] = "ADDITIONAL_SRC"
+                                }
+                            }
+                        )
                     context.test()
                 }
             }

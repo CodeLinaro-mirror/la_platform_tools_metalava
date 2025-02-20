@@ -204,8 +204,8 @@ class CommonAnnotationItemTest : BaseModelTest() {
                       }
 
                       public @interface Test.Anno {
-                          method public Other annotationValue();
-                          method public Other[] annotationArrayValue();
+                          method public test.pkg.Other annotationValue();
+                          method public test.pkg.Other[] annotationArrayValue();
                       }
                     }
                 """
@@ -786,8 +786,8 @@ class CommonAnnotationItemTest : BaseModelTest() {
                       }
 
                       public @interface Test.Anno {
-                          method public Other annotationValue();
-                          method public Other[] annotationArrayValue();
+                          method public test.pkg.Other annotationValue();
+                          method public test.pkg.Other[] annotationArrayValue();
                       }
                     }
                 """
@@ -1288,7 +1288,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
                       }
 
                       public @interface Test.Anno {
-                         method public Int value();
+                         method public int value();
                       }
                     }
                 """
@@ -1409,7 +1409,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
                       floatValue = -0.5F,
                       intValue = -1,
                       longValue = -2L,
-                      shortValue = -3,
+                      shortValue = -3
                     )
                     public class Test {
                         public Test() {}

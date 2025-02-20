@@ -25,13 +25,11 @@ import java.io.File
  */
 class VersionedJarApi(
     val jar: File,
-    private val updater: ApiHistoryUpdater,
-) : VersionedApi {
-    override val apiVersion
-        get() = updater.apiVersion
-
+    updater: ApiHistoryUpdater,
+    private val filter: ((String) -> Boolean)? = null,
+) : VersionedApi(updater) {
     override fun updateApi(api: Api) {
-        api.readJar(jar, updater)
+        api.readJar(jar, updater, filter)
     }
 
     override fun toString() = "VersionedJarApi(jar=$jar, updater=$updater)"

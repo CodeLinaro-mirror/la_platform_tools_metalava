@@ -22,6 +22,7 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.ItemDocumentationFactory
+import com.android.tools.metalava.model.JVM_STATIC
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
@@ -105,7 +106,7 @@ internal class PsiFieldItem(
                                     this,
                                     "Companion object constants like ${name()} should be marked @JvmField for Java interoperability; see https://developer.android.com/kotlin/interop#companion_constants"
                                 )
-                            } else if (modifiers.findAnnotation("kotlin.jvm.JvmStatic") != null) {
+                            } else if (modifiers.findAnnotation(JVM_STATIC) != null) {
                                 codebase.reporter.report(
                                     Issues.MISSING_JVMSTATIC,
                                     this,

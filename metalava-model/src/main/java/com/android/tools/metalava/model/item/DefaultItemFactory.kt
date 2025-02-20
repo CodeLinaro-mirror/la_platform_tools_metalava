@@ -239,6 +239,8 @@ class DefaultItemFactory(
         name: String,
         containingClass: ClassItem,
         type: TypeItem,
+        receiver: TypeItem?,
+        typeParameterList: TypeParameterList,
         getter: MethodItem? = null,
         setter: MethodItem? = null,
         constructorParameter: ParameterItem? = null,
@@ -258,6 +260,8 @@ class DefaultItemFactory(
             setter,
             constructorParameter,
             backingField,
+            receiver,
+            typeParameterList,
         )
 
     /**

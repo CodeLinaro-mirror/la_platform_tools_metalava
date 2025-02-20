@@ -3882,7 +3882,7 @@ class CompatibilityCheckTest : DriverTest() {
                 """
                 package test.pkg {
                   public interface Foo {
-                    method abstract public void bar(Int);
+                    method abstract public void bar(int);
                   }
                 }
             """,
@@ -3890,7 +3890,7 @@ class CompatibilityCheckTest : DriverTest() {
                 """
                 package test.pkg {
                   public interface Foo {
-                    method default public void bar(Int);
+                    method default public void bar(int);
                     }
                   }
               """
@@ -3904,7 +3904,7 @@ class CompatibilityCheckTest : DriverTest() {
                 """
                 package test.pkg {
                   sealed class Foo {
-                    method final public void bar(Int);
+                    method final public void bar(int);
                   }
                 }
             """,
@@ -3913,7 +3913,7 @@ class CompatibilityCheckTest : DriverTest() {
                 """
                 package test.pkg {
                   sealed class Foo {
-                    method public void bar(Int);
+                    method public void bar(int);
                   }
                 }
             """

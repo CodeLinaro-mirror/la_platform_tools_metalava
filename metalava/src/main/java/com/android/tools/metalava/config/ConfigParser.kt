@@ -16,17 +16,11 @@
 
 package com.android.tools.metalava.config
 
-import com.android.tools.metalava.reporter.FileLocation
-import com.android.tools.metalava.reporter.Issues
-import com.android.tools.metalava.reporter.Reporter
-import com.android.tools.metalava.reporter.Severity
 import com.fasterxml.jackson.annotation.JsonInclude
 import com.fasterxml.jackson.databind.SerializationFeature
 import com.fasterxml.jackson.dataformat.xml.XmlMapper
 import com.fasterxml.jackson.module.kotlin.kotlinModule
 import java.io.File
-import java.net.URI
-import java.nio.file.Paths
 import javax.xml.XMLConstants
 import javax.xml.parsers.SAXParserFactory
 import javax.xml.validation.SchemaFactory
@@ -36,36 +30,43 @@ import org.xml.sax.helpers.DefaultHandler
 const val CONFIG_NAMESPACE = "http://www.google.com/tools/metalava/config"
 
 /** Parser for XML configuration files. */
-class ConfigParser private constructor(private val reporter: Reporter) : DefaultHandler() {
-    private fun reportParseException(exception: SAXParseException, severity: Severity) {
-        val systemIdAsURI = URI.create(exception.systemId)
-        val location = FileLocation.createLocation(Paths.get(systemIdAsURI), exception.lineNumber)
-        reporter.report(
-            Issues.CONFIG_FILE_PROBLEM,
-            null,
-            "Problem parsing configuration file: ${exception.message}",
-            location,
-            // The issue has a severity of ERROR, this limits it to whatever is required by the
-            // caller.
-            maximumSeverity = severity,
-        )
+class ConfigParser private constructor() : DefaultHandler() {
+    /** Errors that were reported while parsing a configuration file. */
+    private val errors = StringBuilder()
+
+    private fun recordException(path: String, message: String) {
+        errors.apply {
+            append("    ")
+            append(path)
+            append(": ")
+            append(message)
+            append("\n")
+        }
+    }
+
+    private fun recordParseException(exception: SAXParseException) {
+        errors.apply {
+            append("    ")
+            append(exception.systemId)
+            append(":")
+            append(exception.lineNumber)
+            append(": ")
+            append(exception.message)
+            append("\n")
+        }
     }
 
     override fun warning(exception: SAXParseException) {
-        reportParseException(exception, Severity.WARNING_ERROR_WHEN_NEW)
+        recordParseException(exception)
     }
 
     override fun error(exception: SAXParseException) {
-        reportParseException(exception, Severity.ERROR)
-    }
-
-    override fun fatalError(exception: SAXParseException) {
-        reportParseException(exception, Severity.ERROR)
+        recordParseException(exception)
     }
 
     companion object {
         /** Parse a list of configuration files in order, returning a single [Config] object. */
-        fun parse(reporter: Reporter, files: List<File>): Config {
+        fun parse(files: List<File>): Config {
             val schemaUrl = ConfigParser::class.java.getResource("/schemas/config.xsd")
             val schemafactory = SchemaFactory.newInstance(XMLConstants.W3C_XML_SCHEMA_NS_URI)
             val schema = schemafactory.newSchema(schemaUrl)
@@ -73,19 +74,37 @@ class ConfigParser private constructor(private val reporter: Reporter) : Default
             val saxParserFactory = SAXParserFactory.newNSInstance()
             saxParserFactory.schema = schema
             val saxParser = saxParserFactory.newSAXParser()
-            val configParser = ConfigParser(reporter)
+            val configParser = ConfigParser()
             val xmlMapper = configXmlMapper()
+
+            // Parse all the configuration files, validating against the schema, collating any
+            // errors that are reported.
+            for (file in files) {
+                // Parse the configuration file to validate against the schema first.
+                try {
+                    saxParser.parse(file, configParser)
+                } catch (e: SAXParseException) {
+                    configParser.recordParseException(e)
+                } catch (e: Exception) {
+                    configParser.recordException(file.path, e.message ?: "")
+                }
+            }
+
+            // If any errors were reported then fail as it is unlikely that reading or using the
+            // configuration file will work.
+            if (configParser.errors.isNotEmpty()) {
+                error("Errors found while parsing configuration file(s):\n${configParser.errors}")
+            }
+
             return files
                 .map { file ->
-
-                    // Parse the configuration file to validate against the schema first.
-                    saxParser.parse(file, configParser)
-
                     // Read the configuration file into a Config object.
                     xmlMapper.readValue(file, Config::class.java)
                 }
                 // Merge the config objects together.
                 .reduceOrNull { configLeft, configRight -> merge(configLeft, configRight) }
+                // Validate the config.
+                ?.apply { validate() }
             // If no configuration files were created then return an empty Config.
             ?: Config()
         }
