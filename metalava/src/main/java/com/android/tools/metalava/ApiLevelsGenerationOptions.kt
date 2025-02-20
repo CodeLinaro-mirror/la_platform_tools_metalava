@@ -321,7 +321,7 @@ class ApiLevelsGenerationOptions(
         // Find all the historical files for versions within the required range.
         val patternNode = PatternNode.parsePatterns(patterns)
         val versionRange = firstApiVersion.rangeTo(lastApiVersion)
-        val apiSurfaceByName = apiSurfacesProvider()?.all?.associateBy { it.name }
+        val apiSurfaceByName = apiSurfacesProvider()?.byName
         val scanConfig =
             PatternNode.ScanConfig(
                 dir = dir,

@@ -185,10 +185,10 @@ Arguments:
             val folder = folder("jdiff")
 
             args += "jar-to-jdiff"
-            args += androidJar.path
+            args += androidJar
 
             val xmlFile = outputFile("api.xml", parentDir = folder)
-            args += xmlFile.path
+            args += xmlFile
 
             // Verify that the generate file is correct.
             verify { assertEquals(expectedXml.trimIndent(), xmlFile.readText().trim()) }

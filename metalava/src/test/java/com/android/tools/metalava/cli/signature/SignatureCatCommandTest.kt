@@ -98,30 +98,26 @@ class SignatureCatCommandTest : BaseCommandTest<SignatureCatCommand>({ Signature
             args +=
                 listOf(
                     "signature-cat",
-                    inputFile(
-                            "foo.txt",
-                            """
+                    unindentedInputFile(
+                        "foo.txt",
+                        """
                             // Signature format: 2.0
                             package test.pkg {
                               public interface Foo {
                               }
                             }
                         """
-                                .trimIndent()
-                        )
-                        .path,
-                    inputFile(
-                            "bar.txt",
-                            """
+                    ),
+                    unindentedInputFile(
+                        "bar.txt",
+                        """
                             // Signature format: 2.0
                             package test.pkg {
                               public interface Bar {
                               }
                             }
                         """
-                                .trimIndent()
-                        )
-                        .path,
+                    ),
                 )
 
             // Stdin should be ignored when files are provided on the command line.
@@ -199,16 +195,15 @@ class SignatureCatCommandTest : BaseCommandTest<SignatureCatCommand>({ Signature
                   }
                 }
             """
-                .trimIndent()
 
         commandTest {
             val outputFile = outputFile("cat.txt")
             args +=
                 listOf(
                     "signature-cat",
-                    inputFile("current.txt", signature).path,
+                    unindentedInputFile("current.txt", signature),
                     "--output-file",
-                    outputFile.path
+                    outputFile,
                 )
 
             verify {

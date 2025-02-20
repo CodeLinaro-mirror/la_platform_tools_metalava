@@ -44,12 +44,12 @@ const val API_SELECTION_OPTIONS_GROUP = "Api Selection"
  *
  * @param apiSurfacesConfigProvider Provides the [ApiSurfacesConfig] that was provided in an
  *   [ARG_CONFIG_FILE], if any. This must only be called after all the options have been parsed.
- * @param ignoreShowAnnotationsProvider Provides an indication whether show annotations are going to
- *   be used or not, `true` if they are not, `false` if they are.
+ * @param checkSurfaceConsistencyProvider Returns `true` if the configured [ApiSurfaces] should be
+ *   checked for consistency with the [showUnannotated] property.
  */
 class ApiSelectionOptions(
     private val apiSurfacesConfigProvider: () -> ApiSurfacesConfig? = { null },
-    private val ignoreShowAnnotationsProvider: () -> Boolean = { false },
+    private val checkSurfaceConsistencyProvider: () -> Boolean = { true },
 ) :
     OptionGroup(
         name = API_SELECTION_OPTIONS_GROUP,
@@ -180,12 +180,12 @@ class ApiSelectionOptions(
     val apiSurfaces by
         lazy(LazyThreadSafetyMode.NONE) {
             val apiSurfacesConfig = apiSurfacesConfigProvider()
-            val ignoreShowAnnotations = ignoreShowAnnotationsProvider()
+            val checkSurfaceConsistency = checkSurfaceConsistencyProvider()
             createApiSurfaces(
                 showUnannotated,
                 apiSurface,
                 apiSurfacesConfig,
-                ignoreShowAnnotations,
+                checkSurfaceConsistency,
             )
         }
 
@@ -198,16 +198,14 @@ class ApiSelectionOptions(
          * @param targetApiSurface the optional name of the target API surface to be created. If
          *   supplied it MUST reference an [ApiSurfaceConfig] in [apiSurfacesConfig].
          * @param apiSurfacesConfig the optional [ApiSurfacesConfig].
-         * @param ignoreShowAnnotations if true then the show annotations should be ignored,
-         *   otherwise they should be used when create [ApiSurfaces]. This will be set to `true`
-         *   when the API is not being created from source files, e.g. when it is being created from
-         *   signature files as the show annotations only affect source files.
+         * @param checkSurfaceConsistency if `true` and [targetApiSurface] is not-null then check
+         *   the consistency between the configured surfaces and the [ApiSelectionOptions].
          */
         private fun createApiSurfaces(
             showUnannotated: Boolean,
             targetApiSurface: String?,
             apiSurfacesConfig: ApiSurfacesConfig?,
-            ignoreShowAnnotations: Boolean,
+            checkSurfaceConsistency: Boolean,
         ): ApiSurfaces {
             // A base API surface is needed if and only if the main API surface being generated
             // extends another API surface. That is not currently explicitly specified on the
@@ -255,7 +253,7 @@ class ApiSelectionOptions(
 
             val targetApiSurfaceConfig =
                 apiSurfacesConfig.getByNameOrError(targetApiSurface) {
-                    "$ARG_API_SURFACE (`$targetApiSurface`) does not match an <api-surface> in a --config-file"
+                    "$ARG_API_SURFACE (`$it`) does not match an <api-surface> in a --config-file"
                 }
 
             val extendedSurface = targetApiSurfaceConfig.extends
@@ -263,7 +261,7 @@ class ApiSelectionOptions(
 
             // If show annotations should not be ignored then perform a consistency check to ensure
             // that the configuration and command line options are compatible.
-            if (!ignoreShowAnnotations) {
+            if (checkSurfaceConsistency) {
                 if (extendsSurface != needsBase) {
                     val reason =
                         if (extendsSurface)
@@ -277,18 +275,34 @@ class ApiSelectionOptions(
             }
 
             // Create the ApiSurfaces from the configured API surfaces.
-            return ApiSurfaces.build {
-                // Add ApiSurface instances in order so that surfaces referenced by another (i.e.
-                // through `extends`) come before the surfaces that reference them. This ensures
-                // that the `extends` can be resolved to an existing `ApiSurface`.
-                for (surfaceConfig in apiSurfacesConfig.contributesTo(targetApiSurfaceConfig)) {
-                    createSurface(
-                        name = surfaceConfig.name,
-                        extends = surfaceConfig.extends,
-                        isMain = surfaceConfig.name == targetApiSurface,
-                    )
-                }
-            }
+            return apiSurfacesFromConfig(
+                apiSurfacesConfig.contributesTo(targetApiSurfaceConfig),
+                targetApiSurface
+            )
         }
     }
 }
+
+/**
+ * Create [ApiSurfaces] from a collection of [ApiSurfaceConfig]s.
+ *
+ * The [ApiSurfaceConfig]s must be in order such that every [ApiSurfaceConfig] comes before any
+ * [ApiSurfaceConfig] that extends it. It must also be complete such that the collection must
+ * contain every [ApiSurfaceConfig] that is extended by another in the collection.
+ */
+internal fun apiSurfacesFromConfig(
+    surfaceConfigs: Collection<ApiSurfaceConfig>,
+    targetApiSurface: String?
+) =
+    ApiSurfaces.build {
+        // Add ApiSurface instances in order so that surfaces referenced by another (i.e.
+        // through `extends`) come before the surfaces that reference them. This ensures
+        // that the `extends` can be resolved to an existing `ApiSurface`.
+        for (surfaceConfig in surfaceConfigs) {
+            createSurface(
+                name = surfaceConfig.name,
+                extends = surfaceConfig.extends,
+                isMain = surfaceConfig.name == targetApiSurface,
+            )
+        }
+    }

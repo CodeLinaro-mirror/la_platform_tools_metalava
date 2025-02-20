@@ -66,7 +66,7 @@ class HistoricalApiVersionInfoTest : TemporaryFolderOwner {
         val scanConfig =
             PatternNode.ScanConfig(
                 dir = root,
-                apiSurfaceByName = apiSurfaces.all.associateBy { it.name },
+                apiSurfaceByName = apiSurfaces.byName,
             )
 
         val list =

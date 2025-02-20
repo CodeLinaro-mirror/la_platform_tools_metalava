@@ -16,8 +16,11 @@
 
 package com.android.tools.metalava.cli.historical
 
+import com.android.tools.metalava.ARG_CONFIG_FILE
+import com.android.tools.metalava.ConfigFileOptions
 import com.android.tools.metalava.OptionsDelegate
 import com.android.tools.metalava.StandaloneJarCodebaseLoader
+import com.android.tools.metalava.apiSurfacesFromConfig
 import com.android.tools.metalava.apilevels.ApiVersion
 import com.android.tools.metalava.cli.common.MetalavaSubCommand
 import com.android.tools.metalava.cli.common.cliError
@@ -37,6 +40,8 @@ import com.github.ajalt.clikt.parameters.options.split
 
 private const val ARG_ANDROID_ROOT_DIR = "<android-root-dir>"
 
+private const val ARG_API_SURFACES = "--api-surfaces"
+
 class AndroidJarsToSignaturesCommand :
     MetalavaSubCommand(
         help =
@@ -53,9 +58,10 @@ class AndroidJarsToSignaturesCommand :
                 ARG_ANDROID_ROOT_DIR,
                 help =
                     """
-        The root directory of the Android source tree. The new signature files will be generated in
-        the `prebuilts/sdk/<api>/public/api/android.txt` sub-directories.
-    """
+                        The root directory of the Android source tree. The new signature files will
+                        be generated in the `prebuilts/sdk/<api>/<surface>/api/android.txt`
+                        sub-directories.
+                    """
                         .trimIndent()
             )
             .existingDir()
@@ -64,6 +70,8 @@ class AndroidJarsToSignaturesCommand :
                     cliError("$ARG_ANDROID_ROOT_DIR does not point to an Android source tree")
                 }
             }
+
+    private val configFileOptions by ConfigFileOptions()
 
     /** Add options for controlling the format of the generated files. */
     private val signatureFormat by SignatureFormatOptions()
@@ -82,8 +90,9 @@ class AndroidJarsToSignaturesCommand :
             .split(",")
             .map { list -> list?.map { ApiVersion.fromString(it) }?.toSet() }
 
-    private val apiSurfaces by
+    private val apiSurfaceNames by
         option(
+                ARG_API_SURFACES,
                 help =
                     """
                         Comma separated list of api surfaces to convert. If unspecified then only
@@ -93,12 +102,41 @@ class AndroidJarsToSignaturesCommand :
                 metavar = "<api-surface-list>",
             )
             .split(",")
-            .map { list -> list?.toSet() ?: setOf("public") }
+            .map { list -> list?.distinct() ?: listOf("public") }
 
     override fun run() {
         // Make sure that none of the code called by this command accesses the global `options`
         // property.
         OptionsDelegate.disallowAccess()
+
+        // Create a self-consistent set of ApiSurfaces that either need to be converted or
+        // contribute to a surface that needs to be converted.
+        val apiSurfaces =
+            configFileOptions.config.apiSurfaces?.let { apiSurfacesConfig ->
+
+                // Collect the transitive closure of the configured ApiSurfaceConfigs for the
+                // required
+                // API surfaces.
+                val surfaceConfigs = buildSet {
+                    for (name in apiSurfaceNames) {
+                        val surfaceConfig =
+                            apiSurfacesConfig.getByNameOrError(name) {
+                                "$ARG_API_SURFACES (`$it`) does not match an <api-surface> in a --config-file"
+                            }
+                        addAll(apiSurfacesConfig.contributesTo(surfaceConfig))
+                    }
+                }
+
+                apiSurfacesFromConfig(surfaceConfigs, apiSurfaceNames.last())
+            }
+                ?: error(
+                    "$ARG_CONFIG_FILE is either not specified or does not define any API surfaces"
+                )
+
+        // Get the selected ApiSurface(s). The lookup is guaranteed to not be null because the
+        // name was checked above. Sort, so any extended ApiSurface comes before an extended
+        // ApiSurface.
+        val selectedApiSurfaces = apiSurfaceNames.map { apiSurfaces.byName[it]!! }.sorted()
 
         StandaloneJarCodebaseLoader.create(
                 executionEnvironment,
@@ -113,6 +151,7 @@ class AndroidJarsToSignaturesCommand :
                         signatureFormat.fileFormat,
                         apiVersions,
                         apiSurfaces,
+                        selectedApiSurfaces,
                         jarCodebaseLoader,
                         androidRootDir,
                     )
