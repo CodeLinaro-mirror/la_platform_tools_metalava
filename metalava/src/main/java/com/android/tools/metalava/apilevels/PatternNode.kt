@@ -255,7 +255,7 @@ sealed class PatternNode {
         if (children.isEmpty())
             sequenceOf(
                 // Convert the PatternFileState into MatchedPatternFile objects relative to dir.
-                state.matchedPatternFile(config.dir),
+                state.matchedPatternFile(),
             )
         else children.asSequence().flatMap { it.scan(config, state) }
 
@@ -826,11 +826,11 @@ internal data class PatternFileState(
      * This must only be called when this has been matched by a leaf [PatternNode] and so is
      * guaranteed to have had [version] set to a non-null value.
      */
-    fun matchedPatternFile(dir: File) =
+    fun matchedPatternFile() =
         if (version == null) error("matching pattern could not extract version from $file")
         else
             MatchedPatternFile(
-                file = file.relativeDescendantOfOrSelf(dir),
+                file = file,
                 version = version,
                 extension = extension,
                 module = module,

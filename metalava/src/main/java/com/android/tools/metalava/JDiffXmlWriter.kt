@@ -292,26 +292,26 @@ class JDiffXmlWriter(
             }
         }
     }
-
-    /**
-     * Create an [ApiVisitor] that will filter the [Item] to which is applied according to the
-     * supplied parameters and in a manner appropriate for writing signatures, e.g. not nesting
-     * classes. It will delegate any visitor calls that pass through its filter to this
-     * [JDiffXmlWriter] instance.
-     */
-    fun createFilteringVisitor(
-        apiFilters: ApiFilters,
-        preFiltered: Boolean,
-        showUnannotated: Boolean,
-        filterSuperClassType: Boolean = true,
-    ): ApiVisitor =
-        FilteringApiVisitor(
-            this,
-            inlineInheritedFields = true,
-            interfaceListComparator = TypeItem.totalComparator,
-            apiFilters = apiFilters,
-            preFiltered = preFiltered,
-            filterSuperClassType = filterSuperClassType,
-            showUnannotated = showUnannotated,
-        )
 }
+
+/**
+ * Create an [ApiVisitor] that will filter the [Item] to which is applied according to the supplied
+ * parameters and in a manner appropriate for writing JDiff files, e.g. not nesting classes. It will
+ * delegate any visitor calls that pass through its filter to [delegate].
+ */
+fun createFilteringVisitorForJDiffWriter(
+    delegate: DelegatedVisitor,
+    apiFilters: ApiFilters,
+    preFiltered: Boolean,
+    showUnannotated: Boolean,
+    filterSuperClassType: Boolean = true,
+): ApiVisitor =
+    FilteringApiVisitor(
+        delegate,
+        inlineInheritedFields = true,
+        interfaceListComparator = TypeItem.totalComparator,
+        apiFilters = apiFilters,
+        preFiltered = preFiltered,
+        filterSuperClassType = filterSuperClassType,
+        showUnannotated = showUnannotated,
+    )

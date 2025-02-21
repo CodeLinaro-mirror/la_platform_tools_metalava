@@ -19,7 +19,6 @@ package com.android.tools.metalava.apilevels
 import com.android.tools.lint.checks.infrastructure.TestFiles
 import com.android.tools.metalava.ARG_ANDROID_JAR_PATTERN
 import com.android.tools.metalava.ARG_API_SURFACE
-import com.android.tools.metalava.ARG_API_VERSION_NAMES
 import com.android.tools.metalava.ARG_API_VERSION_SIGNATURE_FILES
 import com.android.tools.metalava.ARG_API_VERSION_SIGNATURE_PATTERN
 import com.android.tools.metalava.ARG_CURRENT_CODENAME
@@ -471,8 +470,8 @@ class ApiGeneratorTest : DriverTest() {
                 output.path,
                 ARG_API_VERSION_SIGNATURE_FILES,
                 pastVersions.joinToString(":") { it.absolutePath },
-                ARG_API_VERSION_NAMES,
-                listOf("1.1.0", "1.2.0", "1.3.0").joinToString(" "),
+                ARG_API_VERSION_SIGNATURE_PATTERN,
+                "${temporaryFolder.root}/{version:major.minor.patch}",
                 ARG_CURRENT_VERSION,
                 "1.4.0",
             )
@@ -601,8 +600,10 @@ class ApiGeneratorTest : DriverTest() {
                     apiVersionsXml.path,
                     ARG_API_VERSION_SIGNATURE_FILES,
                     pastVersions.joinToString(":") { it.absolutePath },
-                    ARG_API_VERSION_NAMES,
-                    listOf("1.1.0", "1.2.0").joinToString(" "),
+                    ARG_API_VERSION_SIGNATURE_PATTERN,
+                    "${temporaryFolder.root}/{version:major.minor.patch}",
+                    ARG_CURRENT_VERSION,
+                    "1.2.0",
                 ),
         )
 
@@ -621,31 +622,6 @@ class ApiGeneratorTest : DriverTest() {
                     </class>
                 </api>
             """
-        )
-    }
-
-    @Test
-    fun `Correct error with different number of API signature files and API version names`() {
-        val output = temporaryFolder.newFile("api-info.json")
-
-        val filePaths =
-            listOf("1.1.0", "1.2.0", "1.3.0").map { name ->
-                val file = createTextFile("$name.txt", "")
-                file.path
-            }
-
-        check(
-            extraArguments =
-                arrayOf(
-                    ARG_GENERATE_API_VERSION_HISTORY,
-                    output.path,
-                    ARG_API_VERSION_SIGNATURE_FILES,
-                    filePaths.joinToString(":"),
-                    ARG_API_VERSION_NAMES,
-                    listOf("1.1.0", "1.2.0").joinToString(" ")
-                ),
-            expectedFail =
-                "Aborting: --api-version-names must have one more version than --api-version-signature-files to include the current version name as --current-version is not provided"
         )
     }
 
@@ -669,7 +645,7 @@ class ApiGeneratorTest : DriverTest() {
                 arrayOf(
                     ARG_GENERATE_API_VERSION_HISTORY,
                     output.path,
-                    ARG_API_VERSION_NAMES,
+                    ARG_CURRENT_VERSION,
                     "0.0.0-alpha01"
                 )
         )
@@ -762,8 +738,10 @@ class ApiGeneratorTest : DriverTest() {
                     apiVersionsJson.path,
                     ARG_API_VERSION_SIGNATURE_FILES,
                     pastVersions.joinToString(":") { it.absolutePath },
-                    ARG_API_VERSION_NAMES,
-                    listOf("1.1.0", "1.2.0").joinToString(" ")
+                    ARG_API_VERSION_SIGNATURE_PATTERN,
+                    "${temporaryFolder.root}/{version:major.minor.patch}",
+                    ARG_CURRENT_VERSION,
+                    "1.2.0",
                 )
         )
 
@@ -844,8 +822,10 @@ class ApiGeneratorTest : DriverTest() {
                     apiVersionsJson.path,
                     ARG_API_VERSION_SIGNATURE_FILES,
                     pastVersions.joinToString(":") { it.absolutePath },
-                    ARG_API_VERSION_NAMES,
-                    listOf("1.1.0", "1.2.0").joinToString(" ")
+                    ARG_API_VERSION_SIGNATURE_PATTERN,
+                    "${temporaryFolder.root}/{version:major.minor.patch}.txt",
+                    ARG_CURRENT_VERSION,
+                    "1.2.0",
                 )
         )
 
