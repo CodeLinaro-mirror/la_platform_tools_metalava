@@ -19,7 +19,6 @@ package com.android.tools.metalava.cli.historical
 import com.android.tools.metalava.ARG_CONFIG_FILE
 import com.android.tools.metalava.ConfigFileOptions
 import com.android.tools.metalava.OptionsDelegate
-import com.android.tools.metalava.StandaloneJarCodebaseLoader
 import com.android.tools.metalava.apiSurfacesFromConfig
 import com.android.tools.metalava.apilevels.ApiVersion
 import com.android.tools.metalava.cli.common.MetalavaSubCommand
@@ -31,6 +30,7 @@ import com.android.tools.metalava.cli.common.progressTracker
 import com.android.tools.metalava.cli.common.stderr
 import com.android.tools.metalava.cli.common.stdout
 import com.android.tools.metalava.cli.signature.SignatureFormatOptions
+import com.android.tools.metalava.jar.StandaloneJarCodebaseLoader
 import com.android.tools.metalava.reporter.BasicReporter
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.arguments.validate
@@ -139,7 +139,7 @@ class AndroidJarsToSignaturesCommand :
         val selectedApiSurfaces = apiSurfaceNames.map { apiSurfaces.byName[it]!! }.sorted()
 
         StandaloneJarCodebaseLoader.create(
-                executionEnvironment,
+                executionEnvironment.disableStderrDumping(),
                 progressTracker,
                 BasicReporter(stderr),
             )

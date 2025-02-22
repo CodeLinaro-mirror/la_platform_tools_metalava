@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.testing
 
+import com.android.tools.lint.checks.infrastructure.TestFile
 import java.io.File
 
 /**
@@ -45,6 +46,13 @@ class DirectoryBuilder(val dir: File) {
         file.parentFile.mkdirs()
         file.createNewFile()
         return file
+    }
+
+    /** Create a jar file [relative] to [dir], containing compiled [sources]. */
+    fun jar(relative: String, vararg sources: TestFile): File {
+        val jarFile = dir.resolve(relative)
+        JavacHelper.compileAndJar(jarFile, sources.toList())
+        return jarFile
     }
 }
 

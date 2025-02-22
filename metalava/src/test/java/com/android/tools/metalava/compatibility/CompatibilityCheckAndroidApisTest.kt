@@ -144,11 +144,11 @@ abstract class CompatibilityCheckAndroidApisTest(
                 ApiLevelCheck(
                     18,
                     """
-                        load-api.txt:6911: error: Added method android.content.pm.PackageManager.getPackagesHoldingPermissions(String[],int) [AddedAbstractMethod]
-                        load-api.txt:29748: error: Added method android.widget.MediaController.MediaPlayerControl.getAudioSessionId() [AddedAbstractMethod]
-                        released-api.txt:16415: error: Removed field android.os.Process.BLUETOOTH_GID [RemovedField]
-                        released-api.txt:19682: error: Removed class android.renderscript.Program [RemovedClass]
-                        released-api.txt:19764: error: Removed class android.renderscript.ProgramStore [RemovedClass]
+                        load-api.txt:6910: error: Added method android.content.pm.PackageManager.getPackagesHoldingPermissions(String[],int) [AddedAbstractMethod]
+                        load-api.txt:29746: error: Added method android.widget.MediaController.MediaPlayerControl.getAudioSessionId() [AddedAbstractMethod]
+                        released-api.txt:16414: error: Removed field android.os.Process.BLUETOOTH_GID [RemovedField]
+                        released-api.txt:19681: error: Removed class android.renderscript.Program [RemovedClass]
+                        released-api.txt:19763: error: Removed class android.renderscript.ProgramStore [RemovedClass]
                     """,
                     hide(
                         "AddedClass",
@@ -167,19 +167,19 @@ abstract class CompatibilityCheckAndroidApisTest(
                 ApiLevelCheck(
                     19,
                     """
-                        load-api.txt:29411: warning: Field android.view.animation.Transformation.TYPE_ALPHA has added 'final' qualifier [AddedFinal]
-                        load-api.txt:29411: warning: Field android.view.animation.Transformation.TYPE_ALPHA has changed value from nothing/not constant to 1 [ChangedValue]
-                        load-api.txt:29412: warning: Field android.view.animation.Transformation.TYPE_BOTH has added 'final' qualifier [AddedFinal]
-                        load-api.txt:29412: warning: Field android.view.animation.Transformation.TYPE_BOTH has changed value from nothing/not constant to 3 [ChangedValue]
-                        load-api.txt:29413: warning: Field android.view.animation.Transformation.TYPE_IDENTITY has added 'final' qualifier [AddedFinal]
-                        load-api.txt:29413: warning: Field android.view.animation.Transformation.TYPE_IDENTITY has changed value from nothing/not constant to 0 [ChangedValue]
-                        load-api.txt:29414: warning: Field android.view.animation.Transformation.TYPE_MATRIX has added 'final' qualifier [AddedFinal]
-                        load-api.txt:29414: warning: Field android.view.animation.Transformation.TYPE_MATRIX has changed value from nothing/not constant to 2 [ChangedValue]
-                        load-api.txt:37262: warning: Method java.nio.CharBuffer.subSequence has changed return type from java.lang.CharSequence to java.nio.CharBuffer [ChangedType]
-                        released-api.txt:16987: error: Removed method android.os.Debug.MemoryInfo.getOtherLabel(int) [RemovedMethod]
-                        released-api.txt:16988: error: Removed method android.os.Debug.MemoryInfo.getOtherPrivateDirty(int) [RemovedMethod]
-                        released-api.txt:16989: error: Removed method android.os.Debug.MemoryInfo.getOtherPss(int) [RemovedMethod]
-                        released-api.txt:16990: error: Removed method android.os.Debug.MemoryInfo.getOtherSharedDirty(int) [RemovedMethod]
+                        load-api.txt:29409: warning: Field android.view.animation.Transformation.TYPE_ALPHA has added 'final' qualifier [AddedFinal]
+                        load-api.txt:29409: warning: Field android.view.animation.Transformation.TYPE_ALPHA has changed value from nothing/not constant to 1 [ChangedValue]
+                        load-api.txt:29410: warning: Field android.view.animation.Transformation.TYPE_BOTH has added 'final' qualifier [AddedFinal]
+                        load-api.txt:29410: warning: Field android.view.animation.Transformation.TYPE_BOTH has changed value from nothing/not constant to 3 [ChangedValue]
+                        load-api.txt:29411: warning: Field android.view.animation.Transformation.TYPE_IDENTITY has added 'final' qualifier [AddedFinal]
+                        load-api.txt:29411: warning: Field android.view.animation.Transformation.TYPE_IDENTITY has changed value from nothing/not constant to 0 [ChangedValue]
+                        load-api.txt:29412: warning: Field android.view.animation.Transformation.TYPE_MATRIX has added 'final' qualifier [AddedFinal]
+                        load-api.txt:29412: warning: Field android.view.animation.Transformation.TYPE_MATRIX has changed value from nothing/not constant to 2 [ChangedValue]
+                        load-api.txt:37259: warning: Method java.nio.CharBuffer.subSequence has changed return type from java.lang.CharSequence to java.nio.CharBuffer [ChangedType]
+                        released-api.txt:16986: error: Removed method android.os.Debug.MemoryInfo.getOtherLabel(int) [RemovedMethod]
+                        released-api.txt:16987: error: Removed method android.os.Debug.MemoryInfo.getOtherPrivateDirty(int) [RemovedMethod]
+                        released-api.txt:16988: error: Removed method android.os.Debug.MemoryInfo.getOtherPss(int) [RemovedMethod]
+                        released-api.txt:16989: error: Removed method android.os.Debug.MemoryInfo.getOtherSharedDirty(int) [RemovedMethod]
                     """,
                     // The last warning above is not right; seems to be a PSI jar loading bug. It
                     // returns the wrong return type!
@@ -196,9 +196,9 @@ abstract class CompatibilityCheckAndroidApisTest(
                 ApiLevelCheck(
                     20,
                     """
-                        load-api.txt:51013: warning: Method org.json.JSONObject.keys has changed return type from java.util.Iterator to java.util.Iterator<java.lang.String> [ChangedType]
-                        load-api.txt:52005: warning: Field org.xmlpull.v1.XmlPullParserFactory.features has changed type from java.util.HashMap to java.util.HashMap<java.lang.String,java.lang.Boolean> [ChangedType]
-                        released-api.txt:26150: error: Removed method android.util.TypedValue.complexToDimensionNoisy(int,android.util.DisplayMetrics) [RemovedMethod]
+                        load-api.txt:51010: warning: Method org.json.JSONObject.keys has changed return type from java.util.Iterator to java.util.Iterator<java.lang.String> [ChangedType]
+                        load-api.txt:52002: warning: Field org.xmlpull.v1.XmlPullParserFactory.features has changed type from java.util.HashMap to java.util.HashMap<java.lang.String,java.lang.Boolean> [ChangedType]
+                        released-api.txt:26148: error: Removed method android.util.TypedValue.complexToDimensionNoisy(int,android.util.DisplayMetrics) [RemovedMethod]
                     """,
                     hide(
                         DEFAULT_HIDDEN_ISSUES_STRING,
@@ -212,7 +212,7 @@ abstract class CompatibilityCheckAndroidApisTest(
                     26,
                     """
                         load-api.txt:3941: warning: Field android.app.ActivityManager.RunningAppProcessInfo.IMPORTANCE_PERCEPTIBLE has changed value from 130 to 230 [ChangedValue]
-                        load-api.txt:10849: warning: Field android.content.pm.PermissionInfo.PROTECTION_MASK_FLAGS has changed value from 4080 to 65520 [ChangedValue]
+                        load-api.txt:10848: warning: Field android.content.pm.PermissionInfo.PROTECTION_MASK_FLAGS has changed value from 4080 to 65520 [ChangedValue]
                     """,
                     hide(
                         "AddedAbstractMethod",

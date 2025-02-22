@@ -28,6 +28,7 @@ import org.junit.Test
 val DEFAULTABLE_PROPERTY_NAMES =
     listOf(
         "add-additional-overrides",
+        "normalize-final-modifier",
         "overloaded-method-order",
         "sort-whole-extends-list",
         "strip-java-lang-prefix",

@@ -190,6 +190,10 @@ com.android.tools.metalava.doc.RestrictedForEnvironmentTest
   Check RestrictedForEnvironment handling for multiple annotations[turbine]
   Check RestrictedForEnvironment handling for partial nested SDK_SANDBOX env[turbine]
 
+com.android.tools.metalava.jar.StandaloneJarCodebaseLoaderTest
+  Test jar loader does not freeze codebase[turbine]
+  Test jar loader freezes codebase[turbine]
+
 com.android.tools.metalava.lint.ApiLintTest
   CompletableFuture and plain Future not allowed[turbine]
   Listener replaceable with OutcomeReceiver or ListenableFuture[turbine]
