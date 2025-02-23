@@ -40,7 +40,7 @@ import com.github.ajalt.clikt.parameters.options.split
 
 private const val ARG_ANDROID_ROOT_DIR = "<android-root-dir>"
 
-private const val ARG_API_SURFACES = "--api-surfaces"
+const val ARG_API_SURFACES = "--api-surfaces"
 
 class AndroidJarsToSignaturesCommand :
     MetalavaSubCommand(

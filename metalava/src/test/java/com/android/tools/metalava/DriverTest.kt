@@ -81,6 +81,7 @@ import java.io.StringWriter
 import java.net.URI
 import kotlin.text.Charsets.UTF_8
 import org.intellij.lang.annotations.Language
+import org.junit.Assert
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
@@ -1230,22 +1231,12 @@ abstract class DriverTest :
             val generated =
                 SourceSet.createFromSourcePath(options.reporter, listOf(stubsDir)).sources
 
-            // Also need to include on the compile path annotation classes referenced in the stubs
-            val extraAnnotationsDir = File("../stub-annotations/src/main/java")
-            if (!extraAnnotationsDir.isDirectory) {
-                fail(
-                    "Couldn't find $extraAnnotationsDir: Is the pwd set to the root of the metalava source code?"
-                )
-                fail(
-                    "Couldn't find $extraAnnotationsDir: Is the pwd set to the root of an Android source tree?"
-                )
-            }
-            val extraAnnotations =
-                SourceSet.createFromSourcePath(options.reporter, listOf(extraAnnotationsDir))
-                    .sources
-
             // Compile the stubs, throwing an exception if it fails.
-            JavacHelper.compile(outputDirectory = project, sources = generated + extraAnnotations)
+            JavacHelper.compile(
+                outputDirectory = project,
+                sources = generated,
+                classPath = listOf(stubAnnotationsJar),
+            )
         }
     }
 
@@ -1403,6 +1394,15 @@ abstract class DriverTest :
                 val file = File(project, name)
                 if (!file.isFile) return file
             } while (true)
+        }
+
+        /** The jar produced by the :stub-annotations project. */
+        val stubAnnotationsJar by lazy {
+            val jar = File(System.getenv("METALAVA_STUB_ANNOTATIONS_JAR"))
+            if (!jar.isFile) {
+                Assert.fail("stub-annotations jar not found: $jar")
+            }
+            jar
         }
     }
 }

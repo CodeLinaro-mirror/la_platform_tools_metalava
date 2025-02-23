@@ -69,7 +69,7 @@ internal class TurbineSourceParser(
         return assembler.codebase
     }
 
-    override fun loadFromJar(apiJar: File): Codebase {
+    override fun loadFromJar(apiJar: File, classPath: List<File>): Codebase {
         TODO("b/299044569 handle this")
     }
 }

@@ -25,11 +25,13 @@ import com.android.tools.metalava.cli.common.stdin
 import com.android.tools.metalava.cli.common.stdout
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.noOpAnnotationManager
-import com.android.tools.metalava.model.snapshot.NonFilteringDelegatingVisitor
 import com.android.tools.metalava.model.text.ApiFile
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.SignatureFile
 import com.android.tools.metalava.model.text.SignatureWriter
+import com.android.tools.metalava.model.text.createFilteringVisitorForSignatures
+import com.android.tools.metalava.model.visitors.ApiPredicate
+import com.android.tools.metalava.model.visitors.ApiType
 import com.android.tools.metalava.reporter.BasicReporter
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.arguments.multiple
@@ -114,7 +116,18 @@ class SignatureCatCommand :
                 fileFormat = outputFormat,
             )
 
-        val apiWriter = NonFilteringDelegatingVisitor(signatureWriter)
+        // Create a visitor suitable for writing signatures. It will ensure correct ordering for
+        // signature files for the outputFormat.
+        val apiWriter =
+            createFilteringVisitorForSignatures(
+                delegate = signatureWriter,
+                fileFormat = outputFormat,
+                apiType = ApiType.ALL,
+                preFiltered = true,
+                showUnannotated = true,
+                apiPredicateConfig = ApiPredicate.Config(),
+            )
+
         codebase.accept(apiWriter)
     }
 }

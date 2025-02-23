@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.text
 
+import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
@@ -90,6 +91,11 @@ class SnapshotDeltaMaker private constructor(private val base: Codebase) :
     /** Override to skip any non-public or protected items. */
     override fun skip(item: Item): Boolean = !item.modifiers.isPublicOrProtected()
 
+    /** Convert a list of [AnnotationItem]s into a list of [String]s for comparison. */
+    // TODO(b/354633349): Use equality once value abstraction provides consistent behavior across
+    //   models.
+    private fun List<AnnotationItem>.normalize() = map { it.toString() }.sorted()
+
     override fun visitClass(cls: ClassItem) {
         cls.findCorrespondingItemIn(base)?.let { baseClass ->
             // If super class type is set and is different to the base class then drop out to emit
@@ -99,11 +105,11 @@ class SnapshotDeltaMaker private constructor(private val base: Codebase) :
                 return@let
             }
 
-            // If super class has different annotations to the base class then drop out to emit
+            // If this class has different annotations to the base class then drop out to emit
             // this class.
-            val superAnnotations = cls.modifiers.annotations().toSet()
-            val baseAnnotations = baseClass.modifiers.annotations().toSet()
-            if (superAnnotations != baseAnnotations) {
+            val annotations = cls.modifiers.annotations().normalize()
+            val baseAnnotations = baseClass.modifiers.annotations().normalize()
+            if (annotations != baseAnnotations) {
                 return@let
             }
 
