@@ -536,7 +536,7 @@ class PatternNodeTest : TemporaryFolderOwner {
                 "{version:level}/{surface}/api.txt",
             )
         val node = PatternNode.parsePatterns(patterns)
-        val apiSurfaceByName = apiSurfaces.all.associateBy { it.name }
+        val apiSurfaceByName = apiSurfaces.byName
         val files = node.scan(PatternNode.ScanConfig(rootDir, apiSurfaceByName = apiSurfaceByName))
         files.assertMatchedPatternFiles(expectedFiles)
     }

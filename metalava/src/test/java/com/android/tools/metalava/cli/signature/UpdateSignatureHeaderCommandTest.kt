@@ -37,13 +37,14 @@ class UpdateSignatureHeaderCommandTest :
             args += "--format"
             args += format.specifier()
 
-            val input = inputFile("api.txt", contents.trimIndent())
-            args += input.path
+            val trimmedContents = contents.trimIndent()
+            val input = inputFile("api.txt", trimmedContents)
+            args += input
 
             if (expectedOutput == null) {
                 verify {
                     // Make sure that the input file has not changed.
-                    assertEquals(contents.trimIndent(), input.readText())
+                    assertEquals(trimmedContents, input.readText())
                 }
             } else {
                 verify {

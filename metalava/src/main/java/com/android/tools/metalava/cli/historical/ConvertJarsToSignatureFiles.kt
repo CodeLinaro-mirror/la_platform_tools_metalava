@@ -39,6 +39,7 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SUPPORT_TYPE_USE_ANNOTATIONS
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
+import com.android.tools.metalava.model.api.surface.ApiSurface
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.SignatureFile
@@ -67,29 +68,19 @@ class ConvertJarsToSignatureFiles(
     private val progressTracker: ProgressTracker,
     private val fileFormat: FileFormat,
     private val apiVersions: Set<ApiVersion>?,
-    private val apiSurfaceNames: Set<String>,
+    private val apiSurfaces: ApiSurfaces,
+    private val selectedApiSurfaces: List<ApiSurface>,
     private val jarCodebaseLoader: JarCodebaseLoader,
     private val root: File
 ) {
     private val reporter = BasicReporter(stderr)
-
-    private val apiSurfaces =
-        ApiSurfaces.build {
-            for ((index, apiSurfaceName) in apiSurfaceNames.withIndex()) {
-                // The main surface is irrelevant at the moment because this always generates
-                // the whole API surface. However, a main surface is required so this just uses
-                // the first one as the main surface for now.
-                val isMain = index == 0
-                createSurface(apiSurfaceName, isMain = isMain)
-            }
-        }
 
     fun convertJars() {
         val scanConfig =
             PatternNode.ScanConfig(
                 dir = root,
                 apiVersionFilter = apiVersions?.let { it::contains },
-                apiSurfaceByName = apiSurfaces.all.associateBy { it.name },
+                apiSurfaceByName = apiSurfaces.byName,
             )
 
         val historicalApis =
@@ -102,7 +93,11 @@ class ConvertJarsToSignatureFiles(
             )
 
         for (historicalApi in historicalApis) {
-            for (surfaceInfo in historicalApi.infoBySurface.values) {
+            // Only convert the files of the selected ApiSurfaces, even if the other surfaces
+            // contribute to this, e.g. if `system` extends `public` and only `system` is selected
+            // then do not convert `public` files.
+            for (selectedApiSurface in selectedApiSurfaces) {
+                val surfaceInfo = historicalApi.infoBySurface[selectedApiSurface] ?: continue
                 convertJar(historicalApi.version, surfaceInfo)
             }
         }

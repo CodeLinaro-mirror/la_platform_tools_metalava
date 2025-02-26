@@ -83,8 +83,9 @@ data class ApiSurfacesConfig(
      *
      * If no such config exists then raise an error include [reason].
      */
-    inline fun getByNameOrError(name: String, reason: () -> String) =
-        byName[name] ?: error("${reason()}, expected one of ${byName.keys.joinToString {"`$it`"}}")
+    inline fun getByNameOrError(name: String, reason: (String) -> String) =
+        byName[name]
+            ?: error("${reason(name)}, expected one of ${byName.keys.joinToString {"`$it`"}}")
 
     /**
      * Ordered set of [ApiSurfaceConfig]s that maintains the order from the configuration except
@@ -151,7 +152,7 @@ data class ApiSurfacesConfig(
                     // This should not occur outside tests as the schema should ensure that
                     // `extends` always references an actual surface but throw a meaningful error
                     // anyway, just in case.
-                    "Surface `$name` extends an unknown surface `$extends`"
+                    "Surface `$name` extends an unknown surface `$it`"
                 }
             extendedSurface.flatten(flattened, visited)
         }
