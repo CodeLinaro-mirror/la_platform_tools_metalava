@@ -26,6 +26,7 @@ import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.FileFormat.OverloadedMethodOrder
+import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.createAndroidModuleDescription
 import com.android.tools.metalava.testing.createCommonModuleDescription
@@ -2460,7 +2461,8 @@ class ApiFileTest : DriverTest() {
                         method public String method2(String);
                       }
                     }
-            """
+            """,
+            extraArguments = arrayOf(ARG_HIDE, Issues.INHERIT_CHANGES_SIGNATURE.name),
         )
     }
 
@@ -3936,7 +3938,8 @@ class ApiFileTest : DriverTest() {
                     method public String method5(@NonNull String);
                   }
                 }
-                """
+                """,
+            extraArguments = arrayOf(ARG_HIDE, Issues.INHERIT_CHANGES_SIGNATURE.name),
         )
     }
 

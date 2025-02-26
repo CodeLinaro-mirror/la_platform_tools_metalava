@@ -854,7 +854,6 @@ fun createReportFile(
     }
 }
 
-@Suppress("DEPRECATION")
 fun createReportFile(
     progressTracker: ProgressTracker,
     codebase: Codebase,
@@ -876,10 +875,11 @@ fun createReportFile(
         }
         val text = stringWriter.toString()
         if (text.isNotEmpty() || !deleteEmptyFiles) {
+            apiFile.parentFile.mkdirs()
             apiFile.writeText(text)
         }
     } catch (e: IOException) {
-        options.reporter.report(Issues.IO_ERROR, apiFile, "Cannot open file for write.")
+        codebase.reporter.report(Issues.IO_ERROR, apiFile, "Cannot open file for write.")
     }
     if (description != null) {
         progressTracker.progress(
