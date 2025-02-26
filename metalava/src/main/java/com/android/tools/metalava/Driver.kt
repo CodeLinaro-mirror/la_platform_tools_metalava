@@ -30,6 +30,7 @@ import com.android.tools.metalava.cli.common.cliError
 import com.android.tools.metalava.cli.common.commonOptions
 import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions.CheckRequest
 import com.android.tools.metalava.cli.help.HelpCommand
+import com.android.tools.metalava.cli.historical.AndroidJarsToSignaturesCommand
 import com.android.tools.metalava.cli.internal.MakeAnnotationsPackagePrivateCommand
 import com.android.tools.metalava.cli.signature.MergeSignaturesCommand
 import com.android.tools.metalava.cli.signature.SignatureCatCommand
@@ -222,7 +223,12 @@ internal fun processFlags(
     }
 
     val generateXmlConfig =
-        options.apiLevelsGenerationOptions.forAndroidConfig {
+        options.apiLevelsGenerationOptions.forAndroidConfig(
+            // Do not use a cache here as each file loaded is only loaded once and the created
+            // Codebase is discarded immediately after use so caching just uses memory for no
+            // performance benefit.
+            options.signatureFileLoader,
+        ) {
             var codebaseFragment =
                 CodebaseFragment.create(codebase) { delegatedVisitor ->
                     FilteringApiVisitor(

@@ -17,6 +17,8 @@
 package com.android.tools.metalava.cli.signature
 
 import com.android.tools.metalava.cli.common.BaseCommandTest
+import com.android.tools.metalava.model.text.FileFormat
+import com.android.tools.metalava.model.text.assertSignatureFilesMatch
 import org.junit.Assert.*
 import org.junit.Test
 
@@ -27,10 +29,12 @@ Usage: metalava signature-cat [options] [<files>]...
   Cats signature files.
 
   Reads signature files either provided on the command line, or in stdin into a combined API surface and then writes it
-  out to stdout according to the format options. The resulting output will be different to the input if the input does
-  not already conform to the selected format.
+  out to either the output file provided on the command line or to stdout according to the format options. The resulting
+  output will be different to the input if the input does not already conform to the selected format.
 
 Options:
+  --output-file <file>                       File to write the signature output to. If not specified stdout will be
+                                             used.
   -h, -?, --help                             Show this message and exit
 
 $SIGNATURE_FORMAT_OPTIONS_HELP
@@ -182,6 +186,38 @@ class SignatureCatCommandTest : BaseCommandTest<SignatureCatCommand>({ Signature
                     }
                 """
                     .trimIndent()
+        }
+    }
+
+    @Test
+    fun `Cat from file to file`() {
+        val signature =
+            """
+                // Signature format: 2.0
+                package test.pkg {
+                  public interface Foo {
+                  }
+                }
+            """
+                .trimIndent()
+
+        commandTest {
+            val outputFile = outputFile("cat.txt")
+            args +=
+                listOf(
+                    "signature-cat",
+                    inputFile("current.txt", signature).path,
+                    "--output-file",
+                    outputFile.path
+                )
+
+            verify {
+                assertSignatureFilesMatch(
+                    signature,
+                    outputFile.readText(Charsets.UTF_8),
+                    expectedFormat = FileFormat.V2
+                )
+            }
         }
     }
 }
