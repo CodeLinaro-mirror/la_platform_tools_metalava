@@ -872,45 +872,6 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
     }
 
     @Test
-    fun `230 test public name and default value of parameters`() {
-        runSourceCodebaseTest(
-            java(
-                """
-                    package test.pkg;
-
-                    import java.lang.annotation.ElementType;
-                    import java.lang.annotation.Target;
-
-                    public class Test {
-                        public void foo(@ParameterName("TestParam") @DefaultValue(5) int parameter) {
-                        }
-                    }
-
-                    @Target(ElementType.PARAMETER)
-                    @interface DefaultValue {
-                        int value();
-                    }
-
-                    @Target(ElementType.PARAMETER)
-                    @interface ParameterName {
-                        String value();
-                    }
-                """
-            ),
-        ) {
-            val methodItem = codebase.assertClass("test.pkg.Test").methods().single()
-            val paramItem = methodItem.parameters().single()
-
-            assertEquals("parameter", paramItem.name())
-            assertEquals(methodItem, paramItem.containingCallable())
-            assertEquals("TestParam", paramItem.publicName())
-            assertEquals(true, paramItem.hasDefaultValue())
-            assertEquals(true, paramItem.isDefaultValueKnown())
-            assertEquals("5", paramItem.defaultValueAsString())
-        }
-    }
-
-    @Test
     fun `240 test documentations`() {
         runSourceCodebaseTest(
             java(

@@ -31,9 +31,8 @@ class KotlinInteropChecksTest : DriverTest() {
             apiLint = "",
             expectedIssues =
                 """
-                src/test/pkg/Test.java:7: error: Avoid method names that are Kotlin hard keywords ("fun"); see https://android.github.io/kotlin-guides/interop.html#no-hard-keywords [KotlinKeyword]
-                src/test/pkg/Test.java:8: error: Avoid parameter names that are Kotlin hard keywords ("typealias"); see https://android.github.io/kotlin-guides/interop.html#no-hard-keywords [KotlinKeyword]
-                src/test/pkg/Test.java:10: error: Avoid field names that are Kotlin hard keywords ("object"); see https://android.github.io/kotlin-guides/interop.html#no-hard-keywords [KotlinKeyword]
+                    src/test/pkg/Test.java:6: error: Avoid method names that are Kotlin hard keywords ("fun"); see https://android.github.io/kotlin-guides/interop.html#no-hard-keywords [KotlinKeyword]
+                    src/test/pkg/Test.java:9: error: Avoid field names that are Kotlin hard keywords ("object"); see https://android.github.io/kotlin-guides/interop.html#no-hard-keywords [KotlinKeyword]
                 """,
             expectedFail = DefaultLintErrorMessage,
             sourceFiles =
@@ -43,18 +42,16 @@ class KotlinInteropChecksTest : DriverTest() {
                     package test.pkg;
 
                     import androidx.annotation.NonNull;
-                    import androidx.annotation.ParameterName;
 
                     public class Test {
                         public void fun() { }
-                        public void foo(int fun, @ParameterName("typealias") int internalName) { }
+                        public void foo(int fun) { }
                         @NonNull
                         public final Object object = null;
                     }
                     """
                     ),
-                    supportParameterName,
-                    androidxNonNullSource
+                    androidxNonNullSource,
                 )
         )
     }

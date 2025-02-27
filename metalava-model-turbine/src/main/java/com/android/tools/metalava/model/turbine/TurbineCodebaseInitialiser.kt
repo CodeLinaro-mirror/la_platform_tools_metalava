@@ -62,7 +62,6 @@ import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.addDefaultRetentionPolicyAnnotation
 import com.android.tools.metalava.model.createImmutableModifiers
 import com.android.tools.metalava.model.createMutableModifiers
-import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.item.DefaultCodebaseAssembler
@@ -70,6 +69,7 @@ import com.android.tools.metalava.model.item.DefaultCodebaseFactory
 import com.android.tools.metalava.model.item.DefaultItemFactory
 import com.android.tools.metalava.model.item.DefaultPackageItem
 import com.android.tools.metalava.model.item.DefaultTypeParameterItem
+import com.android.tools.metalava.model.item.DefaultValue
 import com.android.tools.metalava.model.item.FieldValue
 import com.android.tools.metalava.model.item.MutablePackageDoc
 import com.android.tools.metalava.model.item.PackageDocs
@@ -1123,16 +1123,11 @@ internal class TurbineCodebaseInitialiser(
                     fileLocation = fileLocation,
                     modifiers = parameterModifierItem,
                     name = parameter.name(),
-                    publicNameProvider = { item ->
-                        // Java: Look for @ParameterName annotation
-                        val modifiers = item.modifiers
-                        val annotation = modifiers.findAnnotation(AnnotationItem::isParameterName)
-                        annotation?.attributes?.firstOrNull()?.value?.value()?.toString()
-                    },
+                    publicNameProvider = { null },
                     containingCallable = containingCallable,
                     parameterIndex = idx,
                     type = type,
-                    defaultValueFactory = { TurbineDefaultValue(parameterModifierItem) },
+                    defaultValueFactory = { DefaultValue.NONE },
                 )
             parameterItem
         }

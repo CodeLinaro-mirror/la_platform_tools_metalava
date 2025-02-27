@@ -91,9 +91,6 @@ com.android.tools.metalava.NormalizeOutputAnnotationTest
 com.android.tools.metalava.NullabilityAnnotationsValidatorTest
   Using class list[turbine]
 
-com.android.tools.metalava.NullnessMigrationTest
-  Convert libcore nullness annotations to support[turbine]
-
 com.android.tools.metalava.PolymorphicMethodsTest
   Test MethodHandle[turbine]
   Test VarHandle[turbine]

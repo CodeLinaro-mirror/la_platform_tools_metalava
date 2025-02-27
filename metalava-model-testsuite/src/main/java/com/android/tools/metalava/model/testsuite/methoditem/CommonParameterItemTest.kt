@@ -132,20 +132,6 @@ class CommonParameterItemTest : BaseModelTest() {
                 ),
             ),
             inputSet(
-                KnownSourceFiles.supportParameterName,
-                java(
-                    """
-                        package test.pkg;
-
-                        import androidx.annotation.ParameterName;
-
-                        public class Bar {
-                            public void foo(@ParameterName("baz") int baz) {}
-                        }
-                    """
-                ),
-            ),
-            inputSet(
                 kotlin(
                     """
                         package test.pkg
@@ -214,11 +200,11 @@ class CommonParameterItemTest : BaseModelTest() {
                     .assertMethod("equals", "java.lang.Object")
                     .parameters()
                     .single()
-            // For some reason Object.equals(Object obj) provides the actual parameter name.
-            // Probably, because it was compiled with a late enough version of javac, and/or with
-            // the appropriate options to record the parameter name.
+            // The parameter name of the Object.equals(Object obj) method is stored in the Object
+            // class but `publicName()` should still return null because the parameter name is not
+            // part of the API of java classes.
             assertEquals("name()", "obj", parameterItem.name())
-            assertEquals("publicName()", "obj", parameterItem.publicName())
+            assertNull("publicName()", parameterItem.publicName())
         }
     }
 
@@ -665,10 +651,7 @@ class CommonParameterItemTest : BaseModelTest() {
                         parameter.defaultValueAsString()
                     )
                 }
-                ItemLanguage.JAVA -> {
-                    assertEquals("defaultValue", null, parameter.defaultValueAsString())
-                }
-                ItemLanguage.UNKNOWN -> {
+                else -> {
                     val exception =
                         assertThrows(IllegalStateException::class.java) {
                             parameter.defaultValueAsString()
@@ -697,15 +680,6 @@ class CommonParameterItemTest : BaseModelTest() {
                         ctor public Foo();
                         method public method(s: String? = null): void;
                       }
-                    }
-                """
-            ),
-            java(
-                """
-                    package test.pkg;
-
-                    public class Foo {
-                        public void method(@other.DefaultValue("null") String s) {}
                     }
                 """
             ),
