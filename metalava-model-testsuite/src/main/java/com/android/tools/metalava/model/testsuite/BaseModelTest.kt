@@ -183,11 +183,8 @@ abstract class BaseModelTest() :
     }
 
     /**
-     * Create a [Codebase] from one of the supplied [inputSets] and then run a test on that
-     * [Codebase].
-     *
-     * The [InputSet] that is selected is the one whose [InputSet.inputFormat] is the same as the
-     * current [inputFormat]. There can be at most one of those.
+     * Create a [Codebase] from any supplied [inputSets] whose [InputSet.inputFormat] is the same as
+     * the current [inputFormat], and then runs a test on each [Codebase].
      */
     private fun createCodebaseFromInputSetAndRun(
         inputSets: Array<out InputSet>,
@@ -195,38 +192,34 @@ abstract class BaseModelTest() :
         testFixture: TestFixture,
         test: CodebaseContext.() -> Unit,
     ) {
-        // Run the input set that matches the current inputFormat, if there is one.
-        inputSets
-            .singleOrNull { it.inputFormat == inputFormat }
-            ?.let { inputSet ->
-                val mainSourceDir = sourceDir(inputSet)
-                val projectDescriptionFile = projectDescription?.createFile(mainSourceDir.dir)
+        // Run the input sets that match the current inputFormat.
+        for (inputSet in inputSets.filter { it.inputFormat == inputFormat }) {
+            val mainSourceDir = sourceDir(inputSet)
+            val projectDescriptionFile = projectDescription?.createFile(mainSourceDir.dir)
 
-                val additionalSourceDir = inputSet.additionalTestFiles?.let { sourceDir(it) }
+            val additionalSourceDir = inputSet.additionalTestFiles?.let { sourceDir(it) }
 
-                val inputs =
-                    ModelSuiteRunner.TestInputs(
-                        inputFormat = inputSet.inputFormat,
-                        modelOptions = codebaseCreatorConfig.modelOptions,
-                        mainSourceDir = mainSourceDir,
-                        additionalMainSourceDir = additionalSourceDir,
-                        testFixture = testFixture,
-                        projectDescription = projectDescriptionFile,
+            val inputs =
+                ModelSuiteRunner.TestInputs(
+                    inputFormat = inputSet.inputFormat,
+                    modelOptions = codebaseCreatorConfig.modelOptions,
+                    mainSourceDir = mainSourceDir,
+                    additionalMainSourceDir = additionalSourceDir,
+                    testFixture = testFixture,
+                    projectDescription = projectDescriptionFile,
+                )
+            runner.createCodebaseAndRun(inputs) { codebase ->
+                val context =
+                    DefaultCodebaseContext(
+                        codebase,
+                        buildMap {
+                            this[mainSourceDir.dir] = "MAIN_SRC"
+                            additionalSourceDir?.dir?.let { dir -> this[dir] = "ADDITIONAL_SRC" }
+                        }
                     )
-                runner.createCodebaseAndRun(inputs) { codebase ->
-                    val context =
-                        DefaultCodebaseContext(
-                            codebase,
-                            buildMap {
-                                this[mainSourceDir.dir] = "MAIN_SRC"
-                                additionalSourceDir?.dir?.let { dir ->
-                                    this[dir] = "ADDITIONAL_SRC"
-                                }
-                            }
-                        )
-                    context.test()
-                }
+                context.test()
             }
+        }
     }
 
     private fun sourceDir(inputSet: InputSet): ModelSuiteRunner.SourceDir {

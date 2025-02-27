@@ -464,6 +464,31 @@ class PatternNodeTest : TemporaryFolderOwner {
     }
 
     @Test
+    fun `Scan for extension and non-extension versions`() {
+        val rootDir = buildFileStructure {
+            dir("1.7") { apiFile("module.txt") }
+            dir("extensions") { dir("1") { apiFile("module.txt") } }
+        }
+
+        val patterns =
+            listOf(
+                "extensions/{version:extension}/{module}.txt",
+                "{version:major.minor?}/{module}.txt",
+            )
+        val node = PatternNode.parsePatterns(patterns)
+        val files =
+            node.scan(
+                PatternNode.ScanConfig(rootDir),
+            )
+        files.assertMatchedPatternFiles(
+            """
+                MatchedPatternFile(file=1.7/module.txt.txt, version=1.7, module='module.txt')
+                MatchedPatternFile(file=extensions/1/module.txt.txt, version=1, extension=true, module='module.txt')
+            """
+        )
+    }
+
+    @Test
     fun `Test use surface placeholder without surfaces`() {
         val rootDir = buildFileStructure { dir("1") { dir("public") { apiFile() } } }
 
@@ -511,7 +536,7 @@ class PatternNodeTest : TemporaryFolderOwner {
                 "{version:level}/{surface}/api.txt",
             )
         val node = PatternNode.parsePatterns(patterns)
-        val apiSurfaceByName = apiSurfaces.all.associateBy { it.name }
+        val apiSurfaceByName = apiSurfaces.byName
         val files = node.scan(PatternNode.ScanConfig(rootDir, apiSurfaceByName = apiSurfaceByName))
         files.assertMatchedPatternFiles(expectedFiles)
     }

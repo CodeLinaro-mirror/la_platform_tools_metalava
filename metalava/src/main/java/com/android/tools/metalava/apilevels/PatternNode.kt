@@ -185,9 +185,18 @@ sealed class PatternNode {
     /**
      * Scan the [ScanConfig.dir] using this pattern node as the guide.
      *
-     * Returns a list of [MatchedPatternFile] objects, in version order (from the lowest to the
-     * highest), If multiple matching files have the same version then only the first version will
-     * be used.
+     * Returns a list of [MatchedPatternFile] objects, ordered such that the files are ordered by:
+     * * [MatchedPatternFile.extension], i.e. primary API (i.e. when [MatchedPatternFile.extension]
+     *   is `false`) come before those for extensions.
+     * * [MatchedPatternFile.module], i.e. those for which this is `null` come before everything
+     *   else, and they are sorted alphabetically.
+     * * [MatchedPatternFile.version], i.e. from lowest to highest.
+     * * [MatchedPatternFile.surface], i.e. those for which this is `null` come before everything
+     *   else, and they are sorted according to their natural order.
+     *
+     * If multiple [MatchedPatternFile]s differ only in [MatchedPatternFile.file] then only the
+     * first instance found will be used. The order of discovery is determined by the order in which
+     * patterns were passed to [PatternNode.parsePatterns].
      */
     internal fun scan(config: ScanConfig): List<MatchedPatternFile> {
         val dir = config.dir
@@ -902,6 +911,8 @@ data class MatchedPatternFile(
 private val matchedPatternFileComparator: Comparator<MatchedPatternFile> =
     // If any of the selectors return `null` that will compare before any other value.
     compareBy(
+        // Group into those that are for the primary API and those that are for an extension.
+        { it.extension },
         // Group into those without modules and then by those with module, in order.
         { it.module },
         // Then sort them from the lowest version to the highest version.

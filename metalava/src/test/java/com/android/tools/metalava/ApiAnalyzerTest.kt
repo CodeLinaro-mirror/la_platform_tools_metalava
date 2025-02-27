@@ -17,10 +17,12 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.cli.common.ARG_ERROR
+import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.lint.DefaultLintErrorMessage
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.text.FileFormat
+import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
@@ -372,6 +374,7 @@ class ApiAnalyzerTest : DriverTest() {
                         """
                     ),
                 ),
+            extraArguments = arrayOf(ARG_HIDE, Issues.INHERIT_CHANGES_SIGNATURE.name),
         )
     }
 
@@ -808,6 +811,62 @@ class ApiAnalyzerTest : DriverTest() {
                       }
                     }
                 """,
+        )
+    }
+
+    @Test
+    fun `Fail when erased type changes after pushing down methods from hidden super class`() {
+        check(
+            expectedIssues =
+                """
+                    src/test/pkg/Hidden.java:3: error: Explicitly override method test.pkg.Hidden.bad1() in class test.pkg.Public, or hide it in class test.pkg.Hidden; it cannot be implicitly inherited as API from the hidden super class because that would change its erased signature from ()Ltest/pkg/Hidden; to ()Ltest/pkg/Public;, and cause failures at runtime. [InheritChangesSignature]
+                    src/test/pkg/Hidden.java:4: error: Explicitly override method test.pkg.Hidden.bad1(T) in class test.pkg.Public, or hide it in class test.pkg.Hidden; it cannot be implicitly inherited as API from the hidden super class because that would change its erased signature from (Ltest/pkg/Hidden;)V to (Ltest/pkg/Public;)V, and cause failures at runtime. [InheritChangesSignature]
+                    src/test/pkg/Hidden.java:6: error: Explicitly override method test.pkg.Hidden.bad2() in class test.pkg.Public, or hide it in class test.pkg.Hidden; it cannot be implicitly inherited as API from the hidden super class because that would change its erased signature from ()Ljava/lang/Object; to ()Ljava/lang/Integer;, and cause failures at runtime. [InheritChangesSignature]
+                    src/test/pkg/Hidden.java:7: error: Explicitly override method test.pkg.Hidden.bad2(U) in class test.pkg.Public, or hide it in class test.pkg.Hidden; it cannot be implicitly inherited as API from the hidden super class because that would change its erased signature from (Ljava/lang/Object;)V to (Ljava/lang/Integer;)V, and cause failures at runtime. [InheritChangesSignature]
+                    src/test/pkg/Hidden.java:9: error: Explicitly override method test.pkg.Hidden.bad3() in class test.pkg.Public, or hide it in class test.pkg.Hidden; it cannot be implicitly inherited as API from the hidden super class because that would change its erased signature from ()Ljava/lang/Object; to ()Ljava/lang/Number;, and cause failures at runtime. [InheritChangesSignature]
+                    src/test/pkg/Hidden.java:10: error: Explicitly override method test.pkg.Hidden.bad3(V) in class test.pkg.Public, or hide it in class test.pkg.Hidden; it cannot be implicitly inherited as API from the hidden super class because that would change its erased signature from (Ljava/lang/Object;)V to (Ljava/lang/Number;)V, and cause failures at runtime. [InheritChangesSignature]
+                """,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            public class Public<N extends Number, O> extends Hidden<Public, Integer, N, O> {
+                                @Override
+                                public Public overriddenOk() { return null; }
+                                @Override
+                                public void overriddenOk(Public t) { return null; }
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            class Hidden<T extends Hidden, U, V, W> {
+                                public T bad1() { return null; }
+                                public void bad1(T t) {}
+
+                                public U bad2() { return null; }
+                                public void bad2(U t) {}
+
+                                public V bad3() { return null; }
+                                public void bad3(V t) {}
+
+                                public W ok() { return null; }
+                                public void ok(W t) { }
+
+                                public T overriddenOk() { return null; }
+                                public void overriddenOk(T t) { }
+
+                                /** @hide */
+                                public T hiddenOk() { return null; }
+                                /** @hide */
+                                public void hiddenOk(T t) { }
+                            }
+                        """
+                    )
+                ),
+            extraArguments = arrayOf(ARG_ERROR, Issues.INHERIT_CHANGES_SIGNATURE.name)
         )
     }
 }

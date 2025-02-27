@@ -25,6 +25,7 @@ import com.android.tools.metalava.model.StripJavaLangPrefix
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.text.ApiFile
 import com.android.tools.metalava.model.text.FileFormat
+import com.android.tools.metalava.model.text.FileFormat.TypeArgumentSpacing
 import com.android.tools.metalava.model.text.SignatureFile
 import com.android.tools.metalava.model.text.assertSignatureFilesMatch
 import com.android.tools.metalava.model.visitors.ApiPredicate
@@ -585,6 +586,76 @@ class SignatureInputOutputTest : Assertions {
         runInputOutputTest(api, kotlinStyleFormat)
     }
 
+    @Test
+    fun `Test property receivers, java name-type order`() {
+        val api =
+            """
+                package test.pkg {
+                  public class Foo {
+                    property public int int.intProperty;
+                    property public boolean String?.nullableStringProperty;
+                    property public boolean String[].stringArrayProperty;
+                    property public boolean java.util.List<java.lang.String>.stringListProperty;
+                    property public static int String.stringProperty;
+                  }
+                }
+            """
+        runInputOutputTest(api, FileFormat.V4)
+    }
+
+    @Test
+    fun `Test property receivers, kotlin name-type order`() {
+        val api =
+            """
+                package test.pkg {
+                  public class Foo {
+                    property public int.intProperty: int;
+                    property public String?.nullableStringProperty: boolean;
+                    property public String[].stringArrayProperty: boolean;
+                    property public java.util.List<java.lang.String>.stringListProperty: boolean;
+                    property public static String.stringProperty: int;
+                  }
+                }
+            """
+        runInputOutputTest(api, kotlinStyleFormat)
+    }
+
+    @Test
+    fun `Test property type parameters, java name-type order`() {
+        // A property with type parameters must have a receiver
+        val api =
+            """
+                package test.pkg {
+                  public class Foo {
+                    property public static <T> int java.util.List<? extends T>.oneTypeParameterListReceiver;
+                    property public static <T> int T.oneTypeParameterReceiver;
+                    property public static <T extends java.lang.String> int T.oneTypeParameterWithBoundsReceiver;
+                    property public static <T1, T2> int java.util.Map<T1,? extends T2>.twoTypeParameterMapReceiver;
+                    property public static <T1 extends java.lang.String, T2 extends java.util.List<? extends T1>> int java.util.Map<T1,? extends T2>.twoTypeParameterWithBoundsMapReceiver;
+                  }
+                }
+            """
+        runInputOutputTest(api, FileFormat.V4)
+    }
+
+    @Test
+    fun `Test property type parameters, kotlin name-type order`() {
+        // A property with type parameters must have a receiver
+        val api =
+            """
+                package test.pkg {
+                  public class Foo {
+                    property public static <T> java.util.List<? extends T>.oneTypeParameterListReceiver: int;
+                    property public static <T> T.oneTypeParameterReceiver: int;
+                    property public static <T extends java.lang.String> T.oneTypeParameterWithBoundsReceiver: int;
+                    property public static <T1, T2> java.util.Map<T1,? extends T2>.twoTypeParameterMapReceiver: int;
+                    property public static <T1 extends java.lang.String, T2 extends java.util.List<? extends T1>> java.util.Map<T1,? extends T2>.twoTypeParameterWithBoundsMapReceiver: int;
+                  }
+                }
+            """
+        runInputOutputTest(api, kotlinStyleFormat)
+    }
+
     /**
      * Make sure that despite the `java.lang.` prefix being stripped from various types when writing
      * the signature file that they have the correct type when the [Codebase] is loaded.
@@ -610,7 +681,7 @@ class SignatureInputOutputTest : Assertions {
             """
                 // Signature format: 2.0
                 package test.pkg {
-                  public class Foo extends java.util.AbstractList<java.lang.String> implements java.lang.Comparable<java.lang.String> kotlin.collections.List<java.lang.String> {
+                  public class Foo<T extends java.util.Map<java.lang.Integer, java.lang.String>> extends java.util.AbstractList<java.lang.String> implements java.lang.Comparable<java.lang.String> kotlin.collections.List<java.lang.String> {
                     method public java.lang.String foo(java.lang.String...) throws java.lang.Exception;
                   }
                 }
@@ -630,7 +701,7 @@ class SignatureInputOutputTest : Assertions {
             """
                 // Signature format: 2.0
                 package test.pkg {
-                  public class Foo extends java.util.AbstractList<java.lang.String> implements java.lang.Comparable<java.lang.String> kotlin.collections.List<java.lang.String> {
+                  public class Foo<T extends java.util.Map<java.lang.Integer, java.lang.String>> extends java.util.AbstractList<java.lang.String> implements java.lang.Comparable<java.lang.String> kotlin.collections.List<java.lang.String> {
                     method public String foo(java.lang.String...) throws java.lang.Exception;
                   }
                 }
@@ -650,7 +721,7 @@ class SignatureInputOutputTest : Assertions {
             """
                 // Signature format: 2.0
                 package test.pkg {
-                  public abstract class Foo extends java.util.AbstractList<String> implements Comparable<String> kotlin.collections.List<String> {
+                  public abstract class Foo<T extends java.util.Map<Integer, String>> extends java.util.AbstractList<String> implements Comparable<String> kotlin.collections.List<String> {
                     method public String foo(String...) throws Exception;
                   }
                 }
@@ -662,6 +733,89 @@ class SignatureInputOutputTest : Assertions {
         ) {
             checkStrippedCodebaseTypes(codebase)
         }
+    }
+
+    @Test
+    fun `Test type-argument-spacing=none`() {
+        val api =
+            """
+                // Signature format: 2.0
+                package test.pkg {
+                  public interface Foo<T extends java.util.Map<Integer,String>> extends java.util.Map<String,Integer> {
+                    method public java.util.Map<String,String> foo(java.util.Map<Integer,Integer>);
+                  }
+                }
+            """
+                .trimIndent()
+        runInputOutputTest(
+            api,
+            FileFormat.V2.copy(
+                specifiedTypeArgumentSpacing = TypeArgumentSpacing.NONE,
+                // Strip java.lang. prefix to make test less verbose.
+                specifiedStripJavaLangPrefix = StripJavaLangPrefix.ALWAYS,
+            ),
+        )
+    }
+
+    @Test
+    fun `Test type-argument-spacing=legacy`() {
+        val api =
+            """
+                // Signature format: 2.0
+                package test.pkg {
+                  public interface Foo<T extends java.util.Map<Integer, String>> extends java.util.Map<String,Integer> {
+                    method public java.util.Map<String,String> foo(java.util.Map<Integer,Integer>);
+                  }
+                }
+            """
+                .trimIndent()
+        runInputOutputTest(
+            api,
+            FileFormat.V2.copy(
+                specifiedTypeArgumentSpacing = TypeArgumentSpacing.LEGACY,
+                // Strip java.lang. prefix to make test less verbose.
+                specifiedStripJavaLangPrefix = StripJavaLangPrefix.ALWAYS,
+            ),
+        )
+    }
+
+    @Test
+    fun `Test type-argument-spacing=space`() {
+        val api =
+            """
+                // Signature format: 2.0
+                package test.pkg {
+                  public interface Foo<T extends java.util.Map<Integer, String>> extends java.util.Map<String, Integer> {
+                    method public java.util.Map<String, String> foo(java.util.Map<Integer, Integer>);
+                  }
+                }
+            """
+                .trimIndent()
+        runInputOutputTest(
+            api,
+            FileFormat.V2.copy(
+                specifiedTypeArgumentSpacing = TypeArgumentSpacing.SPACE,
+                // Strip java.lang. prefix to make test less verbose.
+                specifiedStripJavaLangPrefix = StripJavaLangPrefix.ALWAYS,
+            ),
+        )
+    }
+
+    @Test
+    fun `Check order of SuppressCompatibility annotation`() {
+        val api =
+            """
+                // Signature format: 5.0
+                package test.pkg {
+                  @SuppressCompatibility @kotlin.RequiresOptIn @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention.BINARY) @kotlin.annotation.Target(allowedTargets={kotlin.annotation.AnnotationTarget.CLASS, kotlin.annotation.AnnotationTarget.FUNCTION}) public @interface ExperimentalBar {
+                  }
+                  @SuppressCompatibility @test.pkg.ExperimentalBar public final class FancyBar {
+                    ctor public FancyBar();
+                    method @SuppressCompatibility @ReturnThis public test.pkg.FancyBar fancy(@SuppressCompatibility int);
+                  }
+                }
+            """
+        runInputOutputTest(api, FileFormat.V5)
     }
 
     companion object {

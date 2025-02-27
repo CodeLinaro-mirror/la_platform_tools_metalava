@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava
 
-import com.android.tools.lint.checks.infrastructure.TestFiles.xml
 import com.android.tools.metalava.model.ANDROID_SYSTEM_API
 import com.android.tools.metalava.model.ANDROID_TEST_API
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
@@ -131,22 +130,7 @@ class ApiSurfacesTest : DriverTest() {
                         }
                     }
                 """,
-            configFiles =
-                arrayOf(
-                    xml(
-                        "config.xml",
-                        """
-                            <config xmlns="http://www.google.com/tools/metalava/config"
-                                xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-                                xsi:schemaLocation="http://www.google.com/tools/metalava/config ../../../../../resources/schemas/config.xsd">
-                                <api-surfaces>
-                                    <api-surface name="public"/>
-                                    <api-surface name="system" extends="public"/>
-                                </api-surfaces>
-                            </config>
-                        """
-                    ),
-                ),
+            configFiles = arrayOf(KnownConfigFiles.configPublicAndSystemSurfaces),
             extraArguments =
                 arrayOf(
                     ARG_API_SURFACE,

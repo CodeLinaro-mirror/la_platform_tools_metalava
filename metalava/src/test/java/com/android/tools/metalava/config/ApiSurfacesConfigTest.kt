@@ -50,7 +50,7 @@ class ApiSurfacesConfigTest {
         name: String,
         expectedSurfaces: List<String>
     ) {
-        val surfaceConfig = getByNameOrError(name) { "unknown `$name`" }
+        val surfaceConfig = getByNameOrError(name) { "unknown `$it`" }
         assertEquals(
             expectedSurfaces,
             contributesTo(surfaceConfig).map { it.name },
