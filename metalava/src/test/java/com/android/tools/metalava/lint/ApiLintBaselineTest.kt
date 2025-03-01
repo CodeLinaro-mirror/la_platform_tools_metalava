@@ -22,9 +22,11 @@ import com.android.tools.metalava.androidxNullableSource
 import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
+import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.restrictToSource
 import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
+import kotlin.arrayOf
 import org.junit.Test
 
 /** Test for [ApiLint] specifically with baseline arguments. */
@@ -229,7 +231,9 @@ class ApiLintBaselineTest : DriverTest() {
                     ARG_HIDE,
                     "ProtectedMember",
                     ARG_HIDE,
-                    "GetterOnBuilder"
+                    "GetterOnBuilder",
+                    ARG_HIDE,
+                    Issues.INHERIT_CHANGES_SIGNATURE.name,
                 ),
             sourceFiles =
                 arrayOf(

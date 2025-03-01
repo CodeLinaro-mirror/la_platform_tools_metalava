@@ -140,6 +140,7 @@ com.android.tools.metalava.VisibleForTestingTest
 
 com.android.tools.metalava.apilevels.ApiGeneratorTest
   APIs annotated with suppress-compatibility-meta-annotations appear in output[turbine]
+  Generate API for system surface from jar[turbine]
 
 com.android.tools.metalava.compatibility.CompatibilityCheckTest
   Conversion from AutoCloseable to Closeable is not API-breaking[turbine]

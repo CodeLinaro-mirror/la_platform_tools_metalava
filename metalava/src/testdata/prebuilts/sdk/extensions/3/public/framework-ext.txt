@@ -1,0 +1,26 @@
+// Signature format: 2.0
+package android.test {
+  public class ClassAddedInApi31AndExt2 {
+    field public static final int FIELD_ADDED_IN_API_31_AND_EXT_2 = 1;
+    field public static final int FIELD_ADDED_IN_EXT_3 = 2;
+    method public void methodAddedInApi31AndExt2();
+    method public void methodAddedInExt3();
+  }
+  public class ClassAddedInExt1 {
+    field public static final int FIELD_ADDED_IN_EXT_1 = 1;
+    field public static final int FIELD_ADDED_IN_API_31_AND_EXT_2 = 2;
+    field public static final int FIELD_ADDED_IN_EXT_3 = 2;
+    method public void methodAddedInExt1();
+    method public void methodAddedInApi31AndExt2();
+    method public void methodAddedInExt3();
+  }
+  public class ClassAddedInExt3 {
+    field public static final int FIELD_ADDED_IN_EXT_3 = 1;
+    method public void methodAddedInExt3();
+  }
+  public interface MarkerInterface {
+  }
+  public class MarkerSuperClass {
+    ctor public MarkerSuperClass();
+  }
+}
