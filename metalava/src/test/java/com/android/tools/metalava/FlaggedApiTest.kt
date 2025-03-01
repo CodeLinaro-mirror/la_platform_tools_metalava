@@ -95,8 +95,8 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
         @JvmStatic
         @Parameterized.Parameters(name = "{0}")
         fun configurations(): Iterable<Configuration> =
-            Surface.values().flatMap { surface ->
-                Flagged.values().map { flagged ->
+            Surface.entries.flatMap { surface ->
+                Flagged.entries.map { flagged ->
                     Configuration(
                         surface = surface,
                         flagged = flagged,
@@ -291,7 +291,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
      * surfaces in that order.
      */
     private fun contributingSurfaces(apiSurfaces: Map<Surface, String>) =
-        Surface.values().filter { it <= config.surface }.map { apiSurfaces[it] ?: "" }
+        Surface.entries.filter { it <= config.surface }.map { apiSurfaces[it] ?: "" }
 
     @Test
     fun `Basic test that FlaggedApi annotated items can be hidden`() {

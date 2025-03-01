@@ -188,7 +188,7 @@ internal class PsiTypeItemFactory(
      * no [PsiElement] with a defined [PsiType].
      */
     @OptIn(KaExperimentalApi::class)
-    internal fun getTypeForProperty(
+    internal fun getTypeForKtElement(
         ktElement: KtElement,
     ): PsiTypeItem? {
         val kotlinTypeInfo = KotlinTypeInfo.fromContext(ktElement)

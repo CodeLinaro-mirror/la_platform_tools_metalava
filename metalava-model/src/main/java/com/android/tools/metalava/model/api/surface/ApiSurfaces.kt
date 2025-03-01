@@ -127,7 +127,7 @@ sealed interface ApiSurfaces {
          * [ApiVariant]s belong to [surfaces].
          */
         override val variants =
-            ApiVariantType.values().map { type -> ApiVariant(this, type, allVariants) }
+            ApiVariantType.entries.map { type -> ApiVariant(this, type, allVariants) }
 
         override val variantSet =
             // Create an ApiVariantSet that contains all ApiVariants in this surface.

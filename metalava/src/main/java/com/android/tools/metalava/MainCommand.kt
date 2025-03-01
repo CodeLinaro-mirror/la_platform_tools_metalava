@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava
 
+import com.android.SdkConstants.DOT_TXT
 import com.android.tools.metalava.cli.common.CommonBaselineOptions
 import com.android.tools.metalava.cli.common.CommonOptions
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
@@ -88,8 +89,7 @@ class MainCommand(
     private val sourceOptions by SourceOptions()
 
     /** Issue reporter configuration. */
-    private val issueReportingOptions by
-        IssueReportingOptions(executionEnvironment.reporterEnvironment, commonOptions)
+    private val issueReportingOptions by IssueReportingOptions(commonOptions)
 
     private val commonBaselineOptions by
         CommonBaselineOptions(
@@ -105,7 +105,15 @@ class MainCommand(
             defaultBaselineFileProvider = { getDefaultBaselineFile() },
         )
 
-    private val apiSelectionOptions by ApiSelectionOptions()
+    private val apiSelectionOptions: ApiSelectionOptions by
+        ApiSelectionOptions(
+            apiSurfacesConfigProvider = { optionGroup.config.apiSurfaces },
+            ignoreShowAnnotationsProvider = {
+                optionGroup.sources.let { sources ->
+                    sources.isEmpty() || sources[0].path.endsWith(DOT_TXT)
+                }
+            },
+        )
 
     /** API lint options. */
     private val apiLintOptions by

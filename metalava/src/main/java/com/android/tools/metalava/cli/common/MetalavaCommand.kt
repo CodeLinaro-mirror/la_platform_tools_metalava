@@ -266,7 +266,7 @@ internal open class MetalavaCommand(
                 // Get the default command.
                 val defaultCommand =
                     registeredSubcommands().singleOrNull { it.commandName == defaultCommandName }
-                        ?: throw MetalavaCliException(
+                        ?: cliError(
                             "Invalid default command name '$defaultCommandName', expected one of '${registeredSubcommandNames().joinToString("', '")}'"
                         )
 

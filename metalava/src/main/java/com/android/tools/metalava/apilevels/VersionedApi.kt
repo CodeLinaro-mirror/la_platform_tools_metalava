@@ -29,5 +29,6 @@ interface VersionedApi {
     /** Update [api] with information from this version of the API. */
     fun updateApi(api: Api)
 
-    fun forExtension() = false
+    /** Provide a string representation for debugging and testing. */
+    override fun toString(): String
 }

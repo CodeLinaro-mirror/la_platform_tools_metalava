@@ -100,7 +100,7 @@ private constructor(
         ): PsiPropertyItem? {
             val type =
                 getter?.returnType()
-                    ?: typeItemFactory.getTypeForProperty(ktDeclaration) ?: return null
+                    ?: typeItemFactory.getTypeForKtElement(ktDeclaration) ?: return null
             val modifiers = PsiModifierItem.createForProperty(codebase, ktDeclaration, getter)
 
             val property =

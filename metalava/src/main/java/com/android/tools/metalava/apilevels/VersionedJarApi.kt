@@ -34,5 +34,5 @@ class VersionedJarApi(
         api.readJar(jar, updater)
     }
 
-    override fun forExtension() = updater.forExtension()
+    override fun toString() = "VersionedJarApi(jar=$jar, updater=$updater)"
 }
