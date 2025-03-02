@@ -28,7 +28,6 @@ import com.android.tools.metalava.cli.signature.SIGNATURE_FORMAT_OPTIONS_HELP
 import com.android.tools.metalava.model.source.DEFAULT_JAVA_LANGUAGE_LEVEL
 import com.android.tools.metalava.model.source.DEFAULT_KOTLIN_LANGUAGE_LEVEL
 import java.io.File
-import kotlin.test.assertEquals
 import org.junit.Assert
 import org.junit.Test
 
@@ -181,9 +180,6 @@ Generating Stubs:
                                              recently marked as non null, whereas in the documentation stubs we'll just
                                              list this as @NonNull. Another difference is that @doconly elements are
                                              included in documentation stubs, but not regular stubs, etc.
---kotlin-stubs
-                                             [CURRENTLY EXPERIMENTAL] If specified, stubs generated from Kotlin source
-                                             code will be written in Kotlin rather than the Java programming language.
 --pass-through-annotation <annotation classes>
                                              A comma separated list of fully qualified names of annotation classes that
                                              must be passed through unchanged.
