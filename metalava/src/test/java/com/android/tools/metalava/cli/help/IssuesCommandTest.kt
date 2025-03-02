@@ -25,7 +25,6 @@ class IssuesCommandTest : BaseCommandTest<HelpCommand>({ HelpCommand() }) {
     fun `Test help`() {
         commandTest {
             args += listOf("help", "issues")
-
             expectedStdout =
                 """
 Usage: metalava help issues <issue>?
@@ -111,6 +110,7 @@ Available Issues                             |  Category                |   Defa
   IgnoringSymlink                            |  unknown                 |   info
   InconsistentMergeAnnotation                |  api_lint                |   warning_error_when_new
   InfixRemoval                               |  compatibility           |   error
+  InheritChangesSignature                    |  unknown                 |   warning_error_when_new
   IntDef                                     |  documentation           |   hidden
   IntentBuilderName                          |  api_lint                |   warning
   IntentName                                 |  api_lint                |   error

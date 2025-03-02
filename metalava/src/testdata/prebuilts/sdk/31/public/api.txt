@@ -1,0 +1,41 @@
+// Signature format: 2.0
+package android.test {
+  @Deprecated public class ClassAddedAndDeprecatedInApi30 {
+    ctor @Deprecated public ClassAddedAndDeprecatedInApi30(float);
+
+    // Explicitly deprecate this in API 31 to show the impact inconsistent handling of inherited deprecation status
+    // across releases has on api-versions.xml output.
+    ctor @Deprecated public ClassAddedAndDeprecatedInApi30(int);
+
+    method @Deprecated public void methodExplicitlyDeprecated();
+
+    // Explicitly deprecate this in API 31 to show the impact inconsistent handling of inherited deprecation status
+    // across releases has on api-versions.xml output.
+    method @Deprecated public void methodImplicitlyDeprecated();
+
+    field @Deprecated public static final int FIELD_EXPLICITLY_DEPRECATED = 1;
+
+    // Explicitly deprecate this in API 31 to show the impact inconsistent handling of inherited deprecation status
+    // across releases has on api-versions.xml output.
+    field @Deprecated public static final int FIELD_IMPLICITLY_DEPRECATED = 2;
+  }
+  public class ClassAddedInApi30 {
+    method public void methodAddedInApi30();
+    method public void methodAddedInApi31();
+  }
+  public class ClassAddedInApi31AndExt2 {
+    field public static final int FIELD_ADDED_IN_API_31_AND_EXT_2 = 1;
+    method public void methodAddedInApi31AndExt2();
+  }
+  public class ClassAddedInExt1 {
+    field public static final int FIELD_ADDED_IN_EXT_1 = 1;
+    field public static final int FIELD_ADDED_IN_API_31_AND_EXT_2 = 2;
+    method public void methodAddedInExt1();
+    method public void methodAddedInApi31AndExt2();
+  }
+}
+package java.lang {
+  public class Object {
+    ctor public Object();
+  }
+}

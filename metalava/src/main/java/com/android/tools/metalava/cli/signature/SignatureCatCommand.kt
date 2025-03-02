@@ -20,6 +20,7 @@ import com.android.tools.metalava.OptionsDelegate
 import com.android.tools.metalava.SignatureWriter
 import com.android.tools.metalava.cli.common.MetalavaSubCommand
 import com.android.tools.metalava.cli.common.existingFile
+import com.android.tools.metalava.cli.common.newOrExistingFile
 import com.android.tools.metalava.cli.common.stderr
 import com.android.tools.metalava.cli.common.stdin
 import com.android.tools.metalava.cli.common.stdout
@@ -33,6 +34,7 @@ import com.android.tools.metalava.reporter.BasicReporter
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.arguments.multiple
 import com.github.ajalt.clikt.parameters.groups.provideDelegate
+import com.github.ajalt.clikt.parameters.options.option
 import java.io.PrintWriter
 
 class SignatureCatCommand :
@@ -42,9 +44,10 @@ class SignatureCatCommand :
                 Cats signature files.
 
                 Reads signature files either provided on the command line, or in stdin into a
-                combined API surface and then writes it out to stdout according to the format
-                options. The resulting output will be different to the input if the input does not
-                already conform to the selected format.
+                combined API surface and then writes it out to either the output file provided on
+                the command line or to stdout according to the format options. The resulting output
+                will be different to the input if the input does not already conform to the selected
+                format.
             """
                 .trimIndent(),
         printHelpOnEmptyArgs = false,
@@ -64,6 +67,17 @@ class SignatureCatCommand :
             .existingFile()
             .multiple()
 
+    private val outputFile by
+        option(
+                names = arrayOf("--output-file"),
+                help =
+                    """
+                        File to write the signature output to. If not specified stdout will be used.
+                    """
+                        .trimIndent()
+            )
+            .newOrExistingFile()
+
     override fun run() {
         // Make sure that none of the code called by this command accesses the global `options`
         // property.
@@ -80,7 +94,8 @@ class SignatureCatCommand :
             }
 
         val codebase = read(signatureFiles)
-        write(codebase, outputFormat, stdout)
+        val outputWriter = outputFile?.printWriter() ?: stdout
+        write(codebase, outputFormat, outputWriter)
     }
 
     private fun read(signatureFiles: List<SignatureFile>) =
