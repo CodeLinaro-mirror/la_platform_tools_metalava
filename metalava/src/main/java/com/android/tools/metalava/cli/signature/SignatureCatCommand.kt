@@ -17,7 +17,6 @@
 package com.android.tools.metalava.cli.signature
 
 import com.android.tools.metalava.OptionsDelegate
-import com.android.tools.metalava.SignatureWriter
 import com.android.tools.metalava.cli.common.MetalavaSubCommand
 import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.newOrExistingFile
@@ -30,6 +29,7 @@ import com.android.tools.metalava.model.snapshot.NonFilteringDelegatingVisitor
 import com.android.tools.metalava.model.text.ApiFile
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.SignatureFile
+import com.android.tools.metalava.model.text.SignatureWriter
 import com.android.tools.metalava.reporter.BasicReporter
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.arguments.multiple

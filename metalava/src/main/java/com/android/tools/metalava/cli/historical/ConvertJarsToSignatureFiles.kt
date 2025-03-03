@@ -22,11 +22,9 @@ import com.android.tools.metalava.ComparisonVisitor
 import com.android.tools.metalava.JarCodebaseLoader
 import com.android.tools.metalava.NullnessMigration
 import com.android.tools.metalava.ProgressTracker
-import com.android.tools.metalava.SignatureWriter
 import com.android.tools.metalava.apilevels.ApiVersion
 import com.android.tools.metalava.apilevels.PatternNode
 import com.android.tools.metalava.cli.common.DefaultSignatureFileLoader
-import com.android.tools.metalava.createFilteringVisitorForSignatures
 import com.android.tools.metalava.createReportFile
 import com.android.tools.metalava.model.ANDROIDX_NONNULL
 import com.android.tools.metalava.model.ANDROIDX_NULLABLE
@@ -43,6 +41,8 @@ import com.android.tools.metalava.model.api.surface.ApiSurface
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.SignatureFile
+import com.android.tools.metalava.model.text.SignatureWriter
+import com.android.tools.metalava.model.text.createFilteringVisitorForSignatures
 import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiType
 import com.android.tools.metalava.model.visitors.ApiVisitor
@@ -108,12 +108,10 @@ class ConvertJarsToSignatureFiles(
      * file, i.e. [SurfaceInfo.signatureFile].
      */
     private fun convertJar(version: ApiVersion, surfaceInfo: SurfaceInfo) {
-        val relativeJarFile = surfaceInfo.jarFile
-        val jarFile = root.resolve(relativeJarFile)
-        val relativeSignatureFile = surfaceInfo.signatureFile
-        val signatureFile = root.resolve(relativeSignatureFile)
+        val jarFile = surfaceInfo.jarFile
+        val signatureFile = surfaceInfo.signatureFile
 
-        progressTracker.progress("Writing signature files $relativeSignatureFile for $jarFile")
+        progressTracker.progress("Writing signature files $signatureFile for $jarFile")
 
         val annotationManager = DefaultAnnotationManager()
         val codebaseConfig =

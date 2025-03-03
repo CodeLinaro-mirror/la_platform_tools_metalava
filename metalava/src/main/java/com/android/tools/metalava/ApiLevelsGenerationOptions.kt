@@ -70,7 +70,6 @@ const val ARG_API_VERSION_SIGNATURE_PATTERN = "--api-version-signature-pattern"
 // JSON API version related arguments
 const val ARG_GENERATE_API_VERSION_HISTORY = "--generate-api-version-history"
 const val ARG_API_VERSION_SIGNATURE_FILES = "--api-version-signature-files"
-const val ARG_API_VERSION_NAMES = "--api-version-names"
 
 /**
  * Factory for creating a [VersionedApi] from an [ApiHistoryUpdater] and a list of
@@ -589,25 +588,6 @@ class ApiLevelsGenerationOptions(
             .default(emptyList(), defaultForHelp = "")
 
     /**
-     * The names of the API versions in [apiVersionSignatureFiles], in the same order, and the name
-     * of the current API version (if it is not provided by [optionalCurrentApiVersion]).
-     */
-    private val apiVersionNames by
-        option(
-                ARG_API_VERSION_NAMES,
-                metavar = "<api-versions>",
-                help =
-                    """
-                        An ordered list of strings with the names to use for the API versions from
-                        $ARG_API_VERSION_SIGNATURE_FILES. If $ARG_CURRENT_VERSION is not provided
-                        then this must include an additional version at the end which is used for
-                        the current API version. Required for $ARG_GENERATE_API_VERSION_HISTORY.
-                    """
-                        .trimIndent()
-            )
-            .split(" ")
-
-    /**
      * Construct the [GenerateApiHistoryConfig] from the options.
      *
      * If no relevant command line options were provided then this will return `null`, otherwise it
@@ -626,9 +606,7 @@ class ApiLevelsGenerationOptions(
         val apiVersionsFile = generateApiVersionHistory
         return if (apiVersionsFile != null) {
             val (sourceVersion, matchedPatternFiles) =
-                if (signaturePatterns.isNotEmpty())
-                    sourceVersionAndMatchedPatternFilesFromSignaturePatterns()
-                else sourceVersionAndMatchedPatternFilesFromVersionNames()
+                sourceVersionAndMatchedPatternFilesFromSignaturePatterns()
 
             // Create VersionedApis for the signature files and the source codebase.
             val versionedApis = buildList {
@@ -656,62 +634,11 @@ class ApiLevelsGenerationOptions(
     }
 
     /**
-     * Get the source [ApiVersion] and list of [MatchedPatternFile]s from [apiVersionNames] as well
-     * as [optionalCurrentApiVersion] and [apiVersionSignatureFiles].
-     */
-    private fun sourceVersionAndMatchedPatternFilesFromVersionNames():
-        Pair<ApiVersion, List<MatchedPatternFile>> {
-        // The signature files can be null if the current version is the only version
-        val historicalSignatureFiles = apiVersionSignatureFiles
-
-        val currentApiVersion = optionalCurrentApiVersion
-        val allVersions = buildList {
-            apiVersionNames?.mapTo(this) { ApiVersion.fromString(it) }
-            if (currentApiVersion != null) add(currentApiVersion)
-        }
-
-        // Get the number of version names and signature files.
-        val numVersionNames = allVersions.size
-        if (numVersionNames == 0) {
-            cliError(
-                "Must specify $ARG_API_VERSION_NAMES and/or $ARG_CURRENT_VERSION with $ARG_GENERATE_API_VERSION_HISTORY"
-            )
-        }
-        // allVersions will include the current version but apiVersionSignatureFiles will not,
-        // so there should be 1 more name than signature files.
-        if (numVersionNames != historicalSignatureFiles.size + 1) {
-            if (currentApiVersion == null) {
-                cliError(
-                    "$ARG_API_VERSION_NAMES must have one more version than $ARG_API_VERSION_SIGNATURE_FILES to include the current version name as $ARG_CURRENT_VERSION is not provided"
-                )
-            } else {
-                cliError(
-                    "$ARG_API_VERSION_NAMES must have the same number of versions as $ARG_API_VERSION_SIGNATURE_FILES has files as $ARG_CURRENT_VERSION is provided"
-                )
-            }
-        }
-
-        val sourceVersion = allVersions.last()
-
-        // Combine the `pastApiVersions` and `allVersion` into a list of `MatchedPatternFile`s.
-        val matchedPatternFiles =
-            historicalSignatureFiles.mapIndexed { index, file ->
-                MatchedPatternFile(file = file, version = allVersions[index])
-            }
-
-        return sourceVersion to matchedPatternFiles
-    }
-
-    /**
      * Get the source [ApiVersion] and list of [MatchedPatternFile]s from [signaturePatterns] as
      * well as [optionalCurrentApiVersion] and [apiVersionSignatureFiles].
      */
     private fun sourceVersionAndMatchedPatternFilesFromSignaturePatterns():
         Pair<ApiVersion, List<MatchedPatternFile>> {
-        if (apiVersionNames != null)
-            cliError(
-                "Cannot combine $ARG_API_VERSION_NAMES with $ARG_API_VERSION_SIGNATURE_PATTERN"
-            )
 
         val sourceVersion =
             optionalCurrentApiVersion
