@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 The Android Open Source Project
+ * Copyright (C) 2025 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,24 +14,12 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model
+package com.android.tools.metalava.config
 
-interface ItemVisitor {
-    fun visit(codebase: Codebase) {}
+import java.io.File
 
-    fun visit(cls: ClassItem) {}
-
-    fun visit(field: FieldItem) {}
-
-    fun visit(constructor: ConstructorItem) {}
-
-    fun visit(method: MethodItem) {}
-
-    fun visit(pkg: PackageItem) {}
-
-    fun visit(parameter: ParameterItem) {}
-
-    fun visit(property: PropertyItem) {}
-
-    fun visit(typeAlias: TypeAliasItem) {}
+/** Write [this] to [file] in the same format as [ConfigParser] reads. */
+fun Config.writeTo(file: File) {
+    val xmlMapper = ConfigParser.configXmlMapper()
+    xmlMapper.writeValue(file, this)
 }

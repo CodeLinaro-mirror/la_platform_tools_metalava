@@ -88,6 +88,9 @@ interface Codebase {
     /** Returns a package identified by fully qualified name, if in the codebase */
     fun findPackage(pkgName: String): PackageItem?
 
+    /** Returns a typealias identified by fully qualified name, if in the codebase */
+    fun findTypeAlias(typeAliasName: String): TypeAliasItem?
+
     /** Returns true if this codebase supports documentation. */
     fun supportsDocumentation(): Boolean
 

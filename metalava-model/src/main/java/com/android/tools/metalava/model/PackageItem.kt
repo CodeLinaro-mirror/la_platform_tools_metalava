@@ -48,6 +48,9 @@ interface PackageItem : SelectableItem {
         return topLevelClasses().asSequence().flatMap { it.allClasses() }
     }
 
+    /** All type aliases defined in this package. */
+    fun typeAliases(): List<TypeAliasItem>
+
     override fun type(): TypeItem? = null
 
     override fun setType(type: TypeItem) =

@@ -84,6 +84,17 @@ com.android.tools.metalava.model.testsuite.packageitem.CommonPackageItemTest
   Test @hide in package info processed last[psi,java,k2]
   Test @hide in package info processed last[turbine]
 
+com.android.tools.metalava.model.testsuite.typealiasitem.CommonTypeAliasItemTest
+  accessing type alias from codebase[psi,kotlin,k1]
+  accessing type alias from package[psi,kotlin,k1]
+  annotations on type alias[psi,kotlin,k1]
+  basic type alias types[psi,kotlin,k1]
+  functional type alias type[psi,kotlin,k1]
+  type alias name[psi,kotlin,k1]
+  type alias referencing other type alias[psi,kotlin,k1]
+  type alias visibility[psi,kotlin,k1]
+  type parameter lists on type aliases[psi,kotlin,k1]
+
 com.android.tools.metalava.model.testsuite.typeitem.CommonIsAssignableFromTest
   Test assignability without unboxing[psi,java,k1,boxedInt to primitiveInt]
   Test assignability without unboxing[psi,java,k1,number to boxedInt]

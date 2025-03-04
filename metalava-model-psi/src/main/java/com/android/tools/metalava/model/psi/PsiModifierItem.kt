@@ -54,7 +54,6 @@ import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.createMutableModifiers
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.isNullnessAnnotation
-import com.android.tools.metalava.model.psi.PsiModifierItem.isFromInterface
 import com.intellij.psi.PsiAnnotation
 import com.intellij.psi.PsiAnnotationMemberValue
 import com.intellij.psi.PsiArrayInitializerMemberValue
@@ -195,6 +194,48 @@ internal object PsiModifierItem {
                 }
             }
         }
+
+        if (hasDeprecatedAnnotation(modifiers)) {
+            modifiers.setDeprecated(true)
+        }
+
+        return modifiers
+    }
+
+    /**
+     * Creates modifiers for a [ktDeclaration] that does not have an equivalent psi element which
+     * can be used with [create]. If the [ktDeclaration] is a property, [createForProperty] should
+     * be used instead.
+     */
+    fun createForKtDeclaration(
+        codebase: PsiBasedCodebase,
+        ktDeclaration: KtDeclaration
+    ): MutableModifierList {
+        val ktModifierList = ktDeclaration.modifierList
+        val visibilityFlags =
+            visibilityFlags(
+                psiModifierList = null,
+                ktModifierList = ktModifierList,
+                element = ktDeclaration,
+                sourcePsi = ktDeclaration
+            )
+        val kotlinFlags = kotlinFlags { token ->
+            ktModifierList?.hasModifier(token) ?: ktDeclaration.hasModifier(token)
+        }
+        val flags = visibilityFlags or kotlinFlags
+
+        val annotations =
+            ktDeclaration.annotationEntries.mapNotNull { ktAnnotationEntry ->
+                (ktAnnotationEntry.toUElement() as? UAnnotation)?.let { uAnnotation ->
+                    UAnnotationItem.create(codebase, uAnnotation)
+                }
+            }
+
+        val modifiers =
+            createMutableModifiers(
+                flags,
+                annotations,
+            )
 
         if (hasDeprecatedAnnotation(modifiers)) {
             modifiers.setDeprecated(true)

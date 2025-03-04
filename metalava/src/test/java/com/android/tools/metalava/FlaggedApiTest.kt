@@ -44,7 +44,8 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
         val surface: Surface,
         val flagged: Flagged,
     ) {
-        val extraArguments = (surface.args + flagged.args)
+        /** Get extra command line arguments to pass. */
+        fun extraArguments() = (surface.args + flagged.extraArguments())
 
         override fun toString(): String {
             val surfaceText = surface.name.lowercase(Locale.US)
@@ -74,7 +75,34 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
     /** The different configurations of the flagged API that this test will check. */
     enum class Flagged(val text: String, val args: List<String>) {
         /** Represents an API with all flagged APIs. */
-        WITH("with flagged api", emptyList()),
+        WITH("with flagged api", emptyList()) {
+            override fun synthesizeAdditionalExpectations(expectations: Expectations) =
+                listOf(
+                    expectations,
+                    // All Expectations with flagged APIs are identical to the Expectations without
+                    // flagged APIs apart from those for feature flag `foo/bar`. So, this adds
+                    // additional Expectations without flagged APIs but with flagged APIs for
+                    // feature flag `foo/bar` flagged API that are identical to the "with flagged
+                    // APIs" except for the expectedApi which does not include `@FlaggedApi`
+                    // annotations.
+                    expectations.copy(
+                        flagged = Flagged.WITHOUT_APART_FROM_FOO_BAR_APIS,
+                        // Remove any FlaggedApi annotations from the signature files
+                        expectedApi =
+                            expectations.expectedApi.replace(flaggedApiInSignatureRegex, ""),
+                        // Remove any FlaggedApi annotations from the stubs files
+                        expectedStubs =
+                            expectations.expectedStubs
+                                .map {
+                                    val copy = TestFile()
+                                    copy.contents = it.contents.replace(flaggedApiInStubsRegex, "")
+                                    copy.targetRelativePath = it.targetRelativePath
+                                    copy
+                                }
+                                .toTypedArray()
+                    ),
+                )
+        },
 
         /** Represents an API without any flagged APIs. */
         WITHOUT("without  flagged api", listOf(ARG_REVERT_ANNOTATION, ANDROID_FLAGGED_API)),
@@ -88,6 +116,20 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
             WITHOUT.args +
                 listOf(ARG_REVERT_ANNOTATION, """!$ANDROID_FLAGGED_API("test.pkg.flags.foo_bar")""")
         ),
+        ;
+
+        /**
+         * Synthesize additional [Expectations], if any.
+         *
+         * This is called on the [Expectations.flagged] object passing in the referencing
+         * [Expectations] to allow additional [Expectations] to be created that are based on the
+         * [expectations] by applying simple transformations. It avoids having to duplicate 90% of
+         * the test.
+         */
+        open fun synthesizeAdditionalExpectations(expectations: Expectations) = listOf(expectations)
+
+        /** Get extra command line arguments to pass. */
+        fun extraArguments() = args
     }
 
     companion object {
@@ -157,36 +199,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
         expectationsList: List<Expectations>,
     ) {
         val transformedExpectationsList =
-            expectationsList.flatMap {
-                // All Expectations with flagged APIs are identical to the Expectations without
-                // flagged APIs apart from those for feature flag `foo/bar`. So, this adds
-                // additional Expectations without flagged APIs but with flagged APIs for feature
-                // flag `foo/bar` flagged API that are identical to the "with flagged APIs" except
-                // with for the expectedApi which does not include `@FlaggedApi` annotations.
-                if (it.flagged == Flagged.WITH) {
-                    listOf(
-                        it,
-                        it.copy(
-                            flagged = Flagged.WITHOUT_APART_FROM_FOO_BAR_APIS,
-                            // Remove any FlaggedApi annotations from the signature files
-                            expectedApi = it.expectedApi.replace(flaggedApiInSignatureRegex, ""),
-                            // Remove any FlaggedApi annotations from the stubs files
-                            expectedStubs =
-                                it.expectedStubs
-                                    .map {
-                                        val copy = TestFile()
-                                        copy.contents =
-                                            it.contents.replace(flaggedApiInStubsRegex, "")
-                                        copy.targetRelativePath = it.targetRelativePath
-                                        copy
-                                    }
-                                    .toTypedArray()
-                        ),
-                    )
-                } else {
-                    listOf(it)
-                }
-            }
+            expectationsList.flatMap { it.flagged.synthesizeAdditionalExpectations(it) }
 
         val filterExpectations =
             transformedExpectationsList.filter {
@@ -238,7 +251,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                 "--warning",
                 "UnflaggedApi",
                 *apiVersionsArgs,
-                *config.extraArguments.toTypedArray(),
+                *config.extraArguments().toTypedArray(),
                 *extraArguments,
             )
 
