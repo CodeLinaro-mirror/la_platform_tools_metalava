@@ -969,7 +969,9 @@ internal class PsiCodebaseAssembler(
         val typeAliases =
             psiClasses.flatMap { topLevelDeclarations(it) }.filterIsInstance<KtTypeAlias>()
         for (typeAlias in typeAliases) {
-            PsiTypeAliasItem.create(typeAlias, codebase)
+            val qualifiedTypeAliasName = typeAlias.getClassId()?.asFqNameString() ?: continue
+            val value = codebase.globalTypeItemFactory.getTypeForKtElement(typeAlias) ?: continue
+            codebase.typeAliases[qualifiedTypeAliasName] = value
         }
     }
 

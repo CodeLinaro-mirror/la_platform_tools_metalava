@@ -100,8 +100,7 @@ private constructor(
             // the version that will be present as a class in the codebase.
             val originalName =
                 uAnnotation.qualifiedName?.let {
-                    (codebase.findTypeAlias(it)?.aliasedType as? PsiClassTypeItem)?.qualifiedName
-                        ?: it
+                    (codebase.typeAliases[it] as? PsiClassTypeItem)?.qualifiedName ?: it
                 }
                     ?: return null
             val qualifiedName =

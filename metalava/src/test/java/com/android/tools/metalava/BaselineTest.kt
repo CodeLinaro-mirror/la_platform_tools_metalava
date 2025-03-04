@@ -22,6 +22,7 @@ import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.cli.lint.ARG_API_LINT
 import com.android.tools.metalava.lint.DefaultLintErrorMessage
 import com.android.tools.metalava.model.text.FileFormat
+import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import java.io.File
 import org.junit.Test
@@ -240,6 +241,8 @@ class BaselineTest : DriverTest() {
                     ),
                     testApiSource,
                     androidxNullableSource,
+                    // Hide android.annotation classes.
+                    KnownSourceFiles.androidAnnotationHide,
                 ),
             api =
                 """

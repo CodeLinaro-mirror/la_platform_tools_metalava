@@ -83,18 +83,12 @@ const val PROGRAM_NAME = "metalava"
 
 fun main(args: Array<String>) {
     val executionEnvironment = ExecutionEnvironment()
-    var exitCode = 0
-    try {
-        exitCode = run(executionEnvironment = executionEnvironment, originalArgs = args)
-    } catch (e: Throwable) {
-        exitCode = -1
-        e.printStackTrace(executionEnvironment.stderr)
-    } finally {
-        executionEnvironment.stdout.flush()
-        executionEnvironment.stderr.flush()
+    val exitCode = run(executionEnvironment = executionEnvironment, originalArgs = args)
 
-        exitProcess(exitCode)
-    }
+    executionEnvironment.stdout.flush()
+    executionEnvironment.stderr.flush()
+
+    exitProcess(exitCode)
 }
 
 /**
@@ -486,7 +480,7 @@ private fun ActionContext.subtractApi(
     subtractApiFile: File,
 ) {
     val path = subtractApiFile.path
-    val codebaseToSubtract =
+    val oldCodebase =
         when {
             path.endsWith(DOT_TXT) ->
                 signatureFileCache.load(SignatureFile.fromFiles(subtractApiFile))
@@ -497,21 +491,18 @@ private fun ActionContext.subtractApi(
                 )
         }
 
-    // Iterate over the top level classes in the codebase and if they are present in the codebase
-    // being subtracted then do not emit the class or any of its nested classes.
-    for (classItem in codebase.getTopLevelClassesFromSource()) {
-        if (codebaseToSubtract.findClass(classItem.qualifiedName()) != null) {
-            stopEmittingClassAndContents(classItem)
-        }
-    }
-}
-
-/** Stop emitting [classItem] and any of its nested classes. */
-private fun stopEmittingClassAndContents(classItem: ClassItem) {
-    classItem.emit = false
-    for (nestedClass in classItem.nestedClasses()) {
-        stopEmittingClassAndContents(nestedClass)
-    }
+    @Suppress("DEPRECATION")
+    CodebaseComparator()
+        .compare(
+            object : ComparisonVisitor() {
+                override fun compareClassItems(old: ClassItem, new: ClassItem) {
+                    new.emit = false
+                }
+            },
+            oldCodebase,
+            codebase,
+            ApiType.ALL.getReferenceFilter(options.apiPredicateConfig)
+        )
 }
 
 /** Checks compatibility of the given codebase with the codebase described in the signature file. */

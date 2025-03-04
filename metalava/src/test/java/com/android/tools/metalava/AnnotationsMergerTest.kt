@@ -19,6 +19,8 @@ package com.android.tools.metalava
 import com.android.tools.metalava.cli.common.ARG_WARNING
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.testing.KnownSourceFiles
+import com.android.tools.metalava.testing.KnownSourceFiles.androidxAnnotationHide
 import com.android.tools.metalava.testing.java
 import org.junit.Test
 
@@ -35,6 +37,7 @@ class AnnotationsMergerTest : DriverTest() {
             format = FileFormat.V2,
             sourceFiles =
                 arrayOf(
+                    androidxAnnotationHide,
                     androidxNullableSource,
                     androidxNonNullSource,
                     java(
@@ -85,6 +88,7 @@ class AnnotationsMergerTest : DriverTest() {
             format = FileFormat.V2,
             sourceFiles =
                 arrayOf(
+                    androidxAnnotationHide,
                     androidxNullableSource,
                     androidxNonNullSource,
                     java(
@@ -156,6 +160,10 @@ class AnnotationsMergerTest : DriverTest() {
                     intRangeAnnotationSource,
                     androidxNonNullSource,
                     androidxNullableSource,
+                    // Hide android.annotation classes.
+                    KnownSourceFiles.androidAnnotationHide,
+                    // Hide androidx.annotation classes.
+                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             api =
                 """
@@ -297,6 +305,8 @@ class AnnotationsMergerTest : DriverTest() {
                     ),
                     libcoreNonNullSource,
                     libcoreNullableSource,
+                    // Hide libcore.util classes.
+                    KnownSourceFiles.libcodeUtilHide,
                 ),
             mergeJavaStubAnnotations =
                 """
@@ -425,6 +435,8 @@ class AnnotationsMergerTest : DriverTest() {
                     ),
                     libcoreNonNullSource,
                     libcoreNullableSource,
+                    // Hide libcore.util classes.
+                    KnownSourceFiles.libcodeUtilHide,
                 ),
             mergeJavaStubAnnotations =
                 """
@@ -469,6 +481,8 @@ class AnnotationsMergerTest : DriverTest() {
                     ),
                     libcoreNonNullSource,
                     libcoreNullableSource,
+                    // Hide libcore.util classes.
+                    KnownSourceFiles.libcodeUtilHide,
                 ),
             mergeJavaStubAnnotations =
                 """

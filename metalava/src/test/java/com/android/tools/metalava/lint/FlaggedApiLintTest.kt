@@ -17,9 +17,9 @@
 package com.android.tools.metalava.lint
 
 import com.android.tools.metalava.DriverTest
-import com.android.tools.metalava.KnownJarFiles
 import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.cli.common.ARG_WARNING
+import com.android.tools.metalava.flaggedApiSource
 import com.android.tools.metalava.systemApiSource
 import com.android.tools.metalava.testing.java
 import org.junit.Test
@@ -95,10 +95,9 @@ class FlaggedApiLintTest : DriverTest() {
                             }
                         """
                     ),
+                    flaggedApiSource,
                     systemApiSource,
                 ),
-            // Access android.annotation.FlaggedApi
-            classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
             extraArguments = arrayOf("--warning", "UnflaggedApi")
         )
     }
@@ -233,10 +232,9 @@ class FlaggedApiLintTest : DriverTest() {
                             }
                         """
                     ),
+                    flaggedApiSource,
                     flagsFile,
                 ),
-            // Access android.annotation.FlaggedApi
-            classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
             extraArguments = arrayOf(ARG_WARNING, "UnflaggedApi", ARG_HIDE, "HiddenSuperclass")
         )
     }
@@ -271,10 +269,9 @@ class FlaggedApiLintTest : DriverTest() {
                             }
                         """
                     ),
+                    flaggedApiSource,
                     systemApiSource,
                 ),
-            // Access android.annotation.FlaggedApi
-            classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
             extraArguments = arrayOf("--warning", "UnflaggedApi")
         )
     }
@@ -421,10 +418,9 @@ class FlaggedApiLintTest : DriverTest() {
                             }
                         """
                     ),
+                    flaggedApiSource,
                     systemApiSource,
                 ),
-            // Access android.annotation.FlaggedApi
-            classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
             extraArguments = arrayOf(ARG_WARNING, "UnflaggedApi", ARG_HIDE, "HiddenSuperclass"),
             checkCompilation = true
         )
@@ -493,9 +489,8 @@ class FlaggedApiLintTest : DriverTest() {
                         """
                     ),
                     flagsFile,
+                    flaggedApiSource
                 ),
-            // Access android.annotation.FlaggedApi
-            classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
         )
     }
 
@@ -531,9 +526,8 @@ class FlaggedApiLintTest : DriverTest() {
                         """
                     ),
                     flagsFile,
+                    flaggedApiSource,
                 ),
-            // Access android.annotation.FlaggedApi
-            classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
             extraArguments = arrayOf(ARG_WARNING, "UnflaggedApi"),
         )
     }
@@ -575,9 +569,8 @@ class FlaggedApiLintTest : DriverTest() {
                         """
                     ),
                     flagsFile,
+                    flaggedApiSource,
                 ),
-            // Access android.annotation.FlaggedApi
-            classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
             extraArguments = arrayOf(ARG_WARNING, "UnflaggedApi"),
         )
     }
@@ -613,9 +606,8 @@ class FlaggedApiLintTest : DriverTest() {
                         """
                     ),
                     flagsFile,
+                    flaggedApiSource,
                 ),
-            // Access android.annotation.FlaggedApi
-            classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
             extraArguments = arrayOf(ARG_WARNING, "UnflaggedApi"),
         )
     }
@@ -647,9 +639,8 @@ class FlaggedApiLintTest : DriverTest() {
                         """
                     ),
                     flagsFile,
+                    flaggedApiSource,
                 ),
-            // Access android.annotation.FlaggedApi
-            classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
             extraArguments = arrayOf(ARG_WARNING, "UnflaggedApi"),
         )
     }

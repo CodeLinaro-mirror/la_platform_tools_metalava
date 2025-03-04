@@ -47,7 +47,8 @@ interface ParameterItem : ClassContentItem, Item {
 
     /**
      * The public name of this parameter. In Kotlin, names are part of the public API; in Java they
-     * are not.
+     * are not. In Java, you can annotate a parameter with {@literal @ParameterName("foo")} to name
+     * the parameter something (potentially different from the actual code parameter name).
      */
     fun publicName(): String?
 

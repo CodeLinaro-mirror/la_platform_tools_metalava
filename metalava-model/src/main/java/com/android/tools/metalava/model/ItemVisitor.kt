@@ -32,6 +32,4 @@ interface ItemVisitor {
     fun visit(parameter: ParameterItem) {}
 
     fun visit(property: PropertyItem) {}
-
-    fun visit(typeAlias: TypeAliasItem) {}
 }

@@ -18,17 +18,17 @@ package com.android.tools.metalava
 
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.cli.common.ARG_HIDE
-import com.android.tools.metalava.model.ANDROID_ANNOTATION_PACKAGE
 import com.android.tools.metalava.model.ANDROID_FLAGGED_API
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import java.util.Locale
 import kotlin.test.assertEquals
 import org.junit.Test
 import org.junit.runners.Parameterized
 
-private val annotationsList = listOf(systemApiSource, nonNullSource)
+private val annotationsList = listOf(systemApiSource, flaggedApiSource, nonNullSource)
 
 private const val FULLY_QUALIFIED_SYSTEM_API_SURFACE_ANNOTATION =
     "android.annotation.SystemApi(client=android.annotation.SystemApi.Client.PRIVILEGED_APPS)"
@@ -44,8 +44,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
         val surface: Surface,
         val flagged: Flagged,
     ) {
-        /** Get extra command line arguments to pass. */
-        fun extraArguments() = (surface.args + flagged.extraArguments())
+        val extraArguments = (surface.args + flagged.args)
 
         override fun toString(): String {
             val surfaceText = surface.name.lowercase(Locale.US)
@@ -75,34 +74,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
     /** The different configurations of the flagged API that this test will check. */
     enum class Flagged(val text: String, val args: List<String>) {
         /** Represents an API with all flagged APIs. */
-        WITH("with flagged api", emptyList()) {
-            override fun synthesizeAdditionalExpectations(expectations: Expectations) =
-                listOf(
-                    expectations,
-                    // All Expectations with flagged APIs are identical to the Expectations without
-                    // flagged APIs apart from those for feature flag `foo/bar`. So, this adds
-                    // additional Expectations without flagged APIs but with flagged APIs for
-                    // feature flag `foo/bar` flagged API that are identical to the "with flagged
-                    // APIs" except for the expectedApi which does not include `@FlaggedApi`
-                    // annotations.
-                    expectations.copy(
-                        flagged = Flagged.WITHOUT_APART_FROM_FOO_BAR_APIS,
-                        // Remove any FlaggedApi annotations from the signature files
-                        expectedApi =
-                            expectations.expectedApi.replace(flaggedApiInSignatureRegex, ""),
-                        // Remove any FlaggedApi annotations from the stubs files
-                        expectedStubs =
-                            expectations.expectedStubs
-                                .map {
-                                    val copy = TestFile()
-                                    copy.contents = it.contents.replace(flaggedApiInStubsRegex, "")
-                                    copy.targetRelativePath = it.targetRelativePath
-                                    copy
-                                }
-                                .toTypedArray()
-                    ),
-                )
-        },
+        WITH("with flagged api", emptyList()),
 
         /** Represents an API without any flagged APIs. */
         WITHOUT("without  flagged api", listOf(ARG_REVERT_ANNOTATION, ANDROID_FLAGGED_API)),
@@ -116,20 +88,6 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
             WITHOUT.args +
                 listOf(ARG_REVERT_ANNOTATION, """!$ANDROID_FLAGGED_API("test.pkg.flags.foo_bar")""")
         ),
-        ;
-
-        /**
-         * Synthesize additional [Expectations], if any.
-         *
-         * This is called on the [Expectations.flagged] object passing in the referencing
-         * [Expectations] to allow additional [Expectations] to be created that are based on the
-         * [expectations] by applying simple transformations. It avoids having to duplicate 90% of
-         * the test.
-         */
-        open fun synthesizeAdditionalExpectations(expectations: Expectations) = listOf(expectations)
-
-        /** Get extra command line arguments to pass. */
-        fun extraArguments() = args
     }
 
     companion object {
@@ -199,7 +157,36 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
         expectationsList: List<Expectations>,
     ) {
         val transformedExpectationsList =
-            expectationsList.flatMap { it.flagged.synthesizeAdditionalExpectations(it) }
+            expectationsList.flatMap {
+                // All Expectations with flagged APIs are identical to the Expectations without
+                // flagged APIs apart from those for feature flag `foo/bar`. So, this adds
+                // additional Expectations without flagged APIs but with flagged APIs for feature
+                // flag `foo/bar` flagged API that are identical to the "with flagged APIs" except
+                // with for the expectedApi which does not include `@FlaggedApi` annotations.
+                if (it.flagged == Flagged.WITH) {
+                    listOf(
+                        it,
+                        it.copy(
+                            flagged = Flagged.WITHOUT_APART_FROM_FOO_BAR_APIS,
+                            // Remove any FlaggedApi annotations from the signature files
+                            expectedApi = it.expectedApi.replace(flaggedApiInSignatureRegex, ""),
+                            // Remove any FlaggedApi annotations from the stubs files
+                            expectedStubs =
+                                it.expectedStubs
+                                    .map {
+                                        val copy = TestFile()
+                                        copy.contents =
+                                            it.contents.replace(flaggedApiInStubsRegex, "")
+                                        copy.targetRelativePath = it.targetRelativePath
+                                        copy
+                                    }
+                                    .toTypedArray()
+                        ),
+                    )
+                } else {
+                    listOf(it)
+                }
+            }
 
         val filterExpectations =
             transformedExpectationsList.filter {
@@ -251,7 +238,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                 "--warning",
                 "UnflaggedApi",
                 *apiVersionsArgs,
-                *config.extraArguments().toTypedArray(),
+                *config.extraArguments.toTypedArray(),
                 *extraArguments,
             )
 
@@ -271,10 +258,10 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                         addAll(sourceFiles)
                         addAll(annotationsList)
                         add(flagsFile)
+                        // Hide android.annotation classes.
+                        add(KnownSourceFiles.androidAnnotationHide)
                     }
                     .toTypedArray(),
-            // Access android.annotation.FlaggedApi
-            classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
             api = expectations.expectedApi,
             stubFiles = expectations.expectedStubs,
             stubPaths = expectations.expectedStubPaths,
@@ -283,8 +270,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
             // Do not include flags in the output but do not mark them as hide or removed.
             // This is needed to verify that the code to always inline the values of
             // FlaggedApi annotations even when not hidden or removed is working correctly.
-            // Do not emit android.annotation classes either.
-            skipEmitPackages = listOf("test.pkg.flags", ANDROID_ANNOTATION_PACKAGE),
+            skipEmitPackages = listOf("test.pkg.flags"),
             extraArguments = args,
         )
 

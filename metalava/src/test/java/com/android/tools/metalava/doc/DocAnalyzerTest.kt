@@ -236,8 +236,6 @@ class DocAnalyzerTest : DriverTest() {
                     """
                     )
                 ),
-            // Override default to emit android.annotation classes.
-            skipEmitPackages = emptyList(),
             checkCompilation = true,
             docStubs = true,
             stubFiles =

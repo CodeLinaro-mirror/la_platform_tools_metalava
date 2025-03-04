@@ -336,7 +336,6 @@ internal class PsiTypeItemFactory(
             psiType = psiType,
             kind = getKind(psiType),
             modifiers = createTypeModifiers(psiType, kotlinType, ContextNullability.forceNonNull),
-            kotlinTypeInfo = kotlinType,
         )
 
     /** Get the [PrimitiveTypeItem.Primitive] enum from the [PsiPrimitiveType]. */
@@ -377,7 +376,6 @@ internal class PsiTypeItemFactory(
                 ),
             isVarargs = psiType is PsiEllipsisType,
             modifiers = createTypeModifiers(psiType, kotlinType, contextNullability),
-            kotlinTypeInfo = kotlinType,
         )
 
     /** Create a [PsiClassTypeItem]. */
@@ -405,7 +403,6 @@ internal class PsiTypeItemFactory(
                     creatingClassTypeForClass = true,
                 ),
             modifiers = createTypeModifiers(psiType, kotlinType, contextNullability),
-            kotlinTypeInfo = kotlinType,
         )
     }
 
@@ -700,7 +697,6 @@ internal class PsiTypeItemFactory(
             receiverType = receiverType,
             parameterTypes = parameterTypes,
             returnType = returnType,
-            kotlinTypeInfo = kotlinType,
         )
     }
 
@@ -715,7 +711,6 @@ internal class PsiTypeItemFactory(
             psiType = psiType,
             modifiers = createTypeModifiers(psiType, kotlinType, contextNullability),
             asTypeParameter = typeParameterItem,
-            kotlinTypeInfo = kotlinType,
         )
 
     /** Create a [PsiWildcardTypeItem]. */
@@ -748,7 +743,6 @@ internal class PsiTypeItemFactory(
                     kotlinType.takeIf { psiType.isSuper },
                 ),
             modifiers = createTypeModifiers(psiType, kotlinType, ContextNullability.forceUndefined),
-            kotlinTypeInfo = kotlinType,
         )
 
     /**

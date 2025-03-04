@@ -63,6 +63,14 @@ object KnownSourceFiles {
             """
         )
 
+    val androidAnnotationHide: TestFile =
+        TestFiles.java(
+            """
+                /** @hide */
+                package android.annotation;
+            """
+        )
+
     val nonNullSource: TestFile =
         TestFiles.java(
             """
@@ -103,6 +111,14 @@ object KnownSourceFiles {
     public @interface Nullable {
     }
     """
+        )
+
+    val libcodeUtilHide: TestFile =
+        TestFiles.java(
+            """
+                /** @hide */
+                package libcore.util;
+            """
         )
 
     val libcoreNonNullSource: TestFile =
@@ -148,6 +164,14 @@ object KnownSourceFiles {
             """
         )
 
+    val androidxAnnotationHide: TestFile =
+        TestFiles.java(
+            """
+                /** @hide */
+                package androidx.annotation;
+            """
+        )
+
     /** TYPE_USE version of [com.android.tools.metalava.intRangeAnnotationSource] */
     val intRangeTypeUseSource =
         java(
@@ -163,6 +187,22 @@ object KnownSourceFiles {
             long to() default Long.MAX_VALUE;
         }
         """
+        )
+
+    val supportParameterName =
+        java(
+            """
+                package androidx.annotation;
+                import java.lang.annotation.*;
+                import static java.lang.annotation.ElementType.*;
+                import static java.lang.annotation.RetentionPolicy.SOURCE;
+                @SuppressWarnings("WeakerAccess")
+                @Retention(SOURCE)
+                @Target({METHOD, PARAMETER, FIELD})
+                public @interface ParameterName {
+                    String value();
+                }
+            """
         )
 
     val systemApiSource: TestFile =
