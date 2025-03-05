@@ -23,7 +23,6 @@ import com.android.tools.metalava.model.DelegatedVisitor
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemVisitor
-import com.android.tools.metalava.model.Language
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierListWriter
 import com.android.tools.metalava.model.PackageItem
@@ -143,14 +142,8 @@ internal class StubWriter(
         assert(classItem.containingClass() == null) { "Should only be called on top level classes" }
         val packageDir = getPackageDir(classItem.containingPackage())
 
-        // Kotlin From-text stub generation is not supported.
-        // This method will raise an error if
-        // config.kotlinStubs == true and classItem is TextClassItem.
-        return if (config.kotlinStubs && classItem.isKotlin()) {
-            File(packageDir, "${classItem.simpleName()}.kt")
-        } else {
-            File(packageDir, "${classItem.simpleName()}.java")
-        }
+        // Kotlin stub generation is not supported.
+        return File(packageDir, "${classItem.simpleName()}.java")
     }
 
     /**
@@ -197,23 +190,20 @@ internal class StubWriter(
                     errorTextWriter
                 }
 
-            val kotlin = config.kotlinStubs && cls.isKotlin()
-            val language = if (kotlin) Language.KOTLIN else Language.JAVA
-
             val modifierListWriter =
                 ModifierListWriter.forStubs(
                     writer = textWriter,
                     docStubs = docStubs,
                     runtimeAnnotationsOnly = !generateAnnotations,
-                    language = language,
                 )
 
             stubWriter =
-                if (kotlin) {
-                    error("Generating Kotlin stubs is not supported")
-                } else {
-                    JavaStubWriter(textWriter, modifierListWriter, config, stubConstructorManager)
-                }
+                JavaStubWriter(
+                    textWriter,
+                    modifierListWriter,
+                    config,
+                    stubConstructorManager,
+                )
 
             // Copyright statements from the original file?
             cls.sourceFile()?.getHeaderComments()?.let { textWriter.println(it) }

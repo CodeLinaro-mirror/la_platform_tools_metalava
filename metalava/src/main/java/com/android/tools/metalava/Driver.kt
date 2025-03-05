@@ -83,12 +83,18 @@ const val PROGRAM_NAME = "metalava"
 
 fun main(args: Array<String>) {
     val executionEnvironment = ExecutionEnvironment()
-    val exitCode = run(executionEnvironment = executionEnvironment, originalArgs = args)
+    var exitCode = 0
+    try {
+        exitCode = run(executionEnvironment = executionEnvironment, originalArgs = args)
+    } catch (e: Throwable) {
+        exitCode = -1
+        e.printStackTrace(executionEnvironment.stderr)
+    } finally {
+        executionEnvironment.stdout.flush()
+        executionEnvironment.stderr.flush()
 
-    executionEnvironment.stdout.flush()
-    executionEnvironment.stderr.flush()
-
-    exitProcess(exitCode)
+        exitProcess(exitCode)
+    }
 }
 
 /**
@@ -242,11 +248,9 @@ internal fun processFlags(
                 }
 
             // If reverting some changes then create a snapshot that combines the items from the
-            // sources
-            // for any un-reverted changes and items from the previously released API for any
-            // reverted
-            // changes.
-            if (options.revertAnnotations.isNotEmpty()) {
+            // sources for any un-reverted changes and items from the previously released API for
+            // any reverted changes.
+            if (codebaseFragment.codebase.containsRevertedItem) {
                 codebaseFragment =
                     codebaseFragment.snapshotIncludingRevertedItems(
                         // Allow references to any of the ClassItems in the original Codebase. This
@@ -348,7 +352,7 @@ internal fun processFlags(
         // If reverting some changes then create a snapshot that combines the items from the sources
         // for any un-reverted changes and items from the previously released API for any reverted
         // changes.
-        if (options.revertAnnotations.isNotEmpty()) {
+        if (codebaseFragment.codebase.containsRevertedItem) {
             codebaseFragment =
                 codebaseFragment.snapshotIncludingRevertedItems(
                     // Allow references to any of the ClassItems in the original Codebase. This
@@ -383,7 +387,7 @@ internal fun processFlags(
         // If reverting some changes then create a snapshot that combines the items from the sources
         // for any un-reverted changes and items from the previously released API for any reverted
         // changes.
-        if (options.revertAnnotations.isNotEmpty()) {
+        if (codebaseFragment.codebase.containsRevertedItem) {
             codebaseFragment =
                 codebaseFragment.snapshotIncludingRevertedItems(
                     // Allow references to any of the ClassItems in the original Codebase. This
@@ -480,7 +484,7 @@ private fun ActionContext.subtractApi(
     subtractApiFile: File,
 ) {
     val path = subtractApiFile.path
-    val oldCodebase =
+    val codebaseToSubtract =
         when {
             path.endsWith(DOT_TXT) ->
                 signatureFileCache.load(SignatureFile.fromFiles(subtractApiFile))
@@ -491,18 +495,21 @@ private fun ActionContext.subtractApi(
                 )
         }
 
-    @Suppress("DEPRECATION")
-    CodebaseComparator()
-        .compare(
-            object : ComparisonVisitor() {
-                override fun compareClassItems(old: ClassItem, new: ClassItem) {
-                    new.emit = false
-                }
-            },
-            oldCodebase,
-            codebase,
-            ApiType.ALL.getReferenceFilter(options.apiPredicateConfig)
-        )
+    // Iterate over the top level classes in the codebase and if they are present in the codebase
+    // being subtracted then do not emit the class or any of its nested classes.
+    for (classItem in codebase.getTopLevelClassesFromSource()) {
+        if (codebaseToSubtract.findClass(classItem.qualifiedName()) != null) {
+            stopEmittingClassAndContents(classItem)
+        }
+    }
+}
+
+/** Stop emitting [classItem] and any of its nested classes. */
+private fun stopEmittingClassAndContents(classItem: ClassItem) {
+    classItem.emit = false
+    for (nestedClass in classItem.nestedClasses()) {
+        stopEmittingClassAndContents(nestedClass)
+    }
 }
 
 /** Checks compatibility of the given codebase with the codebase described in the signature file. */
@@ -789,7 +796,7 @@ private fun createStubFiles(
 
     // If reverting some changes then create a snapshot that combines the items from the sources for
     // any un-reverted changes and items from the previously released API for any reverted changes.
-    if (options.revertAnnotations.isNotEmpty()) {
+    if (codebaseFragment.codebase.containsRevertedItem) {
         codebaseFragment =
             codebaseFragment.snapshotIncludingRevertedItems(
                 referenceVisitorFactory = { delegate ->

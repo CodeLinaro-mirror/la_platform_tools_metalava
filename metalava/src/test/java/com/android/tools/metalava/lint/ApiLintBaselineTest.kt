@@ -24,7 +24,6 @@ import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.restrictToSource
-import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import kotlin.arrayOf
 import org.junit.Test
@@ -290,8 +289,6 @@ class ApiLintBaselineTest : DriverTest() {
                     androidxNonNullSource,
                     androidxNullableSource,
                     restrictToSource,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
                 ),
         )
     }

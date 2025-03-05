@@ -76,5 +76,25 @@ internal class PsiTypeParameterItem(
             }
             return false
         }
+
+        /**
+         * Creates a [DefaultTypeParameterItem] using the [ktTypeParameter]. Should be used only
+         * when there is no [PsiTypeParameter] available.
+         *
+         * The returned type parameter uses the default type implementation, which does not create a
+         * [PsiVariableTypeItem], as the analysis API doesn't have a direct way to create a psi type
+         * from the [KtTypeParameter].
+         */
+        fun create(
+            codebase: PsiBasedCodebase,
+            ktTypeParameter: KtTypeParameter
+        ): DefaultTypeParameterItem {
+            return DefaultTypeParameterItem(
+                codebase = codebase,
+                modifiers = PsiModifierItem.createForKtDeclaration(codebase, ktTypeParameter),
+                name = ktTypeParameter.name!!,
+                isReified = ktTypeParameter.text.startsWith(KtTokens.REIFIED_KEYWORD.value)
+            )
+        }
     }
 }

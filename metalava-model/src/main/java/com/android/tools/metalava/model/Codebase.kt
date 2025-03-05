@@ -88,6 +88,9 @@ interface Codebase {
     /** Returns a package identified by fully qualified name, if in the codebase */
     fun findPackage(pkgName: String): PackageItem?
 
+    /** Returns a typealias identified by fully qualified name, if in the codebase */
+    fun findTypeAlias(typeAliasName: String): TypeAliasItem?
+
     /** Returns true if this codebase supports documentation. */
     fun supportsDocumentation(): Boolean
 
@@ -129,6 +132,12 @@ interface Codebase {
     fun isEmpty(): Boolean {
         return getPackages().packages.isEmpty()
     }
+
+    /** Indicates whether this [Codebase] contains a reverted item, or not. */
+    val containsRevertedItem: Boolean
+
+    /** Record that this [Codebase] contains at least one reverted item. */
+    fun markContainsRevertedItem()
 
     /**
      * Contains configuration for [Codebase] that can, or at least could, come from command line

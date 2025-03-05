@@ -21,7 +21,9 @@ import com.android.tools.metalava.model.ANDROID_FLAGGED_API
 import com.android.tools.metalava.testing.java
 import org.junit.Test
 
-/** Edge case tests of [ANDROID_FLAGGED_API] that cannot be tested in [FlaggedApiTest]. */
+/**
+ * Edge case tests of [ANDROID_FLAGGED_API] that cannot be tested in [ParameterizedFlaggedApiTest].
+ */
 class FlaggedApiEdgeCasesTest : DriverTest() {
     @Test
     fun `Test override flagged method from source path no previously released API`() {

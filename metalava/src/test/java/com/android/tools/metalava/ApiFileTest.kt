@@ -27,7 +27,7 @@ import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.FileFormat.OverloadedMethodOrder
 import com.android.tools.metalava.reporter.Issues
-import com.android.tools.metalava.testing.KnownSourceFiles
+import com.android.tools.metalava.testing.KnownJarFiles
 import com.android.tools.metalava.testing.createAndroidModuleDescription
 import com.android.tools.metalava.testing.createCommonModuleDescription
 import com.android.tools.metalava.testing.createProjectDescription
@@ -142,77 +142,6 @@ class ApiFileTest : DriverTest() {
         )
     }
 
-    @Test
-    fun `Parameter Names in Java`() {
-        // Java code which explicitly specifies parameter names
-        check(
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package test.pkg;
-                    import androidx.annotation.ParameterName;
-
-                    public class Foo {
-                        public void foo(int javaParameter1, @ParameterName("publicParameterName") int javaParameter2) {
-                        }
-                    }
-                    """
-                    ),
-                    supportParameterName,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
-                ),
-            api =
-                """
-                    package test.pkg {
-                      public class Foo {
-                        ctor public Foo();
-                        method public void foo(int, int publicParameterName);
-                      }
-                    }
-                 """,
-        )
-    }
-
-    @Test
-    fun `Default Values Names in Java`() {
-        // Java code which explicitly specifies parameter names
-        check(
-            format = FileFormat.V3,
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package test.pkg;
-                    import androidx.annotation.DefaultValue;
-
-                    public class Foo {
-                        public void foo(
-                            @DefaultValue("null") String prefix,
-                            @DefaultValue("\"Hello World\"") String greeting,
-                            @DefaultValue("42") int meaning) {
-                        }
-                    }
-                    """
-                    ),
-                    supportDefaultValue,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
-                ),
-            api =
-                """
-                // Signature format: 3.0
-                package test.pkg {
-                  public class Foo {
-                    ctor public Foo();
-                    method public void foo(String! = null, String! = "Hello World", int = 42);
-                  }
-                }
-                 """,
-        )
-    }
-
     @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Default Values and Names in Kotlin`() {
@@ -261,8 +190,6 @@ class ApiFileTest : DriverTest() {
                     }
                     """
                     ),
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             api =
                 """
@@ -349,8 +276,6 @@ class ApiFileTest : DriverTest() {
                     ),
                     androidxNullableSource,
                     androidxNonNullSource,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             api =
                 """
@@ -676,8 +601,6 @@ class ApiFileTest : DriverTest() {
                     """
                     ),
                     uiThreadSource,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             api =
                 """
@@ -803,8 +726,6 @@ class ApiFileTest : DriverTest() {
                     ),
                     androidxNonNullSource,
                     androidxNullableSource,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             api =
                 """
@@ -1076,8 +997,6 @@ class ApiFileTest : DriverTest() {
                     ),
                     androidxNonNullSource,
                     androidxNullableSource,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             api =
                 """
@@ -1233,8 +1152,6 @@ class ApiFileTest : DriverTest() {
                         .indented(),
                     androidxNonNullSource,
                     androidxNullableSource,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             api =
                 """
@@ -1318,8 +1235,6 @@ class ApiFileTest : DriverTest() {
                         }
                     """
                     ),
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             api =
                 """
@@ -1796,6 +1711,8 @@ class ApiFileTest : DriverTest() {
                 """
                     )
                 ),
+            // Override default to emit android.annotation classes.
+            skipEmitPackages = emptyList(),
             api =
                 """
                 package android.annotation {
@@ -3922,8 +3839,6 @@ class ApiFileTest : DriverTest() {
                     """
                     ),
                     androidxNonNullSource,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             expectedIssues = "",
             api =
@@ -4313,10 +4228,9 @@ class ApiFileTest : DriverTest() {
                     }
                 """
                     ),
-                    androidxIntRangeSource,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
                 ),
+            // Access androidx.annotation.IntRange
+            classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
             api =
                 """
                 // Signature format: 3.0
@@ -4352,10 +4266,9 @@ class ApiFileTest : DriverTest() {
                     }
                 """
                     ),
-                    androidxIntRangeSource,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
                 ),
+            // Access androidx.annotation.IntRange
+            classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
             api =
                 """
                 // Signature format: 2.0
@@ -4388,10 +4301,9 @@ class ApiFileTest : DriverTest() {
                     }
                 """
                     ),
-                    androidxIntRangeSource,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
                 ),
+            // Access androidx.annotation.IntRange
+            classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
             api =
                 """
                 // Signature format: 3.0
@@ -4460,44 +4372,6 @@ class ApiFileTest : DriverTest() {
         )
     }
 
-    @Test
-    fun `Concise default Values Names in Java`() {
-        // Java code which explicitly specifies parameter names
-        check(
-            format = FileFormat.V4,
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package test.pkg;
-                    import androidx.annotation.DefaultValue;
-
-                    public class Foo {
-                        public void foo(
-                            @DefaultValue("null") String prefix,
-                            @DefaultValue("\"Hello World\"") String greeting,
-                            @DefaultValue("42") int meaning) {
-                        }
-                    }
-                    """
-                    ),
-                    supportDefaultValue,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
-                ),
-            api =
-                """
-                // Signature format: 4.0
-                package test.pkg {
-                  public class Foo {
-                    ctor public Foo();
-                    method public void foo(optional String!, optional String!, optional int);
-                  }
-                }
-                 """,
-        )
-    }
-
     @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Concise default Values and Names in Kotlin`() {
@@ -4546,8 +4420,6 @@ class ApiFileTest : DriverTest() {
                     }
                     """
                     ),
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             api =
                 """
@@ -4635,8 +4507,6 @@ class ApiFileTest : DriverTest() {
                     ),
                     androidxNullableSource,
                     androidxNonNullSource,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             api =
                 """
@@ -5081,10 +4951,9 @@ class ApiFileTest : DriverTest() {
                         fun returnsNonNullImplicitly() = "42"
                     """
                     ),
-                    androidxIntRangeSource,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
                 ),
+            // Access androidx.annotation.IntRange
+            classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
             api =
                 """
                 // Signature format: 2.0
@@ -5116,8 +4985,6 @@ class ApiFileTest : DriverTest() {
                 """
                     ),
                     restrictToSource,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             format = FileFormat.V4,
             api =
@@ -5150,8 +5017,6 @@ class ApiFileTest : DriverTest() {
                 """
                     ),
                     restrictToSource,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             extraArguments = arrayOf("--show-unannotated"),
             hideAnnotations =
@@ -5457,10 +5322,9 @@ class ApiFileTest : DriverTest() {
                     )
                     """
                     ),
-                    androidxIntRangeSource,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
                 ),
+            // Access androidx.annotation.IntRange
+            classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
             api =
                 """
                 package test.pkg {
@@ -5597,8 +5461,6 @@ class ApiFileTest : DriverTest() {
                     ),
                     restrictToSource,
                     visibleForTestingSource,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             extraArguments =
                 arrayOf(
@@ -5811,8 +5673,6 @@ class ApiFileTest : DriverTest() {
                     """
                     ),
                     systemApiSource,
-                    // Hide android.annotation classes.
-                    KnownSourceFiles.androidAnnotationHide,
                 ),
             api =
                 """
@@ -5905,8 +5765,6 @@ class ApiFileTest : DriverTest() {
                     ),
                     systemApiSource,
                     testApiSource,
-                    // Hide android.annotation classes.
-                    KnownSourceFiles.androidAnnotationHide,
                 ),
             api =
                 """
@@ -5974,8 +5832,6 @@ class ApiFileTest : DriverTest() {
                     """
                     ),
                     systemApiSource,
-                    // Hide android.annotation classes.
-                    KnownSourceFiles.androidAnnotationHide,
                 ),
             removedApi =
                 """

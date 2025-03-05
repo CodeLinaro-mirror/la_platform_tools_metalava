@@ -47,6 +47,13 @@
                         </xs:documentation>
                     </xs:annotation>
                 </xs:element>
+                <xs:element name="api-flags" type="config:ApiFlagsType" minOccurs="0">
+                    <xs:annotation>
+                        <xs:documentation>
+                            The definitions of a set of API flags.
+                        </xs:documentation>
+                    </xs:annotation>
+                </xs:element>
             </xs:choice>
         </xs:complexType>
 
@@ -64,6 +71,17 @@
             <xs:selector xpath=".//config:api-surface"/>
             <xs:field xpath="@extends"/>
         </xs:keyref>
+
+        <!--
+         ! A key that makes sure that API flag qualified names (package plus name) are unique within the containing
+         ! file.
+         !-->
+        <xs:key name="ApiFlagByQualifiedName">
+            <xs:selector xpath=".//config:api-flag"/>
+            <xs:field xpath="@package"/>
+            <xs:field xpath="@name"/>
+        </xs:key>
+
     </xs:element>
 
     <xs:complexType name="ApiSurfacesType">
@@ -116,4 +134,122 @@
             </xs:annotation>
         </xs:attribute>
     </xs:complexType>
+
+    <xs:complexType name="ApiFlagsType">
+        <xs:annotation>
+            <xs:documentation>
+                The type of the `api-flags` element defined inside `config`.
+            </xs:documentation>
+        </xs:annotation>
+        <xs:choice>
+            <xs:element name="api-flag" type="config:ApiFlagType" minOccurs="0" maxOccurs="unbounded">
+                <xs:annotation>
+                    <xs:documentation>
+                        API flag definition.
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+        </xs:choice>
+    </xs:complexType>
+
+    <xs:complexType name="ApiFlagType">
+        <xs:annotation>
+            <xs:documentation>
+                The type of the `api-flag` element defined inside `ApiSurfacesType`.
+            </xs:documentation>
+        </xs:annotation>
+        <xs:choice/>
+        <xs:attribute name="package" type="config:ApiFlagPackageNameType" use="required">
+            <xs:annotation>
+                <xs:documentation>
+                    The required package of the flag.
+                </xs:documentation>
+            </xs:annotation>
+        </xs:attribute>
+        <xs:attribute name="name" type="config:ApiFlagNameType" use="required">
+            <xs:annotation>
+                <xs:documentation>
+                    The required name of the flag.
+                </xs:documentation>
+            </xs:annotation>
+        </xs:attribute>
+        <xs:attribute name="mutability" use="required">
+            <xs:annotation>
+                <xs:documentation>
+                    The required mutability of the flag.
+                </xs:documentation>
+            </xs:annotation>
+            <xs:simpleType>
+                <xs:restriction base="xs:string">
+                    <xs:enumeration value="mutable">
+                        <xs:annotation>
+                            <xs:documentation>
+                                The flag status can be changed.
+                            </xs:documentation>
+                        </xs:annotation>
+                    </xs:enumeration>
+                    <xs:enumeration value="immutable">
+                        <xs:annotation>
+                            <xs:documentation>
+                                The flag status is fixed.
+                            </xs:documentation>
+                        </xs:annotation>
+                    </xs:enumeration>
+                </xs:restriction>
+            </xs:simpleType>
+        </xs:attribute>
+        <xs:attribute name="status" use="required">
+            <xs:annotation>
+                <xs:documentation>
+                    The status of the flag.
+                </xs:documentation>
+            </xs:annotation>
+            <xs:simpleType>
+                <xs:restriction base="xs:string">
+                    <xs:enumeration value="enabled">
+                        <xs:annotation>
+                            <xs:documentation>
+                                The flag is enabled.
+                            </xs:documentation>
+                        </xs:annotation>
+                    </xs:enumeration>
+                    <xs:enumeration value="disabled">
+                        <xs:annotation>
+                            <xs:documentation>
+                                The flag is disabled.
+                            </xs:documentation>
+                        </xs:annotation>
+                    </xs:enumeration>
+                </xs:restriction>
+            </xs:simpleType>
+        </xs:attribute>
+    </xs:complexType>
+
+    <xs:simpleType name="ApiFlagPackageNameType">
+        <xs:annotation>
+            <xs:documentation>
+                The allowable type of an API package name. Can only include lower case letters, decimal digits,
+                underscores and `.` separators.
+
+                This is not as strict as the upstream flag package name check, but it is sufficient for Metalava.
+            </xs:documentation>
+        </xs:annotation>
+        <xs:restriction base="xs:string">
+            <xs:pattern value="[a-z0-9_.]+"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="ApiFlagNameType">
+        <xs:annotation>
+            <xs:documentation>
+                The allowable type of an API surface name. Can only include lower case letters, decimal digits and
+                underscores.
+
+                This is not as strict as the upstream flag name check, but it is sufficient for Metalava.
+            </xs:documentation>
+        </xs:annotation>
+        <xs:restriction base="xs:string">
+            <xs:pattern value="[a-z0-9_]+"/>
+        </xs:restriction>
+    </xs:simpleType>
 </xs:schema>

@@ -193,6 +193,7 @@ interface Item : Reportable {
      *   as the type arguments.
      * * For type parameters it's a [VariableTypeItem] reference the type parameter.
      * * For packages and files, it's null.
+     * * For type aliases it's the underlying type for which the alias is an alternative name.
      */
     fun type(): TypeItem?
 

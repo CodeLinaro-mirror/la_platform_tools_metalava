@@ -616,7 +616,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
                 annotationManager = noOpAnnotationManager,
                 apiSurfaces = apiSurfaces,
             )
-        val classResolver = ClassLoaderBasedClassResolver(getAndroidJar())
+        val classResolver = ClassLoaderBasedClassResolver(listOf(getAndroidJar()))
         val codebase =
             ApiFile.parseApi(
                 signatureFiles,

@@ -18,17 +18,25 @@ package com.android.tools.metalava
 
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.cli.common.ARG_HIDE
+import com.android.tools.metalava.config.ApiFlagConfig
+import com.android.tools.metalava.config.ApiFlagConfig.Mutability.IMMUTABLE
+import com.android.tools.metalava.config.ApiFlagConfig.Status.ENABLED
+import com.android.tools.metalava.config.ApiFlagsConfig
+import com.android.tools.metalava.config.Config
+import com.android.tools.metalava.config.writeTo
+import com.android.tools.metalava.model.ANDROID_ANNOTATION_PACKAGE
 import com.android.tools.metalava.model.ANDROID_FLAGGED_API
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.reporter.Issues
-import com.android.tools.metalava.testing.KnownSourceFiles
+import com.android.tools.metalava.testing.KnownJarFiles
 import com.android.tools.metalava.testing.java
+import java.io.File
 import java.util.Locale
 import kotlin.test.assertEquals
 import org.junit.Test
 import org.junit.runners.Parameterized
 
-private val annotationsList = listOf(systemApiSource, flaggedApiSource, nonNullSource)
+private val annotationsList = listOf(systemApiSource, nonNullSource)
 
 private const val FULLY_QUALIFIED_SYSTEM_API_SURFACE_ANNOTATION =
     "android.annotation.SystemApi(client=android.annotation.SystemApi.Client.PRIVILEGED_APPS)"
@@ -36,15 +44,27 @@ private const val FULLY_QUALIFIED_SYSTEM_API_SURFACE_ANNOTATION =
 private const val FULLY_QUALIFIED_MODULE_LIB_API_SURFACE_ANNOTATION =
     "android.annotation.SystemApi(client=android.annotation.SystemApi.Client.MODULE_LIBRARIES)"
 
-@Suppress("JavadocDeclaration")
-class FlaggedApiTest(private val config: Configuration) : DriverTest() {
+/**
+ * A parameterized test for the `android.annotation.FlaggedApi` annotation.
+ *
+ * This tests the behavior of `@FlaggedApi` for a number of different changes across multiple API
+ * surfaces. That is necessary as currently there are significant differences in the processing that
+ * is done for:
+ * 1. An API surface that does not extend another, e.g. `public`; controlled through
+ *    `showUnannotated`.
+ * 2. An API surface that extends another, e.g. `system` which extends `public`; controlled through
+ *    `showUnannotated`, and `showAnnotations`.
+ * 2. An API surface that extends another, e.g. `system` which extends `public`; controlled through
+ *    `showUnannotated`, `showAnnotations`, and `showForStubPurposesAnnotations`.
+ */
+class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTest() {
 
     /** The configuration of the test. */
     data class Configuration(
         val surface: Surface,
         val flagged: Flagged,
     ) {
-        val extraArguments = (surface.args + flagged.args)
+        fun extraArguments(dir: File) = (surface.args + flagged.extraArguments(dir))
 
         override fun toString(): String {
             val surfaceText = surface.name.lowercase(Locale.US)
@@ -72,22 +92,133 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
     }
 
     /** The different configurations of the flagged API that this test will check. */
-    enum class Flagged(val text: String, val args: List<String>) {
-        /** Represents an API with all flagged APIs. */
-        WITH("with flagged api", emptyList()),
+    enum class Flagged(
+        val text: String,
+        val args: List<String>,
+        val apiFlagsConfig: ApiFlagsConfig? = null,
+        val usingFlags: Flagged? = null
+    ) {
+        /** Represents an API that keeps all flagged APIs. */
+        KEEP_ALL("keep all", emptyList()) {
+            override fun synthesizeAdditionalExpectations(expectations: Expectations) =
+                listOf(
+                    expectations,
+                    // All Expectations with flagged APIs are identical to the Expectations without
+                    // flagged APIs apart from those for feature flag `foo/bar`. So, this adds
+                    // additional Expectations without flagged APIs but with flagged APIs for
+                    // feature flag `foo/bar` flagged API that are identical to the "with flagged
+                    // APIs" except for the expectedApi which does not include `@FlaggedApi`
+                    // annotations.
+                    expectations.copy(
+                        flagged = FINALIZE_FOO_BAR_APIS,
+                        // Remove any FlaggedApi annotations from the signature files
+                        expectedApi =
+                            expectations.expectedApi.replace(flaggedApiInSignatureRegex, ""),
+                        // Remove any FlaggedApi annotations from the stubs files
+                        expectedStubs =
+                            expectations.expectedStubs
+                                .map {
+                                    val copy = TestFile()
+                                    copy.contents = it.contents.replace(flaggedApiInStubsRegex, "")
+                                    copy.targetRelativePath = it.targetRelativePath
+                                    copy
+                                }
+                                .toTypedArray()
+                    ),
+                )
+        },
 
-        /** Represents an API without any flagged APIs. */
-        WITHOUT("without  flagged api", listOf(ARG_REVERT_ANNOTATION, ANDROID_FLAGGED_API)),
+        /**
+         * Represents an API that reverts all flagged APIs.
+         *
+         * Uses `--config-file` and `<api-flags>`.
+         */
+        REVERT_ALL_USING_FLAGS(
+            "revert all - flags",
+            emptyList(),
+            apiFlagsConfig = ApiFlagsConfig(),
+        ),
+
+        /**
+         * Represents an API that reverts all flagged APIs.
+         *
+         * Uses --revert-annotation.
+         */
+        REVERT_ALL(
+            "revert all",
+            listOf(ARG_REVERT_ANNOTATION, ANDROID_FLAGGED_API),
+            // Run all tests for this using flags as well.
+            usingFlags = REVERT_ALL_USING_FLAGS,
+        ),
 
         /**
          * Represents an API without flagged APIs apart from those flagged APIs that are part of
-         * feature `foo_bar`.
+         * feature `foo_bar`. They are treated as being finalized so their `@FlaggedApi` annotations
+         * are discarded.
+         *
+         * Uses `--config-file` and `<api-flags>`.
          */
-        WITHOUT_APART_FROM_FOO_BAR_APIS(
-            "without flagged api, with foo_bar",
-            WITHOUT.args +
-                listOf(ARG_REVERT_ANNOTATION, """!$ANDROID_FLAGGED_API("test.pkg.flags.foo_bar")""")
+        FINALIZE_FOO_BAR_APIS_USING_FLAGS(
+            "finalize foo_bar - flags",
+            emptyList(),
+            apiFlagsConfig =
+                ApiFlagsConfig(
+                    flags =
+                        listOf(
+                            ApiFlagConfig(
+                                pkg = "test.pkg.flags",
+                                name = "foo_bar",
+                                mutability = IMMUTABLE,
+                                status = ENABLED,
+                            ),
+                        )
+                )
         ),
+
+        /**
+         * Represents an API without flagged APIs apart from those flagged APIs that are part of
+         * feature `foo_bar`. They are treated as being finalized so their `@FlaggedApi` annotations
+         * are discarded.
+         *
+         * Uses --revert-annotation.
+         */
+        FINALIZE_FOO_BAR_APIS(
+            "finalize foo_bar",
+            REVERT_ALL.args +
+                listOf(
+                    ARG_REVERT_ANNOTATION,
+                    """!$ANDROID_FLAGGED_API("test.pkg.flags.foo_bar")"""
+                ),
+            // Run all tests for this using flags as well.
+            usingFlags = FINALIZE_FOO_BAR_APIS_USING_FLAGS,
+        ),
+        ;
+
+        /**
+         * Synthesize additional [Expectations], if any.
+         *
+         * This is called on the [Expectations.flagged] object passing in the referencing
+         * [Expectations] to allow additional [Expectations] to be created that are based on the
+         * [expectations] by applying simple transformations. It avoids having to duplicate 90% of
+         * the test.
+         */
+        open fun synthesizeAdditionalExpectations(expectations: Expectations) = listOf(expectations)
+
+        /**
+         * Get extra command line arguments to pass.
+         *
+         * @param dir a temporary directory in which configuration files can be created.
+         */
+        fun extraArguments(dir: File) =
+            if (apiFlagsConfig != null) {
+                if (args.isNotEmpty()) error("Cannot mix --revert-annotation and flags config")
+                val config = Config(apiFlags = apiFlagsConfig)
+                val configFile = dir.resolve("flags-config.xml")
+                config.writeTo(configFile)
+                listOf(ARG_CONFIG_FILE, configFile.path)
+            } else {
+                args
+            }
     }
 
     companion object {
@@ -157,36 +288,16 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
         expectationsList: List<Expectations>,
     ) {
         val transformedExpectationsList =
-            expectationsList.flatMap {
-                // All Expectations with flagged APIs are identical to the Expectations without
-                // flagged APIs apart from those for feature flag `foo/bar`. So, this adds
-                // additional Expectations without flagged APIs but with flagged APIs for feature
-                // flag `foo/bar` flagged API that are identical to the "with flagged APIs" except
-                // with for the expectedApi which does not include `@FlaggedApi` annotations.
-                if (it.flagged == Flagged.WITH) {
-                    listOf(
-                        it,
-                        it.copy(
-                            flagged = Flagged.WITHOUT_APART_FROM_FOO_BAR_APIS,
-                            // Remove any FlaggedApi annotations from the signature files
-                            expectedApi = it.expectedApi.replace(flaggedApiInSignatureRegex, ""),
-                            // Remove any FlaggedApi annotations from the stubs files
-                            expectedStubs =
-                                it.expectedStubs
-                                    .map {
-                                        val copy = TestFile()
-                                        copy.contents =
-                                            it.contents.replace(flaggedApiInStubsRegex, "")
-                                        copy.targetRelativePath = it.targetRelativePath
-                                        copy
-                                    }
-                                    .toTypedArray()
-                        ),
-                    )
-                } else {
-                    listOf(it)
+            expectationsList
+                .flatMap { it.flagged.synthesizeAdditionalExpectations(it) }
+                .flatMap {
+                    val flagged = it.flagged
+                    if (flagged.usingFlags != null) {
+                        listOf(it, it.copy(flagged = flagged.usingFlags))
+                    } else {
+                        listOf(it)
+                    }
                 }
-            }
 
         val filterExpectations =
             transformedExpectationsList.filter {
@@ -238,7 +349,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                 "--warning",
                 "UnflaggedApi",
                 *apiVersionsArgs,
-                *config.extraArguments.toTypedArray(),
+                *config.extraArguments(temporaryFolder.root).toTypedArray(),
                 *extraArguments,
             )
 
@@ -258,10 +369,10 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                         addAll(sourceFiles)
                         addAll(annotationsList)
                         add(flagsFile)
-                        // Hide android.annotation classes.
-                        add(KnownSourceFiles.androidAnnotationHide)
                     }
                     .toTypedArray(),
+            // Access android.annotation.FlaggedApi
+            classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
             api = expectations.expectedApi,
             stubFiles = expectations.expectedStubs,
             stubPaths = expectations.expectedStubPaths,
@@ -270,7 +381,8 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
             // Do not include flags in the output but do not mark them as hide or removed.
             // This is needed to verify that the code to always inline the values of
             // FlaggedApi annotations even when not hidden or removed is working correctly.
-            skipEmitPackages = listOf("test.pkg.flags"),
+            // Do not emit android.annotation classes either.
+            skipEmitPackages = listOf("test.pkg.flags", ANDROID_ANNOTATION_PACKAGE),
             extraArguments = args,
         )
 
@@ -332,7 +444,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                 listOf(
                     Expectations(
                         Surface.PUBLIC,
-                        Flagged.WITH,
+                        Flagged.KEEP_ALL,
                         expectedApi =
                             """
                                 // Signature format: 2.0
@@ -360,7 +472,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                     ),
                     Expectations(
                         Surface.PUBLIC,
-                        Flagged.WITHOUT,
+                        Flagged.REVERT_ALL,
                         expectedApi =
                             """
                                 // Signature format: 2.0
@@ -385,7 +497,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                     ),
                     Expectations(
                         Surface.SYSTEM,
-                        Flagged.WITH,
+                        Flagged.KEEP_ALL,
                         expectedApi =
                             """
                                 // Signature format: 2.0
@@ -415,7 +527,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                     ),
                     Expectations(
                         Surface.SYSTEM,
-                        Flagged.WITHOUT,
+                        Flagged.REVERT_ALL,
                         expectedApi =
                             """
                                 // Signature format: 2.0
@@ -485,7 +597,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                 listOf(
                     Expectations(
                         Surface.PUBLIC,
-                        Flagged.WITH,
+                        Flagged.KEEP_ALL,
                         expectedApi =
                             """
                                 // Signature format: 2.0
@@ -501,7 +613,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                     ),
                     Expectations(
                         Surface.PUBLIC,
-                        Flagged.WITHOUT,
+                        Flagged.REVERT_ALL,
                         expectedApi =
                             """
                                 // Signature format: 2.0
@@ -514,7 +626,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                     ),
                     Expectations(
                         Surface.SYSTEM,
-                        Flagged.WITH,
+                        Flagged.KEEP_ALL,
                         expectedApi =
                             """
                                 // Signature format: 2.0
@@ -527,7 +639,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                     ),
                     Expectations(
                         Surface.SYSTEM,
-                        Flagged.WITHOUT,
+                        Flagged.REVERT_ALL,
                         expectedApi =
                             """
                                 // Signature format: 2.0
@@ -596,7 +708,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                 listOf(
                     Expectations(
                         Surface.PUBLIC,
-                        Flagged.WITH,
+                        Flagged.KEEP_ALL,
                         expectedApi =
                             """
                                 // Signature format: 2.0
@@ -613,7 +725,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                     ),
                     Expectations(
                         Surface.PUBLIC,
-                        Flagged.WITHOUT,
+                        Flagged.REVERT_ALL,
                         expectedApi =
                             """
                                 // Signature format: 2.0
@@ -629,7 +741,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                     ),
                     Expectations(
                         Surface.SYSTEM,
-                        Flagged.WITH,
+                        Flagged.KEEP_ALL,
                         expectedApi =
                             """
                                 // Signature format: 2.0
@@ -642,7 +754,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                     ),
                     Expectations(
                         Surface.SYSTEM,
-                        Flagged.WITHOUT,
+                        Flagged.REVERT_ALL,
                         expectedApi =
                             """
                                 // Signature format: 2.0
@@ -677,7 +789,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                     ),
                     Expectations(
                         Surface.MODULE_LIB,
-                        Flagged.WITHOUT,
+                        Flagged.REVERT_ALL,
                         expectedApi =
                             """
                                 // Signature format: 2.0
@@ -750,7 +862,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                 listOf(
                     Expectations(
                         Surface.PUBLIC,
-                        Flagged.WITH,
+                        Flagged.KEEP_ALL,
                         expectedApi =
                             """
                                 // Signature format: 2.0
@@ -758,7 +870,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                     ),
                     Expectations(
                         Surface.PUBLIC,
-                        Flagged.WITHOUT,
+                        Flagged.REVERT_ALL,
                         expectedApi =
                             """
                                 // Signature format: 2.0
@@ -766,7 +878,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                     ),
                     Expectations(
                         Surface.SYSTEM,
-                        Flagged.WITH,
+                        Flagged.KEEP_ALL,
                         expectedApi =
                             """
                                 // Signature format: 2.0
@@ -807,7 +919,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                     ),
                     Expectations(
                         Surface.SYSTEM,
-                        Flagged.WITHOUT,
+                        Flagged.REVERT_ALL,
                         expectedApi =
                             """
                                 // Signature format: 2.0
@@ -818,7 +930,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                     // Check the module lib stubs without flagged apis.
                     Expectations(
                         Surface.MODULE_LIB,
-                        Flagged.WITHOUT,
+                        Flagged.REVERT_ALL,
                         expectedApi =
                             """
                                 // Signature format: 2.0
@@ -861,6 +973,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
             )
         checkFlaggedApis(
             java(
+                @Suppress("JavadocDeclaration")
                 """
                     package test.pkg;
 
@@ -914,7 +1027,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                     // members.
                     Expectations(
                         Surface.PUBLIC,
-                        Flagged.WITH,
+                        Flagged.KEEP_ALL,
                         expectedApi =
                             """
                                 // Signature format: 2.0
@@ -930,7 +1043,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                     ),
                     Expectations(
                         Surface.PUBLIC,
-                        Flagged.WITHOUT,
+                        Flagged.REVERT_ALL,
                         // Even without flagged APIs the class is still part of the public API
                         // because being annotated with @FlaggedApi does not cause it to be removed
                         // it was previously part of a released API. However, the new members did
@@ -950,7 +1063,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                     // FlaggedApi because it has moved to public and has new members.
                     Expectations(
                         Surface.SYSTEM,
-                        Flagged.WITH,
+                        Flagged.KEEP_ALL,
                         // This is expected to be empty as the API has moved to public.
                         expectedApi =
                             """
@@ -963,7 +1076,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                     ),
                     Expectations(
                         Surface.SYSTEM,
-                        Flagged.WITHOUT,
+                        Flagged.REVERT_ALL,
                         // Even without flagged APIs the class is still part of the system API
                         // because being annotated with @FlaggedApi does not cause it to be removed
                         // it was previously part of a released API. However, the new members did
@@ -986,7 +1099,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                     // with FlaggedApi because it has moved to public and has new members.
                     Expectations(
                         Surface.MODULE_LIB,
-                        Flagged.WITH,
+                        Flagged.KEEP_ALL,
                         // This is expected to be empty as the API has moved to public.
                         expectedApi =
                             """
@@ -999,7 +1112,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                     ),
                     Expectations(
                         Surface.MODULE_LIB,
-                        Flagged.WITHOUT,
+                        Flagged.REVERT_ALL,
                         // Even without flagged APIs the class is still part of the module lib API
                         // because being annotated with @FlaggedApi does not cause it to be removed
                         // it was previously part of a released API. However, the new members did
@@ -1054,6 +1167,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
             )
         checkFlaggedApis(
             java(
+                @Suppress("JavadocDeclaration")
                 """
                     package test.pkg;
 
@@ -1110,7 +1224,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                     // FlaggedApi because it has new members.
                     Expectations(
                         Surface.SYSTEM,
-                        Flagged.WITH,
+                        Flagged.KEEP_ALL,
                         expectedApi =
                             """
                                 // Signature format: 2.0
@@ -1126,7 +1240,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                     ),
                     Expectations(
                         Surface.SYSTEM,
-                        Flagged.WITHOUT,
+                        Flagged.REVERT_ALL,
                         // Even without flagged APIs the class is still part of the system API
                         // because being annotated with @FlaggedApi does not cause it to be removed
                         // it was previously part of a released API. However, the new members did
@@ -1146,7 +1260,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                     // with FlaggedApi because it has moved to system API and has new members.
                     Expectations(
                         Surface.MODULE_LIB,
-                        Flagged.WITH,
+                        Flagged.KEEP_ALL,
                         // This is expected to be empty as the API has moved to system.
                         expectedApi =
                             """
@@ -1159,7 +1273,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                     ),
                     Expectations(
                         Surface.MODULE_LIB,
-                        Flagged.WITHOUT,
+                        Flagged.REVERT_ALL,
                         // Even without flagged APIs the class is still part of the module lib API
                         // because being annotated with @FlaggedApi does not cause it to be removed
                         // it was previously part of a released API. However, the new members did
@@ -1243,7 +1357,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                 listOf(
                     Expectations(
                         Surface.PUBLIC,
-                        Flagged.WITH,
+                        Flagged.KEEP_ALL,
                         expectedApi =
                             """
                                 // Signature format: 2.0
@@ -1258,7 +1372,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                     ),
                     Expectations(
                         Surface.PUBLIC,
-                        Flagged.WITHOUT,
+                        Flagged.REVERT_ALL,
                         expectedApi =
                             """
                                 // Signature format: 2.0
@@ -1272,7 +1386,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                     ),
                     Expectations(
                         Surface.SYSTEM,
-                        Flagged.WITH,
+                        Flagged.KEEP_ALL,
                         expectedApi =
                             """
                                 // Signature format: 2.0
@@ -1282,7 +1396,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                     ),
                     Expectations(
                         Surface.SYSTEM,
-                        Flagged.WITHOUT,
+                        Flagged.REVERT_ALL,
                         expectedApi =
                             """
                                 // Signature format: 2.0
@@ -1376,7 +1490,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                 listOf(
                     Expectations(
                         Surface.PUBLIC,
-                        Flagged.WITH,
+                        Flagged.KEEP_ALL,
                         expectedApi =
                             """
                                 // Signature format: 2.0
@@ -1407,7 +1521,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                     ),
                     Expectations(
                         Surface.PUBLIC,
-                        Flagged.WITHOUT,
+                        Flagged.REVERT_ALL,
                         expectedApi =
                             """
                                 // Signature format: 2.0
@@ -1438,7 +1552,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                     ),
                     Expectations(
                         Surface.SYSTEM,
-                        Flagged.WITH,
+                        Flagged.KEEP_ALL,
                         expectedApi =
                             """
                                 // Signature format: 2.0
@@ -1447,7 +1561,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                     ),
                     Expectations(
                         Surface.SYSTEM,
-                        Flagged.WITHOUT,
+                        Flagged.REVERT_ALL,
                         expectedApi =
                             """
                                 // Signature format: 2.0
@@ -1456,7 +1570,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                     ),
                     Expectations(
                         Surface.MODULE_LIB,
-                        Flagged.WITH,
+                        Flagged.KEEP_ALL,
                         expectedApi =
                             """
                                 // Signature format: 2.0
@@ -1465,7 +1579,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                     ),
                     Expectations(
                         Surface.MODULE_LIB,
-                        Flagged.WITHOUT,
+                        Flagged.REVERT_ALL,
                         expectedApi =
                             """
                                 // Signature format: 2.0
@@ -1630,6 +1744,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                 """
             ),
             java(
+                @Suppress("DeprecatedIsStillUsed")
                 """
                     package test.pkg;
 
@@ -1673,7 +1788,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                 listOf(
                     Expectations(
                         Surface.PUBLIC,
-                        Flagged.WITH,
+                        Flagged.KEEP_ALL,
                         expectedApi =
                             """
                                 // Signature format: 2.0
@@ -1718,7 +1833,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                     ),
                     Expectations(
                         Surface.PUBLIC,
-                        Flagged.WITHOUT,
+                        Flagged.REVERT_ALL,
                         expectedApi =
                             """
                                 // Signature format: 2.0
@@ -1763,7 +1878,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                     ),
                     Expectations(
                         Surface.SYSTEM,
-                        Flagged.WITH,
+                        Flagged.KEEP_ALL,
                         expectedApi =
                             """
                                 // Signature format: 2.0
@@ -1772,7 +1887,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                     ),
                     Expectations(
                         Surface.SYSTEM,
-                        Flagged.WITHOUT,
+                        Flagged.REVERT_ALL,
                         expectedApi =
                             """
                                 // Signature format: 2.0
@@ -1781,7 +1896,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                     ),
                     Expectations(
                         Surface.MODULE_LIB,
-                        Flagged.WITH,
+                        Flagged.KEEP_ALL,
                         expectedApi =
                             """
                                 // Signature format: 2.0
@@ -1790,7 +1905,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                     ),
                     Expectations(
                         Surface.MODULE_LIB,
-                        Flagged.WITHOUT,
+                        Flagged.REVERT_ALL,
                         expectedApi =
                             """
                                 // Signature format: 2.0
@@ -1897,7 +2012,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                 listOf(
                     Expectations(
                         Surface.PUBLIC,
-                        Flagged.WITH,
+                        Flagged.KEEP_ALL,
                         expectedApi =
                             """
                                 // Signature format: 2.0
@@ -1914,7 +2029,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                     ),
                     Expectations(
                         Surface.PUBLIC,
-                        Flagged.WITHOUT,
+                        Flagged.REVERT_ALL,
                         expectedApi =
                             // TODO(b/337840740): Foo should have method().
                             """
@@ -1931,7 +2046,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                     ),
                     Expectations(
                         Surface.SYSTEM,
-                        Flagged.WITH,
+                        Flagged.KEEP_ALL,
                         expectedApi =
                             """
                                 // Signature format: 2.0
@@ -1940,7 +2055,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                     ),
                     Expectations(
                         Surface.SYSTEM,
-                        Flagged.WITHOUT,
+                        Flagged.REVERT_ALL,
                         expectedApi =
                             """
                                 // Signature format: 2.0
@@ -1949,7 +2064,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                     ),
                     Expectations(
                         Surface.MODULE_LIB,
-                        Flagged.WITH,
+                        Flagged.KEEP_ALL,
                         expectedApi =
                             """
                                 // Signature format: 2.0
@@ -1958,7 +2073,7 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                     ),
                     Expectations(
                         Surface.MODULE_LIB,
-                        Flagged.WITHOUT,
+                        Flagged.REVERT_ALL,
                         expectedApi =
                             """
                                 // Signature format: 2.0

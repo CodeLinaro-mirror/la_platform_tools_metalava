@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model
 
+const val ANDROID_ANNOTATION_PACKAGE = "android.annotation"
 const val ANDROID_ANNOTATION_PREFIX = "android.annotation."
 const val ANDROID_INT_DEF = "android.annotation.IntDef"
 const val ANDROID_LONG_DEF = "android.annotation.LongDef"
@@ -25,6 +26,7 @@ const val ANDROID_SYSTEM_API = "android.annotation.SystemApi"
 const val ANDROID_TEST_API = "android.annotation.TestApi"
 const val ANDROID_FLAGGED_API = "android.annotation.FlaggedApi"
 
+const val ANDROIDX_ANNOTATION_PACKAGE = "androidx.annotation"
 const val ANDROIDX_ANNOTATION_PREFIX = "androidx.annotation."
 const val ANDROIDX_INT_DEF = "androidx.annotation.IntDef"
 const val ANDROIDX_LONG_DEF = "androidx.annotation.LongDef"

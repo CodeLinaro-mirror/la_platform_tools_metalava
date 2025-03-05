@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.api.flags.ApiFlag
+import com.android.tools.metalava.model.api.flags.ApiFlags
 import com.android.tools.metalava.reporter.FileLocation
 import kotlin.reflect.KClass
 
@@ -60,6 +62,15 @@ sealed interface AnnotationItem {
      * will be shown as part of the API or not.
      */
     val showability: Showability
+
+    /**
+     * The [ApiFlag] referenced by this [AnnotationItem].
+     *
+     * This will be `null` if no [ApiFlags] have been provided or this [AnnotationItem]'s type is
+     * not [ANDROID_FLAGGED_API]. Otherwise, it will be one of the instances of [ApiFlag], e.g.
+     * [ApiFlag.REVERT_FLAGGED_API].
+     */
+    val apiFlag: ApiFlag?
 
     /** Generates source code for this annotation (using fully qualified names) */
     fun toSource(
@@ -107,22 +118,6 @@ sealed interface AnnotationItem {
             ANDROID_INT_DEF == name ||
             ANDROID_STRING_DEF == name ||
             ANDROID_LONG_DEF == name)
-    }
-
-    /**
-     * True if this annotation represents a @ParameterName annotation (or some synonymous
-     * annotation). The parameter name should be the default attribute or "value".
-     */
-    fun isParameterName(): Boolean {
-        return qualifiedName.endsWith(".ParameterName")
-    }
-
-    /**
-     * True if this annotation represents a @DefaultValue annotation (or some synonymous
-     * annotation). The default value should be the default attribute or "value".
-     */
-    fun isDefaultValue(): Boolean {
-        return qualifiedName.endsWith(".DefaultValue")
     }
 
     /** Returns the given named attribute if specified */
@@ -419,6 +414,9 @@ protected constructor(
 
     override val showability: Showability
         get() = info.showability
+
+    override val apiFlag: ApiFlag?
+        get() = info.apiFlag
 
     override fun resolve(): ClassItem? {
         return codebase.resolveClass(originalName)

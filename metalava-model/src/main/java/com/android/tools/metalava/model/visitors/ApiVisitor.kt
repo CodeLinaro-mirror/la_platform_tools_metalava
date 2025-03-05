@@ -127,12 +127,15 @@ open class ApiVisitor(
             packageClassesAsSequence(pkg).mapNotNull { getVisitCandidateIfNeeded(it) }.toList()
 
         // If none of the classes in this package will be visited them ignore the package entirely.
+        // TODO (b/135191699): also check if there are type aliases before returning
         if (classesToVisitDirectly.isEmpty()) return
 
         wrapBodyWithCallsToVisitMethodsForSelectableItem(pkg) {
             visitPackage(pkg)
 
             visitClassList(classesToVisitDirectly)
+
+            pkg.typeAliases().sortedBy { it.simpleName }.forEach { it.accept(this) }
 
             afterVisitPackage(pkg)
         }

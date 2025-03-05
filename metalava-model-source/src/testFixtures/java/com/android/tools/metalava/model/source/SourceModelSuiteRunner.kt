@@ -54,6 +54,7 @@ class SourceModelSuiteRunner(private val sourceModelProvider: SourceModelProvide
                 if (inputs.inputFormat == InputFormat.KOTLIN) {
                     addAll(getKotlinStdlibPaths())
                 }
+                addAll(inputs.testFixture.additionalClassPath)
             }
             val codebase =
                 createTestCodebase(

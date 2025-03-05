@@ -32,6 +32,23 @@
          <trusted-key id="08F0AAB4D0C1A4BDDE340765B341DDB020FCB6AB" group="org.bouncycastle"/>
          <trusted-key id="0CC641C3A62453AB390066C4A41F13C999945293" group="commons-logging"/>
          <trusted-key id="0D35D3F60078655126908E8AF3D1600878E85A3D" group="io.netty"/>
+         <trusted-key id="0F06FF86BEEAF4E71866EE5232EE5355A6BC6E42">
+            <trusting group="com.android"/>
+            <trusting group="com.android.databinding"/>
+            <trusting group="com.android.kotlin.multiplatform.library"/>
+            <trusting group="com.android.settings"/>
+            <trusting group="com.android.tools"/>
+            <trusting group="com.android.tools.analytics-library"/>
+            <trusting group="com.android.tools.build"/>
+            <trusting group="com.android.tools.build.jetifier"/>
+            <trusting group="com.android.tools.ddms"/>
+            <trusting group="com.android.tools.emulator"/>
+            <trusting group="com.android.tools.external.com-intellij"/>
+            <trusting group="com.android.tools.external.org-jetbrains"/>
+            <trusting group="com.android.tools.layoutlib"/>
+            <trusting group="com.android.tools.lint"/>
+            <trusting group="com.android.tools.utp"/>
+         </trusted-key>
          <trusted-key id="0F07D1201BDDAB67CFB84EB479752DB6C966F0B8" group="com.google.android"/>
          <trusted-key id="10F3C7A02ECA55E502BADCF3991EFB94DB91127D" group="org.ow2"/>
          <trusted-key id="11B581967F079A30A3E93140D57506CD188FD842" group="com.google.api.grpc"/>
@@ -39,6 +56,7 @@
          <trusted-key id="160A7A9CF46221A56B06AD64461A804F2609FD89" group="com.github.shyiko.klob"/>
          <trusted-key id="190D5A957FF22273E601F7A7C92C5FEC70161C62" group="org.apache"/>
          <trusted-key id="19BEAB2D799C020F17C69126B16698A4ADF4D638" group="org.checkerframework"/>
+         <trusted-key id="1A55F091AD28C07F831FA44D7905DE25C78AD456" group="com.google.protobuf"/>
          <trusted-key id="1FA37FBE4453C1073E7EF61D6449005F96BC97A3" group="de.undercouch"/>
          <trusted-key id="28118C070CB22A0175A2E8D43D12CA2AC19F3181">
             <trusting group="com.fasterxml"/>
@@ -65,6 +83,7 @@
          <trusted-key id="314FE82E5A4C5377BCA2EDEC5208812E1E4A6DB0" group="com.gradle"/>
          <trusted-key id="31BAE2E51D95E0F8AD9B7BCC40A3C4432BD7308C" group="com.googlecode.juniversalchardet"/>
          <trusted-key id="31FAE244A81D64507B47182E1B2718089CE964B8" group="com.thoughtworks.qdox"/>
+         <trusted-key id="32118CF76C9EC5D918E54967CA80D1F0EB6CA4BA" group="org.codehaus.mojo"/>
          <trusted-key id="3288B8BE8512D6C0CA185268C51E6CBC7FF46F0B" group="com.google.auto"/>
          <trusted-key id="33FD4BFD33554634053D73C0C2148900BCD3C2AF" group="org.jetbrains"/>
          <trusted-key id="34441E504A937F43EB0DAEF96A65176A0FB1CD0B" group="org.codehaus.groovy"/>
@@ -114,6 +133,7 @@
          </trusted-key>
          <trusted-key id="6F7E5ACBCD02DB60DFD232E45E1F79A7C298661E" group="com.google.auto"/>
          <trusted-key id="720746177725A89207A7075BFD5DEA07FCB690A8" group="org.codehaus.mojo"/>
+         <trusted-key id="7440F1F7D27BAC115F953D55EB095DA7D2F6AC0E" group="org.tensorflow"/>
          <trusted-key id="7615AD56144DF2376F49D98B1669C4BB543E0445" group="com.google.errorprone"/>
          <trusted-key id="7616EB882DAF57A11477AAF559A252FB1199D873" group="com.google.code.findbugs"/>
          <trusted-key id="78DA3333F653B1C54A938BE24DB7BC57DFDBCEA4" group="net.java.dev.jna"/>
@@ -165,7 +185,12 @@
          <trusted-key id="B6E73D84EA4FCC47166087253FAAD2CD5ECBB314" group="org.apache.commons"/>
          <trusted-key id="B801E2F8EF035068EC1139CC29579F18FA8FD93B" group="com.google.j2objc"/>
          <trusted-key id="BCC135FC7ED8214F823D73E97FE9900F412D622E" group="com.google.flatbuffers"/>
-         <trusted-key id="BDB5FA4FE719D787FB3D3197F6D4A1D411E9D1AE" group="com.google.guava"/>
+         <trusted-key id="BDB5FA4FE719D787FB3D3197F6D4A1D411E9D1AE">
+            <trusting group="com.google.guava"/>
+            <trusting group="com.google.j2objc" name="j2objc-annotations" version="3.0.0"/>
+            <trusting group="com.google.truth"/>
+            <trusting group="com.google.truth.extensions"/>
+         </trusted-key>
          <trusted-key id="C6F7D1C804C821F49AF3BFC13AD93C3C677A106E" group="io.perfmark"/>
          <trusted-key id="C70B844F002F21F6D2B9C87522E44AC0622B91C3" group="com.beust"/>
          <trusted-key id="C7BE5BCC9FEC15518CFDA882B0F3710FA64900E7">

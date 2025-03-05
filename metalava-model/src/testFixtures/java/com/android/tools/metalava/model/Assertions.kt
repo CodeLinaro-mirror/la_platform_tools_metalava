@@ -67,6 +67,13 @@ interface Assertions {
         return packageItem
     }
 
+    /** Get the type alias from the [Codebase], failing if it does not exist. */
+    fun Codebase.assertTypeAlias(qualifiedName: String): TypeAliasItem {
+        val typeAliasItem = findTypeAlias(qualifiedName)
+        assertNotNull(typeAliasItem, message = "Expected $qualifiedName to be a defined type alias")
+        return typeAliasItem
+    }
+
     /**
      * Return a dump of the state of [SelectableItem.selectedApiVariants] across this [Codebase].
      */
