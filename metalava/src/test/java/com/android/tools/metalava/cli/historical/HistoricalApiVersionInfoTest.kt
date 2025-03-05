@@ -47,7 +47,7 @@ class HistoricalApiVersionInfoTest : TemporaryFolderOwner {
                     append(")\n")
                 }
             }
-            .trimEnd()
+            .let { replaceFileWithSymbol(it) }
 
     private fun scanForHistoricalApiVersionInfo(root: File): List<HistoricalApiVersionInfo> {
         val apiSurfaceNames = listOf("public", "system")
@@ -109,8 +109,8 @@ class HistoricalApiVersionInfoTest : TemporaryFolderOwner {
                   version=1,
                   infoBySurface={
                     SurfaceInfo(
-                      jarFile=1/public/api.jar,
-                      signatureFile=1/public/api/api.txt,
+                      jarFile=TESTROOT/1/public/api.jar,
+                      signatureFile=TESTROOT/1/public/api/api.txt,
                     )
                   },
                 )
@@ -118,12 +118,12 @@ class HistoricalApiVersionInfoTest : TemporaryFolderOwner {
                   version=2,
                   infoBySurface={
                     SurfaceInfo(
-                      jarFile=2/public/api.jar,
-                      signatureFile=2/public/api/api.txt,
+                      jarFile=TESTROOT/2/public/api.jar,
+                      signatureFile=TESTROOT/2/public/api/api.txt,
                     )
                     SurfaceInfo(
-                      jarFile=2/system/api.jar,
-                      signatureFile=2/system/api/api.txt,
+                      jarFile=TESTROOT/2/system/api.jar,
+                      signatureFile=TESTROOT/2/system/api/api.txt,
                     )
                   },
                 )

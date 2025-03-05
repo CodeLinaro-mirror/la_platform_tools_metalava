@@ -63,7 +63,7 @@ open class NonFilteringDelegatingVisitor(private val delegate: DelegatedVisitor)
         delegate.afterVisitClass(cls)
     }
 
-    override fun visit(constructor: ConstructorItem) {
+    override fun visitConstructor(constructor: ConstructorItem) {
         delegate.visitConstructor(constructor)
     }
 

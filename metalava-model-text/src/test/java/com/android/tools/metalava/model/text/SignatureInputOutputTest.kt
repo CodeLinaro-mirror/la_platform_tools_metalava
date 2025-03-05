@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 The Android Open Source Project
+ * Copyright (C) 2025 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava
+package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.Assertions
@@ -23,11 +23,7 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.StripJavaLangPrefix
 import com.android.tools.metalava.model.VisibilityLevel
-import com.android.tools.metalava.model.text.ApiFile
-import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.FileFormat.TypeArgumentSpacing
-import com.android.tools.metalava.model.text.SignatureFile
-import com.android.tools.metalava.model.text.assertSignatureFilesMatch
 import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiType
 import com.google.common.truth.Truth.assertThat
