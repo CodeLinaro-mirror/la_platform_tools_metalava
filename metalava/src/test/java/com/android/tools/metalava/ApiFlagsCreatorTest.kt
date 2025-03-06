@@ -22,31 +22,12 @@ import com.android.tools.metalava.config.ApiFlagConfig.Mutability.MUTABLE
 import com.android.tools.metalava.config.ApiFlagConfig.Status.DISABLED
 import com.android.tools.metalava.config.ApiFlagConfig.Status.ENABLED
 import com.android.tools.metalava.config.ApiFlagsConfig
-import com.android.tools.metalava.model.ANDROID_FLAGGED_API
-import com.android.tools.metalava.model.ANDROID_SYSTEM_API
 import com.android.tools.metalava.model.api.flags.ApiFlag
 import kotlin.test.assertEquals
-import kotlin.test.assertNotNull
 import kotlin.test.assertNull
-import org.junit.Assert.assertThrows
 import org.junit.Test
 
 class ApiFlagsCreatorTest {
-    @Test
-    fun `Test creation from config and --revert-annotation values`() {
-        val apiFlagsConfig = ApiFlagsConfig(flags = emptyList())
-
-        val exception =
-            assertThrows(IllegalStateException::class.java) {
-                ApiFlagsCreator.create(listOf(ANDROID_FLAGGED_API), apiFlagsConfig)
-            }
-
-        assertEquals(
-            "Cannot provide non-empty revertAnnotations and non-null apiFlags",
-            exception.message
-        )
-    }
-
     @Test
     fun `Test creation from config`() {
         val apiFlagsConfig =
@@ -80,7 +61,7 @@ class ApiFlagsCreatorTest {
                     ),
             )
 
-        val apiFlags = ApiFlagsCreator.create(emptyList(), apiFlagsConfig)
+        val apiFlags = ApiFlagsCreator.createFromConfig(apiFlagsConfig)
 
         val expected =
             mapOf(
@@ -93,40 +74,8 @@ class ApiFlagsCreatorTest {
     }
 
     @Test
-    fun `Test empty --revert-annotation value list`() {
-        val apiFlags = ApiFlagsCreator.create(emptyList(), null)
+    fun `Test null config`() {
+        val apiFlags = ApiFlagsCreator.createFromConfig(null)
         assertNull(apiFlags)
-    }
-
-    @Test
-    fun `Test invalid --revert-annotation value`() {
-        val exception =
-            assertThrows(IllegalStateException::class.java) {
-                ApiFlagsCreator.create(listOf(ANDROID_SYSTEM_API), null)
-            }
-        assertEquals(
-            "Unexpected --revert-annotation: android.annotation.SystemApi",
-            exception.message
-        )
-    }
-
-    @Test
-    fun `Test revert all`() {
-        val apiFlags = ApiFlagsCreator.create(listOf(ANDROID_FLAGGED_API), null)
-        assertNotNull(apiFlags)
-        assertEquals(emptyMap(), apiFlags.byQualifiedName)
-    }
-
-    @Test
-    fun `Test finalize some, revert others`() {
-        val flagName = "test.pkg.flags.flag_name"
-        val apiFlags =
-            ApiFlagsCreator.create(
-                listOf(ANDROID_FLAGGED_API, """!$ANDROID_FLAGGED_API("$flagName")"""),
-                null,
-            )
-        assertNotNull(apiFlags)
-        assertEquals(ApiFlag.FINALIZE_FLAGGED_API, apiFlags[flagName])
-        assertEquals(ApiFlag.REVERT_FLAGGED_API, apiFlags["test.pkg.flags.other_flag_name"])
     }
 }

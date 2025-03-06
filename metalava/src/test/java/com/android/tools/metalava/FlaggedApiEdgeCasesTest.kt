@@ -28,11 +28,10 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
     @Test
     fun `Test override flagged method from source path no previously released API`() {
         check(
+            // Revert all FlaggedApi annotations.
+            configFiles = arrayOf(KnownConfigFiles.configEmptyApiFlags),
             extraArguments =
                 arrayOf(
-                    // Revert all FlaggedApi annotations.
-                    ARG_REVERT_ANNOTATION,
-                    ANDROID_FLAGGED_API,
                     // Ignore any classes other than test.pkg.
                     ARG_STUB_PACKAGES,
                     "test.pkg*"
@@ -88,11 +87,10 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
     @Test
     fun `Test override flagged method from source path with previously released API`() {
         check(
+            // Revert all FlaggedApi annotations.
+            configFiles = arrayOf(KnownConfigFiles.configEmptyApiFlags),
             extraArguments =
                 arrayOf(
-                    // Revert all FlaggedApi annotations.
-                    ARG_REVERT_ANNOTATION,
-                    ANDROID_FLAGGED_API,
                     // Ignore any classes other than test.pkg.
                     ARG_STUB_PACKAGES,
                     "test.pkg*"

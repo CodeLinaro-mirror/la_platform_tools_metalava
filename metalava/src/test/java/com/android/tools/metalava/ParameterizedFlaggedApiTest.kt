@@ -25,7 +25,6 @@ import com.android.tools.metalava.config.ApiFlagsConfig
 import com.android.tools.metalava.config.Config
 import com.android.tools.metalava.config.writeTo
 import com.android.tools.metalava.model.ANDROID_ANNOTATION_PACKAGE
-import com.android.tools.metalava.model.ANDROID_FLAGGED_API
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.testing.KnownJarFiles
@@ -94,12 +93,10 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
     /** The different configurations of the flagged API that this test will check. */
     enum class Flagged(
         val text: String,
-        val args: List<String>,
         val apiFlagsConfig: ApiFlagsConfig? = null,
-        val usingFlags: Flagged? = null
     ) {
         /** Represents an API that keeps all flagged APIs. */
-        KEEP_ALL("keep all", emptyList()) {
+        KEEP_ALL("keep all") {
             override fun synthesizeAdditionalExpectations(expectations: Expectations) =
                 listOf(
                     expectations,
@@ -133,22 +130,9 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
          *
          * Uses `--config-file` and `<api-flags>`.
          */
-        REVERT_ALL_USING_FLAGS(
-            "revert all - flags",
-            emptyList(),
-            apiFlagsConfig = ApiFlagsConfig(),
-        ),
-
-        /**
-         * Represents an API that reverts all flagged APIs.
-         *
-         * Uses --revert-annotation.
-         */
         REVERT_ALL(
             "revert all",
-            listOf(ARG_REVERT_ANNOTATION, ANDROID_FLAGGED_API),
-            // Run all tests for this using flags as well.
-            usingFlags = REVERT_ALL_USING_FLAGS,
+            apiFlagsConfig = ApiFlagsConfig(),
         ),
 
         /**
@@ -158,9 +142,8 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
          *
          * Uses `--config-file` and `<api-flags>`.
          */
-        FINALIZE_FOO_BAR_APIS_USING_FLAGS(
-            "finalize foo_bar - flags",
-            emptyList(),
+        FINALIZE_FOO_BAR_APIS(
+            "finalize foo_bar",
             apiFlagsConfig =
                 ApiFlagsConfig(
                     flags =
@@ -173,24 +156,6 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                             ),
                         )
                 )
-        ),
-
-        /**
-         * Represents an API without flagged APIs apart from those flagged APIs that are part of
-         * feature `foo_bar`. They are treated as being finalized so their `@FlaggedApi` annotations
-         * are discarded.
-         *
-         * Uses --revert-annotation.
-         */
-        FINALIZE_FOO_BAR_APIS(
-            "finalize foo_bar",
-            REVERT_ALL.args +
-                listOf(
-                    ARG_REVERT_ANNOTATION,
-                    """!$ANDROID_FLAGGED_API("test.pkg.flags.foo_bar")"""
-                ),
-            // Run all tests for this using flags as well.
-            usingFlags = FINALIZE_FOO_BAR_APIS_USING_FLAGS,
         ),
         ;
 
@@ -211,13 +176,12 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
          */
         fun extraArguments(dir: File) =
             if (apiFlagsConfig != null) {
-                if (args.isNotEmpty()) error("Cannot mix --revert-annotation and flags config")
                 val config = Config(apiFlags = apiFlagsConfig)
                 val configFile = dir.resolve("flags-config.xml")
                 config.writeTo(configFile)
                 listOf(ARG_CONFIG_FILE, configFile.path)
             } else {
-                args
+                emptyList()
             }
     }
 
@@ -288,16 +252,7 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
         expectationsList: List<Expectations>,
     ) {
         val transformedExpectationsList =
-            expectationsList
-                .flatMap { it.flagged.synthesizeAdditionalExpectations(it) }
-                .flatMap {
-                    val flagged = it.flagged
-                    if (flagged.usingFlags != null) {
-                        listOf(it, it.copy(flagged = flagged.usingFlags))
-                    } else {
-                        listOf(it)
-                    }
-                }
+            expectationsList.flatMap { it.flagged.synthesizeAdditionalExpectations(it) }
 
         val filterExpectations =
             transformedExpectationsList.filter {

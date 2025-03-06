@@ -244,7 +244,7 @@ internal class TurbineTypeItemFactory(
      * @return The `ClassTypeItem` representing the outer class.
      */
     private fun getOuterClassType(type: Type.ClassTy.SimpleClassTy): ClassTypeItem {
-        val className = initializer.getQualifiedName(type.sym().binaryName())
+        val className = type.sym().qualifiedName
         val classTypeElement = initializer.getTypeElement(className)!!
         return createOuterClassType(classTypeElement.enclosingElement!!)!!
     }
@@ -283,15 +283,16 @@ internal class TurbineTypeItemFactory(
         outerClass: ClassTypeItem?,
         contextNullability: ContextNullability,
     ): ClassTypeItem {
+        val sym = type.sym()
         val outerClassItem =
-            if (type.sym().binaryName().contains("$") && outerClass == null) {
+            if (sym.binaryName().contains("$") && outerClass == null) {
                 getOuterClassType(type)
             } else {
                 outerClass
             }
 
         val modifiers = createModifiers(type.annos(), contextNullability)
-        val qualifiedName = initializer.getQualifiedName(type.sym().binaryName())
+        val qualifiedName = sym.qualifiedName
         val parameters = type.targs().map { getGeneralType(it) as TypeArgumentTypeItem }
         return DefaultClassTypeItem(codebase, modifiers, qualifiedName, parameters, outerClassItem)
     }

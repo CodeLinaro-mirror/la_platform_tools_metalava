@@ -165,7 +165,6 @@ const val ARG_ENHANCE_DOCUMENTATION = "--enhance-documentation"
 const val ARG_SKIP_READING_COMMENTS = "--ignore-comments"
 const val ARG_MANIFEST = "--manifest"
 const val ARG_MIGRATE_NULLNESS = "--migrate-nullness"
-const val ARG_REVERT_ANNOTATION = "--revert-annotation"
 const val ARG_SUPPRESS_COMPATIBILITY_META_ANNOTATION = "--suppress-compatibility-meta-annotation"
 const val ARG_APPLY_API_LEVELS = "--apply-api-levels"
 const val ARG_JAVA_SOURCE = "--java-source"
@@ -212,10 +211,6 @@ class Options(
     private val mutableSources: MutableList<File> = mutableListOf()
     /** Internal list backing [classpath] */
     private val mutableClassPath: MutableList<File> = mutableListOf()
-    /**
-     * Internal builder backing [DefaultAnnotationManager.Config.apiFlags] in [annotationManager].
-     */
-    private val revertAnnotationsBuilder = mutableListOf<String>()
     /** Internal list backing [mergeQualifierAnnotations] */
     private val mutableMergeQualifierAnnotations: MutableList<File> = mutableListOf()
     /** Internal list backing [mergeInclusionAnnotations] */
@@ -372,11 +367,7 @@ class Options(
                 typedefMode = typedefMode,
                 apiPredicate = ApiPredicate(config = apiPredicateConfig),
                 previouslyReleasedCodebaseProvider = { previouslyReleasedCodebase },
-                apiFlags =
-                    ApiFlagsCreator.create(
-                        revertAnnotationsBuilder.toList(),
-                        configFileOptions.config.apiFlags,
-                    ),
+                apiFlags = ApiFlagsCreator.createFromConfig(configFileOptions.config.apiFlags),
             )
         )
     }
@@ -682,7 +673,6 @@ class Options(
                     nullabilityWarningsTxt = stringToNewFile(getValue(args, ++index))
                 ARG_NULLABILITY_ERRORS_NON_FATAL -> nullabilityErrorsFatal = false
                 ARG_SDK_VALUES -> sdkValueDir = stringToNewDir(getValue(args, ++index))
-                ARG_REVERT_ANNOTATION -> revertAnnotationsBuilder.add(getValue(args, ++index))
                 ARG_DOC_STUBS -> docStubsDir = stringToNewDir(getValue(args, ++index))
                 ARG_EXCLUDE_DOCUMENTATION_FROM_STUBS -> includeDocumentationInStubs = false
                 ARG_ENHANCE_DOCUMENTATION -> enhanceDocumentation = true
