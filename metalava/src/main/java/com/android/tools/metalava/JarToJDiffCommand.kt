@@ -22,6 +22,7 @@ import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.newFile
 import com.android.tools.metalava.cli.common.progressTracker
 import com.android.tools.metalava.cli.common.stderr
+import com.android.tools.metalava.model.CodebaseFragment
 import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiType
 import com.android.tools.metalava.reporter.BasicReporter
@@ -80,15 +81,21 @@ class JarToJDiffCommand :
                 val apiPredicateConfig = ApiPredicate.Config()
                 val apiFilters = apiType.getApiFilters(apiPredicateConfig)
 
-                createReportFile(progressTracker, codebase, xmlFile, "JDiff File") { printWriter ->
-                    JDiffXmlWriter(
-                            writer = printWriter,
-                        )
-                        .createFilteringVisitor(
+                val codebaseFragment =
+                    CodebaseFragment.create(codebase) { delegate ->
+                        createFilteringVisitorForJDiffWriter(
+                            delegate,
                             apiFilters = apiFilters,
                             preFiltered = false,
                             showUnannotated = false,
                         )
+                    }
+
+                createReportFile(progressTracker, codebaseFragment, xmlFile, "JDiff File") {
+                    printWriter ->
+                    JDiffXmlWriter(
+                        writer = printWriter,
+                    )
                 }
             }
     }

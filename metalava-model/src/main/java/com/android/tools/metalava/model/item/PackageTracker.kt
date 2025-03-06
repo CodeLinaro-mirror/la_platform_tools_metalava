@@ -118,7 +118,7 @@ class PackageTracker(private val packageItemFactory: PackageItemFactory) {
             }
 
     /** Add the package to this. */
-    fun addPackage(packageItem: DefaultPackageItem) {
+    private fun addPackage(packageItem: DefaultPackageItem) {
         packagesByName[packageItem.qualifiedName()] = packageItem
     }
 

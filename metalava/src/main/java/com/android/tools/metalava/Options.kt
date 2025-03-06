@@ -56,6 +56,7 @@ import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
 import com.android.tools.metalava.model.source.DEFAULT_JAVA_LANGUAGE_LEVEL
 import com.android.tools.metalava.model.source.DEFAULT_KOTLIN_LANGUAGE_LEVEL
 import com.android.tools.metalava.model.text.ApiClassResolution
+import com.android.tools.metalava.model.text.EmitFileHeader
 import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.reporter.Baseline
 import com.android.tools.metalava.reporter.DefaultReporter
