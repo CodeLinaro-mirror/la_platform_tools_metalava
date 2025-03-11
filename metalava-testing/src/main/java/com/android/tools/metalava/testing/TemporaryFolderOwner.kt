@@ -94,16 +94,41 @@ interface TemporaryFolderOwner {
         return dir
     }
 
-    /** Hides path prefixes from /tmp folders used by the testing infrastructure */
+    /**
+     * Hides path prefixes from /tmp folders used by the testing infrastructure.
+     *
+     * First, if [project] is provided, this will replace any usages of its [File.getPath] or
+     * [File.getCanonicalPath] with `TESTROOT`.
+     *
+     * Finally, it will replace the [temporaryFolder]'s [TemporaryFolder.getRoot] with `TESTROOT`.
+     */
     fun cleanupString(
         string: String,
         project: File? = null,
+    ) =
+        if (project == null) {
+            replaceFileWithSymbol(string)
+        } else {
+            replaceFileWithSymbol(string, mapOf(project to "TESTROOT"))
+        }
+
+    /**
+     * Hides path prefixes from /tmp folders used by the testing infrastructure.
+     *
+     * First, for each [Map.Entry] in [fileToSymbol] it will replace any usages of its
+     * [Map.Entry.key]'s [File.getPath] or [File.getCanonicalPath] with its [Map.Entry.value].
+     *
+     * Finally, it will replace the [temporaryFolder]'s [TemporaryFolder.getRoot] with `TESTROOT`.
+     */
+    fun replaceFileWithSymbol(
+        string: String,
+        fileToSymbol: Map<File, String> = emptyMap(),
     ): String {
         var s = string
 
-        if (project != null) {
-            s = s.replace(project.path, "TESTROOT")
-            s = s.replace(project.canonicalPath, "TESTROOT")
+        for ((file, symbol) in fileToSymbol) {
+            s = s.replace(file.path, symbol)
+            s = s.replace(file.canonicalPath, symbol)
         }
 
         s = s.replace(temporaryFolder.root.path, "TESTROOT")

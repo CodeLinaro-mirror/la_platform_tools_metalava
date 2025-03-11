@@ -112,6 +112,8 @@ class CommandTestConfig<C : CliktCommand>(private val test: BaseCommandTest<C>) 
      */
     var expectedStderr: String = ""
 
+    var stdin: String = ""
+
     /**
      * The command that is being tested.
      *
@@ -201,7 +203,7 @@ class CommandTestConfig<C : CliktCommand>(private val test: BaseCommandTest<C>) 
 
     /** Run the test defined by the configuration. */
     internal fun runTest() {
-        val (executionEnvironment, stdout, stderr) = ExecutionEnvironment.forTest()
+        val (executionEnvironment, stdout, stderr) = ExecutionEnvironment.forTest(stdin)
 
         // Runs the command
         command = test.commandFactory(executionEnvironment)

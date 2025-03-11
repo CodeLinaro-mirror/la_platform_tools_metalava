@@ -316,7 +316,8 @@ class TextTypeParserCacheTest : BaseTextCodebaseTest() {
     fun `Test caching of generic type arguments`() {
         runTextTypeParserTest {
             val first = parser.obtainTypeFromString("Number", emptyScope)
-            val second = parser.obtainTypeFromString("List<Number>", emptyScope) as ClassTypeItem
+            val second =
+                parser.obtainTypeFromString("java.util.List<Number>", emptyScope) as ClassTypeItem
 
             assertThat(second.arguments[0]).isSameInstanceAs(first)
         }
@@ -327,7 +328,8 @@ class TextTypeParserCacheTest : BaseTextCodebaseTest() {
         runTextTypeParserTest {
             val first = parser.obtainTypeFromString("Number", emptyScope)
             val second =
-                parser.obtainTypeFromString("List<? extends Number>", emptyScope) as ClassTypeItem
+                parser.obtainTypeFromString("java.util.List<? extends Number>", emptyScope)
+                    as ClassTypeItem
 
             assertThat((second.arguments[0] as WildcardTypeItem).extendsBound)
                 .isSameInstanceAs(first)
@@ -339,7 +341,8 @@ class TextTypeParserCacheTest : BaseTextCodebaseTest() {
         runTextTypeParserTest {
             val first = parser.obtainTypeFromString("Number", emptyScope)
             val second =
-                parser.obtainTypeFromString("List<? super Number>", emptyScope) as ClassTypeItem
+                parser.obtainTypeFromString("java.util.List<? super Number>", emptyScope)
+                    as ClassTypeItem
 
             assertThat((second.arguments[0] as WildcardTypeItem).superBound).isSameInstanceAs(first)
         }

@@ -26,7 +26,8 @@ class ApiGenerator {
      * @param config Configuration provided from command line options.
      */
     fun generateApiHistory(config: GenerateApiHistoryConfig) {
-        val api = createApiFromVersionedApis(config.versionedApis)
+        val versionedApis = config.versionedApis
+        val api = createApiFromVersionedApis(config.useInternalNames, versionedApis)
 
         // If necessary, update the sdks properties.
         config.sdkExtensionsArguments?.let { sdkExtensionsArguments ->
@@ -45,21 +46,22 @@ class ApiGenerator {
         // Apply the appropriate action for missing classes.
         config.missingClassAction.apply(api)
 
-        createApiLevelsFile(config.outputFile, config.printer, api)
-    }
+        val outputFile = config.outputFile
+        val printer =
+            when (val extension = outputFile.extension) {
+                "xml" -> {
+                    val availableSdkExtensions =
+                        config.sdkExtensionsArguments?.sdkExtensionInfo?.availableSdkExtensions
+                    ApiXmlPrinter(availableSdkExtensions, versionedApis)
+                }
+                "json" -> ApiJsonPrinter()
+                else ->
+                    error(
+                        "unexpected extension for $outputFile, expected 'xml', or 'json' got '$extension'"
+                    )
+            }
 
-    /**
-     * Creates an [Api] from a list of [VersionedApi]s.
-     *
-     * @param versionedApis A list of [VersionedApi]s, one for each version of the API, in order
-     *   from oldest to newest API version.
-     */
-    private fun createApiFromVersionedApis(versionedApis: List<VersionedApi>): Api {
-        val api = Api()
-        for (versionedApi in versionedApis) {
-            versionedApi.updateApi(api)
-        }
-        return api
+        createApiLevelsFile(outputFile, printer, api)
     }
 
     /**
@@ -159,4 +161,22 @@ class ApiGenerator {
         val sdkExtensionInfo by
             lazy(LazyThreadSafetyMode.NONE) { SdkExtensionInfo.fromXml(sdkExtInfoFile.readText()) }
     }
+}
+
+/**
+ * Creates an [Api] from a list of [VersionedApi]s.
+ *
+ * @param useInternalNames `true` if JVM internal names should be used, `false` otherwise.
+ * @param versionedApis A list of [VersionedApi]s, one for each version of the API, in order from
+ *   oldest to newest API version.
+ */
+internal fun createApiFromVersionedApis(
+    useInternalNames: Boolean,
+    versionedApis: List<VersionedApi>
+): Api {
+    val api = Api(useInternalNames)
+    for (versionedApi in versionedApis) {
+        versionedApi.updateApi(api)
+    }
+    return api
 }

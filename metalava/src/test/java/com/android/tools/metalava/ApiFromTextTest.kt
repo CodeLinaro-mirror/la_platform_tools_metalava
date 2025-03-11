@@ -67,7 +67,7 @@ class ApiFromTextTest : DriverTest() {
             // Signature format: 3.0
             package abc {
               public final class PopupKt {
-                method public static void DropdownPopup(Type ident = SomeFunc(SomeVal, SomeVal));
+                method public static void DropdownPopup(String ident = SomeFunc(SomeVal, SomeVal));
               }
             }
         """
@@ -128,7 +128,7 @@ class ApiFromTextTest : DriverTest() {
                 ctor public Foo();
                 method public void method1(int p = 42, Integer? int2 = null, int p1 = 42, String str = "hello world", java.lang.String... args);
                 method public void method2(int p, int int2 = (2 * int) * some.other.pkg.Constants.Misc.SIZE);
-                method public void method3(str: String = "unbalanced), string", str2: String = ",");
+                method public void method3(String str = "unbalanced), string", String str2 = ",");
               }
             }
         """
