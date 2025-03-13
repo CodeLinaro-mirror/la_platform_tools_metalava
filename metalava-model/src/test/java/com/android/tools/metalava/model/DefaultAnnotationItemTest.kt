@@ -21,11 +21,10 @@ import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.item.PackageDoc
 import java.io.File
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-class DefaultAnnotationItemTest {
+class DefaultAnnotationItemTest : Assertions {
     // Placeholder for use in test where we don't need codebase functionality
     private val placeholderCodebase =
         DefaultCodebase(
@@ -66,10 +65,10 @@ class DefaultAnnotationItemTest {
         assertEquals("@androidx.annotation.IntRange(from=20, to=40)", annotation.toSource())
         assertEquals("androidx.annotation.IntRange", annotation.qualifiedName)
         assertEquals(2, annotation.attributes.size)
-        assertEquals("from", annotation.findAttribute("from")?.name)
-        assertEquals("20", annotation.findAttribute("from")?.value.toString())
-        assertEquals("to", annotation.findAttribute("to")?.name)
-        assertEquals("40", annotation.findAttribute("to")?.value.toString())
+        assertEquals("from", annotation.assertAttribute("from").name)
+        assertEquals("20", annotation.assertAttribute("from").value.toString())
+        assertEquals("to", annotation.assertAttribute("to").name)
+        assertEquals("40", annotation.assertAttribute("to").value.toString())
     }
 
     @Test
@@ -84,15 +83,14 @@ class DefaultAnnotationItemTest {
         )
         assertEquals("androidx.annotation.IntDef", annotation.qualifiedName)
         assertEquals(1, annotation.attributes.size)
-        val attribute = annotation.findAttribute("value")
-        assertNotNull(attribute)
-        assertEquals("value", attribute?.name)
+        val attribute = annotation.assertAttribute("value")
+        assertEquals("value", attribute.name)
         assertEquals(
             "{STYLE_NORMAL, STYLE_NO_TITLE, STYLE_NO_FRAME, STYLE_NO_INPUT}",
-            annotation.findAttribute("value")?.value.toString()
+            attribute.value.toString()
         )
 
-        assertTrue(attribute?.value is AnnotationArrayAttributeValue)
+        assertTrue(attribute.value is AnnotationArrayAttributeValue)
         if (attribute is AnnotationArrayAttributeValue) {
             val list = attribute.values
             assertEquals(3, list.size)

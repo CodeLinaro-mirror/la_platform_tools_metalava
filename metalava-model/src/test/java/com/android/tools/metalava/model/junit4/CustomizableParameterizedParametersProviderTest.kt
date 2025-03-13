@@ -17,11 +17,16 @@
 package com.android.tools.metalava.model.junit4
 
 import com.google.common.truth.Truth.assertThat
+import kotlin.test.assertEquals
+import org.junit.ClassRule
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TestName
+import org.junit.rules.TestRule
+import org.junit.runner.Description
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized.Parameter
+import org.junit.runners.model.Statement
 import org.junit.runners.model.TestClass
 
 /**
@@ -30,6 +35,10 @@ import org.junit.runners.model.TestClass
 @RunWith(CustomizableParameterizedParametersProviderTest.ParameterProvider::class)
 @CustomParameters(1, 2, pattern = "{0}")
 class CustomizableParameterizedParametersProviderTest {
+
+    companion object {
+        @ClassRule @JvmField val classRule = CountingTestRule()
+    }
 
     @get:Rule val testName = TestName()
 
@@ -65,3 +74,19 @@ class CustomizableParameterizedParametersProviderTest {
 
 /** Annotation used by [CustomizableParameterizedParametersProviderTest] to provide values. */
 annotation class CustomParameters(vararg val values: Int, val pattern: String)
+
+class CountingTestRule : TestRule {
+    var applyCount: Int = 0
+
+    override fun apply(base: Statement, description: Description): Statement {
+        applyCount += 1
+        return object : Statement() {
+            override fun evaluate() {
+                base.evaluate()
+
+                // Make sure this is only applied once.
+                assertEquals(1, applyCount, "expected test rule to be applied once")
+            }
+        }
+    }
+}

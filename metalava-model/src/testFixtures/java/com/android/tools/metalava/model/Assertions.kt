@@ -201,6 +201,13 @@ interface Assertions {
         append(returnType().testTypeString(kotlinStyleNulls = true))
     }
 
+    /** Get the [AnnotationAttribute] from the [AnnotationItem], failing if it does not exist. */
+    fun AnnotationItem.assertAttribute(name: String): AnnotationAttribute {
+        val attribute = findAttribute(name)
+        assertNotNull(attribute, message = "Expected $this to contain attribute $name")
+        return attribute
+    }
+
     /** Get the list of fully qualified annotation names associated with the [TypeItem]. */
     fun TypeItem.annotationNames(): List<String?> {
         return modifiers.annotations.map { it.qualifiedName }

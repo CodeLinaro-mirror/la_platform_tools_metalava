@@ -66,7 +66,7 @@ class DirectoryBuilderTest : TemporaryFolderOwner {
                         public class Foo extends Bar {}
                     """
                     ),
-                    classPath = listOf(classPathJarFile),
+                    classPath = listOf(classPathJarFile.toTestFile()),
                 )
         }
 

@@ -90,7 +90,7 @@ open class BaseModelProviderRunner<C : FilterableCodebaseCreator, I : Any>(
                 minimumCapabilities,
             )
         },
-        InstanceRunnerFactory::class,
+        InstanceRunnerFactory(),
     ) {
 
     init {

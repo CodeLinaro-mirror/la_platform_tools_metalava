@@ -77,7 +77,6 @@ class SignatureWriter(
 
     override fun afterVisitPackage(pkg: PackageItem) {
         write("}\n\n")
-        writer.flush()
     }
 
     override fun visitConstructor(constructor: ConstructorItem) {

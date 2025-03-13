@@ -18,6 +18,9 @@ package com.android.tools.metalava.model.testsuite.typealiasitem
 
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.testsuite.BaseModelTest
+import com.android.tools.metalava.testing.createAndroidModuleDescription
+import com.android.tools.metalava.testing.createCommonModuleDescription
+import com.android.tools.metalava.testing.createProjectDescription
 import com.android.tools.metalava.testing.kotlin
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
@@ -253,6 +256,40 @@ class CommonTypeAliasItemTest : BaseModelTest() {
                     }
                 }
             }
+        }
+    }
+
+    @Test
+    fun `expect actual typealias`() {
+        val commonSource =
+            kotlin(
+                "commonMain/src/test/pkg/Foo.kt",
+                """
+                    package test.pkg
+                    expect class Foo
+                """
+            )
+        val androidSource =
+            kotlin(
+                "androidMain/src/test/pkg/Foo.android.kt",
+                """
+                    package test.pkg
+                    actual typealias Foo = String
+                """
+            )
+        runCodebaseTest(
+            inputSet(
+                androidSource,
+                commonSource,
+            ),
+            projectDescription =
+                createProjectDescription(
+                    createAndroidModuleDescription(arrayOf(androidSource)),
+                    createCommonModuleDescription(arrayOf(commonSource)),
+                ),
+        ) {
+            val fooAlias = codebase.assertTypeAlias("test.pkg.Foo")
+            assertThat(fooAlias.aliasedType.isString()).isTrue()
         }
     }
 }

@@ -1557,36 +1557,38 @@ val requiresApiSource: TestFile =
         )
         .indented()
 
-val restrictedForEnvironment: TestFile =
+private fun restrictedForEnvironmentClass(packageName: String): TestFile =
     java(
             """
-    package androidx.annotation;
-    import java.lang.annotation.*;
-    import static java.lang.annotation.ElementType.*;
-    import static java.lang.annotation.RetentionPolicy.SOURCE;
-    @Retention(SOURCE)
-    @Target({TYPE})
-    public @interface RestrictedForEnvironment {
-      Environment[] environments();
-      int from();
-      enum Environment {
-        SDK_SANDBOX {
-            @Override
-            public String toString() {
-                return "SDK Runtime";
+            package $packageName;
+            import java.lang.annotation.*;
+            import static java.lang.annotation.ElementType.*;
+            import static java.lang.annotation.RetentionPolicy.SOURCE;
+            @Retention(SOURCE)
+            @Target({TYPE})
+            public @interface RestrictedForEnvironment {
+              Environment[] environments();
+              int from();
+              enum Environment {
+                SDK_SANDBOX {
+                    @Override
+                    public String toString() {
+                        return "SDK Runtime";
+                    }
+                }
+              }
+              @Retention(RetentionPolicy.RUNTIME)
+              @Target(TYPE)
+              @interface Container {
+                  RestrictedForEnvironment[] value();
+              }
             }
-        }
-    }
-    @Retention(RetentionPolicy.RUNTIME)
-    @Target(TYPE)
-    @interface Container {
-        RestrictedForEnvironment[] value();
-    }
-
-    }
-    """
+        """
         )
         .indented()
+
+val androidXRestrictedForEnvironment = restrictedForEnvironmentClass(ANDROIDX_ANNOTATION_PACKAGE)
+val androidRestrictedForEnvironment = restrictedForEnvironmentClass(ANDROID_ANNOTATION_PACKAGE)
 
 val sdkConstantSource: TestFile =
     java(

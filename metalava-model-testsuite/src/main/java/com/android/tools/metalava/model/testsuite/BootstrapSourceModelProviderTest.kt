@@ -451,17 +451,17 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             val nullAnno = fieldItem.assertAnnotation("test.Nullable")
 
             val customAnno1 = fieldItem.assertAnnotation("test.anno.FieldInfo")
-            val custAnno1Attr1 = customAnno1.findAttribute("children")
-            val custAnno1Attr2 = customAnno1.findAttribute("val")
-            val custAnno1Attr3 = customAnno1.findAttribute("cls")
+            val custAnno1Attr1 = customAnno1.assertAttribute("children")
+            val custAnno1Attr2 = customAnno1.assertAttribute("val")
+            val custAnno1Attr3 = customAnno1.assertAttribute("cls")
             val annoClassItem1 = codebase.assertClass("test.anno.FieldInfo")
             val retAnno = annoClassItem1.assertAnnotation("java.lang.annotation.Retention")
             val tarAnno = annoClassItem1.assertAnnotation("java.lang.annotation.Target")
-            val tarAnnoAtrr1 = tarAnno.findAttribute("value")
+            val tarAnnoAttr1 = tarAnno.assertAttribute("value")
 
             val customAnno2 = fieldItem.assertAnnotation("anno.FieldValue")
             val annoClassItem2 = codebase.assertClass("anno.FieldValue")
-            val custAnno2Attr1 = customAnno2.findAttribute("value")
+            val custAnno2Attr1 = customAnno2.assertAttribute("value")
 
             assertEquals(3, fieldItem.modifiers.annotations().count())
 
@@ -469,9 +469,6 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
 
             assertEquals(3, customAnno1.attributes.count())
             assertEquals(false, customAnno1.isRetention())
-            assertNotNull(custAnno1Attr1)
-            assertNotNull(custAnno1Attr2)
-            assertNotNull(custAnno1Attr3)
             assertEquals(
                 true,
                 listOf("child1", "child2").toTypedArray() contentEquals
@@ -484,7 +481,6 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             assertEquals(AnnotationRetention.RUNTIME, annoClassItem1.getRetention())
 
             assertEquals(annoClassItem2, customAnno2.resolve())
-            assertNotNull(custAnno2Attr1)
             assertEquals(12, custAnno2Attr1.value.value())
 
             assertEquals("@test.Nullable", nullAnno.toSource())
@@ -497,7 +493,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
                 "@java.lang.annotation.Target(java.lang.annotation.ElementType.FIELD)",
                 tarAnno.toSource()
             )
-            assertEquals(true, tarAnnoAtrr1!!.value is DefaultAnnotationSingleAttributeValue)
+            assertEquals(true, tarAnnoAttr1.value is DefaultAnnotationSingleAttributeValue)
         }
     }
 

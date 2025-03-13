@@ -109,6 +109,8 @@ import com.google.turbine.processing.ModelFactory
 import com.google.turbine.processing.TurbineElements
 import com.google.turbine.processing.TurbineTypes
 import com.google.turbine.tree.Tree
+import com.google.turbine.tree.Tree.Anno
+import com.google.turbine.tree.Tree.AnnoExpr
 import com.google.turbine.tree.Tree.ArrayInit
 import com.google.turbine.tree.Tree.Assign
 import com.google.turbine.tree.Tree.CompUnit
@@ -1244,10 +1246,19 @@ internal class TurbineCodebaseInitialiser(
      * Extracts the expression corresponding to the default value of a given annotation method. If
      * the method does not have a default value, returns null.
      */
-    private fun getAnnotationDefaultExpression(method: MethodInfo): Tree? {
-        val optExpr = method.decl()?.defaultValue()
-        return if (optExpr != null && optExpr.isPresent()) optExpr.get() else null
-    }
+    private fun getAnnotationDefaultExpression(method: MethodInfo) =
+        method.decl()?.defaultValue()?.orElse(null)?.let { defaultTree ->
+
+            // Turbine stores the default value as a Tree not an Expression so that it can use an
+            // Anno class (which is not an Expression). It could wrap the Anno in an AnnoExpr but
+            // does not, presumably as an optimization. However, this does wrap it in an AnnoExpr
+            // as it allows for more consistent handling.
+            when (defaultTree) {
+                is Expression -> defaultTree
+                is Anno -> AnnoExpr(defaultTree.position(), defaultTree)
+                else -> error("unknown default value type (${defaultTree.javaClass}: $defaultTree")
+            }
+        }
 
     /**
      * Extracts the default value of an annotation method and returns it as a string.
@@ -1257,7 +1268,7 @@ internal class TurbineCodebaseInitialiser(
      *   extraction.
      * @return The default value of the annotation method as a string.
      */
-    private fun extractAnnotationDefaultValue(const: Const, expr: Tree?): String {
+    private fun extractAnnotationDefaultValue(const: Const, expr: Expression?): String {
         return when (const.kind()) {
             Kind.PRIMITIVE -> {
                 when ((const as Value).constantTypeKind()) {
