@@ -143,9 +143,16 @@ project.tasks.register("test-prebuilts-sdk") {
 
 tasks.named<Test>("test").configure {
     dependsOn("test-prebuilts-sdk")
+
+    // Get the jar from the stub-annotations project.
+    val jarTask = project(":stub-annotations").tasks.jar
+    dependsOn(jarTask)
+    val stubAnnotationsJar = jarTask.get().outputs.files.singleFile
+
     setEnvironment(
         "METALAVA_TEST_PREBUILTS_SDK_ROOT" to testPrebuiltsSdkDir.get().asFile.absolutePath,
         "METALAVA_TESTDATA_DIR" to testDataDir.asFile.absolutePath,
+        "METALAVA_STUB_ANNOTATIONS_JAR" to stubAnnotationsJar,
     )
 }
 

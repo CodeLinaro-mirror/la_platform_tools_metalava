@@ -23,6 +23,7 @@ import com.android.tools.metalava.testing.java
 import java.io.File
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import org.junit.Assert.assertThrows
 import org.junit.Assert.fail
@@ -84,5 +85,57 @@ class StandaloneJarCodebaseLoaderTest : DriverTest() {
         assertFalse(fooClass.modifiers.isFinal(), message = "isFinal before mutation")
         fooClass.mutateModifiers { setFinal(true) }
         assertTrue(fooClass.modifiers.isFinal(), message = "isFinal after mutation")
+    }
+
+    @Test
+    fun `Test loaded jar depends on class path`() {
+        lateinit var classPathJarFile: File
+        lateinit var jarFile: File
+        buildFileStructure {
+            classPathJarFile =
+                jar(
+                    "classpath.jar",
+                    java(
+                        """
+                            package test.pkg;
+                            public class Bar {}
+                        """
+                    ),
+                )
+
+            // This will fail to compile if the class path is not provided.
+            jarFile =
+                jar(
+                    "test.jar",
+                    java(
+                        """
+                            package test.pkg;
+                            public class Foo extends Bar {}
+                        """
+                    ),
+                    classPath = listOf(classPathJarFile),
+                )
+        }
+
+        jarCodebaseLoader.loadFromJarFile(jarFile).let { codebase ->
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+            assertEquals(
+                "test.pkg.Bar",
+                fooClass.superClassType().toString(),
+                message = "no classpath, super class type"
+            )
+            assertNull(fooClass.superClass(), message = "no classpath, no super class")
+        }
+
+        jarCodebaseLoader.loadFromJarFile(jarFile, classPath = listOf(classPathJarFile)).let {
+            codebase ->
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+            assertEquals(
+                "test.pkg.Bar",
+                fooClass.superClassType().toString(),
+                message = "classpath, super class type"
+            )
+            codebase.assertResolvedClass("test.pkg.Bar")
+        }
     }
 }

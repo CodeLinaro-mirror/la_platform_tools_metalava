@@ -36,6 +36,7 @@ sealed interface JarCodebaseLoader {
         apiJar: File,
         apiAnalyzerConfig: ApiAnalyzer.Config = ApiAnalyzer.Config(),
         freezeCodebase: Boolean = true,
+        classPath: List<File> = emptyList(),
     ): Codebase
 
     companion object {
@@ -59,6 +60,7 @@ sealed interface JarCodebaseLoader {
             apiJar: File,
             apiAnalyzerConfig: ApiAnalyzer.Config,
             freezeCodebase: Boolean,
+            classPath: List<File>,
         ): Codebase {
             progressTracker.progress("Processing jar file: ")
 
@@ -69,7 +71,7 @@ sealed interface JarCodebaseLoader {
                 )
             val apiReference = apiEmit
 
-            val codebase = sourceParser.loadFromJar(apiJar)
+            val codebase = sourceParser.loadFromJar(apiJar, classPath)
             val analyzer = ApiAnalyzer(sourceParser, codebase, reporter, apiAnalyzerConfig)
             analyzer.mergeExternalInclusionAnnotations()
             analyzer.computeApi()

@@ -193,6 +193,7 @@ com.android.tools.metalava.doc.RestrictedForEnvironmentTest
 com.android.tools.metalava.jar.StandaloneJarCodebaseLoaderTest
   Test jar loader does not freeze codebase[turbine]
   Test jar loader freezes codebase[turbine]
+  Test loaded jar depends on class path[turbine]
 
 com.android.tools.metalava.lint.ApiLintTest
   CompletableFuture and plain Future not allowed[turbine]

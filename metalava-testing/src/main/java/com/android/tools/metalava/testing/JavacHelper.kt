@@ -64,12 +64,16 @@ object JavacHelper {
     }
 
     /** Compile the [sources] into [outputDirectory] throwing an exception if it fails. */
-    fun compile(outputDirectory: File, sources: List<File>) {
+    fun compile(outputDirectory: File, sources: List<File>, classPath: List<File> = emptyList()) {
         runCommand(
             "$jdkPath/bin/javac",
             buildList {
                 add("-d")
                 add(outputDirectory.path)
+                if (classPath.isNotEmpty()) {
+                    add("-cp")
+                    add(classPath.joinToString(":"))
+                }
                 sources.mapTo(this) { it.path }
             }
         )
@@ -93,7 +97,7 @@ object JavacHelper {
     }
 
     /** Compile the [sources] into [jarFile] throwing an exception if it fails. */
-    fun compileAndJar(jarFile: File, sources: List<TestFile>) {
+    fun compileAndJar(jarFile: File, sources: List<TestFile>, classPath: List<File> = emptyList()) {
         // Make sure that the directory in which the jar file will be written exists.
         val jarDir = jarFile.parentFile
         jarDir.mkdirs()
@@ -105,7 +109,7 @@ object JavacHelper {
         val classesDir = tempDir.resolve("classes")
 
         // Compile the source files.
-        compile(outputDirectory = classesDir, sourceFiles)
+        compile(outputDirectory = classesDir, sourceFiles, classPath)
 
         // Jar up the class files.
         jar(jarFile, classesDir)
