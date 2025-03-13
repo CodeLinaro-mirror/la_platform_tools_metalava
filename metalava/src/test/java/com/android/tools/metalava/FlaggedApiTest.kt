@@ -18,17 +18,17 @@ package com.android.tools.metalava
 
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.cli.common.ARG_HIDE
+import com.android.tools.metalava.model.ANDROID_ANNOTATION_PACKAGE
 import com.android.tools.metalava.model.ANDROID_FLAGGED_API
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.reporter.Issues
-import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import java.util.Locale
 import kotlin.test.assertEquals
 import org.junit.Test
 import org.junit.runners.Parameterized
 
-private val annotationsList = listOf(systemApiSource, flaggedApiSource, nonNullSource)
+private val annotationsList = listOf(systemApiSource, nonNullSource)
 
 private const val FULLY_QUALIFIED_SYSTEM_API_SURFACE_ANNOTATION =
     "android.annotation.SystemApi(client=android.annotation.SystemApi.Client.PRIVILEGED_APPS)"
@@ -258,10 +258,10 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
                         addAll(sourceFiles)
                         addAll(annotationsList)
                         add(flagsFile)
-                        // Hide android.annotation classes.
-                        add(KnownSourceFiles.androidAnnotationHide)
                     }
                     .toTypedArray(),
+            // Access android.annotation.FlaggedApi
+            classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
             api = expectations.expectedApi,
             stubFiles = expectations.expectedStubs,
             stubPaths = expectations.expectedStubPaths,
@@ -270,7 +270,8 @@ class FlaggedApiTest(private val config: Configuration) : DriverTest() {
             // Do not include flags in the output but do not mark them as hide or removed.
             // This is needed to verify that the code to always inline the values of
             // FlaggedApi annotations even when not hidden or removed is working correctly.
-            skipEmitPackages = listOf("test.pkg.flags"),
+            // Do not emit android.annotation classes either.
+            skipEmitPackages = listOf("test.pkg.flags", ANDROID_ANNOTATION_PACKAGE),
             extraArguments = args,
         )
 

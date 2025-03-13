@@ -58,6 +58,8 @@ class AnnotationRetentionTest : DriverTest() {
                         """
                     ),
                 ),
+            // Override default to emit android.annotation classes.
+            skipEmitPackages = emptyList(),
             api =
                 """
                     // Signature format: 3.0

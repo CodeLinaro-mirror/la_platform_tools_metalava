@@ -35,7 +35,9 @@ import com.intellij.psi.JavaPsiFacade
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiParameter
+import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.KtClassOrObject
+import org.jetbrains.kotlin.psi.KtConstructor
 import org.jetbrains.kotlin.psi.KtPrimaryConstructor
 import org.jetbrains.uast.UMethod
 
@@ -131,6 +133,31 @@ private constructor(
                     implicitConstructor = false,
                     isPrimary = (psiMethod as? UMethod)?.isPrimaryConstructor ?: false,
                 )
+
+            // Undo setting of constructors with value class types to private (b/395472914).
+            // Constructors that use value class types are effectively private to java callers, but
+            // they can be public in source to kotlin callers, so we want to track them.
+            if (
+                constructor.modifiers.isPrivate() &&
+                    constructor.parameters().any { (it.type() as PsiTypeItem).isValueClassType() }
+            ) {
+                (psiMethod.sourceElement as? KtConstructor<*>)?.let { sourcePsi ->
+                    if (!sourcePsi.hasModifier(KtTokens.PRIVATE_KEYWORD)) {
+                        constructor.mutateModifiers {
+                            val correctedVisibility =
+                                when {
+                                    sourcePsi.hasModifier(KtTokens.PROTECTED_KEYWORD) ->
+                                        VisibilityLevel.PROTECTED
+                                    sourcePsi.hasModifier(KtTokens.INTERNAL_KEYWORD) ->
+                                        VisibilityLevel.INTERNAL
+                                    else -> VisibilityLevel.PUBLIC
+                                }
+                            setVisibilityLevel(correctedVisibility)
+                        }
+                    }
+                }
+            }
+
             return constructor
         }
 

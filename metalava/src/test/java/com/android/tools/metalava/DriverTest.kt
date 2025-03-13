@@ -48,7 +48,10 @@ import com.android.tools.metalava.cli.lint.ARG_BASELINE_API_LINT
 import com.android.tools.metalava.cli.lint.ARG_ERROR_MESSAGE_API_LINT
 import com.android.tools.metalava.cli.lint.ARG_UPDATE_BASELINE_API_LINT
 import com.android.tools.metalava.cli.signature.ARG_FORMAT
+import com.android.tools.metalava.model.ANDROIDX_ANNOTATION_PACKAGE
+import com.android.tools.metalava.model.ANDROID_ANNOTATION_PACKAGE
 import com.android.tools.metalava.model.Assertions
+import com.android.tools.metalava.model.StripJavaLangPrefix
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.psi.PsiModelOptions
 import com.android.tools.metalava.model.source.SourceModelProvider
@@ -81,7 +84,6 @@ import java.io.StringWriter
 import java.net.URI
 import kotlin.text.Charsets.UTF_8
 import org.intellij.lang.annotations.Language
-import org.junit.Assert
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
@@ -460,8 +462,8 @@ abstract class DriverTest :
          * files etc
          */
         importedPackages: List<String> = emptyList(),
-        /** See [TestEnvironment.skipEmitPackages] */
-        skipEmitPackages: List<String> = listOf("java.lang", "java.util", "java.io"),
+        /** See [TestEnvironment.skipEmitPackages], defaults to [DEFAULT_SKIP_EMIT_PACKAGES]. */
+        skipEmitPackages: List<String>? = null,
         /** Whether we should include --showAnnotations=android.annotation.SystemApi */
         includeSystemApiAnnotations: Boolean = false,
         /** Whether we should warn about super classes that are stripped because they are hidden */
@@ -1072,7 +1074,7 @@ abstract class DriverTest :
 
         val testEnvironment =
             TestEnvironment(
-                skipEmitPackages = skipEmitPackages,
+                skipEmitPackages = skipEmitPackages ?: DEFAULT_SKIP_EMIT_PACKAGES,
                 sourceModelProvider = codebaseCreatorConfig.creator,
                 modelOptions = codebaseCreatorConfig.modelOptions,
                 postAnalysisChecker = postAnalysisChecker,
@@ -1235,7 +1237,7 @@ abstract class DriverTest :
             JavacHelper.compile(
                 outputDirectory = project,
                 sources = generated,
-                classPath = listOf(stubAnnotationsJar),
+                classPath = listOf(KnownJarFiles.stubAnnotationsJar),
             )
         }
     }
@@ -1394,15 +1396,6 @@ abstract class DriverTest :
                 val file = File(project, name)
                 if (!file.isFile) return file
             } while (true)
-        }
-
-        /** The jar produced by the :stub-annotations project. */
-        val stubAnnotationsJar by lazy {
-            val jar = File(System.getenv("METALAVA_STUB_ANNOTATIONS_JAR"))
-            if (!jar.isFile) {
-                Assert.fail("stub-annotations jar not found: $jar")
-            }
-            jar
         }
     }
 }
@@ -1693,42 +1686,6 @@ val recentlyNullableSource: TestFile =
         )
         .indented()
 
-val androidxIntRangeSource: TestFile =
-    java(
-            """
-    package androidx.annotation;
-    import java.lang.annotation.*;
-    import static java.lang.annotation.ElementType.*;
-    import static java.lang.annotation.RetentionPolicy.SOURCE;
-    @Retention(CLASS)
-    @Target({METHOD, PARAMETER, FIELD, LOCAL_VARIABLE, ANNOTATION_TYPE})
-    public @interface IntRange {
-        long from() default Long.MIN_VALUE;
-        long to() default Long.MAX_VALUE;
-    }
-    """
-        )
-        .indented()
-
-val supportParameterName = KnownSourceFiles.supportParameterName
-
-val supportDefaultValue: TestFile =
-    java(
-            """
-    package androidx.annotation;
-    import java.lang.annotation.*;
-    import static java.lang.annotation.ElementType.*;
-    import static java.lang.annotation.RetentionPolicy.SOURCE;
-    @SuppressWarnings("WeakerAccess")
-    @Retention(SOURCE)
-    @Target({METHOD, PARAMETER, FIELD})
-    public @interface DefaultValue {
-        String value();
-    }
-    """
-        )
-        .indented()
-
 val uiThreadSource: TestFile =
     java(
             """
@@ -1924,31 +1881,6 @@ val columnSource: TestFile =
         )
         .indented()
 
-val flaggedApiSource: TestFile =
-    java(
-            """
-    package android.annotation;
-
-    import static java.lang.annotation.ElementType.ANNOTATION_TYPE;
-    import static java.lang.annotation.ElementType.CONSTRUCTOR;
-    import static java.lang.annotation.ElementType.FIELD;
-    import static java.lang.annotation.ElementType.METHOD;
-    import static java.lang.annotation.ElementType.TYPE;
-
-    import java.lang.annotation.Retention;
-    import java.lang.annotation.RetentionPolicy;
-    import java.lang.annotation.Target;
-
-    /** @hide */
-    @Target({TYPE, METHOD, CONSTRUCTOR, FIELD, ANNOTATION_TYPE})
-    @Retention(RetentionPolicy.SOURCE)
-    public @interface FlaggedApi {
-        String value();
-    }
-    """
-        )
-        .indented()
-
 val publishedApiSource: TestFile =
     kotlin(
             """
@@ -1988,3 +1920,29 @@ val deprecatedForSdkSource: TestFile =
     """
         )
         .indented()
+
+val DEFAULT_SKIP_EMIT_PACKAGES =
+    listOf(
+        // Do not emit classes in a number of java packages. While tests will
+        // use those classes they generally do not want to emit definitions of
+        // those classes as part of a signature or stubs files.
+        "java.lang",
+        "java.util",
+        "java.io",
+        // Ditto for android.annotation and androidx.annotation classes.
+        ANDROID_ANNOTATION_PACKAGE,
+        ANDROIDX_ANNOTATION_PACKAGE,
+        // Ditto for libcore.util.
+        "libcore.util",
+    )
+
+/**
+ * A special [FileFormat] used by tests that want to output type use annotations to signature files.
+ */
+val TYPE_USE_FORMAT =
+    FileFormat.V5.copy(
+        kotlinNameTypeOrder = true,
+        includeTypeUseAnnotations = true,
+        kotlinStyleNulls = false,
+        specifiedStripJavaLangPrefix = StripJavaLangPrefix.ALWAYS,
+    )
