@@ -17,9 +17,7 @@
 package com.android.tools.metalava.cli.signature
 
 import com.android.tools.metalava.cli.common.BaseCommandTest
-import com.android.tools.metalava.model.text.FileFormat
-import com.android.tools.metalava.model.text.assertSignatureFilesMatch
-import org.junit.Assert.*
+import com.android.tools.metalava.model.text.assertSignatureContents
 import org.junit.Test
 
 private val signatureCatHelp =
@@ -170,7 +168,6 @@ class SignatureCatCommandTest : BaseCommandTest<SignatureCatCommand>({ Signature
                     .trimIndent()
 
             expectedStdout =
-                // TODO(b/394789173): Stop prefixing T with java.lang..
                 """
                     // Signature format: 2.0
                     package test.pkg {
@@ -206,13 +203,7 @@ class SignatureCatCommandTest : BaseCommandTest<SignatureCatCommand>({ Signature
                     outputFile,
                 )
 
-            verify {
-                assertSignatureFilesMatch(
-                    signature,
-                    outputFile.readText(Charsets.UTF_8),
-                    expectedFormat = FileFormat.V2
-                )
-            }
+            verify { outputFile.assertSignatureContents(signature) }
         }
     }
 }

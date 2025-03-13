@@ -107,6 +107,9 @@ Usage: metalava help signature-file-formats
 
   Plus the following properties which can have their default changed using the `--format-defaults` option.
 
+  * `normalize-final-modifier = yes|no` - Specifies how the `final` modifier is handled on `final` methods. If this is
+  `yes` and the method's containing class is `final` then the `final` modifier is not written out, otherwise it is.
+
   * `overloaded-method-order = source|signature` - Specifies the order of overloaded methods in signature files. Applies
   to the contents of the files specified on `--api` and `--removed-api`.
 

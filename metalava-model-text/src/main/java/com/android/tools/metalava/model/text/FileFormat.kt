@@ -121,6 +121,9 @@ data class FileFormat(
     val conciseDefaultValues: Boolean,
     val specifiedAddAdditionalOverrides: Boolean? = null,
 
+    /** See [CustomizableProperty.NORMALIZE_FINAL_MODIFIER]. */
+    val specifiedNormalizeFinalModifier: Boolean? = null,
+
     /**
      * Indicates whether the whole extends list for an interface is sorted.
      *
@@ -195,6 +198,10 @@ data class FileFormat(
     // This defaults to false but can be overridden on the command line.
     val addAdditionalOverrides
         get() = effectiveValue({ specifiedAddAdditionalOverrides }, false)
+
+    // This defaults to false but can be overridden on the command line.
+    val normalizeFinalModifier
+        get() = effectiveValue({ specifiedNormalizeFinalModifier }, false)
 
     // This defaults to false but can be overridden on the command line.
     val sortWholeExtendsList
@@ -784,6 +791,7 @@ data class FileFormat(
         var language: Language? = null
         var migrating: String? = null
         var name: String? = null
+        var normalizeFinalModifier: Boolean? = null
         var overloadedMethodOrder: OverloadedMethodOrder? = null
         var sortWholeExtendsList: Boolean? = null
         var stripJavaLangPrefix: StripJavaLangPrefix? = null
@@ -804,6 +812,8 @@ data class FileFormat(
                 name = name ?: base.name,
                 specifiedAddAdditionalOverrides = addAdditionalOverrides
                         ?: base.specifiedAddAdditionalOverrides,
+                specifiedNormalizeFinalModifier = normalizeFinalModifier
+                        ?: base.specifiedNormalizeFinalModifier,
                 specifiedOverloadedMethodOrder = overloadedMethodOrder
                         ?: base.specifiedOverloadedMethodOrder,
                 specifiedSortWholeExtendsList = sortWholeExtendsList
@@ -927,6 +937,23 @@ data class FileFormat(
             }
 
             override fun stringFromFormat(format: FileFormat): String? = format.migrating
+        },
+        NORMALIZE_FINAL_MODIFIER(
+            defaultable = true,
+            valueSyntax = "yes|no",
+            help =
+                """
+                    Specifies how the `final` modifier is handled on `final` methods. If this is
+                    `yes` and the method's containing class is `final` then the `final` modifier is
+                    not written out, otherwise it is.
+                """,
+        ) {
+            override fun setFromString(builder: Builder, value: String) {
+                builder.normalizeFinalModifier = yesNo(value)
+            }
+
+            override fun stringFromFormat(format: FileFormat): String? =
+                format.specifiedNormalizeFinalModifier?.let { yesNo(it) }
         },
         /** overloaded-method-other=[source|signature] */
         OVERLOADED_METHOD_ORDER(

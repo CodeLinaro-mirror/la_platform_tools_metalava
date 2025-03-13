@@ -14,9 +14,10 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava
+package com.android.tools.metalava.jar
 
-import com.android.tools.metalava.cli.common.ExecutionEnvironment
+import com.android.tools.metalava.ApiAnalyzer
+import com.android.tools.metalava.ProgressTracker
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
 import com.android.tools.metalava.model.source.EnvironmentManager
@@ -34,6 +35,7 @@ sealed interface JarCodebaseLoader {
     fun loadFromJarFile(
         apiJar: File,
         apiAnalyzerConfig: ApiAnalyzer.Config = ApiAnalyzer.Config(),
+        freezeCodebase: Boolean = true,
     ): Codebase
 
     companion object {
@@ -56,6 +58,7 @@ sealed interface JarCodebaseLoader {
         override fun loadFromJarFile(
             apiJar: File,
             apiAnalyzerConfig: ApiAnalyzer.Config,
+            freezeCodebase: Boolean,
         ): Codebase {
             progressTracker.progress("Processing jar file: ")
 
@@ -73,8 +76,10 @@ sealed interface JarCodebaseLoader {
             analyzer.mergeExternalQualifierAnnotations()
             analyzer.generateInheritedStubs(apiEmit, apiReference)
 
-            // Prevent the codebase from being mutated.
-            codebase.freezeClasses()
+            if (freezeCodebase) {
+                // Prevent the codebase from being mutated.
+                codebase.freezeClasses()
+            }
 
             return codebase
         }
@@ -109,15 +114,15 @@ private constructor(
          * with to ensure prompt release of resources, e.g. using `...use { jarCodebaseLoader -> }`.
          */
         fun create(
-            executionEnvironment: ExecutionEnvironment,
+            disableStderrDumping: Boolean,
             progressTracker: ProgressTracker,
             reporter: Reporter,
+            sourceModelProvider: SourceModelProvider = SourceModelProvider.getImplementation("psi"),
         ): StandaloneJarCodebaseLoader {
-            val sourceModelProvider = SourceModelProvider.getImplementation("psi")
 
             val environmentManager =
                 sourceModelProvider.createEnvironmentManager(
-                    executionEnvironment.disableStderrDumping()
+                    disableStderrDumping,
                 )
 
             val annotationManager = DefaultAnnotationManager()
