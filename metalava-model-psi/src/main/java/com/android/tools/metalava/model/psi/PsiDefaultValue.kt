@@ -16,10 +16,7 @@
 
 package com.android.tools.metalava.model.psi
 
-import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ParameterItem
-import com.android.tools.metalava.model.findAnnotation
-import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.item.DefaultValue
 import org.jetbrains.kotlin.analysis.api.KaExperimentalApi
 import org.jetbrains.kotlin.analysis.api.analyze
@@ -53,12 +50,7 @@ internal class PsiDefaultValue(private val item: PsiParameterItem) : DefaultValu
 
     override fun isDefaultValueKnown(): Boolean {
         val psiParameter = item.psiParameter
-        return if (psiParameter.isKotlin()) {
-            defaultValueAsString() != INVALID_VALUE
-        } else {
-            // Java: Look for @ParameterName annotation
-            item.modifiers.hasAnnotation(AnnotationItem::isDefaultValue)
-        }
+        return psiParameter.isKotlin() && defaultValueAsString() != INVALID_VALUE
     }
 
     override fun value() = defaultValueAsString()
@@ -105,12 +97,6 @@ internal class PsiDefaultValue(private val item: PsiParameterItem) : DefaultValu
             }
 
             return INVALID_VALUE
-        } else {
-            // Java: Look for @ParameterName annotation
-            val annotation = modifiers.findAnnotation(AnnotationItem::isDefaultValue)
-            if (annotation != null) {
-                return annotation.attributes.firstOrNull()?.value?.value()?.toString()
-            }
         }
 
         return null

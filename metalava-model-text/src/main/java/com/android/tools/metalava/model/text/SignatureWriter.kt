@@ -203,7 +203,7 @@ class SignatureWriter(
     }
 
     private fun writeModifiers(item: Item) {
-        modifierListWriter.write(item)
+        modifierListWriter.write(item, normalizeFinal = fileFormat.normalizeFinalModifier)
     }
 
     private fun writeSuperClassStatement(cls: ClassItem) {

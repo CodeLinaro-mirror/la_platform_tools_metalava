@@ -17,9 +17,7 @@
 package com.android.tools.metalava.cli.signature
 
 import com.android.tools.metalava.cli.common.BaseCommandTest
-import com.android.tools.metalava.model.text.FileFormat
-import com.android.tools.metalava.model.text.assertSignatureFilesMatch
-import org.junit.Assert.*
+import com.android.tools.metalava.model.text.assertSignatureContents
 import org.junit.Test
 
 private val signatureCatHelp =
@@ -128,10 +126,10 @@ class SignatureCatCommandTest : BaseCommandTest<SignatureCatCommand>({ Signature
                     // Signature format: 2.0
                     package test.pkg {
 
-                      public interface Foo {
+                      public interface Bar {
                       }
 
-                      public interface Bar {
+                      public interface Foo {
                       }
 
                     }
@@ -170,7 +168,6 @@ class SignatureCatCommandTest : BaseCommandTest<SignatureCatCommand>({ Signature
                     .trimIndent()
 
             expectedStdout =
-                // TODO(b/394789173): Stop prefixing T with java.lang..
                 """
                     // Signature format: 2.0
                     package test.pkg {
@@ -206,11 +203,62 @@ class SignatureCatCommandTest : BaseCommandTest<SignatureCatCommand>({ Signature
                     outputFile,
                 )
 
+            verify { outputFile.assertSignatureContents(signature) }
+        }
+    }
+
+    @Test
+    fun `Cat merge surfaces`() {
+        val surface1 =
+            """
+                // Signature format: 2.0
+                package test.pkg {
+                  public interface Foo {
+                    method public void betaMethod();
+                    property public int betaProperty;
+                    field public static final int betaField;
+                  }
+                }
+            """
+
+        val surface2 =
+            """
+                // Signature format: 2.0
+                package test.pkg {
+                  public interface Foo {
+                    method public void alphaMethod();
+                    property public int alphaProperty;
+                    field public static final int alphaField;
+                  }
+                }
+            """
+
+        commandTest {
+            val outputFile = outputFile("cat.txt")
+            args +=
+                listOf(
+                    "signature-cat",
+                    unindentedInputFile("surface1.txt", surface1),
+                    unindentedInputFile("surface2.txt", surface2),
+                    "--output-file",
+                    outputFile,
+                )
+
             verify {
-                assertSignatureFilesMatch(
-                    signature,
-                    outputFile.readText(Charsets.UTF_8),
-                    expectedFormat = FileFormat.V2
+                outputFile.assertSignatureContents(
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          public interface Foo {
+                            method public void alphaMethod();
+                            method public void betaMethod();
+                            property public int alphaProperty;
+                            property public int betaProperty;
+                            field public static final int alphaField;
+                            field public static final int betaField;
+                          }
+                        }
+                    """
                 )
             }
         }

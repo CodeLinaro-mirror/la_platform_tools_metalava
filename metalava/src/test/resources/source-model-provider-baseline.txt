@@ -91,9 +91,6 @@ com.android.tools.metalava.NormalizeOutputAnnotationTest
 com.android.tools.metalava.NullabilityAnnotationsValidatorTest
   Using class list[turbine]
 
-com.android.tools.metalava.NullnessMigrationTest
-  Convert libcore nullness annotations to support[turbine]
-
 com.android.tools.metalava.PolymorphicMethodsTest
   Test MethodHandle[turbine]
   Test VarHandle[turbine]
@@ -189,6 +186,11 @@ com.android.tools.metalava.doc.RestrictedForEnvironmentTest
   Check RestrictedForEnvironment handling for fully nested SDK_SANDBOX env[turbine]
   Check RestrictedForEnvironment handling for multiple annotations[turbine]
   Check RestrictedForEnvironment handling for partial nested SDK_SANDBOX env[turbine]
+
+com.android.tools.metalava.jar.StandaloneJarCodebaseLoaderTest
+  Test jar loader does not freeze codebase[turbine]
+  Test jar loader freezes codebase[turbine]
+  Test loaded jar depends on class path[turbine]
 
 com.android.tools.metalava.lint.ApiLintTest
   CompletableFuture and plain Future not allowed[turbine]
