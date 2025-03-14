@@ -49,13 +49,15 @@ class SignatureInputOutputTest : Assertions {
     /**
      * Parses the API (without a header line, the header from [fileFormat] will be added) from the
      * [signature], runs the [codebaseTest] on the parsed codebase, and then writes the codebase
-     * back out in the [fileFormat], verifying that the output matches the original [signature].
+     * back out in the [fileFormat], verifying that the output matches [expectedOutput] which
+     * defaults to the original [signature].
      *
      * This tests both [ApiFile] and [SignatureWriter].
      */
     private fun runInputOutputTest(
         signature: String,
         fileFormat: FileFormat,
+        expectedOutput: String = signature,
         codebaseTest: CodebaseContext.() -> Unit = {},
     ) {
         val fullSignature = fileFormat.header() + signature
@@ -89,7 +91,7 @@ class SignatureInputOutputTest : Assertions {
                 stringWriter.toString()
             }
 
-        assertSignatureFilesMatch(signature, output, fileFormat)
+        assertSignatureFilesMatch(expectedOutput, output, fileFormat)
     }
 
     @Test
@@ -650,6 +652,51 @@ class SignatureInputOutputTest : Assertions {
                 }
             """
         runInputOutputTest(api, kotlinStyleFormat)
+    }
+
+    @Test
+    fun `Test normalize-final-modifier=yes`() {
+        runInputOutputTest(
+            """
+                package test.pkg {
+                  public final class Final {
+                    method public final void foo();
+                  }
+                  public class NotFinal {
+                    method public final void foo();
+                  }
+                }
+            """,
+            FileFormat.V2.copy(specifiedNormalizeFinalModifier = true),
+            expectedOutput =
+                """
+                    package test.pkg {
+                      public final class Final {
+                        method public void foo();
+                      }
+                      public class NotFinal {
+                        method public final void foo();
+                      }
+                    }
+                """,
+        )
+    }
+
+    @Test
+    fun `Test normalize-final-modifier=no`() {
+        runInputOutputTest(
+            """
+                package test.pkg {
+                  public final class Final {
+                    method public final void foo();
+                  }
+                  public class NotFinal {
+                    method public final void foo();
+                  }
+                }
+            """,
+            FileFormat.V2.copy(specifiedNormalizeFinalModifier = false),
+        )
     }
 
     /**

@@ -118,10 +118,6 @@ class ApiAnalyzer(
         propagateHiddenRemovedAndDocOnly()
     }
 
-    // TODO: Annotation test: @ParameterName, if present, must be supplied on *all* the arguments!
-    // Warn about @DefaultValue("null"); they probably meant @DefaultNull
-    // Supplying default parameter in override is not allowed!
-
     fun generateInheritedStubs(filterEmit: FilterPredicate, filterReference: FilterPredicate) {
         // When analyzing libraries we may discover some new classes during traversal; these aren't
         // part of the API but may be super classes or interfaces; these will then be added into the

@@ -68,11 +68,8 @@ com.android.tools.metalava.model.testsuite.fielditem.SourceFieldItemTest
   test non final field with default value as constant expression[turbine]
 
 com.android.tools.metalava.model.testsuite.methoditem.CommonParameterItemTest
-  Test no default value[psi,java,k1]
-  Test no default value[psi,java,k2]
   Test no default value[psi,kotlin,k1]
   Test no default value[psi,kotlin,k2]
-  Test no default value[turbine]
   Test publicName reports correct name when called on binary class - Object#equals[turbine]
   Test publicName reports correct name when called on binary class - ViewGroup#onLayout[turbine]
 

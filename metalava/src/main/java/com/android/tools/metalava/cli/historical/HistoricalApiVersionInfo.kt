@@ -20,6 +20,7 @@ import com.android.tools.metalava.apilevels.ApiVersion
 import com.android.tools.metalava.apilevels.MatchedPatternFile
 import com.android.tools.metalava.apilevels.PatternNode
 import com.android.tools.metalava.model.api.surface.ApiSurface
+import com.android.tools.metalava.model.text.SignatureFile
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import java.io.File
@@ -30,7 +31,8 @@ import java.io.File
  * Includes all API files related to [version], and the set of [ApiSurface]s. The [infoBySurface]
  * maps from [ApiSurface] to [SurfaceInfo].
  */
-data class HistoricalApiVersionInfo(
+class HistoricalApiVersionInfo
+private constructor(
     /** The [ApiVersion] to which this refers. */
     val version: ApiVersion,
     /** Information about each surface found for this version. */
@@ -108,42 +110,46 @@ data class HistoricalApiVersionInfo(
                 return null
             }
 
-            // Group by surface.
             val infoBySurface =
-                versionFiles
-                    .groupBy { it.surface!! }
-                    .mapNotNull { (surface, surfaceFiles) ->
-                        fromSurfaceFiles(reporter, version, surface, surfaceFiles)
+                buildMap<ApiSurface, SurfaceInfo> {
+                    val bySurface = versionFiles.groupBy { it.surface!! }
+                    for ((surface, surfaceFiles) in bySurface) {
+                        fromSurfaceFiles(reporter, this, version, surface, surfaceFiles)
                     }
-                    .associateBy { it.surface }
+                }
 
             return HistoricalApiVersionInfo(version, infoBySurface)
         }
 
         /**
-         * Construct a [SurfaceInfo] from [surfaceFiles] for [surface] in [version].
+         * Construct a [SurfaceInfo] from [surfaceFiles] for [surface] in [version] and add it to
+         * [infoBySurface].
          *
          * If an error is encountered which prevents it from being constructed then the error is
          * reported to [reporter] and this returns `null`.
          */
         private fun fromSurfaceFiles(
             reporter: Reporter,
+            infoBySurface: MutableMap<ApiSurface, SurfaceInfo>,
             version: ApiVersion,
             surface: ApiSurface,
             surfaceFiles: List<MatchedPatternFile>,
-        ): SurfaceInfo? {
+        ) {
             // Partition into jar files and other files which are assumed to be signature files.
             val (jarFiles, signatureFiles) =
                 surfaceFiles.map { it.file }.partition { it.extension == ("jar") }
 
             val jarFile =
-                singleFileIfPossible(jarFiles, reporter, version, surface, "jar") ?: return null
+                singleFileIfPossible(jarFiles, reporter, version, surface, "jar") ?: return
 
             val signatureFile =
                 singleFileIfPossible(signatureFiles, reporter, version, surface, "signature")
-                    ?: return null
+                    ?: return
 
-            return SurfaceInfo(surface, jarFile, signatureFile)
+            val extendsInfo = surface.extends?.let { infoBySurface[it] }
+
+            val info = SurfaceInfo(surface, jarFile, signatureFile, extendsInfo)
+            infoBySurface[surface] = info
         }
 
         /**
@@ -189,7 +195,7 @@ data class HistoricalApiVersionInfo(
 }
 
 /** Information related to a specific surface. */
-data class SurfaceInfo(
+class SurfaceInfo(
     /** The [ApiSurface] to which this refers. */
     val surface: ApiSurface,
 
@@ -198,4 +204,35 @@ data class SurfaceInfo(
 
     /** The signature [File]. */
     val signatureFile: File,
-)
+
+    /**
+     * Optional [SurfaceInfo] that this extends.
+     *
+     * This refers to the [SurfaceInfo] corresponding to [surface]'s [ApiSurface.extends] property,
+     * if any.
+     */
+    val extends: SurfaceInfo?,
+) {
+    /**
+     * Get the [SignatureFile]s that contribute to this surface.
+     *
+     * In order, such that the file for an extending surface comes after the files for the extended
+     * surface.
+     */
+    fun contributingSignatureFiles(): List<SignatureFile> {
+        val files = buildList { addContributingSignatureFiles(this) }
+        return SignatureFile.fromFiles(files)
+    }
+
+    /**
+     * Add extended [SurfaceInfo]s files that contribute to this surface, if any, followed by this
+     * surfaces file.
+     */
+    private fun addContributingSignatureFiles(list: MutableList<File>) {
+        // Add any files for the extended surface, if any, first.
+        extends?.addContributingSignatureFiles(list)
+
+        // Then add the files for this surface.
+        list.add(signatureFile)
+    }
+}
