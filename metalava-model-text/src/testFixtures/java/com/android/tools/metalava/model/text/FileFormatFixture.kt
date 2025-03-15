@@ -21,7 +21,7 @@ package com.android.tools.metalava.model.text
 private val FILE_FORMAT_PROPERTY_NAMES =
     listOf(
         "add-additional-overrides",
-        "concise-default-values",
+        "include-default-parameter-values",
         "include-type-use-annotations",
         "kotlin-name-type-order",
         "kotlin-style-nulls",

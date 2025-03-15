@@ -74,10 +74,6 @@ open class DefaultParameterItem(
 
     final override fun hasDefaultValue(): Boolean = defaultValue.hasDefaultValue()
 
-    final override fun isDefaultValueKnown(): Boolean = defaultValue.isDefaultValueKnown()
-
-    final override fun defaultValueAsString(): String? = defaultValue.value()
-
     override fun duplicate(
         containingCallable: CallableItem,
         typeVariableMap: TypeParameterBindings,

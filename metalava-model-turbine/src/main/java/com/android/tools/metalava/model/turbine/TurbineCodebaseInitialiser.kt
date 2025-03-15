@@ -16,9 +16,6 @@
 
 package com.android.tools.metalava.model.turbine
 
-import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
-import com.android.tools.metalava.model.AnnotationAttribute
-import com.android.tools.metalava.model.AnnotationAttributeValue
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.BoundsTypeItem
@@ -26,10 +23,6 @@ import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassOrigin
-import com.android.tools.metalava.model.DefaultAnnotationArrayAttributeValue
-import com.android.tools.metalava.model.DefaultAnnotationAttribute
-import com.android.tools.metalava.model.DefaultAnnotationItem
-import com.android.tools.metalava.model.DefaultAnnotationSingleAttributeValue
 import com.android.tools.metalava.model.DefaultTypeParameterList
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.FixedFieldValue
@@ -97,11 +90,6 @@ import com.google.turbine.binder.sym.ClassSymbol
 import com.google.turbine.binder.sym.TyVarSymbol
 import com.google.turbine.diag.SourceFile
 import com.google.turbine.diag.TurbineLog
-import com.google.turbine.model.Const
-import com.google.turbine.model.Const.ArrayInitValue
-import com.google.turbine.model.Const.Kind
-import com.google.turbine.model.Const.Value
-import com.google.turbine.model.TurbineConstantTypeKind as PrimKind
 import com.google.turbine.model.TurbineFlag
 import com.google.turbine.model.TurbineTyKind
 import com.google.turbine.parse.Parser
@@ -111,8 +99,6 @@ import com.google.turbine.processing.TurbineTypes
 import com.google.turbine.tree.Tree
 import com.google.turbine.tree.Tree.Anno
 import com.google.turbine.tree.Tree.AnnoExpr
-import com.google.turbine.tree.Tree.ArrayInit
-import com.google.turbine.tree.Tree.Assign
 import com.google.turbine.tree.Tree.CompUnit
 import com.google.turbine.tree.Tree.Expression
 import com.google.turbine.tree.Tree.Ident
@@ -152,10 +138,14 @@ internal class TurbineCodebaseInitialiser(
 
     private lateinit var index: TopLevelIndex
 
-    /** Map between Class declaration and the corresponding source CompUnit */
-    private val classSourceMap: MutableMap<TyDecl, CompUnit> = mutableMapOf()
+    /** Caches [TurbineSourceFile] instances. */
+    private lateinit var sourceFileCache: TurbineSourceFileCache
 
-    private val globalTypeItemFactory = TurbineTypeItemFactory(this, TypeParameterScope.empty)
+    /** Factory for creating [AnnotationItem]s from [AnnoInfo]s. */
+    private lateinit var annotationFactory: TurbineAnnotationFactory
+
+    /** Global [TurbineTypeItemFactory] from which all other instances are created. */
+    private lateinit var globalTypeItemFactory: TurbineTypeItemFactory
 
     /** Creates [Item] instances for [codebase]. */
     override val itemFactory =
@@ -260,8 +250,19 @@ internal class TurbineCodebaseInitialiser(
         // provides access to code elements (packages, types, members) for analysis.
         turbineElements = TurbineElements(factory, turbineTypes)
 
-        // Split all the units into package-info.java units and normal class units.
-        val (packageInfoUnits, classUnits) = allUnits.partition { it.isPackageInfo() }
+        // Create a cache from SourceFile to the TurbineSourceFile wrapper. The latter needs the
+        // CompUnit associated with the SourceFile so pass in all the CompUnits so it can find it.
+        sourceFileCache = TurbineSourceFileCache(codebase, allUnits)
+
+        // Create a factory for creating annotations from AnnoInfo.
+        annotationFactory = TurbineAnnotationFactory(codebase, sourceFileCache)
+
+        // Create the global TurbineTypeItemFactory.
+        globalTypeItemFactory =
+            TurbineTypeItemFactory(this, annotationFactory, TypeParameterScope.empty)
+
+        // Find the package-info.java units.
+        val packageInfoUnits = allUnits.filter { it.isPackageInfo() }
 
         // Split the map from ClassSymbol to SourceTypeBoundClass into separate package-info and
         // normal classes.
@@ -286,31 +287,52 @@ internal class TurbineCodebaseInitialiser(
                 val fileLocation = FileLocation.forFile(file)
                 val comment = getHeaderComments(source).toItemDocumentationFactory()
 
-                // Create a `TurbineSourceFile` for this unit. It is not used here but is used when
-                // creating annotations below.
-                createTurbineSourceFile(unit)
-                val annotations = createAnnotations(sourceTypeBoundClass.annotations())
+                val annotations =
+                    annotationFactory.createAnnotations(sourceTypeBoundClass.annotations())
 
                 val modifiers = createImmutableModifiers(VisibilityLevel.PUBLIC, annotations)
                 MutablePackageDoc(packageName, fileLocation, modifiers, comment)
             }
 
-        // Create a mapping between all the top level classes and their containing `CompUnit` so
-        // that the latter can be looked up in createClass to create a TurbineSourceFile.
-        for (unit in classUnits) {
-            unit.decls().forEach { decl -> classSourceMap[decl] = unit }
-        }
-
         // Get the map from ClassSymbol to SourceTypeBoundClass for only those classes provided on
         // the command line as only those classes can contribute directly to the API.
         val commandLineSourceClasses =
-            allSourceClasses.filter { (_, typeBoundClass) ->
-                val unit = classSourceMap[typeBoundClass.decl()]
-                unit !in extraUnits
-            }
+            topLevelAccessibleCommandLineClasses(allSourceClasses, commandLineSources)
 
         createAllPackages(packageDocs)
-        createAllClasses(commandLineSourceClasses, apiPackages)
+        createAllCommandLineClasses(commandLineSourceClasses, apiPackages)
+    }
+
+    /**
+     * Compute the set of accessible, top level classes that were specified on the command line.
+     *
+     * @param allSourceClasses all the [SourceTypeBoundClass]s found during binding, includes those
+     *   from the source path as well as those whose containing file was provided on the command
+     *   line.
+     * @param commandLineSources the list of source [File]s provided on the command line.
+     */
+    private fun topLevelAccessibleCommandLineClasses(
+        allSourceClasses: Map<ClassSymbol, SourceTypeBoundClass>,
+        commandLineSources: List<File>
+    ): Map<ClassSymbol, SourceTypeBoundClass> {
+        // The set of paths supplied on the command line.
+        val commandLinePaths = commandLineSources.map { it.path }.toSet()
+
+        // Get the map from ClassSymbol to SourceTypeBoundClass for only the accessible, top level
+        // classes provided on the command line as only those classes (and their nested classes) can
+        // contribute directly to the API.
+        return allSourceClasses.filter { (_, sourceTypeBoundClass) ->
+            // Ignore nested classes, they will be created as part of the construction of their
+            // containing class.
+            if (sourceTypeBoundClass.owner() != null) return@filter false
+
+            // Ignore inaccessible classes.
+            if (!sourceTypeBoundClass.isAccessible) return@filter false
+
+            // Ignore classes whose paths were not specified on the command line.
+            val path = sourceTypeBoundClass.source().path()
+            path in commandLinePaths
+        }
     }
 
     /**
@@ -409,33 +431,6 @@ internal class TurbineCodebaseInitialiser(
         }
     }
 
-    /** Map from file path to the [TurbineSourceFile]. */
-    private val turbineSourceFiles = mutableMapOf<String, TurbineSourceFile>()
-
-    /**
-     * Create a [TurbineSourceFile] for the specified [compUnit].
-     *
-     * This may be called multiple times for the same [compUnit] in which case it will return the
-     * same [TurbineSourceFile]. It will throw an exception if two [CompUnit]s have the same path.
-     */
-    private fun createTurbineSourceFile(compUnit: CompUnit): TurbineSourceFile {
-        val path = compUnit.source().path()
-        val existing = turbineSourceFiles[path]
-        if (existing != null && existing.compUnit != compUnit) {
-            error("duplicate source file found for $path")
-        }
-        return TurbineSourceFile(codebase, compUnit).also { turbineSourceFiles[path] = it }
-    }
-
-    /**
-     * Get the [TurbineSourceFile] for a [SourceFile], failing if it could not be found.
-     *
-     * A [TurbineSourceFile] must be created by [createTurbineSourceFile] before calling this.
-     */
-    private fun turbineSourceFile(sourceFile: SourceFile): TurbineSourceFile =
-        turbineSourceFiles[sourceFile.path()]
-            ?: error("unrecognized source file: ${sourceFile.path()}")
-
     /** Check if this is for a `package-info.java` file or not. */
     private fun CompUnit.isPackageInfo() =
         source().path().let { it == JAVA_PACKAGE_INFO || it.endsWith("/" + JAVA_PACKAGE_INFO) }
@@ -445,22 +440,12 @@ internal class TurbineCodebaseInitialiser(
         codebase.packageTracker.createInitialPackages(packageDocs)
     }
 
-    private fun createAllClasses(
+    private fun createAllCommandLineClasses(
         sourceClassMap: Map<ClassSymbol, SourceTypeBoundClass>,
         apiPackages: PackageFilter?,
     ) {
         // Iterate over all the classes in the sources.
         for ((classSymbol, sourceBoundClass) in sourceClassMap) {
-            // Ignore nested classes, they will be created when the outer class is created.
-            if (sourceBoundClass.owner() != null) {
-                continue
-            }
-
-            // Ignore inaccessible classes.
-            if (!sourceBoundClass.isAccessible) {
-                continue
-            }
-
             // If a package filter is supplied then ignore any classes that do not match it.
             if (apiPackages != null) {
                 val packageName = classSymbol.dotSeparatedPackageName
@@ -542,7 +527,7 @@ internal class TurbineCodebaseInitialiser(
     }
 
     private fun createModifiers(flag: Int, annoInfos: List<AnnoInfo>): MutableModifierList {
-        val annotations = createAnnotations(annoInfos)
+        val annotations = annotationFactory.createAnnotations(annoInfos)
         val modifierItem =
             when (flag) {
                 0 -> { // No Modifier. Default modifier is PACKAGE_PRIVATE in such case
@@ -629,9 +614,8 @@ internal class TurbineCodebaseInitialiser(
         enclosingClassTypeItemFactory: TurbineTypeItemFactory,
         origin: ClassOrigin,
     ): ClassItem {
-        val decl = (typeBoundClass as? SourceTypeBoundClass)?.decl()
-
-        val isTopClass = typeBoundClass.owner() == null
+        val sourceTypeBoundClass = typeBoundClass as? SourceTypeBoundClass
+        val decl = sourceTypeBoundClass?.decl()
 
         // Get the package item
         val pkgName = classSymbol.dotSeparatedPackageName
@@ -639,8 +623,8 @@ internal class TurbineCodebaseInitialiser(
 
         // Create the sourcefile
         val sourceFile =
-            if (isTopClass && typeBoundClass is SourceTypeBoundClass) {
-                classSourceMap[typeBoundClass.decl()]?.let { createTurbineSourceFile(it) }
+            if (sourceTypeBoundClass != null) {
+                sourceFileCache.turbineSourceFile(sourceTypeBoundClass.source())
             } else null
         val fileLocation =
             when {
@@ -730,154 +714,6 @@ internal class TurbineCodebaseInitialiser(
             TurbineTyKind.ENUM -> ClassKind.ENUM
             TurbineTyKind.ANNOTATION -> ClassKind.ANNOTATION_TYPE
             else -> ClassKind.CLASS
-        }
-    }
-
-    /** Creates a list of AnnotationItems from given list of Turbine Annotations */
-    internal fun createAnnotations(annotations: List<AnnoInfo>): List<AnnotationItem> {
-        return annotations.mapNotNull { createAnnotation(it) }
-    }
-
-    private fun createAnnotation(annotation: AnnoInfo): AnnotationItem? {
-        // Get the source representation of the annotation. This will be null for an annotation
-        // loaded from a class file.
-        val tree: Tree.Anno? = annotation.tree()
-        // An annotation that has no definition in scope has a null sym, in that case fall back
-        // to use the name used in the source. The sym can only be null in sources, so if sym is
-        // null then tree cannot be null.
-        val qualifiedName = annotation.sym()?.qualifiedName ?: tree!!.name().dotSeparatedName
-
-        val fileLocation =
-            annotation
-                .source()
-                ?.let { sourceFile -> turbineSourceFile(sourceFile) }
-                ?.let { sourceFile -> TurbineFileLocation.forTree(sourceFile, tree) }
-                ?: FileLocation.UNKNOWN
-
-        return DefaultAnnotationItem.create(codebase, fileLocation, qualifiedName) {
-            getAnnotationAttributes(annotation.values(), tree?.args())
-        }
-    }
-
-    /** Creates a list of AnnotationAttribute from the map of name-value attribute pairs */
-    private fun getAnnotationAttributes(
-        attrs: ImmutableMap<String, Const>,
-        exprs: ImmutableList<Expression>?
-    ): List<AnnotationAttribute> {
-        val attributes = mutableListOf<AnnotationAttribute>()
-        if (exprs != null) {
-            for (exp in exprs) {
-                when (exp.kind()) {
-                    Tree.Kind.ASSIGN -> {
-                        exp as Assign
-                        val name = exp.name().value()
-                        val assignExp = exp.expr()
-                        attributes.add(
-                            DefaultAnnotationAttribute(
-                                name,
-                                createAttrValue(attrs[name]!!, assignExp)
-                            )
-                        )
-                    }
-                    else -> {
-                        val name = ANNOTATION_ATTR_VALUE
-                        val value =
-                            attrs[name]
-                                ?: (exp as? Literal)?.value()
-                                    ?: error(
-                                    "Cannot find value for default 'value' attribute from $exp"
-                                )
-                        attributes.add(
-                            DefaultAnnotationAttribute(name, createAttrValue(value, exp))
-                        )
-                    }
-                }
-            }
-        } else {
-            for ((name, value) in attrs) {
-                attributes.add(DefaultAnnotationAttribute(name, createAttrValue(value, null)))
-            }
-        }
-        return attributes
-    }
-
-    private fun createAttrValue(const: Const, expr: Expression?): AnnotationAttributeValue {
-        if (const.kind() == Kind.ARRAY) {
-            const as ArrayInitValue
-            if (const.elements().count() == 1 && expr != null && !(expr is ArrayInit)) {
-                // This is case where defined type is array type but provided attribute value is
-                // single non-array element
-                // For e.g. @Anno(5) where Anno is @interfacce Anno {int [] value()}
-                val constLiteral = const.elements().single()
-                return DefaultAnnotationSingleAttributeValue(
-                    { getSource(constLiteral, expr) },
-                    { constLiteral.underlyingValue }
-                )
-            }
-            return DefaultAnnotationArrayAttributeValue(
-                { getSource(const, expr) },
-                { const.elements().map { createAttrValue(it, null) } }
-            )
-        }
-        return DefaultAnnotationSingleAttributeValue(
-            { getSource(const, expr) },
-            { const.underlyingValue }
-        )
-    }
-
-    private fun getSource(const: Const, expr: Expression?): String {
-        return when (const.kind()) {
-            Kind.PRIMITIVE -> {
-                when ((const as Value).constantTypeKind()) {
-                    PrimKind.INT -> {
-                        val value = (const as Const.IntValue).value()
-                        if (value < 0 || (expr != null && expr.kind() == Tree.Kind.TYPE_CAST))
-                            "0x" + value.toUInt().toString(16) // Hex Value
-                        else value.toString()
-                    }
-                    PrimKind.SHORT -> {
-                        val value = (const as Const.ShortValue).value()
-                        if (value < 0) "0x" + value.toUInt().toString(16) else value.toString()
-                    }
-                    PrimKind.FLOAT -> {
-                        val value = (const as Const.FloatValue).value()
-                        when {
-                            value == Float.POSITIVE_INFINITY -> "java.lang.Float.POSITIVE_INFINITY"
-                            value == Float.NEGATIVE_INFINITY -> "java.lang.Float.NEGATIVE_INFINITY"
-                            value < 0 -> value.toString() + "F" // Handling negative values
-                            else -> value.toString() + "f" // Handling positive values
-                        }
-                    }
-                    PrimKind.DOUBLE -> {
-                        val value = (const as Const.DoubleValue).value()
-                        when {
-                            value == Double.POSITIVE_INFINITY ->
-                                "java.lang.Double.POSITIVE_INFINITY"
-                            value == Double.NEGATIVE_INFINITY ->
-                                "java.lang.Double.NEGATIVE_INFINITY"
-                            else -> const.toString()
-                        }
-                    }
-                    PrimKind.BYTE -> const.getValue().toString()
-                    else -> const.toString()
-                }
-            }
-            Kind.ARRAY -> {
-                const as ArrayInitValue
-                val pairs =
-                    if (expr != null) const.elements().zip((expr as ArrayInit).exprs())
-                    else const.elements().map { Pair(it, null) }
-                buildString {
-                    append("{")
-                    pairs.joinTo(this, ", ") { getSource(it.first, it.second) }
-                    append("}")
-                }
-            }
-            Kind.ENUM_CONSTANT -> const.underlyingValue.toString()
-            Kind.CLASS_LITERAL -> {
-                if (expr != null) expr.toString() else const.underlyingValue.toString()
-            }
-            else -> const.toString()
         }
     }
 
@@ -1022,7 +858,8 @@ internal class TurbineCodebaseInitialiser(
             val defaultValueExpr = getAnnotationDefaultExpression(method)
             val defaultValue =
                 if (method.defaultValue() != null)
-                    extractAnnotationDefaultValue(method.defaultValue()!!, defaultValueExpr)
+                    TurbineValue(method.defaultValue()!!, defaultValueExpr)
+                        .getSourceForMethodDefault()
                 else ""
 
             val parameters = method.parameters()
@@ -1259,54 +1096,6 @@ internal class TurbineCodebaseInitialiser(
                 else -> error("unknown default value type (${defaultTree.javaClass}: $defaultTree")
             }
         }
-
-    /**
-     * Extracts the default value of an annotation method and returns it as a string.
-     *
-     * @param const The constant object representing the annotation value.
-     * @param expr An optional expression tree that might provide additional context for value
-     *   extraction.
-     * @return The default value of the annotation method as a string.
-     */
-    private fun extractAnnotationDefaultValue(const: Const, expr: Expression?): String {
-        return when (const.kind()) {
-            Kind.PRIMITIVE -> {
-                when ((const as Value).constantTypeKind()) {
-                    PrimKind.FLOAT -> {
-                        val value = (const as Const.FloatValue).value()
-                        when {
-                            value == Float.POSITIVE_INFINITY -> "java.lang.Float.POSITIVE_INFINITY"
-                            value == Float.NEGATIVE_INFINITY -> "java.lang.Float.NEGATIVE_INFINITY"
-                            else -> value.toString() + "f"
-                        }
-                    }
-                    PrimKind.DOUBLE -> {
-                        val value = (const as Const.DoubleValue).value()
-                        when {
-                            value == Double.POSITIVE_INFINITY ->
-                                "java.lang.Double.POSITIVE_INFINITY"
-                            value == Double.NEGATIVE_INFINITY ->
-                                "java.lang.Double.NEGATIVE_INFINITY"
-                            else -> const.toString()
-                        }
-                    }
-                    PrimKind.BYTE -> const.getValue().toString()
-                    else -> const.toString()
-                }
-            }
-            Kind.ARRAY -> {
-                const as ArrayInitValue
-                // This is case where defined type is array type but default value is
-                // single non-array element
-                // For e.g. char[] letter() default 'a';
-                if (const.elements().count() == 1 && expr != null && !(expr is ArrayInit)) {
-                    extractAnnotationDefaultValue(const.elements().single(), expr)
-                } else const.underlyingValue.toString()
-            }
-            Kind.CLASS_LITERAL -> const.underlyingValue.toString() + ".class"
-            else -> const.underlyingValue.toString()
-        }
-    }
 
     internal fun getTypeElement(name: String): TypeElement? = turbineElements.getTypeElement(name)
 }

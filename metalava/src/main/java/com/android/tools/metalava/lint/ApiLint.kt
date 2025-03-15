@@ -71,6 +71,7 @@ import com.android.tools.metalava.model.MultipleTypeVisitor
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
+import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
@@ -103,6 +104,7 @@ import com.android.tools.metalava.reporter.Issues.CONCRETE_COLLECTION
 import com.android.tools.metalava.reporter.Issues.CONFIG_FIELD_NAME
 import com.android.tools.metalava.reporter.Issues.CONTEXT_FIRST
 import com.android.tools.metalava.reporter.Issues.CONTEXT_NAME_SUFFIX
+import com.android.tools.metalava.reporter.Issues.DATA_CLASS_DEFINITION
 import com.android.tools.metalava.reporter.Issues.ENDS_WITH_IMPL
 import com.android.tools.metalava.reporter.Issues.ENUM
 import com.android.tools.metalava.reporter.Issues.EQUALS_AND_HASH_CODE
@@ -419,6 +421,10 @@ private constructor(
         }
     }
 
+    override fun visitProperty(property: PropertyItem) {
+        reporter.withContext(property) { kotlinInterop.checkProperty(property) }
+    }
+
     private fun checkType(type: TypeItem, item: Item) {
         val typeString = type.toTypeString()
         checkPfd(typeString, item)
@@ -476,6 +482,7 @@ private constructor(
         checkHasFlaggedApi(cls)
         checkFlaggedApiLiteral(cls)
         checkAccessorNullabilityMatches(methods)
+        checkDataClass(cls)
     }
 
     private fun checkField(field: FieldItem) {
@@ -3332,6 +3339,17 @@ private constructor(
                     }
                 },
                 listOf(setterParamType)
+            )
+        }
+    }
+
+    private fun checkDataClass(cls: ClassItem) {
+        if (cls.modifiers.isData()) {
+            report(
+                DATA_CLASS_DEFINITION,
+                cls,
+                "Exposing data classes as public API is discouraged because they are " +
+                    "difficult to update while maintaining binary compatibility."
             )
         }
     }

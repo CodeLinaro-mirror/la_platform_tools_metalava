@@ -262,6 +262,12 @@ private constructor(
      */
     private lateinit var apiVariant: ApiVariant
 
+    /**
+     * True if this is appending information from one signature file to a [Codebase] created from
+     * another signature file.
+     */
+    private var appending: Boolean = false
+
     /** Map from [ClassItem] to [TextTypeItemFactory]. */
     private val classToTypeItemFactory = IdentityHashMap<ClassItem, TextTypeItemFactory>()
 
@@ -453,6 +459,9 @@ private constructor(
             }
         }
 
+        // The behavior is slightly different when appending to an existing Codebase.
+        this.appending = appending
+
         // Parse the header of the signature file to determine the format. If the signature file is
         // empty then `parseHeader` will return null, so it will default to `FileFormat.V2`.
         format =
@@ -539,6 +548,66 @@ private constructor(
         }
     }
 
+    /**
+     * Creates a type alias in the [pkg] with the [modifiers].
+     *
+     * It is expected that the starting position of the [tokenizer] is the "typealias" keyword, and
+     * the next token will be the name and option type parameter list.
+     *
+     * When the method returns, the current [tokenizer] position will be the ";" at the end of the
+     * typealias line.
+     */
+    private fun parseTypeAlias(
+        pkg: DefaultPackageItem,
+        tokenizer: Tokenizer,
+        modifiers: MutableModifierList,
+        location: FileLocation
+    ) {
+        var token = tokenizer.requireToken()
+        tokenizer.assertIdent(token)
+
+        val typeParameterListIndex = token.indexOf("<")
+
+        val (name, typeParameterList, typeItemFactory) =
+            if (typeParameterListIndex == -1) {
+                Triple(token, TypeParameterList.NONE, globalTypeItemFactory)
+            } else {
+                val name = token.substring(0, typeParameterListIndex)
+                val typeParameterListAndFactory =
+                    createTypeParameterList(
+                        globalTypeItemFactory,
+                        "typealias $name",
+                        token.substring(typeParameterListIndex)
+                    )
+                Triple(
+                    name,
+                    typeParameterListAndFactory.typeParameterList,
+                    typeParameterListAndFactory.factory
+                )
+            }
+
+        token = tokenizer.requireToken()
+        if ("=" != token) {
+            throw ApiParseException("expected = found $token", tokenizer)
+        }
+
+        val typeString = scanForTypeString(tokenizer, tokenizer.requireToken())
+        token = tokenizer.current
+        if (";" != token) {
+            throw ApiParseException("expected ; found $token", tokenizer)
+        }
+
+        val type = typeItemFactory.getGeneralType(typeString)
+        itemFactory.createTypeAliasItem(
+            fileLocation = location,
+            modifiers = modifiers,
+            qualifiedName = pkg.qualifiedName() + "." + name,
+            containingPackage = pkg,
+            aliasedType = type,
+            typeParameterList = typeParameterList,
+        )
+    }
+
     private fun parseClass(pkg: DefaultPackageItem, tokenizer: Tokenizer, startingToken: String) {
         var token = startingToken
         var classKind = ClassKind.CLASS
@@ -575,8 +644,17 @@ private constructor(
                 superClassType = globalTypeItemFactory.superEnumType
                 token = tokenizer.requireToken()
             }
+            "typealias" -> {
+                // Type aliases aren't classes, but they are defined at the same level as classes
+                parseTypeAlias(pkg, tokenizer, modifiers, classPosition)
+                // Don't continue creating a class item
+                return
+            }
             else -> {
-                throw ApiParseException("missing class or interface. got: $token", tokenizer)
+                throw ApiParseException(
+                    "expected one of class, interface, @interface, enum, or typealias; found: $token",
+                    tokenizer
+                )
             }
         }
         tokenizer.assertIdent(token)
@@ -1194,9 +1272,14 @@ private constructor(
 
         method.markForMainApiSurface()
 
-        // If the method already exists in the class item because it was defined in a previous
-        // signature file then replace it with this one, otherwise just add this method.
-        cl.replaceOrAddMethod(method)
+        if (appending) {
+            // If the method already exists in the class item because it was defined in a previous
+            // signature file then replace it with this one, otherwise just add this method.
+            cl.replaceOrAddMethod(method)
+        } else {
+            // Just add the method to the class.
+            cl.addMethod(method)
+        }
     }
 
     private fun parseField(
@@ -1687,9 +1770,9 @@ private constructor(
                 return parameters
             }
 
-            // Each item can be
-            // optional annotations optional-modifiers type-with-use-annotations-and-generics
-            // optional-name optional-equals-default-value
+            // Each item can be:
+            //   optional-"optional" annotations optional-modifiers
+            //   type-with-use-annotations-and-generics optional-name
 
             // Used to represent the presence of a default value, instead of showing the entire
             // default value
@@ -1735,52 +1818,6 @@ private constructor(
                 }
             }
 
-            var defaultValueString: String? = null
-            if ("=" == token) {
-                if (hasOptionalKeyword) {
-                    throw ApiParseException(
-                        "cannot have both optional keyword and default value",
-                        tokenizer
-                    )
-                }
-                defaultValueString = tokenizer.requireToken(true)
-                val sb = StringBuilder(defaultValueString)
-                if (defaultValueString == "{") {
-                    var balance = 1
-                    while (balance > 0) {
-                        token = tokenizer.requireToken(parenIsSep = false, eatWhitespace = false)
-                        sb.append(token)
-                        if (token == "{") {
-                            balance++
-                        } else if (token == "}") {
-                            balance--
-                            if (balance == 0) {
-                                break
-                            }
-                        }
-                    }
-                    token = tokenizer.requireToken()
-                } else {
-                    var balance = if (defaultValueString == "(") 1 else 0
-                    while (true) {
-                        token = tokenizer.requireToken(parenIsSep = true, eatWhitespace = false)
-                        if ((token.endsWith(",") || token.endsWith(")")) && balance <= 0) {
-                            if (token.length > 1) {
-                                sb.append(token, 0, token.length - 1)
-                                token = token[token.length - 1].toString()
-                            }
-                            break
-                        }
-                        sb.append(token)
-                        if (token == "(") {
-                            balance++
-                        } else if (token == ")") {
-                            balance--
-                        }
-                    }
-                }
-                defaultValueString = sb.toString()
-            }
             when (token) {
                 "," -> {
                     token = tokenizer.requireToken()
@@ -1795,17 +1832,13 @@ private constructor(
 
             // Select the DefaultValue for the parameter.
             val defaultValue =
-                when {
-                    hasOptionalKeyword ->
-                        // It has an optional keyword, so it has a default value but the actual
-                        // value is not known.
-                        DefaultValue.UNKNOWN
-                    defaultValueString == null ->
-                        // It has neither an optional keyword nor an actual default value.
-                        DefaultValue.NONE
-                    else ->
-                        // It has an actual default value.
-                        DefaultValue.fixedDefaultValue(defaultValueString)
+                if (hasOptionalKeyword) {
+                    // It has an optional keyword, so it has a default value but the actual value is
+                    // not known.
+                    DefaultValue.UNKNOWN
+                } else {
+                    // It does not have an optional keyword so it has no default value.
+                    DefaultValue.NONE
                 }
             parameters.add(
                 ParameterInfo(

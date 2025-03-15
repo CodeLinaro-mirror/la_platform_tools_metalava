@@ -160,7 +160,7 @@ class FileFormatTest {
                 }
                 """,
             expectedError =
-                "api.txt:1: Signature format error - invalid version, found '3.14', expected one of '2.0', '3.0', '4.0', '5.0'",
+                "api.txt:1: Signature format error - invalid version, found '3.14', expected one of '2.0', '4.0', '5.0'",
         )
     }
 
@@ -182,17 +182,17 @@ class FileFormatTest {
     }
 
     @Test
-    fun `Check format parsing (v3)`() {
+    fun `Check format parsing (v4)`() {
         checkParseHeader(
             """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package androidx.collection {
                   public final class LruCacheKt {
                     ctor public LruCacheKt();
                   }
                 }
             """,
-            expectedFormat = FileFormat.V3,
+            expectedFormat = FileFormat.V4,
             expectedNextLine = "package androidx.collection {",
         )
     }
@@ -270,29 +270,29 @@ class FileFormatTest {
     }
 
     @Test
-    fun `Check format parsing (v3 + kotlin-style-nulls=no but no migrating)`() {
+    fun `Check format parsing (v4 + kotlin-style-nulls=no but no migrating)`() {
         checkParseHeader(
             """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 // - kotlin-style-nulls=no
             """,
             expectedError =
-                "api.txt:2: Signature format error - must provide a 'migrating' property when customizing version 3.0",
+                "api.txt:2: Signature format error - must provide a 'migrating' property when customizing version 4.0",
         )
     }
 
     @Test
-    fun `Check header and specifier (v3 + kotlin-style-nulls=no,migrating=test)`() {
+    fun `Check header and specifier (v4 + kotlin-style-nulls=no,migrating=test)`() {
         headerAndSpecifierTest(
             header =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 // - kotlin-style-nulls=no
                 // - migrating=test
 
             """,
-            specifier = "3.0:kotlin-style-nulls=no,migrating=test",
-            format = FileFormat.V3.copy(kotlinStyleNulls = false, migrating = "test"),
+            specifier = "4.0:kotlin-style-nulls=no,migrating=test",
+            format = FileFormat.V4.copy(kotlinStyleNulls = false, migrating = "test"),
         )
     }
 
@@ -389,17 +389,17 @@ class FileFormatTest {
     }
 
     @Test
-    fun `Check header and specifier (v3 + kotlin-style-nulls=no)`() {
+    fun `Check header and specifier (v4 + kotlin-style-nulls=no)`() {
         headerAndSpecifierTest(
             header =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 // - kotlin-style-nulls=no
                 // - migrating=test
 
             """,
-            specifier = "3.0:kotlin-style-nulls=no,migrating=test",
-            format = FileFormat.V3.copy(kotlinStyleNulls = false, migrating = "test"),
+            specifier = "4.0:kotlin-style-nulls=no,migrating=test",
+            format = FileFormat.V4.copy(kotlinStyleNulls = false, migrating = "test"),
         )
     }
 
@@ -495,7 +495,7 @@ class FileFormatTest {
             format =
                 FileFormat.V5.copy(
                     language = FileFormat.Language.JAVA,
-                    conciseDefaultValues = false,
+                    includeDefaultParameterValues = false,
                     kotlinStyleNulls = false,
                 ),
         )
@@ -515,7 +515,7 @@ class FileFormatTest {
             format =
                 FileFormat.V5.copy(
                     language = FileFormat.Language.JAVA,
-                    conciseDefaultValues = false,
+                    includeDefaultParameterValues = false,
                     kotlinStyleNulls = true,
                 ),
         )
@@ -539,20 +539,20 @@ class FileFormatTest {
     }
 
     @Test
-    fun `Check header and specifier (v5 + concise-default-values=no,language=kotlin)`() {
+    fun `Check header and specifier (v5 + include-default-parameter-values=no,language=kotlin)`() {
         headerAndSpecifierTest(
             header =
                 """
                 // Signature format: 5.0
                 // - language=kotlin
-                // - concise-default-values=no
+                // - include-default-parameter-values=no
 
             """,
-            specifier = "5.0:language=kotlin,concise-default-values=no",
+            specifier = "5.0:language=kotlin,include-default-parameter-values=no",
             format =
                 FileFormat.V5.copy(
                     language = FileFormat.Language.KOTLIN,
-                    conciseDefaultValues = false,
+                    includeDefaultParameterValues = false,
                 ),
         )
     }

@@ -250,7 +250,7 @@ class AnnotationsMergerTest : DriverTest() {
                 ),
             mergeSignatureAnnotations =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package test.pkg {
                   public interface Appendable {
                     method public test.pkg.Appendable append(java.lang.CharSequence?);

@@ -160,6 +160,9 @@ interface TypeItem {
      */
     fun transform(transformer: TypeTransformer): TypeItem
 
+    /** Whether this type was originally a value class type. Defaults to false if not overridden. */
+    fun isValueClassType(): Boolean = false
+
     companion object {
         /** [TypeStringConfiguration] for [toSimpleType] to pass to [toTypeString]. */
         private val SIMPLE_TYPE_CONFIGURATION =

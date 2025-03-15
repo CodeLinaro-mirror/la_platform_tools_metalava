@@ -17,6 +17,7 @@ com.android.tools.metalava.model.testsuite.typealiasitem.CommonTypeAliasItemTest
   basic type alias types[kotlin,k1]
   expect actual typealias[kotlin,k1]
   functional type alias type[kotlin,k1]
+  private type alias visibility[kotlin,k1]
   type alias name[kotlin,k1]
   type alias referencing other type alias[kotlin,k1]
   type alias visibility[kotlin,k1]

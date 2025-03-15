@@ -120,11 +120,21 @@ abstract class BaseModelTest() :
             throw IllegalStateException("Must provide at least one source file")
         }
 
+        // Get the paths for the TestFiles.
+        val paths = testFiles.map { it.targetRelativePath }
+
+        // Fail if there are any name collisions.
+        val uniquePaths = paths.groupBy { it }
+        if (uniquePaths.size != testFiles.size) {
+            val colliding = uniquePaths.mapNotNull { if (it.value.size == 1) null else it.key }
+            error(
+                "The following test files in the input set have the same name as another test file:\n${colliding.joinToString("\n") { "    $it" }}"
+            )
+        }
+
         val inputFormat =
-            testFiles
+            paths
                 .asSequence()
-                // Map to path.
-                .map { it.targetRelativePath }
                 // Ignore HTML files.
                 .filter { !it.endsWith(".html") }
                 // Map to InputFormat.

@@ -109,17 +109,6 @@ interface FieldItem : MemberItem, InheritableItem {
         return false
     }
 
-    /**
-     * Warn if companion constants are not marked with @JvmField.
-     *
-     * Checks the field to see if it is a companion object constant and if it is then make sure that
-     * it is annotated with `@JvmField`, reporting an issue otherwise.
-     *
-     * TODO: This should probably be in a PSI specific API Lint check (when they are supported) but
-     *   it is here for now to avoid dependencies on PSI specific code in API Lint.
-     */
-    fun ensureCompanionFieldJvmField() {}
-
     companion object {
         val comparator: java.util.Comparator<FieldItem> = Comparator { a, b ->
             a.name().compareTo(b.name())

@@ -42,6 +42,7 @@ import javax.lang.model.type.TypeKind
 /** Creates [TypeItem]s from [Type]s. */
 internal class TurbineTypeItemFactory(
     private val initializer: TurbineCodebaseInitialiser,
+    private val annotationFactory: TurbineAnnotationFactory,
     typeParameterScope: TypeParameterScope,
 ) : DefaultTypeItemFactory<Type, TurbineTypeItemFactory>(typeParameterScope) {
 
@@ -50,7 +51,7 @@ internal class TurbineTypeItemFactory(
     override fun self() = this
 
     override fun createNestedFactory(scope: TypeParameterScope) =
-        TurbineTypeItemFactory(initializer, scope)
+        TurbineTypeItemFactory(initializer, annotationFactory, scope)
 
     override fun getType(
         underlyingType: Type,
@@ -62,7 +63,7 @@ internal class TurbineTypeItemFactory(
         annos: List<AnnoInfo>,
         contextNullability: ContextNullability,
     ): TypeModifiers {
-        val typeAnnotations = initializer.createAnnotations(annos)
+        val typeAnnotations = annotationFactory.createAnnotations(annos)
         // Compute the nullability, factoring in any context nullability and type annotations.
         // Turbine does not support kotlin so the kotlin nullability is always null.
         val nullability = contextNullability.compute(null, typeAnnotations)

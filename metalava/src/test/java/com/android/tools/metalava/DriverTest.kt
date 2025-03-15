@@ -553,10 +553,15 @@ abstract class DriverTest :
         // Verify that a test that provided kotlin code is only being run against a provider that
         // supports kotlin code.
         val anyKotlin = sourceFiles.any { it.targetPath.endsWith(DOT_KT) }
-        if (anyKotlin && Capability.KOTLIN !in codebaseCreatorConfig.creator.capabilities) {
-            error(
-                "Provider ${codebaseCreatorConfig.providerName} does not support Kotlin; please add `@RequiresCapabilities(Capability.KOTLIN)` to the test"
-            )
+        if (anyKotlin) {
+            if (Capability.KOTLIN !in codebaseCreatorConfig.creator.capabilities) {
+                error(
+                    "Provider ${codebaseCreatorConfig.providerName} does not support Kotlin; please add `@RequiresCapabilities(Capability.KOTLIN)` to the test"
+                )
+            }
+            if (format.version < FileFormat.Version.V4) {
+                error("Kotlin test must use FileFormat.V4 or higher")
+            }
         }
 
         val releasedApiCheck =

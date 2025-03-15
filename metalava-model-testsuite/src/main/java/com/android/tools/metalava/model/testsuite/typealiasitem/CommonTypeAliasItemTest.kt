@@ -25,7 +25,6 @@ import com.android.tools.metalava.testing.kotlin
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
 
-// TODO(b/399628346): add signature file inputs
 class CommonTypeAliasItemTest : BaseModelTest() {
     @Test
     fun `accessing type alias from codebase`() {
@@ -34,6 +33,14 @@ class CommonTypeAliasItemTest : BaseModelTest() {
                 """
                     package test.pkg
                     typealias Foo = String
+                """
+            ),
+            signature(
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public typealias Foo = String;
+                    }
                 """
             ),
         ) {
@@ -48,6 +55,14 @@ class CommonTypeAliasItemTest : BaseModelTest() {
                 """
                     package test.pkg
                     typealias Foo = String
+                """
+            ),
+            signature(
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public typealias Foo = String;
+                    }
                 """
             ),
         ) {
@@ -65,6 +80,14 @@ class CommonTypeAliasItemTest : BaseModelTest() {
                     typealias Foo = String
                 """
             ),
+            signature(
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public typealias Foo = String;
+                    }
+                """
+            ),
         ) {
             val typeAlias = codebase.assertTypeAlias("test.pkg.Foo")
             assertThat(typeAlias.qualifiedName).isEqualTo("test.pkg.Foo")
@@ -79,8 +102,17 @@ class CommonTypeAliasItemTest : BaseModelTest() {
                 """
                     package test.pkg
                     typealias PublicTypeAlias = String
+                    @PublishedApi
                     internal typealias InternalTypeAlias = String
-                    private typealias PrivateTypeAlias = String
+                """
+            ),
+            signature(
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public typealias PublicTypeAlias = String;
+                      @kotlin.PublishedApi internal typealias InternalTypeAlias = String;
+                    }
                 """
             ),
         ) {
@@ -89,7 +121,22 @@ class CommonTypeAliasItemTest : BaseModelTest() {
 
             val internalTypeAlias = codebase.assertTypeAlias("test.pkg.InternalTypeAlias")
             assertThat(internalTypeAlias.modifiers.getVisibilityString()).isEqualTo("internal")
+            assertThat(internalTypeAlias.modifiers.annotations().single().qualifiedName)
+                .isEqualTo("kotlin.PublishedApi")
+        }
+    }
 
+    @Test
+    fun `private type alias visibility`() {
+        // No signature case: private APIs aren't written to signature files
+        runCodebaseTest(
+            kotlin(
+                """
+                    package test.pkg
+                    private typealias PrivateTypeAlias = String
+                """
+            ),
+        ) {
             val privateTypeAlias = codebase.assertTypeAlias("test.pkg.PrivateTypeAlias")
             assertThat(privateTypeAlias.modifiers.getVisibilityString()).isEqualTo("private")
         }
@@ -116,6 +163,17 @@ class CommonTypeAliasItemTest : BaseModelTest() {
                     """
                 )
             ),
+            inputSet(
+                signature(
+                    """
+                        // Signature format: 5.0
+                        package test.pkg {
+                          @test.pkg.AnnoA @test.pkg.AnnoB public typealias Annotated = String;
+                          public typealias Unannotated = String;
+                        }
+                    """
+                )
+            ),
         ) {
             val unannotated = codebase.assertTypeAlias("test.pkg.Unannotated")
             assertThat(unannotated.modifiers.annotations()).isEmpty()
@@ -138,6 +196,17 @@ class CommonTypeAliasItemTest : BaseModelTest() {
                     typealias ClassType = String
                 """
             ),
+            // This type aliases are sorted to match the kotlin code instead of alphabetically.
+            signature(
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public typealias PrimitiveType = int;
+                      public typealias ArrayType = int[];
+                      public typealias ClassType = String;
+                    }
+                """
+            ),
         ) {
             val primitiveType = codebase.assertTypeAlias("test.pkg.PrimitiveType").aliasedType
             primitiveType.assertPrimitiveTypeItem {
@@ -156,6 +225,7 @@ class CommonTypeAliasItemTest : BaseModelTest() {
 
     @Test
     fun `functional type alias type`() {
+        // No signature case: functional types are just parsed as class types (b/169798041).
         runCodebaseTest(
             kotlin(
                 """
@@ -178,6 +248,8 @@ class CommonTypeAliasItemTest : BaseModelTest() {
     @Test
     fun `type alias referencing other type alias`() {
         // type aliases should be expanded to the underlying type
+        // No signature case: the type aliases should be output as their underlying type, so having
+        // a type alias as a type in a signature file wouldn't make sense.
         runCodebaseTest(
             kotlin(
                 """
@@ -211,6 +283,16 @@ class CommonTypeAliasItemTest : BaseModelTest() {
                     typealias NoTypeParameter = String
                     typealias OneTypeParameter<T> = List<T>
                     typealias TwoTypeParameter<K, V> = Map.Entry<K, V>
+                """
+            ),
+            signature(
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public typealias NoTypeParameter = String;
+                      public typealias OneTypeParameter<T> = java.util.List<? extends T>;
+                      public typealias TwoTypeParameter<K, V> = java.util.Map.Entry<? extends K,? extends V>;
+                    }
                 """
             ),
         ) {
@@ -290,6 +372,29 @@ class CommonTypeAliasItemTest : BaseModelTest() {
         ) {
             val fooAlias = codebase.assertTypeAlias("test.pkg.Foo")
             assertThat(fooAlias.aliasedType.isString()).isTrue()
+        }
+    }
+
+    @Test
+    fun `type alias package emit`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                    package test.pkg
+                    typealias Foo = String
+                """
+            ),
+            signature(
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public typealias Foo = String;
+                    }
+                """
+            ),
+        ) {
+            val pkg = codebase.assertPackage("test.pkg")
+            assertThat(pkg.emit).isTrue()
         }
     }
 }

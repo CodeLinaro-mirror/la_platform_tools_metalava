@@ -94,9 +94,9 @@ Usage: metalava help signature-file-formats
 
   The supported properties are:
 
-  * `concise-default-values = yes|no` - If `no` then the signature file will use `@Nullable` and `@NonNull` annotations
-  to indicate that the annotated item accepts `null` and does not accept `null` respectively and neither indicates that
-  it's not defined.
+  * `include-default-parameter-values = yes|no` - If `no` then the signature file will not include any information about
+  default parameter values. If `yes` then it will use the pseudo modifier `optional` to indicate a parameter that has a
+  default value.
 
   * `kotlin-style-nulls = yes|no` - If `no` then the signature file will use `@Nullable` and `@NonNull` annotations to
   indicate that the annotated item accepts `null` and does not accept `null` respectively and neither indicates that
@@ -138,17 +138,13 @@ Usage: metalava help signature-file-formats
   sets the properties as follows:
 
   + kotlin-style-nulls = no
-  + concise-default-values = no
+  + include-default-parameter-values = no
 
-  * `3.0` (--format=v3) - This is `2.0` plus `kotlin-style-nulls = yes` giving the following properties:
-
-  + kotlin-style-nulls = yes
-  + concise-default-values = no
-
-  * `4.0` (--format=v4) - This is `3.0` plus `concise-default-values = yes` giving the following properties:
+  * `4.0` (--format=v4) - This is `2.0` plus `kotlin-style-nulls = yes` and `include-default-parameter-values = yes`
+  giving the following properties:
 
   + kotlin-style-nulls = yes
-  + concise-default-values = yes
+  + include-default-parameter-values = yes
 
   * `5.0` - This is the first version that has full support for properties in the signature header. As such it does not
   add any new defaults to `4.0`. The intent is that properties will be explicitly defined in the signature file avoiding

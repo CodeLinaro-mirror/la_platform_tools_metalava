@@ -50,7 +50,7 @@ open class DefaultPackageItem(
     init {
         // Newly created package's always have `emit = false` as they should only be emitted if they
         // have at least one class that has `emit = true`. That will be updated, if necessary, when
-        // adding a class to the package.
+        // adding a class or type alias to the package.
         emit = false
     }
 

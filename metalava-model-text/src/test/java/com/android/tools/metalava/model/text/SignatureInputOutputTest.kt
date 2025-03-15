@@ -286,7 +286,7 @@ class SignatureInputOutputTest : Assertions {
     }
 
     @Test
-    fun `Test method with one named parameter with concise default value`() {
+    fun `Test method with one named parameter with default value`() {
         val api =
             """
                 package test.pkg {
@@ -308,36 +308,6 @@ class SignatureInputOutputTest : Assertions {
                 .isEqualTo(PrimitiveTypeItem.Primitive.INT)
 
             assertThat(param.hasDefaultValue()).isTrue()
-            assertThat(param.isDefaultValueKnown()).isFalse()
-        }
-    }
-
-    @Test
-    fun `Test method with one named parameter with non-concise default value`() {
-        val format = kotlinStyleFormat.copy(conciseDefaultValues = false)
-        val api =
-            """
-                package test.pkg {
-                  public class Foo {
-                    method public foo(arg: int = 3): String;
-                  }
-                }
-            """
-                .trimIndent()
-        runInputOutputTest(api, format) {
-            val foo = codebase.assertClass("test.pkg.Foo")
-            val method = foo.methods().single()
-
-            assertThat(method.parameters()).hasSize(1)
-            val param = method.parameters().single()
-            assertThat(param.name()).isEqualTo("arg")
-            assertThat(param.publicName()).isEqualTo("arg")
-            assertThat((param.type() as PrimitiveTypeItem).kind)
-                .isEqualTo(PrimitiveTypeItem.Primitive.INT)
-
-            assertThat(param.hasDefaultValue()).isTrue()
-            assertThat(param.isDefaultValueKnown()).isTrue()
-            assertThat(param.defaultValueAsString()).isEqualTo("3")
         }
     }
 
@@ -855,6 +825,21 @@ class SignatureInputOutputTest : Assertions {
                   @SuppressCompatibility @test.pkg.ExperimentalBar public final class FancyBar {
                     ctor public FancyBar();
                     method @SuppressCompatibility @ReturnThis public test.pkg.FancyBar fancy(@SuppressCompatibility int);
+                  }
+                }
+            """
+        runInputOutputTest(api, FileFormat.V5)
+    }
+
+    @Test
+    fun `Check loading signature file with duplicate method signatures`() {
+        val api =
+            """
+                // Signature format: 5.0
+                package test.pkg {
+                  public class Foo {
+                    method public void method(int);
+                    method public void method(int);
                   }
                 }
             """
