@@ -2050,7 +2050,7 @@ private constructor(
                     writer,
                     skipNullnessAnnotations = true,
                 )
-            modifierListWriter.writeKeywords(item, normalize = true)
+            modifierListWriter.writeKeywords(item, normalizeFinal = true)
             writer.toString().trim()
         }
     }

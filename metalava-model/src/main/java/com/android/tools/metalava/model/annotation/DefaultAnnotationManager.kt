@@ -278,12 +278,6 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
                 // Some new annotations added to the platform: assume they are support
                 // annotations?
                 return when {
-                    // Special Kotlin annotations recognized by the compiler: map to supported
-                    // package name
-                    qualifiedName.endsWith(".ParameterName") ||
-                        qualifiedName.endsWith(".DefaultValue") ->
-                        "kotlin.annotations.jvm.internal${qualifiedName.substring(qualifiedName.lastIndexOf('.'))}"
-
                     // Other third party nullness annotations?
                     isNullableAnnotation(qualifiedName) -> ANDROIDX_NULLABLE
                     isNonNullAnnotation(qualifiedName) -> ANDROIDX_NONNULL

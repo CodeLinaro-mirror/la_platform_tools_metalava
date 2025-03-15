@@ -35,7 +35,6 @@ import com.android.tools.metalava.restrictToSource
 import com.android.tools.metalava.suppressLintSource
 import com.android.tools.metalava.systemApiSource
 import com.android.tools.metalava.testApiSource
-import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
@@ -1048,8 +1047,6 @@ class CompatibilityCheckTest : DriverTest() {
                     """
                     ),
                     suppressLintSource,
-                    // Hide android.annotation classes.
-                    KnownSourceFiles.androidAnnotationHide,
                 ),
         )
     }
@@ -2029,8 +2026,6 @@ class CompatibilityCheckTest : DriverTest() {
                     """
                     ),
                     systemApiSource,
-                    // Hide android.annotation classes.
-                    KnownSourceFiles.androidAnnotationHide,
                 ),
             extraArguments =
                 arrayOf(
@@ -2077,8 +2072,6 @@ class CompatibilityCheckTest : DriverTest() {
                     """
                     ),
                     systemApiSource,
-                    // Hide android.annotation classes.
-                    KnownSourceFiles.androidAnnotationHide,
                 ),
             extraArguments =
                 arrayOf(
@@ -2136,8 +2129,6 @@ class CompatibilityCheckTest : DriverTest() {
                         )
                         .indented(),
                     testApiSource,
-                    // Hide android.annotation classes.
-                    KnownSourceFiles.androidAnnotationHide,
                 ),
             api =
                 """
@@ -2314,7 +2305,9 @@ class CompatibilityCheckTest : DriverTest() {
                   }
                 }
                 """,
-            sourceFiles = arrayOf(restrictToSource)
+            sourceFiles = arrayOf(restrictToSource),
+            // Override default to emit androidx.annotation classes.
+            skipEmitPackages = emptyList(),
         )
     }
 
@@ -2507,8 +2500,6 @@ class CompatibilityCheckTest : DriverTest() {
                     """
                     ),
                     systemApiSource,
-                    // Hide android.annotation classes.
-                    KnownSourceFiles.androidAnnotationHide,
                 ),
             extraArguments =
                 arrayOf(
@@ -2564,8 +2555,6 @@ class CompatibilityCheckTest : DriverTest() {
                     """
                     ),
                     systemApiSource,
-                    // Hide android.annotation classes.
-                    KnownSourceFiles.androidAnnotationHide,
                 ),
             extraArguments =
                 arrayOf(
@@ -2817,8 +2806,6 @@ class CompatibilityCheckTest : DriverTest() {
                     """
                     ),
                     systemApiSource,
-                    // Hide android.annotation classes.
-                    KnownSourceFiles.androidAnnotationHide,
                 ),
             extraArguments =
                 arrayOf(
@@ -2906,8 +2893,6 @@ class CompatibilityCheckTest : DriverTest() {
                     """
                     ),
                     systemApiSource,
-                    // Hide android.annotation classes.
-                    KnownSourceFiles.androidAnnotationHide,
                 ),
             extraArguments =
                 arrayOf(
@@ -3269,8 +3254,6 @@ class CompatibilityCheckTest : DriverTest() {
                     """
                     ),
                     androidxNonNullSource,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
                 ),
         )
     }
@@ -4201,19 +4184,19 @@ class CompatibilityCheckTest : DriverTest() {
                 package test.pkg {
                   public class MyCollection<E> implements java.util.Collection<E> {
                     ctor public MyCollection();
-                    method public boolean add(E! e);
-                    method public boolean addAll(java.util.Collection<? extends E> c);
+                    method public boolean add(E!);
+                    method public boolean addAll(java.util.Collection<? extends E>);
                     method public void clear();
-                    method public boolean contains(Object! o);
-                    method public boolean containsAll(java.util.Collection<?> c);
+                    method public boolean contains(Object!);
+                    method public boolean containsAll(java.util.Collection<?>);
                     method public boolean isEmpty();
                     method public java.util.Iterator<E> iterator();
-                    method public boolean remove(Object! o);
-                    method public boolean removeAll(java.util.Collection<?> c);
-                    method public boolean retainAll(java.util.Collection<?> c);
+                    method public boolean remove(Object!);
+                    method public boolean removeAll(java.util.Collection<?>);
+                    method public boolean retainAll(java.util.Collection<?>);
                     method public int size();
                     method public Object![] toArray();
-                    method public <T> T![] toArray(T[] a);
+                    method public <T> T![] toArray(T[]);
                   }
                 }
             """,
