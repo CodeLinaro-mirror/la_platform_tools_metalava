@@ -49,7 +49,7 @@ import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.NO_ANNOTATION_TARGETS
 import com.android.tools.metalava.model.RECENTLY_NONNULL
 import com.android.tools.metalava.model.RECENTLY_NULLABLE
-import com.android.tools.metalava.model.SUPPRESS_COMPATIBILITY_ANNOTATION
+import com.android.tools.metalava.model.SUPPRESS_COMPATIBILITY_ANNOTATION_QUALIFIED
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.ShowOrHide
 import com.android.tools.metalava.model.Showability
@@ -739,15 +739,6 @@ private class LazyAnnotationInfo(
                 recursive = ShowOrHide.REVERT_UNSTABLE_API,
                 forStubsOnly = ShowOrHide.REVERT_UNSTABLE_API,
             )
-
-        /**
-         * Fully-qualified version of [SUPPRESS_COMPATIBILITY_ANNOTATION].
-         *
-         * This is only used at run-time for matching against [AnnotationItem.qualifiedName], so it
-         * doesn't need to maintain compatibility.
-         */
-        private val SUPPRESS_COMPATIBILITY_ANNOTATION_QUALIFIED =
-            AnnotationItem.unshortenAnnotation("@$SUPPRESS_COMPATIBILITY_ANNOTATION").substring(1)
     }
 
     /** Resolve the [AnnotationItem] to a [ClassItem] lazily. */

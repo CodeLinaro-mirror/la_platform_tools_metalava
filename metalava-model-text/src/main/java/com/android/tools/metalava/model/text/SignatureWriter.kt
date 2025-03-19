@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 The Android Open Source Project
+ * Copyright (C) 2025 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava
+package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
@@ -32,7 +32,7 @@ import com.android.tools.metalava.model.StripJavaLangPrefix
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeStringConfiguration
-import com.android.tools.metalava.model.text.FileFormat
+import com.android.tools.metalava.model.text.FileFormat.TypeArgumentSpacing
 import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiType
 import com.android.tools.metalava.model.visitors.ApiVisitor
@@ -77,6 +77,7 @@ class SignatureWriter(
 
     override fun afterVisitPackage(pkg: PackageItem) {
         write("}\n\n")
+        writer.flush()
     }
 
     override fun visitConstructor(constructor: ConstructorItem) {
@@ -119,8 +120,13 @@ class SignatureWriter(
     override fun visitProperty(property: PropertyItem) {
         write("    property ")
         writeModifiers(property)
+        writeTypeParameterList(property.typeParameterList, addSpace = true)
         if (fileFormat.kotlinNameTypeOrder) {
             // Kotlin style: write the name of the property, then the type.
+            property.receiver?.let {
+                writeType(it)
+                write(".")
+            }
             write(property.name())
             write(": ")
             writeType(property.type())
@@ -128,6 +134,10 @@ class SignatureWriter(
             // Java style: write the type, then the name of the property.
             writeType(property.type())
             write(" ")
+            property.receiver?.let {
+                writeType(it)
+                write(".")
+            }
             write(property.name())
         }
         write(";\n")
@@ -245,8 +255,21 @@ class SignatureWriter(
         orderedInterfaces.forEach { typeItem -> writeExtendsOrImplementsType(typeItem) }
     }
 
+    /** [TypeStringConfiguration] for use when writing types in [writeTypeParameterList]. */
+    private val typeParameterItemStringConfiguration =
+        TypeStringConfiguration(
+            spaceBetweenTypeArguments = fileFormat.typeArgumentSpacing != TypeArgumentSpacing.NONE,
+            stripJavaLangPrefix =
+                // Only strip `java.lang.` prefix if always requested. That is because the LEGACY
+                // behavior is not to strip `java.lang.` prefix in bounds.
+                when (fileFormat.stripJavaLangPrefix) {
+                    StripJavaLangPrefix.ALWAYS -> StripJavaLangPrefix.ALWAYS
+                    else -> StripJavaLangPrefix.NEVER
+                },
+        )
+
     private fun writeTypeParameterList(typeList: TypeParameterList, addSpace: Boolean) {
-        val typeListString = typeList.toString()
+        val typeListString = typeList.toSource(typeParameterItemStringConfiguration)
         if (typeListString.isNotEmpty()) {
             write(typeListString)
             if (addSpace) {
@@ -305,6 +328,7 @@ class SignatureWriter(
         TypeStringConfiguration(
             annotations = fileFormat.includeTypeUseAnnotations,
             kotlinStyleNulls = fileFormat.kotlinStyleNulls,
+            spaceBetweenTypeArguments = fileFormat.typeArgumentSpacing == TypeArgumentSpacing.SPACE,
             stripJavaLangPrefix = fileFormat.stripJavaLangPrefix,
         )
 

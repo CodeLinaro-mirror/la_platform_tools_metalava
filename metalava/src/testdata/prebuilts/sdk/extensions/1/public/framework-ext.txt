@@ -1,0 +1,7 @@
+// Signature format: 2.0
+package android.test {
+  public class ClassAddedInExt1 {
+    field public static final int FIELD_ADDED_IN_EXT_1 = 1;
+    method public void methodAddedInExt1();
+  }
+}

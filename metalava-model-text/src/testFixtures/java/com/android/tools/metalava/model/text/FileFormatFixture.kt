@@ -32,6 +32,7 @@ private val FILE_FORMAT_PROPERTY_NAMES =
         "sort-whole-extends-list",
         "strip-java-lang-prefix",
         "surface",
+        "type-argument-spacing",
     )
 
 val FILE_FORMAT_PROPERTIES = FILE_FORMAT_PROPERTY_NAMES.joinToString { "'$it'" }

@@ -369,7 +369,7 @@ class CommonTypeStringTest : BaseModelTest() {
                             ConfigurationTestCase(
                                 name = "spaced params",
                                 configuration =
-                                    TypeStringConfiguration(spaceBetweenParameters = true),
+                                    TypeStringConfiguration(spaceBetweenTypeArguments = true),
                                 expectedTypeString = "java.util.List<java.lang.String>"
                             ),
                         ),
@@ -396,7 +396,7 @@ class CommonTypeStringTest : BaseModelTest() {
                             ConfigurationTestCase(
                                 name = "spaced params",
                                 configuration =
-                                    TypeStringConfiguration(spaceBetweenParameters = true),
+                                    TypeStringConfiguration(spaceBetweenTypeArguments = true),
                                 expectedTypeString =
                                     "java.util.Map<java.lang.String, java.lang.Number>"
                             )

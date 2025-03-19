@@ -139,7 +139,12 @@ data class FileFormat(
      * Indicates which of the possible approaches to `java.lang.` prefix stripping available in
      * [StripJavaLangPrefix] is used when outputting types to signature files.
      */
-    val specifiedStripJavaLangPrefix: StripJavaLangPrefix? = null
+    val specifiedStripJavaLangPrefix: StripJavaLangPrefix? = null,
+
+    /**
+     * Indicates how type arguments should be formatted when outputting types to signature files.
+     */
+    val specifiedTypeArgumentSpacing: TypeArgumentSpacing? = null,
 ) {
     init {
         if (migrating != null && "[,\n]".toRegex().find(migrating) != null) {
@@ -198,6 +203,10 @@ data class FileFormat(
     // This defaults to LEGACY but can be overridden on the command line.
     val stripJavaLangPrefix
         get() = effectiveValue({ specifiedStripJavaLangPrefix }, StripJavaLangPrefix.LEGACY)
+
+    // This defaults to LEGACY but can be overridden on the command line.
+    val typeArgumentSpacing
+        get() = effectiveValue({ specifiedTypeArgumentSpacing }, TypeArgumentSpacing.LEGACY)
 
     /** The base version of the file format. */
     enum class Version(
@@ -361,6 +370,21 @@ data class FileFormat(
 
         /** Sort overloaded methods by their signature. */
         SIGNATURE(CallableItem.comparator)
+    }
+
+    /** Different ways of spacing out type arguments in [TypeItem.toTypeString]. */
+    enum class TypeArgumentSpacing {
+        /** No spacing added between type arguments. */
+        NONE,
+
+        /**
+         * No spacing added between type arguments unless they are in the bounds of a type
+         * parameter.
+         */
+        LEGACY,
+
+        /** A single space added after the comma that separates type arguments. */
+        SPACE,
     }
 
     /**
@@ -763,6 +787,7 @@ data class FileFormat(
         var overloadedMethodOrder: OverloadedMethodOrder? = null
         var sortWholeExtendsList: Boolean? = null
         var stripJavaLangPrefix: StripJavaLangPrefix? = null
+        var typeArgumentSpacing: TypeArgumentSpacing? = null
         var surface: String? = null
 
         fun build(): FileFormat {
@@ -785,6 +810,8 @@ data class FileFormat(
                         ?: base.specifiedSortWholeExtendsList,
                 specifiedStripJavaLangPrefix = stripJavaLangPrefix
                         ?: base.specifiedStripJavaLangPrefix,
+                specifiedTypeArgumentSpacing = typeArgumentSpacing
+                        ?: base.specifiedTypeArgumentSpacing,
                 surface = surface ?: base.surface,
             )
         }
@@ -941,7 +968,35 @@ data class FileFormat(
 
             override fun stringFromFormat(format: FileFormat): String? =
                 format.specifiedStripJavaLangPrefix?.stringFromEnum()
-        };
+        },
+        TYPE_ARGUMENT_SPACING(
+            defaultable = true,
+            valueSyntax = "legacy|none|space",
+            help =
+                """
+                    Specifies the spacing between the type arguments of a generic type. e.g.
+                    `Map<String, Integer>`. The default is `legacy`.
+
+                    `legacy` - adds no spaces between type arguments except those used in the bounds
+                    of a type parameter. e.g. `Map<String,Integer>` will have no space except in
+                    `class Foo<M extends Map<String, Integer>`.
+
+                    `none` - adds no spaces between any type arguments.
+
+                    `space` - adds a single space between every type argument.
+
+                    Note: This does not affect the spacing of type parameters in a type parameter
+                    list, e.g. `interface Map<K, V>`. They always have a space separator.
+                """,
+        ) {
+            override fun setFromString(builder: Builder, value: String) {
+                builder.typeArgumentSpacing = enumFromString<TypeArgumentSpacing>(value)
+            }
+
+            override fun stringFromFormat(format: FileFormat): String? =
+                format.specifiedTypeArgumentSpacing?.stringFromEnum()
+        },
+        ;
 
         /** The property name in the [parseSpecifier] input. */
         val propertyName: String = name.lowercase(Locale.US).replace("_", "-")

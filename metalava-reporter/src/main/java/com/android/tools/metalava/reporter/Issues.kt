@@ -237,6 +237,7 @@ object Issues {
     val INVALID_ENVIRONMENT_IN_RESTRICTED_FOR_ENVIRONMENT by
         Issue(Severity.ERROR, Category.API_LINT)
     val MISSING_FROM_VALUE by Issue(Severity.ERROR, Category.API_LINT)
+    val INHERIT_CHANGES_SIGNATURE by Issue(Severity.WARNING_ERROR_WHEN_NEW)
 
     fun findIssueById(id: String?): Issue? {
         return nameToIssue[id]

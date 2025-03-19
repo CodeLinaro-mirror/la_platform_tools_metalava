@@ -41,7 +41,9 @@ interface TypeParameterItem {
 
     fun isReified(): Boolean
 
-    fun toSource(): String {
+    fun toSource(
+        configuration: TypeStringConfiguration = SOURCE_TYPE_STRING_CONFIGURATION
+    ): String {
         return buildString {
             if (isReified()) {
                 append("reified ")
@@ -60,7 +62,7 @@ interface TypeParameterItem {
                         append(" ")
                     }
                     first = false
-                    append(bound.toTypeString(SOURCE_TYPE_STRING_CONFIGURATION))
+                    append(bound.toTypeString(configuration))
                 }
             }
         }
@@ -68,7 +70,7 @@ interface TypeParameterItem {
 
     companion object {
         /** [TypeStringConfiguration] for use by [toSource]. */
-        private val SOURCE_TYPE_STRING_CONFIGURATION =
-            TypeStringConfiguration(spaceBetweenParameters = true)
+        internal val SOURCE_TYPE_STRING_CONFIGURATION =
+            TypeStringConfiguration(spaceBetweenTypeArguments = true)
     }
 }

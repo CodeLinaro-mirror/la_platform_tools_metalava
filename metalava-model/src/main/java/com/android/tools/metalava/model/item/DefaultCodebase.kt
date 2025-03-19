@@ -74,17 +74,12 @@ open class DefaultCodebase(
         packageDocs: PackageDocs = PackageDocs.EMPTY,
     ) = packageTracker.findOrCreatePackage(packageName, packageDocs)
 
-    /** Add the package to this. */
-    fun addPackage(packageItem: DefaultPackageItem) {
-        packageTracker.addPackage(packageItem)
-    }
-
     /**
      * Map from fully qualified name to [DefaultClassItem] for every class created by this.
      *
      * Classes are added via [registerClass] while initialising the codebase.
      */
-    protected val allClassesByName = HashMap<String, DefaultClassItem>(CLASS_ESTIMATE)
+    private val allClassesByName = HashMap<String, DefaultClassItem>(CLASS_ESTIMATE)
 
     /** Find a class created by this [Codebase]. */
     fun findClassInCodebase(className: String) = allClassesByName[className]
@@ -172,7 +167,7 @@ open class DefaultCodebase(
         return created
     }
 
-    open override fun createAnnotation(
+    override fun createAnnotation(
         source: String,
         context: Item?,
     ): AnnotationItem? {

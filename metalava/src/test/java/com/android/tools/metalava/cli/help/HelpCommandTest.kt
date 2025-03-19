@@ -116,6 +116,19 @@ Usage: metalava help signature-file-formats
   `signature` (default) - sorts overloaded methods by their signature. This means that refactorings of the source files
   which change the order but not the API will have no effect on the API signature files.
 
+  * `type-argument-spacing = legacy|none|space` - Specifies the spacing between the type arguments of a generic type.
+  e.g. `Map<String, Integer>`. The default is `legacy`.
+
+  `legacy` - adds no spaces between type arguments except those used in the bounds of a type parameter. e.g.
+  `Map<String,Integer>` will have no space except in `class Foo<M extends Map<String, Integer>`.
+
+  `none` - adds no spaces between any type arguments.
+
+  `space` - adds a single space between every type argument.
+
+  Note: This does not affect the spacing of type parameters in a type parameter list, e.g. `interface Map<K, V>`. They
+  always have a space separator.
+
   Currently, metalava supports the following versions:
 
   * `2.0` (--format=v2) - This is the base version (more details in `FORMAT.md`) on which all the others are based. It

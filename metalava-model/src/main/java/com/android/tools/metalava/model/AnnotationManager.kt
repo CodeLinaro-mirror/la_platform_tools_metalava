@@ -181,7 +181,7 @@ internal class NoOpAnnotationInfo(
         get() = Showability.NO_EFFECT
 
     override val suppressCompatibility
-        get() = false
+        get() = qualifiedName == SUPPRESS_COMPATIBILITY_ANNOTATION_QUALIFIED
 }
 
 val noOpAnnotationManager: AnnotationManager = NoOpAnnotationManager()

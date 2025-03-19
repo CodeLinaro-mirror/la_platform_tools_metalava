@@ -114,7 +114,7 @@ class ApiSurfacesTest {
                 createSurface(name = "module-lib", extends = "system", isMain = true)
             }
 
-        val byName = apiSurfaces.all.associateBy { it.name }
+        val byName = apiSurfaces.byName
 
         val unsorted =
             listOf(

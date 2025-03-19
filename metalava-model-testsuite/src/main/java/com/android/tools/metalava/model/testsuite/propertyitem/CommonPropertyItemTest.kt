@@ -828,7 +828,6 @@ class CommonPropertyItemTest : BaseModelTest() {
 
     @Test
     fun `Test property receivers`() {
-        // TODO (b/377733789): add a signature case once it is possible to parse receivers
         runCodebaseTest(
             kotlin(
                 """
@@ -844,6 +843,36 @@ class CommonPropertyItemTest : BaseModelTest() {
                         get() = 0
                     val List<String>.stringListProperty
                         get() = 0
+                """
+            ),
+            // Skip getters in the signature file since they aren't important to the test
+            signature(
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public final class Foo {
+                        property public static int noReceiverProperty;
+                        property public static int int.intProperty;
+                        property public static int String.stringProperty;
+                        property public static int String[].stringArrayProperty;
+                        property public static int java.util.List<? extends String>.stringListProperty;
+                      }
+                    }
+                """
+            ),
+            signature(
+                """
+                    // Signature format: 5.0
+                    // - kotlin-name-type-order=yes
+                    package test.pkg {
+                      public final class Foo {
+                        property public static noReceiverProperty: int;
+                        property public static int.intProperty: int;
+                        property public static String.stringProperty: int;
+                        property public static String[].stringArrayProperty: int;
+                        property public static java.util.List<? extends String>.stringListProperty: int;
+                      }
+                    }
                 """
             )
         ) {
@@ -874,7 +903,6 @@ class CommonPropertyItemTest : BaseModelTest() {
 
     @Test
     fun `Test property type parameters, receiver types`() {
-        // TODO (b/377733789): add a signature case once it is possible to parse type parameters
         runCodebaseTest(
             kotlin(
                 """
@@ -894,7 +922,39 @@ class CommonPropertyItemTest : BaseModelTest() {
                     val <T1 : String, T2 : List<T1>> Map<T1, T2>.twoTypeParameterWithBoundsMapReceiver
                         get() = 0
                 """
-            )
+            ),
+            // Skip getters in the signature file since they aren't important to the test
+            signature(
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public final class Foo {
+                        property public static int String.noTypeParameterProperty;
+                        property public static <T> int T.oneTypeParameterReceiver;
+                        property public static <T> int java.util.List<? extends T>.oneTypeParameterListReceiver;
+                        property public static <T extends String> int T.oneTypeParameterWithBoundsReceiver;
+                        property public static <T1, T2> int java.util.Map<T1,? extends T2>.twoTypeParameterMapReceiver;
+                        property public static <T1 extends String, T2 extends java.util.List<? extends T1>> int java.util.Map<T1,? extends T2>.twoTypeParameterWithBoundsMapReceiver;
+                      }
+                    }
+                """
+            ),
+            signature(
+                """
+                    // Signature format: 5.0
+                    // - kotlin-name-type-order=yes
+                    package test.pkg {
+                      public final class Foo {
+                        property public static String.noTypeParameterProperty: int;
+                        property public static <T> T.oneTypeParameterReceiver: int;
+                        property public static <T> java.util.List<? extends T>.oneTypeParameterListReceiver: int;
+                        property public static <T extends String> T.oneTypeParameterWithBoundsReceiver: int;
+                        property public static <T1, T2> java.util.Map<T1,? extends T2>.twoTypeParameterMapReceiver: int;
+                        property public static <T1 extends String, T2 extends java.util.List<? extends T1>> java.util.Map<T1,? extends T2>.twoTypeParameterWithBoundsMapReceiver: int;
+                      }
+                    }
+                """
+            ),
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
 
@@ -1002,7 +1062,6 @@ class CommonPropertyItemTest : BaseModelTest() {
 
     @Test
     fun `Test property type parameters, property type`() {
-        // TODO (b/377733789): add a signature case once it is possible to parse type parameters
         runCodebaseTest(
             kotlin(
                 """
@@ -1011,7 +1070,30 @@ class CommonPropertyItemTest : BaseModelTest() {
                     val <T> T.typeParameterExtension
                         get() = this
                 """
-            )
+            ),
+            signature(
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public final class Foo {
+                        method public static <T> T getTypeParameterExtension(T);
+                        property public static <T> T T.typeParameterExtension;
+                      }
+                    }
+                """
+            ),
+            signature(
+                """
+                    // Signature format: 5.0
+                    // - kotlin-name-type-order=yes
+                    package test.pkg {
+                      public final class Foo {
+                        method public static <T> getTypeParameterExtension(receiver: T): T;
+                        property public static <T> T.typeParameterExtension: T;
+                      }
+                    }
+                """
+            ),
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
             // Verify that the type parameter list is also used for the property type

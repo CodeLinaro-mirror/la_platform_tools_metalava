@@ -23,7 +23,6 @@ import com.android.tools.metalava.cli.common.CommonOptions
 import com.android.tools.metalava.cli.common.DefaultSignatureFileLoader
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.cli.common.IssueReportingOptions
-import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.cli.common.PreviouslyReleasedApi
 import com.android.tools.metalava.cli.common.SourceOptions
 import com.android.tools.metalava.cli.common.Terminal
@@ -42,8 +41,6 @@ import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions
 import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions.CheckRequest
 import com.android.tools.metalava.cli.lint.ApiLintOptions
 import com.android.tools.metalava.cli.signature.SignatureFormatOptions
-import com.android.tools.metalava.config.Config
-import com.android.tools.metalava.config.ConfigParser
 import com.android.tools.metalava.doc.ApiVersionFilter
 import com.android.tools.metalava.doc.ApiVersionLabelProvider
 import com.android.tools.metalava.manifest.Manifest
@@ -59,6 +56,7 @@ import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
 import com.android.tools.metalava.model.source.DEFAULT_JAVA_LANGUAGE_LEVEL
 import com.android.tools.metalava.model.source.DEFAULT_KOTLIN_LANGUAGE_LEVEL
 import com.android.tools.metalava.model.text.ApiClassResolution
+import com.android.tools.metalava.model.text.EmitFileHeader
 import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.reporter.Baseline
 import com.android.tools.metalava.reporter.DefaultReporter
@@ -187,7 +185,6 @@ const val ARG_IGNORE_CLASSES_ON_CLASSPATH = "--ignore-classes-on-classpath"
 const val ARG_USE_K2_UAST = "--Xuse-k2-uast"
 const val ARG_PROJECT = "--project"
 const val ARG_SOURCE_MODEL_PROVIDER = "--source-model-provider"
-const val ARG_CONFIG_FILE = "--config-file"
 
 class Options(
     private val executionEnvironment: ExecutionEnvironment = ExecutionEnvironment(),
@@ -196,6 +193,7 @@ class Options(
     private val issueReportingOptions: IssueReportingOptions =
         IssueReportingOptions(commonOptions = commonOptions),
     private val generalReportingOptions: GeneralReportingOptions = GeneralReportingOptions(),
+    internal val configFileOptions: ConfigFileOptions = ConfigFileOptions(),
     val apiSelectionOptions: ApiSelectionOptions = ApiSelectionOptions(),
     val apiLintOptions: ApiLintOptions = ApiLintOptions(),
     private val compatibilityCheckOptions: CompatibilityCheckOptions = CompatibilityCheckOptions(),
@@ -307,30 +305,6 @@ class Options(
 
     /** Lint project description that describes project's module structure in details */
     var projectDescription: File? = null
-
-    private val configFiles by
-        option(
-                ARG_CONFIG_FILE,
-                help =
-                    """
-                        A configuration file that can be consumed by Metalava. This can be specified
-                        multiple times in which case later config files will override/merge with
-                        earlier ones.
-                    """,
-                metavar = "<file>",
-            )
-            .existingFile()
-            .multiple(required = false)
-
-    /** The [Config] loaded from [configFiles]. */
-    val config by
-        lazy(LazyThreadSafetyMode.NONE) {
-            try {
-                ConfigParser.parse(configFiles)
-            } catch (e: Exception) {
-                throw MetalavaCliException(e.message!!, cause = e)
-            }
-        }
 
     val apiClassResolution by
         enumOption(
@@ -845,7 +819,7 @@ class Options(
         updateClassPath()
 
         // Make sure that any config files are processed.
-        config
+        configFileOptions.config
     }
 
     /**

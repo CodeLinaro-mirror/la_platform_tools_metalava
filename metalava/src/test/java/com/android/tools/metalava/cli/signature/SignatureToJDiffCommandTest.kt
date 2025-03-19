@@ -75,8 +75,8 @@ open class SignatureToJDiffCommandTest :
         commandTest {
             args += listOf("signature-to-jdiff", "--trip")
 
-            args += inputFile("input.txt", "").path
-            args += outputFile("output.xml").path
+            args += inputFile("input.txt", "")
+            args += outputFile("output.xml")
 
             expectedStderr =
                 """
@@ -913,17 +913,15 @@ class JDiffTestConfig(val commandTestConfig: CommandTestConfig<SignatureToJDiffC
             // Create a unique folder to allow multiple configs to be run in the same test.
             val folder = commandTestConfig.folder("jdiff-conversion")
 
-            val apiFile = inputFile("api.txt", api.trimIndent(), parentDir = folder)
-            args += apiFile.path
+            args += unindentedInputFile("api.txt", api, parentDir = folder)
 
             baseApi?.let {
-                val baseApiFile = inputFile("base-api.txt", it.trimIndent(), parentDir = folder)
                 args += "--base-api"
-                args += baseApiFile.path
+                args += unindentedInputFile("base-api.txt", it, parentDir = folder)
             }
 
             val xmlFile = outputFile("api.xml", parentDir = folder)
-            args += xmlFile.path
+            args += xmlFile
 
             verify {
                 val expectedXml = this@JDiffTestConfig.expectedXml

@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.apilevels.internalDesc
 import com.android.tools.metalava.manifest.Manifest
 import com.android.tools.metalava.manifest.emptyManifest
 import com.android.tools.metalava.model.ANDROIDX_REQUIRES_PERMISSION
@@ -328,6 +329,24 @@ class ApiAnalyzer(
             // If we already have an override of this method, do not add it to the methods list
             if (existingMethods.containsMatchingMethod(method)) {
                 return@forEach
+            }
+
+            val runtimeDesc = it.internalDesc()
+            val stubDesc = method.internalDesc()
+            if (filterEmit.test(method) && runtimeDesc != stubDesc) {
+                // This is problematic primarily for the platform where we use stubs, and the
+                // generated method in the android.jar won't actually exist at runtime.
+                // While we don't use stubs in AndroidX, this can still cause compat issues because
+                // the current.txt (which will show the equivalent of stubDesc) won't actually match
+                // the ABI of the library (because call sites will reference runtimeDesc).
+                reporter.report(
+                    Issues.INHERIT_CHANGES_SIGNATURE,
+                    it,
+                    "Explicitly override $it in $cls, or hide it in ${it.containingClass()};" +
+                        " it cannot be implicitly inherited as API from the hidden super class" +
+                        " because that would change its erased signature from $runtimeDesc to" +
+                        " $stubDesc, and cause failures at runtime.",
+                )
             }
 
             cls.addMethod(method)

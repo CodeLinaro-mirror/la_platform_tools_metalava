@@ -73,7 +73,8 @@ open class DefaultClassItem(
         // fileLocation, both of which have been initialized. If registration succeeded then wire
         // the class into the containing package/containing class. If it failed, because it is a
         // duplicate, then do nothing.
-        if (codebase.registerClass(@Suppress("LeakingThis") this)) {
+        @Suppress("LeakingThis") val classItem = this
+        if (codebase.registerClass(classItem)) {
             // Only emit classes that were specified on the command line.
             emit = emit && origin == ClassOrigin.COMMAND_LINE
 
@@ -83,10 +84,10 @@ open class DefaultClassItem(
             }
 
             if (containingClass == null) {
-                (containingPackage as DefaultPackageItem).addTopClass(this)
+                (containingPackage as DefaultPackageItem).addTopClass(classItem)
                 fullName = simpleName
             } else {
-                (containingClass as DefaultClassItem).addNestedClass(this)
+                (containingClass as DefaultClassItem).addNestedClass(classItem)
                 fullName = "${containingClass.fullName()}.$simpleName"
             }
         } else {

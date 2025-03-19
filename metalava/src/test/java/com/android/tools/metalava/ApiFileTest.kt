@@ -26,6 +26,7 @@ import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.FileFormat.OverloadedMethodOrder
+import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.createAndroidModuleDescription
 import com.android.tools.metalava.testing.createCommonModuleDescription
@@ -429,8 +430,8 @@ class ApiFileTest : DriverTest() {
                     method @NonNull public static inline operator String component1(@NonNull String);
                     method public static inline int getRed(int);
                     method public static inline boolean isSrgb(long);
-                    property public static inline boolean isSrgb;
-                    property public static inline int red;
+                    property public static inline boolean long.isSrgb;
+                    property public static inline int int.red;
                   }
                   public class Parent {
                     ctor public Parent();
@@ -2460,7 +2461,8 @@ class ApiFileTest : DriverTest() {
                         method public String method2(String);
                       }
                     }
-            """
+            """,
+            extraArguments = arrayOf(ARG_HIDE, Issues.INHERIT_CHANGES_SIGNATURE.name),
         )
     }
 
@@ -3936,7 +3938,8 @@ class ApiFileTest : DriverTest() {
                     method public String method5(@NonNull String);
                   }
                 }
-                """
+                """,
+            extraArguments = arrayOf(ARG_HIDE, Issues.INHERIT_CHANGES_SIGNATURE.name),
         )
     }
 

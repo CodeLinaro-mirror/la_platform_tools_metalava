@@ -37,7 +37,15 @@ class PatternNodeTest : TemporaryFolderOwner {
 
     /** Assert that the [MatchedPatternFile]s */
     private fun List<MatchedPatternFile>.assertMatchedPatternFiles(expected: String) {
-        assertEquals(expected.trimIndent(), joinToString("\n"))
+        val actual = joinToString("\n")
+        val cleaned =
+            replaceFileWithSymbol(
+                actual,
+                mapOf(
+                    getAndroidDir() to "ANDROID_ROOT",
+                )
+            )
+        assertEquals(expected.trimIndent(), cleaned)
     }
 
     @Test
@@ -201,11 +209,11 @@ class PatternNodeTest : TemporaryFolderOwner {
         val files = node.scan(PatternNode.ScanConfig(androidDir, range::contains))
         files.assertMatchedPatternFiles(
             """
-                MatchedPatternFile(file=prebuilts/sdk/1/public/android.jar, version=1)
-                MatchedPatternFile(file=prebuilts/sdk/2/public/android.jar, version=2)
-                MatchedPatternFile(file=prebuilts/sdk/3/public/android.jar, version=3)
-                MatchedPatternFile(file=prebuilts/sdk/4/public/android.jar, version=4)
-                MatchedPatternFile(file=prebuilts/sdk/5/public/android.jar, version=5)
+                MatchedPatternFile(file=ANDROID_ROOT/prebuilts/sdk/1/public/android.jar, version=1)
+                MatchedPatternFile(file=ANDROID_ROOT/prebuilts/sdk/2/public/android.jar, version=2)
+                MatchedPatternFile(file=ANDROID_ROOT/prebuilts/sdk/3/public/android.jar, version=3)
+                MatchedPatternFile(file=ANDROID_ROOT/prebuilts/sdk/4/public/android.jar, version=4)
+                MatchedPatternFile(file=ANDROID_ROOT/prebuilts/sdk/5/public/android.jar, version=5)
             """
         )
     }
@@ -227,9 +235,9 @@ class PatternNodeTest : TemporaryFolderOwner {
         val files = node.scan(PatternNode.ScanConfig(androidDir, range::contains))
         files.assertMatchedPatternFiles(
             """
-                MatchedPatternFile(file=prebuilts/sdk/20/public/android.jar, version=20)
-                MatchedPatternFile(file=prebuilts/sdk/21/system/android.jar, version=21)
-                MatchedPatternFile(file=prebuilts/sdk/22/system/android.jar, version=22)
+                MatchedPatternFile(file=ANDROID_ROOT/prebuilts/sdk/20/public/android.jar, version=20)
+                MatchedPatternFile(file=ANDROID_ROOT/prebuilts/sdk/21/system/android.jar, version=21)
+                MatchedPatternFile(file=ANDROID_ROOT/prebuilts/sdk/22/system/android.jar, version=22)
             """
         )
     }
@@ -250,9 +258,9 @@ class PatternNodeTest : TemporaryFolderOwner {
         val files = node.scan(PatternNode.ScanConfig(androidDir, range::contains))
         files.assertMatchedPatternFiles(
             """
-                MatchedPatternFile(file=prebuilts/sdk/20/public/android.jar, version=20)
-                MatchedPatternFile(file=prebuilts/sdk/21/public/android.jar, version=21)
-                MatchedPatternFile(file=prebuilts/sdk/22/public/android.jar, version=22)
+                MatchedPatternFile(file=ANDROID_ROOT/prebuilts/sdk/20/public/android.jar, version=20)
+                MatchedPatternFile(file=ANDROID_ROOT/prebuilts/sdk/21/public/android.jar, version=21)
+                MatchedPatternFile(file=ANDROID_ROOT/prebuilts/sdk/22/public/android.jar, version=22)
             """
         )
     }
@@ -270,9 +278,9 @@ class PatternNodeTest : TemporaryFolderOwner {
         val files = node.scan(PatternNode.ScanConfig(androidDir, range::contains))
         files.assertMatchedPatternFiles(
             """
-                MatchedPatternFile(file=prebuilts/sdk/21, version=21)
-                MatchedPatternFile(file=prebuilts/sdk/22, version=22)
-                MatchedPatternFile(file=prebuilts/sdk/23, version=23)
+                MatchedPatternFile(file=ANDROID_ROOT/prebuilts/sdk/21, version=21)
+                MatchedPatternFile(file=ANDROID_ROOT/prebuilts/sdk/22, version=22)
+                MatchedPatternFile(file=ANDROID_ROOT/prebuilts/sdk/23, version=23)
             """
         )
     }
@@ -305,9 +313,9 @@ class PatternNodeTest : TemporaryFolderOwner {
         val files = node.scan(scanConfig)
         files.assertMatchedPatternFiles(
             """
-                MatchedPatternFile(file=prebuilts/sdk/19/public/android.jar, version=19)
-                MatchedPatternFile(file=prebuilts/sdk/22/public/android.jar, version=22)
-                MatchedPatternFile(file=prebuilts/sdk/32/public/android.jar, version=32)
+                MatchedPatternFile(file=ANDROID_ROOT/prebuilts/sdk/19/public/android.jar, version=19)
+                MatchedPatternFile(file=ANDROID_ROOT/prebuilts/sdk/22/public/android.jar, version=22)
+                MatchedPatternFile(file=ANDROID_ROOT/prebuilts/sdk/32/public/android.jar, version=32)
             """
         )
     }
@@ -349,10 +357,10 @@ class PatternNodeTest : TemporaryFolderOwner {
         val files = node.scan(PatternNode.ScanConfig(rootDir, apiVersionFilter = null))
         files.assertMatchedPatternFiles(
             """
-                MatchedPatternFile(file=1/api.txt, version=1)
-                MatchedPatternFile(file=1.1/api.txt, version=1.1)
-                MatchedPatternFile(file=2/api.txt, version=2)
-                MatchedPatternFile(file=2.2/api.txt, version=2.2)
+                MatchedPatternFile(file=TESTROOT/1/api.txt, version=1)
+                MatchedPatternFile(file=TESTROOT/1.1/api.txt, version=1.1)
+                MatchedPatternFile(file=TESTROOT/2/api.txt, version=2)
+                MatchedPatternFile(file=TESTROOT/2.2/api.txt, version=2.2)
             """
         )
     }
@@ -369,8 +377,8 @@ class PatternNodeTest : TemporaryFolderOwner {
         val files = node.scan(PatternNode.ScanConfig(rootDir, apiVersionFilter = null))
         files.assertMatchedPatternFiles(
             """
-                MatchedPatternFile(file=1.1.1/api.txt, version=1.1.1)
-                MatchedPatternFile(file=2.2.3/api.txt, version=2.2.3)
+                MatchedPatternFile(file=TESTROOT/1.1.1/api.txt, version=1.1.1)
+                MatchedPatternFile(file=TESTROOT/2.2.3/api.txt, version=2.2.3)
             """
         )
     }
@@ -389,9 +397,9 @@ class PatternNodeTest : TemporaryFolderOwner {
         val files = node.scan(PatternNode.ScanConfig(rootDir, apiVersionFilter = null))
         files.assertMatchedPatternFiles(
             """
-                MatchedPatternFile(file=1.1.1/api.txt, version=1.1.1)
-                MatchedPatternFile(file=1.1.2-beta01/api.txt, version=1.1.2)
-                MatchedPatternFile(file=2.2.3/api.txt, version=2.2.3)
+                MatchedPatternFile(file=TESTROOT/1.1.1/api.txt, version=1.1.1)
+                MatchedPatternFile(file=TESTROOT/1.1.2-beta01/api.txt, version=1.1.2)
+                MatchedPatternFile(file=TESTROOT/2.2.3/api.txt, version=2.2.3)
             """
         )
     }
@@ -424,8 +432,8 @@ class PatternNodeTest : TemporaryFolderOwner {
         val files = node.scan(PatternNode.ScanConfig(rootDir, apiVersionFilter = range::contains))
         files.assertMatchedPatternFiles(
             """
-                MatchedPatternFile(file=1/api.txt, version=1, extension=true, module='api')
-                MatchedPatternFile(file=2/api.txt, version=2, extension=true, module='api')
+                MatchedPatternFile(file=TESTROOT/1/api.txt, version=1, extension=true, module='api')
+                MatchedPatternFile(file=TESTROOT/2/api.txt, version=2, extension=true, module='api')
             """
         )
     }
@@ -454,11 +462,36 @@ class PatternNodeTest : TemporaryFolderOwner {
         val files = node.scan(PatternNode.ScanConfig(rootDir))
         files.assertMatchedPatternFiles(
             """
-                MatchedPatternFile(file=extensions/1/module-one.txt, version=1, extension=true, module='module-one')
-                MatchedPatternFile(file=extensions/3/module-one.txt, version=3, extension=true, module='module-one')
-                MatchedPatternFile(file=extensions/2/module-two.txt, version=2, extension=true, module='module-two')
-                MatchedPatternFile(file=extensions/3/module-two.txt, version=3, extension=true, module='module-two')
-                MatchedPatternFile(file=extensions/2/module.three.txt, version=2, extension=true, module='module.three')
+                MatchedPatternFile(file=TESTROOT/extensions/1/module-one.txt, version=1, extension=true, module='module-one')
+                MatchedPatternFile(file=TESTROOT/extensions/3/module-one.txt, version=3, extension=true, module='module-one')
+                MatchedPatternFile(file=TESTROOT/extensions/2/module-two.txt, version=2, extension=true, module='module-two')
+                MatchedPatternFile(file=TESTROOT/extensions/3/module-two.txt, version=3, extension=true, module='module-two')
+                MatchedPatternFile(file=TESTROOT/extensions/2/module.three.txt, version=2, extension=true, module='module.three')
+            """
+        )
+    }
+
+    @Test
+    fun `Scan for extension and non-extension versions`() {
+        val rootDir = buildFileStructure {
+            dir("1.7") { apiFile("module.txt") }
+            dir("extensions") { dir("1") { apiFile("module.txt") } }
+        }
+
+        val patterns =
+            listOf(
+                "extensions/{version:extension}/{module}.txt",
+                "{version:major.minor?}/{module}.txt",
+            )
+        val node = PatternNode.parsePatterns(patterns)
+        val files =
+            node.scan(
+                PatternNode.ScanConfig(rootDir),
+            )
+        files.assertMatchedPatternFiles(
+            """
+                MatchedPatternFile(file=TESTROOT/1.7/module.txt.txt, version=1.7, module='module.txt')
+                MatchedPatternFile(file=TESTROOT/extensions/1/module.txt.txt, version=1, extension=true, module='module.txt')
             """
         )
     }
@@ -511,7 +544,7 @@ class PatternNodeTest : TemporaryFolderOwner {
                 "{version:level}/{surface}/api.txt",
             )
         val node = PatternNode.parsePatterns(patterns)
-        val apiSurfaceByName = apiSurfaces.all.associateBy { it.name }
+        val apiSurfaceByName = apiSurfaces.byName
         val files = node.scan(PatternNode.ScanConfig(rootDir, apiSurfaceByName = apiSurfaceByName))
         files.assertMatchedPatternFiles(expectedFiles)
     }
@@ -524,9 +557,9 @@ class PatternNodeTest : TemporaryFolderOwner {
             apiSurfaces,
             expectedFiles =
                 """
-                    MatchedPatternFile(file=1/public/api.txt, version=1, surface='public')
-                    MatchedPatternFile(file=2/public/api.txt, version=2, surface='public')
-                    MatchedPatternFile(file=3/public/api.txt, version=3, surface='public')
+                    MatchedPatternFile(file=TESTROOT/1/public/api.txt, version=1, surface='public')
+                    MatchedPatternFile(file=TESTROOT/2/public/api.txt, version=2, surface='public')
+                    MatchedPatternFile(file=TESTROOT/3/public/api.txt, version=3, surface='public')
                 """,
         )
     }
@@ -543,11 +576,11 @@ class PatternNodeTest : TemporaryFolderOwner {
             apiSurfaces,
             expectedFiles =
                 """
-                    MatchedPatternFile(file=1/public/api.txt, version=1, surface='public')
-                    MatchedPatternFile(file=2/public/api.txt, version=2, surface='public')
-                    MatchedPatternFile(file=2/system/api.txt, version=2, surface='system')
-                    MatchedPatternFile(file=3/public/api.txt, version=3, surface='public')
-                    MatchedPatternFile(file=3/system/api.txt, version=3, surface='system')
+                    MatchedPatternFile(file=TESTROOT/1/public/api.txt, version=1, surface='public')
+                    MatchedPatternFile(file=TESTROOT/2/public/api.txt, version=2, surface='public')
+                    MatchedPatternFile(file=TESTROOT/2/system/api.txt, version=2, surface='system')
+                    MatchedPatternFile(file=TESTROOT/3/public/api.txt, version=3, surface='public')
+                    MatchedPatternFile(file=TESTROOT/3/system/api.txt, version=3, surface='system')
                 """,
         )
     }
@@ -565,12 +598,12 @@ class PatternNodeTest : TemporaryFolderOwner {
             apiSurfaces,
             expectedFiles =
                 """
-                    MatchedPatternFile(file=1/public/api.txt, version=1, surface='public')
-                    MatchedPatternFile(file=2/public/api.txt, version=2, surface='public')
-                    MatchedPatternFile(file=2/system/api.txt, version=2, surface='system')
-                    MatchedPatternFile(file=3/public/api.txt, version=3, surface='public')
-                    MatchedPatternFile(file=3/system/api.txt, version=3, surface='system')
-                    MatchedPatternFile(file=3/module-lib/api.txt, version=3, surface='module-lib')
+                    MatchedPatternFile(file=TESTROOT/1/public/api.txt, version=1, surface='public')
+                    MatchedPatternFile(file=TESTROOT/2/public/api.txt, version=2, surface='public')
+                    MatchedPatternFile(file=TESTROOT/2/system/api.txt, version=2, surface='system')
+                    MatchedPatternFile(file=TESTROOT/3/public/api.txt, version=3, surface='public')
+                    MatchedPatternFile(file=TESTROOT/3/system/api.txt, version=3, surface='system')
+                    MatchedPatternFile(file=TESTROOT/3/module-lib/api.txt, version=3, surface='module-lib')
                 """,
         )
     }

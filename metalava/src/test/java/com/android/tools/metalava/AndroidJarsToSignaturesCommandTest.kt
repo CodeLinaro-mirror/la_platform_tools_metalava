@@ -17,6 +17,7 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.cli.common.BaseCommandTest
+import com.android.tools.metalava.cli.historical.AndroidJarsToSignaturesCommand
 import com.android.tools.metalava.cli.signature.SIGNATURE_FORMAT_OPTIONS_HELP
 import com.android.tools.metalava.model.text.FileFormat
 import java.io.File
@@ -47,11 +48,13 @@ Options:
                                              `public` will be converted.
   -h, -?, --help                             Show this message and exit
 
+$CONFIG_FILE_OPTIONS_HELP
+
 $SIGNATURE_FORMAT_OPTIONS_HELP
 
 Arguments:
   <android-root-dir>                         The root directory of the Android source tree. The new signature files will
-                                             be generated in the `prebuilts/sdk/<api>/public/api/android.txt`
+                                             be generated in the `prebuilts/sdk/<api>/<surface>/api/android.txt`
                                              sub-directories.
             """
                     .trimIndent()
@@ -64,7 +67,7 @@ Arguments:
             val notAndroidRoot = folder("not-android-root")
 
             args += "android-jars-to-signatures"
-            args += notAndroidRoot.path
+            args += notAndroidRoot
 
             expectedStderr =
                 """
@@ -111,10 +114,8 @@ Arguments:
             for (apiVersion in 1..5) {
                 val versionJar = androidRootDir.resolve(currentAndroidJarFile(apiVersion))
 
-                // Some android.jar files already have a corresponding android.txt file.
-                val androidTxtFile =
-                    if (apiVersion == 5) androidRootDir.resolve(currentApiTxtFile(apiVersion))
-                    else null
+                // All android.jar files already have a corresponding android.txt file.
+                val androidTxtFile = androidRootDir.resolve(currentApiTxtFile(apiVersion))
 
                 // Add to the list of api versions.
                 apiVersionsInfo.add(ApiVersionInfo(apiVersion, versionJar, androidTxtFile))
@@ -136,7 +137,10 @@ Arguments:
             }
 
             args += "android-jars-to-signatures"
-            args += androidRootDir.path
+            args += androidRootDir
+
+            args += ARG_CONFIG_FILE
+            args += KnownConfigFiles.configPublicAndSystemSurfaces
 
             // Verify that all generated android.txt files have the correct content. They are
             // currently all the same.

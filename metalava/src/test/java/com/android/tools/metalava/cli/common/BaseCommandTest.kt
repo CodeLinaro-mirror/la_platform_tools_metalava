@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.cli.common
 
+import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.OptionsDelegate
 import com.android.tools.metalava.ProgressTracker
 import com.android.tools.metalava.run
@@ -98,6 +99,38 @@ class CommandTestConfig<C : CliktCommand>(private val test: BaseCommandTest<C>) 
      */
     val args = mutableListOf<String>()
 
+    /** Add a [TestFile] to [args] by creating a [File] and adding its [File.path]. */
+    operator fun MutableList<String>.plusAssign(testFile: TestFile) {
+        this += testFile.createFile(test.temporaryFolder.root)
+    }
+
+    /**
+     * Make it easy to add anything to the [args] list by automatically calling [toString] on it.
+     *
+     * If the [toString] value is wrong then it will quickly be found by the test.
+     */
+    operator fun MutableList<String>.plusAssign(arg: Any) {
+        add(arg.toString())
+    }
+
+    /**
+     * Make it easy to add anything to the [args] list by automatically calling [toString] on it.
+     *
+     * If the [toString] value is wrong then it will quickly be found by the test.
+     */
+    operator fun MutableList<String>.plusAssign(args: Iterable<Any>) {
+        args.mapTo(this) { it.toString() }
+    }
+
+    /**
+     * Make it easy to add anything to the [args] list by automatically calling [toString] on it.
+     *
+     * If the [toString] value is wrong then it will quickly be found by the test.
+     */
+    operator fun MutableList<String>.plusAssign(args: Array<Any>) {
+        args.mapTo(this) { it.toString() }
+    }
+
     /**
      * The expected output, defaults to an empty string.
      *
@@ -145,6 +178,15 @@ class CommandTestConfig<C : CliktCommand>(private val test: BaseCommandTest<C>) 
         f.writeText(contents)
         return f
     }
+
+    /**
+     * Create a file that can be passed as an input to a command.
+     *
+     * @param contents the contents of the file, will have [String.trimIndent] called before passing
+     *   to [inputFile].
+     */
+    fun unindentedInputFile(name: String, contents: String, parentDir: File? = null) =
+        inputFile(name, contents.trimIndent(), parentDir)
 
     /**
      * Get the path to a file that can be passed as an output from a command.

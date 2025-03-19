@@ -35,17 +35,16 @@ class MergeSignaturesCommandTest :
         commandTest {
             args += "merge-signatures"
             files.forEachIndexed { i, contents ->
-                val input =
+                args +=
                     inputFile(
                         "api${i + 1}.txt",
-                        prepareSignatureFileForTest(contents.trimIndent(), FileFormat.V2)
+                        prepareSignatureFileForTest(contents, FileFormat.V2)
                     )
-                args += input.path
             }
 
             val output = outputFile("out.txt")
             args += "--out"
-            args += output.path
+            args += output
 
             args += "--format"
             args += format.specifier()

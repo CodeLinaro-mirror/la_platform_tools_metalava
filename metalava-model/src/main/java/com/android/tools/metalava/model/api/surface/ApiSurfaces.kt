@@ -37,6 +37,9 @@ sealed interface ApiSurfaces {
     /** An immutable, empty set of variants. */
     val emptyVariantSet: ApiVariantSet
 
+    /** Map from [ApiSurface.name] to [ApiSurface]. */
+    val byName: Map<String, ApiSurface>
+
     companion object {
         /** Returns a simple initializer for use with [build]. */
         private fun simpleSurfacesInitializer(needsBase: Boolean): Builder.() -> Unit = {
@@ -109,6 +112,8 @@ private class DefaultApiSurfaces(initializer: ApiSurfaces.Builder.() -> Unit) : 
 
     override val variants: List<ApiVariant>
 
+    override val byName: Map<String, ApiSurface>
+
     init {
         // Create a builder for this.
         val builder = BuilderImpl(this)
@@ -122,6 +127,8 @@ private class DefaultApiSurfaces(initializer: ApiSurfaces.Builder.() -> Unit) : 
 
         all = builder.all
         variants = builder.variants
+
+        byName = all.associateBy { it.name }
     }
 
     override val emptyVariantSet: ApiVariantSet = ApiVariantSet.emptySet(this)

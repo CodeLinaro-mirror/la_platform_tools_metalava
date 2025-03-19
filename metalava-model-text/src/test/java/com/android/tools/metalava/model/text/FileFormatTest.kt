@@ -31,6 +31,7 @@ val DEFAULTABLE_PROPERTY_NAMES =
         "overloaded-method-order",
         "sort-whole-extends-list",
         "strip-java-lang-prefix",
+        "type-argument-spacing",
     )
 
 val DEFAULTABLE_PROPERTIES = DEFAULTABLE_PROPERTY_NAMES.joinToString { "'$it'" }

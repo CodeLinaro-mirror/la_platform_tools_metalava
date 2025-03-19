@@ -40,7 +40,7 @@ Signature Format Output:
                                              A comma separated list of `<property>=<value>` assignments where
                                              `<property>` is one of the following: 'add-additional-overrides',
                                              'overloaded-method-order', 'sort-whole-extends-list',
-                                             'strip-java-lang-prefix'.
+                                             'strip-java-lang-prefix', 'type-argument-spacing'.
 
                                              See `metalava help signature-file-formats` for more information on the
                                              properties.
