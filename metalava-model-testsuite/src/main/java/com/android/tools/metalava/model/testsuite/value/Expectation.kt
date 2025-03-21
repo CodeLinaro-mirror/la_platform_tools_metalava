@@ -16,13 +16,21 @@
 
 package com.android.tools.metalava.model.testsuite.value
 
+import com.android.tools.metalava.model.Codebase
 import kotlin.properties.ReadWriteProperty
 import kotlin.reflect.KProperty
 
 /** Encapsulates a set of expectations about values. */
 interface Expectation<T> {
-    /** Get the expectations of type [T] for [producerKind] at [valueUseSite]. */
-    fun expectationFor(producerKind: ProducerKind, valueUseSite: ValueUseSite): T
+    /**
+     * Get the expectations of type [T] for [producerKind] at [valueUseSite] for testing within
+     * [codebase].
+     */
+    fun expectationFor(
+        producerKind: ProducerKind,
+        valueUseSite: ValueUseSite,
+        codebase: Codebase
+    ): T
 }
 
 /**
@@ -35,6 +43,38 @@ internal fun <T> expectations(body: ExpectationsBuilder<T>.() -> Unit): Expectat
     val builder = ExpectationsBuilder<T>()
     builder.body()
     return builder.expectations()
+}
+
+/** Produces an expectation of type `T` from a [Codebase]. */
+typealias CodebaseExpectationProducer<T> = (Codebase) -> T
+
+/**
+ * Create an [Expectation] that instead of storing the expectations or type [T] will store
+ * [CodebaseExpectationProducer] that when passed a [Codebase] will produce the expectation.
+ *
+ * Needed for creating expectations that require a [Codebase].
+ */
+internal fun <T> codebaseExpectations(
+    body: ExpectationsBuilder<CodebaseExpectationProducer<T>>.() -> Unit
+): Expectation<T> {
+    // Create an intermediate [Expectation] that takes `CodebaseExpectationProducer<T>`s instead of
+    // `T`s.
+    val builder = ExpectationsBuilder<CodebaseExpectationProducer<T>>()
+    builder.body()
+    val intermediate = builder.expectations()
+
+    // Wrap that intermediate object in another that will delegate to it to obtain a
+    // `CodebaseExpectationProducer<T>` and then return the expectation it produces.
+    return object : Expectation<T> {
+        override fun expectationFor(
+            producerKind: ProducerKind,
+            valueUseSite: ValueUseSite,
+            codebase: Codebase
+        ): T {
+            val producer = intermediate.expectationFor(producerKind, valueUseSite, codebase)
+            return producer(codebase)
+        }
+    }
 }
 
 /**
@@ -86,6 +126,16 @@ internal open class PerProducerKindBuilder<T>(
 
     /**
      * Stores its value in [expectationMap] for the cross product of [producerKinds] and
+     * [ValueUseSite.ATTRIBUTE_VALUE].
+     */
+    var annotationToSource: T by
+        MutableMapDelegate(
+            expectationMap,
+            producerKinds.map { it to ValueUseSite.ANNOTATION_TO_SOURCE }
+        )
+
+    /**
+     * Stores its value in [expectationMap] for the cross product of [producerKinds] and
      * [ValueUseSite.ATTRIBUTE_DEFAULT_VALUE].
      */
     var attributeDefaultValue: T by
@@ -100,6 +150,16 @@ internal open class PerProducerKindBuilder<T>(
      */
     var fieldValue: T by
         MutableMapDelegate(expectationMap, producerKinds.map { it to ValueUseSite.FIELD_VALUE })
+
+    /**
+     * Stores its value in [expectationMap] for the cross product of [producerKinds] and
+     * [ValueUseSite.FIELD_WRITE_WITH_SEMICOLON].
+     */
+    var fieldWriteWithSemicolon: T by
+        MutableMapDelegate(
+            expectationMap,
+            producerKinds.map { it to ValueUseSite.FIELD_WRITE_WITH_SEMICOLON }
+        )
 }
 
 /**
@@ -133,7 +193,11 @@ internal class ExpectationsBuilder<T> :
     internal class ExpectationMap<T>(
         val map: MutableMap<Pair<ProducerKind, ValueUseSite>, T>,
     ) : Expectation<T> {
-        override fun expectationFor(producerKind: ProducerKind, valueUseSite: ValueUseSite): T {
+        override fun expectationFor(
+            producerKind: ProducerKind,
+            valueUseSite: ValueUseSite,
+            codebase: Codebase
+        ): T {
             val key = producerKind to valueUseSite
             return map[key] ?: error("Could not find expectation for $key")
         }

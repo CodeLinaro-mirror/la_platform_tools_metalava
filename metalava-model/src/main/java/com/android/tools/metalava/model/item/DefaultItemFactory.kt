@@ -216,7 +216,7 @@ class DefaultItemFactory(
         containingCallable: CallableItem,
         parameterIndex: Int,
         type: TypeItem,
-        defaultValueFactory: DefaultValueFactory,
+        defaultValueFactory: ParameterDefaultValueFactory,
     ): ParameterItem =
         DefaultParameterItem(
             codebase,

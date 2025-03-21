@@ -20,19 +20,19 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ParameterItem
 
 /**
- * A lamda that given a [ParameterItem] will create a [DefaultValue] for it.
+ * A lamda that given a [ParameterItem] will create a [ParameterDefaultValue] for it.
  *
  * This is called from within the constructor of the [ParameterItem] and should not access any
  * properties of [ParameterItem] as they may not have been initialized. This should just store a
  * reference for later use.
  */
-typealias DefaultValueFactory = (ParameterItem) -> DefaultValue
+typealias ParameterDefaultValueFactory = (ParameterItem) -> ParameterDefaultValue
 
 /** Indicates whether a parameter has a default value. */
-interface DefaultValue {
+interface ParameterDefaultValue {
 
-    /** A [DefaultValue] to use for a parameter that has no default value. */
-    data object NONE : DefaultValue {
+    /** A [ParameterDefaultValue] to use for a parameter that has no default value. */
+    data object NONE : ParameterDefaultValue {
         override fun hasDefaultValue() = false
 
         /** This is suitable for use by [parameter] as it has no model or codebase dependencies. */
@@ -43,10 +43,10 @@ interface DefaultValue {
     }
 
     /**
-     * A [DefaultValue] to use for a parameter that has a default value but its actual value is not
-     * known.
+     * A [ParameterDefaultValue] to use for a parameter that has a default value but its actual
+     * value is not known.
      */
-    data object UNKNOWN : DefaultValue {
+    data object UNKNOWN : ParameterDefaultValue {
         override fun hasDefaultValue() = true
 
         /** This is suitable for use by [parameter] as it has no model or codebase dependencies. */
@@ -67,13 +67,13 @@ interface DefaultValue {
      * Return a duplicate of this instance to use by [parameter] which will be in the same type of
      * [Codebase] as this.
      */
-    fun duplicate(parameter: ParameterItem): DefaultValue
+    fun duplicate(parameter: ParameterItem): ParameterDefaultValue
 
     /**
      * Creates a snapshot of this.
      *
      * The default implementation assumes that this is either dependent on a model or the codebase
-     * and so creates a new [DefaultValue] based on the functions above.
+     * and so creates a new [ParameterDefaultValue] based on the functions above.
      */
     fun snapshot(parameter: ParameterItem) =
         when {

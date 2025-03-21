@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava.model.testsuite.value
 
+import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.FieldItem
 import java.util.EnumSet
 
 /** The possible places where values can be provided. */
@@ -26,8 +28,17 @@ enum class ValueUseSite {
     /** An annotation attribute value specified in an annotation instance. */
     ATTRIBUTE_VALUE,
 
+    /**
+     * An annotation attribute value produced by [AnnotationItem.toSource] called on an annotation
+     * instance.
+     */
+    ANNOTATION_TO_SOURCE,
+
     /** The value of a field. */
     FIELD_VALUE,
+
+    /** The value of a field written out by [FieldItem.writeValueWithSemicolon]. */
+    FIELD_WRITE_WITH_SEMICOLON,
 }
 
 /**

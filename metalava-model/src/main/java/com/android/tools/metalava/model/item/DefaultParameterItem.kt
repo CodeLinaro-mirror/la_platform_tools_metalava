@@ -38,7 +38,7 @@ open class DefaultParameterItem(
     private val containingCallable: CallableItem,
     override val parameterIndex: Int,
     private var type: TypeItem,
-    defaultValueFactory: DefaultValueFactory,
+    defaultValueFactory: ParameterDefaultValueFactory,
 ) :
     DefaultItem(
         codebase = codebase,
@@ -55,8 +55,8 @@ open class DefaultParameterItem(
     }
 
     /**
-     * Create the [DefaultValue] during initialization of this parameter to allow it to contain an
-     * immutable reference to this object.
+     * Create the [ParameterDefaultValue] during initialization of this parameter to allow it to
+     * contain an immutable reference to this object.
      */
     final override val defaultValue = defaultValueFactory(this)
 

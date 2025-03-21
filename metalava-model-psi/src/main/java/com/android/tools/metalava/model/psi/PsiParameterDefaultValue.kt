@@ -17,7 +17,7 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.ParameterItem
-import com.android.tools.metalava.model.item.DefaultValue
+import com.android.tools.metalava.model.item.ParameterDefaultValue
 import org.jetbrains.kotlin.analysis.api.KaExperimentalApi
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.analysis.api.symbols.KaFunctionSymbol
@@ -32,10 +32,11 @@ import org.jetbrains.uast.UExpression
 import org.jetbrains.uast.UMethod
 import org.jetbrains.uast.UastFacade
 
-internal class PsiDefaultValue(private val item: PsiParameterItem) : DefaultValue {
+internal class PsiParameterDefaultValue(private val item: PsiParameterItem) :
+    ParameterDefaultValue {
 
     override fun duplicate(parameter: ParameterItem) =
-        PsiDefaultValue(parameter as PsiParameterItem)
+        PsiParameterDefaultValue(parameter as PsiParameterItem)
 
     private var hasDefaultValue: Boolean? = null
 
