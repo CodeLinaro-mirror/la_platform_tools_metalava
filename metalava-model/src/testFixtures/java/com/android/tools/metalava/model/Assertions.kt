@@ -289,6 +289,8 @@ interface Assertions {
     fun TypeItem?.assertWildcardItem(body: (WildcardTypeItem.() -> Unit)? = null) {
         assertIsInstanceOf(body ?: {})
     }
+
+    companion object : Assertions {}
 }
 
 private inline fun <reified T> Any?.assertIsInstanceOf(body: (T).() -> Unit) {

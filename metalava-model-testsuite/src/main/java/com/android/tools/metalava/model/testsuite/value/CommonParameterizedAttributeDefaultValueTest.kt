@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava.model.testsuite.value
 
+import com.android.tools.metalava.model.Assertions.Companion.assertMethod
+import com.android.tools.metalava.model.testsuite.value.TestClassCreator.Companion.ATTRIBUTE_NAME
 import com.android.tools.metalava.model.testsuite.value.ValueUseSite.ATTRIBUTE_DEFAULT_VALUE
 import com.android.tools.metalava.testing.TestFileCache
 import com.android.tools.metalava.testing.TestFileCacheRule
@@ -24,7 +26,16 @@ import org.junit.runners.Parameterized
 
 /** Run parameterized tests for [ATTRIBUTE_DEFAULT_VALUE]. */
 class CommonParameterizedAttributeDefaultValueTest :
-    BaseCommonParameterizedValueTest(testFileCacheRule.cache, testJarFile) {
+    BaseCommonParameterizedValueTest(
+        testFileCacheRule.cache,
+        testJarFile,
+        ATTRIBUTE_DEFAULT_VALUE,
+        legacySourceGetter = {
+            val annotationMethod = testClassItem.assertMethod(ATTRIBUTE_NAME, "")
+
+            annotationMethod.legacyDefaultValue()
+        },
+    ) {
     companion object : BaseCompanion(ATTRIBUTE_DEFAULT_VALUE) {
         /** Create a [TestFileCache] whose lifespan encompasses all the tests in this class. */
         @ClassRule @JvmField val testFileCacheRule = TestFileCacheRule()

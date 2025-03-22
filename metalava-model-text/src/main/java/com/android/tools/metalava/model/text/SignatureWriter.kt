@@ -164,7 +164,7 @@ class SignatureWriter(
         writeThrowsList(method)
 
         if (method.containingClass().isAnnotationType()) {
-            val default = method.defaultValue()
+            val default = method.legacyDefaultValue()
             if (default.isNotEmpty()) {
                 write(" default ")
                 write(default)

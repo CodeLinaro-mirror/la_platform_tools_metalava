@@ -288,7 +288,7 @@ inline fun <reified T : Any> AnnotationItem.getAttributeValue(name: String): T? 
  */
 @PublishedApi
 internal fun AnnotationItem.nonInlineGetAttributeValue(kClass: KClass<*>, name: String): Any? {
-    val attributeValue = findAttribute(name)?.value ?: return null
+    val attributeValue = findAttribute(name)?.legacyValue ?: return null
     val value =
         when (attributeValue) {
             is AnnotationArrayAttributeValue ->
@@ -323,7 +323,7 @@ internal fun <T : Any> AnnotationItem.nonInlineGetAttributeValues(
     name: String,
     caster: (Any) -> T
 ): List<T>? {
-    val attributeValue = findAttribute(name)?.value ?: return null
+    val attributeValue = findAttribute(name)?.legacyValue ?: return null
     val values =
         when (attributeValue) {
             is AnnotationArrayAttributeValue -> attributeValue.values.mapNotNull { it.value() }
@@ -452,7 +452,7 @@ protected constructor(
             originalName,
             qualifiedName,
         ) {
-            attributes.map { DefaultAnnotationAttribute(it.name, it.value.snapshot()) }
+            attributes.map { DefaultAnnotationAttribute(it.name, it.legacyValue.snapshot()) }
         }
     }
 
@@ -498,7 +498,7 @@ protected constructor(
                             append(attribute.name)
                             append("=")
                         }
-                        append(attribute.value)
+                        append(attribute.legacyValue)
                     }
                     append(")")
                 }
@@ -563,8 +563,15 @@ const val ANNOTATION_ATTR_VALUE = "value"
 sealed interface AnnotationAttribute {
     /** The name of the annotation */
     val name: String
-    /** The annotation value */
-    val value: AnnotationAttributeValue
+
+    /**
+     * The legacy annotation value.
+     *
+     * This is called `legacy` because this an old, inconsistent representation of an attribute
+     * value that exposes implementation details. It will be replaced by a properly modelled value
+     * representation.
+     */
+    val legacyValue: AnnotationAttributeValue
 
     /**
      * Return all leaf values; this flattens the complication of handling
@@ -572,7 +579,7 @@ sealed interface AnnotationAttribute {
      */
     fun leafValues(): List<AnnotationAttributeValue> {
         val result = mutableListOf<AnnotationAttributeValue>()
-        AnnotationAttributeValue.addValues(value, result)
+        AnnotationAttributeValue.addValues(legacyValue, result)
         return result
     }
 }
@@ -635,7 +642,7 @@ sealed interface AnnotationArrayAttributeValue : AnnotationAttributeValue {
 
 class DefaultAnnotationAttribute(
     override val name: String,
-    override val value: AnnotationAttributeValue
+    override val legacyValue: AnnotationAttributeValue
 ) : AnnotationAttribute {
     companion object {
         fun create(name: String, value: String): DefaultAnnotationAttribute {
@@ -717,17 +724,17 @@ class DefaultAnnotationAttribute(
     }
 
     override fun toString(): String {
-        return "$name=$value"
+        return "$name=$legacyValue"
     }
 
     override fun equals(other: Any?): Boolean {
         if (other !is AnnotationAttribute) return false
-        return name == other.name && value == other.value
+        return name == other.name && legacyValue == other.legacyValue
     }
 
     override fun hashCode(): Int {
         var result = name.hashCode()
-        result = 31 * result + value.hashCode()
+        result = 31 * result + legacyValue.hashCode()
         return result
     }
 }

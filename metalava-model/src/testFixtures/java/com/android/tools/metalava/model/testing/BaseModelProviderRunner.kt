@@ -79,7 +79,7 @@ open class BaseModelProviderRunner<C : FilterableCodebaseCreator, I : Any>(
     baselineResourcePath: String,
     minimumCapabilities: Set<Capability> = emptySet(),
 ) :
-    CustomizableParameterizedRunner(
+    CustomizableParameterizedRunner<ModelProviderWrapper<C>>(
         clazz,
         { testClass, additionalArguments ->
             createTestArguments(
@@ -101,10 +101,26 @@ open class BaseModelProviderRunner<C : FilterableCodebaseCreator, I : Any>(
     }
 
     /**
+     * Apply [parametersFilterMethod] to [argument] by combining
+     * [ModelProviderWrapper.codebaseCreatorConfig] and [ModelProviderWrapper.additionalArgumentSet]
+     * into a single list of arguments and the invoking [parametersFilterMethod] with them.
+     */
+    override fun invokeFilterMethod(
+        parametersFilterMethod: FrameworkMethod,
+        argument: ModelProviderWrapper<C>
+    ): Boolean {
+        val args = buildList {
+            add(argument.codebaseCreatorConfig)
+            addAll(argument.additionalArgumentSet)
+        }
+        return parametersFilterMethod.invokeExplosively(null, *args.toTypedArray()) as Boolean
+    }
+
+    /**
      * A wrapper around a [CodebaseCreatorConfig] that tunnels information needed by
      * [InstanceRunnerFactory] through [TestWithParameters].
      */
-    private class ModelProviderWrapper<C : FilterableCodebaseCreator>(
+    class ModelProviderWrapper<C : FilterableCodebaseCreator>(
         val codebaseCreatorConfig: CodebaseCreatorConfig<C>,
         val baselineResourcePath: String,
         val additionalArgumentSet: List<Any> = emptyList(),
@@ -242,7 +258,7 @@ open class BaseModelProviderRunner<C : FilterableCodebaseCreator, I : Any>(
             baselineResourcePath: String,
             additionalArguments: List<Array<Any>>?,
             minimumCapabilities: Set<Capability>,
-        ): TestArguments {
+        ): TestArguments<ModelProviderWrapper<C>> {
             // Generate a sequence that traverse the super class hierarchy starting with the test
             // class.
             val hierarchy = generateSequence(testClass.javaClass) { it.superclass }

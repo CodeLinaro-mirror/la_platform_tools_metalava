@@ -717,7 +717,7 @@ private class LazyAnnotationInfo(
         val apiFlags = config.apiFlags ?: return null
         val valueAttribute =
             annotationItem.attributes.find { it.name == ANNOTATION_ATTR_VALUE } ?: return null
-        val flagName = valueAttribute.value.value() as String
+        val flagName = valueAttribute.legacyValue.value() as String
         return apiFlags[flagName]
     }
 

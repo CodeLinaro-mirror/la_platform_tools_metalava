@@ -472,16 +472,16 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             assertEquals(
                 true,
                 listOf("child1", "child2").toTypedArray() contentEquals
-                    custAnno1Attr1.value.value() as Array<*>
+                    custAnno1Attr1.legacyValue.value() as Array<*>
             )
-            assertEquals(5, custAnno1Attr2.value.value())
-            assertEquals("test.SimpleClass", custAnno1Attr3.value.value())
+            assertEquals(5, custAnno1Attr2.legacyValue.value())
+            assertEquals("test.SimpleClass", custAnno1Attr3.legacyValue.value())
             assertEquals(annoClassItem1, customAnno1.resolve())
             assertEquals(true, retAnno.isRetention())
             assertEquals(AnnotationRetention.RUNTIME, annoClassItem1.getRetention())
 
             assertEquals(annoClassItem2, customAnno2.resolve())
-            assertEquals(12, custAnno2Attr1.value.value())
+            assertEquals(12, custAnno2Attr1.legacyValue.value())
 
             assertEquals("@test.Nullable", nullAnno.toSource())
 
@@ -493,7 +493,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
                 "@java.lang.annotation.Target(java.lang.annotation.ElementType.FIELD)",
                 tarAnno.toSource()
             )
-            assertEquals(true, tarAnnoAttr1.value is DefaultAnnotationSingleAttributeValue)
+            assertEquals(true, tarAnnoAttr1.legacyValue is DefaultAnnotationSingleAttributeValue)
         }
     }
 

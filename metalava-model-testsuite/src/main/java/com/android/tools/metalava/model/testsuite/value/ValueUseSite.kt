@@ -49,8 +49,10 @@ enum class ValueUseSite {
 internal val allValueUseSites = EnumSet.allOf(ValueUseSite::class.java)
 
 /**
- * The set of all [ValueUseSite]s except [ValueUseSite.FIELD_VALUE].
+ * The set of all [ValueUseSite]s except [ValueUseSite.FIELD_VALUE] and
+ * [ValueUseSite.FIELD_WRITE_WITH_SEMICOLON].
  *
  * Stored in [ValueExample.suitableFor] for any [ValueExample] that does not work on fields.
  */
-internal val allValueUseSitesExceptFields = allValueUseSites - ValueUseSite.FIELD_VALUE
+internal val allValueUseSitesExceptFields =
+    allValueUseSites - ValueUseSite.FIELD_VALUE - ValueUseSite.FIELD_WRITE_WITH_SEMICOLON

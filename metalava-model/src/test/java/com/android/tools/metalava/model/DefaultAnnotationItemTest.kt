@@ -66,9 +66,9 @@ class DefaultAnnotationItemTest : Assertions {
         assertEquals("androidx.annotation.IntRange", annotation.qualifiedName)
         assertEquals(2, annotation.attributes.size)
         assertEquals("from", annotation.assertAttribute("from").name)
-        assertEquals("20", annotation.assertAttribute("from").value.toString())
+        assertEquals("20", annotation.assertAttribute("from").legacyValue.toString())
         assertEquals("to", annotation.assertAttribute("to").name)
-        assertEquals("40", annotation.assertAttribute("to").value.toString())
+        assertEquals("40", annotation.assertAttribute("to").legacyValue.toString())
     }
 
     @Test
@@ -87,10 +87,10 @@ class DefaultAnnotationItemTest : Assertions {
         assertEquals("value", attribute.name)
         assertEquals(
             "{STYLE_NORMAL, STYLE_NO_TITLE, STYLE_NO_FRAME, STYLE_NO_INPUT}",
-            attribute.value.toString()
+            attribute.legacyValue.toString()
         )
 
-        assertTrue(attribute.value is AnnotationArrayAttributeValue)
+        assertTrue(attribute.legacyValue is AnnotationArrayAttributeValue)
         if (attribute is AnnotationArrayAttributeValue) {
             val list = attribute.values
             assertEquals(3, list.size)

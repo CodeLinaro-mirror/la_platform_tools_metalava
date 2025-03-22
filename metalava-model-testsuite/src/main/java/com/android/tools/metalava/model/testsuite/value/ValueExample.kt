@@ -16,14 +16,17 @@
 
 package com.android.tools.metalava.model.testsuite.value
 
+import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem
+import com.android.tools.metalava.model.PrimitiveTypeItem
+import com.android.tools.metalava.model.testsuite.value.ValueExample.Companion.NO_INITIAL_FIELD_VALUE
 
 /**
  * Encapsulates information about a value example.
  *
  * This will be useful for a number of different tests around values.
  */
-data class ValueExample(
+class ValueExample(
     /**
      * The name of the example.
      *
@@ -49,7 +52,7 @@ data class ValueExample(
      *
      * This may differ by [ProducerKind] and [ValueUseSite].
      */
-    val expectedLegacySource: Expectation<String>,
+    expectedLegacySource: Expectation<String>,
 
     /**
      * Controls which [ValueExample]s in [allValueExamples] are run.
@@ -64,12 +67,31 @@ data class ValueExample(
      */
     val testThis: Boolean = false,
 ) {
+    val expectedLegacySource =
+        // If the field is not a constant then wrap it in an Expectation that will enforce that
+        // fields only have constant values.
+        if (isConstant) expectedLegacySource else NotConstantFieldExpectation(expectedLegacySource)
+
     /** The suffix to add to class names to make them specific to this example. */
     val classSuffix = name.replace(" ", "_")
 
+    /** True if this is supported to be a field constant. */
+    private val isConstant
+        get() = javaType in constantTypeNames
+
     companion object {
-        /** A special value used for fields for whom [FieldItem.initialValue] returns `null`. */
+        /**
+         * A special value used for fields for whom [FieldItem.legacyInitialValue] returns `null`.
+         */
         internal const val NO_INITIAL_FIELD_VALUE = "NO INITIAL FIELD VALUE"
+
+        /** Names of constant types used in [ValueExample.javaType]. */
+        private val constantTypeNames = buildSet {
+            for (kind in PrimitiveTypeItem.Primitive.entries) {
+                add(kind.primitiveName)
+            }
+            add("String")
+        }
 
         /**
          * The list of all [ValueExample]s that could be tested across [ProducerKind] and
@@ -705,5 +727,27 @@ data class ValueExample(
             allValueExamples
                 .filter { it.testThis }
                 .let { filtered -> filtered.ifEmpty { allValueExamples } }
+    }
+}
+
+/**
+ * An [Expectation] that wraps another [Expectation] and return [NO_INITIAL_FIELD_VALUE] for fields.
+ *
+ * This is used when a [ValueExample] is not a constant and so a field that uses it will not have a
+ * value.
+ */
+class NotConstantFieldExpectation(private val delegate: Expectation<String>) : Expectation<String> {
+    override fun expectationFor(
+        producerKind: ProducerKind,
+        valueUseSite: ValueUseSite,
+        codebase: Codebase
+    ): String {
+        return when (valueUseSite) {
+            ValueUseSite.FIELD_VALUE,
+            ValueUseSite.FIELD_WRITE_WITH_SEMICOLON -> {
+                NO_INITIAL_FIELD_VALUE
+            }
+            else -> delegate.expectationFor(producerKind, valueUseSite, codebase)
+        }
     }
 }

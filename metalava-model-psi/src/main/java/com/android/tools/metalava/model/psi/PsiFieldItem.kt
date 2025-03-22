@@ -47,7 +47,7 @@ internal class PsiFieldItem(
     containingClass: ClassItem,
     type: TypeItem,
     private val isEnumConstant: Boolean,
-    override val fieldValue: FieldValue?,
+    override val legacyFieldValue: FieldValue?,
 ) :
     DefaultFieldItem(
         codebase = codebase,
@@ -60,7 +60,7 @@ internal class PsiFieldItem(
         containingClass = containingClass,
         type = type,
         isEnumConstant = isEnumConstant,
-        fieldValue = fieldValue,
+        legacyFieldValue = legacyFieldValue,
     ),
     FieldItem,
     PsiItem {
@@ -125,7 +125,7 @@ internal class PsiFieldItem(
                 containingClass = containingClass,
                 type = fieldType,
                 isEnumConstant = isEnumConstant,
-                fieldValue = fieldValue
+                legacyFieldValue = fieldValue
             )
         }
     }

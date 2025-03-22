@@ -227,12 +227,14 @@ interface MethodItem : CallableItem, InheritableItem {
         }
     }
 
-    /** If annotation method, returns the default value as a source expression */
-    fun defaultValue(): String
-
-    fun hasDefaultValue(): Boolean {
-        return defaultValue() != ""
-    }
+    /**
+     * If annotation method, returns the legacy default value as a source expression.
+     *
+     * This is called `legacy` because this an old, inconsistent representation of the default value
+     * that exposes implementation details. It will be replaced by a properly modelled value
+     * representation.
+     */
+    fun legacyDefaultValue(): String
 
     /** Whether this method is a getter/setter for an underlying Kotlin property (val/var) */
     fun isKotlinProperty(): Boolean = false

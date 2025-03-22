@@ -454,7 +454,7 @@ abstract class DefaultItem(
                     for (attribute in annotation.attributes) {
                         // Assumption that all annotations in SUPPRESS_ANNOTATIONS only have
                         // one attribute such as value/names that is varargs of String
-                        val value = attribute.value
+                        val value = attribute.legacyValue
                         if (value is AnnotationArrayAttributeValue) {
                             // Example: @SuppressLint({"RequiresFeature", "AllUpper"})
                             for (innerValue in value.values) {

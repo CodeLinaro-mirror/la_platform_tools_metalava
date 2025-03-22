@@ -30,13 +30,13 @@ import org.junit.runners.parameterized.TestWithParameters
  * A simple [ParentRunner] that will use [parametersRunnerFactory] to create a [Runner] for each of
  * the [TestArguments.argumentSets] returned from [computeTestArguments].
  */
-abstract class ParameterizedRunner(
+abstract class ParameterizedRunner<A : Any>(
     private val testClass: TestClass,
     private val parametersRunnerFactory: ParametersRunnerFactory,
 ) : ParentRunner<Runner>(testClass) {
 
     /** The set of test arguments to use. */
-    class TestArguments(
+    data class TestArguments<A : Any>(
         /**
          * The pattern describing how to construct the test name suffix for a set of arguments.
          *
@@ -50,11 +50,11 @@ abstract class ParameterizedRunner(
          * Each entry can be either an `Array<Any>` (for multiple arguments) or any other value (for
          * a single argument).
          */
-        val argumentSets: List<Any>,
+        val argumentSets: List<A>,
     )
 
     /** Compute [TestArguments] for [testClass]. */
-    abstract fun computeTestArguments(testClass: TestClass): TestArguments
+    abstract fun computeTestArguments(testClass: TestClass): TestArguments<A>
 
     /** Create the runners lazily. */
     private val runners: List<Runner> by
@@ -65,10 +65,8 @@ abstract class ParameterizedRunner(
             val pattern = "[${testArguments.pattern}]"
 
             testArguments.argumentSets.map { argumentSet ->
-                val array = arrayOf(argumentSet)
-
-                val name = MessageFormat.format(pattern, *array)
-                val testWithParameters = TestWithParameters(name, testClass, array.toList())
+                val name = MessageFormat.format(pattern, argumentSet)
+                val testWithParameters = TestWithParameters(name, testClass, listOf(argumentSet))
                 parametersRunnerFactory.createRunnerForTestWithParameters(testWithParameters)
             }
         }
