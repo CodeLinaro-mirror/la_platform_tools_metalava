@@ -46,22 +46,29 @@ import org.jetbrains.kotlin.asJava.elements.KtLightNullabilityAnnotation
 
 internal class PsiAnnotationItem
 private constructor(
-    override val codebase: PsiBasedCodebase,
+    override val annotationContext: PsiBasedCodebase,
     val psiAnnotation: PsiAnnotation,
     originalName: String,
     qualifiedName: String,
 ) :
     DefaultAnnotationItem(
-        codebase = codebase,
+        annotationContext = annotationContext,
         fileLocation = PsiFileLocation.fromPsiElement(psiAnnotation),
         originalName = originalName,
         qualifiedName = qualifiedName,
-        attributesGetter = { getAnnotationAttributes(codebase, psiAnnotation) },
+        attributesGetter = { getAnnotationAttributes(annotationContext, psiAnnotation) },
     ) {
 
     override fun toSource(target: AnnotationTarget, showDefaultAttrs: Boolean): String {
         val sb = StringBuilder(60)
-        appendAnnotation(codebase, sb, psiAnnotation, qualifiedName, target, showDefaultAttrs)
+        appendAnnotation(
+            annotationContext,
+            sb,
+            psiAnnotation,
+            qualifiedName,
+            target,
+            showDefaultAttrs
+        )
         return sb.toString()
     }
 
@@ -106,7 +113,7 @@ private constructor(
             val qualifiedName =
                 codebase.annotationManager.normalizeInputName(originalName) ?: return null
             return PsiAnnotationItem(
-                codebase = codebase,
+                annotationContext = codebase,
                 psiAnnotation = psiAnnotation,
                 originalName = originalName,
                 qualifiedName = qualifiedName,

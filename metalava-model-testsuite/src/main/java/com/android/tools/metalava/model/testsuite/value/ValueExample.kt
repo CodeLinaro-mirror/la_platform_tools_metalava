@@ -16,10 +16,11 @@
 
 package com.android.tools.metalava.model.testsuite.value
 
-import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
+import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testsuite.value.ValueExample.Companion.NO_INITIAL_FIELD_VALUE
+import java.util.EnumSet
 
 /**
  * Encapsulates information about a value example.
@@ -41,18 +42,61 @@ class ValueExample(
     /** The java expression for the value. */
     val javaExpression: String,
 
+    /**
+     * The Kotlin type.
+     *
+     * Primitive types are different between Java and Kotlin, as are some other types, but most
+     * custom types are the same so default to [javaType].
+     */
+    val kotlinType: String = javaType,
+
+    /**
+     * The Kotlin expression.
+     *
+     * Some Kotlin expressions are different to Java but many are the same so default to
+     * [javaExpression].
+     */
+    val kotlinExpression: String = javaExpression,
+
     /** The optional java imports. */
     val javaImports: List<String> = emptyList(),
 
+    /**
+     * The signature type, defaults to [javaType] as signature files generally use Java types and
+     * values but needs to be overridden in some cases, e.g. to use qualified types in place of
+     * unqualified types as signature files requires most types to be qualified.
+     */
+    val signatureType: String = javaType,
+
+    /**
+     * The signature expression, defaults to [javaExpression] as signature files generally use Java
+     * types and values but needs to be overridden in some cases, e.g. to use qualified types in
+     * place of unqualified types as signature files requires most types to be qualified.
+     */
+    val signatureExpression: String = javaExpression,
+
     /** The set of [ValueUseSite]s in which this example will be tested; defaults to all of them. */
     val suitableFor: Set<ValueUseSite> = allValueUseSites,
+
+    /** The set of [InputFormat]s for which this example is valid. */
+    val validForInputFormats: Set<InputFormat> = allInputFormats,
 
     /**
      * The legacy string representation of [javaExpression].
      *
      * This may differ by [ProducerKind] and [ValueUseSite].
      */
-    expectedLegacySource: Expectation<String>,
+    private val expectedLegacySource: Expectation<String>,
+
+    /**
+     * Kotlin source expressions can have a different representation than the same source expression
+     * in Java.
+     *
+     * Rather than make [Expectation] support another dimension on top of [ValueUseSite] and
+     * [ProducerKind] for the few cases where there are differences, it is handled by having this
+     * Kotlin specific expectation sit alongside and default to [expectedLegacySource].
+     */
+    private val expectedKotlinLegacySource: Expectation<String?> = expectedLegacySource,
 
     /**
      * Controls which [ValueExample]s in [allValueExamples] are run.
@@ -67,10 +111,24 @@ class ValueExample(
      */
     val testThis: Boolean = false,
 ) {
-    val expectedLegacySource =
-        // If the field is not a constant then wrap it in an Expectation that will enforce that
-        // fields only have constant values.
-        if (isConstant) expectedLegacySource else NotConstantFieldExpectation(expectedLegacySource)
+    /**
+     * If the field is not a constant then wrap it in an Expectation that will enforce that fields
+     * only have constant values.
+     */
+    private fun wrapLegacySource(expectation: Expectation<String>) =
+        if (isConstant) expectation
+        else constantFieldLegacySourceExpectation.fallBackTo(expectation)
+
+    /** Get the expected legacy source for [inputFormat]. */
+    fun expectedLegacySourceFor(inputFormat: InputFormat) =
+        wrapLegacySource(
+            when (inputFormat) {
+                InputFormat.KOTLIN ->
+                    // Kotlin overrides the standard expectations.
+                    expectedKotlinLegacySource.fallBackTo(expectedLegacySource)
+                else -> expectedLegacySource
+            }
+        )
 
     /** The suffix to add to class names to make them specific to this example. */
     val classSuffix = name.replace(" ", "_")
@@ -93,6 +151,9 @@ class ValueExample(
             add("String")
         }
 
+        /** All the [InputFormat]s. */
+        private val allInputFormats = EnumSet.allOf(InputFormat::class.java)
+
         /**
          * The list of all [ValueExample]s that could be tested across [ProducerKind] and
          * [ValueUseSite]s.
@@ -104,6 +165,9 @@ class ValueExample(
                     name = "annotation",
                     javaType = "OtherAnnotation",
                     javaExpression = "@OtherAnnotation(intType = 1)",
+                    // Must fully qualify most classes in signature files.
+                    signatureType = "test.pkg.OtherAnnotation",
+                    signatureExpression = "@test.pkg.OtherAnnotation(intType = 1)",
                     expectedLegacySource =
                         expectations {
                             common = "@test.pkg.OtherAnnotation(intType = 1)"
@@ -120,6 +184,11 @@ class ValueExample(
                                     " stringArrayType={}" +
                                     ")"
                         },
+                    expectedKotlinLegacySource =
+                        partialExpectations {
+                            attributeDefaultValue = "@OtherAnnotation(intType = 1)"
+                            annotationToSource = "@OtherAnnotation(intType = 1)"
+                        },
                     // Annotation literals cannot be used in fields.
                     suitableFor = allValueUseSitesExceptFields,
                 ),
@@ -128,6 +197,7 @@ class ValueExample(
                     name = "boolean true",
                     javaType = "boolean",
                     javaExpression = "true",
+                    kotlinType = "Boolean",
                     expectedLegacySource = expectations { common = "true" },
                 ),
                 // Check a simple boolean false value.
@@ -135,6 +205,7 @@ class ValueExample(
                     name = "boolean false",
                     javaType = "boolean",
                     javaExpression = "false",
+                    kotlinType = "Boolean",
                     expectedLegacySource = expectations { common = "false" },
                 ),
                 // Check a simple byte.
@@ -142,6 +213,7 @@ class ValueExample(
                     name = "byte",
                     javaType = "byte",
                     javaExpression = "116",
+                    kotlinType = "Byte",
                     expectedLegacySource = expectations { common = "116" },
                 ),
                 // Check a simple char.
@@ -149,6 +221,8 @@ class ValueExample(
                     name = "char",
                     javaType = "char",
                     javaExpression = "'x'",
+                    kotlinType = "Char",
+                    signatureExpression = "120",
                     expectedLegacySource =
                         expectations {
                             common = "'x'"
@@ -156,12 +230,16 @@ class ValueExample(
                             fieldValue = "x"
                             fieldWriteWithSemicolon = "120"
                         },
+                    expectedKotlinLegacySource =
+                        partialExpectations { attributeDefaultValue = "\"x\"" },
                 ),
                 // Check a unicode char.
                 ValueExample(
                     name = "char unicode",
                     javaType = "char",
                     javaExpression = "'\\u2912'",
+                    kotlinType = "Char",
+                    signatureExpression = "10514",
                     expectedLegacySource =
                         expectations {
                             common = "'\\u2912'"
@@ -171,12 +249,16 @@ class ValueExample(
                             jar { attributeValue = "'⤒'" }
                             fieldWriteWithSemicolon = "10514"
                         },
+                    expectedKotlinLegacySource =
+                        partialExpectations { attributeDefaultValue = "\"\\u2912\"" },
                 ),
                 // Check char escaped.
                 ValueExample(
                     name = "char escaped",
                     javaType = "char",
                     javaExpression = "'\\t'",
+                    kotlinType = "Char",
+                    signatureExpression = "9",
                     expectedLegacySource =
                         expectations {
                             // This seems like the best representation. Quoted and escaped.
@@ -186,6 +268,8 @@ class ValueExample(
                             fieldValue = "\t"
                             fieldWriteWithSemicolon = "9"
                         },
+                    expectedKotlinLegacySource =
+                        partialExpectations { attributeDefaultValue = "\"\\t\"" },
                 ),
                 // Check a class literal.
                 ValueExample(
@@ -193,6 +277,8 @@ class ValueExample(
                     javaType = "Class<?>",
                     javaExpression = "List.class",
                     javaImports = listOf("java.util.List"),
+                    kotlinType = "Class<*>",
+                    kotlinExpression = "List::class.java",
                     expectedLegacySource =
                         expectations {
                             common = "java.util.List.class"
@@ -202,6 +288,11 @@ class ValueExample(
                                 attributeDefaultValue = "java.util.List.class"
                             }
                         },
+                    expectedKotlinLegacySource =
+                        partialExpectations {
+                            // Some value use sites throw a class cast exception.
+                            attributeDefaultValue = "List::class.java"
+                        },
                 ),
                 // Check an array class literal.
                 ValueExample(
@@ -209,6 +300,8 @@ class ValueExample(
                     javaType = "Class<?>",
                     javaExpression = "List[].class",
                     javaImports = listOf("java.util.List"),
+                    kotlinType = "Class<*>",
+                    kotlinExpression = "Array<List>::class.java",
                     expectedLegacySource =
                         expectations {
                             common = "java.util.List[].class"
@@ -218,19 +311,33 @@ class ValueExample(
                                 attributeDefaultValue = "java.util.List[].class"
                             }
                         },
+                    expectedKotlinLegacySource =
+                        partialExpectations {
+                            // Some value use sites throw a class cast exception.
+                            attributeDefaultValue = "Array<List>::class.java"
+                        },
                 ),
                 // Check a primitive class literal.
                 ValueExample(
                     name = "class void primitive class",
                     javaType = "Class<?>",
                     javaExpression = "void.class",
+                    kotlinType = "Class<*>",
+                    kotlinExpression = "Unit::class.java",
                     expectedLegacySource = expectations { common = "void.class" },
+                    expectedKotlinLegacySource =
+                        partialExpectations {
+                            // Some value use sites throw a class cast exception.
+                            attributeDefaultValue = "Unit::class.java"
+                        },
                 ),
                 // Check a primitive wrapper class literal.
                 ValueExample(
                     name = "class void wrapper class",
                     javaType = "Class<?>",
                     javaExpression = "Void.class",
+                    kotlinType = "Class<*>",
+                    kotlinExpression = "java.lang.Void::class.java",
                     expectedLegacySource =
                         expectations {
                             common = "java.lang.Void.class"
@@ -241,19 +348,32 @@ class ValueExample(
                                 annotationToSource = "Void.class"
                             }
                         },
+                    expectedKotlinLegacySource =
+                        partialExpectations {
+                            // Some value use sites throw a class cast exception.
+                            attributeDefaultValue = "java.lang.Void::class.java"
+                        },
                 ),
                 // Check a primitive array class literal.
                 ValueExample(
                     name = "class int array literal",
                     javaType = "Class<?>",
                     javaExpression = "int[].class",
+                    kotlinType = "Class<*>",
+                    kotlinExpression = "IntArray::class.java",
                     expectedLegacySource = expectations { common = "int[].class" },
+                    expectedKotlinLegacySource =
+                        partialExpectations {
+                            // Some value use sites throw a class cast exception.
+                            attributeDefaultValue = "IntArray::class.java"
+                        },
                 ),
                 // Check a simple double.
                 ValueExample(
                     name = "double",
                     javaType = "double",
                     javaExpression = "3.141",
+                    kotlinType = "Double",
                     expectedLegacySource = expectations { common = "3.141" },
                 ),
                 // Check a simple double with int
@@ -261,6 +381,7 @@ class ValueExample(
                     name = "double with int",
                     javaType = "double",
                     javaExpression = "3",
+                    kotlinType = "Double",
                     expectedLegacySource =
                         expectations {
                             // TODO(b/354633349): Consistency is good. It's not clear what the best
@@ -276,12 +397,14 @@ class ValueExample(
                                 annotationToSource = "3"
                             }
                         },
+                    expectedKotlinLegacySource = partialExpectations { source { common = "3" } },
                 ),
                 // Check a simple double with exponent
                 ValueExample(
                     name = "double with exponent",
                     javaType = "double",
                     javaExpression = "7e10",
+                    kotlinType = "Double",
                     expectedLegacySource =
                         expectations {
                             common = "7.0E10"
@@ -294,6 +417,7 @@ class ValueExample(
                     name = "double NaN",
                     javaType = "double",
                     javaExpression = "Double.NaN",
+                    kotlinType = "Double",
                     expectedLegacySource =
                         expectations {
                             // TODO(b/354633349): Every single use has a different representation!?
@@ -317,12 +441,18 @@ class ValueExample(
                                 fieldWriteWithSemicolon = NO_INITIAL_FIELD_VALUE
                             }
                         },
+                    expectedKotlinLegacySource =
+                        partialExpectations {
+                            attributeDefaultValue = "kotlin.jvm.internal.DoubleCompanionObject.NaN"
+                            annotationToSource = "kotlin.jvm.internal.DoubleCompanionObject.NaN"
+                        },
                 ),
                 // Check a special double - +infinity.
                 ValueExample(
                     name = "double positive infinity",
                     javaType = "double",
                     javaExpression = "Double.POSITIVE_INFINITY",
+                    kotlinType = "Double",
                     expectedLegacySource =
                         expectations {
                             // TODO(b/354633349): Every single use has a different representation!?
@@ -346,11 +476,19 @@ class ValueExample(
                                 fieldWriteWithSemicolon = NO_INITIAL_FIELD_VALUE
                             }
                         },
+                    expectedKotlinLegacySource =
+                        partialExpectations {
+                            attributeDefaultValue =
+                                "kotlin.jvm.internal.DoubleCompanionObject.POSITIVE_INFINITY"
+                            annotationToSource =
+                                "kotlin.jvm.internal.DoubleCompanionObject.POSITIVE_INFINITY"
+                        },
                 ),
                 ValueExample(
                     name = "double negative infinity",
                     javaType = "double",
                     javaExpression = "Double.NEGATIVE_INFINITY",
+                    kotlinType = "Double",
                     expectedLegacySource =
                         expectations {
                             // TODO(b/354633349): Every single use has a different representation!?
@@ -374,12 +512,22 @@ class ValueExample(
                                 fieldWriteWithSemicolon = NO_INITIAL_FIELD_VALUE
                             }
                         },
+                    expectedKotlinLegacySource =
+                        partialExpectations {
+                            attributeDefaultValue =
+                                "kotlin.jvm.internal.DoubleCompanionObject.NEGATIVE_INFINITY"
+                            annotationToSource =
+                                "kotlin.jvm.internal.DoubleCompanionObject.NEGATIVE_INFINITY"
+                        },
                 ),
                 // Check an enum literal.
                 ValueExample(
                     name = "enum",
                     javaType = "TestEnum",
                     javaExpression = "TestEnum.VALUE1",
+                    // Must fully qualify most classes in signature files.
+                    signatureType = "test.pkg.TestEnum",
+                    signatureExpression = "test.pkg.TestEnum.VALUE1",
                     expectedLegacySource =
                         expectations {
                             common = "test.pkg.TestEnum.VALUE1"
@@ -394,6 +542,7 @@ class ValueExample(
                     name = "float with int",
                     javaType = "float",
                     javaExpression = "3",
+                    kotlinType = "Float",
                     expectedLegacySource =
                         expectations {
                             // TODO(b/354633349): Consistency is good. It's not clear what the best
@@ -418,12 +567,14 @@ class ValueExample(
                             fieldValue = "3.0"
                             fieldWriteWithSemicolon = "3.0f"
                         },
+                    expectedKotlinLegacySource = partialExpectations { source { common = "3" } },
                 ),
                 // Check a simple float with exponent
                 ValueExample(
                     name = "float with exponent",
                     javaType = "float",
                     javaExpression = "7e10f",
+                    kotlinType = "Float",
                     expectedLegacySource =
                         expectations {
                             common = "7.0E10f"
@@ -432,12 +583,15 @@ class ValueExample(
 
                             fieldValue = "7.0E10"
                         },
+                    expectedKotlinLegacySource =
+                        partialExpectations { attributeDefaultValue = "7.0E10" },
                 ),
                 // Check a simple float with upper F.
                 ValueExample(
                     name = "float with upper F",
                     javaType = "float",
                     javaExpression = "3.141F",
+                    kotlinType = "Float",
                     expectedLegacySource =
                         expectations {
                             common = "3.141F"
@@ -455,12 +609,15 @@ class ValueExample(
                             fieldValue = "3.141"
                             fieldWriteWithSemicolon = "3.141f"
                         },
+                    expectedKotlinLegacySource =
+                        partialExpectations { attributeDefaultValue = "3.141" },
                 ),
                 // Check a simple float with lower F.
                 ValueExample(
                     name = "float with lower f",
                     javaType = "float",
                     javaExpression = "3.141f",
+                    kotlinType = "Float",
                     expectedLegacySource =
                         expectations {
                             common = "3.141f"
@@ -468,12 +625,15 @@ class ValueExample(
                             // TODO(b/354633349): Consistency is good.
                             fieldValue = "3.141"
                         },
+                    expectedKotlinLegacySource =
+                        partialExpectations { attributeDefaultValue = "3.141" },
                 ),
                 // Check a special float - Nan.
                 ValueExample(
                     name = "float NaN",
                     javaType = "float",
                     javaExpression = "Float.NaN",
+                    kotlinType = "Float",
                     expectedLegacySource =
                         expectations {
                             // TODO(b/354633349): Every single use has a different representation!?
@@ -496,12 +656,18 @@ class ValueExample(
                                 fieldWriteWithSemicolon = NO_INITIAL_FIELD_VALUE
                             }
                         },
+                    expectedKotlinLegacySource =
+                        partialExpectations {
+                            attributeDefaultValue = "kotlin.jvm.internal.FloatCompanionObject.NaN"
+                            annotationToSource = "kotlin.jvm.internal.FloatCompanionObject.NaN"
+                        },
                 ),
                 // Check a special float - +infinity.
                 ValueExample(
                     name = "float positive infinity",
                     javaType = "float",
                     javaExpression = "Float.POSITIVE_INFINITY",
+                    kotlinType = "Float",
                     expectedLegacySource =
                         expectations {
                             // TODO(b/354633349): Every single use has a different representation!?
@@ -525,11 +691,19 @@ class ValueExample(
                                 fieldWriteWithSemicolon = NO_INITIAL_FIELD_VALUE
                             }
                         },
+                    expectedKotlinLegacySource =
+                        partialExpectations {
+                            attributeDefaultValue =
+                                "kotlin.jvm.internal.FloatCompanionObject.POSITIVE_INFINITY"
+                            annotationToSource =
+                                "kotlin.jvm.internal.FloatCompanionObject.POSITIVE_INFINITY"
+                        },
                 ),
                 ValueExample(
                     name = "float negative infinity",
                     javaType = "float",
                     javaExpression = "Float.NEGATIVE_INFINITY",
+                    kotlinType = "Float",
                     expectedLegacySource =
                         expectations {
                             // TODO(b/354633349): Every single use has a different representation!?
@@ -553,12 +727,20 @@ class ValueExample(
                                 fieldWriteWithSemicolon = NO_INITIAL_FIELD_VALUE
                             }
                         },
+                    expectedKotlinLegacySource =
+                        partialExpectations {
+                            attributeDefaultValue =
+                                "kotlin.jvm.internal.FloatCompanionObject.NEGATIVE_INFINITY"
+                            annotationToSource =
+                                "kotlin.jvm.internal.FloatCompanionObject.NEGATIVE_INFINITY"
+                        },
                 ),
                 // Check a simple int.
                 ValueExample(
                     name = "int",
                     javaType = "int",
                     javaExpression = "17",
+                    kotlinType = "Int",
                     expectedLegacySource = expectations { common = "17" },
                 ),
                 // Check an int with a unary plus.
@@ -566,6 +748,7 @@ class ValueExample(
                     name = "int positive",
                     javaType = "int",
                     javaExpression = "+17",
+                    kotlinType = "Int",
                     expectedLegacySource =
                         expectations {
                             common = "17"
@@ -576,12 +759,15 @@ class ValueExample(
                                 annotationToSource = "0x11"
                             }
                         },
+                    expectedKotlinLegacySource =
+                        partialExpectations { attributeDefaultValue = "+17" },
                 ),
                 // Check an int with a unary minus.
                 ValueExample(
                     name = "int negative",
                     javaType = "int",
                     javaExpression = "-17",
+                    kotlinType = "Int",
                     expectedLegacySource =
                         expectations {
                             common = "-17"
@@ -594,6 +780,7 @@ class ValueExample(
                     name = "long with int",
                     javaType = "long",
                     javaExpression = "1000",
+                    kotlinType = "Long",
                     expectedLegacySource =
                         expectations {
                             // TODO(b/354633349): Consistency is good. It's not clear what the best
@@ -608,24 +795,33 @@ class ValueExample(
                                 annotationToSource = "1000"
                             }
                         },
+                    expectedKotlinLegacySource =
+                        partialExpectations { annotationToSource = "1000L" },
                 ),
                 // Check a simple long with an upper case suffix.
                 ValueExample(
                     name = "long with upper L",
                     javaType = "long",
                     javaExpression = "10000000000L",
+                    kotlinType = "Long",
                     expectedLegacySource =
                         expectations {
                             common = "10000000000L"
                             // TODO(b/354633349): Consistency is good.
                             fieldValue = "10000000000"
                         },
+                    expectedKotlinLegacySource =
+                        partialExpectations { attributeDefaultValue = "10000000000" },
                 ),
                 // Check a simple long with a lower case suffix.
                 ValueExample(
                     name = "long with lower l",
                     javaType = "long",
                     javaExpression = "10000000000l",
+                    kotlinType = "Long",
+                    // Kotlin does not support using a lower case l as a suffix for long, presumably
+                    // because it looks too similar to a number 1.
+                    validForInputFormats = EnumSet.complementOf(EnumSet.of(InputFormat.KOTLIN)),
                     expectedLegacySource =
                         expectations {
                             common = "10000000000L"
@@ -643,6 +839,7 @@ class ValueExample(
                     name = "short",
                     javaType = "short",
                     javaExpression = "32000",
+                    kotlinType = "Short",
                     expectedLegacySource = expectations { common = "32000" },
                 ),
                 // Check a simple string.
@@ -674,13 +871,20 @@ class ValueExample(
                     name = "String array",
                     javaType = "String[]",
                     javaExpression = "{\"string1\", \"string2\"}",
+                    kotlinType = "Array<String>",
+                    kotlinExpression = "[\"string1\", \"string2\"]",
+                    // Literal arrays are only allowed in annotations not fields.
+                    suitableFor = allValueUseSitesExceptFields,
                     expectedLegacySource = expectations { common = "{\"string1\", \"string2\"}" },
+                    expectedKotlinLegacySource =
+                        partialExpectations { attributeValue = "[\"string1\", \"string2\"]" },
                 ),
                 // Check passing a single value to an array type.
                 ValueExample(
                     name = "String array with single string",
                     javaType = "String[]",
                     javaExpression = "\"string\"",
+                    kotlinType = "Array<String>",
                     // Fields that are of type String[] cannot be given a solitary string like an
                     // annotation attribute can.
                     suitableFor = allValueUseSitesExceptFields,
@@ -731,23 +935,14 @@ class ValueExample(
 }
 
 /**
- * An [Expectation] that wraps another [Expectation] and return [NO_INITIAL_FIELD_VALUE] for fields.
+ * A partial [Expectation] that returns [NO_INITIAL_FIELD_VALUE] for fields.
  *
  * This is used when a [ValueExample] is not a constant and so a field that uses it will not have a
- * value.
+ * value. It is checked first and then [falls back to](fallBackTo)
+ * [ValueExample.expectedLegacySource],
  */
-class NotConstantFieldExpectation(private val delegate: Expectation<String>) : Expectation<String> {
-    override fun expectationFor(
-        producerKind: ProducerKind,
-        valueUseSite: ValueUseSite,
-        codebase: Codebase
-    ): String {
-        return when (valueUseSite) {
-            ValueUseSite.FIELD_VALUE,
-            ValueUseSite.FIELD_WRITE_WITH_SEMICOLON -> {
-                NO_INITIAL_FIELD_VALUE
-            }
-            else -> delegate.expectationFor(producerKind, valueUseSite, codebase)
-        }
+private val constantFieldLegacySourceExpectation =
+    partialExpectations<String> {
+        fieldValue = NO_INITIAL_FIELD_VALUE
+        fieldWriteWithSemicolon = NO_INITIAL_FIELD_VALUE
     }
-}

@@ -48,22 +48,29 @@ import org.jetbrains.uast.util.isArrayInitializer
 
 internal class UAnnotationItem
 private constructor(
-    override val codebase: PsiBasedCodebase,
+    override val annotationContext: PsiBasedCodebase,
     val uAnnotation: UAnnotation,
     originalName: String,
     qualifiedName: String,
 ) :
     DefaultAnnotationItem(
-        codebase = codebase,
+        annotationContext = annotationContext,
         fileLocation = PsiFileLocation.fromPsiElement(uAnnotation.sourcePsi),
         originalName = originalName,
         qualifiedName = qualifiedName,
-        attributesGetter = { getAnnotationAttributes(codebase, uAnnotation) },
+        attributesGetter = { getAnnotationAttributes(annotationContext, uAnnotation) },
     ) {
 
     override fun toSource(target: AnnotationTarget, showDefaultAttrs: Boolean): String {
         val sb = StringBuilder(60)
-        appendAnnotation(codebase, sb, uAnnotation, qualifiedName, target, showDefaultAttrs)
+        appendAnnotation(
+            annotationContext,
+            sb,
+            uAnnotation,
+            qualifiedName,
+            target,
+            showDefaultAttrs
+        )
         return sb.toString()
     }
 
@@ -106,7 +113,7 @@ private constructor(
             val qualifiedName =
                 codebase.annotationManager.normalizeInputName(originalName) ?: return null
             return UAnnotationItem(
-                codebase = codebase,
+                annotationContext = codebase,
                 uAnnotation = uAnnotation,
                 originalName = originalName,
                 qualifiedName = qualifiedName,

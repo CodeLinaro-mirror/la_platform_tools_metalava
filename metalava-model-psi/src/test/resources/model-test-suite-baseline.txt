@@ -39,3 +39,27 @@ com.android.tools.metalava.model.testsuite.typeitem.CommonTypeStringTest
   Type string[java,k1,null annotated parameterized inner type - kotlin nulls]
   Type string[java,k2,null annotated parameterized inner type - annotated]
   Type string[java,k2,null annotated parameterized inner type - kotlin nulls]
+
+com.android.tools.metalava.model.testsuite.value.CommonParameterizedAnnotationToSourceValueTest
+  testLegacySource[kotlin,k1,source,class array literal]
+  testLegacySource[kotlin,k1,source,class int array literal]
+  testLegacySource[kotlin,k1,source,class void primitive class]
+  testLegacySource[kotlin,k1,source,class void wrapper class]
+  testLegacySource[kotlin,k1,source,class]
+  testLegacySource[kotlin,k2,source,class array literal]
+  testLegacySource[kotlin,k2,source,class int array literal]
+  testLegacySource[kotlin,k2,source,class void primitive class]
+  testLegacySource[kotlin,k2,source,class void wrapper class]
+  testLegacySource[kotlin,k2,source,class]
+
+com.android.tools.metalava.model.testsuite.value.CommonParameterizedAttributeValueTest
+  testLegacySource[kotlin,k1,source,class array literal]
+  testLegacySource[kotlin,k1,source,class int array literal]
+  testLegacySource[kotlin,k1,source,class void primitive class]
+  testLegacySource[kotlin,k1,source,class void wrapper class]
+  testLegacySource[kotlin,k1,source,class]
+  testLegacySource[kotlin,k2,source,class array literal]
+  testLegacySource[kotlin,k2,source,class int array literal]
+  testLegacySource[kotlin,k2,source,class void primitive class]
+  testLegacySource[kotlin,k2,source,class void wrapper class]
+  testLegacySource[kotlin,k2,source,class]

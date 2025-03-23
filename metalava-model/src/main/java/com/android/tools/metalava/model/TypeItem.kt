@@ -857,17 +857,63 @@ interface PrimitiveTypeItem : TypeItem {
     enum class Primitive(
         val primitiveName: String,
         val defaultValue: Any?,
-        val defaultValueString: String
+        val defaultValueString: String,
+        val wrapperClass: Class<*>,
     ) {
-        BOOLEAN("boolean", false, "false"),
-        BYTE("byte", 0.toByte(), "0"),
-        CHAR("char", 0.toChar(), "0"),
-        DOUBLE("double", 0.0, "0"),
-        FLOAT("float", 0F, "0"),
-        INT("int", 0, "0"),
-        LONG("long", 0L, "0"),
-        SHORT("short", 0.toShort(), "0"),
-        VOID("void", null, "null")
+        BOOLEAN(
+            primitiveName = "boolean",
+            defaultValue = false,
+            defaultValueString = "false",
+            wrapperClass = java.lang.Boolean::class.java,
+        ),
+        BYTE(
+            primitiveName = "byte",
+            defaultValue = 0.toByte(),
+            defaultValueString = "0",
+            wrapperClass = java.lang.Byte::class.java,
+        ),
+        CHAR(
+            primitiveName = "char",
+            defaultValue = 0.toChar(),
+            defaultValueString = "0",
+            wrapperClass = java.lang.Character::class.java,
+        ),
+        DOUBLE(
+            primitiveName = "double",
+            defaultValue = 0.0,
+            defaultValueString = "0",
+            wrapperClass = java.lang.Double::class.java,
+        ),
+        FLOAT(
+            primitiveName = "float",
+            defaultValue = 0F,
+            defaultValueString = "0",
+            wrapperClass = java.lang.Float::class.java,
+        ),
+        INT(
+            primitiveName = "int",
+            defaultValue = 0,
+            defaultValueString = "0",
+            wrapperClass = java.lang.Integer::class.java,
+        ),
+        LONG(
+            primitiveName = "long",
+            defaultValue = 0L,
+            defaultValueString = "0",
+            wrapperClass = java.lang.Long::class.java,
+        ),
+        SHORT(
+            primitiveName = "short",
+            defaultValue = 0.toShort(),
+            defaultValueString = "0",
+            wrapperClass = java.lang.Short::class.java,
+        ),
+        VOID(
+            primitiveName = "void",
+            defaultValue = null,
+            defaultValueString = "null",
+            wrapperClass = java.lang.Void::class.java,
+        )
     }
 
     override fun defaultValue(): Any? = kind.defaultValue

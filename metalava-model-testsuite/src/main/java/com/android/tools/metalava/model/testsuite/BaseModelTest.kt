@@ -83,9 +83,14 @@ abstract class BaseModelTest() :
     /**
      * The [InputFormat] of the test files that should be processed by this test. It must ignore all
      * other [InputFormat]s.
+     *
+     * The [CodebaseCreatorConfig.inputFormat] is nullable for running tests in `metalava` project
+     * as there is no single [InputFormat] that its runner uses as it mixes [InputFormat.JAVA] and
+     * [InputFormat.KOTLIN] side by side. However, it is always provided by the
+     * [ModelTestSuiteRunner].
      */
     protected val inputFormat
-        get() = codebaseCreatorConfig.inputFormat
+        get() = codebaseCreatorConfig.inputFormat!!
 
     @get:Rule override val temporaryFolder = TemporaryFolder()
 
@@ -153,12 +158,16 @@ abstract class BaseModelTest() :
         /** The newly created [Codebase]. */
         val codebase: Codebase
 
+        /** The [InputFormat] from which [codebase] was created. */
+        val inputFormat: InputFormat
+
         /** Replace any test run specific directories in [string] with a placeholder string. */
         fun removeTestSpecificDirectories(string: String): String
     }
 
     inner class DefaultCodebaseContext(
         override val codebase: Codebase,
+        override val inputFormat: InputFormat,
         private val fileToSymbol: Map<File, String>,
     ) : CodebaseContext {
         override fun removeTestSpecificDirectories(string: String): String {
@@ -225,6 +234,7 @@ abstract class BaseModelTest() :
                 val context =
                     DefaultCodebaseContext(
                         codebase,
+                        inputFormat,
                         buildMap {
                             this[mainSourceDir.dir] = "MAIN_SRC"
                             additionalSourceDir?.dir?.let { dir -> this[dir] = "ADDITIONAL_SRC" }
