@@ -52,7 +52,7 @@ internal class TurbineSourceFile(
         val imports = TreeSet<Import>(compareBy { it.pattern })
 
         for (import in compUnit.imports()) {
-            val resolvedName = extractNameFromIdent(import.type())
+            val resolvedName = import.type().dotSeparatedName
             // Package import
             if (import.wild()) {
                 val pkgItem = codebase.findPackage(resolvedName) ?: continue

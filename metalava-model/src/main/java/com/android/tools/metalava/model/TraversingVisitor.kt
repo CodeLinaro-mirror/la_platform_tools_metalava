@@ -114,6 +114,10 @@ abstract class TraversingVisitor : ItemVisitor {
                     cls.accept(this)
                     if (traversalFinished) return
                 }
+                for (typeAlias in pkg.typeAliases()) {
+                    typeAlias.accept(this)
+                    if (traversalFinished) return
+                }
             }
         }
     }
@@ -124,6 +128,11 @@ abstract class TraversingVisitor : ItemVisitor {
 
     final override fun visit(property: PropertyItem) {
         val action = visitItem(property)
+        traversalFinished = action == TraversalAction.SKIP_TRAVERSAL
+    }
+
+    final override fun visit(typeAlias: TypeAliasItem) {
+        val action = visitItem(typeAlias)
         traversalFinished = action == TraversalAction.SKIP_TRAVERSAL
     }
 }

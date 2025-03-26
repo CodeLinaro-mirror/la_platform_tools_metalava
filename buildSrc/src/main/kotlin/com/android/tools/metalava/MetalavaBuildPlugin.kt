@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava
 
+import org.gradle.api.tasks.bundling.Jar
 import com.android.build.api.dsl.Lint
 import com.android.tools.metalava.buildinfo.configureBuildInfoTask
 import org.gradle.api.JavaVersion
@@ -37,6 +38,7 @@ import org.gradle.api.tasks.testing.logging.TestLogEvent
 import org.gradle.kotlin.dsl.create
 import org.gradle.kotlin.dsl.get
 import org.gradle.kotlin.dsl.getByType
+import org.gradle.kotlin.dsl.setEnvironment
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
 import org.jetbrains.kotlin.gradle.plugin.KotlinBasePluginWrapper
@@ -108,6 +110,26 @@ class MetalavaBuildPlugin : Plugin<Project> {
                 "--add-opens=java.base/java.lang=ALL-UNNAMED",
                 // Needed for CustomizableParameterizedRunner
                 "--add-opens=java.base/java.lang.reflect=ALL-UNNAMED",
+            )
+
+            // Get the jar from the stub-annotations project.
+            val jarTask = project.findProject(":stub-annotations")!!.tasks.named("jar", Jar::class.java)
+
+            // Add a dependency from this test task to the jar task of stub-annotations to make sure
+            // it is built before this is run.
+            task.dependsOn(jarTask)
+
+            // Clear the environment before adding any custom variables. Avoids problems with
+            // inconsistent behavior when testing code that accesses environment variables, e.g.
+            // command line tools that use environment variables to determine whether to use colors
+            // in command line help.
+            task.setEnvironment()
+
+            // Get the path to the stub-annotations jar and pass it to this in an environment
+            // variable.
+            val stubAnnotationsJar = jarTask.get().outputs.files.singleFile
+            task.environment.put(
+                "METALAVA_STUB_ANNOTATIONS_JAR", stubAnnotationsJar,
             )
 
             task.doFirst {

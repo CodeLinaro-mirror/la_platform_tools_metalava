@@ -248,11 +248,9 @@ internal fun processFlags(
                 }
 
             // If reverting some changes then create a snapshot that combines the items from the
-            // sources
-            // for any un-reverted changes and items from the previously released API for any
-            // reverted
-            // changes.
-            if (options.revertAnnotations.isNotEmpty()) {
+            // sources for any un-reverted changes and items from the previously released API for
+            // any reverted changes.
+            if (codebaseFragment.codebase.containsRevertedItem) {
                 codebaseFragment =
                     codebaseFragment.snapshotIncludingRevertedItems(
                         // Allow references to any of the ClassItems in the original Codebase. This
@@ -354,7 +352,7 @@ internal fun processFlags(
         // If reverting some changes then create a snapshot that combines the items from the sources
         // for any un-reverted changes and items from the previously released API for any reverted
         // changes.
-        if (options.revertAnnotations.isNotEmpty()) {
+        if (codebaseFragment.codebase.containsRevertedItem) {
             codebaseFragment =
                 codebaseFragment.snapshotIncludingRevertedItems(
                     // Allow references to any of the ClassItems in the original Codebase. This
@@ -389,7 +387,7 @@ internal fun processFlags(
         // If reverting some changes then create a snapshot that combines the items from the sources
         // for any un-reverted changes and items from the previously released API for any reverted
         // changes.
-        if (options.revertAnnotations.isNotEmpty()) {
+        if (codebaseFragment.codebase.containsRevertedItem) {
             codebaseFragment =
                 codebaseFragment.snapshotIncludingRevertedItems(
                     // Allow references to any of the ClassItems in the original Codebase. This
@@ -798,7 +796,7 @@ private fun createStubFiles(
 
     // If reverting some changes then create a snapshot that combines the items from the sources for
     // any un-reverted changes and items from the previously released API for any reverted changes.
-    if (options.revertAnnotations.isNotEmpty()) {
+    if (codebaseFragment.codebase.containsRevertedItem) {
         codebaseFragment =
             codebaseFragment.snapshotIncludingRevertedItems(
                 referenceVisitorFactory = { delegate ->

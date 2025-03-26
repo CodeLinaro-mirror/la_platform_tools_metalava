@@ -41,13 +41,16 @@ internal object PsiTypeParameterList {
     }
 
     /**
-     * Generates a [PsiTypeParameterList] from the type parameters of the [ktOwner]. Converts each
-     * [KtTypeParameter] to a [PsiTypeParameter] using [toPsiTypeParameters], which gets a psi
-     * version of the type parameter for each psi element that uses the type parameter.
+     * Generates a [PsiTypeParameterList] from the type parameters of the [ktOwner].
      *
-     * For properties, this is the getter and optionally setter. Properties only can have type
-     * parameters if they have a receiver, and properties without receivers can't have backing
+     * Tries to converts each [KtTypeParameter] to a [PsiTypeParameter] using [toPsiTypeParameters],
+     * which gets a psi version of the type parameter for each psi element that uses the type
+     * parameter. For properties, this is the getter and optionally setter. Properties only can have
+     * type parameters if they have a receiver, and properties without receivers can't have backing
      * fields, so they must have getters.
+     *
+     * If no psi version of the type parameters can be created (which is the case for type aliases,
+     * that only exist as kt elements), then the [KtTypeParameter]s are used directly.
      */
     fun create(
         codebase: PsiBasedCodebase,
@@ -55,11 +58,27 @@ internal object PsiTypeParameterList {
         scopeDescription: String,
         ktOwner: KtTypeParameterListOwner?
     ): TypeParameterListAndFactory<PsiTypeItemFactory> {
-        return create(
-            codebase,
+        val ktTypeParameters = ktOwner?.typeParameters
+        if (ktTypeParameters.isNullOrEmpty()) {
+            return TypeParameterListAndFactory(TypeParameterList.NONE, enclosingTypeItemFactory)
+        }
+
+        // Try to create the type parameter list with psi type parameters
+        val asPsiTypeParameters =
+            ktTypeParameters.mapNotNull { it.toPsiTypeParameters().singleOrNull() }
+        if (asPsiTypeParameters.isNotEmpty()) {
+            return create(codebase, enclosingTypeItemFactory, scopeDescription, asPsiTypeParameters)
+        }
+
+        // No psi type parameters could be created, use the kt type parameters directly.
+        return DefaultTypeParameterList.createTypeParameterItemsAndFactory(
             enclosingTypeItemFactory,
             scopeDescription,
-            ktOwner?.typeParameters?.mapNotNull { it.toPsiTypeParameters().singleOrNull() }
+            ktTypeParameters,
+            { PsiTypeParameterItem.create(codebase, it) },
+            // Bounds are not directly accessible from the analysis API. Type parameters of type
+            // aliases can't have bounds, so this is not a problem.
+            { _, _ -> emptyList() },
         )
     }
 
