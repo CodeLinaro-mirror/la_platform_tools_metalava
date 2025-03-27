@@ -172,6 +172,9 @@ abstract class BaseModelTest() :
 
         /** The [Reporter] to use for issues found creating the [Codebase]. */
         val reporter: Reporter = ThrowingReporter.INSTANCE,
+
+        /** Additional jar files to add to the class path. */
+        val additionalClassPath: List<File> = emptyList(),
     ) {
         /** The [Codebase.Config] to use when creating a [Codebase] to test. */
         val codebaseConfig =

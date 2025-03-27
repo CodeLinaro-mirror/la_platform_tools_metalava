@@ -27,6 +27,7 @@ import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.FileFormat.OverloadedMethodOrder
 import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.testing.KnownJarFiles
 import com.android.tools.metalava.testing.createAndroidModuleDescription
 import com.android.tools.metalava.testing.createCommonModuleDescription
 import com.android.tools.metalava.testing.createProjectDescription
