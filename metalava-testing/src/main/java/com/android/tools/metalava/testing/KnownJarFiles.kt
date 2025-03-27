@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava
+package com.android.tools.metalava.testing
 
 import com.android.tools.lint.checks.infrastructure.TestFile
 import java.io.File

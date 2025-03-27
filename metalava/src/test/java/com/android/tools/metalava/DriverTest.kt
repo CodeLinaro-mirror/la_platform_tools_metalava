@@ -68,6 +68,7 @@ import com.android.tools.metalava.model.text.prepareSignatureFileForTest
 import com.android.tools.metalava.reporter.ReporterEnvironment
 import com.android.tools.metalava.reporter.Severity
 import com.android.tools.metalava.testing.JavacHelper
+import com.android.tools.metalava.testing.KnownJarFiles
 import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.TemporaryFolderOwner
 import com.android.tools.metalava.testing.findKotlinStdlibPaths

@@ -36,6 +36,7 @@ import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.Showability
+import com.android.tools.metalava.model.TypeAliasItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeParameterListAndFactory
@@ -43,6 +44,7 @@ import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.item.DefaultCodebaseAssembler
 import com.android.tools.metalava.model.item.DefaultItemFactory
+import com.android.tools.metalava.model.item.DefaultPackageItem
 import com.android.tools.metalava.model.item.DefaultTypeParameterItem
 import com.android.tools.metalava.model.item.MutablePackageDoc
 import com.android.tools.metalava.model.item.PackageDoc
@@ -381,6 +383,30 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
         newProperty.copySelectedApiVariants(propertyToSnapshot)
 
         containingClass.addProperty(newProperty)
+    }
+
+    override fun visitTypeAlias(typeAlias: TypeAliasItem) {
+        val typeAliasToSnapshot = typeAlias.actualItemToSnapshot
+        val containingPackage = typeAlias.containingPackage().getSnapshotPackage()
+
+        val (typeParameterList, typeAliasTypeItemFactory) =
+            globalTypeItemFactory.inScope {
+                typeAliasToSnapshot.typeParameterList.snapshot(typeAliasToSnapshot.describe())
+            }
+
+        val newTypeAlias =
+            typeAliasTypeItemFactory.inScope {
+                itemFactory.createTypeAliasItem(
+                    fileLocation = typeAliasToSnapshot.fileLocation,
+                    modifiers = typeAliasToSnapshot.modifiers.snapshot(),
+                    qualifiedName = typeAliasToSnapshot.qualifiedName,
+                    containingPackage = containingPackage as DefaultPackageItem,
+                    aliasedType = typeAliasToSnapshot.aliasedType.snapshot(),
+                    typeParameterList = typeParameterList,
+                    documentationFactory = snapshotDocumentation(typeAliasToSnapshot, typeAlias),
+                )
+            }
+        newTypeAlias.copySelectedApiVariants(typeAliasToSnapshot)
     }
 
     /** Take a snapshot of [qualifiedName]. */

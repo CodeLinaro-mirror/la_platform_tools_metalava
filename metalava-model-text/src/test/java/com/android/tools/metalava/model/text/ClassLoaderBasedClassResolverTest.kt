@@ -24,7 +24,7 @@ import org.junit.Test
 class ClassLoaderBasedClassResolverTest {
 
     private fun checkClassResolved(qualifiedName: String) {
-        val resolver = ClassLoaderBasedClassResolver(getAndroidJar())
+        val resolver = ClassLoaderBasedClassResolver(listOf(getAndroidJar()))
         val classItem = resolver.resolveClass(qualifiedName)
         assertNotNull(classItem)
         assertEquals(qualifiedName, classItem.qualifiedName())
