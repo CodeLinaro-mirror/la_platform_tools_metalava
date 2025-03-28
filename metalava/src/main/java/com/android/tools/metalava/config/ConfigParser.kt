@@ -102,7 +102,7 @@ class ConfigParser private constructor() : DefaultHandler() {
                     xmlMapper.readValue(file, Config::class.java)
                 }
                 // Merge the config objects together.
-                .reduceOrNull { configLeft, configRight -> merge(configLeft, configRight) }
+                .reduceOrNull(Config::combineWith)
                 // Validate the config.
                 ?.apply { validate() }
             // If no configuration files were created then return an empty Config.
@@ -130,16 +130,5 @@ class ConfigParser private constructor() : DefaultHandler() {
                 .addModule(kotlinModule())
                 .build()
         }
-
-        /** Merge two Config objects together returning an object that combines them both. */
-        internal fun merge(configLeft: Config, configRight: Config): Config {
-            val apiSurfaces = merge(configLeft.apiSurfaces, configRight.apiSurfaces)
-            return Config(apiSurfaces)
-        }
-
-        internal fun merge(apiSurfaces1: ApiSurfacesConfig?, apiSurfaces2: ApiSurfacesConfig?) =
-            if (apiSurfaces1 == null) apiSurfaces2
-            else if (apiSurfaces2 == null) apiSurfaces1
-            else ApiSurfacesConfig(apiSurfaces1.apiSurfaceList + apiSurfaces2.apiSurfaceList)
     }
 }

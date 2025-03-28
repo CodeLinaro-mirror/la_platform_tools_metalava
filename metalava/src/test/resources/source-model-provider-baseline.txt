@@ -40,30 +40,6 @@ com.android.tools.metalava.ExtractAnnotationsTest
   Test generics in XML attributes are encoded[turbine]
   Test string literal encoding[turbine]
 
-com.android.tools.metalava.FlaggedApiTest
-  Basic test that FlaggedApi annotated items can be hidden[turbine,public with flagged api]
-  Basic test that FlaggedApi annotated items can be hidden[turbine,public without flagged api, with foo_bar]
-  Basic test that FlaggedApi annotated items can be hidden[turbine,system with flagged api]
-  Basic test that FlaggedApi annotated items can be hidden[turbine,system without flagged api, with foo_bar]
-  Test interface fields behave correctly when flagged[turbine,public with flagged api]
-  Test interface fields behave correctly when flagged[turbine,public without flagged api, with foo_bar]
-  Test that annotated class members are handled correctly when flagged APIs are hidden[turbine,system with flagged api]
-  Test that annotated class members are handled correctly when flagged APIs are hidden[turbine,system without flagged api, with foo_bar]
-  Test that cross references are handled correctly when flagged APIs are hidden[turbine,public with flagged api]
-  Test that cross references are handled correctly when flagged APIs are hidden[turbine,public without flagged api, with foo_bar]
-  Test that cross references are handled correctly when flagged APIs are hidden[turbine,system with flagged api]
-  Test that cross references are handled correctly when flagged APIs are hidden[turbine,system without flagged api, with foo_bar]
-  Test that method overrides are handled correctly when flagged APIs are hidden[turbine,public with flagged api]
-  Test that method overrides are handled correctly when flagged APIs are hidden[turbine,public without flagged api, with foo_bar]
-  Test that method overrides are handled correctly when flagged APIs are hidden[turbine,system with flagged api]
-  Test that method overrides are handled correctly when flagged APIs are hidden[turbine,system without flagged api, with foo_bar]
-  Test that previously released APIs which are now system and flagged are not removed[turbine,module_lib with flagged api]
-  Test that previously released APIs which are now system and flagged are not removed[turbine,module_lib without flagged api, with foo_bar]
-  Test that previously released APIs which are now system and flagged are not removed[turbine,system with flagged api]
-  Test that previously released APIs which are now system and flagged are not removed[turbine,system without flagged api, with foo_bar]
-  Test that pulling method up into super class can be reverted[turbine,public with flagged api]
-  Test that pulling method up into super class can be reverted[turbine,public without flagged api, with foo_bar]
-
 com.android.tools.metalava.Java9LanguageFeaturesTest
   Basic class signature extraction[turbine]
   Using JDK APIs[turbine]
@@ -90,6 +66,30 @@ com.android.tools.metalava.NormalizeOutputAnnotationTest
 
 com.android.tools.metalava.NullabilityAnnotationsValidatorTest
   Using class list[turbine]
+
+com.android.tools.metalava.ParameterizedFlaggedApiTest
+  Basic test that FlaggedApi annotated items can be hidden[turbine,public finalize foo_bar]
+  Basic test that FlaggedApi annotated items can be hidden[turbine,public keep all]
+  Basic test that FlaggedApi annotated items can be hidden[turbine,system finalize foo_bar]
+  Basic test that FlaggedApi annotated items can be hidden[turbine,system keep all]
+  Test interface fields behave correctly when flagged[turbine,public finalize foo_bar]
+  Test interface fields behave correctly when flagged[turbine,public keep all]
+  Test that annotated class members are handled correctly when flagged APIs are hidden[turbine,system finalize foo_bar]
+  Test that annotated class members are handled correctly when flagged APIs are hidden[turbine,system keep all]
+  Test that cross references are handled correctly when flagged APIs are hidden[turbine,public finalize foo_bar]
+  Test that cross references are handled correctly when flagged APIs are hidden[turbine,public keep all]
+  Test that cross references are handled correctly when flagged APIs are hidden[turbine,system finalize foo_bar]
+  Test that cross references are handled correctly when flagged APIs are hidden[turbine,system keep all]
+  Test that method overrides are handled correctly when flagged APIs are hidden[turbine,public finalize foo_bar]
+  Test that method overrides are handled correctly when flagged APIs are hidden[turbine,public keep all]
+  Test that method overrides are handled correctly when flagged APIs are hidden[turbine,system finalize foo_bar]
+  Test that method overrides are handled correctly when flagged APIs are hidden[turbine,system keep all]
+  Test that previously released APIs which are now system and flagged are not removed[turbine,module_lib finalize foo_bar]
+  Test that previously released APIs which are now system and flagged are not removed[turbine,module_lib keep all]
+  Test that previously released APIs which are now system and flagged are not removed[turbine,system finalize foo_bar]
+  Test that previously released APIs which are now system and flagged are not removed[turbine,system keep all]
+  Test that pulling method up into super class can be reverted[turbine,public finalize foo_bar]
+  Test that pulling method up into super class can be reverted[turbine,public keep all]
 
 com.android.tools.metalava.PolymorphicMethodsTest
   Test MethodHandle[turbine]
@@ -147,9 +147,6 @@ com.android.tools.metalava.compatibility.CompatibilityCheckTest
   Incompatible method change -- final[turbine]
   No issues using the same classpath class twice[turbine]
   Removed method from classpath[turbine]
-
-com.android.tools.metalava.compatibility.ParameterNameChangeTest
-  Flag renaming a parameter from the classpath[turbine]
 
 com.android.tools.metalava.doc.DocAnalyzerRangeTest
   Add new parameter when doc exists but no param doc[turbine]

@@ -83,9 +83,7 @@ import com.google.turbine.binder.Binder
 import com.google.turbine.binder.Binder.BindingResult
 import com.google.turbine.binder.ClassPathBinder
 import com.google.turbine.binder.Processing.ProcessorInfo
-import com.google.turbine.binder.bound.EnumConstantValue
 import com.google.turbine.binder.bound.SourceTypeBoundClass
-import com.google.turbine.binder.bound.TurbineClassValue
 import com.google.turbine.binder.bound.TypeBoundClass
 import com.google.turbine.binder.bound.TypeBoundClass.FieldInfo
 import com.google.turbine.binder.bound.TypeBoundClass.MethodInfo
@@ -513,7 +511,7 @@ internal class TurbineCodebaseInitialiser(
             // It is possible that the top level class has already been created but just did not
             // contain the requested nested class so check to make sure it exists before
             // creating it.
-            val topClassName = getQualifiedName(topClassSym.binaryName())
+            val topClassName = topClassSym.qualifiedName
             codebase.findClass(topClassName)
                 ?: let {
                     // Get the origin of the class.
@@ -651,7 +649,7 @@ internal class TurbineCodebaseInitialiser(
             }
 
         // Create class
-        val qualifiedName = getQualifiedName(classSymbol.binaryName())
+        val qualifiedName = classSymbol.qualifiedName
         val documentation = javadoc(decl)
         val modifierItem =
             createModifiers(
@@ -739,11 +737,13 @@ internal class TurbineCodebaseInitialiser(
     }
 
     private fun createAnnotation(annotation: AnnoInfo): AnnotationItem? {
-        val tree = annotation.tree()
-        val simpleName = tree?.let { extractNameFromIdent(it.name()) }
-        val clsSym = annotation.sym()
-        val qualifiedName =
-            if (clsSym == null) simpleName!! else getQualifiedName(clsSym.binaryName())
+        // Get the source representation of the annotation. This will be null for an annotation
+        // loaded from a class file.
+        val tree: Tree.Anno? = annotation.tree()
+        // An annotation that has no definition in scope has a null sym, in that case fall back
+        // to use the name used in the source. The sym can only be null in sources, so if sym is
+        // null then tree cannot be null.
+        val qualifiedName = annotation.sym()?.qualifiedName ?: tree!!.name().dotSeparatedName
 
         val fileLocation =
             annotation
@@ -809,7 +809,7 @@ internal class TurbineCodebaseInitialiser(
                 val constLiteral = const.elements().single()
                 return DefaultAnnotationSingleAttributeValue(
                     { getSource(constLiteral, expr) },
-                    { getValue(constLiteral) }
+                    { constLiteral.underlyingValue }
                 )
             }
             return DefaultAnnotationArrayAttributeValue(
@@ -819,7 +819,7 @@ internal class TurbineCodebaseInitialiser(
         }
         return DefaultAnnotationSingleAttributeValue(
             { getSource(const, expr) },
-            { getValue(const) }
+            { const.underlyingValue }
         )
     }
 
@@ -871,34 +871,11 @@ internal class TurbineCodebaseInitialiser(
                     append("}")
                 }
             }
-            Kind.ENUM_CONSTANT -> getValue(const).toString()
+            Kind.ENUM_CONSTANT -> const.underlyingValue.toString()
             Kind.CLASS_LITERAL -> {
-                if (expr != null) expr.toString() else getValue(const).toString()
+                if (expr != null) expr.toString() else const.underlyingValue.toString()
             }
             else -> const.toString()
-        }
-    }
-
-    private fun getValue(const: Const): Any? {
-        when (const.kind()) {
-            Kind.PRIMITIVE -> {
-                val value = const as Value
-                return value.getValue()
-            }
-            // For cases like AnyClass.class, return the qualified name of AnyClass
-            Kind.CLASS_LITERAL -> {
-                val value = const as TurbineClassValue
-                return value.type().toString()
-            }
-            Kind.ENUM_CONSTANT -> {
-                val value = const as EnumConstantValue
-                val temp =
-                    getQualifiedName(value.sym().owner().binaryName()) + "." + value.toString()
-                return temp
-            }
-            else -> {
-                return const.toString()
-            }
         }
     }
 
@@ -1187,10 +1164,6 @@ internal class TurbineCodebaseInitialiser(
         }
     }
 
-    internal fun getQualifiedName(binaryName: String): String {
-        return binaryName.replace('/', '.').replace('$', '.')
-    }
-
     /**
      * Get the ClassSymbol corresponding to a qualified name. Since the Turbine's lookup method
      * returns only top-level classes, this method will return the ClassSymbol of outermost class
@@ -1252,7 +1225,7 @@ internal class TurbineCodebaseInitialiser(
                 else ->
                     when (expr.kind()) {
                         Tree.Kind.LITERAL -> {
-                            getValue((expr as Literal).value())
+                            (expr as Literal).value().underlyingValue
                         }
                         // Class Type
                         Tree.Kind.CLASS_LITERAL -> {
@@ -1317,10 +1290,10 @@ internal class TurbineCodebaseInitialiser(
                 // For e.g. char[] letter() default 'a';
                 if (const.elements().count() == 1 && expr != null && !(expr is ArrayInit)) {
                     extractAnnotationDefaultValue(const.elements().single(), expr)
-                } else getValue(const).toString()
+                } else const.underlyingValue.toString()
             }
-            Kind.CLASS_LITERAL -> getValue(const).toString() + ".class"
-            else -> getValue(const).toString()
+            Kind.CLASS_LITERAL -> const.underlyingValue.toString() + ".class"
+            else -> const.underlyingValue.toString()
         }
     }
 

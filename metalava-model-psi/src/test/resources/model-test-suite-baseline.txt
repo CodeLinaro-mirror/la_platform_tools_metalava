@@ -10,6 +10,17 @@ com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTe
   annotation with enum values[java,k1]
   annotation with enum values[java,k2]
 
+com.android.tools.metalava.model.testsuite.typealiasitem.CommonTypeAliasItemTest
+  accessing type alias from codebase[kotlin,k1]
+  accessing type alias from package[kotlin,k1]
+  annotations on type alias[kotlin,k1]
+  basic type alias types[kotlin,k1]
+  functional type alias type[kotlin,k1]
+  type alias name[kotlin,k1]
+  type alias referencing other type alias[kotlin,k1]
+  type alias visibility[kotlin,k1]
+  type parameter lists on type aliases[kotlin,k1]
+
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeModifiersTest
   Test inner parameterized types with annotations[java,k1]
   Test inner parameterized types with annotations[java,k2]

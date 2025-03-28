@@ -178,6 +178,10 @@ open class BaseItemVisitor(
                 cls.accept(this)
             }
 
+            for (typeAlias in pkg.typeAliases()) {
+                typeAlias.accept(this)
+            }
+
             afterVisitPackage(pkg)
         }
     }
@@ -202,6 +206,14 @@ open class BaseItemVisitor(
         }
 
         wrapBodyWithCallsToVisitMethodsForSelectableItem(property) { visitProperty(property) }
+    }
+
+    override fun visit(typeAlias: TypeAliasItem) {
+        if (skip(typeAlias)) {
+            return
+        }
+
+        wrapBodyWithCallsToVisitMethodsForSelectableItem(typeAlias) { visitTypeAlias(typeAlias) }
     }
 
     open fun skip(item: Item): Boolean = false
@@ -239,6 +251,8 @@ open class BaseItemVisitor(
     open fun visitParameter(parameter: ParameterItem) {}
 
     open fun visitProperty(property: PropertyItem) {}
+
+    open fun visitTypeAlias(typeAlias: TypeAliasItem) {}
 
     /**
      * Visits any [SelectableItem], i.e. everything for which [afterVisitItem] is called except
