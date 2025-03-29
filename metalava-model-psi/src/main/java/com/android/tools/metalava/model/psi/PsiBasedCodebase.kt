@@ -51,6 +51,7 @@ internal class PsiBasedCodebase(
     val allowReadingComments: Boolean,
     val fromClasspath: Boolean = false,
     assembler: PsiCodebaseAssembler,
+    val isMultiplatform: Boolean,
 ) :
     DefaultCodebase(
         location = location,

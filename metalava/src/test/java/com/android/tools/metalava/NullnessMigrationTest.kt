@@ -25,7 +25,7 @@ class NullnessMigrationTest : DriverTest() {
     @Test
     fun `Test Kotlin-style null signatures`() {
         check(
-            format = FileFormat.V3,
+            format = FileFormat.V4,
             sourceFiles =
                 arrayOf(
                     java(
@@ -47,7 +47,7 @@ class NullnessMigrationTest : DriverTest() {
                 ),
             api =
                 """
-                    // Signature format: 3.0
+                    // Signature format: 4.0
                     package test.pkg {
                       public class MyTest {
                         ctor public MyTest();
@@ -242,7 +242,7 @@ class NullnessMigrationTest : DriverTest() {
     @Test
     fun `Comprehensive check of migration, Kotlin-style output`() {
         check(
-            format = FileFormat.V3,
+            format = FileFormat.V4,
             sourceFiles =
                 arrayOf(
                     java(
@@ -277,7 +277,7 @@ class NullnessMigrationTest : DriverTest() {
                 """,
             api =
                 """
-                    // Signature format: 3.0
+                    // Signature format: 4.0
                     package test.pkg {
                       public class MyTest {
                         ctor public MyTest();

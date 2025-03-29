@@ -118,7 +118,7 @@ data class FileFormat(
      * `\n` (because it is the terminator of the signature format line).
      */
     val migrating: String? = null,
-    val conciseDefaultValues: Boolean,
+    val includeDefaultParameterValues: Boolean,
     val specifiedAddAdditionalOverrides: Boolean? = null,
 
     /** See [CustomizableProperty.NORMALIZE_FINAL_MODIFIER]. */
@@ -240,7 +240,7 @@ data class FileFormat(
                 FileFormat(
                     version = version,
                     kotlinStyleNulls = false,
-                    conciseDefaultValues = false,
+                    includeDefaultParameterValues = false,
                 )
             },
             help =
@@ -249,26 +249,7 @@ data class FileFormat(
                     are based. It sets the properties as follows:
                     ```
                     + kotlin-style-nulls = no
-                    + concise-default-values = no
-                    ```
-                """,
-        ),
-        V3(
-            versionNumber = "3.0",
-            legacyCommandLineAlias = "v3",
-            factory = { version ->
-                V2.defaults.copy(
-                    version = version,
-                    // This adds kotlinStyleNulls = true
-                    kotlinStyleNulls = true,
-                )
-            },
-            help =
-                """
-                    This is `2.0` plus `kotlin-style-nulls = yes` giving the following properties:
-                    ```
-                    + kotlin-style-nulls = yes
-                    + concise-default-values = no
+                    + include-default-parameter-values = no
                     ```
                 """,
         ),
@@ -276,19 +257,21 @@ data class FileFormat(
             versionNumber = "4.0",
             legacyCommandLineAlias = "v4",
             factory = { version ->
-                V3.defaults.copy(
+                V2.defaults.copy(
                     version = version,
+                    // This adds kotlinStyleNulls = true
+                    kotlinStyleNulls = true,
                     // This adds conciseDefaultValues = true
-                    conciseDefaultValues = true,
+                    includeDefaultParameterValues = true,
                 )
             },
             help =
                 """
-                    This is `3.0` plus `concise-default-values = yes` giving the following
-                    properties:
+                    This is `2.0` plus `kotlin-style-nulls = yes` and `include-default-parameter-values = yes`
+                    giving the following properties:
                     ```
                     + kotlin-style-nulls = yes
-                    + concise-default-values = yes
+                    + include-default-parameter-values = yes
                     ```
                 """,
         ),
@@ -355,15 +338,15 @@ data class FileFormat(
      * This is independent of the [Version].
      */
     enum class Language(
-        private val conciseDefaultValues: Boolean,
+        private val includeDefaultParameterValues: Boolean,
         private val kotlinStyleNulls: Boolean,
     ) {
-        JAVA(conciseDefaultValues = false, kotlinStyleNulls = false),
-        KOTLIN(conciseDefaultValues = true, kotlinStyleNulls = true);
+        JAVA(includeDefaultParameterValues = false, kotlinStyleNulls = false),
+        KOTLIN(includeDefaultParameterValues = true, kotlinStyleNulls = true);
 
         internal fun applyLanguageDefaults(builder: Builder) {
-            if (builder.conciseDefaultValues == null) {
-                builder.conciseDefaultValues = conciseDefaultValues
+            if (builder.includeDefaultParameterValues == null) {
+                builder.includeDefaultParameterValues = includeDefaultParameterValues
             }
             if (builder.kotlinStyleNulls == null) {
                 builder.kotlinStyleNulls = kotlinStyleNulls
@@ -497,9 +480,6 @@ data class FileFormat(
 
         // The defaults associated with version 2.0.
         val V2 = Version.V2.defaults
-
-        // The defaults associated with version 3.0.
-        val V3 = Version.V3.defaults
 
         // The defaults associated with version 4.0.
         val V4 = Version.V4.defaults
@@ -784,7 +764,7 @@ data class FileFormat(
     /** A builder for [FileFormat] that applies some optional values to a base [FileFormat]. */
     internal class Builder(private val base: FileFormat) {
         var addAdditionalOverrides: Boolean? = null
-        var conciseDefaultValues: Boolean? = null
+        var includeDefaultParameterValues: Boolean? = null
         var includeTypeUseAnnotations: Boolean? = null
         var kotlinNameTypeOrder: Boolean? = null
         var kotlinStyleNulls: Boolean? = null
@@ -802,7 +782,8 @@ data class FileFormat(
             // Apply any language defaults first as they take priority over version defaults.
             language?.applyLanguageDefaults(this)
             return base.copy(
-                conciseDefaultValues = conciseDefaultValues ?: base.conciseDefaultValues,
+                includeDefaultParameterValues = includeDefaultParameterValues
+                        ?: base.includeDefaultParameterValues,
                 includeTypeUseAnnotations = includeTypeUseAnnotations
                         ?: base.includeTypeUseAnnotations,
                 kotlinNameTypeOrder = kotlinNameTypeOrder ?: base.kotlinNameTypeOrder,
@@ -875,22 +856,22 @@ data class FileFormat(
             override fun stringFromFormat(format: FileFormat): String? =
                 format.specifiedAddAdditionalOverrides?.let { yesNo(it) }
         },
-        /** concise-default-values=[yes|no] */
-        CONCISE_DEFAULT_VALUES(
+        /** include-default-parameter-values=[yes|no] */
+        INCLUDE_DEFAULT_PARAMETER_VALUES(
             valueSyntax = "yes|no",
             help =
                 """
-                    If `no` then the signature file will use `@Nullable` and `@NonNull` annotations
-                    to indicate that the annotated item accepts `null` and does not accept `null`
-                    respectively and neither indicates that it's not defined.
+                    If `no` then the signature file will not include any information about default
+                    parameter values. If `yes` then it will use the pseudo modifier `optional` to
+                    indicate a parameter that has a default value.
                 """,
         ) {
             override fun setFromString(builder: Builder, value: String) {
-                builder.conciseDefaultValues = yesNo(value)
+                builder.includeDefaultParameterValues = yesNo(value)
             }
 
             override fun stringFromFormat(format: FileFormat): String =
-                yesNo(format.conciseDefaultValues)
+                yesNo(format.includeDefaultParameterValues)
         },
         /** include-type-use-annotations=[yes|no] */
         INCLUDE_TYPE_USE_ANNOTATIONS {

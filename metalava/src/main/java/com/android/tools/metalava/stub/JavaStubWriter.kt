@@ -314,7 +314,7 @@ internal class JavaStubWriter(
         generateThrowsList(method)
 
         if (containingClass.isAnnotationType()) {
-            val default = method.defaultValue()
+            val default = method.legacyDefaultValue()
             if (default.isNotEmpty()) {
                 writer.print(" default ")
                 writer.print(default)
@@ -345,7 +345,7 @@ internal class JavaStubWriter(
         writer.print(field.name())
         val needsInitialization =
             field.modifiers.isFinal() &&
-                field.initialValue(true) == null &&
+                field.legacyInitialValue(true) == null &&
                 field.containingClass().isClass()
         field.writeValueWithSemicolon(
             writer,

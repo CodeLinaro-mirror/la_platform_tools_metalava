@@ -4,8 +4,9 @@
     <option name="sdkName" value="Python 3.11" />
   </component>
   <component name="EntryPointsManager">
-    <list size="1">
-      <item index="0" class="java.lang.String" itemvalue="com.fasterxml.jackson.annotation.JsonValue" />
+    <list size="2">
+      <item index="0" class="java.lang.String" itemvalue="com.android.tools.metalava.model.junit4.ParameterFilter" />
+      <item index="1" class="java.lang.String" itemvalue="com.fasterxml.jackson.annotation.JsonValue" />
     </list>
   </component>
   <component name="ExternalStorageConfigurationManager" enabled="true" />
@@ -55,7 +56,7 @@
       </value>
     </option>
   </component>
-  <component name="ProjectRootManager" version="2" languageLevel="JDK_1_8" project-jdk-name="jbr-17" project-jdk-type="JavaSDK">
+  <component name="ProjectRootManager" version="2" languageLevel="JDK_1_8" project-jdk-name="21" project-jdk-type="JavaSDK">
     <output url="file://$PROJECT_DIR$/classes" />
   </component>
 </project>

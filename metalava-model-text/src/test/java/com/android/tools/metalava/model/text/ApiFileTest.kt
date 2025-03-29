@@ -388,6 +388,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
     fun `Test split across multiple files, middle missing`() {
         checkPackageStructureCreatedCorrectly(
             signature(
+                "api1.txt",
                 """
                     // Signature format: 2.0
                     package test.pkg {
@@ -397,6 +398,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
                 """
             ),
             signature(
+                "api2.txt",
                 """
                     // Signature format: 2.0
                     package test.pkg {
@@ -412,6 +414,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
     fun `Test split across multiple files`() {
         checkPackageStructureCreatedCorrectly(
             signature(
+                "api1.txt",
                 """
                     // Signature format: 2.0
                     package test.pkg {
@@ -421,6 +424,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
                 """
             ),
             signature(
+                "api2.txt",
                 """
                     // Signature format: 2.0
                     package test.pkg {
@@ -430,6 +434,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
                 """
             ),
             signature(
+                "api3.txt",
                 """
                     // Signature format: 2.0
                     package test.pkg {
@@ -439,6 +444,57 @@ class ApiFileTest : BaseTextCodebaseTest() {
                 """
             ),
         )
+    }
+
+    @Test
+    fun `Test duplicate methods across multiple files`() {
+        runSignatureTest(
+            signature(
+                "api1.txt",
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                        public class Foo {
+                            method public void foo();
+                        }
+                    }
+                """
+            ),
+            signature(
+                "api2.txt",
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                        public class Foo {
+                            method public void foo();
+                        }
+                    }
+                """
+            ),
+        ) {
+            // Make sure that duplicate methods loaded from multiple files are de-duped.
+            assertThat(codebase.assertClass("test.pkg.Foo").methods().size).isEqualTo(1)
+        }
+    }
+
+    @Test
+    fun `Test duplicate methods within single file`() {
+        runSignatureTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                        public class Foo {
+                            method public void foo();
+                            method public void foo();
+                        }
+                    }
+                """
+            ),
+        ) {
+            // Make sure that duplicate methods loaded from multiple files are not de-duped.
+            assertThat(codebase.assertClass("test.pkg.Foo").methods().size).isEqualTo(2)
+        }
     }
 
     @Test
@@ -516,7 +572,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
         runSignatureTest(
             signature(
                 """
-                    // Signature format: 3.0
+                    // Signature format: 4.0
                     package test.pkg {
                         public abstract class Foo {
                             field public static final int? FIELD1 = 0;

@@ -584,7 +584,8 @@ fun createMutableModifiers(
         annotations
             .find { it.qualifiedName == ANDROIDX_VISIBLE_FOR_TESTING }
             ?.let { visibleForTesting ->
-                visibleForTesting.findAttribute(ATTR_OTHERWISE)?.value?.let { otherwiseValue ->
+                visibleForTesting.findAttribute(ATTR_OTHERWISE)?.legacyValue?.let { otherwiseValue
+                    ->
                     useVisibilityFromVisibleForTesting(otherwiseValue.toSource(), flags)
                 }
             }

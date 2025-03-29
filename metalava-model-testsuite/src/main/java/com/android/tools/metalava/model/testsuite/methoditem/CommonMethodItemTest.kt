@@ -394,7 +394,7 @@ class CommonMethodItemTest : BaseModelTest() {
                     "java.lang.Integer.class",
                     "test.pkg.TestAnnotation.InnerEnum.ENUM1"
                 )
-            assertEquals(values, classItem.methods().map { it.defaultValue() })
+            assertEquals(values, classItem.methods().map { it.legacyDefaultValue() })
         }
     }
 

@@ -16,14 +16,14 @@
 
 package com.android.tools.metalava.model.type
 
+import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.ClassTypeItem
-import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultTypeItem
 import com.android.tools.metalava.model.TypeArgumentTypeItem
 import com.android.tools.metalava.model.TypeModifiers
 
 open class DefaultClassTypeItem(
-    internal val codebase: Codebase,
+    internal val classResolver: ClassResolver,
     modifiers: TypeModifiers,
     final override val qualifiedName: String,
     final override val arguments: List<TypeArgumentTypeItem>,
@@ -32,7 +32,7 @@ open class DefaultClassTypeItem(
     override val className: String = ClassTypeItem.computeClassName(qualifiedName)
 
     private val asClassCache by
-        lazy(LazyThreadSafetyMode.NONE) { codebase.resolveClass(qualifiedName) }
+        lazy(LazyThreadSafetyMode.NONE) { classResolver.resolveClass(qualifiedName) }
 
     override fun asClass() = asClassCache
 
@@ -45,6 +45,12 @@ open class DefaultClassTypeItem(
         outerClassType: ClassTypeItem?,
         arguments: List<TypeArgumentTypeItem>
     ): ClassTypeItem {
-        return DefaultClassTypeItem(codebase, modifiers, qualifiedName, arguments, outerClassType)
+        return DefaultClassTypeItem(
+            classResolver,
+            modifiers,
+            qualifiedName,
+            arguments,
+            outerClassType
+        )
     }
 }

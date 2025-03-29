@@ -551,7 +551,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
             ),
             signature(
                 """
-                    // Signature format: 3.0
+                    // Signature format: 4.0
                     package test.pkg {
                       public class Outer<O> {
                         ctor public Outer();

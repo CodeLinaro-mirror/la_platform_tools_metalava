@@ -16,7 +16,7 @@
 
 package com.android.tools.metalava.model.testsuite.callableitem
 
-import com.android.tools.metalava.model.Assertions
+import com.android.tools.metalava.model.Assertions.Companion.assertClass
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.getCallableParameterDescriptorUsingDots
@@ -46,7 +46,7 @@ class CallableParameterDescriptorUsingDotsTest : BaseModelTest() {
         }
     }
 
-    companion object : Assertions {
+    companion object {
         private val params =
             listOf(
                 TestParams(
