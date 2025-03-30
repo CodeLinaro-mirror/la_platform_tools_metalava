@@ -604,7 +604,7 @@ class CommonClassItemTest : BaseModelTest() {
             inputSet(
                 signature(
                     """
-                        // Signature format: 3.0
+                        // Signature format: 4.0
                         package test.pkg {
                           public class Generic<T, U> {
                           }
@@ -667,7 +667,7 @@ class CommonClassItemTest : BaseModelTest() {
             inputSet(
                 signature(
                     """
-                        // Signature format: 3.0
+                        // Signature format: 4.0
                         package test.pkg {
                           public interface Generic<T, U> {
                           }

@@ -99,3 +99,6 @@ internal val Const.underlyingValue: Any?
             }
         }
     }
+
+internal val ClassSymbol.dotSeparatedPackageName
+    get() = packageName().replace('/', '.')

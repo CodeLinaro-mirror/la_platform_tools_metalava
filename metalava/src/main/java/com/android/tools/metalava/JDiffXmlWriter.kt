@@ -156,7 +156,7 @@ class JDiffXmlWriter(
 
     override fun visitField(field: FieldItem) {
         val modifiers = field.modifiers
-        val initialValue = field.initialValue(true)
+        val initialValue = field.legacyInitialValue(true)
         val value =
             if (initialValue != null) {
                 XmlUtils.toXmlAttributeValue(CodePrinter.constantToSource(initialValue))

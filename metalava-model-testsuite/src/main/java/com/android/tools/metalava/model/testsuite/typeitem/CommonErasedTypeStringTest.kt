@@ -177,7 +177,7 @@ class CommonErasedTypeStringTest : BaseModelTest() {
     private fun signatureTestFile() =
         signature(
             """
-                        // Signature format: 3.0
+                        // Signature format: 4.0
                         package test.pkg {
                           public class Foo {
                             ctor public Foo();

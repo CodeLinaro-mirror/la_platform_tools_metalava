@@ -317,7 +317,7 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
                     throwsTypes =
                         methodToSnapshot.throwsTypes().map { typeItemFactory.getExceptionType(it) },
                     callableBodyFactory = methodToSnapshot.body::snapshot,
-                    annotationDefault = methodToSnapshot.defaultValue(),
+                    annotationDefault = methodToSnapshot.legacyDefaultValue(),
                 )
             }
         newMethod.copySelectedApiVariants(methodToSnapshot)
@@ -342,7 +342,7 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
                     containingClass = containingClass,
                     type = fieldToSnapshot.type().snapshot(),
                     isEnumConstant = fieldToSnapshot.isEnumConstant(),
-                    fieldValue = fieldToSnapshot.fieldValue?.snapshot(),
+                    fieldValue = fieldToSnapshot.legacyFieldValue?.snapshot(),
                 )
             }
         newField.copySelectedApiVariants(fieldToSnapshot)

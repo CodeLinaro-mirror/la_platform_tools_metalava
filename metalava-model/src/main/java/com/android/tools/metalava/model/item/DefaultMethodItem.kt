@@ -66,7 +66,7 @@ open class DefaultMethodItem(
 
     override fun isExtensionMethod(): Boolean = false // java does not support extension methods
 
-    override fun defaultValue() = annotationDefault
+    override fun legacyDefaultValue() = annotationDefault
 
     private lateinit var superMethodList: List<MethodItem>
 

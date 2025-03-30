@@ -499,7 +499,7 @@ class CommonFieldItemTest : BaseModelTest() {
             val fields = testClass.fields()
             assertEquals(3, fields.size, message = "field count")
             for (field in fields) {
-                val value = field.initialValue(true) as Float
+                val value = field.legacyInitialValue(true) as Float
                 val valueBits = value.toBits()
                 assertEquals(
                     minNormalBits,

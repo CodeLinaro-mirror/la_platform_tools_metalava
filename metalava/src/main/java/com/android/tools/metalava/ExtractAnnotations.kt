@@ -445,10 +445,16 @@ class ExtractAnnotations(
                 continue
             }
 
+            // The value could contain fully qualified references to enum values that are in the
+            // android.annotation package. If so, then replace them with references in the
+            // androidx.annotation package.
+            val normalizedValue =
+                value.replace(ANDROID_ANNOTATION_PREFIX, ANDROIDX_ANNOTATION_PREFIX)
+
             writer.print("      <val name=\"")
             writer.print(name)
             writer.print("\" val=\"")
-            writer.print(escapeXml(value))
+            writer.print(escapeXml(normalizedValue))
             writer.println("\" />")
         }
 

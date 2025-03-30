@@ -299,12 +299,14 @@ internal class PsiTypeItemFactory(
                             contextNullability = contextNullability,
                         )
                     } else {
-                        createClassTypeItem(
-                            psiType = psiType,
-                            kotlinType = kotlinType,
-                            contextNullability = contextNullability,
-                            creatingClassTypeForClass = creatingClassTypeForClass,
-                        )
+                        val classType =
+                            createClassTypeItem(
+                                psiType = psiType,
+                                kotlinType = kotlinType,
+                                contextNullability = contextNullability,
+                                creatingClassTypeForClass = creatingClassTypeForClass,
+                            )
+                        checkForTypeAliasSubstitution(classType, contextNullability) ?: classType
                     }
                 }
             }
@@ -325,6 +327,51 @@ internal class PsiTypeItemFactory(
                 }"
                 )
         }
+    }
+
+    /**
+     * Checks if there are is a type alias matching the name of the [classTypeItem]. If there is,
+     * converts the aliased type for this usage (mapping type parameters and adjusting nullability).
+     *
+     * If there is no matching type alias, returns null.
+     */
+    private fun checkForTypeAliasSubstitution(
+        classTypeItem: PsiClassTypeItem,
+        contextNullability: ContextNullability
+    ): PsiTypeItem? {
+        // Don't bother checking for type aliases in non-KMP codebases because the substitution will
+        // already have happened in the UAST representation. Substitution won't have happened for
+        // expect/actual type aliases used from a common source set because the type is platform
+        // dependent. Metalava is just modeling the android/jvm platform, so the substitution needs
+        // to happen here.
+        if (!codebase.isMultiplatform) return null
+
+        val typeAlias = codebase.findTypeAlias(classTypeItem.qualifiedName) ?: return null
+
+        // Map type parameters of the type alias, if applicable.
+        val convertedType =
+            if (typeAlias.typeParameterList.isEmpty()) {
+                typeAlias.aliasedType
+            } else {
+                val typeParameterBindings =
+                    typeAlias.typeParameterList
+                        .zip(classTypeItem.arguments.map { it as ReferenceTypeItem })
+                        .toMap()
+                typeAlias.aliasedType.convertType(typeParameterBindings)
+            }
+
+        // Update type nullability: if the context requires a specific nullability, use that.
+        // If the aliased type is nullable, that propagates to the usage. Otherwise, use the
+        // nullability set by the usage site.
+        val nullability =
+            contextNullability.forcedNullability
+                ?: if (typeAlias.aliasedType.modifiers.isNullable) {
+                    TypeNullability.NULLABLE
+                } else {
+                    classTypeItem.modifiers.nullability
+                }
+
+        return convertedType.substitute(nullability) as PsiTypeItem
     }
 
     /** Create a [PsiPrimitiveTypeItem]. */

@@ -96,8 +96,9 @@ class SignatureCatCommand :
             }
 
         val codebase = read(signatureFiles)
-        val outputWriter = outputFile?.printWriter() ?: stdout
-        write(codebase, outputFormat, outputWriter)
+        (outputFile?.printWriter() ?: stdout).use { outputWriter ->
+            write(codebase, outputFormat, outputWriter)
+        }
     }
 
     private fun read(signatureFiles: List<SignatureFile>) =

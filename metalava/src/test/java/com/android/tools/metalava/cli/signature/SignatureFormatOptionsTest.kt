@@ -45,7 +45,7 @@ Signature Format Output:
 
                                              See `metalava help signature-file-formats` for more information on the
                                              properties.
-  --format [v2|v3|v4|latest|recommended|<specifier>]
+  --format [v2|v4|latest|recommended|<specifier>]
                                              Specifies the output signature file format.
 
                                              The preferred way of specifying the format is to use one of the following
@@ -70,13 +70,11 @@ Signature Format Output:
 
                                              v2 - The main version used in Android.
 
-                                             v3 - Adds support for using kotlin style syntax to embed nullability
+                                             v4 - Adds support for using kotlin style syntax to embed nullability
                                              information instead of using explicit and verbose @NonNull and @Nullable
-                                             annotations. This can be used for Java files and Kotlin files alike.
-
-                                             v4 - Adds support for using concise default values in parameters. Instead
-                                             of specifying the actual default values it just uses the `default` keyword.
-                                             (default: recommended)
+                                             annotations. This can be used for Java files and Kotlin files alike. Also,
+                                             adds support for recording that a parameter has a default value by using
+                                             the pseudo-modifier `optional`. (default: recommended)
   --use-same-format-as <file>                Specifies that the output format should be the same as the format used in
                                              the specified file. It is an error if the file does not exist. If the file
                                              is empty then this will behave as if it was not specified. If the file is
@@ -106,16 +104,16 @@ class SignatureFormatOptionsTest :
         runTest("--format=v1") {
             assertThat(stderr)
                 .startsWith(
-                    """Invalid value for "--format": invalid version, found 'v1', expected one of '2.0', '3.0', '4.0', '5.0', 'v2', 'v3', 'v4', 'latest', 'recommended'"""
+                    """Invalid value for "--format": invalid version, found 'v1', expected one of '2.0', '4.0', '5.0', 'v2', 'v4', 'latest', 'recommended'"""
                 )
         }
     }
 
     @Test
     fun `--use-same-format-as reads from a valid file and ignores --format`() {
-        val path = source("api.txt", "// Signature format: 3.0\n").createFile(temporaryFolder.root)
+        val path = source("api.txt", "// Signature format: 4.0\n").createFile(temporaryFolder.root)
         runTest("--use-same-format-as", path.path, "--format", "v4") {
-            assertThat(options.fileFormat).isEqualTo(FileFormat.V3)
+            assertThat(options.fileFormat).isEqualTo(FileFormat.V4)
         }
     }
 
@@ -222,13 +220,13 @@ class SignatureFormatOptionsTest :
     fun `--format specifier with all the supported properties`() {
         runTest(
             "--format",
-            "2.0:kotlin-style-nulls=yes,concise-default-values=yes,overloaded-method-order=source",
+            "2.0:kotlin-style-nulls=yes,include-default-parameter-values=yes,overloaded-method-order=source",
         ) {
             assertEquals(
                 FileFormat.V2.copy(
                     specifiedOverloadedMethodOrder = FileFormat.OverloadedMethodOrder.SOURCE,
                     kotlinStyleNulls = true,
-                    conciseDefaultValues = true,
+                    includeDefaultParameterValues = true,
                 ),
                 options.fileFormat
             )
@@ -271,10 +269,10 @@ class SignatureFormatOptionsTest :
     }
 
     @Test
-    fun `--format specifier unknown value (concise-default-values)`() {
-        runTest("--format", "2.0:concise-default-values=barf") {
+    fun `--format specifier unknown value (include-default-parameter-values)`() {
+        runTest("--format", "2.0:include-default-parameter-values=barf") {
             assertEquals(
-                """Invalid value for "--format": unexpected value for concise-default-values, found 'barf', expected one of 'yes' or 'no'""",
+                """Invalid value for "--format": unexpected value for include-default-parameter-values, found 'barf', expected one of 'yes' or 'no'""",
                 stderr
             )
         }
@@ -304,11 +302,11 @@ class SignatureFormatOptionsTest :
     fun `--format specifier with v2 some properties, excluding 'migrating' when migratingAllowed=true`() {
         runTest(
             "--format",
-            "2.0:kotlin-style-nulls=yes,concise-default-values=yes",
+            "2.0:kotlin-style-nulls=yes,include-default-parameter-values=yes",
             optionGroup = SignatureFormatOptions(migratingAllowed = true),
         ) {
             assertEquals(
-                """Invalid value for "--format": invalid format specifier: '2.0:kotlin-style-nulls=yes,concise-default-values=yes' - must provide a 'migrating' property when customizing version 2.0""",
+                """Invalid value for "--format": invalid format specifier: '2.0:kotlin-style-nulls=yes,include-default-parameter-values=yes' - must provide a 'migrating' property when customizing version 2.0""",
                 stderr
             )
         }
@@ -318,13 +316,13 @@ class SignatureFormatOptionsTest :
     fun `--format specifier with v2 some properties, including 'migrating' when migratingAllowed=true`() {
         runTest(
             "--format",
-            "2.0:kotlin-style-nulls=yes,concise-default-values=yes,migrating=See b/295577788",
+            "2.0:kotlin-style-nulls=yes,include-default-parameter-values=yes,migrating=See b/295577788",
             optionGroup = SignatureFormatOptions(migratingAllowed = true),
         ) {
             assertEquals(
                 FileFormat.V2.copy(
                     kotlinStyleNulls = true,
-                    conciseDefaultValues = true,
+                    includeDefaultParameterValues = true,
                     migrating = "See b/295577788"
                 ),
                 options.fileFormat
@@ -336,11 +334,11 @@ class SignatureFormatOptionsTest :
     fun `--format specifier with v2 some properties, including 'migrating' when migratingAllowed=false`() {
         runTest(
             "--format",
-            "2.0:kotlin-style-nulls=yes,concise-default-values=yes,migrating=See b/295577788",
+            "2.0:kotlin-style-nulls=yes,include-default-parameter-values=yes,migrating=See b/295577788",
             optionGroup = SignatureFormatOptions(migratingAllowed = false),
         ) {
             assertEquals(
-                """Invalid value for "--format": invalid format specifier: '2.0:kotlin-style-nulls=yes,concise-default-values=yes,migrating=See b/295577788' - must not contain a 'migrating' property""",
+                """Invalid value for "--format": invalid format specifier: '2.0:kotlin-style-nulls=yes,include-default-parameter-values=yes,migrating=See b/295577788' - must not contain a 'migrating' property""",
                 stderr
             )
         }
@@ -350,13 +348,13 @@ class SignatureFormatOptionsTest :
     fun `--format specifier with v5, some properties, excluding 'migrating' when migratingAllowed=true`() {
         runTest(
             "--format",
-            "5.0:kotlin-style-nulls=no,concise-default-values=no",
+            "5.0:kotlin-style-nulls=no,include-default-parameter-values=no",
             optionGroup = SignatureFormatOptions(migratingAllowed = true),
         ) {
             assertEquals(
                 FileFormat.V5.copy(
                     kotlinStyleNulls = false,
-                    conciseDefaultValues = false,
+                    includeDefaultParameterValues = false,
                 ),
                 options.fileFormat
             )
@@ -367,13 +365,13 @@ class SignatureFormatOptionsTest :
     fun `--format specifier with v5, some properties, including 'migrating' when migratingAllowed=true`() {
         runTest(
             "--format",
-            "5.0:kotlin-style-nulls=no,concise-default-values=no,migrating=See b/295577788",
+            "5.0:kotlin-style-nulls=no,include-default-parameter-values=no,migrating=See b/295577788",
             optionGroup = SignatureFormatOptions(migratingAllowed = true),
         ) {
             assertEquals(
                 FileFormat.V5.copy(
                     kotlinStyleNulls = false,
-                    conciseDefaultValues = false,
+                    includeDefaultParameterValues = false,
                     migrating = "See b/295577788",
                 ),
                 options.fileFormat
@@ -385,11 +383,11 @@ class SignatureFormatOptionsTest :
     fun `--format specifier with v5, some properties, including 'migrating' when migratingAllowed=false`() {
         runTest(
             "--format",
-            "5.0:kotlin-style-nulls=no,concise-default-values=no,migrating=See b/295577788",
+            "5.0:kotlin-style-nulls=no,include-default-parameter-values=no,migrating=See b/295577788",
             optionGroup = SignatureFormatOptions(migratingAllowed = false),
         ) {
             assertEquals(
-                """Invalid value for "--format": invalid format specifier: '5.0:kotlin-style-nulls=no,concise-default-values=no,migrating=See b/295577788' - must not contain a 'migrating' property""",
+                """Invalid value for "--format": invalid format specifier: '5.0:kotlin-style-nulls=no,include-default-parameter-values=no,migrating=See b/295577788' - must not contain a 'migrating' property""",
                 stderr
             )
         }
