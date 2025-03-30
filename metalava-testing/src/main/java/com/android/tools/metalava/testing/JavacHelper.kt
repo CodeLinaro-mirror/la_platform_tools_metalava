@@ -97,7 +97,11 @@ object JavacHelper {
     }
 
     /** Compile the [sources] into [jarFile] throwing an exception if it fails. */
-    fun compileAndJar(jarFile: File, sources: List<TestFile>, classPath: List<File> = emptyList()) {
+    fun compileAndJar(
+        jarFile: File,
+        sources: List<TestFile>,
+        classPath: List<TestFile> = emptyList(),
+    ) {
         // Make sure that the directory in which the jar file will be written exists.
         val jarDir = jarFile.parentFile
         jarDir.mkdirs()
@@ -108,8 +112,11 @@ object JavacHelper {
         val sourceFiles = sources.map { it.createFile(srcDir) }
         val classesDir = tempDir.resolve("classes")
 
+        val classPathDir = tempDir.resolve("class-path")
+        val classPathFiles = classPath.map { it.createFile(classPathDir) }
+
         // Compile the source files.
-        compile(outputDirectory = classesDir, sourceFiles, classPath)
+        compile(outputDirectory = classesDir, sourceFiles, classPathFiles)
 
         // Jar up the class files.
         jar(jarFile, classesDir)

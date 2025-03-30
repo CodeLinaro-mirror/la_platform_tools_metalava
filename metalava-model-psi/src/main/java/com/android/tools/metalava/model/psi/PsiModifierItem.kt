@@ -717,7 +717,7 @@ internal object PsiModifierItem {
 
         for (api in allowIn.leafValues()) {
             val annotationName = api.value() as? String ?: continue
-            if (codebase.annotationManager.isShowAnnotationName(annotationName)) {
+            if (annotationContext.annotationManager.isShowAnnotationName(annotationName)) {
                 return true
             }
         }

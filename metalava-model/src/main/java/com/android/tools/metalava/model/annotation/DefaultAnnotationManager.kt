@@ -227,6 +227,10 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
             "android.annotation.Px" -> return "androidx.annotation.Px"
             "android.annotation.Dimension" -> return "androidx.annotation.Dimension"
 
+            // Environments
+            "android.annotation.RestrictedForEnvironment" ->
+                return "androidx.annotation.RestrictedForEnvironment"
+
             // Null
             // Preserve recently/newly nullable annotation as they need to be passed through to
             // stubs. They will be treated as nullable/non-null just as if they were mapped to
@@ -385,6 +389,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
             "androidx.annotation.StringDef",
             "android.annotation.LongDef",
             "androidx.annotation.LongDef" -> return TYPEDEF_ANNOTATION_TARGETS
+            "android.annotation.RestrictedForEnvironment" -> return ANNOTATION_EXTERNAL
 
             // Not directly API relevant
             "android.view.ViewDebug.ExportedProperty",
@@ -712,7 +717,7 @@ private class LazyAnnotationInfo(
         val apiFlags = config.apiFlags ?: return null
         val valueAttribute =
             annotationItem.attributes.find { it.name == ANNOTATION_ATTR_VALUE } ?: return null
-        val flagName = valueAttribute.value.value() as String
+        val flagName = valueAttribute.legacyValue.value() as String
         return apiFlags[flagName]
     }
 

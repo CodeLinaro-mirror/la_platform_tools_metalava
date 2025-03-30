@@ -53,6 +53,11 @@ open class DefaultTypeAliasItem(
         // only uses its qualified name, which has been initialized.
         codebase.addTypeAlias(@Suppress("LeakingThis") this)
         containingPackage.addTypeAlias(@Suppress("LeakingThis") this)
+
+        // If this type alias is emittable then make sure its package is too.
+        if (emit) {
+            containingPackage.emit = true
+        }
     }
 
     override val simpleName: String = qualifiedName.substringAfterLast(".")

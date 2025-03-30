@@ -79,7 +79,7 @@ class CommonTypeItemTest : BaseModelTest() {
             ),
             signature(
                 """
-                    // Signature format: 3.0
+                    // Signature format: 4.0
                     package test.pkg {
                       public class Foo {
                         ctor public Foo();
@@ -135,7 +135,7 @@ class CommonTypeItemTest : BaseModelTest() {
             // The Kotlin equivalent can be interpreted with java.lang types instead of primitives
             signature(
                 """
-                    // Signature format: 3.0
+                    // Signature format: 4.0
                     package test.pkg {
                       public class Foo {
                         ctor public Foo();
@@ -191,7 +191,7 @@ class CommonTypeItemTest : BaseModelTest() {
             ),
             signature(
                 """
-                    // Signature format: 3.0
+                    // Signature format: 4.0
                     package test.pkg {
                       public class Foo {
                         ctor public Foo();
@@ -234,7 +234,7 @@ class CommonTypeItemTest : BaseModelTest() {
             // The Kotlin equivalent can be interpreted with java.lang types instead of primitives
             signature(
                 """
-                    // Signature format: 3.0
+                    // Signature format: 4.0
                     package test.pkg {
                       public class Foo {
                         ctor public Foo();
@@ -307,7 +307,7 @@ class CommonTypeItemTest : BaseModelTest() {
             ),
             signature(
                 """
-                    // Signature format: 3.0
+                    // Signature format: 4.0
                     package test.pkg {
                       public class Foo {
                         ctor public Foo();
@@ -377,7 +377,7 @@ class CommonTypeItemTest : BaseModelTest() {
             ),
             signature(
                 """
-                    // Signature format: 3.0
+                    // Signature format: 4.0
                     package test.pkg {
                       public class Foo<T> {
                         ctor public Foo();
@@ -458,7 +458,7 @@ class CommonTypeItemTest : BaseModelTest() {
             ),
             signature(
                 """
-                    // Signature format: 3.0
+                    // Signature format: 4.0
                     package test.pkg {
                       public class Foo<C> {
                         ctor public Foo();
@@ -513,7 +513,7 @@ class CommonTypeItemTest : BaseModelTest() {
             ),
             signature(
                 """
-                    // Signature format: 3.0
+                    // Signature format: 4.0
                     package test.pkg {
                       public class Foo<T> {
                         method public T bar1();
@@ -576,7 +576,7 @@ class CommonTypeItemTest : BaseModelTest() {
             ),
             signature(
                 """
-                    // Signature format: 3.0
+                    // Signature format: 4.0
                     package test.pkg {
                       public class Foo<T> {
                         method public void bar1(T p);
@@ -634,7 +634,7 @@ class CommonTypeItemTest : BaseModelTest() {
             ),
             signature(
                 """
-                    // Signature format: 3.0
+                    // Signature format: 4.0
                     package test.pkg {
                       public class Foo<T> {
                         field public T foo;
@@ -667,7 +667,7 @@ class CommonTypeItemTest : BaseModelTest() {
             ),
             signature(
                 """
-                    // Signature format: 3.0
+                    // Signature format: 4.0
                     package test.pkg {
                       public class Foo<T> {
                         property public T foo;
@@ -716,7 +716,7 @@ class CommonTypeItemTest : BaseModelTest() {
             ),
             signature(
                 """
-                    // Signature format: 3.0
+                    // Signature format: 4.0
                     package test.pkg {
                       public class Foo {
                         ctor public Foo();
@@ -800,7 +800,7 @@ class CommonTypeItemTest : BaseModelTest() {
             ),
             signature(
                 """
-                    // Signature format: 3.0
+                    // Signature format: 4.0
                     package test.pkg {
                       public class Outer {
                         ctor public Outer();
@@ -873,7 +873,7 @@ class CommonTypeItemTest : BaseModelTest() {
             ),
             signature(
                 """
-                    // Signature format: 3.0
+                    // Signature format: 4.0
                     package test.pkg {
                       public class Test {
                         ctor public Outer();
@@ -931,7 +931,7 @@ class CommonTypeItemTest : BaseModelTest() {
             ),
             signature(
                 """
-                    // Signature format: 3.0
+                    // Signature format: 4.0
                     package test.pkg {
                       public class Outer<O> {
                         ctor public Outer();
@@ -1004,8 +1004,9 @@ class CommonTypeItemTest : BaseModelTest() {
             ),
             inputSet(
                 signature(
+                    "api1.txt",
                     """
-                        // Signature format: 3.0
+                        // Signature format: 4.0
                         package test.pkg1 {
                           public class Outer<O> {
                             ctor public Outer();
@@ -1020,8 +1021,9 @@ class CommonTypeItemTest : BaseModelTest() {
                     """
                 ),
                 signature(
+                    "api2.txt",
                     """
-                        // Signature format: 3.0
+                        // Signature format: 4.0
                         package test.pkg {
                           public class Test {
                             ctor public Test();

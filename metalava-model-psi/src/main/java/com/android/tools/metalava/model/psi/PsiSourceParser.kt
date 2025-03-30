@@ -138,6 +138,7 @@ internal class PsiSourceParser(
                     config = codebaseConfig,
                     allowReadingComments = allowReadingComments,
                     assembler = it,
+                    isMultiplatform = environment.isKMP,
                 )
             }
 
@@ -163,6 +164,7 @@ internal class PsiSourceParser(
                     config = codebaseConfig,
                     allowReadingComments = allowReadingComments,
                     assembler = assembler,
+                    isMultiplatform = environment.isKMP,
                 )
             }
         val codebase = assembler.codebase

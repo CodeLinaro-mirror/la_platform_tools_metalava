@@ -44,7 +44,7 @@ internal sealed class PsiTypeItem(
     val kotlinTypeInfo: KotlinTypeInfo?,
 ) : DefaultTypeItem(modifiers) {
     /** Whether the [psiType] is originally a value class type. */
-    fun isValueClassType(): Boolean = kotlinTypeInfo?.isValueClassType() ?: false
+    override fun isValueClassType(): Boolean = kotlinTypeInfo?.isValueClassType() ?: false
 
     /** Returns `true` if `this` type can be assigned from `other` without unboxing the other. */
     override fun isAssignableFromWithoutUnboxing(other: TypeItem): Boolean {

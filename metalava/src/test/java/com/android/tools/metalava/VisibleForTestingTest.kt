@@ -34,11 +34,12 @@ import org.junit.Test
 class VisibleForTestingTest : DriverTest() {
     /** Check the behavior of `VisibleForTesting` annotations. */
     private fun checkVisibleForTesting(
+        format: FileFormat,
         testFile: TestFile,
         api: String,
     ) {
         check(
-            format = FileFormat.V2,
+            format = format,
             sourceFiles =
                 arrayOf(
                     testFile,
@@ -92,6 +93,7 @@ class VisibleForTestingTest : DriverTest() {
                       }
                     }
                 """,
+            format = FileFormat.V2,
         )
     }
 
@@ -139,6 +141,7 @@ class VisibleForTestingTest : DriverTest() {
                       }
                     }
                 """,
+            format = FileFormat.V2,
         )
     }
 
@@ -185,6 +188,7 @@ class VisibleForTestingTest : DriverTest() {
                       }
                     }
                 """,
+            format = FileFormat.V4,
         )
     }
 
@@ -231,6 +235,7 @@ class VisibleForTestingTest : DriverTest() {
                       }
                     }
                 """,
+            format = FileFormat.V4,
         )
     }
 }

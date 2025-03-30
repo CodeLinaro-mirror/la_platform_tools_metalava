@@ -51,7 +51,7 @@ class PsiFieldItemTest : BaseModelTest() {
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
             val x = fooClass.fields().single()
-            assertNull(x.initialValue(false))
+            assertNull(x.legacyInitialValue(false))
         }
     }
 

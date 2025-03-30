@@ -55,8 +55,8 @@ class SourceFieldItemTest : BaseModelTest() {
                     Double.POSITIVE_INFINITY,
                     61184.toChar(),
                 )
-            assertEquals(fieldValues, classItem.fields().map { it.initialValue(false) })
-            assertEquals(fieldValues, classItem.fields().map { it.initialValue(true) })
+            assertEquals(fieldValues, classItem.fields().map { it.legacyInitialValue(false) })
+            assertEquals(fieldValues, classItem.fields().map { it.legacyInitialValue(true) })
         }
     }
 
@@ -79,10 +79,10 @@ class SourceFieldItemTest : BaseModelTest() {
             val classItem = codebase.assertClass("test.pkg.Test")
             val fieldItem1 = classItem.assertField("field1")
             val fieldItem2 = classItem.assertField("field2")
-            assertEquals(38, fieldItem1.initialValue(true))
-            assertEquals(38, fieldItem1.initialValue(false))
-            assertEquals(91, fieldItem2.initialValue(true))
-            assertEquals(91, fieldItem2.initialValue(false))
+            assertEquals(38, fieldItem1.legacyInitialValue(true))
+            assertEquals(38, fieldItem1.legacyInitialValue(false))
+            assertEquals(91, fieldItem2.legacyInitialValue(true))
+            assertEquals(91, fieldItem2.legacyInitialValue(false))
         }
     }
 
@@ -112,10 +112,10 @@ class SourceFieldItemTest : BaseModelTest() {
             val fieldItem1 = classItem.assertField("field1")
             val fieldItem2 = classItem.assertField("field2")
 
-            assertEquals(null, fieldItem1.initialValue(false))
-            assertEquals(null, fieldItem1.initialValue(true))
-            assertEquals(null, fieldItem2.initialValue(true))
-            assertEquals(null, fieldItem2.initialValue(false))
+            assertEquals(null, fieldItem1.legacyInitialValue(false))
+            assertEquals(null, fieldItem1.legacyInitialValue(true))
+            assertEquals(null, fieldItem2.legacyInitialValue(true))
+            assertEquals(null, fieldItem2.legacyInitialValue(false))
         }
     }
 
@@ -136,8 +136,8 @@ class SourceFieldItemTest : BaseModelTest() {
             val classItem = codebase.assertClass("test.pkg.Test")
             val fieldItem = classItem.assertField("ENUM1")
 
-            assertNotNull(fieldItem.initialValue(true))
-            assertNotNull(fieldItem.initialValue(false))
+            assertNotNull(fieldItem.legacyInitialValue(true))
+            assertNotNull(fieldItem.legacyInitialValue(false))
         }
     }
 
@@ -156,8 +156,8 @@ class SourceFieldItemTest : BaseModelTest() {
         ) {
             val classItem = codebase.assertClass("test.pkg.Test")
             val fieldItem = classItem.assertField("field")
-            assertEquals(null, fieldItem.initialValue(true))
-            assertNotNull(fieldItem.initialValue(false))
+            assertEquals(null, fieldItem.legacyInitialValue(true))
+            assertNotNull(fieldItem.legacyInitialValue(false))
         }
     }
 
@@ -177,8 +177,8 @@ class SourceFieldItemTest : BaseModelTest() {
             val classItem = codebase.assertClass("test.pkg.Test")
             val fieldItem = classItem.assertField("field")
 
-            assertEquals(null, fieldItem.initialValue(true))
-            assertEquals(7, fieldItem.initialValue(false))
+            assertEquals(null, fieldItem.legacyInitialValue(true))
+            assertEquals(7, fieldItem.legacyInitialValue(false))
         }
     }
 
@@ -202,10 +202,10 @@ class SourceFieldItemTest : BaseModelTest() {
             val fieldItem1 = classItem.assertField("field1")
             val fieldItem2 = classItem.assertField("field2")
 
-            assertEquals(null, fieldItem1.initialValue(true))
-            assertEquals(27, fieldItem1.initialValue(false))
-            assertEquals(null, fieldItem2.initialValue(true))
-            assertEquals(91, fieldItem2.initialValue(false))
+            assertEquals(null, fieldItem1.legacyInitialValue(true))
+            assertEquals(27, fieldItem1.legacyInitialValue(false))
+            assertEquals(null, fieldItem2.legacyInitialValue(true))
+            assertEquals(91, fieldItem2.legacyInitialValue(false))
         }
     }
 
@@ -224,8 +224,8 @@ class SourceFieldItemTest : BaseModelTest() {
         ) {
             val classItem = codebase.assertClass("test.pkg.Test")
             val fieldItem = classItem.assertField("field")
-            assertEquals(null, fieldItem.initialValue(true))
-            assertNotNull(fieldItem.initialValue(false))
+            assertEquals(null, fieldItem.legacyInitialValue(true))
+            assertNotNull(fieldItem.legacyInitialValue(false))
         }
     }
 
@@ -264,8 +264,8 @@ class SourceFieldItemTest : BaseModelTest() {
             )
             assertEquals(fieldItem.type(), duplicateField.type(), message = "duplicated types")
             assertEquals(
-                fieldItem.initialValue(),
-                duplicateField.initialValue(),
+                fieldItem.legacyInitialValue(),
+                duplicateField.legacyInitialValue(),
                 message = "duplicated initial value"
             )
             assertEquals(classItem, duplicateField.inheritedFrom, message = "inheritedFrom")

@@ -576,7 +576,7 @@ class ApiAnalyzer(
                                 )
                             } else {
                                 val value = deprecatedForSdk.findAttribute(ANNOTATION_ATTR_VALUE)
-                                val message = value?.value?.value()?.toString() ?: ""
+                                val message = value?.legacyValue?.value()?.toString() ?: ""
                                 item.appendDocumentation(message, "@deprecated")
                             }
                         }

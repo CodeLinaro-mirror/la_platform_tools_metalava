@@ -108,7 +108,6 @@ class CommonValueClassTest : BaseModelTest() {
             assertTrue(primaryConstructor.isPrimary, "Expected a primary constructor")
             val param = primaryConstructor.parameters().single()
             assertTrue(param.hasDefaultValue(), "Expected a default value")
-            assertEquals(param.defaultValue.value(), "0", "Expected a default value of 0")
         }
     }
 

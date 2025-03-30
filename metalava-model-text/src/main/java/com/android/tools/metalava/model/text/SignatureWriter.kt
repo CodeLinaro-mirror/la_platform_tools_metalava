@@ -77,7 +77,6 @@ class SignatureWriter(
 
     override fun afterVisitPackage(pkg: PackageItem) {
         write("}\n\n")
-        writer.flush()
     }
 
     override fun visitConstructor(constructor: ConstructorItem) {
@@ -165,7 +164,7 @@ class SignatureWriter(
         writeThrowsList(method)
 
         if (method.containingClass().isAnnotationType()) {
-            val default = method.defaultValue()
+            val default = method.legacyDefaultValue()
             if (default.isNotEmpty()) {
                 write(" default ")
                 write(default)
@@ -285,8 +284,8 @@ class SignatureWriter(
             if (writtenParams > 0) {
                 write(", ")
             }
-            if (parameter.hasDefaultValue() && fileFormat.conciseDefaultValues) {
-                // Concise representation of a parameter with a default
+            if (parameter.hasDefaultValue() && fileFormat.includeDefaultParameterValues) {
+                // Indicate the parameter has a default.
                 write("optional ")
             }
             writeModifiers(parameter)
@@ -308,16 +307,6 @@ class SignatureWriter(
                 }
             }
 
-            if (parameter.isDefaultValueKnown() && !fileFormat.conciseDefaultValues) {
-                write(" = ")
-                val defaultValue = parameter.defaultValueAsString()
-                if (defaultValue != null) {
-                    write(defaultValue)
-                } else {
-                    // null is a valid default value!
-                    write("null")
-                }
-            }
             writtenParams++
         }
         write(")")
