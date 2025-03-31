@@ -96,10 +96,10 @@ abstract class UastTestBase : DriverTest() {
                 """
                     )
                 ),
-            format = FileFormat.V3,
+            format = FileFormat.V4,
             api =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package androidx.annotation.experimental {
                   @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention.BINARY) @kotlin.annotation.Target(allowedTargets={kotlin.annotation.AnnotationTarget.CLASS, kotlin.annotation.AnnotationTarget.PROPERTY, kotlin.annotation.AnnotationTarget.LOCAL_VARIABLE, kotlin.annotation.AnnotationTarget.VALUE_PARAMETER, kotlin.annotation.AnnotationTarget.CONSTRUCTOR, kotlin.annotation.AnnotationTarget.FUNCTION, kotlin.annotation.AnnotationTarget.PROPERTY_GETTER, kotlin.annotation.AnnotationTarget.PROPERTY_SETTER, kotlin.annotation.AnnotationTarget.FILE, kotlin.annotation.AnnotationTarget.TYPEALIAS}) public @interface UseExperimental {
                     method public abstract $klass<? extends java.lang.annotation.Annotation>[] markerClass();
@@ -1421,7 +1421,6 @@ abstract class UastTestBase : DriverTest() {
     @Test
     fun `actual typealias -- without value class`() {
         // https://youtrack.jetbrains.com/issue/KT-55085
-        val typeAliasExpanded = if (isK2) "test.pkg.NativePointerKeyboardModifiers" else "int"
         val commonSource =
             kotlin(
                 "commonMain/src/test/pkg/PointerEvent.kt",
@@ -1466,7 +1465,7 @@ abstract class UastTestBase : DriverTest() {
                     property public test.pkg.PointerKeyboardModifiers keyboardModifiers;
                   }
                   public final class PointerKeyboardModifiers {
-                    ctor public PointerKeyboardModifiers($typeAliasExpanded packedValue);
+                    ctor public PointerKeyboardModifiers(int packedValue);
                   }
                 }
                 """

@@ -396,10 +396,9 @@ class ApiAnalyzerTest : DriverTest() {
                         """
                     ),
                 ),
-            format = FileFormat.V2,
+            format = FileFormat.V4,
             api =
                 """
-                    // Signature format: 2.0
                     package test.pkg {
                       @Deprecated public final class Foo {
                         ctor @Deprecated public Foo(@Deprecated int i, @Deprecated boolean b);
@@ -448,7 +447,7 @@ class ApiAnalyzerTest : DriverTest() {
                         """
                     ),
                 ),
-            format = FileFormat.V2,
+            format = FileFormat.V4,
             expectedFail = DefaultLintErrorMessage,
             expectedIssues =
                 """

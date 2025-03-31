@@ -179,16 +179,16 @@ open class DefaultCodebase(
      * Looks for an existing class in this [Codebase] and if that cannot be found then delegate to
      * the [assembler] to see if it can create a class from the underlying model.
      */
-    final override fun resolveClass(className: String): ClassItem? {
-        findClass(className)?.let {
+    final override fun resolveClass(erasedName: String): ClassItem? {
+        findClass(erasedName)?.let {
             return it
         }
-        val created = assembler.createClassFromUnderlyingModel(className) ?: return null
+        val created = assembler.createClassFromUnderlyingModel(erasedName) ?: return null
         // If the returned class was not created as part of this Codebase then register it as an
         // external class so that findClass(...) will find it next time.
         if (created.codebase !== this) {
             // Register as an external class.
-            externalClassesByName[className] = created
+            externalClassesByName[erasedName] = created
         }
         return created
     }

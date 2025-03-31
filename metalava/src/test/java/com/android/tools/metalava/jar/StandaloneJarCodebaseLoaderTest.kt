@@ -20,6 +20,7 @@ import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.ProgressTracker
 import com.android.tools.metalava.reporter.ThrowingReporter
 import com.android.tools.metalava.testing.java
+import com.android.tools.metalava.testing.toTestFile
 import java.io.File
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -113,7 +114,7 @@ class StandaloneJarCodebaseLoaderTest : DriverTest() {
                             public class Foo extends Bar {}
                         """
                     ),
-                    classPath = listOf(classPathJarFile),
+                    classPath = listOf(classPathJarFile.toTestFile()),
                 )
         }
 

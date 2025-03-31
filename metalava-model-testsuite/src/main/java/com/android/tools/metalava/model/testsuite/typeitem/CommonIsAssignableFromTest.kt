@@ -116,7 +116,7 @@ class CommonIsAssignableFromTest : BaseModelTest() {
             ),
             signature(
                 """
-                    // Signature format: 3.0
+                    // Signature format: 4.0
                     package test.foo {
                       public class Subject {
                         field public Object obj;

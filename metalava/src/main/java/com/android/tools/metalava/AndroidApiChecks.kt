@@ -210,7 +210,7 @@ class AndroidApiChecks(val reporter: Reporter) {
                         attribute.leafValues().mapTo(permissions) { it.toSource() }
                     }
                     "conditional" -> {
-                        conditional = attribute.value.value() == true
+                        conditional = attribute.legacyValue.value() == true
                     }
                 }
             }

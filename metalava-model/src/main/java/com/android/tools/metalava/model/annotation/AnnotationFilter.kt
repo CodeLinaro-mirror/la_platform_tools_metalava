@@ -160,18 +160,18 @@ private class ImmutableAnnotationFilter(
             return false
         }
         for (attribute in filter.attributes) {
-            val existingValue = existingAnnotation.findAttribute(attribute.name)?.value
+            val existingValue = existingAnnotation.findAttribute(attribute.name)?.legacyValue
             val existingValueSource = existingValue?.toSource()
-            val attributeValueSource = attribute.value.toSource()
+            val attributeValueSource = attribute.legacyValue.toSource()
             if (attribute.name == "value") {
                 // Special-case where varargs value annotation attribute can be specified with
                 // either @Foo(BAR) or @Foo({BAR}) and they are equivalent.
                 when {
-                    attribute.value is AnnotationSingleAttributeValue &&
+                    attribute.legacyValue is AnnotationSingleAttributeValue &&
                         existingValue is AnnotationArrayAttributeValue -> {
                         if (existingValueSource != "{$attributeValueSource}") return false
                     }
-                    attribute.value is AnnotationArrayAttributeValue &&
+                    attribute.legacyValue is AnnotationArrayAttributeValue &&
                         existingValue is AnnotationSingleAttributeValue -> {
                         if ("{$existingValueSource}" != attributeValueSource) return false
                     }

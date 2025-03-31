@@ -159,7 +159,7 @@ class CompatibilityCheckTest : DriverTest() {
             format = FileFormat.V2,
             checkCompatibilityApiReleased =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package test.pkg {
                   public final class TestKt {
                     ctor public TestKt();
@@ -169,7 +169,7 @@ class CompatibilityCheckTest : DriverTest() {
                 """,
             signatureSource =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package test.pkg {
                   public final class TestKt {
                     ctor public TestKt();
@@ -865,14 +865,14 @@ class CompatibilityCheckTest : DriverTest() {
                 """,
             checkCompatibilityApiReleased =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package test.pkg {
                   public final class Foo {
-                    ctor public Foo(String? s1 = null);
+                    ctor public Foo(optional String? s1);
                     method public final void method1(boolean b, String? s1);
                     method public final void method2(boolean b, String? s1);
-                    method public final void method3(boolean b, String? s1 = "null");
-                    method public final void method4(boolean b, String? s1 = "null");
+                    method public final void method3(boolean b, optional String? s1);
+                    method public final void method4(boolean b, optional String? s1);
                   }
                 }
                 """,
@@ -906,7 +906,7 @@ class CompatibilityCheckTest : DriverTest() {
             format = FileFormat.V4,
             checkCompatibilityApiReleased =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package test.pkg {
                   public final class Foo {
                     ctor public Foo(optional String? s1);
@@ -1062,7 +1062,7 @@ class CompatibilityCheckTest : DriverTest() {
                 """,
             checkCompatibilityApiReleased =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package test.pkg {
                   public @interface ExportedProperty {
                     method public abstract boolean resolveId() default false;
@@ -1787,11 +1787,11 @@ class CompatibilityCheckTest : DriverTest() {
     @Test
     fun `Test Kotlin extensions`() {
         check(
-            format = FileFormat.V2,
+            format = FileFormat.V4,
             expectedIssues = "",
             checkCompatibilityApiReleased =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package androidx.content {
                   public final class ContentValuesKt {
                     method public static android.content.ContentValues contentValuesOf(kotlin.Pair<String,Object?>... pairs);
@@ -1837,11 +1837,11 @@ class CompatibilityCheckTest : DriverTest() {
     @Test
     fun `Test Kotlin type bounds`() {
         check(
-            format = FileFormat.V2,
+            format = FileFormat.V4,
             expectedIssues = "",
             checkCompatibilityApiReleased =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package androidx.navigation {
                   public final class NavDestination {
                     ctor public NavDestination();
@@ -2372,7 +2372,7 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             checkCompatibilityApiReleased =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package androidx.collection {
                   public class MyMap<Key, Value> {
                     ctor public MyMap();
@@ -2435,7 +2435,7 @@ class CompatibilityCheckTest : DriverTest() {
                 """,
             checkCompatibilityApiReleased =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package test.pkg {
                   public final class TestKt {
                     method public static inline <T> void add(T t);
@@ -3164,7 +3164,7 @@ class CompatibilityCheckTest : DriverTest() {
             expectedIssues = "",
             checkCompatibilityApiReleased =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package com.android.location.provider {
                   public class LocationProviderBase1 {
                     ctor public LocationProviderBase1();
@@ -3227,7 +3227,7 @@ class CompatibilityCheckTest : DriverTest() {
             expectedIssues = "",
             checkCompatibilityApiReleased =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package androidx.coordinatorlayout.widget {
                   public class CoordinatorLayout {
                     ctor public CoordinatorLayout();
@@ -3268,7 +3268,7 @@ class CompatibilityCheckTest : DriverTest() {
             """,
             checkCompatibilityApiReleased =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package test.pkg.sample {
                   public abstract class SampleClass {
                     method public <Number> Number! convert(Number);
@@ -3278,7 +3278,7 @@ class CompatibilityCheckTest : DriverTest() {
                 """,
             signatureSource =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package test.pkg.sample {
                   public abstract class SampleClass {
                     // Here the generic type parameter applies to both the function argument and the function return type
@@ -3299,7 +3299,7 @@ class CompatibilityCheckTest : DriverTest() {
             """,
             checkCompatibilityApiReleased =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package androidx.versionedparcelable {
                   public abstract class VersionedParcel {
                     method public <T> T![]! readArray();
@@ -3328,7 +3328,7 @@ class CompatibilityCheckTest : DriverTest() {
     @Test
     fun `Check using parameterized arrays as type parameters`() {
         check(
-            format = FileFormat.V3,
+            format = FileFormat.V4,
             sourceFiles =
                 arrayOf(
                     java(
@@ -3347,7 +3347,7 @@ class CompatibilityCheckTest : DriverTest() {
                 ),
             checkCompatibilityApiReleased =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package test.pkg {
                   public class SampleArray<D extends java.util.ArrayList> extends java.util.ArrayList<D[]> {
                     ctor public SampleArray();
@@ -3368,7 +3368,7 @@ class CompatibilityCheckTest : DriverTest() {
             """,
             checkCompatibilityApiReleased =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package androidx.room {
                   public @interface Relation {
                   }
@@ -3538,7 +3538,7 @@ class CompatibilityCheckTest : DriverTest() {
             """,
             checkCompatibilityApiReleased =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package test.pkg {
                   public interface JavaInterface {
                   }

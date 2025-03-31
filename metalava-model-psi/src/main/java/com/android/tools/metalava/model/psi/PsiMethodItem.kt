@@ -98,16 +98,16 @@ internal class PsiMethodItem(
                     (psiMethod.sourcePsi as KtParameter).hasValOrVar())
     }
 
-    override fun defaultValue(): String {
+    override fun legacyDefaultValue(): String {
         return when (psiMethod) {
             is UAnnotationMethod -> {
                 psiMethod.uastDefaultValue?.let { codebase.printer.toSourceString(it) } ?: ""
             }
             is PsiAnnotationMethod -> {
                 psiMethod.defaultValue?.let { codebase.printer.toSourceExpression(it, this) }
-                    ?: super.defaultValue()
+                    ?: super.legacyDefaultValue()
             }
-            else -> super.defaultValue()
+            else -> super.legacyDefaultValue()
         }
     }
 

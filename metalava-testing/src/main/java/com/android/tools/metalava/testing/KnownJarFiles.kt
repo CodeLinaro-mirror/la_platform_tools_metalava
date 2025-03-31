@@ -18,6 +18,7 @@ package com.android.tools.metalava.testing
 
 import com.android.tools.lint.checks.infrastructure.TestFile
 import java.io.File
+import java.nio.file.Files
 
 object KnownJarFiles {
     /**
@@ -39,16 +40,25 @@ object KnownJarFiles {
     }
 
     /** The jar produced by the `:stub-annotations` project, exposed as a [TestFile]. */
-    val stubAnnotationsTestFile: TestFile by lazy { ExistingFile(stubAnnotationsJar) }
-}
-
-/** A simple [TestFile] that just uses an existing file without copying. */
-private class ExistingFile(private val file: File) : TestFile() {
-    override fun createFile(targetDir: File): File {
-        if (targetRelativePath == null) {
-            return file
-        } else {
-            error("Does not support copying file to new target directory")
-        }
+    val stubAnnotationsTestFile: TestFile by lazy {
+        ExistingFile(stubAnnotationsJar).to("known-jar-files/stub-annotations.jar")
     }
 }
+
+/** A simple [TestFile] that just uses an existing file by creating a symbolic link to it. */
+private class ExistingFile(private val file: File) : TestFile() {
+    override fun createFile(targetDir: File): File {
+        val link = targetDir.resolve(targetPath)
+        link.parentFile.mkdirs()
+        Files.createSymbolicLink(link.toPath(), file.toPath())
+        return link
+    }
+}
+
+/**
+ * Wrap an existing file in a [TestFile].
+ *
+ * By default, this will create a symbolic link in the `targetDir` passed to [TestFile.createFile]
+ * called [File.getName].
+ */
+fun File.toTestFile(): TestFile = ExistingFile(this).to(name)

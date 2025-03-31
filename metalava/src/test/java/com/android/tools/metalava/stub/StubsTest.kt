@@ -514,7 +514,7 @@ class StubsTest : AbstractStubsTest() {
         // Like previous test, but without compatibility mode: ensures that we
         // use super classes of filtered throwables
         checkStubs(
-            format = FileFormat.V3,
+            format = FileFormat.V4,
             sourceFiles =
                 arrayOf(
                     java(
@@ -560,7 +560,7 @@ class StubsTest : AbstractStubsTest() {
             warnings = "",
             api =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package test.pkg {
                   public class Generics {
                     ctor public Generics();
