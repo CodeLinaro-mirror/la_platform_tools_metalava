@@ -28,7 +28,6 @@ private constructor(
     private val target: AnnotationTarget,
     private val runtimeAnnotationsOnly: Boolean = false,
     private val skipNullnessAnnotations: Boolean = false,
-    private val language: Language = Language.JAVA,
 ) {
     companion object {
         fun forSignature(
@@ -45,7 +44,6 @@ private constructor(
             writer: Writer,
             docStubs: Boolean,
             runtimeAnnotationsOnly: Boolean = false,
-            language: Language = Language.JAVA,
         ) =
             ModifierListWriter(
                 writer = writer,
@@ -53,8 +51,6 @@ private constructor(
                     if (docStubs) AnnotationTarget.DOC_STUBS_FILE
                     else AnnotationTarget.SDK_STUBS_FILE,
                 runtimeAnnotationsOnly = runtimeAnnotationsOnly,
-                skipNullnessAnnotations = language == Language.KOTLIN,
-                language = language,
             )
 
         /**
@@ -94,13 +90,13 @@ private constructor(
     }
 
     /** Write the modifier list (possibly including annotations) to the supplied [writer]. */
-    fun write(item: Item) {
+    fun write(item: Item, normalizeFinal: Boolean = false) {
         writeAnnotations(item)
-        writeKeywords(item)
+        writeKeywords(item, normalizeFinal = normalizeFinal)
     }
 
     /** Write the modifier keywords. */
-    fun writeKeywords(item: Item, normalize: Boolean = false) {
+    fun writeKeywords(item: Item, normalizeFinal: Boolean = false) {
         if (
             item is PackageItem ||
                 (target != AnnotationTarget.SIGNATURE_FILE &&
@@ -121,12 +117,7 @@ private constructor(
 
         val list = item.modifiers
         val visibilityLevel = list.getVisibilityLevel()
-        val modifier =
-            if (language == Language.JAVA) {
-                visibilityLevel.javaSourceCodeModifier
-            } else {
-                visibilityLevel.kotlinSourceCodeModifier
-            }
+        val modifier = visibilityLevel.javaSourceCodeModifier
         if (modifier.isNotEmpty()) {
             writer.write("$modifier ")
         }
@@ -158,26 +149,17 @@ private constructor(
             writer.write("static ")
         }
 
-        when (language) {
-            Language.JAVA -> {
-                if (
-                    list.isFinal() &&
-                        // Don't show final on parameters: that's an implementation detail
-                        item !is ParameterItem &&
-                        // Don't add final on enum or enum members as they are implicitly final.
-                        classItem?.isEnum() != true &&
-                        // If normalizing and the current item is a method and its containing class
-                        // is final then do not write out the final keyword.
-                        (!normalize || methodItem?.containingClass()?.modifiers?.isFinal() != true)
-                ) {
-                    writer.write("final ")
-                }
-            }
-            Language.KOTLIN -> {
-                if (!list.isFinal()) {
-                    writer.write("open ")
-                }
-            }
+        if (
+            list.isFinal() &&
+                // Don't show final on parameters: that's an implementation detail
+                item !is ParameterItem &&
+                // Don't add final on enum or enum members as they are implicitly final.
+                classItem?.isEnum() != true &&
+                // If normalizing and the current item is a method and its containing class is final
+                // then do not write out the final keyword.
+                (!normalizeFinal || methodItem?.containingClass()?.modifiers?.isFinal() != true)
+        ) {
+            writer.write("final ")
         }
 
         if (list.isSealed()) {
@@ -222,12 +204,6 @@ private constructor(
 
         if (list.isFunctional()) {
             writer.write("fun ")
-        }
-
-        if (language == Language.KOTLIN) {
-            if (list.isData()) {
-                writer.write("data ")
-            }
         }
     }
 

@@ -21,7 +21,6 @@ import com.android.tools.metalava.model.VisibleForTesting
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.text.FileFormat
-import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
@@ -35,17 +34,16 @@ import org.junit.Test
 class VisibleForTestingTest : DriverTest() {
     /** Check the behavior of `VisibleForTesting` annotations. */
     private fun checkVisibleForTesting(
+        format: FileFormat,
         testFile: TestFile,
         api: String,
     ) {
         check(
-            format = FileFormat.V2,
+            format = format,
             sourceFiles =
                 arrayOf(
                     testFile,
                     visibleForTestingSource,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             api = api,
         )
@@ -95,6 +93,7 @@ class VisibleForTestingTest : DriverTest() {
                       }
                     }
                 """,
+            format = FileFormat.V2,
         )
     }
 
@@ -142,6 +141,7 @@ class VisibleForTestingTest : DriverTest() {
                       }
                     }
                 """,
+            format = FileFormat.V2,
         )
     }
 
@@ -188,6 +188,7 @@ class VisibleForTestingTest : DriverTest() {
                       }
                     }
                 """,
+            format = FileFormat.V4,
         )
     }
 
@@ -234,6 +235,7 @@ class VisibleForTestingTest : DriverTest() {
                       }
                     }
                 """,
+            format = FileFormat.V4,
         )
     }
 }

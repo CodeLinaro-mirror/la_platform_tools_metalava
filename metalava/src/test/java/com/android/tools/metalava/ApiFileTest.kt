@@ -27,7 +27,7 @@ import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.FileFormat.OverloadedMethodOrder
 import com.android.tools.metalava.reporter.Issues
-import com.android.tools.metalava.testing.KnownSourceFiles
+import com.android.tools.metalava.testing.KnownJarFiles
 import com.android.tools.metalava.testing.createAndroidModuleDescription
 import com.android.tools.metalava.testing.createCommonModuleDescription
 import com.android.tools.metalava.testing.createProjectDescription
@@ -78,7 +78,7 @@ class ApiFileTest : DriverTest() {
         // static method in interface is not overridable.
         // See https://kotlinlang.org/docs/reference/whatsnew13.html
         check(
-            format = FileFormat.V2,
+            format = FileFormat.V4,
             sourceFiles =
                 arrayOf(
                     kotlin(
@@ -102,7 +102,7 @@ class ApiFileTest : DriverTest() {
                 package test.pkg {
                   public interface Foo {
                     method public static void sayHello();
-                    field @NonNull public static final test.pkg.Foo.Companion Companion;
+                    field public static final test.pkg.Foo.Companion Companion;
                     field public static final int answer = 42; // 0x2a
                   }
                   public static final class Foo.Companion {
@@ -142,233 +142,11 @@ class ApiFileTest : DriverTest() {
         )
     }
 
-    @Test
-    fun `Parameter Names in Java`() {
-        // Java code which explicitly specifies parameter names
-        check(
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package test.pkg;
-                    import androidx.annotation.ParameterName;
-
-                    public class Foo {
-                        public void foo(int javaParameter1, @ParameterName("publicParameterName") int javaParameter2) {
-                        }
-                    }
-                    """
-                    ),
-                    supportParameterName,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
-                ),
-            api =
-                """
-                    package test.pkg {
-                      public class Foo {
-                        ctor public Foo();
-                        method public void foo(int, int publicParameterName);
-                      }
-                    }
-                 """,
-        )
-    }
-
-    @Test
-    fun `Default Values Names in Java`() {
-        // Java code which explicitly specifies parameter names
-        check(
-            format = FileFormat.V3,
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package test.pkg;
-                    import androidx.annotation.DefaultValue;
-
-                    public class Foo {
-                        public void foo(
-                            @DefaultValue("null") String prefix,
-                            @DefaultValue("\"Hello World\"") String greeting,
-                            @DefaultValue("42") int meaning) {
-                        }
-                    }
-                    """
-                    ),
-                    supportDefaultValue,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
-                ),
-            api =
-                """
-                // Signature format: 3.0
-                package test.pkg {
-                  public class Foo {
-                    ctor public Foo();
-                    method public void foo(String! = null, String! = "Hello World", int = 42);
-                  }
-                }
-                 """,
-        )
-    }
-
-    @RequiresCapabilities(Capability.KOTLIN)
-    @Test
-    fun `Default Values and Names in Kotlin`() {
-        // Kotlin code which explicitly specifies parameter names
-        check(
-            format = FileFormat.V3,
-            sourceFiles =
-                arrayOf(
-                    kotlin(
-                        """
-                    package test.pkg
-                    import some.other.pkg.Constants.Misc.SIZE
-                    import android.graphics.Bitmap
-                    import android.view.View
-
-                    class Foo {
-                        fun method1(myInt: Int = 42,
-                            myInt2: Int? = null,
-                            myByte: Int = 2 * 21,
-                            str: String = "hello " + "world",
-                            vararg args: String) { }
-
-                        fun method2(myInt: Int, myInt2: Int = (2*myInt) * SIZE) { }
-
-                        fun method3(str: String, myInt: Int, myInt2: Int = double(myInt) + str.length) { }
-
-                        fun emptyLambda(sizeOf: () -> Unit = {  }) {}
-
-                        fun View.drawToBitmap(config: Bitmap.Config = Bitmap.Config.ARGB_8888): Bitmap? = null
-
-                        companion object {
-                            fun double(myInt: Int) = 2 * myInt
-                            fun print(foo: Foo = Foo()) { println(foo) }
-                        }
-                    }
-                    """
-                    ),
-                    java(
-                        """
-                    package some.other.pkg;
-                    /** @hide */
-                    public class Constants {
-                        public static class Misc {
-                            public static final int SIZE = 5;
-                        }
-                    }
-                    """
-                    ),
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
-                ),
-            api =
-                """
-                // Signature format: 3.0
-                package test.pkg {
-                  public final class Foo {
-                    ctor public Foo();
-                    method public android.graphics.Bitmap? drawToBitmap(android.view.View, android.graphics.Bitmap.Config config = android.graphics.Bitmap.Config.ARGB_8888);
-                    method public void emptyLambda(kotlin.jvm.functions.Function0<kotlin.Unit> sizeOf = {});
-                    method public void method1(int myInt = 42, Integer? myInt2 = null, int myByte = 42, String str = "hello world", java.lang.String... args);
-                    method public void method2(int myInt, int myInt2 = (2*myInt) * some.other.pkg.Constants.Misc.SIZE);
-                    method public void method3(String str, int myInt, int myInt2 = double(myInt) + str.length);
-                    field public static final test.pkg.Foo.Companion Companion;
-                  }
-                  public static final class Foo.Companion {
-                    method public int double(int myInt);
-                    method public void print(test.pkg.Foo foo = test.pkg.Foo());
-                  }
-                }
-                """,
-        )
-    }
-
-    @RequiresCapabilities(Capability.KOTLIN)
-    @Test
-    fun `Default Values in Kotlin for expressions`() {
-        // Testing trickier default values; regression test for problem
-        // observed in androidx.core.util with LruCache
-        check(
-            format = FileFormat.V3,
-            sourceFiles =
-                arrayOf(
-                    kotlin(
-                        """
-                    package androidx.core.util
-
-                    import android.util.LruCache
-
-                    inline fun <K : Any, V : Any> lruCache(
-                        maxSize: Int,
-                        crossinline sizeOf: (key: K, value: V) -> Int = { _, _ -> 1 },
-                        @Suppress("USELESS_CAST") // https://youtrack.jetbrains.com/issue/KT-21946
-                        crossinline create: (key: K) -> V? = { null as V? },
-                        crossinline onEntryRemoved: (evicted: Boolean, key: K, oldValue: V, newValue: V?) -> Unit =
-                            { _, _, _, _ -> }
-                    ): LruCache<K, V> {
-                        return object : LruCache<K, V>(maxSize) {
-                            override fun sizeOf(key: K, value: V) = sizeOf(key, value)
-                            override fun create(key: K) = create(key)
-                            override fun entryRemoved(evicted: Boolean, key: K, oldValue: V, newValue: V?) {
-                                onEntryRemoved(evicted, key, oldValue, newValue)
-                            }
-                        }
-                    }
-                    """
-                    ),
-                    java(
-                        """
-                    package androidx.collection;
-
-                    import androidx.annotation.NonNull;
-                    import androidx.annotation.Nullable;
-
-                    import java.util.LinkedHashMap;
-                    import java.util.Locale;
-                    import java.util.Map;
-
-                    /** @hide */
-                    public class LruCache<K, V> {
-                        @Nullable
-                        protected V create(@NonNull K key) {
-                            return null;
-                        }
-
-                        protected int sizeOf(@NonNull K key, @NonNull V value) {
-                            return 1;
-                        }
-
-                        protected void entryRemoved(boolean evicted, @NonNull K key, @NonNull V oldValue,
-                                @Nullable V newValue) {
-                        }
-                    }
-                    """
-                    ),
-                    androidxNullableSource,
-                    androidxNonNullSource,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
-                ),
-            api =
-                """
-                // Signature format: 3.0
-                package androidx.core.util {
-                  public final class TestKt {
-                    method public static inline <K, V> android.util.LruCache<K,V> lruCache(int maxSize, kotlin.jvm.functions.Function2<? super K,? super V,java.lang.Integer> sizeOf = { _, _ -> return 1 }, kotlin.jvm.functions.Function1<? super K,? extends V?> create = { it -> return null as V }, kotlin.jvm.functions.Function4<? super java.lang.Boolean,? super K,? super V,? super V?,kotlin.Unit> onEntryRemoved = { _, _, _, _ ->  });
-                  }
-                }
-                """,
-        )
-    }
-
     @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Basic Kotlin class`() {
         check(
-            format = FileFormat.V2,
+            format = FileFormat.V4,
             sourceFiles =
                 arrayOf(
                     kotlin(
@@ -411,15 +189,15 @@ class ApiFileTest : DriverTest() {
                 """
                 package test.pkg {
                   public final class Kotlin extends test.pkg.Parent {
-                    ctor public Kotlin(@NonNull String property1 = "Default Value", int arg2);
-                    method @NonNull public String getProperty1();
-                    method @Nullable public String getProperty2();
+                    ctor public Kotlin(optional String property1, int arg2);
+                    method public String getProperty1();
+                    method public String? getProperty2();
                     method public void otherMethod(boolean ok, int times);
-                    method public void setProperty2(@Nullable String);
-                    property @NonNull public String property1;
-                    property @Nullable public String property2;
+                    method public void setProperty2(String?);
+                    property public String property1;
+                    property public String? property2;
                     property public int someField2;
-                    field @NonNull public static final test.pkg.Kotlin.Companion Companion;
+                    field public static final test.pkg.Kotlin.Companion Companion;
                     field public static final int MY_CONST = 42; // 0x2a
                     field public int someField2;
                   }
@@ -427,7 +205,7 @@ class ApiFileTest : DriverTest() {
                     property public static int MY_CONST;
                   }
                   public final class KotlinKt {
-                    method @NonNull public static inline operator String component1(@NonNull String);
+                    method public static inline operator String component1(String);
                     method public static inline int getRed(int);
                     method public static inline boolean isSrgb(long);
                     property public static inline boolean long.isSrgb;
@@ -435,9 +213,9 @@ class ApiFileTest : DriverTest() {
                   }
                   public class Parent {
                     ctor public Parent();
-                    method @Nullable public String method();
-                    method @Nullable public String method2(boolean value, @Nullable Boolean value);
-                    method public int method3(@Nullable Integer value, int value2);
+                    method public String? method();
+                    method public String? method2(boolean value, Boolean? value);
+                    method public int method3(Integer? value, int value2);
                   }
                 }
                 """
@@ -448,7 +226,7 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Kotlin Reified Methods`() {
         check(
-            format = FileFormat.V2,
+            format = FileFormat.V4,
             sourceFiles =
                 arrayOf(
                     java(
@@ -477,11 +255,11 @@ class ApiFileTest : DriverTest() {
                 package test.pkg {
                   public class Context {
                     ctor public Context();
-                    method public final <T> T getSystemService(Class<T>);
+                    method public final <T> T! getSystemService(Class<T!>!);
                   }
                   public final class TestKt {
-                    method public static inline <reified T> T systemService1(@NonNull test.pkg.Context);
-                    method public static inline String systemService2(@NonNull test.pkg.Context);
+                    method public static inline <reified T> T! systemService1(test.pkg.Context);
+                    method public static inline String! systemService2(test.pkg.Context);
                   }
                 }
                 """
@@ -492,7 +270,7 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Kotlin Reified Methods 2`() {
         check(
-            format = FileFormat.V2,
+            format = FileFormat.V4,
             sourceFiles =
                 arrayOf(
                     kotlin(
@@ -520,8 +298,8 @@ class ApiFileTest : DriverTest() {
                     method public static inline <T> T inlineNoReified(T t);
                     method public static inline <reified T> void inlineReified(T t);
                     method public static inline <reified T> void inlineReifiedExtension(T, T t);
-                    method @NonNull public static inline <reified T> T[] inlineReifiedTakesAndReturnsArray(@NonNull T[] t);
-                    method @NonNull public static inline <reified T> java.util.List<T> inlineReifiedTakesAndReturnsList(@NonNull java.util.List<? extends T> t);
+                    method public static inline <reified T> T[] inlineReifiedTakesAndReturnsArray(T[] t);
+                    method public static inline <reified T> java.util.List<T> inlineReifiedTakesAndReturnsList(java.util.List<? extends T> t);
                     method public static inline <reified T> T publicInlineReified(T t);
                   }
                 }
@@ -533,7 +311,7 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Suspend functions`() {
         check(
-            format = FileFormat.V2,
+            format = FileFormat.V4,
             sourceFiles =
                 arrayOf(
                     kotlin(
@@ -551,9 +329,9 @@ class ApiFileTest : DriverTest() {
                 """
                 package test.pkg {
                   public final class TestKt {
-                    method @Nullable public static suspend inline Object hello(int foo, @NonNull kotlin.coroutines.Continuation<? super kotlin.Unit>);
-                    method @Nullable public static suspend Object hello(@NonNull String, int foo = 0, @NonNull kotlin.coroutines.Continuation<? super kotlin.Unit>);
-                    method @Nullable public static suspend Object helloTwoContinuations(@NonNull kotlin.coroutines.Continuation<java.lang.Object> myContinuation, @NonNull kotlin.coroutines.Continuation<? super kotlin.Unit>);
+                    method public static suspend inline Object? hello(int foo, kotlin.coroutines.Continuation<? super kotlin.Unit>);
+                    method public static suspend Object? hello(String, optional int foo, kotlin.coroutines.Continuation<? super kotlin.Unit>);
+                    method public static suspend Object? helloTwoContinuations(kotlin.coroutines.Continuation<java.lang.Object> myContinuation, kotlin.coroutines.Continuation<? super kotlin.Unit>);
                   }
                 }
                 """
@@ -564,7 +342,7 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Var properties with private setters`() {
         check(
-            format = FileFormat.V3,
+            format = FileFormat.V4,
             sourceFiles =
                 arrayOf(
                     kotlin(
@@ -583,7 +361,7 @@ class ApiFileTest : DriverTest() {
                 ),
             api =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package test.pkg {
                   public final class MyClass {
                     ctor public MyClass();
@@ -601,7 +379,7 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Kotlin Generics`() {
         check(
-            format = FileFormat.V3,
+            format = FileFormat.V4,
             sourceFiles =
                 arrayOf(
                     kotlin(
@@ -617,7 +395,7 @@ class ApiFileTest : DriverTest() {
                 ),
             api =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package test.pkg {
                   public final class Bar {
                     ctor public Bar();
@@ -676,19 +454,17 @@ class ApiFileTest : DriverTest() {
                     """
                     ),
                     uiThreadSource,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             api =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package test.pkg {
                   public final class TestKt {
                     method @UiThread public static inline <reified Args extends test.pkg2.NavArgs> test.pkg2.NavArgsLazy<Args> navArgs(test.pkg2.Fragment);
                   }
                 }
                 """,
-            format = FileFormat.V3,
+            format = FileFormat.V4,
             extraArguments =
                 arrayOf(
                     ARG_HIDE,
@@ -803,12 +579,10 @@ class ApiFileTest : DriverTest() {
                     ),
                     androidxNonNullSource,
                     androidxNullableSource,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             api =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package androidx.collection {
                   public class ArrayMap<K, V> extends java.util.HashMap<K!,V!> implements java.util.Map<K!,V!> {
                     ctor public ArrayMap();
@@ -834,7 +608,7 @@ class ApiFileTest : DriverTest() {
                   }
                 }
                 """,
-            format = FileFormat.V3,
+            format = FileFormat.V4,
             extraArguments =
                 arrayOf(
                     ARG_HIDE,
@@ -993,7 +767,7 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Propagate Platform types in Kotlin`() {
         check(
-            format = FileFormat.V3,
+            format = FileFormat.V4,
             sourceFiles =
                 arrayOf(
                     kotlin(
@@ -1076,12 +850,10 @@ class ApiFileTest : DriverTest() {
                     ),
                     androidxNonNullSource,
                     androidxNullableSource,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             api =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package androidx.util {
                   public class NonNullableJavaPair<F, S> {
                     ctor public NonNullableJavaPair(F, S);
@@ -1126,7 +898,7 @@ class ApiFileTest : DriverTest() {
         // Don't emit platform types for some unannotated elements that we know the
         // nullness for: annotation type members, equals-parameters, initialized constants, etc.
         check(
-            format = FileFormat.V3,
+            format = FileFormat.V4,
             sourceFiles =
                 arrayOf(
                     java(
@@ -1233,12 +1005,10 @@ class ApiFileTest : DriverTest() {
                         .indented(),
                     androidxNonNullSource,
                     androidxNullableSource,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             api =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package test {
                   public class MyClass {
                     ctor public MyClass();
@@ -1288,7 +1058,7 @@ class ApiFileTest : DriverTest() {
     fun JvmOverloads() {
         // Regression test for https://github.com/android/android-ktx/issues/366
         check(
-            format = FileFormat.V3,
+            format = FileFormat.V4,
             sourceFiles =
                 arrayOf(
                     kotlin(
@@ -1318,19 +1088,17 @@ class ApiFileTest : DriverTest() {
                         }
                     """
                     ),
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             api =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package androidx.content {
                   public final class TestKt {
                     method public static void blahblahblah(String);
-                    method public static void blahblahblah(String, String firstArg = "hello");
-                    method public static void blahblahblah(String, String firstArg = "hello", int secondArg = 42);
-                    method public static void blahblahblah(String, String firstArg = "hello", int secondArg = 42, String thirdArg = "world");
-                    method public static inline void edit(android.content.SharedPreferences, boolean commit = false, kotlin.jvm.functions.Function1<? super android.content.SharedPreferences.Editor,kotlin.Unit> action);
+                    method public static void blahblahblah(String, optional String firstArg);
+                    method public static void blahblahblah(String, optional String firstArg, optional int secondArg);
+                    method public static void blahblahblah(String, optional String firstArg, optional int secondArg, optional String thirdArg);
+                    method public static inline void edit(android.content.SharedPreferences, optional boolean commit, kotlin.jvm.functions.Function1<? super android.content.SharedPreferences.Editor,kotlin.Unit> action);
                     method public static inline void edit(android.content.SharedPreferences, kotlin.jvm.functions.Function1<? super android.content.SharedPreferences.Editor,kotlin.Unit> action);
                   }
                 }
@@ -1358,10 +1126,10 @@ class ApiFileTest : DriverTest() {
                 """
                     )
                 ),
-            format = FileFormat.V3,
+            format = FileFormat.V4,
             api =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package test.pkg {
                   public final class SimpleClass {
                     ctor public SimpleClass();
@@ -1396,10 +1164,10 @@ class ApiFileTest : DriverTest() {
                 """
                     )
                 ),
-            format = FileFormat.V3,
+            format = FileFormat.V4,
             api =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package test.pkg {
                   public final class SimpleClass {
                     ctor public SimpleClass();
@@ -1433,10 +1201,10 @@ class ApiFileTest : DriverTest() {
                 """
                     )
                 ),
-            format = FileFormat.V3,
+            format = FileFormat.V4,
             api =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package test.pkg {
                   public final class SimpleClass {
                     ctor public SimpleClass();
@@ -1479,10 +1247,10 @@ class ApiFileTest : DriverTest() {
                 """
                     )
                 ),
-            format = FileFormat.V3,
+            format = FileFormat.V4,
             api =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package test.pkg {
                   @SuppressCompatibility @kotlin.RequiresOptIn @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention.BINARY) @kotlin.annotation.Target(allowedTargets={kotlin.annotation.AnnotationTarget.CLASS, kotlin.annotation.AnnotationTarget.FUNCTION}) public @interface ExperimentalBar {
                   }
@@ -1796,6 +1564,8 @@ class ApiFileTest : DriverTest() {
                 """
                     )
                 ),
+            // Override default to emit android.annotation classes.
+            skipEmitPackages = emptyList(),
             api =
                 """
                 package android.annotation {
@@ -2997,7 +2767,7 @@ class ApiFileTest : DriverTest() {
     fun `Test invalid class name`() {
         // Regression test for b/73018978
         check(
-            format = FileFormat.V2,
+            format = FileFormat.V4,
             sourceFiles =
                 arrayOf(
                     kotlin(
@@ -3016,7 +2786,7 @@ class ApiFileTest : DriverTest() {
                 """
                 package test.pkg {
                   public final class -Foo {
-                    method public static inline void printHelloWorld(@NonNull String);
+                    method public static inline void printHelloWorld(String);
                   }
                 }
                 """
@@ -3696,9 +3466,9 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
-    fun `v3 format for qualified references in types`() {
+    fun `v4 format for qualified references in types`() {
         check(
-            format = FileFormat.V3,
+            format = FileFormat.V4,
             sourceFiles =
                 arrayOf(
                     java(
@@ -3724,7 +3494,7 @@ class ApiFileTest : DriverTest() {
                 ),
             api =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package androidx.appcompat.app {
                   public class ActionBarDrawerToggle {
                     method public android.view.View.OnClickListener! getToolbarNavigationClickListener1();
@@ -3740,7 +3510,7 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `FooKt class constructors are not public`() {
         check(
-            format = FileFormat.V3,
+            format = FileFormat.V4,
             sourceFiles =
                 arrayOf(
                     kotlin(
@@ -3754,7 +3524,7 @@ class ApiFileTest : DriverTest() {
                 ),
             api =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package test.pkg {
                   public final class Bar {
                     ctor public Bar();
@@ -3922,8 +3692,6 @@ class ApiFileTest : DriverTest() {
                     """
                     ),
                     androidxNonNullSource,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             expectedIssues = "",
             api =
@@ -4071,7 +3839,7 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Test tracking of @Composable annotation from classpath`() {
         check(
-            format = FileFormat.V3,
+            format = FileFormat.V4,
             classpath =
                 arrayOf(
                     /* The following source file, compiled, then ran
@@ -4132,7 +3900,7 @@ class ApiFileTest : DriverTest() {
             expectedIssues = "",
             api =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package test.pkg {
                   public final class RadioGroupScope {
                     ctor public RadioGroupScope();
@@ -4147,7 +3915,7 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Test for experimental annotations from classpath`() {
         check(
-            format = FileFormat.V3,
+            format = FileFormat.V4,
             classpath =
                 arrayOf(
                     /* The following source file, compiled, then ran
@@ -4202,7 +3970,7 @@ class ApiFileTest : DriverTest() {
             expectedIssues = "",
             api =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package test.pkg {
                   @SuppressCompatibility @test.pkg.ExternalExperimentalAnnotation public final class ClassUsingExternalExperimentalApi {
                     ctor public ClassUsingExternalExperimentalApi();
@@ -4223,7 +3991,7 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Inline suppress compatibility metadata for experimental annotations from classpath`() {
         check(
-            format = FileFormat.V3,
+            format = FileFormat.V4,
             classpath =
                 arrayOf(
                     /* The following source file, compiled, then ran
@@ -4278,7 +4046,7 @@ class ApiFileTest : DriverTest() {
             expectedIssues = "",
             api =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package test.pkg {
                   @SuppressCompatibility @test.pkg.ExternalExperimentalAnnotation public final class ClassUsingExternalExperimentalApi {
                     ctor public ClassUsingExternalExperimentalApi();
@@ -4298,7 +4066,7 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `@IntRange value in kotlin`() {
         check(
-            format = FileFormat.V3,
+            format = FileFormat.V4,
             sourceFiles =
                 arrayOf(
                     kotlin(
@@ -4313,13 +4081,12 @@ class ApiFileTest : DriverTest() {
                     }
                 """
                     ),
-                    androidxIntRangeSource,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
                 ),
+            // Access androidx.annotation.IntRange
+            classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
             api =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package test.pkg {
                   public final class KotlinClass {
                     ctor public KotlinClass(@IntRange(from=1L) int param);
@@ -4352,10 +4119,9 @@ class ApiFileTest : DriverTest() {
                     }
                 """
                     ),
-                    androidxIntRangeSource,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
                 ),
+            // Access androidx.annotation.IntRange
+            classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
             api =
                 """
                 // Signature format: 2.0
@@ -4373,7 +4139,7 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Kotlin properties with overriding get`() {
         check(
-            format = FileFormat.V3,
+            format = FileFormat.V4,
             sourceFiles =
                 arrayOf(
                     kotlin(
@@ -4388,13 +4154,12 @@ class ApiFileTest : DriverTest() {
                     }
                 """
                     ),
-                    androidxIntRangeSource,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
                 ),
+            // Access androidx.annotation.IntRange
+            classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
             api =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package test.pkg {
                   public final class KotlinClass {
                     ctor public KotlinClass();
@@ -4412,7 +4177,7 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Constructor property tracking`() {
         check(
-            format = FileFormat.V3,
+            format = FileFormat.V4,
             sourceFiles =
                 arrayOf(
                     kotlin(
@@ -4438,7 +4203,7 @@ class ApiFileTest : DriverTest() {
                 ),
             api =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package test.pkg {
                   public abstract sealed class MyClass {
                     method public final int getFirstConstructorProperty();
@@ -4460,47 +4225,9 @@ class ApiFileTest : DriverTest() {
         )
     }
 
-    @Test
-    fun `Concise default Values Names in Java`() {
-        // Java code which explicitly specifies parameter names
-        check(
-            format = FileFormat.V4,
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package test.pkg;
-                    import androidx.annotation.DefaultValue;
-
-                    public class Foo {
-                        public void foo(
-                            @DefaultValue("null") String prefix,
-                            @DefaultValue("\"Hello World\"") String greeting,
-                            @DefaultValue("42") int meaning) {
-                        }
-                    }
-                    """
-                    ),
-                    supportDefaultValue,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
-                ),
-            api =
-                """
-                // Signature format: 4.0
-                package test.pkg {
-                  public class Foo {
-                    ctor public Foo();
-                    method public void foo(optional String!, optional String!, optional int);
-                  }
-                }
-                 """,
-        )
-    }
-
     @RequiresCapabilities(Capability.KOTLIN)
     @Test
-    fun `Concise default Values and Names in Kotlin`() {
+    fun `Default Values and Names in Kotlin`() {
         // Kotlin code which explicitly specifies parameter names
         check(
             format = FileFormat.V4,
@@ -4546,8 +4273,6 @@ class ApiFileTest : DriverTest() {
                     }
                     """
                     ),
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             api =
                 """
@@ -4574,7 +4299,7 @@ class ApiFileTest : DriverTest() {
 
     @RequiresCapabilities(Capability.KOTLIN)
     @Test
-    fun `Concise default Values in Kotlin for expressions`() {
+    fun `Default Values in Kotlin for expressions`() {
         // Testing trickier default values; regression test for problem
         // observed in androidx.core.util with LruCache
         check(
@@ -4635,8 +4360,6 @@ class ApiFileTest : DriverTest() {
                     ),
                     androidxNullableSource,
                     androidxNonNullSource,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             api =
                 """
@@ -4776,7 +4499,7 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Kotlin doesn't expand java named constants`() {
         check(
-            format = FileFormat.V3,
+            format = FileFormat.V4,
             sourceFiles =
                 arrayOf(
                     kotlin(
@@ -4788,7 +4511,7 @@ class ApiFileTest : DriverTest() {
                 ),
             api =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package test.pkg {
                   @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface Foo {
                     method public abstract long bar() default java.lang.Long.MIN_VALUE;
@@ -5007,7 +4730,7 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Kotlin public methods with DeprecationLevel HIDDEN are public API`() {
         check(
-            format = FileFormat.V3,
+            format = FileFormat.V4,
             sourceFiles =
                 arrayOf(
                     kotlin(
@@ -5038,7 +4761,7 @@ class ApiFileTest : DriverTest() {
                 ),
             api =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package test.pkg {
                   public final class TestKt {
                     method @Deprecated public static void myMethod();
@@ -5054,7 +4777,7 @@ class ApiFileTest : DriverTest() {
     fun `Annotations aren't dropped when DeprecationLevel is HIDDEN`() {
         // Regression test for http://b/219792969
         check(
-            format = FileFormat.V2,
+            format = FileFormat.V4,
             sourceFiles =
                 arrayOf(
                     kotlin(
@@ -5081,18 +4804,16 @@ class ApiFileTest : DriverTest() {
                         fun returnsNonNullImplicitly() = "42"
                     """
                     ),
-                    androidxIntRangeSource,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
                 ),
+            // Access androidx.annotation.IntRange
+            classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
             api =
                 """
-                // Signature format: 2.0
                 package test.pkg {
                   public final class TestKt {
                     method @Deprecated @IntRange(from=0L) public static void myMethod();
-                    method @Deprecated @NonNull public static String returnsNonNull();
-                    method @Deprecated @NonNull public static String returnsNonNullImplicitly();
+                    method @Deprecated public static String returnsNonNull();
+                    method @Deprecated public static String returnsNonNullImplicitly();
                   }
                 }
             """
@@ -5116,8 +4837,6 @@ class ApiFileTest : DriverTest() {
                 """
                     ),
                     restrictToSource,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             format = FileFormat.V4,
             api =
@@ -5150,8 +4869,6 @@ class ApiFileTest : DriverTest() {
                 """
                     ),
                     restrictToSource,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             extraArguments = arrayOf("--show-unannotated"),
             hideAnnotations =
@@ -5457,10 +5174,9 @@ class ApiFileTest : DriverTest() {
                     )
                     """
                     ),
-                    androidxIntRangeSource,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
                 ),
+            // Access androidx.annotation.IntRange
+            classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
             api =
                 """
                 package test.pkg {
@@ -5597,8 +5313,6 @@ class ApiFileTest : DriverTest() {
                     ),
                     restrictToSource,
                     visibleForTestingSource,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             extraArguments =
                 arrayOf(
@@ -5811,8 +5525,6 @@ class ApiFileTest : DriverTest() {
                     """
                     ),
                     systemApiSource,
-                    // Hide android.annotation classes.
-                    KnownSourceFiles.androidAnnotationHide,
                 ),
             api =
                 """
@@ -5905,8 +5617,6 @@ class ApiFileTest : DriverTest() {
                     ),
                     systemApiSource,
                     testApiSource,
-                    // Hide android.annotation classes.
-                    KnownSourceFiles.androidAnnotationHide,
                 ),
             api =
                 """
@@ -5974,8 +5684,6 @@ class ApiFileTest : DriverTest() {
                     """
                     ),
                     systemApiSource,
-                    // Hide android.annotation classes.
-                    KnownSourceFiles.androidAnnotationHide,
                 ),
             removedApi =
                 """

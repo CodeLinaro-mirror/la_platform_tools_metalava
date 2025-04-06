@@ -35,7 +35,7 @@ abstract class AbstractStubsTest : DriverTest() {
         extraArguments: Array<String> = emptyArray(),
         docStubs: Boolean = false,
         showAnnotations: Array<String> = emptyArray(),
-        skipEmitPackages: List<String> = listOf("java.lang", "java.util", "java.io"),
+        skipEmitPackages: List<String>? = null,
         format: FileFormat = FileFormat.LATEST,
         sourceFiles: Array<TestFile> = emptyArray(),
         signatureSources: Array<String> = emptyArray(),

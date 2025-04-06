@@ -16,11 +16,8 @@
 
 package com.android.tools.metalava.model.psi
 
-import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ParameterItem
-import com.android.tools.metalava.model.findAnnotation
-import com.android.tools.metalava.model.hasAnnotation
-import com.android.tools.metalava.model.item.DefaultValue
+import com.android.tools.metalava.model.item.ParameterDefaultValue
 import org.jetbrains.kotlin.analysis.api.KaExperimentalApi
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.analysis.api.symbols.KaFunctionSymbol
@@ -35,41 +32,27 @@ import org.jetbrains.uast.UExpression
 import org.jetbrains.uast.UMethod
 import org.jetbrains.uast.UastFacade
 
-internal class PsiDefaultValue(private val item: PsiParameterItem) : DefaultValue {
+internal class PsiParameterDefaultValue(private val item: PsiParameterItem) :
+    ParameterDefaultValue {
 
     override fun duplicate(parameter: ParameterItem) =
-        PsiDefaultValue(parameter as PsiParameterItem)
+        PsiParameterDefaultValue(parameter as PsiParameterItem)
 
-    private var defaultValueAsString: String? = null
+    private var hasDefaultValue: Boolean? = null
 
-    private fun defaultValueAsString(): String? {
-        if (defaultValueAsString == null) {
-            defaultValueAsString = item.computeDefaultValue()
+    override fun hasDefaultValue(): Boolean {
+        if (hasDefaultValue == null) {
+            hasDefaultValue = item.computeHasDefaultValue()
         }
-        return defaultValueAsString
+        return hasDefaultValue!!
     }
-
-    override fun hasDefaultValue() = isDefaultValueKnown()
-
-    override fun isDefaultValueKnown(): Boolean {
-        val psiParameter = item.psiParameter
-        return if (psiParameter.isKotlin()) {
-            defaultValueAsString() != INVALID_VALUE
-        } else {
-            // Java: Look for @ParameterName annotation
-            item.modifiers.hasAnnotation(AnnotationItem::isDefaultValue)
-        }
-    }
-
-    override fun value() = defaultValueAsString()
 
     @OptIn(KaExperimentalApi::class)
-    private fun PsiParameterItem.computeDefaultValue(): String? {
+    private fun PsiParameterItem.computeHasDefaultValue(): Boolean {
         if (psiParameter.isKotlin()) {
             val psiCallableItem = item.containingCallable() as PsiCallableItem
             val ktFunction =
-                ((psiCallableItem.psi() as? UMethod)?.sourcePsi as? KtFunction)
-                    ?: return INVALID_VALUE
+                ((psiCallableItem.psi() as? UMethod)?.sourcePsi as? KtFunction) ?: return false
 
             analyze(ktFunction) {
                 val function =
@@ -78,42 +61,21 @@ internal class PsiDefaultValue(private val item: PsiParameterItem) : DefaultValu
                     } else {
                         ktFunction.symbol
                     }
-                if (function !is KaFunctionSymbol) return INVALID_VALUE
-                val symbol = getKtParameterSymbol(function) ?: return INVALID_VALUE
+                if (function !is KaFunctionSymbol) return false
+                val symbol = getKtParameterSymbol(function) ?: return false
                 if (symbol is KaValueParameterSymbol && symbol.hasDefaultValue) {
-                    val defaultValue =
-                        (symbol.psi as? KtParameter)?.defaultValue ?: return INVALID_VALUE
+                    val defaultValue = (symbol.psi as? KtParameter)?.defaultValue ?: return false
                     if (defaultValue is KtConstantExpression) {
-                        return defaultValue.text
+                        return true
                     }
 
-                    val defaultExpression =
-                        UastFacade.convertElement(defaultValue, null, UExpression::class.java)
-                            as? UExpression
-                            ?: return INVALID_VALUE
-                    val constant = defaultExpression.evaluate()
-                    return if (
-                        constant != null && (constant is String || constant.javaClass.isPrimitive)
-                    ) {
-                        CodePrinter.constantToSource(constant)
-                    } else {
-                        // Expression: Compute from UAST rather than just using the source text
-                        // such that we can ensure references are fully qualified etc.
-                        codebase.printer.toSourceString(defaultExpression)
-                    }
+                    return UastFacade.convertElement(defaultValue, null, UExpression::class.java) is
+                        UExpression
                 }
-            }
-
-            return INVALID_VALUE
-        } else {
-            // Java: Look for @ParameterName annotation
-            val annotation = modifiers.findAnnotation(AnnotationItem::isDefaultValue)
-            if (annotation != null) {
-                return annotation.attributes.firstOrNull()?.value?.value()?.toString()
             }
         }
 
-        return null
+        return false
     }
 
     private fun PsiParameterItem.getKtParameterSymbol(
@@ -160,15 +122,5 @@ internal class PsiDefaultValue(private val item: PsiParameterItem) : DefaultValu
         }
 
         return null
-    }
-
-    companion object {
-
-        /**
-         * Private marker return value from [#computeDefaultValue] signifying that the parameter has
-         * a default value but we were unable to compute a suitable static string representation for
-         * it
-         */
-        const val INVALID_VALUE = "__invalid_value__"
     }
 }

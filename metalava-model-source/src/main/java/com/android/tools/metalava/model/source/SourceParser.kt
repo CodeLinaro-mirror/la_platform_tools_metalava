@@ -56,6 +56,8 @@ interface SourceParser {
      * Load a [Codebase] from a single jar.
      *
      * @param apiJar the jar file from which the [Codebase] will be loaded.
+     * @param classPath the possibly empty list of jar files which may provide additional classes
+     *   referenced by [apiJar].
      */
-    fun loadFromJar(apiJar: File): Codebase
+    fun loadFromJar(apiJar: File, classPath: List<File>): Codebase
 }

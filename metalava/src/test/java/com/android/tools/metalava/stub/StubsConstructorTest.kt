@@ -931,7 +931,7 @@ class StubsConstructorTest : AbstractStubsTest() {
     @Test
     fun `File facade constructor`() {
         check(
-            format = FileFormat.V2,
+            format = FileFormat.V4,
             sourceFiles =
                 arrayOf(
                     kotlin(
@@ -945,11 +945,10 @@ class StubsConstructorTest : AbstractStubsTest() {
                 ),
             api =
                 """
-                    // Signature format: 2.0
                     package test.pkg {
                       public final class ConstantsKt {
                         property public static String CONSTANT;
-                        field @NonNull public static final String CONSTANT = "CONSTANT";
+                        field public static final String CONSTANT = "CONSTANT";
                       }
                     }
                 """,

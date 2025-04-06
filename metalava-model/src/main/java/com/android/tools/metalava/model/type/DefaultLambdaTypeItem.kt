@@ -16,15 +16,15 @@
 
 package com.android.tools.metalava.model.type
 
+import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.ClassTypeItem
-import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.LambdaTypeItem
 import com.android.tools.metalava.model.TypeArgumentTypeItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeModifiers
 
 class DefaultLambdaTypeItem(
-    codebase: Codebase,
+    classResolver: ClassResolver,
     modifiers: TypeModifiers,
     qualifiedName: String,
     arguments: List<TypeArgumentTypeItem>,
@@ -35,7 +35,7 @@ class DefaultLambdaTypeItem(
     override val returnType: TypeItem,
 ) :
     DefaultClassTypeItem(
-        codebase = codebase,
+        classResolver = classResolver,
         modifiers = modifiers,
         qualifiedName = qualifiedName,
         arguments = arguments,
@@ -53,7 +53,7 @@ class DefaultLambdaTypeItem(
         arguments: List<TypeArgumentTypeItem>
     ): LambdaTypeItem {
         return DefaultLambdaTypeItem(
-            codebase = codebase,
+            classResolver = classResolver,
             qualifiedName = qualifiedName,
             arguments = arguments,
             outerClassType = outerClassType,

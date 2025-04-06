@@ -138,6 +138,7 @@ internal class PsiSourceParser(
                     config = codebaseConfig,
                     allowReadingComments = allowReadingComments,
                     assembler = it,
+                    isMultiplatform = environment.isKMP,
                 )
             }
 
@@ -149,8 +150,12 @@ internal class PsiSourceParser(
         return File(homePath, "jmods").isDirectory
     }
 
-    override fun loadFromJar(apiJar: File): Codebase {
-        val environment = loadUastFromJars(listOf(apiJar))
+    override fun loadFromJar(apiJar: File, classPath: List<File>): Codebase {
+        val jars = buildList {
+            add(apiJar)
+            addAll(classPath)
+        }
+        val environment = loadUastFromJars(jars)
         val assembler =
             PsiCodebaseAssembler(environment) { assembler ->
                 PsiBasedCodebase(
@@ -159,6 +164,7 @@ internal class PsiSourceParser(
                     config = codebaseConfig,
                     allowReadingComments = allowReadingComments,
                     assembler = assembler,
+                    isMultiplatform = environment.isKMP,
                 )
             }
         val codebase = assembler.codebase

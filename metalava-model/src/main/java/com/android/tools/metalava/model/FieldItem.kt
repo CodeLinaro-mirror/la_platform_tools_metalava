@@ -34,14 +34,24 @@ interface FieldItem : MemberItem, InheritableItem {
         duplicate: Boolean,
     ) = containingClass().findCorrespondingItemIn(codebase)?.findField(name())
 
-    /** The optional value of this [FieldItem]. */
-    val fieldValue: FieldValue?
+    /**
+     * The optional value of this [FieldItem].
+     *
+     * This is called `legacy` because this an old, inconsistent representation of the field value
+     * that exposes implementation details. It will be replaced by a properly modelled value
+     * representation.
+     */
+    val legacyFieldValue: FieldValue?
 
     /**
-     * The initial/constant value, if any. If [requireConstant] the initial value will only be
-     * returned if it's constant.
+     * The legacy initial/constant value, if any. If [requireConstant] the initial value will only
+     * be returned if it's constant.
+     *
+     * This is called `legacy` because this an old, inconsistent representation of the field value
+     * that exposes implementation details. It will be replaced by a properly modelled value
+     * representation.
      */
-    fun initialValue(requireConstant: Boolean = true): Any?
+    fun legacyInitialValue(requireConstant: Boolean = true): Any?
 
     /**
      * An enum can contain both enum constants and fields; this method provides a way to distinguish
@@ -80,8 +90,8 @@ interface FieldItem : MemberItem, InheritableItem {
      * toolchains with different fp -> string conversions.
      */
     fun hasSameValue(other: FieldItem): Boolean {
-        val thisConstant = initialValue()
-        val otherConstant = other.initialValue()
+        val thisConstant = legacyInitialValue()
+        val otherConstant = other.legacyInitialValue()
         if (thisConstant == null != (otherConstant == null)) {
             return false
         }
@@ -109,17 +119,6 @@ interface FieldItem : MemberItem, InheritableItem {
         return false
     }
 
-    /**
-     * Warn if companion constants are not marked with @JvmField.
-     *
-     * Checks the field to see if it is a companion object constant and if it is then make sure that
-     * it is annotated with `@JvmField`, reporting an issue otherwise.
-     *
-     * TODO: This should probably be in a PSI specific API Lint check (when they are supported) but
-     *   it is here for now to avoid dependencies on PSI specific code in API Lint.
-     */
-    fun ensureCompanionFieldJvmField() {}
-
     companion object {
         val comparator: java.util.Comparator<FieldItem> = Comparator { a, b ->
             a.name().compareTo(b.name())
@@ -143,7 +142,7 @@ interface FieldItem : MemberItem, InheritableItem {
         requireInitialValue: Boolean = false
     ) {
         val value =
-            initialValue(!allowDefaultValue)
+            legacyInitialValue(!allowDefaultValue)
                 ?: if (allowDefaultValue && !containingClass().isClass()) type().defaultValue()
                 else null
         if (value != null) {

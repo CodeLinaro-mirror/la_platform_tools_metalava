@@ -21,11 +21,6 @@ package com.android.tools.metalava.stub
  * options.
  */
 internal data class StubWriterConfig(
-    /**
-     * If true then generate kotlin stubs if the source is kotlin, otherwise generate java stubs.
-     */
-    val kotlinStubs: Boolean = false,
-
     /** If true then include documentation in the generated stubs. */
     val includeDocumentationInStubs: Boolean = false,
 )

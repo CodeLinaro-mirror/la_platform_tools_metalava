@@ -631,7 +631,7 @@ class ApiGeneratorTest : DriverTest() {
 
         val api =
             """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package test.pkg {
                   public class Foo {
                     method public void foo(String?);
@@ -661,7 +661,7 @@ class ApiGeneratorTest : DriverTest() {
 
         val api =
             """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package test.pkg {
                   public class Foo {
                     method public void foo(String?);

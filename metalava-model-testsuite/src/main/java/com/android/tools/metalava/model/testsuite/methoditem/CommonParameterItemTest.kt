@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model.testsuite.methoditem
 
-import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.testTypeString
 import com.android.tools.metalava.model.testsuite.BaseModelTest
@@ -26,7 +25,6 @@ import com.android.tools.metalava.testing.kotlin
 import com.google.common.truth.Truth.assertWithMessage
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
-import org.junit.Assert.assertThrows
 import org.junit.Test
 
 /** Common tests for implementations of [ParameterItem]. */
@@ -132,20 +130,6 @@ class CommonParameterItemTest : BaseModelTest() {
                 ),
             ),
             inputSet(
-                KnownSourceFiles.supportParameterName,
-                java(
-                    """
-                        package test.pkg;
-
-                        import androidx.annotation.ParameterName;
-
-                        public class Bar {
-                            public void foo(@ParameterName("baz") int baz) {}
-                        }
-                    """
-                ),
-            ),
-            inputSet(
                 kotlin(
                     """
                         package test.pkg
@@ -214,11 +198,11 @@ class CommonParameterItemTest : BaseModelTest() {
                     .assertMethod("equals", "java.lang.Object")
                     .parameters()
                     .single()
-            // For some reason Object.equals(Object obj) provides the actual parameter name.
-            // Probably, because it was compiled with a late enough version of javac, and/or with
-            // the appropriate options to record the parameter name.
+            // The parameter name of the Object.equals(Object obj) method is stored in the Object
+            // class but `publicName()` should still return null because the parameter name is not
+            // part of the API of java classes.
             assertEquals("name()", "obj", parameterItem.name())
-            assertEquals("publicName()", "obj", parameterItem.publicName())
+            assertNull("publicName()", parameterItem.publicName())
         }
     }
 
@@ -623,7 +607,7 @@ class CommonParameterItemTest : BaseModelTest() {
                 """
                     // Signature format: 5.0
                     // - language=kotlin
-                    // - concise-default-values=no
+                    // - include-default-parameter-values=no
                     // - kotlin-name-type-order=yes
                     package test.pkg {
                       public final class Foo {
@@ -655,75 +639,6 @@ class CommonParameterItemTest : BaseModelTest() {
             val parameter =
                 codebase.assertClass("test.pkg.Foo").methods().single().parameters().single()
             assertEquals("hasDefaultValue", false, parameter.hasDefaultValue())
-            assertEquals("isDefaultValueKnown", false, parameter.isDefaultValueKnown())
-            // TODO: Improve consistency of the following.
-            when (parameter.itemLanguage) {
-                ItemLanguage.KOTLIN -> {
-                    assertEquals(
-                        "defaultValue",
-                        "__invalid_value__",
-                        parameter.defaultValueAsString()
-                    )
-                }
-                ItemLanguage.JAVA -> {
-                    assertEquals("defaultValue", null, parameter.defaultValueAsString())
-                }
-                ItemLanguage.UNKNOWN -> {
-                    val exception =
-                        assertThrows(IllegalStateException::class.java) {
-                            parameter.defaultValueAsString()
-                        }
-                    assertEquals(
-                        "defaultValue",
-                        "cannot call on NONE DefaultValue",
-                        exception.message
-                    )
-                }
-            }
-        }
-    }
-
-    @Test
-    fun `Test null default value`() {
-        runCodebaseTest(
-            signature(
-                """
-                    // Signature format: 5.0
-                    // - language=kotlin
-                    // - concise-default-values=no
-                    // - kotlin-name-type-order=yes
-                    package test.pkg {
-                      public final class Foo {
-                        ctor public Foo();
-                        method public method(s: String? = null): void;
-                      }
-                    }
-                """
-            ),
-            java(
-                """
-                    package test.pkg;
-
-                    public class Foo {
-                        public void method(@other.DefaultValue("null") String s) {}
-                    }
-                """
-            ),
-            kotlin(
-                """
-                    package test.pkg
-
-                    class Foo {
-                        fun method(s: String? = null) {}
-                    }
-                """
-            ),
-        ) {
-            val parameter =
-                codebase.assertClass("test.pkg.Foo").methods().single().parameters().single()
-            assertEquals("hasDefaultValue", true, parameter.hasDefaultValue())
-            assertEquals("isDefaultValueKnown", true, parameter.isDefaultValueKnown())
-            assertEquals("defaultValue", "null", parameter.defaultValueAsString())
         }
     }
 
@@ -738,7 +653,7 @@ class CommonParameterItemTest : BaseModelTest() {
                 """
                     // Signature format: 5.0
                     // - language=kotlin
-                    // - concise-default-values=yes
+                    // - include-default-parameter-values=yes
                     // - kotlin-name-type-order=yes
                     package test.pkg {
                       public final class Foo {
@@ -752,11 +667,6 @@ class CommonParameterItemTest : BaseModelTest() {
             val parameter =
                 codebase.assertClass("test.pkg.Foo").methods().single().parameters().single()
             assertEquals("hasDefaultValue", true, parameter.hasDefaultValue())
-
-            assertEquals("isDefaultValueKnown", false, parameter.isDefaultValueKnown())
-            val exception =
-                assertThrows(IllegalStateException::class.java) { parameter.defaultValueAsString() }
-            assertEquals("defaultValue", "cannot call on UNKNOWN DefaultValue", exception.message)
         }
     }
 }

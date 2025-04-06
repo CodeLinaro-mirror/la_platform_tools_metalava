@@ -83,9 +83,14 @@ abstract class BaseModelTest() :
     /**
      * The [InputFormat] of the test files that should be processed by this test. It must ignore all
      * other [InputFormat]s.
+     *
+     * The [CodebaseCreatorConfig.inputFormat] is nullable for running tests in `metalava` project
+     * as there is no single [InputFormat] that its runner uses as it mixes [InputFormat.JAVA] and
+     * [InputFormat.KOTLIN] side by side. However, it is always provided by the
+     * [ModelTestSuiteRunner].
      */
     protected val inputFormat
-        get() = codebaseCreatorConfig.inputFormat
+        get() = codebaseCreatorConfig.inputFormat!!
 
     @get:Rule override val temporaryFolder = TemporaryFolder()
 
@@ -120,11 +125,21 @@ abstract class BaseModelTest() :
             throw IllegalStateException("Must provide at least one source file")
         }
 
+        // Get the paths for the TestFiles.
+        val paths = testFiles.map { it.targetRelativePath }
+
+        // Fail if there are any name collisions.
+        val uniquePaths = paths.groupBy { it }
+        if (uniquePaths.size != testFiles.size) {
+            val colliding = uniquePaths.mapNotNull { if (it.value.size == 1) null else it.key }
+            error(
+                "The following test files in the input set have the same name as another test file:\n${colliding.joinToString("\n") { "    $it" }}"
+            )
+        }
+
         val inputFormat =
-            testFiles
+            paths
                 .asSequence()
-                // Map to path.
-                .map { it.targetRelativePath }
                 // Ignore HTML files.
                 .filter { !it.endsWith(".html") }
                 // Map to InputFormat.
@@ -143,12 +158,16 @@ abstract class BaseModelTest() :
         /** The newly created [Codebase]. */
         val codebase: Codebase
 
+        /** The [InputFormat] from which [codebase] was created. */
+        val inputFormat: InputFormat
+
         /** Replace any test run specific directories in [string] with a placeholder string. */
         fun removeTestSpecificDirectories(string: String): String
     }
 
     inner class DefaultCodebaseContext(
         override val codebase: Codebase,
+        override val inputFormat: InputFormat,
         private val fileToSymbol: Map<File, String>,
     ) : CodebaseContext {
         override fun removeTestSpecificDirectories(string: String): String {
@@ -172,6 +191,9 @@ abstract class BaseModelTest() :
 
         /** The [Reporter] to use for issues found creating the [Codebase]. */
         val reporter: Reporter = ThrowingReporter.INSTANCE,
+
+        /** Additional jar files to add to the class path. */
+        val additionalClassPath: List<File> = emptyList(),
     ) {
         /** The [Codebase.Config] to use when creating a [Codebase] to test. */
         val codebaseConfig =
@@ -212,6 +234,7 @@ abstract class BaseModelTest() :
                 val context =
                     DefaultCodebaseContext(
                         codebase,
+                        inputFormat,
                         buildMap {
                             this[mainSourceDir.dir] = "MAIN_SRC"
                             additionalSourceDir?.dir?.let { dir -> this[dir] = "ADDITIONAL_SRC" }

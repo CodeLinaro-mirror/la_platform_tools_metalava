@@ -21,7 +21,6 @@ import com.android.tools.metalava.lint.DefaultLintErrorMessage
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.text.FileFormat
-import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
@@ -70,8 +69,6 @@ class ShowAnnotationTest : DriverTest() {
                 """
                     ),
                     systemApiSource,
-                    // Hide android.annotation classes.
-                    KnownSourceFiles.androidAnnotationHide,
                 ),
             api =
                 """
@@ -127,8 +124,6 @@ class ShowAnnotationTest : DriverTest() {
                 """
                     ),
                     systemApiSource,
-                    // Hide android.annotation classes.
-                    KnownSourceFiles.androidAnnotationHide,
                 ),
             api =
                 """
@@ -186,8 +181,6 @@ class ShowAnnotationTest : DriverTest() {
                     """
                     ),
                     testApiSource,
-                    // Hide android.annotation classes.
-                    KnownSourceFiles.androidAnnotationHide,
                 ),
             extraArguments =
                 arrayOf(
@@ -244,8 +237,6 @@ class ShowAnnotationTest : DriverTest() {
                     }
                     """
                     ),
-                    // Hide android.annotation classes.
-                    KnownSourceFiles.androidAnnotationHide,
                 ),
             stubFiles =
                 arrayOf(
@@ -326,8 +317,6 @@ class ShowAnnotationTest : DriverTest() {
                 """
                     ),
                     systemApiSource,
-                    // Hide android.annotation classes.
-                    KnownSourceFiles.androidAnnotationHide,
                 ),
             extraArguments =
                 arrayOf(
@@ -403,7 +392,7 @@ class ShowAnnotationTest : DriverTest() {
     @Test
     fun `showAnnotation with parameters`() {
         check(
-            format = FileFormat.V2,
+            format = FileFormat.V4,
             sourceFiles =
                 arrayOf(
                     java(
@@ -433,8 +422,6 @@ class ShowAnnotationTest : DriverTest() {
                     """
                     ),
                     restrictToSource,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             extraArguments =
                 arrayOf(
@@ -519,7 +506,7 @@ class ShowAnnotationTest : DriverTest() {
     @Test
     fun `Testing parsing an annotation whose attribute references the annotated class`() {
         check(
-            format = FileFormat.V3,
+            format = FileFormat.V4,
             sourceFiles =
                 arrayOf(
                     java(
@@ -541,7 +528,7 @@ class ShowAnnotationTest : DriverTest() {
                 """,
             api =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package androidx.room {
                   @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) public @interface OnConflictStrategy {
                     field public static final int REPLACE = 1; // 0x1
@@ -555,7 +542,7 @@ class ShowAnnotationTest : DriverTest() {
     @Test
     fun `Testing that file order does not affect output`() {
         check(
-            format = FileFormat.V3,
+            format = FileFormat.V4,
             sourceFiles =
                 arrayOf(
                     java(
@@ -601,13 +588,11 @@ class ShowAnnotationTest : DriverTest() {
                     """
                     ),
                     restrictToSource,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             expectedIssues = null,
             api =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package a {
                   @RestrictTo(androidx.annotation.RestrictTo.Scope.LIBRARY_GROUP) public class Example1<T> {
                     ctor public Example1();
@@ -655,8 +640,6 @@ class ShowAnnotationTest : DriverTest() {
                     }
                     """
                     ),
-                    // Hide android.annotation classes.
-                    KnownSourceFiles.androidAnnotationHide,
                 ),
             classpath =
                 arrayOf(
@@ -706,7 +689,7 @@ class ShowAnnotationTest : DriverTest() {
     @Test
     fun `Check @PublishedApi handling`() {
         check(
-            format = FileFormat.V3,
+            format = FileFormat.V4,
             sourceFiles =
                 arrayOf(
                     kotlin(
@@ -724,7 +707,7 @@ class ShowAnnotationTest : DriverTest() {
             extraArguments = arrayOf(ARG_SHOW_ANNOTATION, "kotlin.PublishedApi"),
             api =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package test.pkg {
                   @kotlin.PublishedApi internal final class WeAreSoCool {
                     ctor public WeAreSoCool();
@@ -870,8 +853,6 @@ class ShowAnnotationTest : DriverTest() {
                     ),
                     systemApiSource,
                     testApiSource,
-                    // Hide android.annotation classes.
-                    KnownSourceFiles.androidAnnotationHide,
                 ),
             extraArguments =
                 arrayOf(

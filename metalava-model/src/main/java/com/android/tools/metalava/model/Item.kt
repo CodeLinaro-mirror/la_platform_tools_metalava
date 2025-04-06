@@ -193,6 +193,7 @@ interface Item : Reportable {
      *   as the type arguments.
      * * For type parameters it's a [VariableTypeItem] reference the type parameter.
      * * For packages and files, it's null.
+     * * For type aliases it's the underlying type for which the alias is an alternative name.
      */
     fun type(): TypeItem?
 
@@ -453,7 +454,7 @@ abstract class DefaultItem(
                     for (attribute in annotation.attributes) {
                         // Assumption that all annotations in SUPPRESS_ANNOTATIONS only have
                         // one attribute such as value/names that is varargs of String
-                        val value = attribute.value
+                        val value = attribute.legacyValue
                         if (value is AnnotationArrayAttributeValue) {
                             // Example: @SuppressLint({"RequiresFeature", "AllUpper"})
                             for (innerValue in value.values) {

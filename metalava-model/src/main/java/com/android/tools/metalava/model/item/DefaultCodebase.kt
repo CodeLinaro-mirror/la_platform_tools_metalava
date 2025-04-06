@@ -22,6 +22,7 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.TypeAliasItem
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
@@ -56,6 +57,13 @@ open class DefaultCodebase(
 
     override fun dispose() {
         description += " [disposed]"
+    }
+
+    final override var containsRevertedItem: Boolean = false
+        private set
+
+    override fun markContainsRevertedItem() {
+        containsRevertedItem = true
     }
 
     override val reporter: Reporter = config.reporter
@@ -102,6 +110,24 @@ open class DefaultCodebase(
         for (classItem in topLevelClassesFromSource) {
             classItem.freeze()
         }
+    }
+
+    /** Tracks all known type aliases in the codebase by qualified name. */
+    private val allTypeAliasesByName = HashMap<String, DefaultTypeAliasItem>()
+
+    override fun findTypeAlias(typeAliasName: String): TypeAliasItem? {
+        return allTypeAliasesByName[typeAliasName]
+    }
+
+    /**
+     * Adds the [typeAlias] to the [Codebase], throwing an error if there is already a type alias
+     * with the same qualified name.
+     */
+    internal fun addTypeAlias(typeAlias: DefaultTypeAliasItem) {
+        if (typeAlias.qualifiedName in allTypeAliasesByName) {
+            error("Duplicate typealias ${typeAlias.qualifiedName}")
+        }
+        allTypeAliasesByName[typeAlias.qualifiedName] = typeAlias
     }
 
     /**
@@ -153,16 +179,16 @@ open class DefaultCodebase(
      * Looks for an existing class in this [Codebase] and if that cannot be found then delegate to
      * the [assembler] to see if it can create a class from the underlying model.
      */
-    final override fun resolveClass(className: String): ClassItem? {
-        findClass(className)?.let {
+    final override fun resolveClass(erasedName: String): ClassItem? {
+        findClass(erasedName)?.let {
             return it
         }
-        val created = assembler.createClassFromUnderlyingModel(className) ?: return null
+        val created = assembler.createClassFromUnderlyingModel(erasedName) ?: return null
         // If the returned class was not created as part of this Codebase then register it as an
         // external class so that findClass(...) will find it next time.
         if (created.codebase !== this) {
             // Register as an external class.
-            externalClassesByName[className] = created
+            externalClassesByName[erasedName] = created
         }
         return created
     }

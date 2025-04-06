@@ -108,7 +108,6 @@ class CommonValueClassTest : BaseModelTest() {
             assertTrue(primaryConstructor.isPrimary, "Expected a primary constructor")
             val param = primaryConstructor.parameters().single()
             assertTrue(param.hasDefaultValue(), "Expected a default value")
-            assertEquals(param.defaultValue.value(), "0", "Expected a default value of 0")
         }
     }
 
@@ -140,6 +139,65 @@ class CommonValueClassTest : BaseModelTest() {
             assertNull(noAccessorsProperty.setter)
             assertNull(noAccessorsProperty.constructorParameter)
             assertNull(noAccessorsProperty.backingField)
+        }
+    }
+
+    @Test
+    fun `Modifiers on APIs using value classes in an interface`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                    package test.pkg
+                    @JvmInline
+                    value class IntValue(private val value: Int)
+                    interface Interface {
+                        val abstractVal: IntValue
+                        fun abstractFun(): IntValue
+                        val defaultVal: IntValue
+                            get() = IntValue(0)
+                        fun defaultFun(): IntValue = IntValue(0)
+                    }
+                """
+            )
+        ) {
+            val interfaceClass = codebase.assertClass("test.pkg.Interface")
+            // Abstract APIs on interface
+            assertTrue(interfaceClass.assertProperty("abstractVal").modifiers.isAbstract())
+            assertTrue(interfaceClass.assertMethod("getAbstractVal", "").modifiers.isAbstract())
+            assertTrue(interfaceClass.assertMethod("abstractFun", "").modifiers.isAbstract())
+            // Default APIs on interface
+            assertTrue(interfaceClass.assertProperty("defaultVal").modifiers.isDefault())
+            assertTrue(interfaceClass.assertMethod("getDefaultVal", "").modifiers.isDefault())
+            assertTrue(interfaceClass.assertMethod("defaultFun", "").modifiers.isDefault())
+        }
+    }
+
+    @Test
+    fun `Modifiers on APIs using value classes in an abstract class`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                    package test.pkg
+                    @JvmInline
+                    value class IntValue(private val value: Int)
+                    abstract class AbstractClass {
+                        abstract val abstractVal: IntValue
+                        abstract fun abstractFun(): IntValue
+                        val finalVal: IntValue = IntValue(0)
+                        fun finalFun(): IntValue = IntValue(0)
+                    }
+                """
+            )
+        ) {
+            val abstractClass = codebase.assertClass("test.pkg.AbstractClass")
+            // Abstract APIs on abstract class
+            assertTrue(abstractClass.assertProperty("abstractVal").modifiers.isAbstract())
+            assertTrue(abstractClass.assertMethod("getAbstractVal", "").modifiers.isAbstract())
+            assertTrue(abstractClass.assertMethod("abstractFun", "").modifiers.isAbstract())
+            // Final APIs on abstract class
+            assertTrue(abstractClass.assertProperty("finalVal").modifiers.isFinal())
+            assertTrue(abstractClass.assertMethod("getFinalVal", "").modifiers.isFinal())
+            assertTrue(abstractClass.assertMethod("finalFun", "").modifiers.isFinal())
         }
     }
 }

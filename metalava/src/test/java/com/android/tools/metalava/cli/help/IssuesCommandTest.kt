@@ -80,6 +80,7 @@ Available Issues                             |  Category                |   Defa
   ConfigFieldName                            |  api_lint                |   error
   ContextFirst                               |  api_lint                |   error
   ContextNameSuffix                          |  api_lint                |   error
+  DataClassDefinition                        |  api_lint                |   hidden
   DefaultValueChange                         |  compatibility           |   error
   Deprecated                                 |  documentation           |   hidden
   DeprecationMismatch                        |  documentation           |   error

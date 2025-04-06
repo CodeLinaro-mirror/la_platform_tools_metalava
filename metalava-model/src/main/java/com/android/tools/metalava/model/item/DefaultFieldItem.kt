@@ -37,7 +37,7 @@ open class DefaultFieldItem(
     containingClass: ClassItem,
     private var type: TypeItem,
     private val isEnumConstant: Boolean,
-    override val fieldValue: FieldValue?,
+    override val legacyFieldValue: FieldValue?,
 ) :
     DefaultMemberItem(
         codebase = codebase,
@@ -71,12 +71,12 @@ open class DefaultFieldItem(
                 containingClass = targetContainingClass,
                 type = type,
                 isEnumConstant = isEnumConstant,
-                fieldValue = fieldValue,
+                legacyFieldValue = legacyFieldValue,
             )
             .also { duplicated -> duplicated.inheritedFrom = containingClass() }
 
-    final override fun initialValue(requireConstant: Boolean) =
-        fieldValue?.initialValue(requireConstant)
+    final override fun legacyInitialValue(requireConstant: Boolean) =
+        legacyFieldValue?.initialValue(requireConstant)
 
     final override fun isEnumConstant(): Boolean = isEnumConstant
 }

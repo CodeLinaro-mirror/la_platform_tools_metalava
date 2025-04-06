@@ -42,6 +42,7 @@ import javax.lang.model.type.TypeKind
 /** Creates [TypeItem]s from [Type]s. */
 internal class TurbineTypeItemFactory(
     private val initializer: TurbineCodebaseInitialiser,
+    private val annotationFactory: TurbineAnnotationFactory,
     typeParameterScope: TypeParameterScope,
 ) : DefaultTypeItemFactory<Type, TurbineTypeItemFactory>(typeParameterScope) {
 
@@ -50,7 +51,7 @@ internal class TurbineTypeItemFactory(
     override fun self() = this
 
     override fun createNestedFactory(scope: TypeParameterScope) =
-        TurbineTypeItemFactory(initializer, scope)
+        TurbineTypeItemFactory(initializer, annotationFactory, scope)
 
     override fun getType(
         underlyingType: Type,
@@ -62,7 +63,7 @@ internal class TurbineTypeItemFactory(
         annos: List<AnnoInfo>,
         contextNullability: ContextNullability,
     ): TypeModifiers {
-        val typeAnnotations = initializer.createAnnotations(annos)
+        val typeAnnotations = annotationFactory.createAnnotations(annos)
         // Compute the nullability, factoring in any context nullability and type annotations.
         // Turbine does not support kotlin so the kotlin nullability is always null.
         val nullability = contextNullability.compute(null, typeAnnotations)
@@ -244,7 +245,7 @@ internal class TurbineTypeItemFactory(
      * @return The `ClassTypeItem` representing the outer class.
      */
     private fun getOuterClassType(type: Type.ClassTy.SimpleClassTy): ClassTypeItem {
-        val className = initializer.getQualifiedName(type.sym().binaryName())
+        val className = type.sym().qualifiedName
         val classTypeElement = initializer.getTypeElement(className)!!
         return createOuterClassType(classTypeElement.enclosingElement!!)!!
     }
@@ -283,15 +284,16 @@ internal class TurbineTypeItemFactory(
         outerClass: ClassTypeItem?,
         contextNullability: ContextNullability,
     ): ClassTypeItem {
+        val sym = type.sym()
         val outerClassItem =
-            if (type.sym().binaryName().contains("$") && outerClass == null) {
+            if (sym.binaryName().contains("$") && outerClass == null) {
                 getOuterClassType(type)
             } else {
                 outerClass
             }
 
         val modifiers = createModifiers(type.annos(), contextNullability)
-        val qualifiedName = initializer.getQualifiedName(type.sym().binaryName())
+        val qualifiedName = sym.qualifiedName
         val parameters = type.targs().map { getGeneralType(it) as TypeArgumentTypeItem }
         return DefaultClassTypeItem(codebase, modifiers, qualifiedName, parameters, outerClassItem)
     }

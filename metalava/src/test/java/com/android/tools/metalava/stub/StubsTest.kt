@@ -23,7 +23,6 @@ import com.android.tools.metalava.lint.DefaultLintErrorMessage
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.text.FileFormat
-import com.android.tools.metalava.supportParameterName
 import com.android.tools.metalava.systemApiSource
 import com.android.tools.metalava.testApiSource
 import com.android.tools.metalava.testing.java
@@ -401,38 +400,6 @@ class StubsTest : AbstractStubsTest() {
     }
 
     @Test
-    fun `Parameter Names in Java`() {
-        // Java code which explicitly specifies parameter names: make sure stub uses
-        // parameter name
-        checkStubs(
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package test.pkg;
-                    import androidx.annotation.ParameterName;
-
-                    public class Foo {
-                        public void foo(int javaParameter1, @ParameterName("publicParameterName") int javaParameter2) {
-                        }
-                    }
-                    """
-                    ),
-                    supportParameterName
-                ),
-            source =
-                """
-                package test.pkg;
-                @SuppressWarnings({"unchecked", "deprecation", "all"})
-                public class Foo {
-                public Foo() { throw new RuntimeException("Stub!"); }
-                public void foo(int javaParameter1, int publicParameterName) { throw new RuntimeException("Stub!"); }
-                }
-                 """
-        )
-    }
-
-    @Test
     fun `DocOnly members should be omitted`() {
         // When marked @doconly don't include in stubs or signature files
         // unless specifically asked for (which we do when generating docs-stubs).
@@ -547,7 +514,7 @@ class StubsTest : AbstractStubsTest() {
         // Like previous test, but without compatibility mode: ensures that we
         // use super classes of filtered throwables
         checkStubs(
-            format = FileFormat.V3,
+            format = FileFormat.V4,
             sourceFiles =
                 arrayOf(
                     java(
@@ -593,7 +560,7 @@ class StubsTest : AbstractStubsTest() {
             warnings = "",
             api =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package test.pkg {
                   public class Generics {
                     ctor public Generics();

@@ -21,7 +21,6 @@ import com.android.tools.metalava.model.testing.FilterAction.EXCLUDE
 import com.android.tools.metalava.model.testing.FilterByProvider
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.text.FileFormat
-import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.createAndroidModuleDescription
 import com.android.tools.metalava.testing.createCommonModuleDescription
 import com.android.tools.metalava.testing.createModuleDescription
@@ -97,10 +96,10 @@ abstract class UastTestBase : DriverTest() {
                 """
                     )
                 ),
-            format = FileFormat.V3,
+            format = FileFormat.V4,
             api =
                 """
-                // Signature format: 3.0
+                // Signature format: 4.0
                 package androidx.annotation.experimental {
                   @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention.BINARY) @kotlin.annotation.Target(allowedTargets={kotlin.annotation.AnnotationTarget.CLASS, kotlin.annotation.AnnotationTarget.PROPERTY, kotlin.annotation.AnnotationTarget.LOCAL_VARIABLE, kotlin.annotation.AnnotationTarget.VALUE_PARAMETER, kotlin.annotation.AnnotationTarget.CONSTRUCTOR, kotlin.annotation.AnnotationTarget.FUNCTION, kotlin.annotation.AnnotationTarget.PROPERTY_GETTER, kotlin.annotation.AnnotationTarget.PROPERTY_SETTER, kotlin.annotation.AnnotationTarget.FILE, kotlin.annotation.AnnotationTarget.TYPEALIAS}) public @interface UseExperimental {
                     method public abstract $klass<? extends java.lang.annotation.Annotation>[] markerClass();
@@ -234,8 +233,6 @@ abstract class UastTestBase : DriverTest() {
         // https://youtrack.jetbrains.com/issue/KT-57546
         // https://youtrack.jetbrains.com/issue/KT-57577
         // https://youtrack.jetbrains.com/issue/KT-72078
-        val horizontalType = if (isK2) "test.pkg.Alignment.Horizontal" else "int"
-        val verticalType = if (isK2) "test.pkg.Alignment.Vertical" else "int"
         check(
             sourceFiles =
                 arrayOf(
@@ -290,7 +287,7 @@ abstract class UastTestBase : DriverTest() {
                 """
                 package test.pkg {
                   public final class Alignment {
-                    ctor public Alignment($horizontalType horizontal, $verticalType vertical);
+                    ctor public Alignment(int horizontal, int vertical);
                     method public int getHorizontal();
                     method public int getVertical();
                     property public int horizontal;
@@ -463,8 +460,6 @@ abstract class UastTestBase : DriverTest() {
                     """
                     ),
                     requiresApiSource,
-                    // Hide androidx.annotation classes.
-                    KnownSourceFiles.androidxAnnotationHide,
                 ),
             api =
                 """
@@ -1426,7 +1421,6 @@ abstract class UastTestBase : DriverTest() {
     @Test
     fun `actual typealias -- without value class`() {
         // https://youtrack.jetbrains.com/issue/KT-55085
-        val typeAliasExpanded = if (isK2) "test.pkg.NativePointerKeyboardModifiers" else "int"
         val commonSource =
             kotlin(
                 "commonMain/src/test/pkg/PointerEvent.kt",
@@ -1471,7 +1465,7 @@ abstract class UastTestBase : DriverTest() {
                     property public test.pkg.PointerKeyboardModifiers keyboardModifiers;
                   }
                   public final class PointerKeyboardModifiers {
-                    ctor public PointerKeyboardModifiers($typeAliasExpanded packedValue);
+                    ctor public PointerKeyboardModifiers(int packedValue);
                   }
                 }
                 """
@@ -2006,6 +2000,53 @@ abstract class UastTestBase : DriverTest() {
                 package test.pkg.main {
                   public final class Foo {
                     ctor public Foo();
+                  }
+                }
+                """
+        )
+    }
+
+    @Test
+    fun `Repeatable annotation with expect actual`() {
+        // b/399105459
+        val commonSource =
+            kotlin(
+                "commonMain/src/test/pkg/AnnotationCanRepeat.kt",
+                """
+                    package test.pkg
+                    @Repeatable
+                    expect annotation class AnnotationCanRepeat(val value: Int)
+                """
+            )
+        val androidSource =
+            kotlin(
+                "androidMain/src/test/pkg/AnnotationCanRepeat.android.kt",
+                """
+                    package test.pkg
+                    @JvmRepeatable(AnnotationCanRepeat.Entries::class)
+                    actual annotation class AnnotationCanRepeat
+                    actual constructor(actual val value: Int) {
+                        annotation class Entries(vararg val value: AnnotationCanRepeat)
+                    }
+                """
+            )
+        check(
+            sourceFiles = arrayOf(commonSource, androidSource),
+            projectDescription =
+                createProjectDescription(
+                    createCommonModuleDescription(arrayOf(commonSource)),
+                    createAndroidModuleDescription(arrayOf(androidSource))
+                ),
+            api =
+                """
+                package test.pkg {
+                  @java.lang.annotation.Repeatable(AnnotationCanRepeat.Entries::class) public @interface AnnotationCanRepeat {
+                    method public abstract int value();
+                    property public abstract int value;
+                  }
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public static @interface AnnotationCanRepeat.Entries {
+                    method public abstract test.pkg.AnnotationCanRepeat[] value();
+                    property public abstract test.pkg.AnnotationCanRepeat[] value;
                   }
                 }
                 """

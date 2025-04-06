@@ -32,7 +32,7 @@ class AnnotationRetentionTest : DriverTest() {
         // part of the source tree, ensure that we compute the right retention (runtime, meaning
         // it should show up in the stubs file.).
         check(
-            format = FileFormat.V3,
+            format = FileFormat.V4,
             extraArguments = arrayOf(ARG_EXCLUDE_ALL_ANNOTATIONS),
             sourceFiles =
                 arrayOf(
@@ -58,9 +58,11 @@ class AnnotationRetentionTest : DriverTest() {
                         """
                     ),
                 ),
+            // Override default to emit android.annotation classes.
+            skipEmitPackages = emptyList(),
             api =
                 """
-                    // Signature format: 3.0
+                    // Signature format: 4.0
                     package android.annotation {
                       @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) @java.lang.annotation.Target({java.lang.annotation.ElementType.TYPE, java.lang.annotation.ElementType.FIELD, java.lang.annotation.ElementType.METHOD, java.lang.annotation.ElementType.PARAMETER, java.lang.annotation.ElementType.CONSTRUCTOR, java.lang.annotation.ElementType.LOCAL_VARIABLE}) public @interface SuppressLint {
                         method public abstract String[] value();
@@ -109,7 +111,7 @@ class AnnotationRetentionTest : DriverTest() {
         // part of the source tree, ensure that we compute the right retention (runtime, meaning
         // it should show up in the stubs file.).
         check(
-            format = FileFormat.V3,
+            format = FileFormat.V4,
             extraArguments = arrayOf(ARG_EXCLUDE_ALL_ANNOTATIONS),
             sourceFiles =
                 arrayOf(
@@ -127,7 +129,7 @@ class AnnotationRetentionTest : DriverTest() {
                 ),
             api =
                 """
-                    // Signature format: 3.0
+                    // Signature format: 4.0
                     package test.pkg {
                       @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention.RUNTIME) public @interface ExplicitRuntimeRetention {
                       }

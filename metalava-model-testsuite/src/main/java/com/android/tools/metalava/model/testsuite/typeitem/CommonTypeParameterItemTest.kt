@@ -43,7 +43,7 @@ class CommonTypeParameterItemTest : BaseModelTest() {
             ),
             signature(
                 """
-                    // Signature format: 3.0
+                    // Signature format: 4.0
                     package test.pkg {
                       public class Foo<T> {
                         ctor public Foo();
@@ -78,7 +78,7 @@ class CommonTypeParameterItemTest : BaseModelTest() {
             ),
             signature(
                 """
-                    // Signature format: 3.0
+                    // Signature format: 4.0
                     package test.pkg {
                       public class Foo<T extends Comparable<T>> {
                         ctor public Foo();
@@ -115,7 +115,7 @@ class CommonTypeParameterItemTest : BaseModelTest() {
             ),
             signature(
                 """
-                    // Signature format: 3.0
+                    // Signature format: 4.0
                     package test.pkg {
                       public class Foo<T extends Object & Comparable<T>> {
                         ctor public Foo();

@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava.model.testsuite.snapshot
 
+import com.android.tools.metalava.model.Assertions.Companion.assertClass
+import com.android.tools.metalava.model.Assertions.Companion.assertPackage
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DelegatedVisitor
@@ -27,8 +29,6 @@ import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.snapshot.EmittableDelegatingVisitor
 import com.android.tools.metalava.model.snapshot.NonFilteringDelegatingVisitor
 import com.android.tools.metalava.model.testsuite.BaseModelTest
-import com.android.tools.metalava.model.testsuite.callableitem.CallableParameterDescriptorUsingDotsTest.Companion.assertClass
-import com.android.tools.metalava.model.testsuite.callableitem.CallableParameterDescriptorUsingDotsTest.Companion.assertPackage
 import com.google.common.truth.Truth.assertWithMessage
 import org.junit.Test
 import org.junit.runners.Parameterized

@@ -258,7 +258,7 @@ interface ClassItem : ClassContentItem, SelectableItem, TypeParameterListOwner {
             val modifiers = cls.modifiers
             val annotation = modifiers.findAnnotation(AnnotationItem::isRetention)
             val value = annotation?.findAttribute(ANNOTATION_ATTR_VALUE)
-            val source = value?.value?.toSource()
+            val source = value?.legacyValue?.toSource()
             return when {
                 source == null -> AnnotationRetention.getDefault(cls)
                 source.contains("CLASS") -> AnnotationRetention.CLASS

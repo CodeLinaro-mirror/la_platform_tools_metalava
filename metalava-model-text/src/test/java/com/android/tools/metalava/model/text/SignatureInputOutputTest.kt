@@ -49,13 +49,15 @@ class SignatureInputOutputTest : Assertions {
     /**
      * Parses the API (without a header line, the header from [fileFormat] will be added) from the
      * [signature], runs the [codebaseTest] on the parsed codebase, and then writes the codebase
-     * back out in the [fileFormat], verifying that the output matches the original [signature].
+     * back out in the [fileFormat], verifying that the output matches [expectedOutput] which
+     * defaults to the original [signature].
      *
      * This tests both [ApiFile] and [SignatureWriter].
      */
     private fun runInputOutputTest(
         signature: String,
         fileFormat: FileFormat,
+        expectedOutput: String = signature,
         codebaseTest: CodebaseContext.() -> Unit = {},
     ) {
         val fullSignature = fileFormat.header() + signature
@@ -89,7 +91,7 @@ class SignatureInputOutputTest : Assertions {
                 stringWriter.toString()
             }
 
-        assertSignatureFilesMatch(signature, output, fileFormat)
+        assertSignatureFilesMatch(expectedOutput, output, fileFormat)
     }
 
     @Test
@@ -153,7 +155,7 @@ class SignatureInputOutputTest : Assertions {
             assertThat(field.name()).isEqualTo("foo")
             assertThat(field.type().isString()).isTrue()
             assertThat(field.modifiers.getVisibilityLevel()).isEqualTo(VisibilityLevel.PROTECTED)
-            assertThat(field.initialValue()).isNull()
+            assertThat(field.legacyInitialValue()).isNull()
         }
     }
 
@@ -177,7 +179,7 @@ class SignatureInputOutputTest : Assertions {
             assertThat(field.type().isString()).isTrue()
             assertThat(field.modifiers.getVisibilityLevel()).isEqualTo(VisibilityLevel.PUBLIC)
             assertThat(field.modifiers.isStatic()).isTrue()
-            assertThat(field.initialValue()).isEqualTo("hi")
+            assertThat(field.legacyInitialValue()).isEqualTo("hi")
         }
     }
 
@@ -254,8 +256,7 @@ class SignatureInputOutputTest : Assertions {
                 .isEqualTo(PrimitiveTypeItem.Primitive.INT)
             assertThat(method.parameters()).isEmpty()
 
-            assertThat(method.hasDefaultValue()).isTrue()
-            assertThat(method.defaultValue()).isEqualTo("java.lang.Integer.MIN_VALUE")
+            assertThat(method.legacyDefaultValue()).isEqualTo("java.lang.Integer.MIN_VALUE")
         }
     }
 
@@ -284,7 +285,7 @@ class SignatureInputOutputTest : Assertions {
     }
 
     @Test
-    fun `Test method with one named parameter with concise default value`() {
+    fun `Test method with one named parameter with default value`() {
         val api =
             """
                 package test.pkg {
@@ -306,36 +307,6 @@ class SignatureInputOutputTest : Assertions {
                 .isEqualTo(PrimitiveTypeItem.Primitive.INT)
 
             assertThat(param.hasDefaultValue()).isTrue()
-            assertThat(param.isDefaultValueKnown()).isFalse()
-        }
-    }
-
-    @Test
-    fun `Test method with one named parameter with non-concise default value`() {
-        val format = kotlinStyleFormat.copy(conciseDefaultValues = false)
-        val api =
-            """
-                package test.pkg {
-                  public class Foo {
-                    method public foo(arg: int = 3): String;
-                  }
-                }
-            """
-                .trimIndent()
-        runInputOutputTest(api, format) {
-            val foo = codebase.assertClass("test.pkg.Foo")
-            val method = foo.methods().single()
-
-            assertThat(method.parameters()).hasSize(1)
-            val param = method.parameters().single()
-            assertThat(param.name()).isEqualTo("arg")
-            assertThat(param.publicName()).isEqualTo("arg")
-            assertThat((param.type() as PrimitiveTypeItem).kind)
-                .isEqualTo(PrimitiveTypeItem.Primitive.INT)
-
-            assertThat(param.hasDefaultValue()).isTrue()
-            assertThat(param.isDefaultValueKnown()).isTrue()
-            assertThat(param.defaultValueAsString()).isEqualTo("3")
         }
     }
 
@@ -652,6 +623,51 @@ class SignatureInputOutputTest : Assertions {
         runInputOutputTest(api, kotlinStyleFormat)
     }
 
+    @Test
+    fun `Test normalize-final-modifier=yes`() {
+        runInputOutputTest(
+            """
+                package test.pkg {
+                  public final class Final {
+                    method public final void foo();
+                  }
+                  public class NotFinal {
+                    method public final void foo();
+                  }
+                }
+            """,
+            FileFormat.V2.copy(specifiedNormalizeFinalModifier = true),
+            expectedOutput =
+                """
+                    package test.pkg {
+                      public final class Final {
+                        method public void foo();
+                      }
+                      public class NotFinal {
+                        method public final void foo();
+                      }
+                    }
+                """,
+        )
+    }
+
+    @Test
+    fun `Test normalize-final-modifier=no`() {
+        runInputOutputTest(
+            """
+                package test.pkg {
+                  public final class Final {
+                    method public final void foo();
+                  }
+                  public class NotFinal {
+                    method public final void foo();
+                  }
+                }
+            """,
+            FileFormat.V2.copy(specifiedNormalizeFinalModifier = false),
+        )
+    }
+
     /**
      * Make sure that despite the `java.lang.` prefix being stripped from various types when writing
      * the signature file that they have the correct type when the [Codebase] is loaded.
@@ -808,6 +824,21 @@ class SignatureInputOutputTest : Assertions {
                   @SuppressCompatibility @test.pkg.ExperimentalBar public final class FancyBar {
                     ctor public FancyBar();
                     method @SuppressCompatibility @ReturnThis public test.pkg.FancyBar fancy(@SuppressCompatibility int);
+                  }
+                }
+            """
+        runInputOutputTest(api, FileFormat.V5)
+    }
+
+    @Test
+    fun `Check loading signature file with duplicate method signatures`() {
+        val api =
+            """
+                // Signature format: 5.0
+                package test.pkg {
+                  public class Foo {
+                    method public void method(int);
+                    method public void method(int);
                   }
                 }
             """
