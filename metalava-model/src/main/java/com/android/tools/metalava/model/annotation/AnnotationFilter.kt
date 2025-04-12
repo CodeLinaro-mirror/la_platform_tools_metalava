@@ -27,17 +27,20 @@ import java.util.TreeMap
 interface AnnotationFilter {
     // tells whether an annotation is included by the filter
     fun matches(annotation: AnnotationItem): Boolean
+
     // tells whether an annotation is included by this filter
     fun matches(annotationSource: String): Boolean
 
     // Returns a sorted set of fully qualified annotation names that may be included by this filter.
     // Note that this filter might incorporate parameters but this function strips them.
     fun getIncludedAnnotationNames(): Set<String>
+
     // Returns true if [getIncludedAnnotationNames] includes the given qualified name
     fun matchesAnnotationName(qualifiedName: String): Boolean
 
     // Returns true if nothing is matched by this filter
     fun isEmpty(): Boolean
+
     // Returns true if some annotation is matched by this filter
     fun isNotEmpty(): Boolean
 

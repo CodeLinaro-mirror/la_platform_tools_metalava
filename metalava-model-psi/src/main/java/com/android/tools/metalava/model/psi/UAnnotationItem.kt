@@ -28,6 +28,7 @@ import com.android.tools.metalava.model.DefaultAnnotationAttribute
 import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.DefaultAnnotationSingleAttributeValue
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.value.ValueProvider
 import com.intellij.psi.PsiAnnotationMethod
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiExpression
@@ -93,6 +94,7 @@ private constructor(
                 .map { attribute ->
                     DefaultAnnotationAttribute(
                         attribute.name ?: ANNOTATION_ATTR_VALUE,
+                        ValueProvider.UNSUPPORTED,
                         createValue(codebase, attribute.expression)
                     )
                 }
@@ -108,8 +110,7 @@ private constructor(
                 uAnnotation.qualifiedName?.let {
                     (codebase.findTypeAlias(it)?.aliasedType as? PsiClassTypeItem)?.qualifiedName
                         ?: it
-                }
-                    ?: return null
+                } ?: return null
             val qualifiedName =
                 codebase.annotationManager.normalizeInputName(originalName) ?: return null
             return UAnnotationItem(

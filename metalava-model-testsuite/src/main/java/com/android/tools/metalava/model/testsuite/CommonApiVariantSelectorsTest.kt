@@ -371,9 +371,11 @@ class CommonApiVariantSelectorsTest : BaseModelTest() {
     fun `Test accessible`() {
         runCodebaseTest(
             inputSet(
-                java("""
+                java(
+                    """
                         package test.pkg;
-                    """),
+                    """
+                ),
                 java(
                     """
                         package test.pkg;

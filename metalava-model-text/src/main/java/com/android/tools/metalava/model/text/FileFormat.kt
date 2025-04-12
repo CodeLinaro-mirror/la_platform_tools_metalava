@@ -782,27 +782,27 @@ data class FileFormat(
             // Apply any language defaults first as they take priority over version defaults.
             language?.applyLanguageDefaults(this)
             return base.copy(
-                includeDefaultParameterValues = includeDefaultParameterValues
-                        ?: base.includeDefaultParameterValues,
-                includeTypeUseAnnotations = includeTypeUseAnnotations
-                        ?: base.includeTypeUseAnnotations,
+                includeDefaultParameterValues =
+                    includeDefaultParameterValues ?: base.includeDefaultParameterValues,
+                includeTypeUseAnnotations =
+                    includeTypeUseAnnotations ?: base.includeTypeUseAnnotations,
                 kotlinNameTypeOrder = kotlinNameTypeOrder ?: base.kotlinNameTypeOrder,
                 kotlinStyleNulls = kotlinStyleNulls ?: base.kotlinStyleNulls,
                 language = language ?: base.language,
                 migrating = migrating ?: base.migrating,
                 name = name ?: base.name,
-                specifiedAddAdditionalOverrides = addAdditionalOverrides
-                        ?: base.specifiedAddAdditionalOverrides,
-                specifiedNormalizeFinalModifier = normalizeFinalModifier
-                        ?: base.specifiedNormalizeFinalModifier,
-                specifiedOverloadedMethodOrder = overloadedMethodOrder
-                        ?: base.specifiedOverloadedMethodOrder,
-                specifiedSortWholeExtendsList = sortWholeExtendsList
-                        ?: base.specifiedSortWholeExtendsList,
-                specifiedStripJavaLangPrefix = stripJavaLangPrefix
-                        ?: base.specifiedStripJavaLangPrefix,
-                specifiedTypeArgumentSpacing = typeArgumentSpacing
-                        ?: base.specifiedTypeArgumentSpacing,
+                specifiedAddAdditionalOverrides =
+                    addAdditionalOverrides ?: base.specifiedAddAdditionalOverrides,
+                specifiedNormalizeFinalModifier =
+                    normalizeFinalModifier ?: base.specifiedNormalizeFinalModifier,
+                specifiedOverloadedMethodOrder =
+                    overloadedMethodOrder ?: base.specifiedOverloadedMethodOrder,
+                specifiedSortWholeExtendsList =
+                    sortWholeExtendsList ?: base.specifiedSortWholeExtendsList,
+                specifiedStripJavaLangPrefix =
+                    stripJavaLangPrefix ?: base.specifiedStripJavaLangPrefix,
+                specifiedTypeArgumentSpacing =
+                    typeArgumentSpacing ?: base.specifiedTypeArgumentSpacing,
                 surface = surface ?: base.surface,
             )
         }

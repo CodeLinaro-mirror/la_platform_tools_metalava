@@ -1580,7 +1580,8 @@ class ApiLintTest : DriverTest() {
         // TODO: This check is not yet hooked up
         check(
             apiLint = "", // enabled
-            expectedIssues = """
+            expectedIssues =
+                """
                 """,
             sourceFiles =
                 arrayOf(

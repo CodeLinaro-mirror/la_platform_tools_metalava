@@ -33,9 +33,11 @@ class CommonModelTest : BaseModelTest() {
     @Test
     fun `empty file`() {
         runCodebaseTest(
-            signature("""
+            signature(
+                """
                     // Signature format: 2.0
-                """),
+                """
+            ),
             java(""),
         ) {
             assertNotNull(codebase)

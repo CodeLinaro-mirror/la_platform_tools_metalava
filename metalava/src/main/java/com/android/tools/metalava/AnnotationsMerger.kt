@@ -283,8 +283,7 @@ class AnnotationsMerger(
                     if (old.modifiers.annotations().isEmpty()) {
                         old.type()?.let { typeItem ->
                             if (typeItem.modifiers.annotations.isEmpty()) return
-                        }
-                            ?: return
+                        } ?: return
                     }
 
                     reporter.report(
@@ -803,8 +802,7 @@ class AnnotationsMerger(
                         item.codebase.createAnnotation(
                             annotation.toSource(showDefaultAttrs = false),
                             item,
-                        )
-                            ?: continue
+                        ) ?: continue
 
                     add(annotationToMerge)
                 }

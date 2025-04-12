@@ -358,8 +358,7 @@ abstract class DriverTest :
                     baselineFile,
                     inputContents,
                 )
-        }
-            ?: BaselineCheck("", emptyArray(), null, "")
+        } ?: BaselineCheck("", emptyArray(), null, "")
     }
 
     @Suppress("DEPRECATION")
@@ -1568,21 +1567,21 @@ private fun restrictedForEnvironmentClass(packageName: String): TestFile =
             package $packageName;
             import java.lang.annotation.*;
             import static java.lang.annotation.ElementType.*;
-            import static java.lang.annotation.RetentionPolicy.SOURCE;
+            import static java.lang.annotation.RetentionPolicy;
             /** @hide */
-            @Retention(SOURCE)
+            @Retention(RetentionPolicy.RUNTIME)
             @Target({TYPE})
             public @interface RestrictedForEnvironment {
-              Environment[] environments();
+              @Environment String[] environments();
               int from();
-              enum Environment {
-                SDK_SANDBOX {
-                    @Override
-                    public String toString() {
-                        return "SDK Runtime";
-                    }
-                }
-              }
+              String ENVIRONMENT_SDK_RUNTIME = "SDK Runtime";
+              /** @hide */
+              @StringDef(prefix = "ENVIRONMENT_", value = {
+                ENVIRONMENT_SDK_RUNTIME
+              })
+              @Retention(RetentionPolicy.SOURCE)
+              @interface Environment {}
+
               @Retention(RetentionPolicy.RUNTIME)
               @Target(TYPE)
               @interface Container {

@@ -31,6 +31,9 @@ import com.android.tools.metalava.model.testsuite.value.CommonParameterizedField
 import com.android.tools.metalava.model.testsuite.value.TestClassCreator.Companion.ATTRIBUTE_NAME
 import com.android.tools.metalava.model.testsuite.value.TestClassCreator.Companion.FIELD_NAME
 import com.android.tools.metalava.model.testsuite.value.ValueExample.Companion.valueExamples
+import com.android.tools.metalava.model.value.Value
+import com.android.tools.metalava.model.value.ValueProviderException
+import com.android.tools.metalava.testing.EntryPointCallerRule
 import com.android.tools.metalava.testing.TestFileCache
 import com.android.tools.metalava.testing.cacheIn
 import com.android.tools.metalava.testing.jarFromSources
@@ -38,6 +41,8 @@ import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import com.android.tools.metalava.testing.signature
 import kotlin.test.assertEquals
+import org.junit.AssumptionViolatedException
+import org.junit.Rule
 import org.junit.Test
 import org.junit.runners.Parameterized
 
@@ -90,6 +95,15 @@ abstract class BaseCommonParameterizedValueTest(
     @Parameterized.Parameter(0) lateinit var codebaseProducer: CodebaseProducer
 
     @Parameterized.Parameter(1) lateinit var testCase: TestCase
+
+    /**
+     * Will try and rewrite the stack trace of any test failures to refer to the location where the
+     * [ValueExample] that is currently being tested was created.
+     */
+    @get:Rule
+    val entryPointCallerRule = EntryPointCallerRule {
+        testCase.valueExample.entryPointCallerTracker
+    }
 
     /** Produces a [Codebase] to test and runs the test on it. */
     sealed class CodebaseProducer(val kind: ProducerKind) {
@@ -428,6 +442,50 @@ abstract class BaseCommonParameterizedValueTest(
     fun testLegacySource() {
         val expectedLegacySource = testCase.valueExample.expectedLegacySourceFor(inputFormat)
         runExpectationTest(expectedLegacySource, legacySourceGetter)
+    }
+
+    /**
+     * Check the [ValueExample.expectedValue] against the [Value] returned by [actualValueGetter].
+     */
+    protected fun checkExpectedValue(
+        actualValueGetter: TestCaseContext.() -> Value?,
+    ) {
+        val expectation =
+            testCase.valueExample.expectedValue
+                ?: throw AssumptionViolatedException(
+                    "No expected value provided",
+                )
+
+        runTestOnCodebase {
+            // Get the actual value.
+            // ValueProviderExceptions are not treated as test failures at the moment to avoid
+            // having to keep updating baseline files while expanding Value support across the
+            // models.
+            // TODO(b/354633349): Stop ignoring exceptions.
+            val actual =
+                try {
+                    actualValueGetter()
+                } catch (e: ValueProviderException) {
+                    throw AssumptionViolatedException(
+                        "Ignoring exception thrown while retrieving value",
+                        e
+                    )
+                }
+
+            // Get the expected value.
+            val expected = expectation.expectationFor(producerKind, valueUseSite, codebase)
+
+            // A null value being returned when the expectation is non-null is not treated as an
+            // error at the moment to avoid having to keep updating baseline files while expanding
+            // Value support across the models.
+            // TODO(b/354633349): Stop ignoring mismatch when actual is null.
+            if (expected != null && actual == null) {
+                throw AssumptionViolatedException("Ignoring null value")
+            }
+
+            // Compare the two.
+            assertEquals(expected, actual)
+        }
     }
 }
 

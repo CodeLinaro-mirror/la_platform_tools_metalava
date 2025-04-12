@@ -651,9 +651,10 @@ class BinaryCompatibilityClassesTest : DriverTest() {
     @Test
     fun `Reorder type parameters (Incompatible)`() {
         check(
-            expectedIssues = """
-                (expected issue for class Foo)
-            """,
+            expectedIssues =
+                """
+                    (expected issue for class Foo)
+                """,
             signatureSource =
                 """
                 package test.pkg {

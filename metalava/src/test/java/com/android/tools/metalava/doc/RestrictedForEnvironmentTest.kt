@@ -54,16 +54,13 @@ class RestrictedForEnvironmentTest : DriverTest() {
             api =
                 """
                     package test.pkg {
-                      @RestrictedForEnvironment(environments=$packageName.RestrictedForEnvironment.Environment.SDK_SANDBOX, from=14) public class MyClass1 {
+                      @RestrictedForEnvironment(environments=$packageName.RestrictedForEnvironment.ENVIRONMENT_SDK_RUNTIME, from=14) public class MyClass1 {
                         ctor public MyClass1();
                       }
                     }
                 """,
             docStubs = true,
             skipEmitPackages = listOf(packageName),
-            // TODO(b/396346859): Resolve hidden environments field
-            expectedIssues =
-                "src/$packageDir/RestrictedForEnvironment.java:12: error: Typedef class references hidden field field RestrictedForEnvironment.Environment.SDK_SANDBOX: removed from typedef metadata [HiddenTypedefConstant]",
             extractAnnotations =
                 mapOf(
                     "test.pkg" to
@@ -72,6 +69,7 @@ class RestrictedForEnvironmentTest : DriverTest() {
                             <root>
                               <item name="test.pkg.MyClass1">
                                 <annotation name="androidx.annotation.RestrictedForEnvironment">
+                                  <val name="environments" val="&quot;SDK Runtime&quot;" />
                                   <val name="from" val="14" />
                                 </annotation>
                               </item>
@@ -101,8 +99,8 @@ class RestrictedForEnvironmentTest : DriverTest() {
     @Test
     fun `Check RestrictedForEnvironment handling for SDK_SANDBOX env - android`() {
         checkRestrictedForEnvironmentHandling(
-            "android.annotation.RestrictedForEnvironment.Environment.SDK_SANDBOX",
-            "SDK_SANDBOX",
+            "android.annotation.RestrictedForEnvironment.ENVIRONMENT_SDK_RUNTIME",
+            "ENVIRONMENT_SDK_RUNTIME",
             packageName = ANDROID_ANNOTATION_PACKAGE,
             restrictedForEnvironmentClass = androidRestrictedForEnvironment
         )
@@ -111,8 +109,8 @@ class RestrictedForEnvironmentTest : DriverTest() {
     @Test
     fun `Check RestrictedForEnvironment handling for SDK_SANDBOX env - androidx`() {
         checkRestrictedForEnvironmentHandling(
-            "androidx.annotation.RestrictedForEnvironment.Environment.SDK_SANDBOX",
-            "SDK_SANDBOX"
+            "androidx.annotation.RestrictedForEnvironment.ENVIRONMENT_SDK_RUNTIME",
+            "ENVIRONMENT_SDK_RUNTIME"
         )
     }
 
@@ -120,7 +118,7 @@ class RestrictedForEnvironmentTest : DriverTest() {
     fun `Check RestrictedForEnvironment handling for partial nested SDK_SANDBOX env - androidx`() {
         checkRestrictedForEnvironmentHandling(
             "androidx.annotation.RestrictedForEnvironment",
-            "RestrictedForEnvironment.Environment.SDK_SANDBOX"
+            "RestrictedForEnvironment.ENVIRONMENT_SDK_RUNTIME"
         )
     }
 
@@ -128,7 +126,7 @@ class RestrictedForEnvironmentTest : DriverTest() {
     fun `Check RestrictedForEnvironment handling for fully nested SDK_SANDBOX env - androidx`() {
         checkRestrictedForEnvironmentHandling(
             "androidx",
-            "androidx.annotation.RestrictedForEnvironment.Environment.SDK_SANDBOX"
+            "androidx.annotation.RestrictedForEnvironment.ENVIRONMENT_SDK_RUNTIME"
         )
     }
 
@@ -141,12 +139,12 @@ class RestrictedForEnvironmentTest : DriverTest() {
                         """
                             package test.pkg;
                             import androidx.annotation.RestrictedForEnvironment;
-                            import static androidx.annotation.RestrictedForEnvironment.Environment.SDK_SANDBOX;
+                            import static androidx.annotation.RestrictedForEnvironment.ENVIRONMENT_SDK_RUNTIME;
                             /**
                             * Javadoc for MyClass1
                             */
-                            @RestrictedForEnvironment(environments = SDK_SANDBOX, from = 14)
-                            @RestrictedForEnvironment(environments = SDK_SANDBOX, from = 16)
+                            @RestrictedForEnvironment(environments = ENVIRONMENT_SDK_RUNTIME, from = 14)
+                            @RestrictedForEnvironment(environments = ENVIRONMENT_SDK_RUNTIME, from = 16)
                             public class MyClass1 {
                             }
                         """
@@ -155,9 +153,6 @@ class RestrictedForEnvironmentTest : DriverTest() {
                 ),
             docStubs = true,
             skipEmitPackages = listOf("androidx.annotation"),
-            // TODO(b/396346859): Resolve hidden environments field
-            expectedIssues =
-                "src/androidx/annotation/RestrictedForEnvironment.java:12: error: Typedef class references hidden field field RestrictedForEnvironment.Environment.SDK_SANDBOX: removed from typedef metadata [HiddenTypedefConstant]\nsrc/androidx/annotation/RestrictedForEnvironment.java:12: error: Typedef class references hidden field field RestrictedForEnvironment.Environment.SDK_SANDBOX: removed from typedef metadata [HiddenTypedefConstant]",
             extractAnnotations =
                 mapOf(
                     "test.pkg" to
@@ -166,9 +161,11 @@ class RestrictedForEnvironmentTest : DriverTest() {
                             <root>
                               <item name="test.pkg.MyClass1">
                                 <annotation name="androidx.annotation.RestrictedForEnvironment">
+                                  <val name="environments" val="&quot;SDK Runtime&quot;" />
                                   <val name="from" val="14" />
                                 </annotation>
                                 <annotation name="androidx.annotation.RestrictedForEnvironment">
+                                  <val name="environments" val="&quot;SDK Runtime&quot;" />
                                   <val name="from" val="16" />
                                 </annotation>
                               </item>

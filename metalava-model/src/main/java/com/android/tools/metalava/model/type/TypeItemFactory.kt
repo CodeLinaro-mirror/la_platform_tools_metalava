@@ -224,9 +224,9 @@ class ContextNullability(
     ): TypeNullability =
         // If forced is set then use that as the top priority.
         forcedNullability
-        // If kotlin provides it then use that as it is most accurate, ignore PLATFORM though
-        // as that may be overridden by annotations or the default.
-        ?: kotlinNullability?.takeIf { nullability -> nullability != TypeNullability.PLATFORM }
+            // If kotlin provides it then use that as it is most accurate, ignore PLATFORM though
+            // as that may be overridden by annotations or the default.
+            ?: kotlinNullability?.takeIf { nullability -> nullability != TypeNullability.PLATFORM }
             // If annotations provide it then use them as the developer requested.
             ?: typeAnnotations.typeNullability
             // If item annotations are found then check them.

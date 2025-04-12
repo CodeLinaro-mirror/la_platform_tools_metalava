@@ -17,11 +17,14 @@
 package com.android.tools.metalava.model.testsuite.value
 
 import com.android.tools.metalava.model.Assertions.Companion.assertMethod
+import com.android.tools.metalava.model.provider.Capability
+import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.testsuite.value.TestClassCreator.Companion.ATTRIBUTE_NAME
 import com.android.tools.metalava.model.testsuite.value.ValueUseSite.ATTRIBUTE_DEFAULT_VALUE
 import com.android.tools.metalava.testing.TestFileCache
 import com.android.tools.metalava.testing.TestFileCacheRule
 import org.junit.ClassRule
+import org.junit.Test
 import org.junit.runners.Parameterized
 
 /** Run parameterized tests for [ATTRIBUTE_DEFAULT_VALUE]. */
@@ -42,5 +45,15 @@ class CommonParameterizedAttributeDefaultValueTest :
 
         /** Supply the list of test cases as the parameters for this test class. */
         @JvmStatic @Parameterized.Parameters fun params() = testParameters
+    }
+
+    @RequiresCapabilities(Capability.JAVA)
+    @Test
+    fun testMethodDefaultValue() {
+        checkExpectedValue {
+            val annotationMethod = testClassItem.assertMethod(ATTRIBUTE_NAME, "")
+
+            annotationMethod.defaultValue
+        }
     }
 }

@@ -63,6 +63,7 @@ import com.android.tools.metalava.model.item.PackageDocs
 import com.android.tools.metalava.model.item.ParameterDefaultValue
 import com.android.tools.metalava.model.javaUnescapeString
 import com.android.tools.metalava.model.type.MethodFingerprint
+import com.android.tools.metalava.model.value.OptionalValueProvider
 import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.Issues
 import java.io.File
@@ -1004,8 +1005,7 @@ private constructor(
                 }
 
                 Pair(existingTypeParameterList, typeItemFactoryForClass(existingClass))
-            }
-                ?: Pair(typeParameterList, typeItemFactory)
+            } ?: Pair(typeParameterList, typeItemFactory)
 
         return DeclaredClassTypeComponents(
             fullName = fullName,
@@ -1262,6 +1262,7 @@ private constructor(
                     createParameterItems(containingCallable, parameters, typeItemFactory)
                 },
                 throwsTypes = throwsList,
+                defaultValueProvider = OptionalValueProvider.NO_VALUE,
                 annotationDefault = defaultAnnotationMethodValue,
             )
 
@@ -1348,6 +1349,7 @@ private constructor(
                 containingClass = cl,
                 type = type,
                 isEnumConstant = isEnumConstant,
+                initialValueProvider = OptionalValueProvider.NO_VALUE,
                 fieldValue = fieldValue,
             )
         field.markForMainApiSurface()

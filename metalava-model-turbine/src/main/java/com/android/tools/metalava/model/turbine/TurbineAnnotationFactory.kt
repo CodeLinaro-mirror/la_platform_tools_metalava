@@ -25,6 +25,7 @@ import com.android.tools.metalava.model.DefaultAnnotationArrayAttributeValue
 import com.android.tools.metalava.model.DefaultAnnotationAttribute
 import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.DefaultAnnotationSingleAttributeValue
+import com.android.tools.metalava.model.value.ValueProvider
 import com.android.tools.metalava.reporter.FileLocation
 import com.google.common.collect.ImmutableList
 import com.google.common.collect.ImmutableMap
@@ -91,7 +92,8 @@ internal class TurbineAnnotationFactory(
                         attributes.add(
                             DefaultAnnotationAttribute(
                                 name,
-                                createAttrValue(attrs[name]!!, assignExp)
+                                ValueProvider.UNSUPPORTED,
+                                createAttrValue(attrs[name]!!, assignExp),
                             )
                         )
                     }
@@ -100,18 +102,28 @@ internal class TurbineAnnotationFactory(
                         val value =
                             attrs[name]
                                 ?: (exp as? Literal)?.value()
-                                    ?: error(
+                                ?: error(
                                     "Cannot find value for default 'value' attribute from $exp"
                                 )
                         attributes.add(
-                            DefaultAnnotationAttribute(name, createAttrValue(value, exp))
+                            DefaultAnnotationAttribute(
+                                name,
+                                ValueProvider.UNSUPPORTED,
+                                createAttrValue(value, exp),
+                            )
                         )
                     }
                 }
             }
         } else {
             for ((name, value) in attrs) {
-                attributes.add(DefaultAnnotationAttribute(name, createAttrValue(value, null)))
+                attributes.add(
+                    DefaultAnnotationAttribute(
+                        name,
+                        ValueProvider.UNSUPPORTED,
+                        createAttrValue(value, null),
+                    )
+                )
             }
         }
         return attributes

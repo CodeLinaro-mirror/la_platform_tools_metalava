@@ -221,8 +221,8 @@ class MainCommand(
         val sourceModelProvider =
             // Use the [SourceModelProvider] specified by the [TestEnvironment], if any.
             executionEnvironment.testEnvironment?.sourceModelProvider
-            // Otherwise, use the one specified on the command line, or the default.
-            ?: SourceModelProvider.getImplementation(optionGroup.sourceModelProvider)
+                // Otherwise, use the one specified on the command line, or the default.
+                ?: SourceModelProvider.getImplementation(optionGroup.sourceModelProvider)
 
         try {
             sourceModelProvider

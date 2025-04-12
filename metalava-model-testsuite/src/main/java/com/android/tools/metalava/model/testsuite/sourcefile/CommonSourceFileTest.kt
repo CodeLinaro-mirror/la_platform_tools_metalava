@@ -94,9 +94,11 @@ class CommonSourceFileTest : BaseModelTest() {
                         }
                     """
                 ),
-                java("""
+                java(
+                    """
                         package empty;
-                    """),
+                    """
+                ),
             )
         ) {
             val classItem = codebase.assertClass("test.pkg.Test")

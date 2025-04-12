@@ -130,7 +130,8 @@ private constructor(
 
             val type =
                 getter?.returnType()
-                    ?: typeItemFactory.getTypeForKtElement(ktDeclaration) ?: return null
+                    ?: typeItemFactory.getTypeForKtElement(ktDeclaration)
+                    ?: return null
             val modifiers =
                 PsiModifierItem.createForProperty(codebase, ktDeclaration, getter, setter)
             if (modifiers.isFinal() && containingClass.modifiers.isFinal()) {
@@ -181,13 +182,13 @@ private constructor(
                 allAccessors.singleOrNull {
                     it.parameters().singleOrNull()?.type() == propertyReceiverType
                 }
-                // Work around a psi bug where value class extension property accessors don't
-                // include the receiver (b/385148821). This strategy does not always work, which is
-                // why the one above is used in most cases: the getter for a property parameter's
-                // source element will be a KtParameter, and the getter for a simple property
-                // declaration with no custom getter declaration will be a KtProperty, not a
-                // KtPropertyAccessor.
-                ?: allAccessors.singleOrNull {
+                    // Work around a psi bug where value class extension property accessors don't
+                    // include the receiver (b/385148821). This strategy does not always work, which
+                    // is why the one above is used in most cases: the getter for a property
+                    // parameter's source element will be a KtParameter, and the getter for a simple
+                    // property declaration with no custom getter declaration will be a KtProperty,
+                    // not a KtPropertyAccessor.
+                    ?: allAccessors.singleOrNull {
                         (it.psiMethod.sourceElement as? KtPropertyAccessor)?.isGetter == true
                     }
             }
@@ -206,8 +207,8 @@ private constructor(
                 allAccessors.singleOrNull {
                     it.parameters().size == 2 && it.parameters()[0].type() == propertyReceiverType
                 }
-                // Work around a psi bug, see the equivalent [findGetter] case for details.
-                ?: allAccessors.singleOrNull {
+                    // Work around a psi bug, see the equivalent [findGetter] case for details.
+                    ?: allAccessors.singleOrNull {
                         (it.psiMethod.sourceElement as? KtPropertyAccessor)?.isSetter == true
                     }
             }

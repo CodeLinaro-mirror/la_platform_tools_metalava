@@ -97,9 +97,9 @@ class Api(val useInternalNames: Boolean) : ParentApiElement {
     fun patchSdkExtensionsHistory() {
         val sdkExtensions =
             findClass("android/os/ext/SdkExtensions")
-            // This is either for the module-lib/system-server (null) or for a non-Android API.
-            // Either way it does not need patching.
-            ?: return
+                // This is either for the module-lib/system-server (null) or for a non-Android API.
+                // Either way it does not need patching.
+                ?: return
 
         val sdk30 = ApiVersion.fromLevel(30)
         val sdk31 = ApiVersion.fromLevel(31)
@@ -201,7 +201,8 @@ class Api(val useInternalNames: Boolean) : ParentApiElement {
         if (results.isNotEmpty()) {
             var message = ""
             for ((key, value) in results) {
-                message += """
+                message +=
+                    """
   $key referenced by:"""
                 for (referencer in value) {
                     message += "\n    $referencer"

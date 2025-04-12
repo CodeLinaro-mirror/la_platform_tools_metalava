@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.value.Value
+
 @MetalavaApi
 interface MethodItem : CallableItem, InheritableItem {
     /**
@@ -235,6 +237,17 @@ interface MethodItem : CallableItem, InheritableItem {
      * representation.
      */
     fun legacyDefaultValue(): String
+
+    /**
+     * The optional default value of the method.
+     *
+     * Replacement for [legacyDefaultValue].
+     *
+     * The [Value] will be suitable for use as an annotation attribute value as specified by JLS
+     * 9.6.1 (what this model calls "attributes", the JSL calls "elements"). That includes constant
+     * fields.
+     */
+    val defaultValue: Value?
 
     /** Whether this method is a getter/setter for an underlying Kotlin property (val/var) */
     fun isKotlinProperty(): Boolean = false

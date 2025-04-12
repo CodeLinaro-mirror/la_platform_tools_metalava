@@ -314,10 +314,11 @@ class FileFormatTest {
     @Test
     fun `Check header and specifier (v5)`() {
         headerAndSpecifierTest(
-            header = """
-                // Signature format: 5.0
+            header =
+                """
+                    // Signature format: 5.0
 
-            """,
+                """,
             specifier = "5.0",
             format = FileFormat.V5,
         )
@@ -364,10 +365,11 @@ class FileFormatTest {
     @Test
     fun `Check header and specifier (v2)`() {
         headerAndSpecifierTest(
-            header = """
-                // Signature format: 2.0
+            header =
+                """
+                    // Signature format: 2.0
 
-            """,
+                """,
             specifier = "2.0",
             format = FileFormat.V2,
         )

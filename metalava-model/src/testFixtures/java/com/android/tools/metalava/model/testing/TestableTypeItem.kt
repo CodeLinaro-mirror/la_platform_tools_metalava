@@ -16,8 +16,16 @@
 
 package com.android.tools.metalava.model.testing
 
+import com.android.tools.metalava.model.ClassResolver
+import com.android.tools.metalava.model.ClassTypeItem
+import com.android.tools.metalava.model.JAVA_LANG_STRING
+import com.android.tools.metalava.model.PrimitiveTypeItem
+import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeStringConfiguration
+import com.android.tools.metalava.model.type.DefaultClassTypeItem
+import com.android.tools.metalava.model.type.DefaultPrimitiveTypeItem
+import com.android.tools.metalava.model.type.DefaultTypeModifiers
 
 /**
  * The default [TypeStringConfiguration] that [testTypeString] uses to obtain the defaults for its
@@ -39,4 +47,23 @@ fun TypeItem.testTypeString(
             annotations = annotations,
             kotlinStyleNulls = kotlinStyleNulls,
         )
+    )
+
+private val fakeClassResolver =
+    object : ClassResolver {
+        override fun resolveClass(erasedName: String) = error("Cannot resolved $erasedName")
+    }
+
+/** Create a [PrimitiveTypeItem] for [kind]. */
+fun primitiveTypeForKind(kind: Primitive): PrimitiveTypeItem =
+    DefaultPrimitiveTypeItem(DefaultTypeModifiers.emptyNonNullModifiers, kind)
+
+/** Create a [ClassTypeItem] for [JAVA_LANG_STRING]. */
+fun stringType(): ClassTypeItem =
+    DefaultClassTypeItem(
+        fakeClassResolver,
+        DefaultTypeModifiers.emptyNonNullModifiers,
+        JAVA_LANG_STRING,
+        emptyList(),
+        null
     )

@@ -54,6 +54,7 @@ import com.android.tools.metalava.model.item.DefaultTypeParameterItem
 import com.android.tools.metalava.model.item.FieldValue
 import com.android.tools.metalava.model.item.ParameterDefaultValue
 import com.android.tools.metalava.model.type.MethodFingerprint
+import com.android.tools.metalava.model.value.OptionalValueProvider
 import com.android.tools.metalava.reporter.FileLocation
 import com.google.common.collect.ImmutableList
 import com.google.common.collect.ImmutableMap
@@ -417,6 +418,7 @@ internal class TurbineClassBuilder(
                     containingClass = classItem,
                     type = type,
                     isEnumConstant = isEnumConstant,
+                    initialValueProvider = OptionalValueProvider.NO_VALUE,
                     fieldValue = fieldValue,
                 )
 
@@ -452,8 +454,7 @@ internal class TurbineClassBuilder(
                 method.defaultValue()?.let { defaultConst ->
                     TurbineValue(defaultConst, defaultValueExpr, fieldResolver)
                         .getSourceForMethodDefault()
-                }
-                    ?: ""
+                } ?: ""
 
             val parameters = method.parameters()
             val fingerprint = MethodFingerprint(name, parameters.size)
@@ -484,6 +485,7 @@ internal class TurbineClassBuilder(
                         )
                     },
                     throwsTypes = getThrowsList(method.exceptions(), methodTypeItemFactory),
+                    defaultValueProvider = OptionalValueProvider.NO_VALUE,
                     annotationDefault = defaultValue,
                 )
 

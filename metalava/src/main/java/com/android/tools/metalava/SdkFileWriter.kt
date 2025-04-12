@@ -79,8 +79,7 @@ class SdkFileWriter(val codebase: Codebase, private val outputDir: File) {
                     if (ANDROID_SDK_CONSTANT == annotation.qualifiedName) {
                         val resolved =
                             annotation.findAttribute(null)?.leafValues()?.firstOrNull()?.resolve()
-                                as? FieldItem
-                                ?: continue
+                                as? FieldItem ?: continue
                         when (resolved.containingClass().qualifiedName() + "." + resolved.name()) {
                             SDK_CONSTANT_TYPE_ACTIVITY_ACTION ->
                                 activityActions.add(value.toString())

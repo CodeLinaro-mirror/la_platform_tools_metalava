@@ -606,8 +606,8 @@ internal class PsiItemDocumentation(
                 // package from a `package-info.java` or `package.html` file. Make sure that they
                 // are included in the `ItemDocumentation`, otherwise package hiding will not work.
                 extraDocs?.toItemDocumentationFactory()
-                // Otherwise, there is no documentation to use.
-                ?: ItemDocumentation.NONE_FACTORY
+                    // Otherwise, there is no documentation to use.
+                    ?: ItemDocumentation.NONE_FACTORY
             }
 
         // Gets the javadoc of the current element
@@ -626,8 +626,7 @@ internal class PsiItemDocumentation(
                     return comments.firstNotNullOfOrNull {
                         val text = it.text
                         if (text.startsWith("/**")) text else null
-                    }
-                        ?: ""
+                    } ?: ""
                 } else {
                     // Temporary workaround: UAST seems to not return document nodes
                     // https://youtrack.jetbrains.com/issue/KT-22135

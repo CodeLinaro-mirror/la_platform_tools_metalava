@@ -49,6 +49,8 @@ import com.android.tools.metalava.model.item.DefaultTypeParameterItem
 import com.android.tools.metalava.model.item.MutablePackageDoc
 import com.android.tools.metalava.model.item.PackageDoc
 import com.android.tools.metalava.model.item.PackageDocs
+import com.android.tools.metalava.model.value.OptionalValueProvider
+import com.android.tools.metalava.model.value.Value
 
 /** Constructs a [Codebase] by taking a snapshot of another [Codebase] that is being visited. */
 class CodebaseSnapshotTaker
@@ -298,6 +300,16 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
                 methodToSnapshot.typeParameterList.snapshot(methodToSnapshot.describe())
             }
 
+        // Defer retrieval of the defaultValue until it is needed as it could throw an exception.
+        // This makes it easier to incrementally expand the Value model without breaking existing
+        // snapshot tests.
+        // TODO(b/354633349): Stop deferring retrieval.
+        val defaultValueProvider =
+            object : OptionalValueProvider {
+                override val optionalValue: Value?
+                    get() = methodToSnapshot.defaultValue?.snapshot(snapshotCodebase)
+            }
+
         val newMethod =
             // Resolve any type parameters used in the method's return type and parameter items
             // within the scope of the method's SnapshotTypeItemFactory.
@@ -317,6 +329,7 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
                     throwsTypes =
                         methodToSnapshot.throwsTypes().map { typeItemFactory.getExceptionType(it) },
                     callableBodyFactory = methodToSnapshot.body::snapshot,
+                    defaultValueProvider = defaultValueProvider,
                     annotationDefault = methodToSnapshot.legacyDefaultValue(),
                 )
             }
@@ -327,6 +340,16 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
 
     override fun visitField(field: FieldItem) {
         val fieldToSnapshot = field.actualItemToSnapshot
+
+        // Defer retrieval of the initialValue until it is needed as it could throw an exception.
+        // This makes it easier to incrementally expand the Value model without breaking existing
+        // snapshot tests.
+        // TODO(b/354633349): Stop deferring retrieval.
+        val initialValueProvider =
+            object : OptionalValueProvider {
+                override val optionalValue: Value?
+                    get() = fieldToSnapshot.initialValue?.snapshot(snapshotCodebase)
+            }
 
         val containingClass = field.containingClass().getSnapshotClass()
         val newField =
@@ -343,6 +366,7 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
                     type = fieldToSnapshot.type().snapshot(),
                     isEnumConstant = fieldToSnapshot.isEnumConstant(),
                     fieldValue = fieldToSnapshot.legacyFieldValue?.snapshot(),
+                    initialValueProvider = initialValueProvider,
                 )
             }
         newField.copySelectedApiVariants(fieldToSnapshot)
@@ -491,6 +515,7 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
                         typeParameterItem.typeBounds().map { typeItemFactory.getBoundsType(it) }
                     },
                 )
+
         /** General [TypeItem] specific snapshot. */
         internal fun TypeItem.snapshot() = typeItemFactory.getGeneralType(this)
 

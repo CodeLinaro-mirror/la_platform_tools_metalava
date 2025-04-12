@@ -124,8 +124,7 @@ internal class PsiSourceFile(
                                 resolved.name,
                                 includeSuperClasses = true,
                                 includeInterfaces = false
-                            )
-                                ?: continue
+                            ) ?: continue
                         if (predicate.test(fieldItem)) {
                             imports.add(Import(fieldItem))
                         }

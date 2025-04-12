@@ -36,7 +36,8 @@ class CompatibilityCheckBaselineTest : DriverTest() {
                   }
                 }
                 """,
-            signatureSource = """
+            signatureSource =
+                """
                 """,
             expectedFail =
                 """
@@ -50,7 +51,8 @@ class CompatibilityCheckBaselineTest : DriverTest() {
     fun `Test released-API check, with global baseline`() {
         // Global baseline works on released api check.
         check(
-            expectedIssues = """
+            expectedIssues =
+                """
                 """,
             baselineTestInfo =
                 BaselineTestInfo(
@@ -82,7 +84,8 @@ class CompatibilityCheckBaselineTest : DriverTest() {
     fun `Test released-API check, with compatibility-released baseline`() {
         // Use released-API check baseline, which should work in released-API check.
         check(
-            expectedIssues = """
+            expectedIssues =
+                """
                 """,
             baselineCheckCompatibilityReleasedTestInfo =
                 BaselineTestInfo(

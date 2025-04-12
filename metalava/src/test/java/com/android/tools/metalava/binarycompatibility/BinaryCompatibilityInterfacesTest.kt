@@ -98,9 +98,10 @@ class BinaryCompatibilityInterfacesTest : DriverTest() {
     @Test
     fun `Add default method, if interface implementable by clients (Incompatible)`() {
         check(
-            expectedIssues = """
-                (expected issue for interface Foo)
-            """,
+            expectedIssues =
+                """
+                    (expected issue for interface Foo)
+                """,
             signatureSource =
                 """
                 package test.pkg {
@@ -482,9 +483,10 @@ class BinaryCompatibilityInterfacesTest : DriverTest() {
     @Test
     fun `Re-order type parameters (Incompatible)`() {
         check(
-            expectedIssues = """
-                (expected issue for interface Foo)
-            """,
+            expectedIssues =
+                """
+                    (expected issue for interface Foo)
+                """,
             signatureSource =
                 """
                 package test.pkg {
@@ -506,9 +508,10 @@ class BinaryCompatibilityInterfacesTest : DriverTest() {
     @Test
     fun `Rename type parameter (Incompatible)`() {
         check(
-            expectedIssues = """
-                (expected issue for interface Foo)
-            """,
+            expectedIssues =
+                """
+                    (expected issue for interface Foo)
+                """,
             signatureSource =
                 """
                 package test.pkg {

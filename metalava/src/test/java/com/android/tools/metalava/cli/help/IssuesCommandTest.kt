@@ -119,8 +119,6 @@ Available Issues                             |  Category                |   Defa
   InternalClasses                            |  api_lint                |   error
   InternalError                              |  unknown                 |   error
   InternalField                              |  api_lint                |   error
-  InvalidEnvironmentInRestrictedForEnvironment
-                                             |  api_lint                |   error
   InvalidFeatureEnforcement                  |  documentation           |   error
   InvalidNullConversion                      |  compatibility           |   error
   InvalidNullabilityAnnotation               |  unknown                 |   error
@@ -142,6 +140,7 @@ Available Issues                             |  Category                |   Defa
   MinMaxConstant                             |  api_lint                |   warning
   MissingBuildMethod                         |  api_lint                |   warning
   MissingColumn                              |  documentation           |   warning
+  MissingEnvironmentsValue                   |  api_lint                |   error
   MissingFromValue                           |  api_lint                |   error
   MissingGetterMatchingBuilder               |  api_lint                |   warning
   MissingInnerNullability                    |  api_lint                |   hidden

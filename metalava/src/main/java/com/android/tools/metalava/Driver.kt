@@ -156,8 +156,8 @@ internal fun processFlags(
         options.useK2Uast?.let { useK2Uast ->
             ModelOptions.build("from command line") { this[PsiModelOptions.useK2Uast] = useK2Uast }
         }
-        // Otherwise, use the [ModelOptions] specified in the [TestEnvironment] if any.
-        ?: executionEnvironment.testEnvironment?.modelOptions?.apply {
+            // Otherwise, use the [ModelOptions] specified in the [TestEnvironment] if any.
+            ?: executionEnvironment.testEnvironment?.modelOptions?.apply {
                 // Make sure that the [options.useK2Uast] matches the test environment.
                 options.useK2Uast = this[PsiModelOptions.useK2Uast]
             }
@@ -540,8 +540,7 @@ private fun ActionContext.checkCompatibility(
         val compatibilityCheckCanBeSkipped =
             check.lastSignatureFile?.let { signatureFile ->
                 compareFileContents(apiFile, signatureFile)
-            }
-                ?: false
+            } ?: false
         // TODO(b/301282006): Remove global variable use when this can be tested properly
         fastPathCheckResult = compatibilityCheckCanBeSkipped
         if (compatibilityCheckCanBeSkipped) return

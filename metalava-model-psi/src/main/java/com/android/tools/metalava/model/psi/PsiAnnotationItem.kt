@@ -30,6 +30,7 @@ import com.android.tools.metalava.model.DefaultAnnotationSingleAttributeValue
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.psi.CodePrinter.Companion.constantToExpression
 import com.android.tools.metalava.model.psi.CodePrinter.Companion.constantToSource
+import com.android.tools.metalava.model.value.ValueProvider
 import com.intellij.psi.PsiAnnotation
 import com.intellij.psi.PsiAnnotationMemberValue
 import com.intellij.psi.PsiAnnotationMethod
@@ -92,6 +93,7 @@ private constructor(
                     attribute.value?.let { value ->
                         DefaultAnnotationAttribute(
                             attribute.name ?: ANNOTATION_ATTR_VALUE,
+                            ValueProvider.UNSUPPORTED,
                             createValue(codebase, value),
                         )
                     }
@@ -108,8 +110,7 @@ private constructor(
                 psiAnnotation.qualifiedName?.let {
                     (codebase.findTypeAlias(it)?.aliasedType as? PsiClassTypeItem)?.qualifiedName
                         ?: it
-                }
-                    ?: return null
+                } ?: return null
             val qualifiedName =
                 codebase.annotationManager.normalizeInputName(originalName) ?: return null
             return PsiAnnotationItem(

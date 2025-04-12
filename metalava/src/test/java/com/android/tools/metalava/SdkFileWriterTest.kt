@@ -79,9 +79,10 @@ class SdkFileWriterTest : DriverTest() {
                     ),
                     sdkConstantSource
                 ),
-            sdkActivityActions = """
-            android.intent.action.MAIN
-            """
+            sdkActivityActions =
+                """
+                    android.intent.action.MAIN
+                """,
         )
     }
 

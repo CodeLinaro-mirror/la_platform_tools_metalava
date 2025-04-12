@@ -564,8 +564,11 @@ abstract class DefaultTypeItem(
                         typeParameter.asErasedType()?.let { boundsType ->
                             appendTypeString(boundsType, configuration)
                         }
-                        // No explicit bounds were provided so use the default of java.lang.Object.
-                        ?: if (configuration.stripJavaLangPrefix == StripJavaLangPrefix.ALWAYS) {
+                            // No explicit bounds were provided so use the default of
+                            // java.lang.Object.
+                            ?: if (
+                                configuration.stripJavaLangPrefix == StripJavaLangPrefix.ALWAYS
+                            ) {
                                 append("Object")
                             } else {
                                 append(JAVA_LANG_OBJECT)

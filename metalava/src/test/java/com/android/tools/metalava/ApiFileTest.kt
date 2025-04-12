@@ -4875,9 +4875,10 @@ class ApiFileTest : DriverTest() {
                 arrayOf(
                     "androidx.annotation.RestrictTo(androidx.annotation.RestrictTo.Scope.LIBRARY)"
                 ),
-            api = """
-                // Signature format: 4.0
-            """
+            api =
+                """
+                    // Signature format: 4.0
+                """,
         )
     }
 

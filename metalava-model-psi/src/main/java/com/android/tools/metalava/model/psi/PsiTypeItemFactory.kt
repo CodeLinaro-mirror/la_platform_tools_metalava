@@ -472,8 +472,7 @@ internal class PsiTypeItemFactory(
                     (ktType as? KaClassType)?.typeArguments?.ifNotEmpty {
                         fixUpPsiTypeMissingTypeArguments(psiType, kotlinType)
                     }
-                }
-                    ?: emptyList()
+                } ?: emptyList()
             }
 
         return psiParameters.mapIndexed { i, param ->

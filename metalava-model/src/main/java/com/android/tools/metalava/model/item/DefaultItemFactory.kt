@@ -40,6 +40,7 @@ import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.TypeAliasItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
+import com.android.tools.metalava.model.value.OptionalValueProvider
 import com.android.tools.metalava.reporter.FileLocation
 
 /**
@@ -158,6 +159,7 @@ class DefaultItemFactory(
         containingClass: ClassItem,
         type: TypeItem,
         isEnumConstant: Boolean,
+        initialValueProvider: OptionalValueProvider?,
         fieldValue: FieldValue?,
     ): FieldItem =
         DefaultFieldItem(
@@ -171,6 +173,7 @@ class DefaultItemFactory(
             containingClass,
             type,
             isEnumConstant,
+            initialValueProvider,
             fieldValue,
         )
 
@@ -187,6 +190,7 @@ class DefaultItemFactory(
         parameterItemsFactory: ParameterItemsFactory,
         throwsTypes: List<ExceptionTypeItem>,
         callableBodyFactory: CallableBodyFactory = CallableBody.UNAVAILABLE_FACTORY,
+        defaultValueProvider: OptionalValueProvider?,
         annotationDefault: String,
     ): MethodItem =
         DefaultMethodItem(
@@ -203,6 +207,7 @@ class DefaultItemFactory(
             parameterItemsFactory,
             throwsTypes,
             callableBodyFactory,
+            defaultValueProvider,
             annotationDefault,
         )
 
