@@ -41,9 +41,9 @@ import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import com.android.tools.metalava.testing.signature
 import kotlin.test.assertEquals
+import org.junit.Assert.assertArrayEquals
 import org.junit.AssumptionViolatedException
 import org.junit.Rule
-import org.junit.Test
 import org.junit.runners.Parameterized
 
 /**
@@ -82,14 +82,11 @@ import org.junit.runners.Parameterized
  * @param testJarFile the [TestFile] for the jar file built from all the java source files used by
  *   this test class.
  * @param valueUseSite the [ValueUseSite] being tested by this class.
- * @param legacySourceGetter gets the legacy source representation as expected by
- *   [ValueExample.expectedLegacySourceFor].
  */
 abstract class BaseCommonParameterizedValueTest(
     private val testFileCache: TestFileCache,
     private val testJarFile: TestFile,
     private val valueUseSite: ValueUseSite,
-    private val legacySourceGetter: TestCaseContext.() -> String,
 ) : BaseModelTest() {
 
     @Parameterized.Parameter(0) lateinit var codebaseProducer: CodebaseProducer
@@ -434,14 +431,41 @@ abstract class BaseCommonParameterizedValueTest(
             val expected = expectation.expectationFor(producerKind, valueUseSite, codebase)
 
             // Compare the two.
-            assertEquals(expected, actual)
+            if (expected is Array<*> && actual is Array<*>) {
+                assertArrayEquals(expected, actual)
+            } else {
+                assertEquals(expected, actual)
+            }
         }
     }
 
-    @Test
-    fun testLegacySource() {
+    /**
+     * Check the [ValueExample.expectedLegacySource] against the [String] returned by
+     * [ValueUseSite.legacySourceGetter].
+     */
+    protected fun checkLegacySource() {
         val expectedLegacySource = testCase.valueExample.expectedLegacySourceFor(inputFormat)
+        val legacySourceGetter =
+            valueUseSite.legacySourceGetter
+                ?: error("ValueUseSite.$valueUseSite does not provide a legacySourceGetter")
+
         runExpectationTest(expectedLegacySource, legacySourceGetter)
+    }
+
+    /**
+     * Check the [ValueExample.expectedLegacyValue] against the [Any] returned by
+     * [ValueUseSite.legacyValueGetter].
+     */
+    protected fun checkLegacyValue() {
+        val expectedLegacyValue =
+            testCase.valueExample.expectedLegacyValueFor(inputFormat)
+                // Make sure that there is an expectation for every constant example.
+                ?: if (testCase.valueExample.isConstant) error("Missing expected legacy value")
+                else return
+        val legacyValueGetter =
+            valueUseSite.legacyValueGetter
+                ?: error("ValueUseSite.$valueUseSite does not provide a legacyValueGetter")
+        runExpectationTest(expectedLegacyValue, legacyValueGetter)
     }
 
     /**
@@ -936,7 +960,7 @@ object SignatureTestClassCreator : TestClassCreator {
                 buildString {
                     append("// Signature format: 2.0\n")
                     append("package test.pkg {\n")
-                    append("  @")
+                    append("  @test.pkg.")
                     append(annotationTestClass.className)
                     append("(")
                     append(ATTRIBUTE_NAME)

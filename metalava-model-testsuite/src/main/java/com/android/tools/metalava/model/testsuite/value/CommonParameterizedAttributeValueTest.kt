@@ -33,12 +33,6 @@ class CommonParameterizedAttributeValueTest :
         testFileCacheRule.cache,
         testJarFile,
         ATTRIBUTE_VALUE,
-        legacySourceGetter = {
-            val annotation = testClassItem.modifiers.annotations().first()
-            val annotationAttribute = annotation.assertAttribute(ATTRIBUTE_NAME)
-
-            annotationAttribute.legacyValue.toSource()
-        }
     ) {
     companion object : BaseCompanion(ATTRIBUTE_VALUE) {
         /** Create a [TestFileCache] whose lifespan encompasses all the tests in this class. */
@@ -46,6 +40,16 @@ class CommonParameterizedAttributeValueTest :
 
         /** Supply the list of test cases as the parameters for this test class. */
         @JvmStatic @Parameterized.Parameters fun params() = testParameters
+    }
+
+    @Test
+    fun testLegacySource() {
+        checkLegacySource()
+    }
+
+    @Test
+    fun testLegacyValue() {
+        checkLegacyValue()
     }
 
     @RequiresCapabilities(Capability.JAVA)

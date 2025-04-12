@@ -16,15 +16,12 @@
 
 package com.android.tools.metalava.model.testsuite.value
 
-import com.android.tools.metalava.model.Assertions.Companion.assertField
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.testsuite.value.TestClassCreator.Companion.FIELD_NAME
-import com.android.tools.metalava.model.testsuite.value.ValueExample.Companion.NO_INITIAL_FIELD_VALUE
 import com.android.tools.metalava.model.testsuite.value.ValueUseSite.FIELD_VALUE
 import com.android.tools.metalava.testing.TestFileCache
 import com.android.tools.metalava.testing.TestFileCacheRule
-import kotlin.test.assertNotNull
 import org.junit.ClassRule
 import org.junit.Test
 import org.junit.runners.Parameterized
@@ -35,11 +32,6 @@ class CommonParameterizedFieldValueTest :
         testFileCacheRule.cache,
         testJarFile,
         FIELD_VALUE,
-        legacySourceGetter = {
-            val field = testClassItem.assertField(FIELD_NAME)
-            val fieldValue = assertNotNull(field.legacyFieldValue, "No field value")
-            fieldValue.initialValue(true)?.toString() ?: NO_INITIAL_FIELD_VALUE
-        },
     ) {
     companion object : BaseCompanion(FIELD_VALUE) {
         /** Create a [TestFileCache] whose lifespan encompasses all the tests in this class. */
@@ -47,6 +39,11 @@ class CommonParameterizedFieldValueTest :
 
         /** Supply the list of test cases as the parameters for this test class. */
         @JvmStatic @Parameterized.Parameters fun params() = testParameters
+    }
+
+    @Test
+    fun testLegacyValue() {
+        checkLegacyValue()
     }
 
     @RequiresCapabilities(Capability.JAVA)

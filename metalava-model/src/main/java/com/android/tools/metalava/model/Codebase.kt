@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.DefaultAnnotationItem.Companion.formatAnnotationItem
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.reporter.ThrowingReporter
@@ -100,6 +101,29 @@ interface Codebase : ClassResolver, AnnotationContext {
 
     fun accept(visitor: ItemVisitor) {
         visitor.visit(this)
+    }
+
+    /**
+     * Creates an annotation item for the given (fully qualified) Java source.
+     *
+     * Returns `null` if the source contains an annotation that is not recognized by Metalava.
+     */
+    fun createAnnotation(
+        source: String,
+        context: Item? = null,
+    ): AnnotationItem?
+
+    /**
+     * Create an [AnnotationItem] appropriate for this [Codebase] from the [attributes] by creating
+     * a source representation of the annotation and the calling [createAnnotation].
+     */
+    fun createAnnotationFromAttributes(
+        originalName: String,
+        attributes: List<AnnotationAttribute> = emptyList(),
+        context: Item? = null
+    ): AnnotationItem? {
+        val source = formatAnnotationItem(originalName, attributes)
+        return createAnnotation(source, context)
     }
 
     /** Reports that the given operation is unsupported for this codebase type */

@@ -23,6 +23,8 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.item.DefaultCodebase
+import com.android.tools.metalava.model.value.Value
+import com.android.tools.metalava.model.value.ValueProvider
 import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiField
@@ -84,6 +86,9 @@ internal class PsiBasedCodebase(
     /** [PsiTypeItemFactory] used to create [PsiTypeItem]s. */
     internal val globalTypeItemFactory
         get() = psiAssembler.globalTypeItemFactory
+
+    /** Creates [ValueProvider]s and [Value]s from Psi classes. */
+    internal val valueFactory = PsiValueFactory()
 
     override fun dispose() {
         psiAssembler.dispose()

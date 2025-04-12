@@ -17,7 +17,9 @@
 package com.android.tools.metalava.model.value
 
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.javaEscapeString
+import java.util.EnumSet
 
 /** Represents a value in a [Codebase]. */
 sealed interface Value {
@@ -75,20 +77,47 @@ data class ValueStringConfiguration(
 }
 
 /** Enumeration of the different types of [ValueKind]. */
-enum class ValueKind {
+enum class ValueKind(val primitiveKind: Primitive? = null) {
     ARRAY,
-    BOOLEAN,
-    BYTE,
-    CHAR,
-    DOUBLE,
-    FLOAT,
-    INT,
-    LONG,
-    SHORT,
+    BOOLEAN(
+        primitiveKind = Primitive.BOOLEAN,
+    ),
+    BYTE(
+        primitiveKind = Primitive.BYTE,
+    ),
+    CHAR(
+        primitiveKind = Primitive.CHAR,
+    ),
+    DOUBLE(
+        primitiveKind = Primitive.DOUBLE,
+    ),
+    FLOAT(
+        primitiveKind = Primitive.FLOAT,
+    ),
+    INT(
+        primitiveKind = Primitive.INT,
+    ),
+    LONG(
+        primitiveKind = Primitive.LONG,
+    ),
+    SHORT(
+        primitiveKind = Primitive.SHORT,
+    ),
     STRING,
     ;
 
     override fun toString() = super.toString().lowercase()
+
+    companion object {
+        /** The set of [ValueKind]s that represent primitive values. */
+        private val PRIMITIVE_KINDS: Set<ValueKind> =
+            EnumSet.noneOf(ValueKind::class.java).apply {
+                addAll(entries.filter { it.primitiveKind != null })
+            }
+
+        /** The set of [ValueKind]s that represent literal values. */
+        val LITERAL_KINDS: Set<ValueKind> = EnumSet.of(STRING).apply { addAll(PRIMITIVE_KINDS) }
+    }
 }
 
 /** A [Value] that is allowed to be used in [ArrayValue.elements]. */

@@ -17,6 +17,8 @@
 package com.android.tools.metalava.model.value
 
 import com.android.tools.metalava.model.Codebase
+import java.util.Optional
+import kotlin.jvm.optionals.getOrNull
 
 /**
  * Allows the creation of [Value] to be deferred until they are requested.
@@ -91,3 +93,32 @@ interface OptionalValueProvider {
  * TODO(b/354633349): Stop ignoring exceptions.
  */
 class ValueProviderException(message: String) : RuntimeException(message)
+
+/** A combination of both [ValueProvider] and [OptionalValueProvider]. */
+interface CombinedValueProvider : ValueProvider, OptionalValueProvider
+
+/**
+ * A [CombinedValueProvider] that provides support to subclasses for caching a [Value] that has been
+ * provided.
+ */
+abstract class BaseCachingValueProvider : CombinedValueProvider {
+    /** The cached value. */
+    private lateinit var _value: Optional<Value>
+
+    /** Get the cached value, calling [provideValue] if it has not yet been cached. */
+    private fun cachedValue(): Optional<Value> {
+        if (!::_value.isInitialized) {
+            _value = Optional.ofNullable(provideValue())
+        }
+        return _value
+    }
+
+    final override val value: Value
+        get() = cachedValue().getOrNull() ?: error("No value provided")
+
+    final override val optionalValue: Value?
+        get() = cachedValue().getOrNull()
+
+    /** Provide an optional [Value] to be cached. */
+    protected abstract fun provideValue(): Value?
+}

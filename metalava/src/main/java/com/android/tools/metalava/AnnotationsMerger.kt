@@ -53,7 +53,6 @@ import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultAnnotationAttribute
-import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SelectableItem
@@ -560,8 +559,7 @@ class AnnotationsMerger(
                 val value1 = valueElement1.getAttribute(ATTR_VAL)
                 val valName2 = valueElement2.getAttribute(ATTR_NAME)
                 val value2 = valueElement2.getAttribute(ATTR_VAL)
-                return DefaultAnnotationItem.create(
-                    codebase,
+                return codebase.createAnnotationFromAttributes(
                     "androidx.annotation.IntRange",
                     listOf(
                         // Add "L" suffix to ensure that we don't for example interpret "-1" as
@@ -655,8 +653,7 @@ class AnnotationsMerger(
                         )
                     )
                 }
-                return DefaultAnnotationItem.create(
-                    codebase,
+                return codebase.createAnnotationFromAttributes(
                     if (valName == "stringValues") ANDROIDX_STRING_DEF else ANDROIDX_INT_DEF,
                     attributes,
                 )
@@ -696,8 +693,7 @@ class AnnotationsMerger(
                     parseChild(children[1])
                 }
                 val intDef = ANDROIDX_INT_DEF == name || ANDROID_INT_DEF == name
-                return DefaultAnnotationItem.create(
-                    codebase,
+                return codebase.createAnnotationFromAttributes(
                     if (intDef) ANDROIDX_INT_DEF else ANDROIDX_STRING_DEF,
                     attributes,
                 )
@@ -708,8 +704,7 @@ class AnnotationsMerger(
                 val value = valueElement.getAttribute(ATTR_VAL)
                 val pure = valueElement.getAttribute(ATTR_PURE)
                 return if (pure != null && pure.isNotEmpty()) {
-                    DefaultAnnotationItem.create(
-                        codebase,
+                    codebase.createAnnotationFromAttributes(
                         name,
                         listOf(
                             DefaultAnnotationAttribute.create(TYPE_DEF_VALUE_ATTRIBUTE, value),
@@ -717,8 +712,7 @@ class AnnotationsMerger(
                         ),
                     )
                 } else {
-                    DefaultAnnotationItem.create(
-                        codebase,
+                    codebase.createAnnotationFromAttributes(
                         name,
                         listOf(DefaultAnnotationAttribute.create(TYPE_DEF_VALUE_ATTRIBUTE, value)),
                     )
@@ -740,7 +734,7 @@ class AnnotationsMerger(
                         )
                     )
                 }
-                return DefaultAnnotationItem.create(codebase, name, attributes)
+                return codebase.createAnnotationFromAttributes(name, attributes)
             }
         }
     }

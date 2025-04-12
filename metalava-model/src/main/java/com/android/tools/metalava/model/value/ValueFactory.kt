@@ -194,10 +194,20 @@ interface ValueFactory {
                     is Char -> {
                         if (primitiveKind == Primitive.CHAR) underlyingValue else null
                     }
+                    is String -> {
+                        // A single character string can be used as a char.
+                        if (primitiveKind == Primitive.CHAR && underlyingValue.length == 1)
+                            underlyingValue[0]
+                        else null
+                    }
                     is Number -> {
-                        val numberValue =
+                        val convertedValue: Any? =
                             when (primitiveKind) {
                                 Primitive.BYTE -> convertInteger(underlyingValue) { it.toByte() }
+                                Primitive.CHAR ->
+                                    if (underlyingValue.isIntegerNumber())
+                                        underlyingValue.toInt().toChar()
+                                    else null
                                 Primitive.DOUBLE -> convertFloating(underlyingValue) { it }
                                 Primitive.FLOAT -> convertFloating(underlyingValue) { it.toFloat() }
                                 Primitive.INT -> convertInteger(underlyingValue) { it.toInt() }
@@ -206,17 +216,17 @@ interface ValueFactory {
                                 else -> null
                             }
 
-                        if (numberValue != null) {
-                            checkLossyConversion(underlyingValue, primitiveKind, numberValue)
+                        if (convertedValue != null) {
+                            checkLossyConversion(underlyingValue, primitiveKind, convertedValue)
                         }
-                        numberValue
+                        convertedValue
                     }
                     else -> null
                 }
 
             primitiveValue
                 ?: error(
-                    "Unsupported primitive type: $primitiveKind, for underlying value `$underlyingValue` of ${underlyingValue.javaClass}"
+                    "Unsupported primitive type: ${primitiveKind.primitiveName}, for underlying value `$underlyingValue` of ${underlyingValue.javaClass}"
                 )
             return primitiveValue
         }
@@ -233,19 +243,22 @@ interface ValueFactory {
          * [targetKind] can be converted back to [original] without loss. If it cannot then throw an
          * exception.
          */
-        private fun checkLossyConversion(
-            original: Number,
-            targetKind: Primitive,
-            converted: Number
-        ) {
+        private fun checkLossyConversion(original: Number, targetKind: Primitive, converted: Any) {
+            val convertedNumber =
+                when (converted) {
+                    is Number -> converted
+                    is Char -> converted.code
+                    else -> error("unknown converted $converted of ${converted.javaClass}")
+                }
+
             val roundTrip =
                 when (original) {
-                    is Byte -> converted.toByte()
-                    is Double -> converted.toDouble()
-                    is Float -> converted.toFloat()
-                    is Int -> converted.toInt()
-                    is Long -> converted.toLong()
-                    is Short -> converted.toShort()
+                    is Byte -> convertedNumber.toByte()
+                    is Double -> convertedNumber.toDouble()
+                    is Float -> convertedNumber.toFloat()
+                    is Int -> convertedNumber.toInt()
+                    is Long -> convertedNumber.toLong()
+                    is Short -> convertedNumber.toShort()
                     else -> error("unknown original $original of ${original.javaClass}")
                 }
 

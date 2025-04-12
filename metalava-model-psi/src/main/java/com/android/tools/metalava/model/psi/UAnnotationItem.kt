@@ -28,7 +28,6 @@ import com.android.tools.metalava.model.DefaultAnnotationAttribute
 import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.DefaultAnnotationSingleAttributeValue
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.value.ValueProvider
 import com.intellij.psi.PsiAnnotationMethod
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiExpression
@@ -59,7 +58,9 @@ private constructor(
         fileLocation = PsiFileLocation.fromPsiElement(uAnnotation.sourcePsi),
         originalName = originalName,
         qualifiedName = qualifiedName,
-        attributesGetter = { getAnnotationAttributes(annotationContext, uAnnotation) },
+        attributesGetter = { annotationItem ->
+            getAnnotationAttributes(annotationContext, annotationItem, uAnnotation)
+        },
     ) {
 
     override fun toSource(target: AnnotationTarget, showDefaultAttrs: Boolean): String {
@@ -88,13 +89,19 @@ private constructor(
     companion object {
         private fun getAnnotationAttributes(
             codebase: PsiBasedCodebase,
+            annotationItem: AnnotationItem,
             uAnnotation: UAnnotation
         ): List<AnnotationAttribute> =
             uAnnotation.attributeValues
                 .map { attribute ->
+                    val name = attribute.name ?: ANNOTATION_ATTR_VALUE
                     DefaultAnnotationAttribute(
-                        attribute.name ?: ANNOTATION_ATTR_VALUE,
-                        ValueProvider.UNSUPPORTED,
+                        name,
+                        codebase.valueFactory.providerForAnnotationValue(
+                            annotationItem,
+                            name,
+                            attribute.expression
+                        ),
                         createValue(codebase, attribute.expression)
                     )
                 }

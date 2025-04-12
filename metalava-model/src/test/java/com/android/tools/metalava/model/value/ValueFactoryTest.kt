@@ -15,7 +15,6 @@
  */
 package com.android.tools.metalava.model.value
 
-import com.android.tools.metalava.model.testing.stringType
 import com.android.tools.metalava.model.testing.value.arrayValueFromAny
 import kotlin.test.assertEquals
 import kotlin.test.assertSame
@@ -38,33 +37,6 @@ class ValueFactoryTest {
             "Underlying value 'class com.android.tools.metalava.model.value.ValueFactoryTest' of class java.lang.Class is not supported",
             exception.message
         )
-    }
-
-    @Test
-    fun `createLiteralValue - string type item - not string`() {
-        val exception =
-            assertThrows(IllegalStateException::class.java) {
-                Value.createLiteralValue(stringType(), ValueFactoryTest::class.java)
-            }
-
-        assertEquals(
-            "Incompatible type 'java.lang.String', for underlying value `class com.android.tools.metalava.model.value.ValueFactoryTest` of class java.lang.Class",
-            exception.message
-        )
-    }
-
-    @Test
-    fun `createLiteralValue - string type item - string`() {
-        val value = Value.createLiteralValue(stringType(), "string")
-        assertEquals(DefaultStringValue("string"), value)
-        assertEquals("string", value.underlyingValue)
-    }
-
-    @Test
-    fun `createLiteralValue - no type item - string`() {
-        val value = Value.createLiteralValue(null, "string")
-        assertEquals(DefaultStringValue("string"), value)
-        assertEquals("string", value.underlyingValue)
     }
 
     @Test

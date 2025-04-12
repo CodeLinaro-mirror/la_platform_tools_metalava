@@ -31,7 +31,6 @@ import com.android.tools.metalava.model.ANDROIDX_NULLABLE
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.CodebaseFragment
-import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.Item
@@ -318,10 +317,8 @@ class ConvertJarsToSignatureFiles(
                 setDeprecated(true)
                 // Add a Deprecated annotation to be consistent with model providers.
                 addAnnotation(
-                    DefaultAnnotationItem.create(
-                        codebase,
+                    codebase.createAnnotationFromAttributes(
                         JAVA_LANG_DEPRECATED,
-                        emptyList(),
                         context = this@deprecateIfRequired
                     )
                 )

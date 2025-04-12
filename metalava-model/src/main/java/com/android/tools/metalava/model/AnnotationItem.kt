@@ -381,16 +381,6 @@ private fun convertValue(
 interface AnnotationContext : ClassResolver {
     /** The manager of annotations within this context. */
     val annotationManager: AnnotationManager
-
-    /**
-     * Creates an annotation item for the given (fully qualified) Java source.
-     *
-     * Returns `null` if the source contains an annotation that is not recognized by Metalava.
-     */
-    fun createAnnotation(
-        source: String,
-        context: Item? = null,
-    ): AnnotationItem?
 }
 
 /** Default implementation of an annotation item */
@@ -563,16 +553,6 @@ protected constructor(
                 }
 
             return create(annotationContext, FileLocation.UNKNOWN, originalName, ::attributes)
-        }
-
-        fun create(
-            annotationContext: AnnotationContext,
-            originalName: String,
-            attributes: List<AnnotationAttribute> = emptyList(),
-            context: Item? = null
-        ): AnnotationItem? {
-            val source = formatAnnotationItem(originalName, attributes)
-            return annotationContext.createAnnotation(source, context)
         }
 
         /**

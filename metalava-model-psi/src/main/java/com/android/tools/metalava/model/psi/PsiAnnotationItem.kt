@@ -30,7 +30,6 @@ import com.android.tools.metalava.model.DefaultAnnotationSingleAttributeValue
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.psi.CodePrinter.Companion.constantToExpression
 import com.android.tools.metalava.model.psi.CodePrinter.Companion.constantToSource
-import com.android.tools.metalava.model.value.ValueProvider
 import com.intellij.psi.PsiAnnotation
 import com.intellij.psi.PsiAnnotationMemberValue
 import com.intellij.psi.PsiAnnotationMethod
@@ -57,7 +56,9 @@ private constructor(
         fileLocation = PsiFileLocation.fromPsiElement(psiAnnotation),
         originalName = originalName,
         qualifiedName = qualifiedName,
-        attributesGetter = { getAnnotationAttributes(annotationContext, psiAnnotation) },
+        attributesGetter = { annotationItem ->
+            getAnnotationAttributes(annotationContext, annotationItem, psiAnnotation)
+        },
     ) {
 
     override fun toSource(target: AnnotationTarget, showDefaultAttrs: Boolean): String {
@@ -86,14 +87,20 @@ private constructor(
     companion object {
         private fun getAnnotationAttributes(
             codebase: PsiBasedCodebase,
+            annotationItem: AnnotationItem,
             psiAnnotation: PsiAnnotation
         ): List<AnnotationAttribute> =
             psiAnnotation.parameterList.attributes
                 .mapNotNull { attribute ->
                     attribute.value?.let { value ->
+                        val name = attribute.name ?: ANNOTATION_ATTR_VALUE
                         DefaultAnnotationAttribute(
-                            attribute.name ?: ANNOTATION_ATTR_VALUE,
-                            ValueProvider.UNSUPPORTED,
+                            name,
+                            codebase.valueFactory.providerForAnnotationValue(
+                                annotationItem,
+                                name,
+                                value
+                            ),
                             createValue(codebase, value),
                         )
                     }
