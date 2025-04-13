@@ -287,7 +287,8 @@ class DeprecatedTest : DriverTest() {
                       }
                     }
                 """,
-            api = """
+            api =
+                """
                     // Signature format: 5.0
                 """,
             stubPaths = emptyArray(),

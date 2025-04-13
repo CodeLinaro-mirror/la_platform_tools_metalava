@@ -588,7 +588,8 @@ class CompatibilityCheckTest : DriverTest() {
         // Make sure that we correctly compare effectively final (inherited from surrounding class)
         // between the signature file codebase and the real codebase
         check(
-            expectedIssues = """
+            expectedIssues =
+                """
                 """,
             checkCompatibilityApiReleased =
                 """
@@ -630,7 +631,8 @@ class CompatibilityCheckTest : DriverTest() {
         // abstract methods. We don't want to list these as having changed
         // their abstractness.
         check(
-            expectedIssues = """
+            expectedIssues =
+                """
                 """,
             checkCompatibilityApiReleased =
                 """
@@ -669,7 +671,8 @@ class CompatibilityCheckTest : DriverTest() {
     @Test
     fun `Implicit modifiers from inherited super classes`() {
         check(
-            expectedIssues = """
+            expectedIssues =
+                """
                 """,
             checkCompatibilityApiReleased =
                 """
@@ -722,7 +725,8 @@ class CompatibilityCheckTest : DriverTest() {
         // abstract methods. We don't want to list these as having changed
         // their abstractness.
         check(
-            expectedIssues = """
+            expectedIssues =
+                """
                 """,
             checkCompatibilityApiReleased =
                 """
@@ -938,7 +942,8 @@ class CompatibilityCheckTest : DriverTest() {
     @Test
     fun `Removing method or field when still available via inheritance is OK`() {
         check(
-            expectedIssues = """
+            expectedIssues =
+                """
                 """,
             checkCompatibilityApiReleased =
                 """
@@ -1876,7 +1881,8 @@ class CompatibilityCheckTest : DriverTest() {
     @Test
     fun `Test inherited methods`() {
         check(
-            expectedIssues = """
+            expectedIssues =
+                """
                 """,
             checkCompatibilityApiReleased =
                 """
@@ -2467,7 +2473,8 @@ class CompatibilityCheckTest : DriverTest() {
     @Test
     fun `Empty prev api with @hide and --show-annotation`() {
         check(
-            checkCompatibilityApiReleased = """
+            checkCompatibilityApiReleased =
+                """
                 """,
             sourceFiles =
                 arrayOf(
@@ -2667,7 +2674,8 @@ class CompatibilityCheckTest : DriverTest() {
                     @libcore.util.Nullable public test.pkg.String getMessage() { throw new RuntimeException("Stub!"); }
                 }
             """,
-            expectedIssues = """
+            expectedIssues =
+                """
                 """
         )
     }
@@ -2709,7 +2717,8 @@ class CompatibilityCheckTest : DriverTest() {
                     """
                     )
                 ),
-            expectedIssues = """
+            expectedIssues =
+                """
                 """
         )
     }
@@ -2755,7 +2764,8 @@ class CompatibilityCheckTest : DriverTest() {
                     """
                     )
                 ),
-            expectedIssues = """
+            expectedIssues =
+                """
                 """
         )
     }
@@ -2899,7 +2909,8 @@ class CompatibilityCheckTest : DriverTest() {
                     ARG_SHOW_ANNOTATION,
                     "android.annotation.SystemApi",
                 ),
-            expectedIssues = """
+            expectedIssues =
+                """
                 """
         )
     }
@@ -3112,7 +3123,8 @@ class CompatibilityCheckTest : DriverTest() {
     @Test
     fun `Ignore hidden references`() {
         check(
-            expectedIssues = """
+            expectedIssues =
+                """
                 """,
             checkCompatibilityApiReleased =
                 """
@@ -3295,7 +3307,8 @@ class CompatibilityCheckTest : DriverTest() {
     fun `Check generic type argument when showUnannotated is explicitly enabled`() {
         // Regression test for 130567941
         check(
-            expectedIssues = """
+            expectedIssues =
+                """
             """,
             checkCompatibilityApiReleased =
                 """

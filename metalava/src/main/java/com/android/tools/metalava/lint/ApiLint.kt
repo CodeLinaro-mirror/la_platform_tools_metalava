@@ -2077,8 +2077,7 @@ private constructor(
                         it.parameters().find { param ->
                             item.parameterIndex == param.parameterIndex
                         }
-                    }
-                        ?: emptyList()
+                    } ?: emptyList()
                 is MethodItem -> item.superMethods()
                 else -> emptyList()
             }
@@ -3270,8 +3269,7 @@ private constructor(
                 } else {
                     requiredParameters.last()
                 }
-                ?.parameterIndex
-                ?: return
+                ?.parameterIndex ?: return
         optionalParameters.forEach { parameter ->
             if (parameter.parameterIndex < lastRequiredParameterIndex) {
                 report(
@@ -3319,8 +3317,7 @@ private constructor(
             val setter =
                 methods.singleOrNull {
                     it.name() == expectedSetterName && it.parameters().size == 1
-                }
-                    ?: continue
+                } ?: continue
 
             val getterReturnType = getter.returnType()
             val setterParamType = setter.parameters().single().type()
@@ -3405,8 +3402,7 @@ private constructor(
             name.startsWith(prop(it)) &&
                 name.getOrNull(prop(it).length)?.let { charAfterPrefix ->
                     charAfterPrefix.isUpperCase() || charAfterPrefix.isDigit()
-                }
-                    ?: false
+                } ?: false
         }
 
         private val badBooleanGetterPrefixes = listOf("isHas", "isCan", "isShould", "get", "is")
@@ -3518,8 +3514,8 @@ private constructor(
         private fun isServiceDumpMethod(item: Item) =
             when (item) {
                 is MethodItem -> isServiceDumpMethod(item)
-                is ParameterItem -> item.possibleContainingMethod()?.let { isServiceDumpMethod(it) }
-                        ?: false
+                is ParameterItem ->
+                    item.possibleContainingMethod()?.let { isServiceDumpMethod(it) } ?: false
                 else -> false
             }
 

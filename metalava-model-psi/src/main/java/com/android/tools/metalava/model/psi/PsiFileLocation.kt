@@ -111,7 +111,8 @@ class PsiFileLocation(private val psiElement: PsiElement) : FileLocation() {
         val rangeElement =
             (sourceElement as? PsiNameIdentifierOwner)?.nameIdentifier
                 ?: (sourceElement as? KtModifierListOwner)?.modifierList
-                    ?: (sourceElement as? PsiModifierListOwner)?.modifierList ?: sourceElement
+                ?: (sourceElement as? PsiModifierListOwner)?.modifierList
+                ?: sourceElement
 
         val range = getTextRange(rangeElement)
 
@@ -213,9 +214,9 @@ class PsiFileLocation(private val psiElement: PsiElement) : FileLocation() {
                 is KtProperty -> {
                     val containingClass =
                         element.containingClass()?.let { getElementId(it) }
-                        // If there is no containing class, find the file facade class because that
-                        // will be the containing class in the Codebase.
-                        ?: element.containingKtFile.javaFileFacadeFqName.asString()
+                            // If there is no containing class, find the file facade class because
+                            // that will be the containing class in the Codebase.
+                            ?: element.containingKtFile.javaFileFacadeFqName.asString()
                     val name = element.nameAsSafeName.asString()
                     "$containingClass#$name"
                 }

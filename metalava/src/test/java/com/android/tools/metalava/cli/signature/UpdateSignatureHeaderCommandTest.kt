@@ -109,11 +109,13 @@ Arguments:
     @Test
     fun `Update signature (blank to v2)`() {
         checkUpdateSignatures(
-            contents = """
+            contents =
+                """
 
                 """,
             format = FileFormat.V2,
-            expectedOutput = """
+            expectedOutput =
+                """
 
                 """,
         )
@@ -150,7 +152,8 @@ Arguments:
     @Test
     fun `Update signature (wrong file to v3)`() {
         checkUpdateSignatures(
-            contents = """
+            contents =
+                """
                     Wrong file
                 """,
             format = FileFormat.V4,

@@ -39,6 +39,8 @@ internal interface TurbineGlobalContext {
     /** Factory for creating [DefaultAnnotationItem]s from [AnnoInfo] objects. */
     val annotationFactory: TurbineAnnotationFactory
 
+    val valueFactory: TurbineValueFactory
+
     /** True if comments should be read, false otherwise. */
     val allowReadingComments: Boolean
 

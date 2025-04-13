@@ -29,6 +29,7 @@ import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.isNonNullAnnotation
 import com.android.tools.metalava.model.item.DefaultFieldItem
 import com.android.tools.metalava.model.item.FieldValue
+import com.android.tools.metalava.model.value.OptionalValueProvider
 import com.intellij.psi.PsiCallExpression
 import com.intellij.psi.PsiClassType
 import com.intellij.psi.PsiEnumConstant
@@ -37,6 +38,7 @@ import com.intellij.psi.PsiModifierListOwner
 import com.intellij.psi.PsiPrimitiveType
 import com.intellij.psi.PsiReference
 import com.intellij.psi.impl.JavaConstantExpressionEvaluator
+import org.jetbrains.uast.UField
 
 internal class PsiFieldItem(
     override val codebase: PsiBasedCodebase,
@@ -47,6 +49,7 @@ internal class PsiFieldItem(
     containingClass: ClassItem,
     type: TypeItem,
     private val isEnumConstant: Boolean,
+    initialValueProvider: OptionalValueProvider?,
     override val legacyFieldValue: FieldValue?,
 ) :
     DefaultFieldItem(
@@ -60,6 +63,7 @@ internal class PsiFieldItem(
         containingClass = containingClass,
         type = type,
         isEnumConstant = isEnumConstant,
+        initialValueProvider = initialValueProvider,
         legacyFieldValue = legacyFieldValue,
     ),
     FieldItem,
@@ -116,6 +120,21 @@ internal class PsiFieldItem(
                     },
                 )
 
+            // Get a ValueProvider for the initializer, if possible.
+            val initialValueProvider =
+                when (psiField) {
+                    is UField -> {
+                        psiField.uastInitializer?.let { uastInitializer ->
+                            codebase.valueFactory.providerFor(fieldType, uastInitializer)
+                        }
+                    }
+                    else -> {
+                        psiField.initializer?.let { psiInitializer ->
+                            codebase.valueFactory.providerFor(fieldType, psiInitializer)
+                        }
+                    }
+                }
+
             return PsiFieldItem(
                 codebase = codebase,
                 psiField = psiField,
@@ -125,7 +144,8 @@ internal class PsiFieldItem(
                 containingClass = containingClass,
                 type = fieldType,
                 isEnumConstant = isEnumConstant,
-                legacyFieldValue = fieldValue
+                initialValueProvider = initialValueProvider,
+                legacyFieldValue = fieldValue,
             )
         }
     }
@@ -149,8 +169,7 @@ private fun PsiField.isFieldInitializerNonNull(): Boolean {
                 initializer.resolveMethod()
             }
             else -> null
-        }
-            ?: return false
+        } ?: return false
 
     return resolved is PsiModifierListOwner &&
         resolved.annotations.any { isNonNullAnnotation(it.qualifiedName ?: "") }

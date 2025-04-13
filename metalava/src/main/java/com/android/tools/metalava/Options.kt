@@ -203,6 +203,7 @@ class Options(
     /** Writer to direct output to. */
     val stdout: PrintWriter
         get() = executionEnvironment.stdout
+
     /** Writer to direct error messages to. */
     val stderr: PrintWriter
         get() = executionEnvironment.stderr
@@ -343,8 +344,7 @@ class Options(
                     (reportable as? Item)?.let { item ->
                         val pkg = (item as? PackageItem) ?: item.containingPackage()
                         pkg == null || packageFilter.matches(pkg)
-                    }
-                        ?: true
+                    } ?: true
                 }
             }
         }

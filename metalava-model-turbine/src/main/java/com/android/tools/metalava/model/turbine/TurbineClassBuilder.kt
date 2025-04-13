@@ -77,6 +77,7 @@ import com.google.turbine.tree.Tree.TyDecl
 import com.google.turbine.tree.Tree.VarDecl
 import com.google.turbine.type.AnnoInfo
 import com.google.turbine.type.Type
+import kotlin.jvm.optionals.getOrNull
 
 /**
  * Responsible for creating [ClassItem]s from either source or binary [ClassSymbol] and
@@ -407,6 +408,12 @@ internal class TurbineClassBuilder(
                     }
                 )
 
+            val initialFieldValueProvider =
+                field.value()?.let { const ->
+                    val turbineValue = TurbineValue(const, field.decl()?.init()?.getOrNull())
+                    valueFactory.providerFor(type, turbineValue)
+                }
+
             val documentation = javadoc(decl)
             val fieldItem =
                 itemFactory.createFieldItem(
@@ -417,6 +424,7 @@ internal class TurbineClassBuilder(
                     containingClass = classItem,
                     type = type,
                     isEnumConstant = isEnumConstant,
+                    initialValueProvider = initialFieldValueProvider,
                     fieldValue = fieldValue,
                 )
 
@@ -448,12 +456,10 @@ internal class TurbineClassBuilder(
                 )
             val documentation = javadoc(decl)
             val defaultValueExpr = getAnnotationDefaultExpression(method)
-            val defaultValue =
+            val defaultTurbineValue =
                 method.defaultValue()?.let { defaultConst ->
                     TurbineValue(defaultConst, defaultValueExpr, fieldResolver)
-                        .getSourceForMethodDefault()
                 }
-                    ?: ""
 
             val parameters = method.parameters()
             val fingerprint = MethodFingerprint(name, parameters.size)
@@ -465,6 +471,10 @@ internal class TurbineClassBuilder(
                     fingerprint = fingerprint,
                     isAnnotationElement = isAnnotationElement,
                 )
+
+            val defaultValue = defaultTurbineValue?.getSourceForMethodDefault() ?: ""
+            val defaultValueProvider =
+                defaultTurbineValue?.let { valueFactory.providerFor(returnType, it) }
 
             val methodItem =
                 itemFactory.createMethodItem(
@@ -484,6 +494,7 @@ internal class TurbineClassBuilder(
                         )
                     },
                     throwsTypes = getThrowsList(method.exceptions(), methodTypeItemFactory),
+                    defaultValueProvider = defaultValueProvider,
                     annotationDefault = defaultValue,
                 )
 

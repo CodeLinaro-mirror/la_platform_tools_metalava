@@ -588,8 +588,7 @@ fun createMutableModifiers(
                     ->
                     useVisibilityFromVisibleForTesting(otherwiseValue.toSource(), flags)
                 }
-            }
-            ?: flags
+            } ?: flags
 
     return DefaultMutableModifierList(actualFlags, annotations)
 }

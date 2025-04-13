@@ -31,6 +31,9 @@ import com.android.tools.metalava.model.testsuite.value.CommonParameterizedField
 import com.android.tools.metalava.model.testsuite.value.TestClassCreator.Companion.ATTRIBUTE_NAME
 import com.android.tools.metalava.model.testsuite.value.TestClassCreator.Companion.FIELD_NAME
 import com.android.tools.metalava.model.testsuite.value.ValueExample.Companion.valueExamples
+import com.android.tools.metalava.model.value.Value
+import com.android.tools.metalava.model.value.ValueProviderException
+import com.android.tools.metalava.testing.EntryPointCallerRule
 import com.android.tools.metalava.testing.TestFileCache
 import com.android.tools.metalava.testing.cacheIn
 import com.android.tools.metalava.testing.jarFromSources
@@ -38,7 +41,9 @@ import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import com.android.tools.metalava.testing.signature
 import kotlin.test.assertEquals
-import org.junit.Test
+import org.junit.Assert.assertArrayEquals
+import org.junit.AssumptionViolatedException
+import org.junit.Rule
 import org.junit.runners.Parameterized
 
 /**
@@ -77,19 +82,25 @@ import org.junit.runners.Parameterized
  * @param testJarFile the [TestFile] for the jar file built from all the java source files used by
  *   this test class.
  * @param valueUseSite the [ValueUseSite] being tested by this class.
- * @param legacySourceGetter gets the legacy source representation as expected by
- *   [ValueExample.expectedLegacySourceFor].
  */
 abstract class BaseCommonParameterizedValueTest(
     private val testFileCache: TestFileCache,
     private val testJarFile: TestFile,
     private val valueUseSite: ValueUseSite,
-    private val legacySourceGetter: TestCaseContext.() -> String,
 ) : BaseModelTest() {
 
     @Parameterized.Parameter(0) lateinit var codebaseProducer: CodebaseProducer
 
     @Parameterized.Parameter(1) lateinit var testCase: TestCase
+
+    /**
+     * Will try and rewrite the stack trace of any test failures to refer to the location where the
+     * [ValueExample] that is currently being tested was created.
+     */
+    @get:Rule
+    val entryPointCallerRule = EntryPointCallerRule {
+        testCase.valueExample.entryPointCallerTracker
+    }
 
     /** Produces a [Codebase] to test and runs the test on it. */
     sealed class CodebaseProducer(val kind: ProducerKind) {
@@ -420,14 +431,85 @@ abstract class BaseCommonParameterizedValueTest(
             val expected = expectation.expectationFor(producerKind, valueUseSite, codebase)
 
             // Compare the two.
-            assertEquals(expected, actual)
+            if (expected is Array<*> && actual is Array<*>) {
+                assertArrayEquals(expected, actual)
+            } else {
+                assertEquals(expected, actual)
+            }
         }
     }
 
-    @Test
-    fun testLegacySource() {
+    /**
+     * Check the [ValueExample.expectedLegacySource] against the [String] returned by
+     * [ValueUseSite.legacySourceGetter].
+     */
+    protected fun checkLegacySource() {
         val expectedLegacySource = testCase.valueExample.expectedLegacySourceFor(inputFormat)
+        val legacySourceGetter =
+            valueUseSite.legacySourceGetter
+                ?: error("ValueUseSite.$valueUseSite does not provide a legacySourceGetter")
+
         runExpectationTest(expectedLegacySource, legacySourceGetter)
+    }
+
+    /**
+     * Check the [ValueExample.expectedLegacyValue] against the [Any] returned by
+     * [ValueUseSite.legacyValueGetter].
+     */
+    protected fun checkLegacyValue() {
+        val expectedLegacyValue =
+            testCase.valueExample.expectedLegacyValueFor(inputFormat)
+                // Make sure that there is an expectation for every constant example.
+                ?: if (testCase.valueExample.isConstant) error("Missing expected legacy value")
+                else return
+        val legacyValueGetter =
+            valueUseSite.legacyValueGetter
+                ?: error("ValueUseSite.$valueUseSite does not provide a legacyValueGetter")
+        runExpectationTest(expectedLegacyValue, legacyValueGetter)
+    }
+
+    /**
+     * Check the [ValueExample.expectedValue] against the [Value] returned by [actualValueGetter].
+     */
+    protected fun checkExpectedValue(
+        actualValueGetter: TestCaseContext.() -> Value?,
+    ) {
+        val expectation =
+            testCase.valueExample.expectedValue
+                ?: throw AssumptionViolatedException(
+                    "No expected value provided",
+                )
+
+        runTestOnCodebase {
+            // Get the actual value.
+            // ValueProviderExceptions are not treated as test failures at the moment to avoid
+            // having to keep updating baseline files while expanding Value support across the
+            // models.
+            // TODO(b/354633349): Stop ignoring exceptions.
+            val actual =
+                try {
+                    actualValueGetter()
+                } catch (e: ValueProviderException) {
+                    throw AssumptionViolatedException(
+                        "Ignoring exception thrown while retrieving value",
+                        e
+                    )
+                }
+
+            // Get the expected value.
+            val expected = expectation.expectationFor(producerKind, valueUseSite, codebase)
+
+            // A null value being returned when the expectation is non-null is not treated as an
+            // error at the moment to avoid having to keep updating baseline files while expanding
+            // Value support across the models.
+            // TODO(b/354633349): Stop ignoring mismatch when actual is null.
+            if (expected != null && actual == null) {
+                throw AssumptionViolatedException("Ignoring null value")
+            }
+
+            // Compare the two.
+            assertEquals(expected, actual)
+        }
     }
 }
 
@@ -878,7 +960,7 @@ object SignatureTestClassCreator : TestClassCreator {
                 buildString {
                     append("// Signature format: 2.0\n")
                     append("package test.pkg {\n")
-                    append("  @")
+                    append("  @test.pkg.")
                     append(annotationTestClass.className)
                     append("(")
                     append(ATTRIBUTE_NAME)

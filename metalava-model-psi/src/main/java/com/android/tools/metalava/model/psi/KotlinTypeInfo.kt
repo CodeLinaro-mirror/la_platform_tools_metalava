@@ -186,8 +186,7 @@ private constructor(
                         typeFromSyntheticElement(context)
                     }
                 }
-            }
-                ?: KotlinTypeInfo(context)
+            } ?: KotlinTypeInfo(context)
         }
 
         /**
@@ -207,8 +206,7 @@ private constructor(
                                 // delegate, if any.
                                 context is UField -> ktElement.delegateExpression?.expressionType
                                 else -> null
-                            }
-                                ?: ktElement.returnType
+                            } ?: ktElement.returnType
                         KotlinTypeInfo(this, ktType, ktElement)
                     }
                 }

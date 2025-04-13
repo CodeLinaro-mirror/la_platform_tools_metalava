@@ -31,7 +31,6 @@ import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.DefaultTypeParameterList
 import com.android.tools.metalava.model.ExceptionTypeItem
-import com.android.tools.metalava.model.FixedFieldValue
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.JAVA_LANG_DEPRECATED
@@ -41,7 +40,6 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
-import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
@@ -61,8 +59,8 @@ import com.android.tools.metalava.model.item.DefaultTypeParameterItem
 import com.android.tools.metalava.model.item.MutablePackageDoc
 import com.android.tools.metalava.model.item.PackageDocs
 import com.android.tools.metalava.model.item.ParameterDefaultValue
-import com.android.tools.metalava.model.javaUnescapeString
 import com.android.tools.metalava.model.type.MethodFingerprint
+import com.android.tools.metalava.model.value.OptionalValueProvider
 import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.Issues
 import java.io.File
@@ -1004,8 +1002,7 @@ private constructor(
                 }
 
                 Pair(existingTypeParameterList, typeItemFactoryForClass(existingClass))
-            }
-                ?: Pair(typeParameterList, typeItemFactory)
+            } ?: Pair(typeParameterList, typeItemFactory)
 
         return DeclaredClassTypeComponents(
             fullName = fullName,
@@ -1262,6 +1259,7 @@ private constructor(
                     createParameterItems(containingCallable, parameters, typeItemFactory)
                 },
                 throwsTypes = throwsList,
+                defaultValueProvider = OptionalValueProvider.NO_VALUE,
                 annotationDefault = defaultAnnotationMethodValue,
             )
 
@@ -1332,9 +1330,8 @@ private constructor(
             )
         synchronizeNullability(type, modifiers)
 
-        // Parse the value string.
-        val fieldValue =
-            valueString?.let { FixedFieldValue(parseValue(type, valueString, tokenizer)) }
+        // Defer parsing the value string until needed.
+        val fieldValue = valueString?.let { TextFieldValue(type, it) }
 
         if (";" != token) {
             throw ApiParseException("expected ; found $token", tokenizer)
@@ -1348,6 +1345,7 @@ private constructor(
                 containingClass = cl,
                 type = type,
                 isEnumConstant = isEnumConstant,
+                initialValueProvider = OptionalValueProvider.NO_VALUE,
                 fieldValue = fieldValue,
             )
         field.markForMainApiSurface()
@@ -1474,67 +1472,6 @@ private constructor(
             modifiers.setDeprecated(true)
         }
         return modifiers
-    }
-
-    private fun parseValue(
-        type: TypeItem,
-        value: String?,
-        fileLocationTracker: FileLocationTracker,
-    ): Any? {
-        return if (value != null) {
-            if (type is PrimitiveTypeItem) {
-                parsePrimitiveValue(type, value, fileLocationTracker)
-            } else if (type.isString()) {
-                if ("null" == value) {
-                    null
-                } else {
-                    javaUnescapeString(value.substring(1, value.length - 1))
-                }
-            } else {
-                value
-            }
-        } else null
-    }
-
-    private fun parsePrimitiveValue(
-        type: PrimitiveTypeItem,
-        value: String,
-        fileLocationTracker: FileLocationTracker,
-    ): Any {
-        return when (type.kind) {
-            Primitive.BOOLEAN ->
-                if ("true" == value) java.lang.Boolean.TRUE else java.lang.Boolean.FALSE
-            Primitive.BYTE,
-            Primitive.SHORT,
-            Primitive.INT -> Integer.valueOf(value)
-            Primitive.LONG -> java.lang.Long.valueOf(value.substring(0, value.length - 1))
-            Primitive.FLOAT ->
-                when (value) {
-                    "(1.0f/0.0f)",
-                    "(1.0f / 0.0f)" -> Float.POSITIVE_INFINITY
-                    "(-1.0f/0.0f)",
-                    "(-1.0f / 0.0f)" -> Float.NEGATIVE_INFINITY
-                    "(0.0f/0.0f)",
-                    "(0.0f / 0.0f)" -> Float.NaN
-                    else -> java.lang.Float.valueOf(value)
-                }
-            Primitive.DOUBLE ->
-                when (value) {
-                    "(1.0/0.0)",
-                    "(1.0 / 0.0)" -> Double.POSITIVE_INFINITY
-                    "(-1.0/0.0)",
-                    "(-1.0 / 0.0)" -> Double.NEGATIVE_INFINITY
-                    "(0.0/0.0)",
-                    "(0.0 / 0.0)" -> Double.NaN
-                    else -> java.lang.Double.valueOf(value)
-                }
-            Primitive.CHAR -> value.toInt().toChar()
-            Primitive.VOID ->
-                throw ApiParseException(
-                    "Found value $value assigned to void type",
-                    fileLocationTracker
-                )
-        }
     }
 
     private fun parseProperty(

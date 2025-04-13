@@ -18,6 +18,8 @@ package com.android.tools.metalava.model
 
 import com.android.tools.metalava.model.api.flags.ApiFlag
 import com.android.tools.metalava.model.api.flags.ApiFlags
+import com.android.tools.metalava.model.value.Value
+import com.android.tools.metalava.model.value.ValueProvider
 import com.android.tools.metalava.reporter.FileLocation
 import kotlin.reflect.KClass
 
@@ -294,8 +296,7 @@ internal fun AnnotationItem.nonInlineGetAttributeValue(kClass: KClass<*>, name: 
             is AnnotationArrayAttributeValue ->
                 throw IllegalStateException("Annotation attribute is of type array")
             else -> attributeValue.value()
-        }
-            ?: return null
+        } ?: return null
 
     return convertValue(annotationContext, kClass, value)
 }
@@ -380,16 +381,6 @@ private fun convertValue(
 interface AnnotationContext : ClassResolver {
     /** The manager of annotations within this context. */
     val annotationManager: AnnotationManager
-
-    /**
-     * Creates an annotation item for the given (fully qualified) Java source.
-     *
-     * Returns `null` if the source contains an annotation that is not recognized by Metalava.
-     */
-    fun createAnnotation(
-        source: String,
-        context: Item? = null,
-    ): AnnotationItem?
 }
 
 /** Default implementation of an annotation item */
@@ -475,7 +466,23 @@ protected constructor(
             originalName,
             qualifiedName,
         ) {
-            attributes.map { DefaultAnnotationAttribute(it.name, it.legacyValue.snapshot()) }
+            attributes.map { attributeToSnapshot ->
+                // Defer retrieval of the value until it is needed as it could throw an exception.
+                // This makes it easier to incrementally expand the Value model without breaking
+                // existing snapshot tests.
+                // TODO(b/354633349): Stop deferring retrieval.
+                val valueProvider =
+                    object : ValueProvider {
+                        override val value: Value
+                            get() = attributeToSnapshot.value.snapshot(targetCodebase)
+                    }
+
+                DefaultAnnotationAttribute(
+                    attributeToSnapshot.name,
+                    valueProvider,
+                    attributeToSnapshot.legacyValue.snapshot(),
+                )
+            }
         }
     }
 
@@ -548,16 +555,6 @@ protected constructor(
             return create(annotationContext, FileLocation.UNKNOWN, originalName, ::attributes)
         }
 
-        fun create(
-            annotationContext: AnnotationContext,
-            originalName: String,
-            attributes: List<AnnotationAttribute> = emptyList(),
-            context: Item? = null
-        ): AnnotationItem? {
-            val source = formatAnnotationItem(originalName, attributes)
-            return annotationContext.createAnnotation(source, context)
-        }
-
         /**
          * Create a [DefaultAnnotationItem] by mapping the [originalName] to a [qualifiedName] by
          * using the [annotationContext]'s [AnnotationManager.normalizeInputName].
@@ -597,6 +594,17 @@ sealed interface AnnotationAttribute {
      * representation.
      */
     val legacyValue: AnnotationAttributeValue
+
+    /**
+     * The value of this attribute.
+     *
+     * Replacement for [legacyValue].
+     *
+     * The [Value] will be suitable for use as an annotation attribute value as specified by JLS
+     * 9.6.1 (what this model calls "attributes", the JSL calls "elements"). That includes constant
+     * fields.
+     */
+    val value: Value
 
     /**
      * Return all leaf values; this flattens the complication of handling
@@ -667,11 +675,20 @@ sealed interface AnnotationArrayAttributeValue : AnnotationAttributeValue {
 
 class DefaultAnnotationAttribute(
     override val name: String,
-    override val legacyValue: AnnotationAttributeValue
+    private val valueProvider: ValueProvider,
+    override val legacyValue: AnnotationAttributeValue,
 ) : AnnotationAttribute {
+
+    override val value: Value
+        get() = valueProvider.value
+
     companion object {
         fun create(name: String, value: String): DefaultAnnotationAttribute {
-            return DefaultAnnotationAttribute(name, DefaultAnnotationValue.create(value))
+            return DefaultAnnotationAttribute(
+                name,
+                ValueProvider.fromText(value),
+                DefaultAnnotationValue.create(value),
+            )
         }
 
         fun createList(source: String): List<AnnotationAttribute> {

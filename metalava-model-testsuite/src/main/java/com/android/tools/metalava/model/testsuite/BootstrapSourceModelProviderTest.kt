@@ -243,9 +243,11 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
                         }
                     """
                 ),
-                java("""
+                java(
+                    """
                         package test;
-                     """),
+                    """
+                ),
             ),
         ) {
             val packageItem = codebase.assertPackage("test.pkg")

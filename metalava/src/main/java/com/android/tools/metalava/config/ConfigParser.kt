@@ -105,8 +105,8 @@ class ConfigParser private constructor() : DefaultHandler() {
                 .reduceOrNull(Config::combineWith)
                 // Validate the config.
                 ?.apply { validate() }
-            // If no configuration files were created then return an empty Config.
-            ?: Config()
+                // If no configuration files were created then return an empty Config.
+                ?: Config()
         }
 
         /**

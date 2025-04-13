@@ -197,9 +197,10 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
             """
         )
     }
-    /*
-    Decrease access; that is, from protected access to default or private access,
-    or from public access to protected, default, or private access
+
+    /**
+     * Decrease access; that is, from protected access to default or private access, or from public
+     * access to protected, default, or private access
      */
     @Test
     fun `Decrease access(Incompatible)`() {

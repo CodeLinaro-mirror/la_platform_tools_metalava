@@ -777,7 +777,8 @@ class ShowAnnotationTest : DriverTest() {
                     systemApiSource
                 ),
             showAnnotations = arrayOf("android.annotation.SystemApi"),
-            expectedIssues = """
+            expectedIssues =
+                """
                 """,
             api =
                 """

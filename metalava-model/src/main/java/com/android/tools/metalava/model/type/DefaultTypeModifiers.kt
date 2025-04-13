@@ -69,7 +69,7 @@ class DefaultTypeModifiers(
                     ?: annotations
                         .firstOrNull { it.isNullnessAnnotation() }
                         ?.let { TypeNullability.ofAnnotation(it) }
-                        ?: TypeNullability.PLATFORM
+                    ?: TypeNullability.PLATFORM
 
             // If the annotations are empty then use one of the predefined instances.
             if (annotations.isEmpty()) {

@@ -25,6 +25,7 @@ import com.android.tools.metalava.model.DefaultAnnotationArrayAttributeValue
 import com.android.tools.metalava.model.DefaultAnnotationAttribute
 import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.DefaultAnnotationSingleAttributeValue
+import com.android.tools.metalava.model.value.ValueProvider
 import com.android.tools.metalava.reporter.FileLocation
 import com.google.common.collect.ImmutableList
 import com.google.common.collect.ImmutableMap
@@ -47,6 +48,7 @@ import com.google.turbine.type.AnnoInfo
 internal class TurbineAnnotationFactory(
     private val codebase: Codebase,
     private val sourceFileCache: TurbineSourceFileCache,
+    private val valueFactory: TurbineValueFactory,
 ) {
     /** Creates a list of AnnotationItems from given list of Turbine Annotations */
     internal fun createAnnotations(annotations: List<AnnoInfo>): List<AnnotationItem> {
@@ -54,7 +56,7 @@ internal class TurbineAnnotationFactory(
     }
 
     /** Create an [AnnotationItem] from an [AnnoInfo]. */
-    private fun createAnnotation(annotation: AnnoInfo): AnnotationItem? {
+    internal fun createAnnotation(annotation: AnnoInfo): AnnotationItem? {
         // Get the source representation of the annotation. This will be null for an annotation
         // loaded from a class file.
         val tree: Tree.Anno? = annotation.tree()
@@ -70,13 +72,15 @@ internal class TurbineAnnotationFactory(
                 ?.let { sourceFile -> TurbineFileLocation.forTree(sourceFile, tree) }
                 ?: FileLocation.UNKNOWN
 
-        return DefaultAnnotationItem.create(codebase, fileLocation, qualifiedName) {
-            getAnnotationAttributes(annotation.values(), tree?.args())
+        return DefaultAnnotationItem.create(codebase, fileLocation, qualifiedName) { annotationItem
+            ->
+            getAnnotationAttributes(annotationItem, annotation.values(), tree?.args())
         }
     }
 
     /** Creates a list of AnnotationAttribute from the map of name-value attribute pairs */
     private fun getAnnotationAttributes(
+        annotationItem: AnnotationItem,
         attrs: ImmutableMap<String, Const>,
         exprs: ImmutableList<Expression>?
     ): List<AnnotationAttribute> {
@@ -88,33 +92,60 @@ internal class TurbineAnnotationFactory(
                         exp as Assign
                         val name = exp.name().value()
                         val assignExp = exp.expr()
+                        val const = attrs[name]!!
                         attributes.add(
                             DefaultAnnotationAttribute(
                                 name,
-                                createAttrValue(attrs[name]!!, assignExp)
+                                createAttributeValueProvider(
+                                    annotationItem,
+                                    name,
+                                    const,
+                                    assignExp
+                                ),
+                                createAttrValue(const, assignExp),
                             )
                         )
                     }
                     else -> {
                         val name = ANNOTATION_ATTR_VALUE
-                        val value =
+                        val const =
                             attrs[name]
                                 ?: (exp as? Literal)?.value()
-                                    ?: error(
+                                ?: error(
                                     "Cannot find value for default 'value' attribute from $exp"
                                 )
                         attributes.add(
-                            DefaultAnnotationAttribute(name, createAttrValue(value, exp))
+                            DefaultAnnotationAttribute(
+                                name,
+                                createAttributeValueProvider(annotationItem, name, const, exp),
+                                createAttrValue(const, exp),
+                            )
                         )
                     }
                 }
             }
         } else {
-            for ((name, value) in attrs) {
-                attributes.add(DefaultAnnotationAttribute(name, createAttrValue(value, null)))
+            for ((name, const) in attrs) {
+                attributes.add(
+                    DefaultAnnotationAttribute(
+                        name,
+                        createAttributeValueProvider(annotationItem, name, const, null),
+                        createAttrValue(const, null),
+                    )
+                )
             }
         }
         return attributes
+    }
+
+    private fun createAttributeValueProvider(
+        annotationItem: AnnotationItem,
+        attributeName: String,
+        const: Const,
+        expr: Expression?
+    ): ValueProvider {
+        val turbineValue = TurbineValue(const, expr)
+        return valueFactory.providerForAnnotationValue(annotationItem, attributeName, turbineValue)
     }
 
     private fun createAttrValue(const: Const, expr: Expression?): AnnotationAttributeValue {

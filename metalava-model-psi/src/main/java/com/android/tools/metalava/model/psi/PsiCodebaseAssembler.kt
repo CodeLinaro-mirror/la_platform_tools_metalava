@@ -409,8 +409,7 @@ internal class PsiCodebaseAssembler(
                         accessors = accessors[ktProperty] ?: emptyList(),
                         constructorParameter = null,
                         backingField = backingFields[ktProperty],
-                    )
-                        ?: continue
+                    ) ?: continue
                 classItem.addProperty(property)
             }
 
@@ -439,8 +438,7 @@ internal class PsiCodebaseAssembler(
                             accessors = accessors[ktParameter] ?: emptyList(),
                             constructorParameter = constructorParameters[ktParameter.name],
                             backingField = backingFields[ktParameter],
-                        )
-                            ?: continue
+                        ) ?: continue
                     classItem.addProperty(property)
                 }
             }
@@ -955,8 +953,7 @@ internal class PsiCodebaseAssembler(
                     psiClass,
                     // Sources always come from the command line.
                     ClassOrigin.COMMAND_LINE,
-                )
-                    ?: continue
+                ) ?: continue
             codebase.addTopLevelClassFromSource(classItem)
         }
     }
@@ -980,8 +977,7 @@ internal class PsiCodebaseAssembler(
     private fun topLevelDeclarations(fileFacadeClass: PsiClass): List<KtDeclaration> {
         return ((fileFacadeClass as? UClass)?.javaPsi as? KtLightClassForFacade)?.files?.flatMap {
             it.declarations
-        }
-            ?: emptyList()
+        } ?: emptyList()
     }
 
     /**

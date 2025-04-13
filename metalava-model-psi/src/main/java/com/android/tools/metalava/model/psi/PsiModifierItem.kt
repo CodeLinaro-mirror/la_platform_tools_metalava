@@ -280,8 +280,7 @@ internal object PsiModifierItem {
         }
         return ((element as? UElement)?.sourcePsi as? KtAnnotated)?.annotationEntries?.any {
             it.shortName?.toString() == "Deprecated"
-        }
-            ?: false
+        } ?: false
     }
 
     private fun computeFlag(element: PsiModifierListOwner, modifierList: PsiModifierList): Int {
@@ -573,8 +572,7 @@ internal object PsiModifierItem {
             ?.annotations
             ?.firstOrNull { it.hasQualifiedName(JAVA_LANG_ANNOTATION_TARGET) }
             ?.findAttributeValue("value")
-            ?.targets()
-            ?: emptyList()
+            ?.targets() ?: emptyList()
     }
 
     /**
@@ -659,7 +657,7 @@ internal object PsiModifierItem {
         val psiAnnotations =
             modifierList.annotations.takeIf { it.isNotEmpty() }
                 ?: (annotated.javaPsi as? PsiModifierListOwner)?.annotations
-                    ?: PsiAnnotation.EMPTY_ARRAY
+                ?: PsiAnnotation.EMPTY_ARRAY
 
         var flags = computeFlag(element, modifierList)
 

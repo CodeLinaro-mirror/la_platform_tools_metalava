@@ -169,11 +169,13 @@ class ApiLintBaselineTest : DriverTest() {
                     """
                     )
                 ),
-            expectedFail = """
-                *** api-lint failed ***
-            """,
-            expectedOutput = """
-                *** api-lint failed ***
+            expectedFail =
+                """
+                    *** api-lint failed ***
+                """,
+            expectedOutput =
+                """
+                    *** api-lint failed ***
                 """
         )
     }

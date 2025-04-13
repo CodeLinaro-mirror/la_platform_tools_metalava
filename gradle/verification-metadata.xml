@@ -224,6 +224,7 @@
          <trusted-key id="EB1B3DE71713C9EC2E87CC26EE92349AD86DE446" group="com.google.j2objc"/>
          <trusted-key id="EE0CA873074092F806F59B65D364ABAA39A47320">
             <trusting group="com.google.errorprone"/>
+            <trusting group="com.google.googlejavaformat"/>
             <trusting group="com.google.turbine"/>
          </trusted-key>
          <trusted-key id="F1A51E051F527E0C8E24D54D4B1E11D5A4B91E89" group="com.google.protobuf"/>

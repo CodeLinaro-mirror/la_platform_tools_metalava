@@ -84,8 +84,7 @@ class Manifest(private val manifest: File?, private val reporter: Reporter?) {
                 Issues.PARSE_ERROR,
                 manifest,
                 "Failed to parse $manifest: ${error.message}"
-            )
-                ?: throw error
+            ) ?: throw error
             defaultInfo
         }
     }

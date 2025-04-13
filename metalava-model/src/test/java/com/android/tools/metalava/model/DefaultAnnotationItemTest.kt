@@ -16,38 +16,24 @@
 
 package com.android.tools.metalava.model
 
-import com.android.tools.metalava.model.item.CodebaseAssembler
-import com.android.tools.metalava.model.item.DefaultCodebase
-import com.android.tools.metalava.model.item.PackageDoc
-import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class DefaultAnnotationItemTest : Assertions {
     // Placeholder for use in test where we don't need codebase functionality
-    private val placeholderCodebase =
-        DefaultCodebase(
-            location = File("").canonicalFile,
-            description = "",
-            preFiltered = false,
-            config = Codebase.Config.NOOP,
-            trustedApi = false,
-            supportsDocumentation = false,
-            assembler =
-                object : CodebaseAssembler {
-                    override fun createPackageItem(
-                        packageName: String,
-                        packageDoc: PackageDoc,
-                        containingPackage: PackageItem?,
-                    ) = error("unsupported")
+    private val placeholderAnnotationContext =
+        object : AnnotationContext {
+            override val annotationManager
+                get() = noOpAnnotationManager
 
-                    override fun createClassFromUnderlyingModel(qualifiedName: String) = null
-                },
-        )
+            override fun resolveClass(erasedName: String): ClassItem? {
+                error("Unsupported: Cannot resolve $erasedName")
+            }
+        }
 
     private fun createDefaultAnnotationItem(source: String) =
-        DefaultAnnotationItem.create(placeholderCodebase, source)
+        DefaultAnnotationItem.create(placeholderAnnotationContext, source)
             ?: error("Could not create annotation from: '$source'")
 
     @Test

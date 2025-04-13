@@ -97,8 +97,7 @@ abstract class CustomizableParameterizedRunner<A : Any>(
             val parametersMethod =
                 testClass.getAnnotatedMethods(Parameters::class.java).firstOrNull {
                     it.isPublic && it.isStatic
-                }
-                    ?: return null
+                } ?: return null
             return when (val parameters = parametersMethod.invokeExplosively(null)) {
                     is List<*> -> parameters
                     is Iterable<*> -> parameters.toList()

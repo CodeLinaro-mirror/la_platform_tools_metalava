@@ -121,7 +121,7 @@ class CommonTypeAliasTest : BaseModelTest() {
     private fun getClassOrWildcardExtendsBound(typeItem: TypeItem): TypeItem {
         return typeItem as? ClassTypeItem
             ?: (typeItem as? WildcardTypeItem)?.extendsBound
-                ?: error("expected class type or wildcard type with extends bound, was $typeItem")
+            ?: error("expected class type or wildcard type with extends bound, was $typeItem")
     }
 
     @Test

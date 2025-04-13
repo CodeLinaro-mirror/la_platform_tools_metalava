@@ -234,8 +234,7 @@ object Issues {
     val GETTER_SETTER_NULLABILITY by Issue(Severity.WARNING_ERROR_WHEN_NEW, Category.API_LINT)
     val CONDITIONAL_REQUIRES_PERMISSION_NOT_EXPLAINED by Issue(Severity.HIDDEN, Category.API_LINT)
     val VALUE_CLASS_DEFINITION by Issue(Severity.ERROR, Category.API_LINT)
-    val INVALID_ENVIRONMENT_IN_RESTRICTED_FOR_ENVIRONMENT by
-        Issue(Severity.ERROR, Category.API_LINT)
+    val MISSING_ENVIRONMENTS_VALUE by Issue(Severity.ERROR, Category.API_LINT)
     val MISSING_FROM_VALUE by Issue(Severity.ERROR, Category.API_LINT)
     val INHERIT_CHANGES_SIGNATURE by Issue(Severity.WARNING_ERROR_WHEN_NEW)
     val DATA_CLASS_DEFINITION by Issue(Severity.HIDDEN, Category.API_LINT)
