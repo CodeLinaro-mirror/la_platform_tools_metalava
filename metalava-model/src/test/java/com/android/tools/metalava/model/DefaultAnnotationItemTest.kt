@@ -21,19 +21,9 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class DefaultAnnotationItemTest : Assertions {
-    // Placeholder for use in test where we don't need codebase functionality
-    private val placeholderAnnotationContext =
-        object : AnnotationContext {
-            override val annotationManager
-                get() = noOpAnnotationManager
-
-            override fun resolveClass(erasedName: String): ClassItem? {
-                error("Unsupported: Cannot resolve $erasedName")
-            }
-        }
 
     private fun createDefaultAnnotationItem(source: String) =
-        DefaultAnnotationItem.create(placeholderAnnotationContext, source)
+        DefaultAnnotationItem.create(AnnotationContext.DEFAULT, source)
             ?: error("Could not create annotation from: '$source'")
 
     @Test

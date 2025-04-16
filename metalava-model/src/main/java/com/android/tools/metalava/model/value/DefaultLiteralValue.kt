@@ -21,6 +21,43 @@ internal sealed class DefaultLiteralValue<U : Any> : DefaultValue(), LiteralValu
 
 internal sealed class DefaultPrimitiveValue<U : Any> : DefaultLiteralValue<U>(), PrimitiveValue<U>
 
+/**
+ * A [PrimitiveValue] whose [Value.toValueString] is affected by
+ * [ValueStringConfiguration.treatAsIntIfOriginallySpecifiedAsInt].
+ */
+internal sealed interface ToValueStringDependsOnSourceForm<T : Any> : PrimitiveValue<T> {
+    /**
+     * True if the original value of this from the source, was specified as an integer, e.g. `3`
+     * instead of `3.0`, or `3.0f` or `3L`. This is used to tweak formatting to match legacy
+     * behavior.
+     */
+    val wasOriginallySpecifiedAsInt: Boolean
+
+    @Deprecated("Do not call directly", replaceWith = ReplaceWith("toString()"))
+    override fun debugStringForValue(): String {
+        val suffix = if (wasOriginallySpecifiedAsInt) ",asInt" else ""
+        return toValueString() + suffix
+    }
+}
+
+/**
+ * If the [configuration] has [ValueStringConfiguration.treatAsIntIfOriginallySpecifiedAsInt] set to
+ * `true` and [ToValueStringDependsOnSourceForm.wasOriginallySpecifiedAsInt] is also `true` then
+ * this will return [ToValueStringDependsOnSourceForm.underlyingValue] as if it was an `int`,
+ * otherwise it will return the value returned by [otherwise].
+ */
+internal inline fun <T : Number> ToValueStringDependsOnSourceForm<T>.treatAsIntIfRequired(
+    configuration: ValueStringConfiguration,
+    otherwise: (T) -> String
+): String {
+    if (configuration.treatAsIntIfOriginallySpecifiedAsInt && wasOriginallySpecifiedAsInt) {
+        val intValue = underlyingValue.toInt()
+        return intValue.toString()
+    }
+
+    return otherwise(underlyingValue)
+}
+
 internal class DefaultBooleanValue(override val underlyingValue: Boolean) :
     DefaultPrimitiveValue<Boolean>(), BooleanValue
 
@@ -32,18 +69,31 @@ internal class DefaultCharValue(override val underlyingValue: Char) :
 
 internal class DefaultDoubleValue(
     override val underlyingValue: Double,
-) : DefaultPrimitiveValue<Double>(), DoubleValue
+    override val wasOriginallySpecifiedAsInt: Boolean = false,
+) : DefaultPrimitiveValue<Double>(), DoubleValue, ToValueStringDependsOnSourceForm<Double> {
+
+    override fun toValueString(configuration: ValueStringConfiguration) =
+        treatAsIntIfRequired(configuration) { super<DoubleValue>.toValueString(configuration) }
+}
 
 internal class DefaultFloatValue(
     override val underlyingValue: Float,
-) : DefaultPrimitiveValue<Float>(), FloatValue
+    override val wasOriginallySpecifiedAsInt: Boolean = false,
+) : DefaultPrimitiveValue<Float>(), FloatValue, ToValueStringDependsOnSourceForm<Float> {
+    override fun toValueString(configuration: ValueStringConfiguration) =
+        treatAsIntIfRequired(configuration) { super<FloatValue>.toValueString(configuration) }
+}
 
 internal class DefaultIntValue(override val underlyingValue: Int) :
     DefaultPrimitiveValue<Int>(), IntValue
 
 internal class DefaultLongValue(
     override val underlyingValue: Long,
-) : DefaultPrimitiveValue<Long>(), LongValue
+    override val wasOriginallySpecifiedAsInt: Boolean = false,
+) : DefaultPrimitiveValue<Long>(), LongValue, ToValueStringDependsOnSourceForm<Long> {
+    override fun toValueString(configuration: ValueStringConfiguration) =
+        treatAsIntIfRequired(configuration) { super<LongValue>.toValueString(configuration) }
+}
 
 internal class DefaultShortValue(override val underlyingValue: Short) :
     DefaultPrimitiveValue<Short>(), ShortValue

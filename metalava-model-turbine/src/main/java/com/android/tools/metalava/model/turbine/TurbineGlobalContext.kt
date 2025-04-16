@@ -18,8 +18,10 @@ package com.android.tools.metalava.model.turbine
 
 import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.DefaultItem
+import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.item.DefaultItemFactory
+import com.android.tools.metalava.model.value.Value
 import com.google.turbine.binder.bound.SourceTypeBoundClass
 import com.google.turbine.binder.bound.TypeBoundClass
 import com.google.turbine.binder.sym.ClassSymbol
@@ -39,7 +41,15 @@ internal interface TurbineGlobalContext {
     /** Factory for creating [DefaultAnnotationItem]s from [AnnoInfo] objects. */
     val annotationFactory: TurbineAnnotationFactory
 
+    /** Factory for creating [Value]s from [TurbineValue]s. */
     val valueFactory: TurbineValueFactory
+
+    /**
+     * Provides support for creating [TypeItem]s.
+     *
+     * This cannot be used to create [TypeItem]s which may contain type variables.
+     */
+    val globalTypeItemFactory: TurbineTypeItemFactory
 
     /** True if comments should be read, false otherwise. */
     val allowReadingComments: Boolean

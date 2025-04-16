@@ -18,8 +18,6 @@ package com.android.tools.metalava.model
 
 @MetalavaApi
 interface TypeParameterItem {
-    val codebase: Codebase
-
     /** Return the modifiers of this class */
     @MetalavaApi val modifiers: ModifierList
 
@@ -36,8 +34,7 @@ interface TypeParameterItem {
      * something of this type. That is either the first bound (the super class) or
      * `java.lang.Object` if there are no bounds.
      */
-    fun asErasedType(): BoundsTypeItem? =
-        typeBounds().firstOrNull() ?: codebase.resolveClass(JAVA_LANG_OBJECT)?.type()
+    fun asErasedType(): BoundsTypeItem?
 
     fun isReified(): Boolean
 

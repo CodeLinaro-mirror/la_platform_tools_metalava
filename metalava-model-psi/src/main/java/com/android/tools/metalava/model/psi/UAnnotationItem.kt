@@ -207,13 +207,20 @@ private constructor(
             when (value) {
                 null -> sb.append("null")
                 is ULiteralExpression -> sb.append(CodePrinter.constantToSource(value.value))
-                is UQualifiedReferenceExpression -> { // the value is a Foo.BAR type of reference.
-                    // expand `Foo` to fully qualified name `com.example.Foo`
-                    appendQualifiedName(codebase, sb, value.receiver as UReferenceExpression)
-                    // append accessor `.`
-                    sb.append(value.accessType.name)
-                    // append `BAR`
-                    sb.append(value.selector.asRenderString())
+                is UQualifiedReferenceExpression -> {
+                    // the value is a Foo.BAR type of reference, or a Foo::class.java type of
+                    // reference.
+                    val receiver = value.receiver
+                    if (receiver is UReferenceExpression) {
+                        // expand `Foo` to fully qualified name `com.example.Foo`
+                        appendQualifiedName(codebase, sb, receiver)
+                        // append accessor `.`
+                        sb.append(value.accessType.name)
+                        // append `BAR`
+                        sb.append(value.selector.asRenderString())
+                    } else {
+                        sb.append(value.asSourceString())
+                    }
                 }
                 is UReferenceExpression -> {
                     // expand Foo to fully qualified name com.example.Foo

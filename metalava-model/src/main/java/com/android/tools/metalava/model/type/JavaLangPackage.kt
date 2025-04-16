@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model.text
+package com.android.tools.metalava.model.type
 
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.JAVA_LANG_PACKAGE

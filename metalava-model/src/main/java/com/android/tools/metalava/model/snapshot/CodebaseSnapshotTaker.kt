@@ -504,7 +504,7 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
                     this,
                     { typeParameterItem ->
                         DefaultTypeParameterItem(
-                            codebase = snapshotCodebase,
+                            classResolver = snapshotCodebase,
                             modifiers = typeParameterItem.modifiers.snapshot(),
                             name = typeParameterItem.name(),
                             isReified = typeParameterItem.isReified()

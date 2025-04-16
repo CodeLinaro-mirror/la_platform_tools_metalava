@@ -18,7 +18,8 @@ package com.android.tools.metalava.model.item
 
 import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.BoundsTypeItem
-import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.ClassResolver
+import com.android.tools.metalava.model.JAVA_LANG_OBJECT
 import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.VariableTypeItem
@@ -27,7 +28,7 @@ import com.android.tools.metalava.model.type.DefaultVariableTypeItem
 
 /** A [TypeParameterItem] implementation suitable for use by multiple models. */
 open class DefaultTypeParameterItem(
-    override val codebase: Codebase,
+    protected open val classResolver: ClassResolver,
     modifiers: BaseModifierList,
     private val name: String,
     private val isReified: Boolean,
@@ -54,6 +55,9 @@ open class DefaultTypeParameterItem(
     lateinit var bounds: List<BoundsTypeItem>
 
     final override fun typeBounds(): List<BoundsTypeItem> = bounds
+
+    override fun asErasedType() =
+        typeBounds().firstOrNull() ?: classResolver.resolveClass(JAVA_LANG_OBJECT)?.type()
 
     final override fun isReified(): Boolean = isReified
 
