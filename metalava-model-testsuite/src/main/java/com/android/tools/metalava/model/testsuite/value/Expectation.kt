@@ -16,21 +16,13 @@
 
 package com.android.tools.metalava.model.testsuite.value
 
-import com.android.tools.metalava.model.Codebase
 import kotlin.properties.ReadWriteProperty
 import kotlin.reflect.KProperty
 
 /** Encapsulates a set of expectations about values. */
 interface Expectation<out T> {
-    /**
-     * Get the expectations of type [T] for [producerKind] at [valueUseSite] for testing within
-     * [codebase].
-     */
-    fun expectationFor(
-        producerKind: ProducerKind,
-        valueUseSite: ValueUseSite,
-        codebase: Codebase
-    ): T
+    /** Get the expectations of type [T] for [producerKind] at [valueUseSite]. */
+    fun expectationFor(producerKind: ProducerKind, valueUseSite: ValueUseSite): T
 }
 
 /**
@@ -78,36 +70,6 @@ internal fun <T> partialExpectations(body: ExpectationsBuilder<T?>.() -> Unit) =
  */
 fun <T> Expectation<T?>.fallBackTo(other: Expectation<T>) =
     if (this === other) other else ChainedExpectation(this, other)
-
-/** Produces an expectation of type `T` from a [Codebase]. */
-typealias CodebaseExpectationProducer<T> = (Codebase) -> T
-
-/**
- * Create an [Expectation] that instead of storing the expectations or type [T] will store
- * [CodebaseExpectationProducer] that when passed a [Codebase] will produce the expectation.
- *
- * Needed for creating expectations that require a [Codebase].
- */
-internal fun <T> codebaseExpectations(
-    body: ExpectationsBuilder<CodebaseExpectationProducer<T>>.() -> Unit
-): Expectation<T> {
-    // Create an intermediate [Expectation] that takes `CodebaseExpectationProducer<T>`s instead of
-    // `T`s.
-    val intermediate = expectations(body)
-
-    // Wrap that intermediate object in another that will delegate to it to obtain a
-    // `CodebaseExpectationProducer<T>` and then return the expectation it produces.
-    return object : Expectation<T> {
-        override fun expectationFor(
-            producerKind: ProducerKind,
-            valueUseSite: ValueUseSite,
-            codebase: Codebase
-        ): T {
-            val producer = intermediate.expectationFor(producerKind, valueUseSite, codebase)
-            return producer(codebase)
-        }
-    }
-}
 
 /**
  * A [ReadWriteProperty] which will store the value that is set on the property in [map] for all
@@ -235,11 +197,7 @@ internal class ExpectationsBuilder<T> :
         val map: MutableMap<ExpectationKey, T>,
         private val defaultValueProvider: (ExpectationKey) -> T,
     ) : Expectation<T> {
-        override fun expectationFor(
-            producerKind: ProducerKind,
-            valueUseSite: ValueUseSite,
-            codebase: Codebase
-        ): T {
+        override fun expectationFor(producerKind: ProducerKind, valueUseSite: ValueUseSite): T {
             val key = producerKind to valueUseSite
             return map[key] ?: defaultValueProvider(key)
         }
@@ -257,8 +215,7 @@ private class ChainedExpectation<T>(
     override fun expectationFor(
         producerKind: ProducerKind,
         valueUseSite: ValueUseSite,
-        codebase: Codebase
     ) =
-        first.expectationFor(producerKind, valueUseSite, codebase)
-            ?: second.expectationFor(producerKind, valueUseSite, codebase)
+        first.expectationFor(producerKind, valueUseSite)
+            ?: second.expectationFor(producerKind, valueUseSite)
 }

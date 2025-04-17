@@ -61,6 +61,7 @@ com.android.tools.metalava.model.testsuite.value.CommonParameterizedAttributeDef
   testLegacySource[source,long with int]
 
 com.android.tools.metalava.model.testsuite.value.CommonParameterizedAttributeValueTest
+  testAttributeValue[source,String using constant]
   testLegacySource[jar,annotation]
   testLegacySource[jar,char unicode]
   testLegacySource[jar,double NaN]
@@ -102,6 +103,7 @@ com.android.tools.metalava.model.testsuite.value.CommonParameterizedAttributeVal
   testLegacyValue[source,short]
 
 com.android.tools.metalava.model.testsuite.value.CommonParameterizedFieldValueTest
+  testFieldValue[source,String using constant]
   testLegacyValue[jar,double NaN]
   testLegacyValue[jar,double negative infinity]
   testLegacyValue[jar,double positive infinity]

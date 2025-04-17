@@ -26,13 +26,13 @@ import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.KtTypeParameter
 
 internal class PsiTypeParameterItem(
-    override val codebase: PsiBasedCodebase,
+    private val codebase: PsiBasedCodebase,
     private val psiTypeParameter: PsiTypeParameter,
     name: String,
     modifiers: BaseModifierList
 ) :
     DefaultTypeParameterItem(
-        codebase = codebase,
+        classResolver = codebase,
         modifiers = modifiers,
         name = name,
         isReified = isReified(psiTypeParameter),
@@ -90,7 +90,7 @@ internal class PsiTypeParameterItem(
             ktTypeParameter: KtTypeParameter
         ): DefaultTypeParameterItem {
             return DefaultTypeParameterItem(
-                codebase = codebase,
+                classResolver = codebase,
                 modifiers = PsiModifierItem.createForKtDeclaration(codebase, ktTypeParameter),
                 name = ktTypeParameter.name!!,
                 isReified = ktTypeParameter.text.startsWith(KtTokens.REIFIED_KEYWORD.value)

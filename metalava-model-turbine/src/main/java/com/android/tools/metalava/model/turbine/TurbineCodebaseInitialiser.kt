@@ -97,7 +97,7 @@ internal class TurbineCodebaseInitialiser(
     override lateinit var annotationFactory: TurbineAnnotationFactory
 
     /** Global [TurbineTypeItemFactory] from which all other instances are created. */
-    private lateinit var globalTypeItemFactory: TurbineTypeItemFactory
+    override lateinit var globalTypeItemFactory: TurbineTypeItemFactory
 
     /** Creates [Item] instances for [codebase]. */
     override val itemFactory =
@@ -209,7 +209,7 @@ internal class TurbineCodebaseInitialiser(
         sourceFileCache = TurbineSourceFileCache(codebase, allUnits)
 
         // Create the TurbineValueProviderFactory
-        valueFactory = TurbineValueFactory()
+        valueFactory = TurbineValueFactory(this)
 
         // Create a factory for creating annotations from AnnoInfo.
         annotationFactory =

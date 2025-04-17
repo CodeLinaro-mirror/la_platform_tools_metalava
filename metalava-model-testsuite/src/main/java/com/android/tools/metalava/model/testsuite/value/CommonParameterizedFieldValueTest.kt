@@ -16,8 +16,6 @@
 
 package com.android.tools.metalava.model.testsuite.value
 
-import com.android.tools.metalava.model.provider.Capability
-import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.testsuite.value.TestClassCreator.Companion.FIELD_NAME
 import com.android.tools.metalava.model.testsuite.value.ValueUseSite.FIELD_VALUE
 import com.android.tools.metalava.testing.TestFileCache
@@ -46,7 +44,6 @@ class CommonParameterizedFieldValueTest :
         checkLegacyValue()
     }
 
-    @RequiresCapabilities(Capability.JAVA)
     @Test
     fun testFieldValue() {
         // This is identical for all field use sites so only needs testing once.

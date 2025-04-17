@@ -40,15 +40,6 @@ interface ValueProvider {
     val value: Value
 
     companion object {
-
-        /**
-         * Create a [ValueProvider] that will create a [Value] from [text].
-         *
-         * TODO(b/354633349): Pass in [Codebase] to allow creation of [Value]s which reference items
-         *   in it.
-         */
-        fun fromText(text: String): ValueProvider = FromStringValueProvider(text)
-
         /** A temporary [ValueProvider] which throws an error when called. */
         val UNSUPPORTED =
             object : ValueProvider {
@@ -56,31 +47,11 @@ interface ValueProvider {
                     get() = throw ValueProviderException("value provider is not yet supported")
             }
     }
-
-    /**
-     * A [ValueProvider] that will create a [Value] from a [String].
-     *
-     * TODO(b/354633349): Implement, using the same parser as the text model uses for
-     *   FieldItem.initialValue and MethodItem.defaultValue.
-     */
-    private class FromStringValueProvider(private val text: String) : ValueProvider {
-        override val value: Value
-            get() = throw ValueProviderException("Could not parse value from `$text`")
-    }
 }
 
 /** Like [ValueProvider] but allows a `null` [Value] to be returned. */
 interface OptionalValueProvider {
     val optionalValue: Value?
-
-    companion object {
-        /** A temporary [OptionalValueProvider] which always returns `null` when called. */
-        val NO_VALUE =
-            object : OptionalValueProvider {
-                override val optionalValue: Value?
-                    get() = null
-            }
-    }
 }
 
 /**

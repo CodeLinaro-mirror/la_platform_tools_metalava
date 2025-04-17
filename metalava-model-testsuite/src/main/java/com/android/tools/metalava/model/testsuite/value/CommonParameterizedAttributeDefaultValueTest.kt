@@ -16,9 +16,6 @@
 
 package com.android.tools.metalava.model.testsuite.value
 
-import com.android.tools.metalava.model.Assertions.Companion.assertMethod
-import com.android.tools.metalava.model.provider.Capability
-import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.testsuite.value.TestClassCreator.Companion.ATTRIBUTE_NAME
 import com.android.tools.metalava.model.testsuite.value.ValueUseSite.ATTRIBUTE_DEFAULT_VALUE
 import com.android.tools.metalava.testing.TestFileCache
@@ -47,7 +44,6 @@ class CommonParameterizedAttributeDefaultValueTest :
         checkLegacySource()
     }
 
-    @RequiresCapabilities(Capability.JAVA)
     @Test
     fun testMethodDefaultValue() {
         checkExpectedValue {

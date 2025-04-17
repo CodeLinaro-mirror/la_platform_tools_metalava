@@ -859,64 +859,89 @@ interface PrimitiveTypeItem : TypeItem {
     /** The possible kinds of primitives. */
     enum class Primitive(
         val primitiveName: String,
+        val kotlinName: String,
         val defaultValue: Any?,
         val defaultValueString: String,
         val wrapperClass: Class<*>,
     ) {
         BOOLEAN(
             primitiveName = "boolean",
+            kotlinName = "Boolean",
             defaultValue = false,
             defaultValueString = "false",
             wrapperClass = java.lang.Boolean::class.java,
         ),
         BYTE(
             primitiveName = "byte",
+            kotlinName = "Byte",
             defaultValue = 0.toByte(),
             defaultValueString = "0",
             wrapperClass = java.lang.Byte::class.java,
         ),
         CHAR(
             primitiveName = "char",
+            kotlinName = "Char",
             defaultValue = 0.toChar(),
             defaultValueString = "0",
             wrapperClass = java.lang.Character::class.java,
         ),
         DOUBLE(
             primitiveName = "double",
+            kotlinName = "Double",
             defaultValue = 0.0,
             defaultValueString = "0",
             wrapperClass = java.lang.Double::class.java,
         ),
         FLOAT(
             primitiveName = "float",
+            kotlinName = "Float",
             defaultValue = 0F,
             defaultValueString = "0",
             wrapperClass = java.lang.Float::class.java,
         ),
         INT(
             primitiveName = "int",
+            kotlinName = "Int",
             defaultValue = 0,
             defaultValueString = "0",
             wrapperClass = java.lang.Integer::class.java,
         ),
         LONG(
             primitiveName = "long",
+            kotlinName = "Long",
             defaultValue = 0L,
             defaultValueString = "0",
             wrapperClass = java.lang.Long::class.java,
         ),
         SHORT(
             primitiveName = "short",
+            kotlinName = "Short",
             defaultValue = 0.toShort(),
             defaultValueString = "0",
             wrapperClass = java.lang.Short::class.java,
         ),
         VOID(
             primitiveName = "void",
+            // Kotlin does not really have a name for this but Nothing is closest.
+            kotlinName = "Nothing",
             defaultValue = null,
             defaultValueString = "null",
             wrapperClass = java.lang.Void::class.java,
-        )
+        ),
+        ;
+
+        companion object {
+            /** Map from [Primitive.wrapperClass]'s name to [Primitive]. */
+            private val wrapperClassNameToKind =
+                Primitive.entries.associateBy { it.wrapperClass.name }
+
+            /**
+             * Get the [Primitive] associated with [wrapperClassName], returning `null`, if it could
+             * not be found.
+             */
+            fun forWrapperClassName(wrapperClassName: String) =
+                wrapperClassNameToKind[wrapperClassName]
+        }
     }
 
     override fun defaultValue(): Any? = kind.defaultValue

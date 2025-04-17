@@ -542,13 +542,13 @@ class ApiFileTest : BaseTextCodebaseTest() {
             assertThat(reportedIssues)
                 .isEqualTo(
                     """
-                        MAIN_SRC/api.txt:3: error: Type starts with "?" but doesn't appear to be wildcard: ? blah1 [SignatureFileError]
-                        MAIN_SRC/api.txt:4: error: Format does not support Kotlin-style null type syntax: int? [SignatureFileError]
-                        MAIN_SRC/api.txt:4: error: Invalid nullability suffix on primitive: int? [SignatureFileError]
-                        MAIN_SRC/api.txt:5: error: Could not parse type `Comparable<test.pkg.Foo>blah2`. Found unexpected string after type parameters: blah2 [SignatureFileError]
-                        MAIN_SRC/api.txt:6: error: Format does not support Kotlin-style null type syntax: int? [SignatureFileError]
-                        MAIN_SRC/api.txt:6: error: Invalid nullability suffix on primitive: int? [SignatureFileError]
-                        MAIN_SRC/api.txt:8: error: Type starts with "?" but doesn't appear to be wildcard: ? blah1 [SignatureFileError]
+                        MAIN_SRC/api.txt:3: error: Type starts with "?" but doesn't appear to be wildcard: ? blah1 [TypeParseError]
+                        MAIN_SRC/api.txt:4: error: Format does not support Kotlin-style null type syntax: int? [TypeParseError]
+                        MAIN_SRC/api.txt:4: error: Invalid nullability suffix on primitive: int? [TypeParseError]
+                        MAIN_SRC/api.txt:5: error: Could not parse type `Comparable<test.pkg.Foo>blah2`. Found unexpected string after type parameters: blah2 [TypeParseError]
+                        MAIN_SRC/api.txt:6: error: Format does not support Kotlin-style null type syntax: int? [TypeParseError]
+                        MAIN_SRC/api.txt:6: error: Invalid nullability suffix on primitive: int? [TypeParseError]
+                        MAIN_SRC/api.txt:8: error: Type starts with "?" but doesn't appear to be wildcard: ? blah1 [TypeParseError]
                     """
                         .trimIndent()
                 )
@@ -583,7 +583,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
         ) {
             assertThat(reportedIssues)
                 .isEqualTo(
-                    "MAIN_SRC/api.txt:4: error: Invalid nullability suffix on primitive: int? [SignatureFileError]"
+                    "MAIN_SRC/api.txt:4: error: Invalid nullability suffix on primitive: int? [TypeParseError]"
                 )
 
             val fooClass = codebase.assertClass("test.pkg.Foo")

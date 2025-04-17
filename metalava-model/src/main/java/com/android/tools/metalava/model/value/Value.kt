@@ -16,12 +16,73 @@
 
 package com.android.tools.metalava.model.value
 
+import com.android.tools.metalava.model.ArrayTypeItem
+import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
+import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.javaEscapeString
 import java.util.EnumSet
+import java.util.Objects
 
-/** Represents a value in a [Codebase]. */
+/**
+ * Represents a value in a [Codebase].
+ *
+ * A [Value]'s primary purpose is to ensure consistent behavior irrespective of the source
+ * expression from which it was created, i.e. consumers of [Value]s should not have to worry about
+ * the source expression. e.g. assuming they are being assigned to a `long` field the following
+ * expressions should result in [Value] instances which are equal to each other:
+ * * `3000`
+ * * `3000L`
+ * * `3_000L`
+ *
+ * However, there is also a need to create exactly the same string representations of a [Value] as
+ * are currently produced by the various legacy source representations, which often is affected by
+ * the original source expression. That will require additional information to be kept in the
+ * [Value] about the original source expression. Eventually, the goal will be to deprecate, remove
+ * and stop supporting consuming the legacy source representations but this is needed in the
+ * meantime.
+ *
+ * These two requirements are in conflict and will be resolved on the basis that consistent behavior
+ * is more important in the long term so it will be prioritized for convenience and simplicity.
+ *
+ * Supporting the two requirements will be done by splitting the [Value] state into two sets as
+ * described below.
+ *
+ * ### "Normalized State" ###
+ *
+ * This is the state that is independent of the particular form of the original source expression
+ * from which it was created. Another way of describing it is the value that would be used at
+ * runtime after the compiler has processed the expression, with the caveat that constant fields
+ * will be preserved.
+ *
+ * It has the following characteristics:
+ * 1. It will be accessible through [Value] interfaces.
+ * 2. It will be included in the default output of [Value.toValueString].
+ * 3. It will be compared using [equals] and hashed using [hashCode].
+ *
+ * That last point means it will not be possible to use a [Value] as a key where its legacy
+ * representation is important.
+ *
+ * ### "Legacy State" ###
+ *
+ * This is the state that is dependent on some aspect of the particular form of the original source
+ * expression.
+ *
+ * It has the following characteristics:
+ * 1. It will NOT be accessible through [Value] interfaces.
+ * 2. It will affect the output of [Value.toValueString] when given an appropriate
+ *    [ValueStringConfiguration].
+ * 3. It will be provided via implementations of [debugStringForValue] and used by [toString].
+ *
+ * That last point means that the [toString] value can be used as a key into a cache when the legacy
+ * representation of the cached data is important, e.g. in testing or when preserving legacy
+ * behavior in the output.
+ *
+ * Special support has been added assert equality of [Value]s when the legacy state is important.
+ * See `assertValuesAreStrictlyEqual(...)`.
+ */
 sealed interface Value {
     /** The kind of this [Value]. */
     val kind: ValueKind
@@ -33,7 +94,13 @@ sealed interface Value {
      */
     fun snapshot(targetCodebase: Codebase) = this
 
-    /** A string representation of the value. */
+    /**
+     * A string representation of the value.
+     *
+     * By default, i.e. when [configuration] is equal to [ValueStringConfiguration.DEFAULT], this
+     * will only include "Normalized State" in the returned [String]. However, with a suitable
+     * [ValueStringConfiguration] it may include "Legacy State".
+     */
     fun toValueString(
         configuration: ValueStringConfiguration = ValueStringConfiguration.DEFAULT
     ): String
@@ -43,6 +110,8 @@ sealed interface Value {
      *
      * This is implemented on each sub-interface of [Value] instead of [equals] because interfaces
      * are not allowed to implement [equals].
+     *
+     * Note: This must only compare "Normalized State", see [Value] for more information.
      */
     fun equalToValue(other: Value): Boolean
 
@@ -51,8 +120,31 @@ sealed interface Value {
      *
      * This is implemented on each sub-interface of [Value] instead of [hashCode] because interfaces
      * are not allowed to implement [hashCode].
+     *
+     * Note: This must only hash "Normalized State", see [Value] for more information.
      */
     fun hashCodeForValue(): Int
+
+    /**
+     * Provides a string representation of the complete internal state, both "Normalized" and
+     * "Legacy", useful for debugging and testing.
+     *
+     * See [Value] for an explanation of the terms "Normalized" and "Legacy".
+     *
+     * The [toString] method (which calls this) should be used instead of calling this directly. To
+     * encourage that this is deprecated.
+     *
+     * As this will provide access to "Legacy State" which cannot be exposed through these
+     * interfaces this will need to be implemented in the implementation classes.
+     */
+    @Deprecated(message = "Do not call directly", replaceWith = ReplaceWith("toString()"))
+    fun debugStringForValue() = toValueString()
+
+    /**
+     * The string representation of a [Value] that includes the implementation class name as well as
+     * [debugStringForValue].
+     */
+    override fun toString(): String
 
     /**
      * Companion object implements [ValueFactory] to allow factory methods to be accessed for
@@ -64,10 +156,13 @@ sealed interface Value {
 /**
  * Configuration options for how to represent a value as a string.
  *
+ * @param treatAsIntIfOriginallySpecifiedAsInt Whether to treat a `double`, `float`, or `long` as an
+ *   `int` if it was originally specified as an `int`.
  * @param unwrapSingleArrayElement Whether to add braces around an array that contains only a single
  *   element.
  */
 data class ValueStringConfiguration(
+    val treatAsIntIfOriginallySpecifiedAsInt: Boolean = false,
     val unwrapSingleArrayElement: Boolean = false,
 ) {
     companion object {
@@ -88,9 +183,12 @@ enum class ValueKind(val primitiveKind: Primitive? = null) {
     CHAR(
         primitiveKind = Primitive.CHAR,
     ),
+    CLASS,
+    CONSTANT_FIELD,
     DOUBLE(
         primitiveKind = Primitive.DOUBLE,
     ),
+    ENUM,
     FLOAT(
         primitiveKind = Primitive.FLOAT,
     ),
@@ -123,7 +221,7 @@ enum class ValueKind(val primitiveKind: Primitive? = null) {
 /** A [Value] that is allowed to be used in [ArrayValue.elements]. */
 sealed interface ArrayElementValue : Value
 
-/** A [Value] that can be used in a constant field. */
+/** A [Value] that can be used in a constant field as defined by JLS 15.28. */
 sealed interface ConstantValue : ArrayElementValue
 
 /**
@@ -198,6 +296,12 @@ sealed interface DoubleValue : PrimitiveValue<Double> {
                 (underlyingValue.isNaN() && other.underlyingValue.isNaN()))
 
     override fun hashCodeForValue() = underlyingValue.hashCode()
+
+    companion object {
+        val NaN: DoubleValue = DefaultDoubleValue(Double.NaN)
+        val NEGATIVE_INFINITY: DoubleValue = DefaultDoubleValue(Double.NEGATIVE_INFINITY)
+        val POSITIVE_INFINITY: DoubleValue = DefaultDoubleValue(Double.POSITIVE_INFINITY)
+    }
 }
 
 /** A [Value] that encapsulates a [Float]. */
@@ -216,6 +320,12 @@ sealed interface FloatValue : PrimitiveValue<Float> {
         // No `f` suffix is needed on special values.
         if (underlyingValue.isNaN() || underlyingValue.isInfinite()) underlyingValue.toString()
         else "${underlyingValue}f"
+
+    companion object {
+        val NaN: FloatValue = DefaultFloatValue(Float.NaN)
+        val NEGATIVE_INFINITY: FloatValue = DefaultFloatValue(Float.NEGATIVE_INFINITY)
+        val POSITIVE_INFINITY: FloatValue = DefaultFloatValue(Float.POSITIVE_INFINITY)
+    }
 }
 
 /** A [Value] that encapsulates a [Int]. */
@@ -269,6 +379,90 @@ sealed interface StringValue : LiteralValue<String> {
     }
 }
 
+/**
+ * A [Value] that references a field in class [qualifiedClassName] with name [fieldName].
+ *
+ * Sub-interfaces specialize this for [EnumConstantValue] and [ConstantFieldValue]. The reasons why
+ * they are modelled as two separate interfaces are:
+ * 1. They have different behavior, e.g. [ConstantFieldValue] has an optional [ConstantValue] but
+ *    [EnumConstantValue] does not.
+ * 2. The underlying models treat them differently, e.g. they need to do extra work to provide the
+ *    [ConstantValue] for the [ConstantFieldValue].
+ * 3. They are processed differently, e.g. sometimes the [ConstantFieldValue] is used directly,
+ *    other times its [ConstantValue] is used.
+ */
+sealed interface FieldReferenceValue : ArrayElementValue {
+    /** The qualified name of the class that contains the field. */
+    val qualifiedClassName: String
+
+    /** The name of the field. */
+    val fieldName: String
+
+    fun equalToFieldReferenceValue(other: FieldReferenceValue): Boolean {
+        return qualifiedClassName == other.qualifiedClassName && fieldName == other.fieldName
+    }
+
+    fun hashCodeForFieldReferenceValue() = Objects.hash(qualifiedClassName, fieldName)
+
+    override fun toValueString(configuration: ValueStringConfiguration) =
+        "$qualifiedClassName.$fieldName"
+}
+
+/** A [Value] that represents the initial value of a constant field. */
+sealed interface ConstantFieldValue : FieldReferenceValue {
+    override val kind: ValueKind
+        get() = ValueKind.CONSTANT_FIELD
+
+    /**
+     * The optional constant value of this field.
+     *
+     * Is `null` if the field does not reference a constant value.
+     */
+    val constantValue: ConstantValue?
+
+    override fun equalToValue(other: Value) =
+        other is ConstantFieldValue &&
+            equalToFieldReferenceValue(other) &&
+            constantValue == other.constantValue
+
+    override fun hashCodeForValue() =
+        hashCodeForFieldReferenceValue() * 31 + constantValue.hashCode()
+}
+
+/** A [Value] that represents an enum constant. */
+sealed interface EnumConstantValue : FieldReferenceValue {
+    override val kind: ValueKind
+        get() = ValueKind.ENUM
+
+    override fun equalToValue(other: Value) =
+        other is EnumConstantValue && equalToFieldReferenceValue(other)
+
+    override fun hashCodeForValue() = hashCodeForFieldReferenceValue() * 31
+}
+
+/** A [Value] reference to a [Class] object. */
+sealed interface ClassObjectValue : ArrayElementValue {
+    override val kind: ValueKind
+        get() = ValueKind.CLASS
+
+    /**
+     * The type whose [Class] object this encapsulates.
+     *
+     * Must be one of:
+     * * A [PrimitiveTypeItem].
+     * * A [ClassTypeItem] with no [ClassTypeItem.arguments].
+     * * An [ArrayTypeItem] of one of these (including [ArrayTypeItem]).
+     */
+    val typeItem: TypeItem
+
+    override fun equalToValue(other: Value) =
+        other is ClassObjectValue && typeItem == other.typeItem
+
+    override fun hashCodeForValue() = typeItem.hashCode()
+
+    override fun toValueString(configuration: ValueStringConfiguration) = "$typeItem.class"
+}
+
 /** A [Value] that is an array whose contents are [elements]. */
 sealed interface ArrayValue : Value {
     override val kind: ValueKind
@@ -298,5 +492,6 @@ internal sealed class DefaultValue : Value {
 
     override fun hashCode(): Int = hashCodeForValue()
 
-    override fun toString() = "${javaClass.simpleName}(${toValueString()})"
+    @Suppress("DEPRECATION")
+    override fun toString() = "${javaClass.simpleName}(${debugStringForValue()})"
 }

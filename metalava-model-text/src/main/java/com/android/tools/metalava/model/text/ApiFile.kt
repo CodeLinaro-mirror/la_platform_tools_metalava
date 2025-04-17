@@ -60,7 +60,10 @@ import com.android.tools.metalava.model.item.MutablePackageDoc
 import com.android.tools.metalava.model.item.PackageDocs
 import com.android.tools.metalava.model.item.ParameterDefaultValue
 import com.android.tools.metalava.model.type.MethodFingerprint
-import com.android.tools.metalava.model.value.OptionalValueProvider
+import com.android.tools.metalava.model.type.TypeItemParser
+import com.android.tools.metalava.model.type.TypeItemParserErrorReporter
+import com.android.tools.metalava.model.value.Value
+import com.android.tools.metalava.model.value.ValueParser
 import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.Issues
 import java.io.File
@@ -207,16 +210,11 @@ private constructor(
      */
     private lateinit var fileLocationTracker: FileLocationTracker
 
-    /**
-     * Report recoverable errors encountered while parsing.
-     *
-     * Retrieves the location of the error from [fileLocationTracker].
-     */
-    private val errorReporter =
-        object : SignatureErrorReporter {
+    /** Report recoverable errors encountered while parsing types. */
+    private val typeItemParserErrorReporter =
+        object : TypeItemParserErrorReporter {
             override fun report(issue: Issues.Issue, message: String) {
-                val location = fileLocationTracker.fileLocation()
-                codebase.reporter.report(issue, null, message, location)
+                reportIssue(issue, message)
             }
         }
 
@@ -228,7 +226,7 @@ private constructor(
      */
     private val typeParser by
         lazy(LazyThreadSafetyMode.NONE) {
-            TextTypeParser(codebase, kotlinStyleNulls!!, errorReporter)
+            TextTypeParser(codebase, kotlinStyleNulls!!, typeItemParserErrorReporter)
         }
 
     /**
@@ -241,6 +239,10 @@ private constructor(
 
     /** Creates [Item] instances for [codebase]. */
     private val itemFactory = assembler.itemFactory
+
+    /** The [ValueParser] to use for creating [Value]s from a signature file. */
+    private val valueParser =
+        ValueParser(TypeItemParser.forValueParser(codebase, typeItemParserErrorReporter))
 
     /**
      * Whether types should be interpreted to be in Kotlin format (e.g. ? suffix means nullable, !
@@ -396,6 +398,18 @@ private constructor(
     }
 
     /**
+     * Report a recoverable issue encountered while parsing.
+     *
+     * Retrieves the location of the error from [fileLocationTracker].
+     *
+     * Note: Non-recoverable issues result in an exception being thrown.
+     */
+    private fun reportIssue(issue: Issues.Issue, message: String) {
+        val location = fileLocationTracker.fileLocation()
+        codebase.reporter.report(issue, null, message, location)
+    }
+
+    /**
      * Mark this [SelectableItem] as being part of the main API surface, i.e. the one that is being
      * created.
      *
@@ -485,7 +499,8 @@ private constructor(
         // Disallow a mixture of kotlinStyleNulls settings.
         if (kotlinStyleNulls != null && kotlinStyleNulls != format.kotlinStyleNulls) {
             val precedingFile = precedingTracker!!.fileLocation().path
-            errorReporter.report(
+            reportIssue(
+                Issues.SIGNATURE_FILE_ERROR,
                 "Preceding file $precedingFile has different setting of kotlin-style-nulls which may cause issues"
             )
         }
@@ -1246,6 +1261,11 @@ private constructor(
             throw ApiParseException("expected ; found $token", tokenizer)
         }
 
+        val defaultValueProvider =
+            if (defaultAnnotationMethodValue.isNotEmpty())
+                valueParser.providerFor(returnType, defaultAnnotationMethodValue)
+            else null
+
         method =
             itemFactory.createMethodItem(
                 fileLocation = tokenizer.fileLocation(),
@@ -1259,7 +1279,7 @@ private constructor(
                     createParameterItems(containingCallable, parameters, typeItemFactory)
                 },
                 throwsTypes = throwsList,
-                defaultValueProvider = OptionalValueProvider.NO_VALUE,
+                defaultValueProvider = defaultValueProvider,
                 annotationDefault = defaultAnnotationMethodValue,
             )
 
@@ -1333,6 +1353,8 @@ private constructor(
         // Defer parsing the value string until needed.
         val fieldValue = valueString?.let { TextFieldValue(type, it) }
 
+        val initialValueProvider = valueString?.let { valueParser.providerFor(type, it) }
+
         if (";" != token) {
             throw ApiParseException("expected ; found $token", tokenizer)
         }
@@ -1345,7 +1367,7 @@ private constructor(
                 containingClass = cl,
                 type = type,
                 isEnumConstant = isEnumConstant,
-                initialValueProvider = OptionalValueProvider.NO_VALUE,
+                initialValueProvider = initialValueProvider,
                 fieldValue = fieldValue,
             )
         field.markForMainApiSurface()
@@ -1627,7 +1649,7 @@ private constructor(
     ): TypeParameterListAndFactory<TextTypeItemFactory> {
         // Split the type parameter list string into a list of strings, one for each type
         // parameter.
-        val typeParameterStrings = TextTypeParser.typeParameterStrings(typeParameterListString)
+        val typeParameterStrings = TypeItemParser.typeParameterStrings(typeParameterListString)
 
         // Create the List<TypeParameterItem> and the corresponding TypeItemFactory that can be
         // used to resolve TypeParameterItems from the list. This performs the construction in two

@@ -210,6 +210,7 @@ Available Issues                             |  Category                |   Defa
   SuperfluousPrefix                          |  unknown                 |   warning
   Todo                                       |  documentation           |   error
   TopLevelBuilder                            |  api_lint                |   warning
+  TypeParseError                             |  unknown                 |   error
   UnavailableSymbol                          |  documentation           |   warning
   UnflaggedApi                               |  api_lint                |   hidden
   UnhiddenSystemApi                          |  api_lint                |   error

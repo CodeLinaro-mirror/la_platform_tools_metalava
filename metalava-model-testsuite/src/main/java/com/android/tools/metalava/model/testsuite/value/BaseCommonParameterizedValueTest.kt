@@ -23,6 +23,8 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.junit4.ParameterFilter
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.CodebaseCreatorConfig
+import com.android.tools.metalava.model.testing.value.assertValuesAreStrictlyEqual
+import com.android.tools.metalava.model.testing.value.runValueTest
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.model.testsuite.ModelSuiteRunner
 import com.android.tools.metalava.model.testsuite.value.BaseCommonParameterizedValueTest.Companion.testCases
@@ -32,7 +34,6 @@ import com.android.tools.metalava.model.testsuite.value.TestClassCreator.Compani
 import com.android.tools.metalava.model.testsuite.value.TestClassCreator.Companion.FIELD_NAME
 import com.android.tools.metalava.model.testsuite.value.ValueExample.Companion.valueExamples
 import com.android.tools.metalava.model.value.Value
-import com.android.tools.metalava.model.value.ValueProviderException
 import com.android.tools.metalava.testing.EntryPointCallerRule
 import com.android.tools.metalava.testing.TestFileCache
 import com.android.tools.metalava.testing.cacheIn
@@ -428,7 +429,7 @@ abstract class BaseCommonParameterizedValueTest(
             val actual = actualGetter()
 
             // Get the expected value.
-            val expected = expectation.expectationFor(producerKind, valueUseSite, codebase)
+            val expected = expectation.expectationFor(producerKind, valueUseSite)
 
             // Compare the two.
             if (expected is Array<*> && actual is Array<*>) {
@@ -481,34 +482,23 @@ abstract class BaseCommonParameterizedValueTest(
                 )
 
         runTestOnCodebase {
-            // Get the actual value.
-            // ValueProviderExceptions are not treated as test failures at the moment to avoid
-            // having to keep updating baseline files while expanding Value support across the
-            // models.
-            // TODO(b/354633349): Stop ignoring exceptions.
-            val actual =
-                try {
-                    actualValueGetter()
-                } catch (e: ValueProviderException) {
-                    throw AssumptionViolatedException(
-                        "Ignoring exception thrown while retrieving value",
-                        e
-                    )
-                }
-
             // Get the expected value.
-            val expected = expectation.expectationFor(producerKind, valueUseSite, codebase)
+            expectation.expectationFor(producerKind, valueUseSite).runValueTest { expected ->
 
-            // A null value being returned when the expectation is non-null is not treated as an
-            // error at the moment to avoid having to keep updating baseline files while expanding
-            // Value support across the models.
-            // TODO(b/354633349): Stop ignoring mismatch when actual is null.
-            if (expected != null && actual == null) {
-                throw AssumptionViolatedException("Ignoring null value")
+                // Get the actual value.
+                val actual =
+                    actualValueGetter()
+                        ?:
+                        // A null value being returned when the expectation is non-null is not
+                        // treated as an error at the moment to avoid having to keep updating
+                        // baseline files while expanding Value support across the models.
+                        // TODO(b/354633349): Stop ignoring mismatch when actual is null.
+                        throw AssumptionViolatedException("Ignoring null value")
+
+                // Strictly compare the Values to ensure that where necessary they have included any
+                // information needed to generate correct legacy string representations.
+                assertValuesAreStrictlyEqual(expected, actual)
             }
-
-            // Compare the two.
-            assertEquals(expected, actual)
         }
     }
 }
@@ -755,6 +745,15 @@ object KotlinTestClassCreator : TestClassCreator {
             .asTestClass("OtherAnnotation")
             .dependsOn(testEnumClass)
 
+    /** Append all the imports provided by this list to [buffer]. */
+    private fun appendImportsTo(valueExample: ValueExample, buffer: StringBuilder) {
+        for (javaImport in valueExample.javaImports) {
+            buffer.append("import ")
+            buffer.append(javaImport)
+            buffer.append("\n")
+        }
+    }
+
     /**
      * Create an annotation [TestClass] for [valueExample].
      *
@@ -771,14 +770,15 @@ object KotlinTestClassCreator : TestClassCreator {
         return kotlin(
                 buildString {
                     append("package test.pkg\n")
+                    appendImportsTo(valueExample, this)
                     append("annotation class $className(\n")
                     append("    val ")
                     append(ATTRIBUTE_NAME)
                     append(": ")
-                    append(valueExample.kotlinType)
+                    append(valueExample.kotlinTypeForAnnotation)
                     if (withDefaults) {
                         append(" = ")
-                        append(valueExample.kotlinExpression)
+                        append(valueExample.kotlinExpressionForAnnotation)
                     }
                     append("\n")
                     append(")\n")
@@ -807,12 +807,13 @@ object KotlinTestClassCreator : TestClassCreator {
         return kotlin(
                 buildString {
                     append("package test.pkg\n")
+                    appendImportsTo(valueExample, this)
                     append("@")
                     append(annotationTestClass.className)
                     append("(")
                     append(ATTRIBUTE_NAME)
                     append(" = ")
-                    append(valueExample.kotlinExpression)
+                    append(valueExample.kotlinExpressionForAnnotation)
                     append(")\n")
                     append("class $className {}\n")
                 }
@@ -835,6 +836,7 @@ object KotlinTestClassCreator : TestClassCreator {
         return kotlin(
                 buildString {
                     append("package test.pkg\n")
+                    appendImportsTo(valueExample, this)
                     append("class $className {\n")
                     append("    companion object {\n")
                     append("        const val ")

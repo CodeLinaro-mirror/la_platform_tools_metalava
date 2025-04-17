@@ -15,7 +15,12 @@
  */
 package com.android.tools.metalava.model.value
 
+import com.android.tools.metalava.model.testing.arrayTypeItem
+import com.android.tools.metalava.model.testing.classTypeItem
+import com.android.tools.metalava.model.testing.stringType
 import com.android.tools.metalava.model.testing.value.arrayValueFromAny
+import com.android.tools.metalava.model.testing.variableTypeItem
+import com.android.tools.metalava.model.testing.wildcardTypeItem
 import kotlin.test.assertEquals
 import kotlin.test.assertSame
 import org.junit.Assert.assertThrows
@@ -63,6 +68,51 @@ class ValueFactoryTest {
             """
                 .trimIndent(),
             exception.message?.trimEnd()
+        )
+    }
+
+    @Test
+    fun `createClassObjectValue - invalid variable type`() {
+        val exception =
+            assertThrows(IllegalStateException::class.java) {
+                Value.createClassObjectValue(variableTypeItem("T"))
+            }
+
+        assertEquals("'T' is an invalid type for a class object value", exception.message)
+    }
+
+    @Test
+    fun `createClassObjectValue - array of invalid variable type`() {
+        val exception =
+            assertThrows(IllegalStateException::class.java) {
+                Value.createClassObjectValue(arrayTypeItem(variableTypeItem("T")))
+            }
+
+        assertEquals("'T' is an invalid type for a class object value", exception.message)
+    }
+
+    @Test
+    fun `createClassObjectValue - invalid wildcard type`() {
+        val exception =
+            assertThrows(IllegalStateException::class.java) {
+                Value.createClassObjectValue(wildcardTypeItem())
+            }
+
+        assertEquals("'?' is an invalid type for a class object value", exception.message)
+    }
+
+    @Test
+    fun `createClassObjectValue - invalid class arguments`() {
+        val exception =
+            assertThrows(IllegalStateException::class.java) {
+                Value.createClassObjectValue(
+                    classTypeItem("java.util.List", arguments = listOf(stringType()))
+                )
+            }
+
+        assertEquals(
+            "'java.util.List<java.lang.String>' is an invalid type for a class object value as it has type arguments",
+            exception.message
         )
     }
 }

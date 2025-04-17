@@ -16,8 +16,16 @@
 
 package com.android.tools.metalava.model.value
 
+import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
+import com.android.tools.metalava.model.testing.arrayTypeItem
+import com.android.tools.metalava.model.testing.primitiveTypeForKind
+import com.android.tools.metalava.model.testing.stringType
 import com.android.tools.metalava.model.testing.value.arrayValueFromAny
+import com.android.tools.metalava.model.testing.value.classObjectValue
+import com.android.tools.metalava.model.testing.value.constantFieldValue
+import com.android.tools.metalava.model.testing.value.enumConstantValue
 import com.android.tools.metalava.model.testing.value.literalValue
+import com.android.tools.metalava.model.testing.value.primitiveValueForKind
 import com.android.tools.metalava.testing.EntryPoint
 import com.android.tools.metalava.testing.EntryPointCallerRule
 import com.android.tools.metalava.testing.EntryPointCallerTracker
@@ -82,6 +90,14 @@ class ParameterizedValueStringTest {
     ) {
         companion object {
             val DEFAULT = LabelledConfig("default", ValueStringConfiguration.DEFAULT)
+
+            val TREAT_AS_INT =
+                LabelledConfig(
+                    "treat-as-int",
+                    ValueStringConfiguration(
+                        treatAsIntIfOriginallySpecifiedAsInt = true,
+                    )
+                )
 
             val UNWRAP_SINGLE_ARRAY_ELEMENT =
                 LabelledConfig("unwrap", ValueStringConfiguration(unwrapSingleArrayElement = true))
@@ -241,11 +257,43 @@ class ParameterizedValueStringTest {
                     value = literalValue('\u1245'),
                     expectedDefaultString = "'\\u1245'",
                 ),
+                // ********************************* Classes *********************************
+                testCasesForValue(
+                    value = classObjectValue(primitiveTypeForKind(Primitive.VOID)),
+                    expectedDefaultString = "void.class",
+                ),
+                testCasesForValue(
+                    value = classObjectValue(primitiveTypeForKind(Primitive.INT)),
+                    expectedDefaultString = "int.class",
+                ),
+                testCasesForValue(
+                    value = classObjectValue(stringType()),
+                    expectedDefaultString = "java.lang.String.class",
+                ),
+                testCasesForValue(
+                    value = classObjectValue(arrayTypeItem(primitiveTypeForKind(Primitive.INT))),
+                    expectedDefaultString = "int[].class",
+                ),
+                testCasesForValue(
+                    value = classObjectValue(arrayTypeItem(arrayTypeItem(stringType()))),
+                    expectedDefaultString = "java.lang.String[][].class",
+                ),
+                // ****************************** Constant Fields ******************************
+                testCasesForValue(
+                    value = constantFieldValue("test.pkg.AClass", "FIELD"),
+                    expectedDefaultString = "test.pkg.AClass.FIELD",
+                ),
+                testCasesForValue(
+                    value = constantFieldValue("test.pkg.AClass", "FIELD", literalValue(2)),
+                    expectedDefaultString = "test.pkg.AClass.FIELD",
+                ),
                 // ********************************* Doubles *********************************
                 testCasesForValue(
                     value = literalValue(0.0),
                     expectedDefaultString = "0.0",
-                ),
+                ) {
+                    verifyConfigMatchesDefault(LabelledConfig.TREAT_AS_INT)
+                },
                 testCasesForValue(
                     value = literalValue(Double.MAX_VALUE),
                     expectedDefaultString = "1.7976931348623157E308",
@@ -266,11 +314,25 @@ class ParameterizedValueStringTest {
                     value = literalValue(Double.POSITIVE_INFINITY),
                     expectedDefaultString = "Infinity",
                 ),
+                testCasesForValue(
+                    "double as int",
+                    value = primitiveValueForKind(Primitive.DOUBLE, 3),
+                    expectedDefaultString = "3.0",
+                ) {
+                    verifyConfigChangesOutput(LabelledConfig.TREAT_AS_INT, "3")
+                },
+                // ********************************* Enum *********************************
+                testCasesForValue(
+                    value = enumConstantValue("test.pkg.EnumClass", "VALUE1"),
+                    expectedDefaultString = "test.pkg.EnumClass.VALUE1",
+                ),
                 // ********************************* Floats *********************************
                 testCasesForValue(
                     value = literalValue(0.0f),
                     expectedDefaultString = "0.0f",
-                ),
+                ) {
+                    verifyConfigMatchesDefault(LabelledConfig.TREAT_AS_INT)
+                },
                 testCasesForValue(
                     value = literalValue(Float.MAX_VALUE),
                     expectedDefaultString = "3.4028235E38f",
@@ -291,6 +353,13 @@ class ParameterizedValueStringTest {
                     value = literalValue(Float.POSITIVE_INFINITY),
                     expectedDefaultString = "Infinity",
                 ),
+                testCasesForValue(
+                    "float as int",
+                    value = primitiveValueForKind(Primitive.FLOAT, 3),
+                    expectedDefaultString = "3.0f",
+                ) {
+                    verifyConfigChangesOutput(LabelledConfig.TREAT_AS_INT, "3")
+                },
                 // ********************************* Ints *********************************
                 testCasesForValue(
                     value = literalValue(0),
@@ -308,7 +377,9 @@ class ParameterizedValueStringTest {
                 testCasesForValue(
                     value = literalValue(0L),
                     expectedDefaultString = "0L",
-                ),
+                ) {
+                    verifyConfigMatchesDefault(LabelledConfig.TREAT_AS_INT)
+                },
                 testCasesForValue(
                     value = literalValue(Long.MAX_VALUE),
                     expectedDefaultString = "9223372036854775807L",
@@ -317,6 +388,13 @@ class ParameterizedValueStringTest {
                     value = literalValue(Long.MIN_VALUE),
                     expectedDefaultString = "-9223372036854775808L",
                 ),
+                testCasesForValue(
+                    "long as int",
+                    value = primitiveValueForKind(Primitive.LONG, 3),
+                    expectedDefaultString = "3L",
+                ) {
+                    verifyConfigChangesOutput(LabelledConfig.TREAT_AS_INT, "3")
+                },
                 // ********************************* Shorts *********************************
                 testCasesForValue(
                     value = literalValue(0.toShort()),
