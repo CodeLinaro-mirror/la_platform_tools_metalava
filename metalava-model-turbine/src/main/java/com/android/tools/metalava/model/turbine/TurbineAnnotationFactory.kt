@@ -72,8 +72,11 @@ internal class TurbineAnnotationFactory(
                 ?.let { sourceFile -> TurbineFileLocation.forTree(sourceFile, tree) }
                 ?: FileLocation.UNKNOWN
 
-        return DefaultAnnotationItem.create(codebase, fileLocation, qualifiedName) { annotationItem
-            ->
+        return DefaultAnnotationItem.createAttributesLazily(
+            codebase,
+            fileLocation,
+            qualifiedName
+        ) { annotationItem ->
             getAnnotationAttributes(annotationItem, annotation.values(), tree?.args())
         }
     }

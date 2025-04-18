@@ -42,8 +42,10 @@ com.android.tools.metalava.model.testsuite.value.CommonParameterizedAnnotationTo
   testLegacySource[source,annotation]
   testLegacySource[source,double NaN]
   testLegacySource[source,double with int]
+  testLegacySource[source,field - generic class constant]
   testLegacySource[source,float NaN]
   testLegacySource[source,float with int]
+  testLegacySource[source,int - complex]
   testLegacySource[source,int positive]
   testLegacySource[source,long with int]
 
@@ -62,6 +64,7 @@ com.android.tools.metalava.model.testsuite.value.CommonParameterizedAttributeDef
 
 com.android.tools.metalava.model.testsuite.value.CommonParameterizedAttributeValueTest
   testAttributeValue[source,String using constant]
+  testAttributeValue[source,field - generic class constant]
   testLegacySource[jar,annotation]
   testLegacySource[jar,char unicode]
   testLegacySource[jar,double NaN]
@@ -79,12 +82,14 @@ com.android.tools.metalava.model.testsuite.value.CommonParameterizedAttributeVal
   testLegacySource[source,double with exponent]
   testLegacySource[source,double with int]
   testLegacySource[source,enum]
+  testLegacySource[source,field - generic class constant]
   testLegacySource[source,float NaN]
   testLegacySource[source,float negative infinity]
   testLegacySource[source,float positive infinity]
   testLegacySource[source,float with exponent]
   testLegacySource[source,float with int]
   testLegacySource[source,float with upper F]
+  testLegacySource[source,int - complex]
   testLegacySource[source,int negative]
   testLegacySource[source,int positive]
   testLegacySource[source,long with int]
@@ -99,6 +104,7 @@ com.android.tools.metalava.model.testsuite.value.CommonParameterizedAttributeVal
   testLegacyValue[source,byte]
   testLegacyValue[source,double with int]
   testLegacyValue[source,float with int]
+  testLegacyValue[source,int - complex]
   testLegacyValue[source,long with int]
   testLegacyValue[source,short]
 

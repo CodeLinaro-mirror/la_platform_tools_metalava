@@ -102,10 +102,6 @@ com.android.tools.metalava.RequiresFeatureTest
   Check RequiresFeature handling - missing feature[turbine]
   Check RequiresFeature handling[turbine]
 
-com.android.tools.metalava.SdkFileWriterTest
-  Test generating activity actions[turbine]
-  Test generating broadcast actions[turbine]
-
 com.android.tools.metalava.ShowAnnotationTest
   Can't expose item from a hidden parent[turbine]
   Testing parsing an annotation whose attribute references the annotated class[turbine]

@@ -16,13 +16,27 @@
 
 package com.android.tools.metalava.model.value
 
+import com.android.tools.metalava.model.ClassTypeItem
+
+/** Base class for [FieldReferenceValue] implementations. */
+internal abstract class DefaultFieldReferenceValue(
+    final override val classTypeItem: ClassTypeItem,
+    final override val fieldName: String,
+) : DefaultValue(), FieldReferenceValue {
+    init {
+        require(classTypeItem.arguments.isEmpty()) {
+            "Class type item ($classTypeItem) should not have any arguments"
+        }
+    }
+}
+
 internal class DefaultConstantFieldValue(
-    override val qualifiedClassName: String,
-    override val fieldName: String,
+    classTypeItem: ClassTypeItem,
+    fieldName: String,
     override val constantValue: ConstantValue?,
-) : DefaultValue(), ConstantFieldValue
+) : DefaultFieldReferenceValue(classTypeItem, fieldName), ConstantFieldValue
 
 internal class DefaultEnumConstantValue(
-    override val qualifiedClassName: String,
-    override val fieldName: String,
-) : DefaultValue(), EnumConstantValue
+    classTypeItem: ClassTypeItem,
+    fieldName: String,
+) : DefaultFieldReferenceValue(classTypeItem, fieldName), EnumConstantValue

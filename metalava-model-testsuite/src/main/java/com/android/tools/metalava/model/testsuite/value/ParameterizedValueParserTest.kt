@@ -57,7 +57,7 @@ class ParameterizedValueParserTest : BaseModelTest() {
         val label: String,
         /** The [ValueExample] on which this test case is based. */
         val valueExample: ValueExample,
-        val javaType: String,
+        val signatureType: String,
         val input: String,
         val expectedValue: Value,
     ) {
@@ -67,7 +67,7 @@ class ParameterizedValueParserTest : BaseModelTest() {
 
             other as TestCase
 
-            if (javaType != other.javaType) return false
+            if (signatureType != other.signatureType) return false
             if (input != other.input) return false
             if (expectedValue != other.expectedValue) return false
 
@@ -120,7 +120,11 @@ class ParameterizedValueParserTest : BaseModelTest() {
         private val testCases =
             valueExamples
                 .flatMap { valueExample ->
-                    val javaType = valueExample.javaType
+                    // If the example is not suitable for signature files then ignore it.
+                    if (InputFormat.SIGNATURE !in valueExample.validForInputFormats)
+                        return@flatMap emptyList()
+
+                    val signatureType = valueExample.signatureType
                     buildList {
                         // Iterate over jar and source representations.
                         for (producerKind in ProducerKind.entries) {
@@ -137,7 +141,7 @@ class ParameterizedValueParserTest : BaseModelTest() {
                                 TestCase(
                                     "${valueExample.name},javaExpression,${producerKind.name.lowercase()}",
                                     valueExample,
-                                    javaType,
+                                    signatureType,
                                     valueExample.signatureExpression,
                                     expectedValue
                                 )
@@ -165,7 +169,7 @@ class ParameterizedValueParserTest : BaseModelTest() {
                                         TestCase(
                                             label,
                                             valueExample,
-                                            javaType,
+                                            signatureType,
                                             input,
                                             expectedValue
                                         )
@@ -204,7 +208,7 @@ class ParameterizedValueParserTest : BaseModelTest() {
                     // Signature format: 2.0
                     package test.pkg {
                       public class Foo {
-                        field public static final ${testCase.javaType} FIELD;
+                        field public static final ${testCase.signatureType} FIELD;
                       }
                     }
                 """

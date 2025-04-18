@@ -39,6 +39,7 @@ import com.android.tools.metalava.model.value.ValueFactory
 import com.android.tools.metalava.model.value.ValueProvider
 import com.android.tools.metalava.model.value.ValueProviderException
 import com.android.tools.metalava.model.value.ValueUseSite
+import com.intellij.psi.JavaPsiFacade
 import com.intellij.psi.PsiAnnotationMemberValue
 import com.intellij.psi.PsiArrayInitializerMemberValue
 import com.intellij.psi.PsiClassObjectAccessExpression
@@ -398,6 +399,13 @@ internal class PsiValueFactory(
 
         // All others expressions are evaluated to a literal, if possible and returned.
         ConstantEvaluator.evaluate(null, psiValue)?.let { value ->
+            return createLiteralValue(optionalTypeItem, value)
+        }
+
+        // Temporarily fall through to use PsiConstantEvaluationHelper
+        // TODO(b/408445860): Remove once ConstantEvaluator can handle the necessary cases.
+        val javaPsiFacade = JavaPsiFacade.getInstance(codebase.project)
+        javaPsiFacade.constantEvaluationHelper.computeConstantExpression(psiValue)?.let { value ->
             return createLiteralValue(optionalTypeItem, value)
         }
 

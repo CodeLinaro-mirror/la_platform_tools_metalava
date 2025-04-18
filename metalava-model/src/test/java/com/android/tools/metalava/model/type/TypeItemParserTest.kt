@@ -141,7 +141,7 @@ class TypeItemParserTest {
         assertThat(type).isEqualTo(expectedType)
         val expectedAnnotationItems =
             expectedAnnotations.map {
-                DefaultAnnotationItem.create(typeParser.annotationContext, it)
+                DefaultAnnotationItem.createFromSource(typeParser.annotationContext, it)
             }
         assertThat(annotations).isEqualTo(expectedAnnotationItems)
     }
@@ -291,7 +291,7 @@ class TypeItemParserTest {
         assertThat(params).isEqualTo(expectedParams)
         val expectedAnnotationItems =
             expectedAnnotations.map {
-                DefaultAnnotationItem.create(typeParser.annotationContext, it)
+                DefaultAnnotationItem.createFromSource(typeParser.annotationContext, it)
             }
         assertThat(annotations).isEqualTo(expectedAnnotationItems)
     }

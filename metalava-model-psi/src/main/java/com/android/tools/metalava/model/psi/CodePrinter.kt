@@ -325,8 +325,8 @@ class CodePrinter(
                 return true
             }
         } else if (expression is UAnnotation) {
-            sb.append('@').append(expression.qualifiedName)
-            return true
+            // TODO(b/354633349): Remove this branch once it has been shown that it is never taken.
+            error("$expression is both a UExpression and a UAnnotation")
         } else if (expression is UBinaryExpressionWithType) {
             if ((expression).isTypeCast()) {
                 sb.append('(').append(expression.type.canonicalText).append(')')
