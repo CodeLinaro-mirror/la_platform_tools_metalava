@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2020 The Android Open Source Project
+ * Copyright (C) 2025 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,21 +13,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.android.tools.metalava.model.text
+package com.android.tools.metalava.model.parser
 
 import com.android.tools.metalava.model.MetalavaApi
-import com.android.tools.metalava.model.parser.FileLocationTracker
-import com.android.tools.metalava.model.parser.ParseException
 import com.android.tools.metalava.reporter.FileLocation
 
 @MetalavaApi
-class ApiParseException(
+open class ParseException(
     message: String,
-    location: FileLocation? = null,
-) : ParseException(message, location) {
+    private val location: FileLocation? = null,
+) : Exception(message) {
 
-    internal constructor(
-        message: String,
-        fileLocationTracker: FileLocationTracker,
-    ) : this(message, fileLocationTracker.fileLocation())
+    override val message: String
+        get() {
+            return buildString {
+                location?.appendTo(this)
+                if (isNotEmpty()) {
+                    append(": ")
+                }
+                append(super.message)
+            }
+        }
 }

@@ -837,12 +837,24 @@ abstract class DefaultAnnotationValue(sourceGetter: () -> String) : AnnotationAt
                         when {
                             valueSource == ANNOTATION_VALUE_TRUE -> true
                             valueSource == ANNOTATION_VALUE_FALSE -> false
-                            valueSource.startsWith("\"") -> valueSource.removeSurrounding("\"")
-                            valueSource.startsWith('\'') -> valueSource.removeSurrounding("'")[0]
+                            valueSource.startsWith("\"") ->
+                                javaUnescapeString(valueSource.removeSurrounding("\""))
+                            valueSource.startsWith('\'') ->
+                                javaUnescapeString(valueSource.removeSurrounding("'"))[0]
                             else ->
                                 try {
                                     if (valueSource.contains(".")) {
-                                        valueSource.toDouble()
+                                        if (
+                                            valueSource.endsWith("f") || valueSource.endsWith("F")
+                                        ) {
+                                            valueSource.dropLast(1).toFloat()
+                                        } else {
+                                            valueSource.toDouble()
+                                        }
+                                    } else if (
+                                        valueSource.endsWith("L") || valueSource.endsWith("l")
+                                    ) {
+                                        valueSource.dropLast(1).toLong()
                                     } else {
                                         valueSource.toLong()
                                     }

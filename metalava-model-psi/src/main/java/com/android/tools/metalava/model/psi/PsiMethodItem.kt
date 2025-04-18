@@ -32,6 +32,7 @@ import com.android.tools.metalava.model.psi.PsiCallableItem.Companion.parameterL
 import com.android.tools.metalava.model.psi.PsiCallableItem.Companion.throwsTypes
 import com.android.tools.metalava.model.type.MethodFingerprint
 import com.android.tools.metalava.model.value.OptionalValueProvider
+import com.android.tools.metalava.model.value.ValueUseSite
 import com.android.tools.metalava.reporter.FileLocation
 import com.intellij.psi.PsiAnnotationMethod
 import com.intellij.psi.PsiMethod
@@ -243,12 +244,20 @@ internal class PsiMethodItem(
                 when (psiMethod) {
                     is UAnnotationMethod -> {
                         psiMethod.uastDefaultValue?.let { uDefaultValue ->
-                            codebase.valueFactory.providerFor(returnType, uDefaultValue)
+                            codebase.valueFactory.providerFor(
+                                returnType,
+                                uDefaultValue,
+                                ValueUseSite.ANNOTATION,
+                            )
                         }
                     }
                     is PsiAnnotationMethod -> {
                         psiMethod.defaultValue?.let { psiDefaultValue ->
-                            codebase.valueFactory.providerFor(returnType, psiDefaultValue)
+                            codebase.valueFactory.providerFor(
+                                returnType,
+                                psiDefaultValue,
+                                ValueUseSite.ANNOTATION,
+                            )
                         }
                     }
                     else -> null

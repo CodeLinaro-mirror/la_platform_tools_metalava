@@ -88,6 +88,15 @@ sealed interface Value {
     val kind: ValueKind
 
     /**
+     * Get this [Value] as a [LiteralValue], or return `null` if it cannot be represented as one.
+     *
+     * This will return `null` for every [Value] except [LiteralValue] and maybe
+     * [ConstantFieldValue], which will return delegate this call to its
+     * [ConstantFieldValue.constantValue].
+     */
+    fun asLiteralValue(): LiteralValue<*>? = null
+
+    /**
      * Create a snapshot for this suitable for use in [targetCodebase].
      *
      * This is needed as some [Value]s will reference items in the [Codebase].
@@ -237,6 +246,9 @@ sealed interface LiteralValue<T : Any> : ConstantValue {
      * Will be a primitive type's object wrapper (e.g. [java.lang.Integer]) or a [String].
      */
     val underlyingValue: T
+
+    /** This is a [LiteralValue]. */
+    override fun asLiteralValue() = this
 
     /**
      * Default implementation just returns the underlying value's standard [String.toString] value.
@@ -419,6 +431,9 @@ sealed interface ConstantFieldValue : FieldReferenceValue {
      * Is `null` if the field does not reference a constant value.
      */
     val constantValue: ConstantValue?
+
+    /** The [constantValue], if present, may be a [LiteralValue]. */
+    override fun asLiteralValue() = constantValue?.asLiteralValue()
 
     override fun equalToValue(other: Value) =
         other is ConstantFieldValue &&

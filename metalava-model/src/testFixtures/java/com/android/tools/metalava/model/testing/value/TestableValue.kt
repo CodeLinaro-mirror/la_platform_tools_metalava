@@ -80,11 +80,9 @@ private val fullySupportedValueKinds =
  * Run a test on this [Value] ignoring any [ValueProviderException]s if its [Value.kind] is not
  * fully supported across model implementations.
  */
-fun Value?.runValueTest(body: (Value) -> Unit) {
-    this ?: return
-
-    // Check whether this kind is fully supported.
-    val fullySupported = kind in fullySupportedValueKinds
+fun Value?.runValueTest(body: (Value?) -> Unit) {
+    // Check whether this kind is fully supported, assume they are if this is null.
+    val fullySupported = this?.kind?.let { kind -> kind in fullySupportedValueKinds } ?: true
 
     // ValueProviderExceptions are not treated as test failures if the value kind is not fully
     // supported to avoid having to keep updating baseline files while expanding Value support

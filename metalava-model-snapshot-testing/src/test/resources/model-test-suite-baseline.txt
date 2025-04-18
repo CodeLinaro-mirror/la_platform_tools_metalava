@@ -143,7 +143,6 @@ com.android.tools.metalava.model.testsuite.typeitem.CommonTypeStringTest
   Type string[psi,java,k2,null annotated parameterized inner type - kotlin nulls]
 
 com.android.tools.metalava.model.testsuite.value.CommonParameterizedAnnotationToSourceValueTest
-  testLegacySource[text,source,String using constant]
   testLegacySource[text,source,annotation]
   testLegacySource[text,source,char escaped]
   testLegacySource[text,source,char unicode]
@@ -182,7 +181,6 @@ com.android.tools.metalava.model.testsuite.value.CommonParameterizedAnnotationTo
 
 com.android.tools.metalava.model.testsuite.value.CommonParameterizedAttributeDefaultValueTest
   testLegacySource[text,source,String array]
-  testLegacySource[text,source,String using constant]
   testLegacySource[text,source,annotation]
   testLegacySource[text,source,char escaped]
   testLegacySource[text,source,char unicode]
@@ -222,7 +220,6 @@ com.android.tools.metalava.model.testsuite.value.CommonParameterizedAttributeVal
   testLegacySource[text,source,class literal - array of generic class]
   testLegacySource[text,source,class literal - basic class]
   testLegacySource[text,source,class literal - generic class]
-  testLegacySource[text,source,enum]
   testLegacySource[turbine,jar,annotation]
   testLegacySource[turbine,jar,char unicode]
   testLegacySource[turbine,jar,double NaN]
@@ -250,9 +247,8 @@ com.android.tools.metalava.model.testsuite.value.CommonParameterizedAttributeVal
   testLegacySource[turbine,source,int positive]
   testLegacySource[turbine,source,long with int]
   testLegacySource[turbine,source,long with lower l]
-  testLegacyValue[text,source,String escaped]
-  testLegacyValue[text,source,String using constant]
   testLegacyValue[text,source,annotation]
+  testLegacyValue[text,source,array - empty]
   testLegacyValue[text,source,byte]
   testLegacyValue[text,source,char escaped]
   testLegacyValue[text,source,char unicode]
@@ -276,14 +272,10 @@ com.android.tools.metalava.model.testsuite.value.CommonParameterizedAttributeVal
   testLegacyValue[text,source,float positive infinity]
   testLegacyValue[text,source,float with exponent]
   testLegacyValue[text,source,float with int]
-  testLegacyValue[text,source,float with lower f]
-  testLegacyValue[text,source,float with upper F]
   testLegacyValue[text,source,int negative]
   testLegacyValue[text,source,int positive]
   testLegacyValue[text,source,int]
   testLegacyValue[text,source,long with int]
-  testLegacyValue[text,source,long with lower l]
-  testLegacyValue[text,source,long with upper L]
   testLegacyValue[text,source,short]
   testLegacyValue[turbine,jar,annotation]
   testLegacyValue[turbine,jar,byte]
@@ -299,8 +291,6 @@ com.android.tools.metalava.model.testsuite.value.CommonParameterizedAttributeVal
   testLegacyValue[turbine,source,short]
 
 com.android.tools.metalava.model.testsuite.value.CommonParameterizedFieldValueTest
-  testFieldValue[turbine,source,String using constant]
-  testLegacyValue[text,source,String using constant]
   testLegacyValue[text,source,byte]
   testLegacyValue[text,source,class literal - array of basic class]
   testLegacyValue[text,source,class literal - array of generic class]
@@ -327,7 +317,6 @@ com.android.tools.metalava.model.testsuite.value.CommonParameterizedFieldValueTe
   testLegacyValue[turbine,jar,float positive infinity]
 
 com.android.tools.metalava.model.testsuite.value.CommonParameterizedFieldWriteWithSemicolonValueTest
-  testLegacySource[text,source,String using constant]
   testLegacySource[text,source,class literal - array of basic class]
   testLegacySource[text,source,class literal - array of generic class]
   testLegacySource[text,source,class literal - basic class]
@@ -340,7 +329,6 @@ com.android.tools.metalava.model.testsuite.value.CommonParameterizedFieldWriteWi
   testLegacySource[text,source,double NaN]
   testLegacySource[text,source,double negative infinity]
   testLegacySource[text,source,double positive infinity]
-  testLegacySource[text,source,enum]
   testLegacySource[text,source,float NaN]
   testLegacySource[text,source,float negative infinity]
   testLegacySource[text,source,float positive infinity]

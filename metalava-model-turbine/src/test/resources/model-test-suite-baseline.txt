@@ -103,7 +103,6 @@ com.android.tools.metalava.model.testsuite.value.CommonParameterizedAttributeVal
   testLegacyValue[source,short]
 
 com.android.tools.metalava.model.testsuite.value.CommonParameterizedFieldValueTest
-  testFieldValue[source,String using constant]
   testLegacyValue[jar,double NaN]
   testLegacyValue[jar,double negative infinity]
   testLegacyValue[jar,double positive infinity]

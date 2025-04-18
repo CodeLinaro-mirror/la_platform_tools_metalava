@@ -523,10 +523,10 @@ data class FileFormat(
                 // the problem. This is done here instead of when throwing the exception as the
                 // original thrower does not have that context.
                 throw ApiParseException(
-                    "Signature format error - ${cause.message}",
-                    FileLocation.createLocation(path, lineNumberReader.lineNumber),
-                    cause,
-                )
+                        "Signature format error - ${cause.message}",
+                        FileLocation.createLocation(path, lineNumberReader.lineNumber),
+                    )
+                    .apply { initCause(cause) }
             }
         }
 

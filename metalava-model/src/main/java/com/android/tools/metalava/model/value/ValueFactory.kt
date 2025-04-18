@@ -26,6 +26,7 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeVisitor
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.WildcardTypeItem
+import com.android.tools.metalava.model.javaEscapeString
 import com.android.tools.metalava.model.value.ValueFactory.Companion.primitiveValueFactories
 
 /**
@@ -315,7 +316,21 @@ interface ValueFactory {
                         if (primitiveKind == Primitive.BOOLEAN) underlyingValue else null
                     }
                     is Char -> {
-                        if (primitiveKind == Primitive.CHAR) underlyingValue else null
+                        val convertedValue: Any? =
+                            when (primitiveKind) {
+                                Primitive.BYTE ->
+                                    convertInteger(underlyingValue.code) { it.toByte() }
+                                Primitive.CHAR -> underlyingValue
+                                Primitive.INT -> convertInteger(underlyingValue.code) { it.toInt() }
+                                Primitive.LONG -> convertInteger(underlyingValue.code) { it }
+                                Primitive.SHORT ->
+                                    convertInteger(underlyingValue.code) { it.toShort() }
+                                else -> null
+                            }
+                        if (convertedValue != null) {
+                            checkLossyConversion(underlyingValue, primitiveKind, convertedValue)
+                        }
+                        convertedValue
                     }
                     is String -> {
                         // A single character string can be used as a char.
@@ -366,7 +381,7 @@ interface ValueFactory {
          * [targetKind] can be converted back to [original] without loss. If it cannot then throw an
          * exception.
          */
-        private fun checkLossyConversion(original: Number, targetKind: Primitive, converted: Any) {
+        private fun checkLossyConversion(original: Any, targetKind: Primitive, converted: Any) {
             val convertedNumber =
                 when (converted) {
                     is Number -> converted
@@ -377,6 +392,7 @@ interface ValueFactory {
             val roundTrip =
                 when (original) {
                     is Byte -> convertedNumber.toByte()
+                    is Char -> convertedNumber.toInt().toChar()
                     is Double -> convertedNumber.toDouble()
                     is Float -> convertedNumber.toFloat()
                     is Int -> convertedNumber.toInt()
@@ -387,7 +403,7 @@ interface ValueFactory {
 
             if (roundTrip != original) {
                 error(
-                    "Conversion of $original to ${targetKind.primitiveName} is lossy and produces $converted; round trip value is $roundTrip"
+                    "Conversion of ${javaEscapeString(original.toString())} to ${targetKind.primitiveName} is lossy and produces $converted; round trip value is ${javaEscapeString(roundTrip.toString())}"
                 )
             }
         }

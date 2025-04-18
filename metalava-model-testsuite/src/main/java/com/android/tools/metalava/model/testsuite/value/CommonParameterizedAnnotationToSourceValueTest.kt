@@ -16,7 +16,7 @@
 
 package com.android.tools.metalava.model.testsuite.value
 
-import com.android.tools.metalava.model.testsuite.value.ValueUseSite.ANNOTATION_TO_SOURCE
+import com.android.tools.metalava.model.testsuite.value.LegacyValueUseSite.ANNOTATION_TO_SOURCE
 import com.android.tools.metalava.testing.TestFileCache
 import com.android.tools.metalava.testing.TestFileCacheRule
 import org.junit.ClassRule

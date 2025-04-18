@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model.text
+package com.android.tools.metalava.model.parser
 
 import java.nio.file.Path
 import org.junit.Assert.assertEquals
@@ -74,9 +74,7 @@ class TokenizerTest(private val params: Params) {
                 ),
             )
 
-        @JvmStatic
-        @Parameterized.Parameters(name = "#{index} -{0}")
-        fun testParams(): List<Params> = params
+        @JvmStatic @Parameterized.Parameters(name = "<{0}>") fun testParams(): List<Params> = params
     }
 
     @Test
@@ -88,7 +86,7 @@ class TokenizerTest(private val params: Params) {
         }
 
         params.expectedError?.let { expectedError ->
-            val exception = assertThrows(ApiParseException::class.java) { requireToken() }
+            val exception = assertThrows(ParseException::class.java) { requireToken() }
             assertEquals(expectedError, exception.message)
         }
 

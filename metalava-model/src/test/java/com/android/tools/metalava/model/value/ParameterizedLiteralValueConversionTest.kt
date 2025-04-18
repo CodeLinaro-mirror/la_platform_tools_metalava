@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.value
 
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
+import com.android.tools.metalava.model.javaEscapeString
 import com.android.tools.metalava.model.testing.primitiveTypeForKind
 import com.android.tools.metalava.model.testing.stringType
 import com.android.tools.metalava.testing.EntryPoint
@@ -81,16 +82,16 @@ class ParameterizedLiteralValueConversionTest {
     }
 
     /** A [ConversionExample] that is lossy. */
-    class ConversionIsLossy(
-        private val input: Number,
+    class ConversionIsLossy<T : Any>(
+        private val input: T,
         private val lossyOutput: Any,
-        private val roundTripValue: Number,
+        private val roundTripValue: T,
     ) : ConversionExample() {
         override fun ConversionTest.checkExample() {
             checkNormalizationIsLossy(input, targetKind, lossyOutput, roundTripValue)
         }
 
-        override fun toString() = "lossy when $input"
+        override fun toString() = "lossy when ${javaEscapeString(input.toString())}"
     }
 
     /** A [ConversionExample] that is unsupported. */
@@ -151,17 +152,17 @@ class ParameterizedLiteralValueConversionTest {
          * Check the normalization of [input] to match the [targetKind] results in the [lossyOutput]
          * and if it is then round tripped back to the original type it results in [roundTripValue].
          */
-        fun checkNormalizationIsLossy(
-            input: Number,
+        fun <T : Any> checkNormalizationIsLossy(
+            input: T,
             targetKind: ValueKind,
             lossyOutput: Any,
-            roundTripValue: Number,
+            roundTripValue: T,
         ) {
             val description = "Converting $input of ${input.javaClass} to $targetKind"
             val exception =
                 assertThrows(RuntimeException::class.java) { createLiteralValue(targetKind, input) }
             assertEquals(
-                "Conversion of $input to $targetKind is lossy and produces $lossyOutput; round trip value is $roundTripValue",
+                "Conversion of ${javaEscapeString(input.toString())} to $targetKind is lossy and produces $lossyOutput; round trip value is ${javaEscapeString(roundTripValue.toString())}",
                 exception.message,
                 description
             )
@@ -235,10 +236,10 @@ class ParameterizedLiteralValueConversionTest {
 
         /** The conversion between two primitives is lossy. */
         @EntryPoint
-        internal fun lossy(
-            input: Number,
+        internal fun <T : Any> lossy(
+            input: T,
             lossyOutput: Any,
-            roundTripValue: Number,
+            roundTripValue: T,
         ) = listOf(ConversionIsLossy(input, lossyOutput, roundTripValue))
 
         /**
@@ -304,13 +305,41 @@ class ParameterizedLiteralValueConversionTest {
                 ValueKind.CHAR to
                     mapOf(
                         ValueKind.BOOLEAN to unsupported(),
-                        ValueKind.BYTE to unsupported(),
+                        ValueKind.BYTE to
+                            ok(
+                                input = 'a',
+                                expectedOutput = 97.toByte(),
+                            ) +
+                                lossy(
+                                    input = '\u0090',
+                                    lossyOutput = (-112).toByte(),
+                                    roundTripValue = '\uff90',
+                                ),
                         ValueKind.CHAR to same(input = 'a'),
                         ValueKind.DOUBLE to unsupported(),
                         ValueKind.FLOAT to unsupported(),
-                        ValueKind.INT to unsupported(),
-                        ValueKind.LONG to unsupported(),
-                        ValueKind.SHORT to unsupported(),
+                        ValueKind.INT to
+                            ok(
+                                input = 'a',
+                                expectedOutput = 97,
+                            ),
+                        ValueKind.LONG to
+                            ok(
+                                input = 'a',
+                                expectedOutput = 97L,
+                            ),
+                        ValueKind.SHORT to
+                            ok(
+                                input = 'a',
+                                expectedOutput = 97.toShort(),
+                            ) +
+                                // A character above \u7FFF produces a negative short but when it is
+                                // converted back to a character it produces the original character
+                                // so it is not considered lossy.
+                                ok(
+                                    input = '\u9000',
+                                    expectedOutput = (-28672).toShort(),
+                                ),
                         ValueKind.STRING to incompatible(),
                     ),
                 ValueKind.DOUBLE to

@@ -17,10 +17,12 @@
 package com.android.tools.metalava.model.turbine
 
 import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.type.ContextNullability
+import com.android.tools.metalava.model.value.ArrayElementValue
 import com.android.tools.metalava.model.value.CachingAnnotationValueProvider
 import com.android.tools.metalava.model.value.CachingValueProvider
 import com.android.tools.metalava.model.value.CombinedValueProvider
@@ -29,11 +31,14 @@ import com.android.tools.metalava.model.value.ImplementationValueToModelFactory
 import com.android.tools.metalava.model.value.Value
 import com.android.tools.metalava.model.value.ValueFactory
 import com.android.tools.metalava.model.value.ValueProviderException
+import com.android.tools.metalava.model.value.ValueUseSite
 import com.google.turbine.binder.bound.EnumConstantValue
 import com.google.turbine.binder.bound.TurbineClassValue
 import com.google.turbine.model.Const
+import com.google.turbine.model.Const.ArrayInitValue
 import com.google.turbine.model.TurbineConstantTypeKind
 import com.google.turbine.tree.Tree
+import com.google.turbine.tree.Tree.ArrayInit
 import com.google.turbine.tree.Tree.ConstVarName
 
 internal class TurbineValueFactory(private val globalContext: TurbineGlobalContext) :
@@ -47,9 +52,13 @@ internal class TurbineValueFactory(private val globalContext: TurbineGlobalConte
      * @param typeItem the required type for the value, e.g. [MethodItem.returnType] or
      *   [FieldItem.type].
      * @param turbineValue the underlying Turbine value.
+     * @param valueUseSite the [ValueUseSite] for which this will provide a [Value].
      */
-    fun providerFor(typeItem: TypeItem, turbineValue: TurbineValue): CombinedValueProvider =
-        CachingValueProvider(this, typeItem, turbineValue)
+    fun providerFor(
+        typeItem: TypeItem,
+        turbineValue: TurbineValue,
+        valueUseSite: ValueUseSite,
+    ): CombinedValueProvider = CachingValueProvider(this, typeItem, turbineValue, valueUseSite)
 
     /**
      * Get a [CombinedValueProvider] that will create (and cache) a [Value] for attribute
@@ -73,11 +82,40 @@ internal class TurbineValueFactory(private val globalContext: TurbineGlobalConte
 
     override fun implementationValueToModelValue(
         optionalTypeItem: TypeItem?,
-        implementationValue: TurbineValue
+        implementationValue: TurbineValue,
+        valueUseSite: ValueUseSite,
     ) = implementationValue.toValue(optionalTypeItem)
 
     /** Create a [Value] of [optionalTypeItem] from this [TurbineValue]. */
     private fun TurbineValue.toValue(optionalTypeItem: TypeItem?): Value {
+        if (const is ArrayInitValue) {
+            val arrayTypeItem = optionalTypeItem as ArrayTypeItem
+            val elementTypeItem = arrayTypeItem.componentType
+
+            val elements = const.elements()
+            val exprElements = (expr as? ArrayInit)?.exprs()
+            val turbineValues =
+                elements.mapIndexed { index, element ->
+                    TurbineValue(element, exprElements?.get(index))
+                }
+
+            val values = turbineValues.map { it.toArrayElementValue(elementTypeItem) }
+            return createArrayValue(values)
+        }
+
+        return if (optionalTypeItem is ArrayTypeItem) {
+            // The type is an array so this is an example of not having to add curly braces around a
+            // single value in an annotation attribute. Create a value for the component type and
+            // then wrap it in an ArrayValue.
+            val singleValue = toArrayElementValue(optionalTypeItem.componentType)
+            createArrayValue(listOf(singleValue))
+        } else {
+            toArrayElementValue(optionalTypeItem)
+        }
+    }
+
+    /** Create an [ArrayElementValue] of [optionalTypeItem] from this [TurbineValue]. */
+    private fun TurbineValue.toArrayElementValue(optionalTypeItem: TypeItem?): ArrayElementValue {
         when (const.kind()) {
             Const.Kind.CLASS_LITERAL -> {
                 const as TurbineClassValue

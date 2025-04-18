@@ -30,6 +30,7 @@ import com.android.tools.metalava.model.isNonNullAnnotation
 import com.android.tools.metalava.model.item.DefaultFieldItem
 import com.android.tools.metalava.model.item.FieldValue
 import com.android.tools.metalava.model.value.OptionalValueProvider
+import com.android.tools.metalava.model.value.ValueUseSite
 import com.intellij.psi.PsiCallExpression
 import com.intellij.psi.PsiClassType
 import com.intellij.psi.PsiEnumConstant
@@ -125,12 +126,20 @@ internal class PsiFieldItem(
                 when (psiField) {
                     is UField -> {
                         psiField.uastInitializer?.let { uastInitializer ->
-                            codebase.valueFactory.providerFor(fieldType, uastInitializer)
+                            codebase.valueFactory.providerFor(
+                                fieldType,
+                                uastInitializer,
+                                ValueUseSite.FIELD,
+                            )
                         }
                     }
                     else -> {
                         psiField.initializer?.let { psiInitializer ->
-                            codebase.valueFactory.providerFor(fieldType, psiInitializer)
+                            codebase.valueFactory.providerFor(
+                                fieldType,
+                                psiInitializer,
+                                ValueUseSite.FIELD,
+                            )
                         }
                     }
                 }
