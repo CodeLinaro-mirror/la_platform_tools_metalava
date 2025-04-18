@@ -601,6 +601,18 @@ object JavaTestClassCreator : TestClassCreator {
             .asTestClass("OtherAnnotation")
             .dependsOn(testEnumClass)
 
+    private val singleValueAnnotationClass =
+        java(
+                """
+                    package test.pkg;
+                    
+                    public @interface SingleValueAnnotation {
+                        String value();
+                    }
+                """
+            )
+            .asTestClass("SingleValueAnnotation")
+
     /** Append all the imports provided by this list to [buffer]. */
     private fun appendImportsTo(valueExample: ValueExample, buffer: StringBuilder) {
         for (javaImport in valueExample.javaImports) {
@@ -643,6 +655,7 @@ object JavaTestClassCreator : TestClassCreator {
             )
             .asTestClass(className)
             .dependsOn(otherAnnotationClass)
+            .dependsOn(singleValueAnnotationClass)
             .dependsOn(testConstantsClass)
             .dependsOn(testGenericClass)
     }
@@ -708,6 +721,7 @@ object JavaTestClassCreator : TestClassCreator {
             )
             .asTestClass(className)
             .dependsOn(otherAnnotationClass)
+            .dependsOn(singleValueAnnotationClass)
             .dependsOn(testConstantsClass)
             .dependsOn(testGenericClass)
     }
@@ -767,6 +781,18 @@ object KotlinTestClassCreator : TestClassCreator {
             .asTestClass("OtherAnnotation")
             .dependsOn(testEnumClass)
 
+    private val singleValueAnnotationClass =
+        kotlin(
+                """
+                    package test.pkg
+
+                    annotation class SingleValueAnnotation(
+                        val value: String,
+                    )
+                """
+            )
+            .asTestClass("SingleValueAnnotation")
+
     /** Append all the imports provided by this list to [buffer]. */
     private fun appendImportsTo(valueExample: ValueExample, buffer: StringBuilder) {
         for (javaImport in valueExample.javaImports) {
@@ -809,6 +835,7 @@ object KotlinTestClassCreator : TestClassCreator {
             )
             .asTestClass(className)
             .dependsOn(otherAnnotationClass)
+            .dependsOn(singleValueAnnotationClass)
             .dependsOn(testConstantsClass)
             .dependsOn(testGenericClass)
     }
@@ -877,6 +904,7 @@ object KotlinTestClassCreator : TestClassCreator {
             )
             .asTestClass(className)
             .dependsOn(otherAnnotationClass)
+            .dependsOn(singleValueAnnotationClass)
             .dependsOn(testConstantsClass)
             .dependsOn(testGenericClass)
     }

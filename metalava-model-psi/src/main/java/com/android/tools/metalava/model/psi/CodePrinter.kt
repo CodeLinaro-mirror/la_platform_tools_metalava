@@ -127,6 +127,21 @@ class CodePrinter(
             return true
         } else if (value is PsiAnnotation) {
             sb.append('@').append(value.qualifiedName)
+            val attributes = value.parameterList.attributes
+            if (attributes.isNotEmpty()) {
+                sb.append('(')
+                var separator = ""
+                for (attribute in attributes) {
+                    val attributeValue = attribute.value ?: continue
+                    sb.append(separator)
+                    attribute.name?.let { attributeName ->
+                        sb.append(attribute.attributeName).append(" = ")
+                    }
+                    appendSourceExpression(attributeValue, sb, owner)
+                    separator = ", "
+                }
+                sb.append(')')
+            }
             return true
         } else {
             if (value is PsiTypeCastExpression) {

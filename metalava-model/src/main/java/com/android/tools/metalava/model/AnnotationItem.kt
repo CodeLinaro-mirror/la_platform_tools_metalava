@@ -18,6 +18,8 @@ package com.android.tools.metalava.model
 
 import com.android.tools.metalava.model.api.flags.ApiFlag
 import com.android.tools.metalava.model.api.flags.ApiFlags
+import com.android.tools.metalava.model.value.ArrayElementValue
+import com.android.tools.metalava.model.value.ArrayValue
 import com.android.tools.metalava.model.value.Value
 import com.android.tools.metalava.model.value.ValueParser
 import com.android.tools.metalava.model.value.ValueProvider
@@ -390,6 +392,21 @@ interface AnnotationContext : ClassResolver {
          */
         val DEFAULT: AnnotationContext =
             object : AnnotationContext, ClassResolver by ClassResolver.THROWING {
+                /**
+                 * Return [noOpAnnotationManager] rather than just throwing an exception as most
+                 * uses of [AnnotationItem]s will make at least one call to [annotationManager] and
+                 * having it return a valid, but basic implementation makes this more useful.
+                 */
+                override val annotationManager
+                    get() = noOpAnnotationManager
+            }
+
+        /**
+         * Instance that can be used in contexts where [resolveClass] always returns null, e.g.
+         * testing or when parsing annotations provides on the command line.
+         */
+        val DEFAULT_RESOLVE_NULL: AnnotationContext =
+            object : AnnotationContext, ClassResolver by ClassResolver.RETURN_NULL {
                 /**
                  * Return [noOpAnnotationManager] rather than just throwing an exception as most
                  * uses of [AnnotationItem]s will make at least one call to [annotationManager] and
@@ -831,6 +848,21 @@ class DefaultAnnotationAttribute(
         return result
     }
 }
+
+/** Create an [AnnotationAttributeValue] for this [Value]. */
+fun Value.asAnnotationAttributeValue(): AnnotationAttributeValue =
+    when (this) {
+        is ArrayValue ->
+            DefaultAnnotationArrayAttributeValue(
+                ::toValueString,
+                { elements.map(ArrayElementValue::asAnnotationAttributeValue) }
+            )
+        else ->
+            DefaultAnnotationSingleAttributeValue(
+                ::toValueString,
+                { asLiteralValue()?.underlyingValue }
+            )
+    }
 
 abstract class DefaultAnnotationValue(sourceGetter: () -> String) : AnnotationAttributeValue {
     companion object {

@@ -43,3 +43,8 @@ com.android.tools.metalava.model.testsuite.typeitem.CommonTypeStringTest
 com.android.tools.metalava.model.testsuite.value.CommonParameterizedAttributeDefaultValueTest
   testLegacySource[java,k1,source,int - complex]
   testLegacySource[java,k2,source,int - complex]
+
+com.android.tools.metalava.model.testsuite.value.CommonParameterizedAttributeValueTest
+  testLegacyValue[kotlin,k1,source,annotation - multiple attributes]
+  testLegacyValue[kotlin,k1,source,annotation - no attributes]
+  testLegacyValue[kotlin,k1,source,annotation - single value]

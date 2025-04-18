@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava.model.value
 
+import com.android.tools.metalava.model.AnnotationAttribute
+import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
@@ -230,6 +232,7 @@ data class ValueStringConfiguration(
 
 /** Enumeration of the different types of [ValueKind]. */
 enum class ValueKind(val primitiveKind: Primitive? = null) {
+    ANNOTATION,
     ARRAY,
     BOOLEAN(
         primitiveKind = Primitive.BOOLEAN,
@@ -538,6 +541,53 @@ sealed interface EnumConstantValue : FieldReferenceValue {
         other is EnumConstantValue && equalToFieldReferenceValue(other)
 
     override fun hashCodeForValue() = hashCodeForFieldReferenceValue() * 31
+}
+
+/** A [Value] wrapper around an [annotationItem]. */
+sealed interface AnnotationValue : ArrayElementValue {
+    override val kind: ValueKind
+        get() = ValueKind.ANNOTATION
+
+    /**
+     * An annotation, used as a value in other annotations, including the default value of an
+     * annotation's attribute method.
+     */
+    val annotationItem: AnnotationItem
+
+    /**
+     * Get this [AnnotationItem]'s [AnnotationItem.attributes] as a map from
+     * [AnnotationAttribute.name] to [AnnotationAttribute.value].
+     *
+     * Used to implement [equalToValue] and [hashCodeForValue] to
+     */
+    private fun AnnotationItem.attributesMap() = attributes.associateBy({ it.name }) { it.value }
+
+    override fun equalToValue(other: Value) =
+        other is AnnotationValue &&
+            annotationItem.attributesMap() == other.annotationItem.attributesMap()
+
+    override fun hashCodeForValue() =
+        annotationItem.qualifiedName.hashCode() * 31 + annotationItem.attributesMap().hashCode()
+
+    override fun appendValueStringTo(
+        builder: StringBuilder,
+        configuration: ValueStringConfiguration
+    ) {
+        builder.append("@")
+        builder.append(annotationItem.qualifiedName)
+        val attributes = annotationItem.attributes
+        if (attributes.isNotEmpty()) {
+            builder.append("(")
+            var separator = ""
+            for (attribute in attributes.sortedBy { it.name }) {
+                builder.append(separator).append(attribute.name).append(" = ")
+
+                configuration.appendNestedValueTo(builder, attribute.value)
+                separator = ", "
+            }
+            builder.append(")")
+        }
+    }
 }
 
 /** A [Value] reference to a [Class] object. */

@@ -20,12 +20,16 @@ import com.android.tools.lint.detector.api.ConstantEvaluator
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassTypeItem
+import com.android.tools.metalava.model.DefaultAnnotationAttribute
+import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.VariableTypeItem
+import com.android.tools.metalava.model.asAnnotationAttributeValue
 import com.android.tools.metalava.model.type.ContextNullability
+import com.android.tools.metalava.model.value.AnnotationValue
 import com.android.tools.metalava.model.value.ArrayElementValue
 import com.android.tools.metalava.model.value.CachingAnnotationValueProvider
 import com.android.tools.metalava.model.value.CachingValueProvider
@@ -39,15 +43,20 @@ import com.android.tools.metalava.model.value.ValueFactory
 import com.android.tools.metalava.model.value.ValueProvider
 import com.android.tools.metalava.model.value.ValueProviderException
 import com.android.tools.metalava.model.value.ValueUseSite
+import com.android.tools.metalava.model.value.provider
+import com.android.tools.metalava.reporter.FileLocation
 import com.intellij.psi.JavaPsiFacade
+import com.intellij.psi.PsiAnnotation
 import com.intellij.psi.PsiAnnotationMemberValue
 import com.intellij.psi.PsiArrayInitializerMemberValue
 import com.intellij.psi.PsiClassObjectAccessExpression
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiField
 import com.intellij.psi.PsiLiteralExpression
+import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiReferenceExpression
 import com.intellij.psi.PsiTypes
+import org.jetbrains.kotlin.psi.psiUtil.parameterIndex
 import org.jetbrains.uast.UCallExpression
 import org.jetbrains.uast.UClassLiteralExpression
 import org.jetbrains.uast.UExpression
@@ -191,6 +200,11 @@ internal class PsiValueFactory(
                         return it
                     }
             }
+            is UCallExpression -> {
+                uCallExpressionToAnnotationValue(uExpression)?.let {
+                    return it
+                }
+            }
         }
 
         // All others drop through.
@@ -278,6 +292,63 @@ internal class PsiValueFactory(
             psiType,
             contextNullability = ContextNullability.forceNonNull
         )
+    }
+
+    /**
+     * Create an [AnnotationValue] from [uExpression] if possible, otherwise return `null`.
+     *
+     * @param uExpression a call to an annotation class's constructor.
+     */
+    private fun uCallExpressionToAnnotationValue(uExpression: UCallExpression): AnnotationValue? {
+        // Annotations are created using constructor calls.
+        if (uExpression.kind != UastCallKind.CONSTRUCTOR_CALL) return null
+
+        // Resolve the call to the constructor, return null if it cannot be resolved.
+        val resolved = uExpression.resolve()
+        if (resolved !is PsiMethod || !resolved.isConstructor) return null
+
+        // Get the qualified name of the constructor class, return null if it is not available.
+        val psiClass = resolved.containingClass
+        val qualifiedClassName = psiClass?.qualifiedName ?: return null
+
+        fun attributesProvider() =
+            // Iterate over the parameters of the annotation constructor as this needs to get the
+            // parameter name for each argument to use as the attribute name and its type for use
+            // to guide conversion.
+            resolved.psiParameters.mapNotNull { psiParameter ->
+                val index = psiParameter.parameterIndex()
+                // Get the argument for this parameter, if no argument is provided then ignore the
+                // parameter.
+                val uArgument = uExpression.getArgumentForParameter(index) ?: return@mapNotNull null
+
+                // Get the name and type from the parameter.
+                val name = psiParameter.name
+                val typeItem = globalTypeItemFactory.getType(psiParameter.type)
+
+                // Create a value from the expression. This needs to be done immediately so that
+                // asAnnotationAttributeValue() call below can differentiate between an ArrayValue
+                // (which needs to be converted to an AnnotationArrayAttributeValue) and other
+                // values.
+                val value =
+                    uExpressionToArrayElementValue(typeItem, uArgument)
+                        ?: unknownExpression(typeItem, uArgument)
+                DefaultAnnotationAttribute(
+                    name,
+                    value.provider(),
+                    value.asAnnotationAttributeValue(),
+                )
+            }
+
+        val annotationItem =
+            DefaultAnnotationItem.createAttributesLazily(
+                codebase,
+                FileLocation.UNKNOWN,
+                qualifiedClassName,
+            ) {
+                attributesProvider()
+            }
+
+        return createAnnotationValue(annotationItem!!)
     }
 
     /** Create a [ConstantValue] of [optionalTypeItem] from [uExpression]. */
@@ -376,6 +447,12 @@ internal class PsiValueFactory(
                         return it
                     }
             }
+            // An annotation value.
+            is PsiAnnotation -> {
+                PsiAnnotationItem.create(codebase, psiValue)?.let { annotationItem ->
+                    return createAnnotationValue(annotationItem)
+                }
+            }
         }
 
         // All others drop through.
@@ -425,14 +502,7 @@ internal class PsiValueFactory(
     ): ArrayElementValue? {
         if (resolved is PsiField) {
             codebase.findField(resolved)?.let { fieldItem ->
-                if (fieldItem.isEnumConstant()) {
-                    return createEnumConstantValue(fieldItem)
-                }
-
-                // Get the constant value of the field, if any.
-                val constantValue = constantProvider()
-
-                return createConstantFieldValue(fieldItem, constantValue)
+                return createFieldReferenceValue(fieldItem)
             }
         }
 

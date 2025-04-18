@@ -26,7 +26,6 @@ import com.android.tools.metalava.model.ANDROID_NONNULL
 import com.android.tools.metalava.model.ANDROID_NULLABLE
 import com.android.tools.metalava.model.ANDROID_SYSTEM_API
 import com.android.tools.metalava.model.ANDROID_TEST_API
-import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
 import com.android.tools.metalava.model.ANNOTATION_EXTERNAL
 import com.android.tools.metalava.model.ANNOTATION_EXTERNAL_ONLY
 import com.android.tools.metalava.model.ANNOTATION_IN_ALL_STUBS
@@ -59,6 +58,7 @@ import com.android.tools.metalava.model.TypedefMode
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager.Config
 import com.android.tools.metalava.model.api.flags.ApiFlag
 import com.android.tools.metalava.model.api.flags.ApiFlags
+import com.android.tools.metalava.model.api.flags.optionalFlagName
 import com.android.tools.metalava.model.computeTypeNullability
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.isNonNullAnnotation
@@ -713,11 +713,8 @@ private class LazyAnnotationInfo(
     override val apiFlag by lazy(LazyThreadSafetyMode.NONE) { getFlagForAnnotation(annotationItem) }
 
     private fun getFlagForAnnotation(annotationItem: AnnotationItem): ApiFlag? {
-        if (annotationItem.qualifiedName != ANDROID_FLAGGED_API) return null
         val apiFlags = config.apiFlags ?: return null
-        val valueAttribute =
-            annotationItem.attributes.find { it.name == ANNOTATION_ATTR_VALUE } ?: return null
-        val flagName = valueAttribute.legacyValue.value() as String
+        val flagName = annotationItem.optionalFlagName ?: return null
         return apiFlags[flagName]
     }
 

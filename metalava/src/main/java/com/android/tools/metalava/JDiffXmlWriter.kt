@@ -30,7 +30,6 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
-import com.android.tools.metalava.model.psi.CodePrinter
 import com.android.tools.metalava.model.visitors.ApiFilters
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.model.visitors.FilteringApiVisitor
@@ -156,12 +155,6 @@ class JDiffXmlWriter(
 
     override fun visitField(field: FieldItem) {
         val modifiers = field.modifiers
-        val initialValue = field.legacyInitialValue(true)
-        val value =
-            if (initialValue != null) {
-                XmlUtils.toXmlAttributeValue(CodePrinter.constantToSource(initialValue))
-            } else null
-
         writer.print("<field name=\"")
         writer.print(field.name())
         writer.print("\"\n type=\"")
@@ -170,7 +163,9 @@ class JDiffXmlWriter(
         writer.print(modifiers.isTransient())
         writer.print("\"\n volatile=\"")
         writer.print(modifiers.isVolatile())
-        if (value != null) {
+        field.initialValue?.asLiteralValue()?.let { literalValue ->
+            val value = XmlUtils.toXmlAttributeValue(literalValue.toValueString())
+
             writer.print("\"\n value=\"")
             writer.print(value)
         }

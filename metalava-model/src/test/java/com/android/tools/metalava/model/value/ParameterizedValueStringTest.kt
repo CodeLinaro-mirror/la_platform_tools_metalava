@@ -20,6 +20,8 @@ import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.testing.arrayTypeItem
 import com.android.tools.metalava.model.testing.primitiveTypeForKind
 import com.android.tools.metalava.model.testing.stringType
+import com.android.tools.metalava.model.testing.value.annotationValue
+import com.android.tools.metalava.model.testing.value.annotationValueFromSource
 import com.android.tools.metalava.model.testing.value.arrayValue
 import com.android.tools.metalava.model.testing.value.arrayValueFromAny
 import com.android.tools.metalava.model.testing.value.classObjectValue
@@ -226,6 +228,39 @@ class ParameterizedValueStringTest {
 
         private val testCases =
             listOf(
+                // ****************************** Annotations ******************************
+                testCasesForValue(
+                    value = annotationValueFromSource("@test.pkg.Anno"),
+                    expectedDefaultValueString = "@test.pkg.Anno",
+                ),
+                testCasesForValue(
+                    value = annotationValueFromSource("@test.pkg.Anno(intValue = 1)"),
+                    expectedDefaultValueString = "@test.pkg.Anno(intValue = 1)",
+                    expectedDefaultDebugString = "@test.pkg.Anno(intValue = DefaultIntValue(1))",
+                ),
+                testCasesForValue(
+                    value = annotationValueFromSource("@test.pkg.Anno(value = 1)"),
+                    expectedDefaultValueString = "@test.pkg.Anno(value = 1)",
+                    expectedDefaultDebugString = "@test.pkg.Anno(value = DefaultIntValue(1))",
+                ),
+                testCasesForValue(
+                    // Create an annotation with attribute in non-alphabetical order.
+                    value =
+                        annotationValueFromSource("@test.pkg.Anno(longValue = 1L, intValue = 1)"),
+                    expectedDefaultValueString = "@test.pkg.Anno(intValue = 1, longValue = 1L)",
+                    expectedDefaultDebugString =
+                        "@test.pkg.Anno(intValue = DefaultIntValue(1), longValue = DefaultLongValue(1L))",
+                ),
+                testCasesForValue(
+                    value =
+                        annotationValue(
+                            "test.pkg.Anno",
+                            "nested" to annotationValueFromSource("@other.pkg.OtherAnno")
+                        ),
+                    expectedDefaultValueString = "@test.pkg.Anno(nested = @other.pkg.OtherAnno)",
+                    expectedDefaultDebugString =
+                        "@test.pkg.Anno(nested = DefaultAnnotationValue(@other.pkg.OtherAnno))",
+                ),
                 // ********************************* Arrays *********************************
                 testCasesForValue(
                     value = arrayValueFromAny(),

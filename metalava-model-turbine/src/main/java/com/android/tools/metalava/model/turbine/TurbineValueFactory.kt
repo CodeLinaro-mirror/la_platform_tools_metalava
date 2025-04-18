@@ -34,6 +34,7 @@ import com.android.tools.metalava.model.value.ValueFactory
 import com.android.tools.metalava.model.value.ValueProviderException
 import com.android.tools.metalava.model.value.ValueUseSite
 import com.google.turbine.binder.bound.EnumConstantValue
+import com.google.turbine.binder.bound.TurbineAnnotationValue
 import com.google.turbine.binder.bound.TurbineClassValue
 import com.google.turbine.binder.sym.ClassSymbol
 import com.google.turbine.model.Const
@@ -133,6 +134,11 @@ internal class TurbineValueFactory(private val globalContext: TurbineGlobalConte
                     )
 
                 return createClassObjectValue(classLiteralTypeItem)
+            }
+            Const.Kind.ANNOTATION -> {
+                const as TurbineAnnotationValue
+                val annotation = annotationFactory.createAnnotation(const.info())!!
+                return createAnnotationValue(annotation)
             }
             Const.Kind.ENUM_CONSTANT -> {
                 const as EnumConstantValue

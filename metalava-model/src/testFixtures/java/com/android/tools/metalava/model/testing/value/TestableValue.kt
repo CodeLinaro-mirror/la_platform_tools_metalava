@@ -16,10 +16,15 @@
 
 package com.android.tools.metalava.model.testing.value
 
+import com.android.tools.metalava.model.AnnotationContext
+import com.android.tools.metalava.model.DefaultAnnotationAttribute
+import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.asAnnotationAttributeValue
 import com.android.tools.metalava.model.testing.classTypeItem
 import com.android.tools.metalava.model.testing.primitiveTypeForKind
+import com.android.tools.metalava.model.value.AnnotationValue
 import com.android.tools.metalava.model.value.ArrayElementValue
 import com.android.tools.metalava.model.value.ArrayValue
 import com.android.tools.metalava.model.value.ClassObjectValue
@@ -31,6 +36,8 @@ import com.android.tools.metalava.model.value.PrimitiveValue
 import com.android.tools.metalava.model.value.Value
 import com.android.tools.metalava.model.value.ValueKind
 import com.android.tools.metalava.model.value.ValueProviderException
+import com.android.tools.metalava.model.value.provider
+import com.android.tools.metalava.reporter.FileLocation
 import java.util.EnumSet
 import kotlin.test.assertEquals
 import org.junit.AssumptionViolatedException
@@ -67,6 +74,30 @@ fun enumConstantValue(
     qualifiedClassName: String,
     fieldName: String,
 ) = Value.createEnumConstantValue(classTypeItem(qualifiedClassName), fieldName)
+
+/** Create an [AnnotationValue] from [source]. */
+fun annotationValueFromSource(source: String) =
+    Value.createAnnotationValue(
+        DefaultAnnotationItem.createFromSource(AnnotationContext.DEFAULT_RESOLVE_NULL, source)!!
+    )
+
+fun annotationValue(qualifiedClassName: String, vararg attributes: Pair<String, Value>) =
+    Value.createAnnotationValue(
+        DefaultAnnotationItem.createAttributesLazily(
+            AnnotationContext.DEFAULT_RESOLVE_NULL,
+            FileLocation.UNKNOWN,
+            qualifiedClassName,
+            {
+                attributes.map { (name, value) ->
+                    DefaultAnnotationAttribute(
+                        name,
+                        value.provider(),
+                        value.asAnnotationAttributeValue(),
+                    )
+                }
+            }
+        )!!
+    )
 
 /**
  * The set of [ValueKind]s that are fully supported across models and so will be tested rigorously,

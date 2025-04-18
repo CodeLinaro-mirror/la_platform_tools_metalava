@@ -17,6 +17,8 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.cli.common.BaseCommandTest
+import com.android.tools.metalava.testing.jarFromSources
+import com.android.tools.metalava.testing.java
 import java.io.File
 import kotlin.test.assertEquals
 import org.junit.Assert
@@ -189,6 +191,60 @@ Arguments:
 
             val xmlFile = outputFile("api.xml", parentDir = folder)
             args += xmlFile
+
+            // Verify that the generate file is correct.
+            verify { assertEquals(expectedXml.trimIndent(), xmlFile.readText().trim()) }
+        }
+    }
+
+    @Test
+    fun `Test enums`() {
+        commandTest {
+            args += "jar-to-jdiff"
+            args +=
+                jarFromSources(
+                    "test.jar",
+                    java(
+                        """
+                        package test.pkg;
+                        public enum Foo {
+                            CONSTANT
+                        }
+                    """
+                    )
+                )
+
+            val xmlFile = outputFile("api.xml")
+            args += xmlFile
+
+            val expectedXml =
+                """
+                    <api xmlns:metalava="http://www.android.com/metalava/">
+                    <package name="test.pkg"
+                    >
+                    <class name="Foo"
+                     extends="java.lang.Enum"
+                     abstract="false"
+                     static="false"
+                     final="true"
+                     deprecated="not deprecated"
+                     visibility="public"
+                    >
+                    <field name="CONSTANT"
+                     type="test.pkg.Foo"
+                     transient="false"
+                     volatile="false"
+                     static="true"
+                     final="true"
+                     deprecated="not deprecated"
+                     visibility="public"
+                     metalava:enumConstant="true"
+                    >
+                    </field>
+                    </class>
+                    </package>
+                    </api>
+                """
 
             // Verify that the generate file is correct.
             verify { assertEquals(expectedXml.trimIndent(), xmlFile.readText().trim()) }

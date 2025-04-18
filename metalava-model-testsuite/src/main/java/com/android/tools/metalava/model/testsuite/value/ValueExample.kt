@@ -21,6 +21,8 @@ import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.arrayTypeItem
 import com.android.tools.metalava.model.testing.classTypeItem
 import com.android.tools.metalava.model.testing.primitiveTypeForKind
+import com.android.tools.metalava.model.testing.value.annotationValue
+import com.android.tools.metalava.model.testing.value.annotationValueFromSource
 import com.android.tools.metalava.model.testing.value.arrayValueFromAny
 import com.android.tools.metalava.model.testing.value.constantFieldValue
 import com.android.tools.metalava.model.testing.value.enumConstantValue
@@ -268,9 +270,7 @@ constructor(
                     expectedLegacySource =
                         expectations {
                             common = "@test.pkg.OtherAnnotation(intType = 1)"
-                            source { common = "@OtherAnnotation(intType = 1)" }
-                            // TODO(b/354633349): Missing attributes.
-                            attributeDefaultValue = "@test.pkg.OtherAnnotation"
+                            source { attributeValue = "@OtherAnnotation(intType = 1)" }
 
                             annotationToSource =
                                 "@test.pkg.OtherAnnotation(" +
@@ -294,6 +294,109 @@ constructor(
                         },
                     expectedKotlinLegacyValue =
                         expectations { common = "OtherAnnotation(intType = 1)" },
+                    // Annotation literals cannot be used in fields.
+                    suitableFor = allLegacyValueUseSitesExceptFields,
+                    expectedValue =
+                        expectations {
+                            common =
+                                annotationValueFromSource("@test.pkg.OtherAnnotation(intType=1)")
+                        },
+                ),
+                ValueExample(
+                    name = "annotation - no attributes",
+                    javaType = "test.pkg.OtherAnnotation",
+                    javaExpression = "@test.pkg.OtherAnnotation",
+                    // Kotlin must supply parentheses as it treats an annotation as an annotation
+                    // class constructor call.
+                    kotlinExpression = "test.pkg.OtherAnnotation()",
+                    expectedLegacySource =
+                        expectations {
+                            common = "@test.pkg.OtherAnnotation"
+
+                            annotationToSource =
+                                "@test.pkg.OtherAnnotation(" +
+                                    "classType=void.class," +
+                                    " enumType=test.pkg.TestEnum.DEFAULT," +
+                                    " intType=0xffffffff," +
+                                    " stringType=\"default\"," +
+                                    " stringArrayType={}" +
+                                    ")"
+                        },
+                    expectedKotlinLegacySource =
+                        expectations {
+                            common = "test.pkg.OtherAnnotation()"
+
+                            source { attributeDefaultValue = "test.pkg.OtherAnnotation()" }
+                        },
+                    expectedLegacyValue = expectations { common = "@test.pkg.OtherAnnotation" },
+                    expectedKotlinLegacyValue =
+                        expectations { common = "test.pkg.OtherAnnotation()" },
+                    // Annotation literals cannot be used in fields.
+                    suitableFor = allLegacyValueUseSitesExceptFields,
+                    expectedValue =
+                        expectations { common = annotationValue("test.pkg.OtherAnnotation") },
+                ),
+                ValueExample(
+                    name = "annotation - multiple attributes",
+                    javaType = "test.pkg.OtherAnnotation",
+                    javaExpression = "@test.pkg.OtherAnnotation(stringType=\"one\", intType=3)",
+                    expectedLegacySource =
+                        expectations {
+                            common = "@test.pkg.OtherAnnotation(stringType = \"one\", intType = 3)"
+
+                            annotationToSource =
+                                "@test.pkg.OtherAnnotation(" +
+                                    "classType=void.class," +
+                                    " enumType=test.pkg.TestEnum.DEFAULT," +
+                                    " intType=3," +
+                                    " stringType=\"one\"," +
+                                    " stringArrayType={}" +
+                                    ")"
+                            source {
+                                attributeValue =
+                                    "@test.pkg.OtherAnnotation(stringType=\"one\", intType=3)"
+                            }
+                        },
+                    expectedKotlinLegacySource =
+                        expectations {
+                            common = "test.pkg.OtherAnnotation(stringType=\"one\", intType=3)"
+
+                            annotationToSource = "test.pkg.OtherAnnotation(\"one\", 3)"
+                        },
+                    expectedLegacyValue =
+                        expectations {
+                            common = "@test.pkg.OtherAnnotation(stringType=\"one\", intType=3)"
+                            jar {
+                                common =
+                                    "@test.pkg.OtherAnnotation(stringType = \"one\", intType = 3)"
+                            }
+                        },
+                    expectedKotlinLegacyValue =
+                        expectations {
+                            common = "test.pkg.OtherAnnotation(stringType=\"one\", intType=3)"
+                        },
+                    // Annotation literals cannot be used in fields.
+                    suitableFor = allLegacyValueUseSitesExceptFields,
+                    expectedValue =
+                        expectations {
+                            common =
+                                annotationValueFromSource(
+                                    "@test.pkg.OtherAnnotation(intType=3, stringType=\"one\")"
+                                )
+                        },
+                ),
+                ValueExample(
+                    name = "annotation - single value",
+                    javaType = "test.pkg.SingleValueAnnotation",
+                    javaExpression = "@test.pkg.SingleValueAnnotation(\"text\")",
+                    expectedLegacySource =
+                        expectations { common = "@test.pkg.SingleValueAnnotation(\"text\")" },
+                    expectedKotlinLegacySource =
+                        expectations { common = "test.pkg.SingleValueAnnotation(\"text\")" },
+                    expectedLegacyValue =
+                        expectations { common = "@test.pkg.SingleValueAnnotation(\"text\")" },
+                    expectedKotlinLegacyValue =
+                        expectations { common = "test.pkg.SingleValueAnnotation(\"text\")" },
                     // Annotation literals cannot be used in fields.
                     suitableFor = allLegacyValueUseSitesExceptFields,
                 ),

@@ -28,31 +28,49 @@ import com.android.utils.associateNotNull
 
 /** Create [ApiFlags] from some source of information about the flags. */
 object ApiFlagsCreator {
-    /** Create [ApiFlags] from [apiFlagsConfig]. */
-    fun createFromConfig(apiFlagsConfig: ApiFlagsConfig?): ApiFlags? {
-        return apiFlagsConfig?.createApiFlags()
+    /**
+     * Create [ApiFlags] from [apiFlagsConfig].
+     *
+     * @param pruneDisabledFlags If flags which are [IMMUTABLE] and [DISABLED] should not be
+     *   included in the [ApiFlags].
+     */
+    fun createFromConfig(
+        apiFlagsConfig: ApiFlagsConfig?,
+        pruneDisabledFlags: Boolean = true
+    ): ApiFlags? {
+        return apiFlagsConfig?.createApiFlags(pruneDisabledFlags)
     }
 
-    /** Create [ApiFlags] from [ApiFlagsConfig]. */
-    private fun ApiFlagsConfig.createApiFlags(): ApiFlags {
-        val byQualifiedName = flags.associateNotNull { config -> config.createApiFlag() }
+    /**
+     * Create [ApiFlags] from [ApiFlagsConfig].
+     *
+     * @param pruneDisabledFlags If flags which are [IMMUTABLE] and [DISABLED] should not be
+     *   included in the [ApiFlags].
+     */
+    private fun ApiFlagsConfig.createApiFlags(pruneDisabledFlags: Boolean): ApiFlags {
+        val byQualifiedName =
+            flags.associateNotNull { config -> config.createApiFlag(pruneDisabledFlags) }
         return ApiFlags(byQualifiedName)
     }
 
     /**
      * Create [Pair] of qualified flag name and [ApiFlag] from [ApiFlagConfig].
      *
-     * Returns `null` if [ApiFlagConfig.mutability] is [IMMUTABLE] and [ApiFlagConfig.status] is
-     * [DISABLED] as that is the default [ApiFlags.get] returns for flags that cannot be found.
+     * If [pruneDisabledFlags] is `true` then this will return `null` if [ApiFlagConfig.mutability]
+     * is [IMMUTABLE] and [ApiFlagConfig.status] is [DISABLED] as that is the default [ApiFlags.get]
+     * returns for flags that cannot be found.
      */
-    private fun ApiFlagConfig.createApiFlag(): Pair<String, ApiFlag>? {
+    private fun ApiFlagConfig.createApiFlag(
+        pruneDisabledFlags: Boolean = true
+    ): Pair<String, ApiFlag>? {
         val apiFlag =
             when (mutability) {
                 MUTABLE -> ApiFlag.KEEP_FLAGGED_API
                 IMMUTABLE ->
                     when (status) {
                         ENABLED -> ApiFlag.FINALIZE_FLAGGED_API
-                        DISABLED -> return null
+                        DISABLED ->
+                            if (pruneDisabledFlags) return null else ApiFlag.REVERT_FLAGGED_API
                     }
             }
         val qualifiedName = "$pkg.$name"
