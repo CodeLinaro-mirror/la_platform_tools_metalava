@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.value
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassResolver
+import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
@@ -27,6 +28,7 @@ import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.javaUnescapeString
 import com.android.tools.metalava.model.parser.ParseException
 import com.android.tools.metalava.model.parser.Tokenizer
+import com.android.tools.metalava.model.type.ContextNullability
 import com.android.tools.metalava.model.type.TypeItemParser
 import java.nio.file.Path
 
@@ -180,6 +182,37 @@ class ValueParser(
             }
         }
 
+        // Check to see if it looks like a field reference.
+        fieldReferencePattern.matchEntire(text)?.let { matchResult ->
+
+            // Get the class and field. The pattern requires both so it is safe to assume they are
+            // both available.
+            val className = matchResult.groups[CLASS_NAME_GROUP_INDEX]!!.value
+            val fieldName = matchResult.groups[FIELD_NAME_GROUP_INDEX]!!.value
+
+            // Parse the class name to a type.
+            val classTypeItem =
+                typeItemParser.obtainTypeFromString(
+                    className,
+                    TypeParameterScope.empty,
+                    ContextNullability.forceNonNull,
+                ) as ClassTypeItem
+
+            // Resolve the class type item to a ClassItem and find its FieldItem. If no such
+            // FieldItem exists then assume it is an enum constant as without a field there is no
+            // constant value.
+            return classTypeItem
+                .asClass()
+                // Search through the super class and interface hierarchy to find the field.
+                ?.findField(
+                    fieldName,
+                    includeSuperClasses = true,
+                    includeInterfaces = true,
+                )
+                ?.let { fieldItem -> createFieldReferenceValue(fieldItem) }
+                ?: createEnumConstantValue(classTypeItem, fieldName)
+        }
+
         throw ValueProviderException("Unknown token <$text> of $optionalTypeItem")
     }
 
@@ -314,10 +347,20 @@ class ValueParser(
             )
 
         /** A map of all the known special values. */
-        val knownSpecialValues =
+        private val knownSpecialValues =
             mapOf(
                 "false" to false,
                 "true" to true,
             ) + specialFloats.flatMap { (value, alternatives) -> alternatives.map { it to value } }
+
+        /** Pattern to match a field, including a class literal of the form `<class>.class`. */
+        internal val fieldReferencePattern =
+            Regex("""([a-zA-Z0-9_]+(?:\.[a-zA-Z0-9_]+)*)\.([a-zA-Z0-9_]+)""")
+
+        /** Index of class name group in [fieldReferencePattern]. */
+        private const val CLASS_NAME_GROUP_INDEX = 1
+
+        /** Index of field name group in [fieldReferencePattern]. */
+        private const val FIELD_NAME_GROUP_INDEX = 2
     }
 }

@@ -19,8 +19,9 @@ package com.android.tools.metalava.model.item
 import com.android.tools.metalava.model.ApiVariantSelectorsFactory
 import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.ItemDocumentationFactory
-import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.SourceLanguage
+import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeAliasItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
@@ -42,7 +43,9 @@ open class DefaultTypeAliasItem(
         codebase = codebase,
         fileLocation = fileLocation,
         // Type aliases only exist in Kotlin
-        itemLanguage = ItemLanguage.KOTLIN,
+        sourceLanguage = SourceLanguage.KOTLIN,
+        // Type aliases can only be used from Kotlin
+        targetLanguages = TargetLanguageSet.KOTLIN_ONLY,
         modifiers = modifiers,
         documentationFactory = documentationFactory,
         variantSelectorsFactory = variantSelectorsFactory,

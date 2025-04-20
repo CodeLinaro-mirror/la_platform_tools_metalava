@@ -6,6 +6,9 @@ com.android.tools.metalava.model.testsuite.CommonModifierListWriterTest
   modifiers public explicitly final method in final class[java,k1]
   modifiers public explicitly final method in final class[java,k2]
 
+com.android.tools.metalava.model.testsuite.CommonTargetLanguageTest
+  Test type aliases can only be used from Kotlin[kotlin,k1]
+
 com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTest
   annotation with enum values[java,k1]
   annotation with enum values[java,k2]

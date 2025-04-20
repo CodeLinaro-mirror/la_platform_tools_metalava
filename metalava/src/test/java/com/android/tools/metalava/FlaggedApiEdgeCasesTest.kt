@@ -45,6 +45,7 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
                     java(
                         """
                             package other.pkg;
+                            import $ANDROID_FLAGGED_API;
 
                             public abstract class Other {
                                 @$ANDROID_FLAGGED_API("flag.name")
@@ -67,6 +68,7 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
                             }
                         """
                     ),
+                    flaggedApiSource
                 ),
             stubFiles =
                 arrayOf(
@@ -126,6 +128,7 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
                             }
                         """
                     ),
+                    flaggedApiSource
                 ),
             checkCompatibilityApiReleased =
                 """
@@ -147,6 +150,61 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
                         """
                     )
                 ),
+        )
+    }
+
+    @Test
+    fun `Test javadoc for flagged class includes @apiSince`() {
+        check(
+            configFiles = arrayOf(KnownConfigFiles.configEmptyApiFlags),
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            /**
+                            * Javadoc for Test
+                            */
+                            @$ANDROID_FLAGGED_API("flag.name")
+                            public class Test {
+                            }
+                        """
+                    ),
+                    flaggedApiSource
+                ),
+            docStubs = true,
+            applyApiLevelsXml =
+                """
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <api version="2">
+                      <class name="test/pkg/Test" since="31">
+                      </class>
+                    </api>
+                """,
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            /**
+                             * Javadoc for Test
+                             * @apiSince 31
+                             */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Test {
+                            Test() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    )
+                ),
+            checkCompatibilityApiReleased =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Test {
+                      }
+                    }
+                """,
         )
     }
 }

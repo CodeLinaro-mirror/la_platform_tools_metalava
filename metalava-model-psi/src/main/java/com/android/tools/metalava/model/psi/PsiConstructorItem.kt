@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
+import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.createImmutableModifiers
@@ -60,7 +61,8 @@ private constructor(
     DefaultConstructorItem(
         codebase = codebase,
         fileLocation = fileLocation,
-        itemLanguage = psiMethod.itemLanguage,
+        sourceLanguage = psiMethod.sourceLanguage,
+        targetLanguages = TargetLanguageSet.ALL,
         modifiers = modifiers,
         documentationFactory = documentationFactory,
         variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,

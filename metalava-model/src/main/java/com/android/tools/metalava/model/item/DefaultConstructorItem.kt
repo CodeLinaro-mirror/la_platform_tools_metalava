@@ -27,7 +27,9 @@ import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
-import com.android.tools.metalava.model.ItemLanguage
+import com.android.tools.metalava.model.SourceLanguage
+import com.android.tools.metalava.model.TargetLanguage
+import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
@@ -37,7 +39,8 @@ import com.android.tools.metalava.reporter.FileLocation
 open class DefaultConstructorItem(
     codebase: Codebase,
     fileLocation: FileLocation,
-    itemLanguage: ItemLanguage,
+    sourceLanguage: SourceLanguage,
+    targetLanguages: Set<TargetLanguage>,
     modifiers: BaseModifierList,
     documentationFactory: ItemDocumentationFactory,
     variantSelectorsFactory: ApiVariantSelectorsFactory,
@@ -54,7 +57,8 @@ open class DefaultConstructorItem(
     DefaultCallableItem(
         codebase = codebase,
         fileLocation = fileLocation,
-        itemLanguage = itemLanguage,
+        sourceLanguage = sourceLanguage,
+        targetLanguages = targetLanguages,
         modifiers = modifiers,
         documentationFactory = documentationFactory,
         variantSelectorsFactory = variantSelectorsFactory,
@@ -81,7 +85,7 @@ open class DefaultConstructorItem(
     companion object {
         fun createDefaultConstructor(
             codebase: Codebase,
-            itemLanguage: ItemLanguage,
+            sourceLanguage: SourceLanguage,
             variantSelectorsFactory: ApiVariantSelectorsFactory,
             containingClass: ClassItem,
             visibility: VisibilityLevel,
@@ -94,7 +98,8 @@ open class DefaultConstructorItem(
                     codebase = codebase,
                     // Use the location of the containing class for the default constructor.
                     fileLocation = containingClass.fileLocation,
-                    itemLanguage = itemLanguage,
+                    sourceLanguage = sourceLanguage,
+                    targetLanguages = TargetLanguageSet.ALL,
                     modifiers = modifiers,
                     documentationFactory = ItemDocumentation.NONE_FACTORY,
                     variantSelectorsFactory = variantSelectorsFactory,

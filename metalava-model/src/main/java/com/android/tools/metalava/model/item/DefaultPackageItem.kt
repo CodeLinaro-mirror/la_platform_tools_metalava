@@ -21,15 +21,17 @@ import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ItemDocumentationFactory
-import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.SourceLanguage
+import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TypeAliasItem
 import com.android.tools.metalava.reporter.FileLocation
 
 open class DefaultPackageItem(
     codebase: Codebase,
     fileLocation: FileLocation,
-    itemLanguage: ItemLanguage,
+    sourceLanguage: SourceLanguage,
+    targetLanguages: Set<TargetLanguage>,
     modifiers: BaseModifierList,
     documentationFactory: ItemDocumentationFactory,
     variantSelectorsFactory: ApiVariantSelectorsFactory,
@@ -40,7 +42,8 @@ open class DefaultPackageItem(
     DefaultSelectableItem(
         codebase = codebase,
         fileLocation = fileLocation,
-        itemLanguage = itemLanguage,
+        sourceLanguage = sourceLanguage,
+        targetLanguages = targetLanguages,
         modifiers = modifiers,
         documentationFactory = documentationFactory,
         variantSelectorsFactory = variantSelectorsFactory,

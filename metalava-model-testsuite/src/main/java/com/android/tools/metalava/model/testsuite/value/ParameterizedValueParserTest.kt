@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.testing.value.runValueTest
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.model.testsuite.ModelSuiteRunner
 import com.android.tools.metalava.model.testsuite.value.ValueExample.Companion.valueExamples
+import com.android.tools.metalava.model.type.TypeItemParser
 import com.android.tools.metalava.model.value.Value
 import com.android.tools.metalava.model.value.ValueParser
 import com.android.tools.metalava.testing.EntryPointCallerRule
@@ -210,6 +211,13 @@ class ParameterizedValueParserTest : BaseModelTest() {
                       public class Foo {
                         field public static final ${testCase.signatureType} FIELD;
                       }
+                      public interface Constants {
+                        field public static final String STRING_CONSTANT = "constant";
+                      }
+                      public enum TestEnum {
+                        enum_constant public static final test.pkg.TestEnum DEFAULT;
+                        enum_constant public static final test.pkg.TestEnum VALUE1;
+                      }
                     }
                 """
             )
@@ -218,7 +226,7 @@ class ParameterizedValueParserTest : BaseModelTest() {
             // kind is not fully supported across implementation models.
             testCase.expectedValue.runValueTest { expected ->
                 val typeItem = codebase.assertClass("test.pkg.Foo").assertField("FIELD").type()
-                val valueParser = ValueParser.DEFAULT
+                val valueParser = ValueParser(TypeItemParser.forValueParser(codebase))
                 val actualValue = valueParser.parse(typeItem, testCase.input)
                 assertEquals(expected, actualValue)
             }

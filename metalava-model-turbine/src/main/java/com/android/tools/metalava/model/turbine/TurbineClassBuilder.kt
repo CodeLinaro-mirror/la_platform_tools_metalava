@@ -219,7 +219,7 @@ internal class TurbineClassBuilder(
     }
 
     private fun createModifiers(flag: Int, annoInfos: List<AnnoInfo>): MutableModifierList {
-        val annotations = annotationFactory.createAnnotations(annoInfos)
+        val annotations = annotationFactory.createAnnotations(annoInfos, fieldResolver)
         val modifierItem =
             when (flag) {
                 0 -> { // No Modifier. Default modifier is PACKAGE_PRIVATE in such case
@@ -411,7 +411,8 @@ internal class TurbineClassBuilder(
 
             val initialFieldValueProvider =
                 field.value()?.let { const ->
-                    val turbineValue = TurbineValue(const, field.decl()?.init()?.getOrNull())
+                    val expr = field.decl()?.init()?.getOrNull()
+                    val turbineValue = TurbineValue(const, expr, fieldResolver)
                     valueFactory.providerFor(type, turbineValue, ValueUseSite.FIELD)
                 }
 

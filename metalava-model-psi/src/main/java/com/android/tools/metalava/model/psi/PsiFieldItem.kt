@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.PropertyItem
+import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.VisibilityLevel
@@ -56,7 +57,8 @@ internal class PsiFieldItem(
     DefaultFieldItem(
         codebase = codebase,
         fileLocation = PsiFileLocation(psiField),
-        itemLanguage = psiField.itemLanguage,
+        sourceLanguage = psiField.sourceLanguage,
+        targetLanguages = TargetLanguageSet.ALL,
         modifiers = modifiers,
         documentationFactory = documentationFactory,
         variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,

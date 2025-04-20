@@ -14,6 +14,14 @@ mkdir -p "$DIST_DIR"
 export OUT_DIR=out
 export DIST_DIR="$DIST_DIR"
 
+plat="linux"
+case "`uname`" in
+  Darwin* )
+    plat="darwin"
+    ;;
+esac
+export ANDROID_HOME="$(pwd)/prebuilts/fullsdk-$plat"
+
 JAVA_HOME="$(pwd)/prebuilts/studio/jdk/jbr-next/linux" tools/gradlew -p tools/ publishLocal --stacktrace
 
 # Depend on the generated version.properties file, as the version depends on

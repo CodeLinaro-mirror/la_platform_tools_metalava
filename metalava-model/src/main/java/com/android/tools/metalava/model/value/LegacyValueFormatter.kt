@@ -21,9 +21,9 @@ import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.FieldItem
-import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.SourceLanguage
 
 /**
  * Provide support for formatting [Value]s consistently with various legacy string representations.
@@ -83,7 +83,7 @@ class LegacyValueFormatter(
         val settings =
             when {
                 context.containingClass().origin == ClassOrigin.CLASS_PATH -> jarSettings
-                context.itemLanguage == ItemLanguage.KOTLIN -> kotlinSettings
+                context.sourceLanguage == SourceLanguage.KOTLIN -> kotlinSettings
                 else -> javaSettings
             }
 

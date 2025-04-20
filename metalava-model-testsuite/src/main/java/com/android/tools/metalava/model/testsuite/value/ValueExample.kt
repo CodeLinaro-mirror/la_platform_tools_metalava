@@ -899,8 +899,6 @@ constructor(
                     // Must fully qualify most classes in signature files.
                     signatureType = "test.pkg.TestEnum",
                     signatureExpression = "test.pkg.TestEnum.VALUE1",
-                    // TODO(b/354633349): Signature files does not support field references.
-                    validForInputFormats = notValidForSignature,
                     expectedLegacySource =
                         expectations {
                             common = "test.pkg.TestEnum.VALUE1"
@@ -1433,8 +1431,8 @@ constructor(
                     name = "String using constant",
                     javaType = "String",
                     javaExpression = "Constants.STRING_CONSTANT",
-                    // TODO(b/354633349): Signature files does not support field references.
-                    validForInputFormats = notValidForSignature,
+                    // Must fully qualify most classes in signature files.
+                    signatureExpression = "test.pkg.Constants.STRING_CONSTANT",
                     expectedLegacySource =
                         expectations {
                             common = "\"constant\""

@@ -49,7 +49,7 @@ internal constructor(
     DefaultParameterItem(
         codebase = codebase,
         fileLocation = PsiFileLocation.fromPsiElement(psiParameter),
-        itemLanguage = psiParameter.itemLanguage,
+        sourceLanguage = psiParameter.sourceLanguage,
         modifiers = modifiers,
         name = name,
         publicNameProvider = publicNameProvider,

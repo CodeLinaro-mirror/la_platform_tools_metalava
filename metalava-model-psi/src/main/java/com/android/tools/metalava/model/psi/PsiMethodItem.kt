@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
@@ -66,7 +67,8 @@ internal class PsiMethodItem(
     DefaultMethodItem(
         codebase = codebase,
         fileLocation = fileLocation,
-        itemLanguage = psiMethod.itemLanguage,
+        sourceLanguage = psiMethod.sourceLanguage,
+        targetLanguages = TargetLanguageSet.ALL,
         modifiers = modifiers,
         documentationFactory = documentationFactory,
         variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,

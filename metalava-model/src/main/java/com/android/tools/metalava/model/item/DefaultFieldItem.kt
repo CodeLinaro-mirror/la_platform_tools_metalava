@@ -22,7 +22,8 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.ItemDocumentationFactory
-import com.android.tools.metalava.model.ItemLanguage
+import com.android.tools.metalava.model.SourceLanguage
+import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.value.OptionalValueProvider
 import com.android.tools.metalava.reporter.FileLocation
@@ -30,7 +31,8 @@ import com.android.tools.metalava.reporter.FileLocation
 open class DefaultFieldItem(
     codebase: Codebase,
     fileLocation: FileLocation,
-    itemLanguage: ItemLanguage,
+    sourceLanguage: SourceLanguage,
+    targetLanguages: Set<TargetLanguage>,
     variantSelectorsFactory: ApiVariantSelectorsFactory,
     modifiers: BaseModifierList,
     documentationFactory: ItemDocumentationFactory,
@@ -44,7 +46,8 @@ open class DefaultFieldItem(
     DefaultMemberItem(
         codebase = codebase,
         fileLocation = fileLocation,
-        itemLanguage = itemLanguage,
+        sourceLanguage = sourceLanguage,
+        targetLanguages = targetLanguages,
         modifiers = modifiers,
         documentationFactory = documentationFactory,
         variantSelectorsFactory = variantSelectorsFactory,
@@ -65,7 +68,8 @@ open class DefaultFieldItem(
         DefaultFieldItem(
                 codebase = codebase,
                 fileLocation = fileLocation,
-                itemLanguage = itemLanguage,
+                sourceLanguage = sourceLanguage,
+                targetLanguages = targetLanguages,
                 variantSelectorsFactory = variantSelectors::duplicate,
                 modifiers = modifiers,
                 documentationFactory = documentation::duplicate,

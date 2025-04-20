@@ -79,6 +79,7 @@ import com.android.tools.metalava.model.TypeStringConfiguration
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.hasAnnotation
+import com.android.tools.metalava.model.value.ValueKind
 import com.android.tools.metalava.model.value.asInt
 import com.android.tools.metalava.model.value.asString
 import com.android.tools.metalava.model.visitors.ApiPredicate
@@ -514,16 +515,18 @@ private constructor(
             item.modifiers.findAnnotation { it.qualifiedName == ANDROID_FLAGGED_API } ?: return
         val attr = annotation.attributes.find { attr -> attr.name == "value" } ?: return
 
-        if (attr.legacyValue.resolve() == null) {
-            val value = attr.legacyValue.value() as? String
-            if (value == attr.legacyValue.toSource()) {
-                // For a string literal, source and value are never the same, so this happens only
-                // when a reference isn't resolvable.
-                return
-            }
+        // Get the flag value, should be a reference to a constant field.
+        val flagValue = attr.value
+        if (flagValue.kind != ValueKind.CONSTANT_FIELD) {
+            // It is not a reference to a constant field so get the string value and try and see if
+            // the field could be found.
+            val value = flagValue.asString()
 
+            // Reverse engineer the string value to a field reference and resolve it to a FieldItem,
+            // if possible.
             val field = value?.let { aconfigFlagLiteralToFieldOrNull(item.codebase, it) }
 
+            // Generate some helpful text so the developer knows what to do to fix it.
             val replacement =
                 if (field != null) {
                     val (fieldSource, fieldItem) = field
