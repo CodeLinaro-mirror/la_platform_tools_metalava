@@ -197,6 +197,6 @@ open class DefaultCodebase(
         source: String,
         context: Item?,
     ): AnnotationItem? {
-        return DefaultAnnotationItem.create(this, source)
+        return DefaultAnnotationItem.createFromSource(this, source)
     }
 }

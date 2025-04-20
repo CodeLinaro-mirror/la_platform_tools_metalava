@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model.text
+package com.android.tools.metalava.model.parser
 
 import com.android.tools.metalava.reporter.FileLocation
 import java.nio.file.Path
@@ -26,16 +26,39 @@ import java.nio.file.Path
  * white spaces and even whole strings. e.g. an annotation, including parameters if present, can be
  * returned as a single token, if requested (e.g. by calling [requireToken] with
  * `parenIsSep=false`).
+ *
+ * @param path the [Path] to the source being read.
+ * @param buffer the [CharArray] from which this will read tokens.
+ * @param exceptionCreator factory method for creating exceptions that will be thrown.
  */
-internal class Tokenizer(private val path: Path, private val buffer: CharArray) :
-    FileLocationTracker {
+class Tokenizer(
+    private val path: Path,
+    private val buffer: CharArray,
+    private val exceptionCreator: (String, FileLocation) -> ParseException = ::ParseException,
+) : FileLocationTracker {
+
+    /** The position of the next character to read in [buffer]. */
     private var position = 0
+
+    /** The current line being read. */
     private var line = 1
 
     override fun fileLocation(): FileLocation {
         return FileLocation.createLocation(path, line)
     }
 
+    private fun throwException(message: String): Nothing {
+        throw exceptionCreator(message, fileLocation())
+    }
+
+    /**
+     * Eat whitespace, including newline characters.
+     *
+     * Scans through the [buffer] from the current [position], stopping at the first non-whitespace
+     * character, updating [position] and [line] as needed.
+     *
+     * @return `true` if any whitespace characters were eaten, `false` otherwise.
+     */
     private fun eatWhitespace(): Boolean {
         var ate = false
         while (position < buffer.size && isSpace(buffer[position])) {
@@ -48,6 +71,15 @@ internal class Tokenizer(private val path: Path, private val buffer: CharArray) 
         return ate
     }
 
+    /**
+     * Eat a line comment, if any, starting at the current [position] and ending at the end of the
+     * line but not moving onto the next line.
+     *
+     * If [position] does not point to a `/` immediately followed by another `/` then this does
+     * nothing.
+     *
+     * @return `true` if a line comment was found, `false` otherwise.
+     */
     private fun eatComment(): Boolean {
         if (position + 1 < buffer.size) {
             if (buffer[position] == '/' && buffer[position + 1] == '/') {
@@ -61,27 +93,52 @@ internal class Tokenizer(private val path: Path, private val buffer: CharArray) 
         return false
     }
 
+    /** Eat whitespace and line comments until a non-whitespace, non-line comment is found. */
     private fun eatWhitespaceAndComments() {
         while (eatWhitespace() || eatComment()) {
             // intentionally consume whitespace and comments
         }
     }
 
+    /**
+     * Get the next token, failing if the end of the file is reached.
+     *
+     * @param parenIsSep If `true` then treat `(` and `)` as separators, otherwise do not.
+     * @param eatWhitespace If `true` then eat whitespace and comments first.
+     * @return the token String found.
+     */
     fun requireToken(parenIsSep: Boolean = true, eatWhitespace: Boolean = true): String {
         val token = getToken(parenIsSep, eatWhitespace)
-        return token ?: throw ApiParseException("Unexpected end of file", this)
+        return token ?: throwException("Unexpected end of file")
     }
 
+    /**
+     * The current [position], used to record the start of a block of text that will be retrieved
+     * later by [getStringFromOffset].
+     */
     fun offset(): Int {
         return position
     }
 
+    /**
+     * Get the contents of [buffer] from [offset] to [position].
+     *
+     * @param offset an offset previously returned by [offset].
+     */
     fun getStringFromOffset(offset: Int): String {
         return String(buffer, offset, position - offset)
     }
 
+    /** The current token. */
     lateinit var current: String
 
+    /**
+     * Get the next token, returning null if the end of the file is reached.
+     *
+     * @param parenIsSep If `true` then treat `(` and `)` as separators, otherwise do not.
+     * @param eatWhitespace If `true` then eat whitespace and comments first.
+     * @return the token String found, or null.
+     */
     fun getToken(parenIsSep: Boolean = true, eatWhitespace: Boolean = true): String? {
         if (eatWhitespace) {
             eatWhitespaceAndComments()
@@ -99,14 +156,11 @@ internal class Tokenizer(private val path: Path, private val buffer: CharArray) 
             var state = STATE_BEGIN
             while (true) {
                 if (position >= buffer.size) {
-                    throw ApiParseException("Unexpected end of file for \" starting at $line", this)
+                    throwException("Unexpected end of file for \" starting at $line")
                 }
                 val k = buffer[position]
                 if (k == '\n' || k == '\r') {
-                    throw ApiParseException(
-                        "Unexpected newline for \" starting at $line in $path",
-                        this
-                    )
+                    throwException("Unexpected newline for \" starting at $line")
                 }
                 position++
                 when (state) {
@@ -164,16 +218,16 @@ internal class Tokenizer(private val path: Path, private val buffer: CharArray) 
                         genericDepth != 0)
             )
             if (position >= buffer.size) {
-                throw ApiParseException("Unexpected end of file for \" starting at $line", this)
+                throwException("Unexpected end of file for \" starting at $line")
             }
             current = String(buffer, start, position - start)
             return current
         }
     }
 
-    internal fun assertIdent(token: String) {
+    fun assertIdent(token: String) {
         if (!isIdent(token[0])) {
-            throw ApiParseException("Expected identifier: $token", this)
+            throwException("Expected identifier: $token")
         }
     }
 
@@ -199,7 +253,7 @@ internal class Tokenizer(private val path: Path, private val buffer: CharArray) 
             return c != '"' && !isSeparator(c, true)
         }
 
-        internal fun isIdent(token: String): Boolean {
+        fun isIdent(token: String): Boolean {
             return isIdent(token[0])
         }
     }
@@ -213,7 +267,7 @@ internal class Tokenizer(private val path: Path, private val buffer: CharArray) 
  * [FileLocation] but does not consume tokens. That makes that code and the [Tokenizer] state easier
  * to reason about.
  */
-internal interface FileLocationTracker {
+interface FileLocationTracker {
     /** Get the current [FileLocation]. */
     fun fileLocation(): FileLocation
 }

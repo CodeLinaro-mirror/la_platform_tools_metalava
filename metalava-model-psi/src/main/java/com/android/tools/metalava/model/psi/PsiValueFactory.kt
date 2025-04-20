@@ -18,13 +18,18 @@ package com.android.tools.metalava.model.psi
 
 import com.android.tools.lint.detector.api.ConstantEvaluator
 import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassTypeItem
+import com.android.tools.metalava.model.DefaultAnnotationAttribute
+import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.VariableTypeItem
+import com.android.tools.metalava.model.asAnnotationAttributeValue
 import com.android.tools.metalava.model.type.ContextNullability
+import com.android.tools.metalava.model.value.AnnotationValue
 import com.android.tools.metalava.model.value.ArrayElementValue
 import com.android.tools.metalava.model.value.CachingAnnotationValueProvider
 import com.android.tools.metalava.model.value.CachingValueProvider
@@ -37,18 +42,28 @@ import com.android.tools.metalava.model.value.Value
 import com.android.tools.metalava.model.value.ValueFactory
 import com.android.tools.metalava.model.value.ValueProvider
 import com.android.tools.metalava.model.value.ValueProviderException
+import com.android.tools.metalava.model.value.ValueUseSite
+import com.android.tools.metalava.model.value.provider
+import com.android.tools.metalava.reporter.FileLocation
+import com.intellij.psi.JavaPsiFacade
+import com.intellij.psi.PsiAnnotation
 import com.intellij.psi.PsiAnnotationMemberValue
+import com.intellij.psi.PsiArrayInitializerMemberValue
 import com.intellij.psi.PsiClassObjectAccessExpression
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiField
 import com.intellij.psi.PsiLiteralExpression
+import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiReferenceExpression
 import com.intellij.psi.PsiTypes
+import org.jetbrains.kotlin.psi.psiUtil.parameterIndex
+import org.jetbrains.uast.UCallExpression
 import org.jetbrains.uast.UClassLiteralExpression
 import org.jetbrains.uast.UExpression
 import org.jetbrains.uast.ULiteralExpression
 import org.jetbrains.uast.UQualifiedReferenceExpression
 import org.jetbrains.uast.USimpleNameReferenceExpression
+import org.jetbrains.uast.UastCallKind
 import org.jetbrains.uast.UastQualifiedExpressionAccessType
 
 /**
@@ -71,9 +86,13 @@ internal class PsiValueFactory(
      *   [FieldItem.type].
      * @param anyValue the underlying Psi specific value. It is of type [Any] to avoid having to
      *   duplicate everything for [UExpression] and [PsiAnnotationMemberValue].
+     * @param valueUseSite the [ValueUseSite] for which this will provide a [Value].
      */
-    fun providerFor(typeItem: TypeItem, anyValue: Any): CombinedValueProvider =
-        CachingValueProvider(this, typeItem, anyValue)
+    fun providerFor(
+        typeItem: TypeItem,
+        anyValue: Any,
+        valueUseSite: ValueUseSite
+    ): CombinedValueProvider = CachingValueProvider(this, typeItem, anyValue, valueUseSite)
 
     /**
      * Get a [CombinedValueProvider] that will create (and cache) a [Value] for attribute
@@ -100,19 +119,69 @@ internal class PsiValueFactory(
     override fun implementationValueToModelValue(
         optionalTypeItem: TypeItem?,
         implementationValue: Any,
-    ): Value {
-        return when (implementationValue) {
-            is UExpression -> uExpressionToValue(optionalTypeItem, implementationValue)
-            is PsiAnnotationMemberValue -> psiToValue(optionalTypeItem, implementationValue)
-            else ->
-                throw ValueProviderException(
-                    "Unknown value '$implementationValue' of ${implementationValue.javaClass} for type $optionalTypeItem"
-                )
+        valueUseSite: ValueUseSite,
+    ): Value? {
+        val value =
+            when (implementationValue) {
+                is UExpression -> uExpressionToValue(optionalTypeItem, implementationValue)
+                is PsiAnnotationMemberValue -> psiToValue(optionalTypeItem, implementationValue)
+                else -> null
+            }
+
+        if (valueUseSite == ValueUseSite.ANNOTATION && value == null) {
+            unknownExpression(optionalTypeItem, implementationValue)
         }
+
+        return value
+    }
+
+    /**
+     * An unknown [expression] of [optionalTypeItem] was found and it was not possible to return
+     * `null` so throw an exception.
+     */
+    private fun unknownExpression(optionalTypeItem: TypeItem?, expression: Any): Nothing {
+        throw ValueProviderException(
+            "Unknown value '$expression' of ${expression.javaClass} for type $optionalTypeItem"
+        )
     }
 
     /** Create a [Value] of [optionalTypeItem] from [uExpression]. */
-    private fun uExpressionToValue(optionalTypeItem: TypeItem?, uExpression: UExpression): Value {
+    private fun uExpressionToValue(
+        optionalTypeItem: TypeItem?,
+        uExpression: UExpression,
+    ): Value? {
+        if (
+            uExpression is UCallExpression &&
+                uExpression.kind == UastCallKind.NESTED_ARRAY_INITIALIZER
+        ) {
+            val arrayTypeItem = optionalTypeItem as? ArrayTypeItem
+            val elementType = arrayTypeItem?.componentType
+            val elements =
+                uExpression.valueArguments.map {
+                    uExpressionToArrayElementValue(elementType, it)
+                        ?: unknownExpression(elementType, it)
+                }
+            return createArrayValue(elements)
+        }
+
+        return if (optionalTypeItem is ArrayTypeItem) {
+            // The type is an array so this is an example of not having to add curly braces around a
+            // single value in an annotation attribute. Create a value for the component type and
+            // then wrap it in an ArrayValue.
+            uExpressionToArrayElementValue(optionalTypeItem.componentType, uExpression)?.let {
+                singleValue ->
+                createArrayValue(listOf(singleValue))
+            }
+        } else {
+            uExpressionToArrayElementValue(optionalTypeItem, uExpression)
+        }
+    }
+
+    /** Create an [ArrayElementValue] of [optionalTypeItem] from [uExpression]. */
+    private fun uExpressionToArrayElementValue(
+        optionalTypeItem: TypeItem?,
+        uExpression: UExpression
+    ): ArrayElementValue? {
         when (uExpression) {
             is UQualifiedReferenceExpression -> {
                 // Check to see if it is a class literal and if so then create a ClassObjectValue
@@ -130,6 +199,11 @@ internal class PsiValueFactory(
                     ?.let {
                         return it
                     }
+            }
+            is UCallExpression -> {
+                uCallExpressionToAnnotationValue(uExpression)?.let {
+                    return it
+                }
             }
         }
 
@@ -220,11 +294,68 @@ internal class PsiValueFactory(
         )
     }
 
+    /**
+     * Create an [AnnotationValue] from [uExpression] if possible, otherwise return `null`.
+     *
+     * @param uExpression a call to an annotation class's constructor.
+     */
+    private fun uCallExpressionToAnnotationValue(uExpression: UCallExpression): AnnotationValue? {
+        // Annotations are created using constructor calls.
+        if (uExpression.kind != UastCallKind.CONSTRUCTOR_CALL) return null
+
+        // Resolve the call to the constructor, return null if it cannot be resolved.
+        val resolved = uExpression.resolve()
+        if (resolved !is PsiMethod || !resolved.isConstructor) return null
+
+        // Get the qualified name of the constructor class, return null if it is not available.
+        val psiClass = resolved.containingClass
+        val qualifiedClassName = psiClass?.qualifiedName ?: return null
+
+        fun attributesProvider() =
+            // Iterate over the parameters of the annotation constructor as this needs to get the
+            // parameter name for each argument to use as the attribute name and its type for use
+            // to guide conversion.
+            resolved.psiParameters.mapNotNull { psiParameter ->
+                val index = psiParameter.parameterIndex()
+                // Get the argument for this parameter, if no argument is provided then ignore the
+                // parameter.
+                val uArgument = uExpression.getArgumentForParameter(index) ?: return@mapNotNull null
+
+                // Get the name and type from the parameter.
+                val name = psiParameter.name
+                val typeItem = globalTypeItemFactory.getType(psiParameter.type)
+
+                // Create a value from the expression. This needs to be done immediately so that
+                // asAnnotationAttributeValue() call below can differentiate between an ArrayValue
+                // (which needs to be converted to an AnnotationArrayAttributeValue) and other
+                // values.
+                val value =
+                    uExpressionToArrayElementValue(typeItem, uArgument)
+                        ?: unknownExpression(typeItem, uArgument)
+                DefaultAnnotationAttribute(
+                    name,
+                    value.provider(),
+                    value.asAnnotationAttributeValue(),
+                )
+            }
+
+        val annotationItem =
+            DefaultAnnotationItem.createAttributesLazily(
+                codebase,
+                FileLocation.UNKNOWN,
+                qualifiedClassName,
+            ) {
+                attributesProvider()
+            }
+
+        return createAnnotationValue(annotationItem!!)
+    }
+
     /** Create a [ConstantValue] of [optionalTypeItem] from [uExpression]. */
     private fun uExpressionToConstant(
         optionalTypeItem: TypeItem?,
         uExpression: UExpression
-    ): ConstantValue {
+    ): ConstantValue? {
         if (uExpression is ULiteralExpression) {
             uExpression.value?.let { underlyingValue ->
                 // Check to see if the underlying value has been already been cast from the source
@@ -256,17 +387,43 @@ internal class PsiValueFactory(
             return createLiteralValue(optionalTypeItem, value)
         }
 
-        // Drop through to throw an exception to document why it failed.
-        throw ValueProviderException(
-            "Unknown value '$uExpression' of ${uExpression.javaClass} for type $optionalTypeItem"
-        )
+        // An unknown expression was found so return null and the caller will handle as needed.
+        return null
     }
 
     /** Create a [Value] of [optionalTypeItem] from [psiValue]. */
     private fun psiToValue(
         optionalTypeItem: TypeItem?,
         psiValue: PsiAnnotationMemberValue,
-    ): Value {
+    ): Value? {
+        // Array literal.
+        if (psiValue is PsiArrayInitializerMemberValue) {
+            val arrayTypeItem = optionalTypeItem as? ArrayTypeItem
+            val elementType = arrayTypeItem?.componentType
+            val elements =
+                psiValue.initializers.map {
+                    psiToArrayElementValue(elementType, it) ?: unknownExpression(elementType, it)
+                }
+            return createArrayValue(elements)
+        }
+
+        return if (optionalTypeItem is ArrayTypeItem) {
+            // The type is an array so this is an example of not having to add curly braces around a
+            // single value in an annotation attribute. Create a value for the component type and
+            // then wrap it in an ArrayValue.
+            psiToArrayElementValue(optionalTypeItem.componentType, psiValue)?.let { singleValue ->
+                createArrayValue(listOf(singleValue))
+            }
+        } else {
+            psiToArrayElementValue(optionalTypeItem, psiValue)
+        }
+    }
+
+    /** Create an [ArrayElementValue] of [optionalTypeItem] from [psiValue]. */
+    private fun psiToArrayElementValue(
+        optionalTypeItem: TypeItem?,
+        psiValue: PsiAnnotationMemberValue,
+    ): ArrayElementValue? {
         when (psiValue) {
             // Class literal, e.g. `SomeClass.class`.
             is PsiClassObjectAccessExpression -> {
@@ -290,6 +447,12 @@ internal class PsiValueFactory(
                         return it
                     }
             }
+            // An annotation value.
+            is PsiAnnotation -> {
+                PsiAnnotationItem.create(codebase, psiValue)?.let { annotationItem ->
+                    return createAnnotationValue(annotationItem)
+                }
+            }
         }
 
         // All others drop through.
@@ -300,7 +463,7 @@ internal class PsiValueFactory(
     private fun psiToConstant(
         optionalTypeItem: TypeItem?,
         psiValue: PsiAnnotationMemberValue,
-    ): ConstantValue {
+    ): ConstantValue? {
         // Literal primitive or String.
         if (psiValue is PsiLiteralExpression) {
             return psiValue.value?.let { underlyingValue ->
@@ -316,10 +479,15 @@ internal class PsiValueFactory(
             return createLiteralValue(optionalTypeItem, value)
         }
 
-        // Drop through to throw an exception to document why it failed.
-        throw ValueProviderException(
-            "Unknown value '$psiValue' of ${psiValue.javaClass} for type $optionalTypeItem"
-        )
+        // Temporarily fall through to use PsiConstantEvaluationHelper
+        // TODO(b/408445860): Remove once ConstantEvaluator can handle the necessary cases.
+        val javaPsiFacade = JavaPsiFacade.getInstance(codebase.project)
+        javaPsiFacade.constantEvaluationHelper.computeConstantExpression(psiValue)?.let { value ->
+            return createLiteralValue(optionalTypeItem, value)
+        }
+
+        // An unknown expression was found so return null and the caller will handle as needed.
+        return null
     }
 
     /**
@@ -334,14 +502,7 @@ internal class PsiValueFactory(
     ): ArrayElementValue? {
         if (resolved is PsiField) {
             codebase.findField(resolved)?.let { fieldItem ->
-                if (fieldItem.isEnumConstant()) {
-                    return createEnumConstantValue(fieldItem)
-                }
-
-                // Get the constant value of the field, if any.
-                val constantValue = constantProvider()
-
-                return createConstantFieldValue(fieldItem, constantValue)
+                return createFieldReferenceValue(fieldItem)
             }
         }
 

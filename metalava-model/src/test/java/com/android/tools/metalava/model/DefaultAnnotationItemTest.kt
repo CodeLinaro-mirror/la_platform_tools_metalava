@@ -23,7 +23,7 @@ import org.junit.Test
 class DefaultAnnotationItemTest : Assertions {
 
     private fun createDefaultAnnotationItem(source: String) =
-        DefaultAnnotationItem.create(AnnotationContext.DEFAULT, source)
+        DefaultAnnotationItem.createFromSource(AnnotationContext.DEFAULT, source)
             ?: error("Could not create annotation from: '$source'")
 
     @Test

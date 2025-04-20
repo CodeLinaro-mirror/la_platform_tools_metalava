@@ -22,7 +22,6 @@ import com.android.tools.metalava.model.testing.CodebaseCreatorConfig
 import com.android.tools.metalava.model.testing.value.runValueTest
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.model.testsuite.ModelSuiteRunner
-import com.android.tools.metalava.model.testsuite.value.ValueExample.Companion.NO_INITIAL_FIELD_VALUE
 import com.android.tools.metalava.model.testsuite.value.ValueExample.Companion.valueExamples
 import com.android.tools.metalava.model.value.Value
 import com.android.tools.metalava.model.value.ValueParser
@@ -58,7 +57,7 @@ class ParameterizedValueParserTest : BaseModelTest() {
         val label: String,
         /** The [ValueExample] on which this test case is based. */
         val valueExample: ValueExample,
-        val javaType: String,
+        val signatureType: String,
         val input: String,
         val expectedValue: Value,
     ) {
@@ -68,7 +67,7 @@ class ParameterizedValueParserTest : BaseModelTest() {
 
             other as TestCase
 
-            if (javaType != other.javaType) return false
+            if (signatureType != other.signatureType) return false
             if (input != other.input) return false
             if (expectedValue != other.expectedValue) return false
 
@@ -98,12 +97,12 @@ class ParameterizedValueParserTest : BaseModelTest() {
             return inputFormat == InputFormat.SIGNATURE
         }
 
-        /** The set of [ValueUseSite]s which end up being written to a signature file. */
-        private val valueUseSitesWrittenToSignatureFiles =
+        /** The set of [LegacyValueUseSite]s which end up being written to a signature file. */
+        private val legacyValueUseSitesWrittenToSignatureFiles =
             EnumSet.of(
-                ValueUseSite.ANNOTATION_TO_SOURCE,
-                ValueUseSite.ATTRIBUTE_DEFAULT_VALUE,
-                ValueUseSite.FIELD_WRITE_WITH_SEMICOLON,
+                LegacyValueUseSite.ANNOTATION_TO_SOURCE,
+                LegacyValueUseSite.ATTRIBUTE_DEFAULT_VALUE,
+                LegacyValueUseSite.FIELD_WRITE_WITH_SEMICOLON,
             )
 
         /**
@@ -121,16 +120,20 @@ class ParameterizedValueParserTest : BaseModelTest() {
         private val testCases =
             valueExamples
                 .flatMap { valueExample ->
-                    val javaType = valueExample.javaType
+                    // If the example is not suitable for signature files then ignore it.
+                    if (InputFormat.SIGNATURE !in valueExample.validForInputFormats)
+                        return@flatMap emptyList()
+
+                    val signatureType = valueExample.signatureType
                     buildList {
                         // Iterate over jar and source representations.
                         for (producerKind in ProducerKind.entries) {
-                            // Get the expected value. Uses ValueUseSite.ATTRIBUTE_VALUE but any
-                            // would be ok as all use sites have the same expected value.
+                            // Get the expected value. Uses LegacyValueUseSite.ATTRIBUTE_VALUE but
+                            // any would be ok as all use sites have the same expected value.
                             val expectedValue =
                                 valueExample.expectedValue?.expectationFor(
                                     producerKind,
-                                    ValueUseSite.ATTRIBUTE_VALUE
+                                    LegacyValueUseSite.ATTRIBUTE_VALUE
                                 ) ?: continue
 
                             // Add a test case for the input java expression.
@@ -138,14 +141,14 @@ class ParameterizedValueParserTest : BaseModelTest() {
                                 TestCase(
                                     "${valueExample.name},javaExpression,${producerKind.name.lowercase()}",
                                     valueExample,
-                                    javaType,
+                                    signatureType,
                                     valueExample.signatureExpression,
                                     expectedValue
                                 )
                             )
 
                             // Iterate over all value use sites that are written to signature files.
-                            for (valueUseSite in valueUseSitesWrittenToSignatureFiles) {
+                            for (legacyValueUseSite in legacyValueUseSitesWrittenToSignatureFiles) {
                                 // Cover Java dnd Kotlin representations.
                                 for (sourceInputFormat in sourceInputFormats) {
                                     // Get the expected representation for this combination of
@@ -153,20 +156,20 @@ class ParameterizedValueParserTest : BaseModelTest() {
                                     val input =
                                         valueExample
                                             .expectedLegacySourceFor(sourceInputFormat)
-                                            .expectationFor(producerKind, valueUseSite)
+                                            .expectationFor(producerKind, legacyValueUseSite)
 
                                     // Ignore no values.
-                                    if (input == NO_INITIAL_FIELD_VALUE) continue
+                                    if (input == null) continue
 
                                     val label =
-                                        "${valueExample.name},${valueUseSite.name.lowercase()},${sourceInputFormat.name.lowercase()},${producerKind.name.lowercase()}"
+                                        "${valueExample.name},${legacyValueUseSite.name.lowercase()},${sourceInputFormat.name.lowercase()},${producerKind.name.lowercase()}"
 
                                     // Add a test case for the input.
                                     add(
                                         TestCase(
                                             label,
                                             valueExample,
-                                            javaType,
+                                            signatureType,
                                             input,
                                             expectedValue
                                         )
@@ -184,10 +187,13 @@ class ParameterizedValueParserTest : BaseModelTest() {
                 .filter {
                     // TODO(b/354633349): Support Kotlin syntax for class literals in signature
                     //  files.
-                    !it.input.contains("::class")
-                    // Ignore test cases that require imports as they are not fully qualified
-                    // and signature files require class types to be fully qualified.
-                    && it.valueExample.javaImports.isEmpty()
+                    !it.input.contains("::class") &&
+                        // Ignore test cases that require imports as they are not fully qualified
+                        // and signature files require class types to be fully qualified.
+                        it.valueExample.javaImports.isEmpty() &&
+                        // Ignore test cases that have an empty string as an input as they are in
+                        // error.
+                        it.input.isNotEmpty()
                 }
 
         /** Supply the list of test cases as the parameters for this test class. */
@@ -202,7 +208,7 @@ class ParameterizedValueParserTest : BaseModelTest() {
                     // Signature format: 2.0
                     package test.pkg {
                       public class Foo {
-                        field public static final ${testCase.javaType} FIELD;
+                        field public static final ${testCase.signatureType} FIELD;
                       }
                     }
                 """

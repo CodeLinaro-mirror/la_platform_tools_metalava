@@ -34,28 +34,29 @@ internal sealed interface ToValueStringDependsOnSourceForm<T : Any> : PrimitiveV
     val wasOriginallySpecifiedAsInt: Boolean
 
     @Deprecated("Do not call directly", replaceWith = ReplaceWith("toString()"))
-    override fun debugStringForValue(): String {
-        val suffix = if (wasOriginallySpecifiedAsInt) ",asInt" else ""
-        return toValueString() + suffix
+    override fun appendDebugStringTo(builder: StringBuilder) {
+        @Suppress("DEPRECATION") super.appendDebugStringTo(builder)
+        if (wasOriginallySpecifiedAsInt) builder.append(",asInt")
     }
 }
 
 /**
  * If the [configuration] has [ValueStringConfiguration.treatAsIntIfOriginallySpecifiedAsInt] set to
  * `true` and [ToValueStringDependsOnSourceForm.wasOriginallySpecifiedAsInt] is also `true` then
- * this will return [ToValueStringDependsOnSourceForm.underlyingValue] as if it was an `int`,
- * otherwise it will return the value returned by [otherwise].
+ * this will append [ToValueStringDependsOnSourceForm.underlyingValue] as if it was an `int`,
+ * otherwise it will invoke [otherwise] to append the value as normal.
  */
 internal inline fun <T : Number> ToValueStringDependsOnSourceForm<T>.treatAsIntIfRequired(
+    builder: StringBuilder,
     configuration: ValueStringConfiguration,
-    otherwise: (T) -> String
-): String {
+    otherwise: () -> Unit
+) {
     if (configuration.treatAsIntIfOriginallySpecifiedAsInt && wasOriginallySpecifiedAsInt) {
         val intValue = underlyingValue.toInt()
-        return intValue.toString()
+        builder.append(intValue)
+    } else {
+        otherwise()
     }
-
-    return otherwise(underlyingValue)
 }
 
 internal class DefaultBooleanValue(override val underlyingValue: Boolean) :
@@ -72,16 +73,28 @@ internal class DefaultDoubleValue(
     override val wasOriginallySpecifiedAsInt: Boolean = false,
 ) : DefaultPrimitiveValue<Double>(), DoubleValue, ToValueStringDependsOnSourceForm<Double> {
 
-    override fun toValueString(configuration: ValueStringConfiguration) =
-        treatAsIntIfRequired(configuration) { super<DoubleValue>.toValueString(configuration) }
+    override fun appendValueStringTo(
+        builder: StringBuilder,
+        configuration: ValueStringConfiguration
+    ) {
+        treatAsIntIfRequired(builder, configuration) {
+            super<DoubleValue>.appendValueStringTo(builder, configuration)
+        }
+    }
 }
 
 internal class DefaultFloatValue(
     override val underlyingValue: Float,
     override val wasOriginallySpecifiedAsInt: Boolean = false,
 ) : DefaultPrimitiveValue<Float>(), FloatValue, ToValueStringDependsOnSourceForm<Float> {
-    override fun toValueString(configuration: ValueStringConfiguration) =
-        treatAsIntIfRequired(configuration) { super<FloatValue>.toValueString(configuration) }
+    override fun appendValueStringTo(
+        builder: StringBuilder,
+        configuration: ValueStringConfiguration
+    ) {
+        treatAsIntIfRequired(builder, configuration) {
+            super<FloatValue>.appendValueStringTo(builder, configuration)
+        }
+    }
 }
 
 internal class DefaultIntValue(override val underlyingValue: Int) :
@@ -91,8 +104,14 @@ internal class DefaultLongValue(
     override val underlyingValue: Long,
     override val wasOriginallySpecifiedAsInt: Boolean = false,
 ) : DefaultPrimitiveValue<Long>(), LongValue, ToValueStringDependsOnSourceForm<Long> {
-    override fun toValueString(configuration: ValueStringConfiguration) =
-        treatAsIntIfRequired(configuration) { super<LongValue>.toValueString(configuration) }
+    override fun appendValueStringTo(
+        builder: StringBuilder,
+        configuration: ValueStringConfiguration
+    ) {
+        treatAsIntIfRequired(builder, configuration) {
+            super<LongValue>.appendValueStringTo(builder, configuration)
+        }
+    }
 }
 
 internal class DefaultShortValue(override val underlyingValue: Short) :

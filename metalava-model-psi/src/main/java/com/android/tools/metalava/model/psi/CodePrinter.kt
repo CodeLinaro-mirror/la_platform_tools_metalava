@@ -21,7 +21,6 @@ import com.android.tools.lint.detector.api.ConstantEvaluator
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.canonicalizeFloatingPointString
 import com.android.tools.metalava.model.javaEscapeString
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
@@ -128,6 +127,21 @@ class CodePrinter(
             return true
         } else if (value is PsiAnnotation) {
             sb.append('@').append(value.qualifiedName)
+            val attributes = value.parameterList.attributes
+            if (attributes.isNotEmpty()) {
+                sb.append('(')
+                var separator = ""
+                for (attribute in attributes) {
+                    val attributeValue = attribute.value ?: continue
+                    sb.append(separator)
+                    attribute.name?.let { attributeName ->
+                        sb.append(attribute.attributeName).append(" = ")
+                    }
+                    appendSourceExpression(attributeValue, sb, owner)
+                    separator = ", "
+                }
+                sb.append(')')
+            }
             return true
         } else {
             if (value is PsiTypeCastExpression) {
@@ -186,7 +200,7 @@ class CodePrinter(
                         true
                     }
                     else -> {
-                        sb.append(canonicalizeFloatingPointString(v.toString()) + "f")
+                        sb.append(v.toString() + "f")
                         true
                     }
                 }
@@ -207,7 +221,7 @@ class CodePrinter(
                         true
                     }
                     else -> {
-                        sb.append(canonicalizeFloatingPointString(v.toString()))
+                        sb.append(v.toString())
                         true
                     }
                 }
@@ -326,8 +340,8 @@ class CodePrinter(
                 return true
             }
         } else if (expression is UAnnotation) {
-            sb.append('@').append(expression.qualifiedName)
-            return true
+            // TODO(b/354633349): Remove this branch once it has been shown that it is never taken.
+            error("$expression is both a UExpression and a UAnnotation")
         } else if (expression is UBinaryExpressionWithType) {
             if ((expression).isTypeCast()) {
                 sb.append('(').append(expression.type.canonicalText).append(')')
@@ -504,7 +518,7 @@ class CodePrinter(
                         value == Float.NEGATIVE_INFINITY -> "(-1.0f/0.0f)"
                         java.lang.Float.isNaN(value) -> "(0.0f/0.0f)"
                         else -> {
-                            canonicalizeFloatingPointString(value.toString()) + "f"
+                            value.toString() + "f"
                         }
                     }
                 }
@@ -514,7 +528,7 @@ class CodePrinter(
                         value == Double.NEGATIVE_INFINITY -> "(-1.0/0.0)"
                         java.lang.Double.isNaN(value) -> "(0.0/0.0)"
                         else -> {
-                            canonicalizeFloatingPointString(value.toString())
+                            value.toString()
                         }
                     }
                 }
@@ -555,7 +569,7 @@ class CodePrinter(
                         constant == Float.NEGATIVE_INFINITY -> "Float.NEGATIVE_INFINITY"
                         java.lang.Float.isNaN(constant) -> "Float.NaN"
                         else -> {
-                            "${canonicalizeFloatingPointString(constant.toString())}F"
+                            "${constant.toString()}F"
                         }
                     }
                 }
@@ -565,7 +579,7 @@ class CodePrinter(
                         constant == Double.NEGATIVE_INFINITY -> "Double.NEGATIVE_INFINITY"
                         java.lang.Double.isNaN(constant) -> "Double.NaN"
                         else -> {
-                            canonicalizeFloatingPointString(constant.toString())
+                            constant.toString()
                         }
                     }
                 }

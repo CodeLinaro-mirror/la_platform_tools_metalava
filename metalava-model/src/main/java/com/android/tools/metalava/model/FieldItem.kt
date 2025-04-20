@@ -212,7 +212,7 @@ interface FieldItem : MemberItem, InheritableItem {
                         value == java.lang.Float.MIN_NORMAL ->
                             writer.format("1.17549435E-38f;", value)
                         else -> {
-                            writer.print(canonicalizeFloatingPointString(value.toString()))
+                            writer.print(value.toString())
                             writer.print("f;")
                         }
                     }
@@ -224,7 +224,7 @@ interface FieldItem : MemberItem, InheritableItem {
                         value == Double.NEGATIVE_INFINITY -> writer.print("(-1.0/0.0);")
                         java.lang.Double.isNaN(value) -> writer.print("(0.0/0.0);")
                         else -> {
-                            writer.print(canonicalizeFloatingPointString(value.toString()))
+                            writer.print(value.toString())
                             writer.print(";")
                         }
                     }
@@ -377,25 +377,4 @@ fun javaUnescapeString(str: String): String {
         throw IllegalArgumentException("unfinished escape sequence: $str")
     }
     return buf.toString()
-}
-
-/**
- * Returns a canonical string representation of a floating point number. The representation is
- * suitable for use as Java source code. This method also addresses bug #4428022 in the Sun JDK.
- */
-// From doclava1
-fun canonicalizeFloatingPointString(value: String): String {
-    var str = value
-    if (str.indexOf('E') != -1) {
-        return str
-    }
-
-    // 1.0 is the only case where a trailing "0" is allowed.
-    // 1.00 is canonicalized as 1.0.
-    var i = str.length - 1
-    val d = str.indexOf('.')
-    while (i >= d + 2 && str[i] == '0') {
-        str = str.substring(0, i--)
-    }
-    return str
 }

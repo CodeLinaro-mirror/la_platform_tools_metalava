@@ -131,6 +131,20 @@ class CommandTestConfig<C : CliktCommand>(private val test: BaseCommandTest<C>) 
         args.mapTo(this) { it.toString() }
     }
 
+    /** Add an option and a [TestFile]. */
+    @JvmName("plusAssignOptionAndTestFile") // Prevent JVM signature clash with below.
+    operator fun MutableList<String>.plusAssign(flagWithFile: Pair<String, TestFile>) {
+        this += flagWithFile.first
+        this += flagWithFile.second
+    }
+
+    /** Add an option and anything else. */
+    @JvmName("plusAssignOptionAndAnything") // Prevent JVM signature clash with above.
+    operator fun MutableList<String>.plusAssign(flagWithFile: Pair<String, Any>) {
+        this += flagWithFile.first
+        this += flagWithFile.second
+    }
+
     /**
      * The expected output, defaults to an empty string.
      *

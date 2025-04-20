@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.value
 
+import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.FieldItem
@@ -26,6 +27,7 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeVisitor
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.WildcardTypeItem
+import com.android.tools.metalava.model.javaEscapeString
 import com.android.tools.metalava.model.value.ValueFactory.Companion.primitiveValueFactories
 
 /**
@@ -167,32 +169,25 @@ interface ValueFactory {
         return DefaultClassObjectValue(typeItem)
     }
 
-    /**
-     * Create a [ConstantFieldValue] from [fieldItem] and the optional [constantValue].
-     *
-     * The [FieldItem] must not be an enum constant, i.e. [FieldItem.isEnumConstant] must be
-     * `false`.
-     */
-    fun createConstantFieldValue(
-        fieldItem: FieldItem,
-        constantValue: ConstantValue?
-    ): ArrayElementValue {
-        require(!fieldItem.isEnumConstant()) {
-            "Constant field must be created from a FieldItem which is not an enum constant but $fieldItem is"
+    /** Create a [FieldReferenceValue] from [fieldItem]. */
+    fun createFieldReferenceValue(fieldItem: FieldItem): ArrayElementValue {
+        // Make sure that the class type item does not have any arguments.
+        val classTypeItem = fieldItem.containingClass().type().substitute(arguments = emptyList())
+        val fieldName = fieldItem.name()
+        return if (fieldItem.isEnumConstant()) {
+            createEnumConstantValue(classTypeItem, fieldName)
+        } else {
+            val constantValue = fieldItem.initialValue?.asLiteralValue()
+            createConstantFieldValue(classTypeItem, fieldName, constantValue)
         }
-        return createConstantFieldValue(
-            fieldItem.containingClass().qualifiedName(),
-            fieldItem.name(),
-            constantValue,
-        )
     }
 
     /**
-     * Create a [ConstantFieldValue] called [fieldName] in [qualifiedClassName] with an optional
+     * Create a [ConstantFieldValue] called [fieldName] in [classTypeItem] with an optional
      * [constantValue].
      */
     fun createConstantFieldValue(
-        qualifiedClassName: String,
+        classTypeItem: ClassTypeItem,
         fieldName: String,
         constantValue: ConstantValue?,
     ): ArrayElementValue {
@@ -203,32 +198,21 @@ interface ValueFactory {
         }
 
         return DefaultConstantFieldValue(
-            qualifiedClassName,
+            classTypeItem,
             fieldName,
             constantValue,
         )
     }
 
-    /**
-     * Create an [EnumConstantValue] from [fieldItem].
-     *
-     * The [FieldItem] must be an enum constant, i.e. [FieldItem.isEnumConstant] must be `true`.
-     */
-    fun createEnumConstantValue(fieldItem: FieldItem): ArrayElementValue {
-        require(fieldItem.isEnumConstant()) {
-            "Enum constant must be created from a FieldItem which is an enum constant but $fieldItem is not"
-        }
-        return createEnumConstantValue(
-            fieldItem.containingClass().qualifiedName(),
-            fieldItem.name(),
-        )
-    }
-
-    /** Create an [EnumConstantValue] called [fieldName] in [qualifiedClassName]. */
+    /** Create an [EnumConstantValue] called [fieldName] in [classTypeItem]. */
     fun createEnumConstantValue(
-        qualifiedClassName: String,
+        classTypeItem: ClassTypeItem,
         fieldName: String,
-    ): ArrayElementValue = DefaultEnumConstantValue(qualifiedClassName, fieldName)
+    ): ArrayElementValue = DefaultEnumConstantValue(classTypeItem, fieldName)
+
+    /** Create an [AnnotationValue] that wraps an [AnnotationItem]. */
+    fun createAnnotationValue(annotationItem: AnnotationItem): AnnotationValue =
+        DefaultAnnotationValue(annotationItem)
 
     companion object {
         /**
@@ -315,7 +299,21 @@ interface ValueFactory {
                         if (primitiveKind == Primitive.BOOLEAN) underlyingValue else null
                     }
                     is Char -> {
-                        if (primitiveKind == Primitive.CHAR) underlyingValue else null
+                        val convertedValue: Any? =
+                            when (primitiveKind) {
+                                Primitive.BYTE ->
+                                    convertInteger(underlyingValue.code) { it.toByte() }
+                                Primitive.CHAR -> underlyingValue
+                                Primitive.INT -> convertInteger(underlyingValue.code) { it.toInt() }
+                                Primitive.LONG -> convertInteger(underlyingValue.code) { it }
+                                Primitive.SHORT ->
+                                    convertInteger(underlyingValue.code) { it.toShort() }
+                                else -> null
+                            }
+                        if (convertedValue != null) {
+                            checkLossyConversion(underlyingValue, primitiveKind, convertedValue)
+                        }
+                        convertedValue
                     }
                     is String -> {
                         // A single character string can be used as a char.
@@ -366,7 +364,7 @@ interface ValueFactory {
          * [targetKind] can be converted back to [original] without loss. If it cannot then throw an
          * exception.
          */
-        private fun checkLossyConversion(original: Number, targetKind: Primitive, converted: Any) {
+        private fun checkLossyConversion(original: Any, targetKind: Primitive, converted: Any) {
             val convertedNumber =
                 when (converted) {
                     is Number -> converted
@@ -377,6 +375,7 @@ interface ValueFactory {
             val roundTrip =
                 when (original) {
                     is Byte -> convertedNumber.toByte()
+                    is Char -> convertedNumber.toInt().toChar()
                     is Double -> convertedNumber.toDouble()
                     is Float -> convertedNumber.toFloat()
                     is Int -> convertedNumber.toInt()
@@ -387,7 +386,7 @@ interface ValueFactory {
 
             if (roundTrip != original) {
                 error(
-                    "Conversion of $original to ${targetKind.primitiveName} is lossy and produces $converted; round trip value is $roundTrip"
+                    "Conversion of ${javaEscapeString(original.toString())} to ${targetKind.primitiveName} is lossy and produces $converted; round trip value is ${javaEscapeString(roundTrip.toString())}"
                 )
             }
         }

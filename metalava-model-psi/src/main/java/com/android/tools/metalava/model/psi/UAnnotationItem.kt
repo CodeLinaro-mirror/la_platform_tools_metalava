@@ -204,9 +204,16 @@ private constructor(
             // and we want to compute
             //
             // @androidx.annotation.RequiresPermission(android.Manifest.permission.ACCESS_COARSE_LOCATION)
+
             when (value) {
-                null -> sb.append("null")
-                is ULiteralExpression -> sb.append(CodePrinter.constantToSource(value.value))
+                null -> {
+                    sb.append("null")
+                    return
+                }
+                is ULiteralExpression -> {
+                    sb.append(CodePrinter.constantToSource(value.value))
+                    return
+                }
                 is UQualifiedReferenceExpression -> {
                     // the value is a Foo.BAR type of reference, or a Foo::class.java type of
                     // reference.
@@ -221,10 +228,12 @@ private constructor(
                     } else {
                         sb.append(value.asSourceString())
                     }
+                    return
                 }
                 is UReferenceExpression -> {
                     // expand Foo to fully qualified name com.example.Foo
                     appendQualifiedName(codebase, sb, value)
+                    return
                 }
                 is UBinaryExpression -> {
                     appendValue(codebase, sb, value.leftOperand, target, showDefaultAttrs)
@@ -232,6 +241,7 @@ private constructor(
                     sb.append(value.operator.text)
                     sb.append(' ')
                     appendValue(codebase, sb, value.rightOperand, target, showDefaultAttrs)
+                    return
                 }
                 is UCallExpression -> {
                     if (value.isArrayInitializer()) {
@@ -246,28 +256,28 @@ private constructor(
                             appendValue(codebase, sb, initializer, target, showDefaultAttrs)
                         }
                         sb.append('}')
-                    } // TODO: support UCallExpression for other cases than array initializers
-                }
-                is UAnnotation -> {
-                    appendAnnotation(
-                        codebase,
-                        sb,
-                        value,
-                        // Normalize the input name of the annotation.
-                        codebase.annotationManager.normalizeInputName(value.qualifiedName!!),
-                        target,
-                        showDefaultAttrs
-                    )
-                }
-                else -> {
-                    val source = getConstantSource(value)
-                    if (source != null) {
-                        sb.append(source)
                         return
                     }
-                    sb.append(value.sourcePsi?.text ?: value.asSourceString())
+                    // TODO: support UCallExpression for other cases than array initializers
+                    // Drop out as it did not append on for other cases than array initializers
+                }
+                is UAnnotation -> {
+                    // TODO(b/354633349): Remove this branch once it has been shown that it is never
+                    // taken.
+                    error("$value is both a UExpression and a UAnnotation")
                 }
             }
+
+            // Fallback, first try evaluating to a constant and using that.
+            val source = getConstantSource(value!!)
+            if (source != null) {
+                sb.append(source)
+                return
+            }
+
+            // Then use the source text.
+            val text = value.sourcePsi?.text ?: value.asSourceString()
+            sb.append(text)
         }
 
         private fun appendQualifiedName(

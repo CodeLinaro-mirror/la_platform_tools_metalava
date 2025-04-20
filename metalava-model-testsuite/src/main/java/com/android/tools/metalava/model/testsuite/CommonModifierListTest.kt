@@ -101,7 +101,11 @@ class CommonModifierListTest : BaseModelTest() {
     fun `test toString()`() {
         runWithCodebase {
             val annotation =
-                DefaultAnnotationItem.create(codebase, FileLocation.UNKNOWN, JAVA_LANG_DEPRECATED) {
+                DefaultAnnotationItem.createAttributesLazily(
+                    codebase,
+                    FileLocation.UNKNOWN,
+                    JAVA_LANG_DEPRECATED
+                ) {
                     emptyList()
                 }!!
             val modifiers =

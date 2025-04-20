@@ -21,18 +21,27 @@ import kotlin.reflect.KProperty
 
 /** Encapsulates a set of expectations about values. */
 interface Expectation<out T> {
-    /** Get the expectations of type [T] for [producerKind] at [valueUseSite]. */
-    fun expectationFor(producerKind: ProducerKind, valueUseSite: ValueUseSite): T
+    /** Get the expectations of type [T] for [producerKind] at [legacyValueUseSite]. */
+    fun expectationFor(producerKind: ProducerKind, legacyValueUseSite: LegacyValueUseSite): T
+
+    /**
+     * Check to see if this has an expectation (which may be null) for [producerKind] at
+     * [legacyValueUseSite].
+     */
+    fun hasExpectationFor(
+        producerKind: ProducerKind,
+        legacyValueUseSite: LegacyValueUseSite
+    ): Boolean
 }
 
 /**
  * Builder for expectations.
  *
  * This makes it easy to create a set of expectations for all possible combinations of
- * [ProducerKind] and [ValueUseSite] without duplicating effort.
+ * [ProducerKind] and [LegacyValueUseSite] without duplicating effort.
  */
-internal fun <T : Any> expectations(body: ExpectationsBuilder<T>.() -> Unit) =
-    nullableExpectations(body = body)
+internal fun <T : Any> expectations(body: ExpectationsBuilder<T?>.() -> Unit) =
+    nullableExpectations(optionalDefaultValueProvider = { null }, body = body)
 
 /**
  * Builder for expectations that allows null.
@@ -51,15 +60,6 @@ private fun <T> nullableExpectations(
     builder.body()
     return builder.expectations(optionalDefaultValueProvider)
 }
-
-/**
- * Builder for partial expectations.
- *
- * Allows `null` values and is expected to be a partial set of expectations that falls back to
- * another set of expectations. See [fallBackTo].
- */
-internal fun <T> partialExpectations(body: ExpectationsBuilder<T?>.() -> Unit) =
-    nullableExpectations(optionalDefaultValueProvider = { null }, body = body)
 
 /**
  * Create an [Expectation] from an [Expectation] that returns `null`, i.e. a partial set, by falling
@@ -89,7 +89,7 @@ internal class MutableMapDelegate<K, T>(
 }
 
 /** The key into the map of expected values in [ExpectationsBuilder.ExpectationMap]. */
-private typealias ExpectationKey = Pair<ProducerKind, ValueUseSite>
+private typealias ExpectationKey = Pair<ProducerKind, LegacyValueUseSite>
 
 /**
  * Populates [expectationMap] with values for all [producerKinds].
@@ -102,7 +102,7 @@ internal open class PerProducerKindBuilder<T>(
 ) {
     /**
      * Stores its value in [expectationMap] for the cross product of [producerKinds] and
-     * [ValueUseSite.entries].
+     * [LegacyValueUseSite.entries].
      *
      * This must be set before any of the other properties as this will overwrite them.
      */
@@ -110,52 +110,58 @@ internal open class PerProducerKindBuilder<T>(
         MutableMapDelegate(
             expectationMap,
             producerKinds.flatMap { producerKind ->
-                ValueUseSite.entries.map { producerKind to it }
+                LegacyValueUseSite.entries.map { producerKind to it }
             }
         )
 
     /**
      * Stores its value in [expectationMap] for the cross product of [producerKinds] and
-     * [ValueUseSite.ATTRIBUTE_VALUE].
+     * [LegacyValueUseSite.ATTRIBUTE_VALUE].
      */
     var attributeValue: T by
-        MutableMapDelegate(expectationMap, producerKinds.map { it to ValueUseSite.ATTRIBUTE_VALUE })
+        MutableMapDelegate(
+            expectationMap,
+            producerKinds.map { it to LegacyValueUseSite.ATTRIBUTE_VALUE }
+        )
 
     /**
      * Stores its value in [expectationMap] for the cross product of [producerKinds] and
-     * [ValueUseSite.ATTRIBUTE_VALUE].
+     * [LegacyValueUseSite.ATTRIBUTE_VALUE].
      */
     var annotationToSource: T by
         MutableMapDelegate(
             expectationMap,
-            producerKinds.map { it to ValueUseSite.ANNOTATION_TO_SOURCE }
+            producerKinds.map { it to LegacyValueUseSite.ANNOTATION_TO_SOURCE }
         )
 
     /**
      * Stores its value in [expectationMap] for the cross product of [producerKinds] and
-     * [ValueUseSite.ATTRIBUTE_DEFAULT_VALUE].
+     * [LegacyValueUseSite.ATTRIBUTE_DEFAULT_VALUE].
      */
     var attributeDefaultValue: T by
         MutableMapDelegate(
             expectationMap,
-            producerKinds.map { it to ValueUseSite.ATTRIBUTE_DEFAULT_VALUE }
+            producerKinds.map { it to LegacyValueUseSite.ATTRIBUTE_DEFAULT_VALUE }
         )
 
     /**
      * Stores its value in [expectationMap] for the cross product of [producerKinds] and
-     * [ValueUseSite.FIELD_VALUE].
+     * [LegacyValueUseSite.FIELD_VALUE].
      */
     var fieldValue: T by
-        MutableMapDelegate(expectationMap, producerKinds.map { it to ValueUseSite.FIELD_VALUE })
+        MutableMapDelegate(
+            expectationMap,
+            producerKinds.map { it to LegacyValueUseSite.FIELD_VALUE }
+        )
 
     /**
      * Stores its value in [expectationMap] for the cross product of [producerKinds] and
-     * [ValueUseSite.FIELD_WRITE_WITH_SEMICOLON].
+     * [LegacyValueUseSite.FIELD_WRITE_WITH_SEMICOLON].
      */
     var fieldWriteWithSemicolon: T by
         MutableMapDelegate(
             expectationMap,
-            producerKinds.map { it to ValueUseSite.FIELD_WRITE_WITH_SEMICOLON }
+            producerKinds.map { it to LegacyValueUseSite.FIELD_WRITE_WITH_SEMICOLON }
         )
 }
 
@@ -197,9 +203,20 @@ internal class ExpectationsBuilder<T> :
         val map: MutableMap<ExpectationKey, T>,
         private val defaultValueProvider: (ExpectationKey) -> T,
     ) : Expectation<T> {
-        override fun expectationFor(producerKind: ProducerKind, valueUseSite: ValueUseSite): T {
-            val key = producerKind to valueUseSite
+        override fun expectationFor(
+            producerKind: ProducerKind,
+            legacyValueUseSite: LegacyValueUseSite
+        ): T {
+            val key = producerKind to legacyValueUseSite
             return map[key] ?: defaultValueProvider(key)
+        }
+
+        override fun hasExpectationFor(
+            producerKind: ProducerKind,
+            legacyValueUseSite: LegacyValueUseSite
+        ): Boolean {
+            val key = producerKind to legacyValueUseSite
+            return key in map
         }
     }
 }
@@ -210,12 +227,20 @@ internal class ExpectationsBuilder<T> :
  */
 private class ChainedExpectation<T>(
     private val first: Expectation<T?>,
-    private val second: Expectation<T>,
-) : Expectation<T> {
+    private val second: Expectation<T?>,
+) : Expectation<T?> {
     override fun expectationFor(
         producerKind: ProducerKind,
-        valueUseSite: ValueUseSite,
+        legacyValueUseSite: LegacyValueUseSite,
     ) =
-        first.expectationFor(producerKind, valueUseSite)
-            ?: second.expectationFor(producerKind, valueUseSite)
+        if (first.hasExpectationFor(producerKind, legacyValueUseSite)) {
+            first.expectationFor(producerKind, legacyValueUseSite)
+        } else second.expectationFor(producerKind, legacyValueUseSite)
+
+    override fun hasExpectationFor(
+        producerKind: ProducerKind,
+        legacyValueUseSite: LegacyValueUseSite
+    ) =
+        first.hasExpectationFor(producerKind, legacyValueUseSite) ||
+            second.hasExpectationFor(producerKind, legacyValueUseSite)
 }

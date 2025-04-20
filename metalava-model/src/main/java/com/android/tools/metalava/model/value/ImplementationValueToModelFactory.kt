@@ -30,9 +30,15 @@ interface ImplementationValueToModelFactory<I> {
      * Construct a model [Value] instance of [optionalTypeItem] from [implementationValue].
      *
      * If the [implementationValue] cannot be mapped to a [Value], e.g. because it is a field
-     * initializer that is not a constant expression, then this must return `null`.
+     * initializer that is not a constant expression, and [valueUseSite] is [ValueUseSite.FIELD]
+     * then this must return `null`. Otherwise, this must always return a [Value] or throw an
+     * exception.
      */
-    fun implementationValueToModelValue(optionalTypeItem: TypeItem?, implementationValue: I): Value?
+    fun implementationValueToModelValue(
+        optionalTypeItem: TypeItem?,
+        implementationValue: I,
+        valueUseSite: ValueUseSite,
+    ): Value?
 }
 
 /** A [BaseCachingValueProvider] for a model implementation of a non-attribute value. */
@@ -40,9 +46,14 @@ class CachingValueProvider<I>(
     private val factory: ImplementationValueToModelFactory<I>,
     private val typeItem: TypeItem,
     private val implementationValue: I,
-) : BaseCachingValueProvider() {
+    valueUseSite: ValueUseSite,
+) : BaseCachingValueProvider(valueUseSite) {
     override fun provideValue() =
-        factory.implementationValueToModelValue(typeItem, implementationValue)
+        factory.implementationValueToModelValue(
+            typeItem,
+            implementationValue,
+            valueUseSite,
+        )
 }
 
 /**
@@ -60,7 +71,7 @@ class CachingAnnotationValueProvider<I>(
     private val annotationItem: AnnotationItem,
     private val attributeName: String,
     private val implementationValue: I,
-) : BaseCachingValueProvider() {
+) : BaseCachingValueProvider(valueUseSite = ValueUseSite.ANNOTATION) {
     /**
      * Get the [MethodItem.returnType] of the [annotationItem]'s attribute method called
      * [attributeName].
@@ -72,5 +83,9 @@ class CachingAnnotationValueProvider<I>(
     }
 
     override fun provideValue() =
-        factory.implementationValueToModelValue(annotationAttributeType(), implementationValue)
+        factory.implementationValueToModelValue(
+            annotationAttributeType(),
+            implementationValue,
+            valueUseSite,
+        )
 }

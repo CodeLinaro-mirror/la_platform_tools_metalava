@@ -454,8 +454,8 @@ open class TypeItemParser(
         while (trimmed.startsWith('@')) {
             val end = findAnnotationEnd(trimmed, 1)
             val annotationSource = trimmed.substring(0, end).trim()
-            DefaultAnnotationItem.create(annotationContext, annotationSource)?.let { annotationItem
-                ->
+            DefaultAnnotationItem.createFromSource(annotationContext, annotationSource)?.let {
+                annotationItem ->
                 annotations.add(annotationItem)
             }
             trimmed = trimmed.substring(end).trim()
@@ -498,8 +498,8 @@ open class TypeItemParser(
                 break
             }
             val annotationSource = trimmed.substring(start)
-            DefaultAnnotationItem.create(annotationContext, annotationSource)?.let { annotationItem
-                ->
+            DefaultAnnotationItem.createFromSource(annotationContext, annotationSource)?.let {
+                annotationItem ->
                 annotations.add(annotationItem)
             }
             // Cut this annotation off, so now the next one can end at the last index.

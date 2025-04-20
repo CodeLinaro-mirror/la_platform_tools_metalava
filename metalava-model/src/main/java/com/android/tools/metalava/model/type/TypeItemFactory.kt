@@ -82,6 +82,9 @@ interface TypeItemFactory<in T, F : TypeItemFactory<T, F>> {
     /** Get a type suitable for use in an `extends` clause of a concrete class. */
     fun getSuperClassType(underlyingType: T): ClassTypeItem
 
+    /** Get a type suitable for use as a class reference. */
+    fun getClassReferenceType(underlyingType: T): ClassTypeItem
+
     // Item specific type methods.
 
     /**
@@ -274,6 +277,11 @@ abstract class DefaultTypeItemFactory<in T, F : DefaultTypeItemFactory<T, F>>(
     override fun getInterfaceType(underlyingType: T) = getSuperType(underlyingType)
 
     override fun getSuperClassType(underlyingType: T) = getSuperType(underlyingType)
+
+    override fun getClassReferenceType(underlyingType: T): ClassTypeItem {
+        return getType(underlyingType, contextNullability = ContextNullability.forceNonNull)
+            as ClassTypeItem
+    }
 
     /**
      * Creates a [ClassTypeItem] that is suitable for use as a super type, e.g. in an `extends` or

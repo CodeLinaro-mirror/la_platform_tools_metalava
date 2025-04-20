@@ -16,8 +16,8 @@
 
 package com.android.tools.metalava.model.testsuite.value
 
+import com.android.tools.metalava.model.testsuite.value.LegacyValueUseSite.FIELD_VALUE
 import com.android.tools.metalava.model.testsuite.value.TestClassCreator.Companion.FIELD_NAME
-import com.android.tools.metalava.model.testsuite.value.ValueUseSite.FIELD_VALUE
 import com.android.tools.metalava.testing.TestFileCache
 import com.android.tools.metalava.testing.TestFileCacheRule
 import org.junit.ClassRule

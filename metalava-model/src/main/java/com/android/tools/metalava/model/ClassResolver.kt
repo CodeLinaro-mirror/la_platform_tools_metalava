@@ -32,5 +32,15 @@ interface ClassResolver {
                     error("Unsupported: Cannot resolve $erasedName")
                 }
             }
+
+        /**
+         * A [ClassResolver] that will return `null` when [resolveClass] is called.
+         *
+         * Useful for testing when [resolveClass] will be called but should return `null`.
+         */
+        val RETURN_NULL =
+            object : ClassResolver {
+                override fun resolveClass(erasedName: String) = null
+            }
     }
 }

@@ -16,7 +16,10 @@
 
 package com.android.tools.metalava.model.api.flags
 
+import com.android.tools.metalava.model.ANDROID_FLAGGED_API
+import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
 import com.android.tools.metalava.model.ANNOTATION_IN_ALL_STUBS
+import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.NO_ANNOTATION_TARGETS
@@ -94,3 +97,16 @@ private constructor(
             )
     }
 }
+
+/**
+ * Get the optional flag name from this [AnnotationItem].
+ *
+ * Returns `null` if this is not [ANDROID_FLAGGED_API] and does not have a `value` attribute.
+ * Otherwise, it returns the value attribute as a [String].
+ */
+val AnnotationItem.optionalFlagName: String?
+    get() {
+        if (qualifiedName != ANDROID_FLAGGED_API) return null
+        val valueAttribute = attributes.find { it.name == ANNOTATION_ATTR_VALUE } ?: return null
+        return valueAttribute.legacyValue.value() as String
+    }

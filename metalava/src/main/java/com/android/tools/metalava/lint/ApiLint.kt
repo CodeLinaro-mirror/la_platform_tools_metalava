@@ -79,6 +79,8 @@ import com.android.tools.metalava.model.TypeStringConfiguration
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.hasAnnotation
+import com.android.tools.metalava.model.value.asInt
+import com.android.tools.metalava.model.value.asString
 import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiType
 import com.android.tools.metalava.model.visitors.ApiVisitor
@@ -669,7 +671,7 @@ private constructor(
             )
         } else if (
             (field.type() is PrimitiveTypeItem || field.type().isString()) &&
-                field.legacyInitialValue(true) == null
+                field.initialValue?.asLiteralValue() == null
         ) {
             report(
                 COMPILE_TIME_CONSTANT,
@@ -819,7 +821,7 @@ private constructor(
         if (!field.type().isString()) {
             return
         }
-        val value = field.legacyInitialValue(true) as? String ?: return
+        val value = field.initialValue?.asString() ?: return
         if (!(name.contains("_ACTION") || name.contains("ACTION_") || value.contains(".action."))) {
             return
         }
@@ -860,7 +862,7 @@ private constructor(
         if (name.startsWith("ACTION_") || !field.type().isString()) {
             return
         }
-        val value = field.legacyInitialValue(true) as? String ?: return
+        val value = field.initialValue?.asString() ?: return
         if (!(name.contains("_EXTRA") || name.contains("EXTRA_") || value.contains(".extra"))) {
             return
         }
@@ -1151,7 +1153,7 @@ private constructor(
             fields
                 .firstOrNull { it.name() == fieldName }
                 ?.let { field ->
-                    if (field.legacyInitialValue(true) != fieldValue) {
+                    if (field.initialValue?.asString() != fieldValue) {
                         report(
                             INTERFACE_CONSTANT,
                             field,
@@ -1798,7 +1800,7 @@ private constructor(
             val name = field.name()
             val index = name.indexOf("FLAG_")
             if (index != -1) {
-                val value = field.legacyInitialValue() as? Int ?: continue
+                val value = field.initialValue?.asInt() ?: continue
                 val scope = name.substring(0, index)
                 val prev = known?.get(scope) ?: 0
                 if (known != null && (prev and value) != 0) {
@@ -2992,7 +2994,7 @@ private constructor(
         }
         val name = field.name()
         val endsWithService = name.endsWith("_SERVICE")
-        val value = field.legacyInitialValue(requireConstant = true) as? String
+        val value = field.initialValue?.asString()
 
         if (value == null) {
             val mustEndInService =
