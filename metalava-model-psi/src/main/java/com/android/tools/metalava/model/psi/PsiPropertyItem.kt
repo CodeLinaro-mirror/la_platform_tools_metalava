@@ -54,7 +54,7 @@ private constructor(
     DefaultPropertyItem(
         codebase = codebase,
         fileLocation = PsiFileLocation(ktDeclaration),
-        itemLanguage = ktDeclaration.itemLanguage,
+        sourceLanguage = ktDeclaration.sourceLanguage,
         modifiers = modifiers,
         documentationFactory = documentationFactory,
         variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,

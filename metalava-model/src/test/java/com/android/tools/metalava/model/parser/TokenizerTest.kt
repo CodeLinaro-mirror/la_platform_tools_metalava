@@ -28,23 +28,24 @@ class TokenizerTest(private val params: Params) {
 
     data class Params(
         val input: String,
-        val parenIsSep: Boolean = true,
-        val expectedToken: String? = null,
+        val label: String = input,
+        val purpose: TokenPurpose = TokenPurpose.GENERAL,
+        val expectedTokens: List<String>? = null,
         val expectedError: String? = null,
     ) {
         init {
-            if (expectedToken == null && expectedError == null) {
+            if (expectedTokens == null && expectedError == null) {
                 throw IllegalArgumentException(
                     "Expected one of `expectedToken` and `expectedError`, found neither"
                 )
-            } else if (expectedToken != null && expectedError != null) {
+            } else if (expectedTokens != null && expectedError != null) {
                 throw IllegalArgumentException(
                     "Expected one of `expectedToken` and `expectedError`, found both"
                 )
             }
         }
 
-        override fun toString(): String = input
+        override fun toString(): String = "$label,purpose=$purpose"
     }
 
     companion object {
@@ -52,7 +53,7 @@ class TokenizerTest(private val params: Params) {
             listOf(
                 Params(
                     input = """  "string"  """,
-                    expectedToken = """"string"""",
+                    expectedTokens = listOf(""""string""""),
                 ),
                 Params(
                     input = """  "string  """,
@@ -62,15 +63,177 @@ class TokenizerTest(private val params: Params) {
                     input = """  "string\""",
                     expectedError = """api.txt:1: Unexpected end of file for " starting at 1""",
                 ),
+                // Test handling of empty parentheses.
                 Params(
-                    input = """ @pkg.Annotation("string") """,
-                    parenIsSep = false,
-                    expectedToken = """@pkg.Annotation("string")""",
+                    input = """@pkg.Annotation()""",
+                    purpose = TokenPurpose.VALUE,
+                    expectedTokens = listOf("""@pkg.Annotation()"""),
                 ),
                 Params(
+                    input = """@pkg.Annotation()""",
+                    purpose = TokenPurpose.GENERAL,
+                    expectedTokens = listOf("@pkg.Annotation", "(", ")"),
+                ),
+                // Test handling of empty parentheses with extra space.
+                Params(
+                    input = """@pkg.Annotation( )""",
+                    purpose = TokenPurpose.VALUE,
+                    expectedTokens = listOf("@pkg.Annotation( )"),
+                ),
+                Params(
+                    input = """@pkg.Annotation( )""",
+                    purpose = TokenPurpose.GENERAL,
+                    expectedTokens = listOf("@pkg.Annotation", "(", ")"),
+                ),
+                // Test handling of parentheses with one parameter.
+                Params(
+                    input = """@pkg.Annotation("string")""",
+                    purpose = TokenPurpose.VALUE,
+                    expectedTokens = listOf("""@pkg.Annotation("string")"""),
+                ),
+                Params(
+                    input = """@pkg.Annotation("string")""",
+                    purpose = TokenPurpose.GENERAL,
+                    expectedTokens = listOf("@pkg.Annotation", "(", "\"string\"", ")"),
+                ),
+                // Test handling of parentheses with multiple, space separated parameters.
+                Params(
+                    input = """@pkg.Annotation(stringAttr="string", intAttr=1)""",
+                    purpose = TokenPurpose.VALUE,
+                    expectedTokens = listOf("@pkg.Annotation(stringAttr=\"string\", intAttr=1)"),
+                ),
+                Params(
+                    input = """@pkg.Annotation(stringAttr="string", intAttr=1)""",
+                    purpose = TokenPurpose.GENERAL,
+                    expectedTokens =
+                        listOf(
+                            "@pkg.Annotation",
+                            "(",
+                            "stringAttr",
+                            "=",
+                            "\"string\"",
+                            ",",
+                            "intAttr",
+                            "=",
+                            "1",
+                            ")",
+                        ),
+                ),
+                // Test handling of nested layer of parentheses.
+                Params(
+                    input = """@pkg.Annotation(attr=1, nested=@pkg.Nested("string"))""",
+                    purpose = TokenPurpose.VALUE,
+                    expectedTokens =
+                        listOf("""@pkg.Annotation(attr=1, nested=@pkg.Nested("string"))"""),
+                ),
+                Params(
+                    input = """@pkg.Annotation(attr=1, nested=@pkg.Nested("string"))""",
+                    purpose = TokenPurpose.GENERAL,
+                    expectedTokens =
+                        listOf(
+                            "@pkg.Annotation",
+                            "(",
+                            "attr",
+                            "=",
+                            "1",
+                            ",",
+                            "nested",
+                            "=",
+                            "@pkg.Nested",
+                            "(",
+                            "\"string\"",
+                            ")",
+                            ")",
+                        ),
+                ),
+                // Test handling of unmatched open parentheses.
+                Params(
+                    input = """@pkg.Annotation(""",
+                    purpose = TokenPurpose.VALUE,
+                    expectedError = """api.txt:1: Unexpected end of file for ( starting at 1""",
+                ),
+                Params(
+                    input = """@pkg.Annotation(""",
+                    purpose = TokenPurpose.GENERAL,
+                    expectedTokens = listOf("@pkg.Annotation", "("),
+                ),
+                // Test handling of trailing closed parentheses.
+                Params(
+                    input = """1)""",
+                    purpose = TokenPurpose.VALUE,
+                    expectedTokens = listOf("1", ")"),
+                ),
+                Params(
+                    input = """1)""",
+                    purpose = TokenPurpose.GENERAL,
+                    expectedTokens = listOf("1", ")"),
+                ),
+                // Test handling of unmatched open quotes.
+                Params(
                     input = """ @pkg.Annotation("string """,
-                    parenIsSep = false,
+                    purpose = TokenPurpose.VALUE,
                     expectedError = """api.txt:1: Unexpected end of file for " starting at 1""",
+                ),
+                Params(
+                    input = """ value=1""",
+                    expectedTokens = listOf("value", "=", "1"),
+                ),
+                Params(
+                    label = "line comment",
+                    input =
+                        """
+                            // Comment before token
+                            name
+                        """,
+                    expectedTokens = listOf("name"),
+                ),
+                Params(
+                    input = """test.pkg.Generic<String>""",
+                    expectedTokens = listOf("test.pkg.Generic<String>"),
+                ),
+                Params(
+                    input = """test.pkg.Generic<String, Integer>""",
+                    expectedTokens = listOf("test.pkg.Generic<String, Integer>"),
+                ),
+                Params(
+                    input = """test.pkg.Generic<String, Integer, test.pkg.Nested<A, B>>""",
+                    expectedTokens =
+                        listOf("test.pkg.Generic<String, Integer, test.pkg.Nested<A, B>>"),
+                ),
+                Params(
+                    input = """<A extends Other, B>""",
+                    expectedTokens = listOf("<", "A", "extends", "Other", ",", "B", ">"),
+                ),
+                Params(
+                    input = """<A extends Other<A>>""",
+                    expectedTokens = listOf("<", "A", "extends", "Other<A>", ">"),
+                ),
+                Params(
+                    input = """Other<String""",
+                    expectedError = "api.txt:1: Unexpected end of file for < starting at 1",
+                ),
+                // Test handling of braces.
+                Params(
+                    input = """{1, 2}""",
+                    purpose = TokenPurpose.GENERAL,
+                    expectedTokens = listOf("{", "1", ",", "2", "}"),
+                ),
+                Params(
+                    input = """{1, 2}""",
+                    purpose = TokenPurpose.VALUE,
+                    // TODO(b/354633349): This is wrong, should be a single token.
+                    expectedTokens = listOf("{1, 2}"),
+                ),
+                // Test handling of unbalanced brace.
+                Params(
+                    input = """{1,""",
+                    purpose = TokenPurpose.GENERAL,
+                    expectedTokens = listOf("{", "1", ","),
+                ),
+                Params(
+                    input = """{1,""",
+                    purpose = TokenPurpose.VALUE,
+                    expectedError = "api.txt:1: Unexpected end of file for { starting at 1",
                 ),
             )
 
@@ -82,7 +245,7 @@ class TokenizerTest(private val params: Params) {
         val tokenizer = Tokenizer(Path.of("api.txt"), params.input.toCharArray())
 
         fun requireToken(): String {
-            return tokenizer.requireToken(parenIsSep = params.parenIsSep)
+            return tokenizer.requireToken(purpose = params.purpose)
         }
 
         params.expectedError?.let { expectedError ->
@@ -90,9 +253,14 @@ class TokenizerTest(private val params: Params) {
             assertEquals(expectedError, exception.message)
         }
 
-        params.expectedToken?.let { expectedToken ->
-            val token = requireToken()
-            assertEquals(expectedToken, token)
+        params.expectedTokens?.let { expectedTokens ->
+            val tokens = buildList {
+                do {
+                    tokenizer.getToken(purpose = params.purpose)?.let { token -> add(token) }
+                        ?: break
+                } while (true)
+            }
+            assertEquals(expectedTokens, tokens)
         }
     }
 }

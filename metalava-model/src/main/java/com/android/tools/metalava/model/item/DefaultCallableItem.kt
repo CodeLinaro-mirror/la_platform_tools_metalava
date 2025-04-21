@@ -25,8 +25,9 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.ItemDocumentationFactory
-import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.SourceLanguage
+import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.reporter.FileLocation
@@ -44,7 +45,8 @@ typealias ParameterItemsFactory = (CallableItem) -> List<ParameterItem>
 abstract class DefaultCallableItem(
     codebase: Codebase,
     fileLocation: FileLocation,
-    itemLanguage: ItemLanguage,
+    sourceLanguage: SourceLanguage,
+    targetLanguages: Set<TargetLanguage>,
     modifiers: BaseModifierList,
     documentationFactory: ItemDocumentationFactory,
     variantSelectorsFactory: ApiVariantSelectorsFactory,
@@ -59,7 +61,8 @@ abstract class DefaultCallableItem(
     DefaultMemberItem(
         codebase,
         fileLocation,
-        itemLanguage,
+        sourceLanguage,
+        targetLanguages,
         modifiers,
         documentationFactory,
         variantSelectorsFactory,

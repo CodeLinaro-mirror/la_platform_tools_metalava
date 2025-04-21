@@ -27,7 +27,6 @@ import com.android.tools.metalava.model.DelegatedVisitor
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemDocumentationFactory
-import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.ItemVisitor
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierList
@@ -36,6 +35,7 @@ import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.Showability
+import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TypeAliasItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
@@ -76,7 +76,7 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
             DefaultItemFactory(
                 snapshotCodebase,
                 // Snapshots currently only support java.
-                defaultItemLanguage = ItemLanguage.JAVA,
+                defaultSourceLanguage = SourceLanguage.JAVA,
                 // Snapshots have already been separated by API surface variants, so they can use
                 // the same immutable ApiVariantSelectors.
                 ApiVariantSelectors.IMMUTABLE_FACTORY,
@@ -226,7 +226,7 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
         val newClass =
             itemFactory.createClassItem(
                 fileLocation = classToSnapshot.fileLocation,
-                itemLanguage = classToSnapshot.itemLanguage,
+                sourceLanguage = classToSnapshot.sourceLanguage,
                 modifiers = classToSnapshot.modifiers.snapshot(),
                 documentationFactory = snapshotDocumentation(classToSnapshot, cls),
                 source = cls.sourceFile(),
@@ -264,7 +264,7 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
             constructorTypeItemFactory.inScope {
                 itemFactory.createConstructorItem(
                     fileLocation = constructorToSnapshot.fileLocation,
-                    itemLanguage = constructorToSnapshot.itemLanguage,
+                    sourceLanguage = constructorToSnapshot.sourceLanguage,
                     modifiers = constructorToSnapshot.modifiers.snapshot(),
                     documentationFactory =
                         snapshotDocumentation(constructorToSnapshot, constructor),
@@ -316,7 +316,7 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
             methodTypeItemFactory.inScope {
                 itemFactory.createMethodItem(
                     fileLocation = methodToSnapshot.fileLocation,
-                    itemLanguage = methodToSnapshot.itemLanguage,
+                    sourceLanguage = methodToSnapshot.sourceLanguage,
                     modifiers = methodToSnapshot.modifiers.snapshot(),
                     documentationFactory = snapshotDocumentation(methodToSnapshot, method),
                     name = methodToSnapshot.name(),
@@ -358,7 +358,7 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
             globalTypeItemFactory.from(containingClass).inScope {
                 itemFactory.createFieldItem(
                     fileLocation = fieldToSnapshot.fileLocation,
-                    itemLanguage = fieldToSnapshot.itemLanguage,
+                    sourceLanguage = fieldToSnapshot.sourceLanguage,
                     modifiers = fieldToSnapshot.modifiers.snapshot(),
                     documentationFactory = snapshotDocumentation(fieldToSnapshot, field),
                     name = fieldToSnapshot.name(),
@@ -390,7 +390,7 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
             propertyTypeItemFactory.inScope {
                 itemFactory.createPropertyItem(
                     fileLocation = propertyToSnapshot.fileLocation,
-                    itemLanguage = propertyToSnapshot.itemLanguage,
+                    sourceLanguage = propertyToSnapshot.sourceLanguage,
                     modifiers = propertyToSnapshot.modifiers.snapshot(),
                     documentationFactory = snapshotDocumentation(propertyToSnapshot, property),
                     name = propertyToSnapshot.name(),
@@ -553,7 +553,7 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
 
                 itemFactory.createParameterItem(
                     fileLocation = parameterItem.fileLocation,
-                    itemLanguage = parameterItem.itemLanguage,
+                    sourceLanguage = parameterItem.sourceLanguage,
                     modifiers = parameterItem.modifiers.snapshot(),
                     name = name,
                     publicNameProvider = { publicName },

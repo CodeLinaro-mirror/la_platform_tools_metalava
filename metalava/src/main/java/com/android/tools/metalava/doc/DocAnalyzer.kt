@@ -833,12 +833,6 @@ class DocAnalyzer(
      */
     private fun addApiVersionDocumentation(apiVersion: ApiVersion?, item: SelectableItem) {
         if (apiVersion != null) {
-            if (item.originallyHidden) {
-                // @SystemApi, @TestApi etc -- don't apply API versions here since we don't have
-                // accurate historical data
-                return
-            }
-
             // Check to see whether an API version should not be included in the documentation.
             if (!apiVersionFilter(apiVersion)) {
                 return

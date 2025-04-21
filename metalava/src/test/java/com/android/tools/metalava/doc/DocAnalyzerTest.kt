@@ -963,6 +963,7 @@ class DocAnalyzerTest : DriverTest() {
                     public static final java.lang.String UNIT_TEST_1 = "unit.test.1";
                     /**
                      * @hide
+                     * @apiSince Z
                      */
                     public static final java.lang.String UNIT_TEST_2 = "unit.test.2";
                     }

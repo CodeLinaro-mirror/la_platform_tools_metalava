@@ -22,9 +22,9 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemDocumentation.Companion.toItemDocumentationFactory
-import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.JAVA_PACKAGE_INFO
 import com.android.tools.metalava.model.PackageFilter
+import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.createImmutableModifiers
@@ -104,7 +104,7 @@ internal class TurbineCodebaseInitialiser(
         DefaultItemFactory(
             codebase = codebase,
             // Turbine can only process java files.
-            defaultItemLanguage = ItemLanguage.JAVA,
+            defaultSourceLanguage = SourceLanguage.JAVA,
             // Source files need to track which parts belong to which API surface variants, so they
             // need to create an ApiVariantSelectors instance that can be used to track that.
             defaultVariantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,

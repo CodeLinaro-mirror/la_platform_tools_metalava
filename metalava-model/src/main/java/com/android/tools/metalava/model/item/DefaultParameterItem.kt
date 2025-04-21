@@ -22,8 +22,8 @@ import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultItem
 import com.android.tools.metalava.model.ItemDocumentation
-import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterBindings
 import com.android.tools.metalava.reporter.FileLocation
@@ -31,7 +31,7 @@ import com.android.tools.metalava.reporter.FileLocation
 open class DefaultParameterItem(
     codebase: Codebase,
     fileLocation: FileLocation,
-    itemLanguage: ItemLanguage,
+    sourceLanguage: SourceLanguage,
     modifiers: BaseModifierList,
     private val name: String,
     protected val publicNameProvider: PublicNameProvider,
@@ -43,7 +43,7 @@ open class DefaultParameterItem(
     DefaultItem(
         codebase = codebase,
         fileLocation = fileLocation,
-        itemLanguage = itemLanguage,
+        sourceLanguage = sourceLanguage,
         modifiers = modifiers,
         documentationFactory = ItemDocumentation.NONE_FACTORY,
     ),
@@ -81,7 +81,7 @@ open class DefaultParameterItem(
         DefaultParameterItem(
             codebase,
             fileLocation,
-            itemLanguage,
+            sourceLanguage,
             modifiers,
             name(),
             publicNameProvider,

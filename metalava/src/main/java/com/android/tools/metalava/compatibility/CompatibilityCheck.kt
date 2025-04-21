@@ -31,13 +31,13 @@ import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.Item.Companion.describe
-import com.android.tools.metalava.model.ItemLanguage
 import com.android.tools.metalava.model.MergedCodebase
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.MultipleTypeVisitor
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.SelectableItem
+import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.VariableTypeItem
@@ -927,7 +927,7 @@ class CompatibilityCheck(
                                 // Hack to always mark added Kotlin interface methods as abstract
                                 // until we properly support JVM default methods for Kotlin.
                                 // TODO(b/200077254): Remove Kotlin special case
-                                if (new.itemLanguage == ItemLanguage.KOTLIN) {
+                                if (new.sourceLanguage == SourceLanguage.KOTLIN) {
                                     Issues.ADDED_ABSTRACT_METHOD
                                 } else {
                                     Issues.ADDED_METHOD

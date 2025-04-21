@@ -134,24 +134,24 @@ interface Item : Reportable {
     fun toStringForItem(): String
 
     /**
-     * The language in which this was written, or [ItemLanguage.UNKNOWN] if not known, e.g. when
+     * The language in which this was written, or [SourceLanguage.UNKNOWN] if not known, e.g. when
      * created from a signature file.
      */
-    val itemLanguage: ItemLanguage
+    val sourceLanguage: SourceLanguage
 
     /**
      * Is this element declared in Java (rather than Kotlin) ?
      *
-     * See [itemLanguage].
+     * See [sourceLanguage].
      */
-    fun isJava() = itemLanguage.isJava()
+    fun isJava() = sourceLanguage.isJava()
 
     /**
      * Is this element declared in Kotlin (rather than Java) ?
      *
-     * See [itemLanguage].
+     * See [sourceLanguage].
      */
-    fun isKotlin() = itemLanguage.isKotlin()
+    fun isKotlin() = sourceLanguage.isKotlin()
 
     /**
      * Returns true if this [Item]'s modifier list contains any suppress compatibility
@@ -383,7 +383,7 @@ interface Item : Reportable {
 abstract class DefaultItem(
     override val codebase: Codebase,
     final override val fileLocation: FileLocation,
-    final override val itemLanguage: ItemLanguage,
+    final override val sourceLanguage: SourceLanguage,
     modifiers: BaseModifierList,
     documentationFactory: ItemDocumentationFactory,
 ) : Item {

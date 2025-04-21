@@ -110,4 +110,7 @@ interface SelectableItem : Item {
         superMethods: Boolean,
         duplicate: Boolean,
     ): SelectableItem?
+
+    /** The languages from which this [Item] can be used. */
+    val targetLanguages: Set<TargetLanguage>
 }

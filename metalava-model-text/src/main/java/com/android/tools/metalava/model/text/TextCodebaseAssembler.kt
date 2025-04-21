@@ -22,7 +22,7 @@ import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.ItemLanguage
+import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.bestGuessAtFullName
 import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.item.DefaultCodebase
@@ -46,7 +46,7 @@ internal class TextCodebaseAssembler(
             codebase = codebase,
             // Signature files do not contain information about whether an item was originally
             // created from Java or Kotlin.
-            defaultItemLanguage = ItemLanguage.UNKNOWN,
+            defaultSourceLanguage = SourceLanguage.UNKNOWN,
             // Signature files have already been separated by API surface variants, so they can use
             // the same immutable ApiVariantSelectors.
             defaultVariantSelectorsFactory = ApiVariantSelectors.IMMUTABLE_FACTORY,
