@@ -60,24 +60,36 @@ class CachingValueProvider<I>(
  * A [BaseCachingValueProvider] for a model implementation of an attribute value.
  *
  * When this is called the [TypeItem] of the annotation attribute is not known. So, this
- * encapsulates [annotationItem] and [attributeName] to allow the annotation's [ClassItem] to be
- * resolved and the [MethodItem] called [attributeName] found.
+ * encapsulates [annotationClassItemProvider] and [attributeName] to allow the annotation's
+ * [ClassItem] to be resolved and the [MethodItem] called [attributeName] found.
  *
  * If the definition of [AnnotationItem] is not resolvable then it will fail to find the [TypeItem]
  * and use `null` instead.
  */
 class CachingAnnotationValueProvider<I>(
     private val factory: ImplementationValueToModelFactory<I>,
-    private val annotationItem: AnnotationItem,
     private val attributeName: String,
     private val implementationValue: I,
+    private val annotationClassItemProvider: () -> ClassItem?,
 ) : BaseCachingValueProvider(valueUseSite = ValueUseSite.ANNOTATION) {
+
     /**
-     * Get the [MethodItem.returnType] of the [annotationItem]'s attribute method called
-     * [attributeName].
+     * Secondary constructor that provides an [annotationClassItemProvider] using [annotationItem]'s
+     * [AnnotationItem.resolve] method.
+     */
+    constructor(
+        factory: ImplementationValueToModelFactory<I>,
+        annotationItem: AnnotationItem,
+        attributeName: String,
+        implementationValue: I,
+    ) : this(factory, attributeName, implementationValue, annotationItem::resolve)
+
+    /**
+     * Get the [MethodItem.returnType] of the [annotationClassItemProvider]'s attribute method
+     * called [attributeName].
      */
     private fun annotationAttributeType(): TypeItem? {
-        val annotationClassItem = annotationItem.resolve() ?: return null
+        val annotationClassItem = annotationClassItemProvider() ?: return null
         val attributeMethodItem = annotationClassItem.findMethod(attributeName, "")
         return attributeMethodItem?.returnType()
     }

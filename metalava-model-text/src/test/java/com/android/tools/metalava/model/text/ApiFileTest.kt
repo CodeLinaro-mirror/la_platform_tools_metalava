@@ -25,6 +25,7 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.model.noOpAnnotationManager
+import com.android.tools.metalava.model.testing.value.literalValue
 import com.android.tools.metalava.testing.getAndroidJar
 import com.google.common.truth.Truth.assertThat
 import kotlin.test.assertEquals
@@ -614,6 +615,39 @@ class ApiFileTest : BaseTextCodebaseTest() {
                     .toString()
             )
             .isEqualTo("[java.util.List<Number>, java.util.RandomAccess]")
+    }
+
+    @Test
+    fun `Test invalid field initializers`() {
+        runSignatureTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                        public class Foo {
+                            field public final int FIELD1 = 1;
+                            field public static int FIELD2 = 2;
+                            field public static final int FIELD3 = 3;
+                        }
+                    }
+                """
+            ),
+        ) {
+            assertThat(reportedIssues)
+                .isEqualTo(
+                    """
+                        MAIN_SRC/api.txt:4: error: Field FIELD1 in class test.pkg.Foo has a value of `1` but is not `static` and `final`; ignoring value [SignatureFileError]
+                        MAIN_SRC/api.txt:5: error: Field FIELD2 in class test.pkg.Foo has a value of `2` but is not `static` and `final`; ignoring value [SignatureFileError]
+                    """
+                        .trimIndent()
+                )
+
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+
+            assertThat(fooClass.assertField("FIELD1").constantValue).isNull()
+            assertThat(fooClass.assertField("FIELD2").constantValue).isNull()
+            assertThat(fooClass.assertField("FIELD3").constantValue).isEqualTo(literalValue(3))
+        }
     }
 
     @Test

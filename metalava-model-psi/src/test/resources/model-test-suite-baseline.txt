@@ -51,3 +51,11 @@ com.android.tools.metalava.model.testsuite.value.CommonParameterizedAttributeVal
   testLegacyValue[kotlin,k1,source,annotation - multiple attributes]
   testLegacyValue[kotlin,k1,source,annotation - no attributes]
   testLegacyValue[kotlin,k1,source,annotation - single value]
+
+com.android.tools.metalava.model.testsuite.value.CommonParameterizedFieldValueTest
+  testFieldValue[kotlin,k1,source,null - intermediate non-constant expression]
+  testFieldValue[kotlin,k2,source,null - intermediate non-constant expression]
+
+com.android.tools.metalava.model.testsuite.value.CommonParameterizedFieldWriteWithSemicolonValueTest
+  testLegacySource[kotlin,k1,source,null - intermediate non-constant expression]
+  testLegacySource[kotlin,k2,source,null - intermediate non-constant expression]

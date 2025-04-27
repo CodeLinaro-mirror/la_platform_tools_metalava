@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model.psi
 
-import com.android.tools.metalava.model.ANDROID_DEPRECATED_FOR_SDK
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.JAVA_LANG_ANNOTATION_TARGET
@@ -263,11 +262,7 @@ internal object PsiModifierItem {
 
     private fun isDeprecatedAnnotation(annotationItem: AnnotationItem): Boolean =
         annotationItem.qualifiedName.let { qualifiedName ->
-            qualifiedName == "Deprecated" ||
-                qualifiedName.endsWith(".Deprecated") ||
-                // DeprecatedForSdk that do not apply to this API surface have been filtered
-                // out so if any are left then treat it as a standard Deprecated annotation.
-                qualifiedName == ANDROID_DEPRECATED_FOR_SDK
+            qualifiedName == "Deprecated" || qualifiedName.endsWith(".Deprecated")
         }
 
     private fun isDeprecatedFromSourcePsi(element: PsiModifierListOwner): Boolean {
@@ -641,7 +636,6 @@ internal object PsiModifierItem {
                     // Remove any type-use annotations that psi incorrectly applied to the item.
                     .filterIncorrectTypeUseAnnotations(element)
                     .mapNotNull { PsiAnnotationItem.create(codebase, it) }
-                    .filter { !it.isDeprecatedForSdk() }
             createMutableModifiers(flags, annotations)
         }
     }
@@ -681,7 +675,6 @@ internal object PsiModifierItem {
                             !it.isKotlinNullabilityAnnotation
                     }
                     .mapNotNull { UAnnotationItem.create(codebase, it) }
-                    .filter { !it.isDeprecatedForSdk() }
 
             if (!isPrimitiveVariable) {
                 if (psiAnnotations.isNotEmpty() && annotations.none { it.isNullnessAnnotation() }) {
@@ -705,29 +698,9 @@ internal object PsiModifierItem {
         }
     }
 
-    /** Returns whether this is a `@DeprecatedForSdk` annotation **that should be skipped**. */
-    private fun AnnotationItem.isDeprecatedForSdk(): Boolean {
-        if (qualifiedName != ANDROID_DEPRECATED_FOR_SDK) {
-            return false
-        }
-
-        val allowIn = findAttribute(ATTR_ALLOW_IN) ?: return false
-
-        for (api in allowIn.leafValues()) {
-            val annotationName = api.value() as? String ?: continue
-            if (annotationContext.annotationManager.isShowAnnotationName(annotationName)) {
-                return true
-            }
-        }
-
-        return false
-    }
-
     private val NOT_NULL = NotNull::class.qualifiedName
     private val NULLABLE = Nullable::class.qualifiedName
 
     private val UAnnotation.isKotlinNullabilityAnnotation: Boolean
         get() = qualifiedName == NOT_NULL || qualifiedName == NULLABLE
 }
-
-private const val ATTR_ALLOW_IN = "allowIn"

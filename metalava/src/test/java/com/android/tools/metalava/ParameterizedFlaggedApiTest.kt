@@ -909,7 +909,8 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                     public final class Foo {
                     public Foo() { throw new RuntimeException("Stub!"); }
                     public void method() { throw new RuntimeException("Stub!"); }
-                    public final int field = 2; // 0x2
+                    public final int field;
+                    { field = 0; }
                     }
                 """
                 ),
@@ -990,7 +991,7 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                                   @FlaggedApi("test.pkg.flags.foo_bar") public final class Foo {
                                     ctor public Foo();
                                     method public void method();
-                                    field public final int field = 2; // 0x2
+                                    field public final int field;
                                   }
                                 }
                             """,
@@ -1102,7 +1103,8 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                     public final class Foo {
                     public Foo() { throw new RuntimeException("Stub!"); }
                     public void method() { throw new RuntimeException("Stub!"); }
-                    public final int field = 2; // 0x2
+                    public final int field;
+                    { field = 0; }
                     }
                 """
                 ),
@@ -1187,7 +1189,7 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                                   @FlaggedApi("test.pkg.flags.foo_bar") public final class Foo {
                                     ctor public Foo();
                                     method public void method();
-                                    field public final int field = 2; // 0x2
+                                    field public final int field;
                                   }
                                 }
                             """,

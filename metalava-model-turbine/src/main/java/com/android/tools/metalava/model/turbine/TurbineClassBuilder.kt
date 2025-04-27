@@ -409,8 +409,13 @@ internal class TurbineClassBuilder(
                     }
                 )
 
-            val initialFieldValueProvider =
+            val constantValueProvider =
                 field.value()?.let { const ->
+                    // In Java fields have to be static and final in order for them to have a
+                    // constant value
+                    if (!fieldModifierItem.isStatic() || !fieldModifierItem.isFinal()) {
+                        return@let null
+                    }
                     val expr = field.decl()?.init()?.getOrNull()
                     val turbineValue = TurbineValue(const, expr, fieldResolver)
                     valueFactory.providerFor(type, turbineValue, ValueUseSite.FIELD)
@@ -426,7 +431,7 @@ internal class TurbineClassBuilder(
                     containingClass = classItem,
                     type = type,
                     isEnumConstant = isEnumConstant,
-                    initialValueProvider = initialFieldValueProvider,
+                    constantValueProvider = constantValueProvider,
                     fieldValue = fieldValue,
                 )
 

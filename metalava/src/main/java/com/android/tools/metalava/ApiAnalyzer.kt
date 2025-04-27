@@ -21,9 +21,7 @@ import com.android.tools.metalava.manifest.Manifest
 import com.android.tools.metalava.manifest.emptyManifest
 import com.android.tools.metalava.model.ANDROIDX_REQUIRES_PERMISSION
 import com.android.tools.metalava.model.ANDROID_ANNOTATION_PREFIX
-import com.android.tools.metalava.model.ANDROID_DEPRECATED_FOR_SDK
 import com.android.tools.metalava.model.ANDROID_SYSTEM_API
-import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
 import com.android.tools.metalava.model.AnnotationAttributeValue
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.BaseItemVisitor
@@ -36,7 +34,6 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.JAVA_LANG_DEPRECATED
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageList
 import com.android.tools.metalava.model.ParameterItem
@@ -550,13 +547,7 @@ class ApiAnalyzer(
                             // messages (unlike java.lang.Deprecated which has no attributes).
                             // Instead, these
                             // are added to the documentation by the [DocAnalyzer].
-                            !item.isKotlin() &&
-                            // @DeprecatedForSdk will show up as an alias for @Deprecated, but it's
-                            // correct
-                            // and expected to *not* combine this with @deprecated in the text;
-                            // here,
-                            // the text comes from an annotation attribute.
-                            item.modifiers.isAnnotatedWith(JAVA_LANG_DEPRECATED)
+                            !item.isKotlin()
                     ) {
                         reporter.report(
                             Issues.DEPRECATION_MISMATCH,
@@ -564,22 +555,6 @@ class ApiAnalyzer(
                             "${item.toString().capitalize()}: @Deprecated annotation (present) and @deprecated doc tag (not present) do not match"
                         )
                         // TODO: Check opposite (doc tag but no annotation)
-                    } else {
-                        val deprecatedForSdk =
-                            item.modifiers.findAnnotation(ANDROID_DEPRECATED_FOR_SDK)
-                        if (deprecatedForSdk != null) {
-                            if (item.documentation.hasTagSection("@deprecated")) {
-                                reporter.report(
-                                    Issues.DEPRECATION_MISMATCH,
-                                    item,
-                                    "${item.toString().capitalize()}: Documentation contains `@deprecated` which implies this API is fully deprecated, not just @DeprecatedForSdk"
-                                )
-                            } else {
-                                val value = deprecatedForSdk.findAttribute(ANNOTATION_ATTR_VALUE)
-                                val message = value?.legacyValue?.value()?.toString() ?: ""
-                                item.appendDocumentation(message, "@deprecated")
-                            }
-                        }
                     }
 
                     if (

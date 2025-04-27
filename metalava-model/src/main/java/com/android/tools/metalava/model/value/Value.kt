@@ -99,6 +99,9 @@ sealed interface Value {
      */
     fun asLiteralValue(): LiteralValue<*>? = null
 
+    /** Get this [Value] as a flat list of [ArrayElementValue]s. */
+    fun asFlatList(): List<ArrayElementValue>
+
     /**
      * Create a snapshot for this suitable for use in [targetCodebase].
      *
@@ -191,6 +194,15 @@ sealed interface Value {
     companion object : ValueFactory
 }
 
+/** Get this [Value] as an [Any], or `null` if it cannot be represented as an [Any]. */
+fun Value.asAny() = asLiteralValue()?.underlyingValue
+
+/** Get this [Value] as a [Boolean], or `null` if it cannot be represented as a [Boolean]. */
+fun Value.asBoolean() = (asLiteralValue() as? BooleanValue)?.underlyingValue
+
+/** Get this [Value] as a [Float], or `null` if it cannot be represented as a [Float]. */
+fun Value.asFloat() = (asLiteralValue() as? FloatValue)?.underlyingValue
+
 /** Get this [Value] as an [Int], or `null` if it cannot be represented as a [Int]. */
 fun Value.asInt() = (asLiteralValue() as? IntValue)?.underlyingValue
 
@@ -279,7 +291,9 @@ enum class ValueKind(val primitiveKind: Primitive? = null) {
 }
 
 /** A [Value] that is allowed to be used in [ArrayValue.elements]. */
-sealed interface ArrayElementValue : Value
+sealed interface ArrayElementValue : Value {
+    override fun asFlatList() = listOf(this)
+}
 
 /** A [Value] that can be used in a constant field as defined by JLS 15.28. */
 sealed interface ConstantValue : ArrayElementValue
@@ -625,6 +639,8 @@ sealed interface ArrayValue : Value {
 
     /** The array elements. */
     val elements: List<ArrayElementValue>
+
+    override fun asFlatList() = elements
 
     override fun equalToValue(other: Value) = other is ArrayValue && elements == other.elements
 

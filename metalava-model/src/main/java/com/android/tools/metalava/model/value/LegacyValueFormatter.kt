@@ -73,7 +73,7 @@ class LegacyValueFormatter(
      * Format [value] within the optional [context].
      *
      * The [context] must be provided as follows:
-     * * When formatting a [Value] from [FieldItem.initialValue] it must be the [FieldItem].
+     * * When formatting a [Value] from [FieldItem.constantValue] it must be the [FieldItem].
      * * When formatting a [Value] from [MethodItem.defaultValue] it must be the [MethodItem].
      *
      * This is not suitable for formatting a [Value] from [AnnotationAttribute.value].

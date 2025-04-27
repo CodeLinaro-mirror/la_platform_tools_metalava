@@ -54,6 +54,7 @@ import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiField
 import com.intellij.psi.PsiLiteralExpression
 import com.intellij.psi.PsiMethod
+import com.intellij.psi.PsiNewExpression
 import com.intellij.psi.PsiReferenceExpression
 import com.intellij.psi.PsiTypes
 import org.jetbrains.kotlin.psi.psiUtil.parameterIndex
@@ -121,18 +122,38 @@ internal class PsiValueFactory(
         implementationValue: Any,
         valueUseSite: ValueUseSite,
     ): Value? {
-        val value =
-            when (implementationValue) {
-                is UExpression -> uExpressionToValue(optionalTypeItem, implementationValue)
-                is PsiAnnotationMemberValue -> psiToValue(optionalTypeItem, implementationValue)
-                else -> null
+        return when (valueUseSite) {
+            ValueUseSite.ANNOTATION -> {
+                // For annotations convert to any Value.
+                val value =
+                    when (implementationValue) {
+                        is UExpression -> {
+                            uExpressionToValue(optionalTypeItem, implementationValue)
+                        }
+                        is PsiAnnotationMemberValue -> {
+                            psiToValue(optionalTypeItem, implementationValue)
+                        }
+                        else -> null
+                    }
+
+                if (value == null) {
+                    unknownExpression(optionalTypeItem, implementationValue)
+                }
+                value
             }
-
-        if (valueUseSite == ValueUseSite.ANNOTATION && value == null) {
-            unknownExpression(optionalTypeItem, implementationValue)
+            ValueUseSite.FIELD -> {
+                // For fields convert to ConstantValues.
+                when (implementationValue) {
+                    is UExpression -> {
+                        uExpressionToConstant(optionalTypeItem, implementationValue)
+                    }
+                    is PsiAnnotationMemberValue -> {
+                        psiToConstant(optionalTypeItem, implementationValue)
+                    }
+                    else -> null
+                }
+            }
         }
-
-        return value
     }
 
     /**
@@ -193,12 +214,14 @@ internal class PsiValueFactory(
                 // Resolve it and convert it to a Value if possible.
                 val resolved = uExpression.resolve()
                 // Try and convert the resolved PsiElement to a Value and return it if succeeded.
-                resolvedPsiElementToValue(resolved) {
-                        uExpressionToConstant(optionalTypeItem, uExpression)
-                    }
-                    ?.let {
-                        return it
-                    }
+                resolvedPsiElementToValue(optionalTypeItem, resolved)?.let {
+                    return it
+                }
+            }
+            is UClassLiteralExpression -> {
+                uClassLiteralExpressionToClassObjectValue(uExpression)?.let {
+                    return it
+                }
             }
             is UCallExpression -> {
                 uCallExpressionToAnnotationValue(uExpression)?.let {
@@ -212,10 +235,10 @@ internal class PsiValueFactory(
     }
 
     /**
-     * Checks to see if [uExpression] is of the form `<class>::class.java`, if not it returns null
+     * Checks to see if [uExpression] is of the form `<type>::class.java`, if not it returns null
      * otherwise it creates a [ClassObjectValue] for it.
      *
-     * In this case `<class>` can be either a primitive, a normal class, or an array (possibly
+     * In this case `<type>` can be either a primitive, a normal class, or an array (possibly
      * multidimensional) of them.
      */
     private fun uReferenceExpressionToClassObjectValue(
@@ -232,9 +255,21 @@ internal class PsiValueFactory(
 
         // Check to make sure the receiver is the `<class>::class` part.
         val receiver = uExpression.receiver as? UClassLiteralExpression ?: return null
+        return uClassLiteralExpressionToClassObjectValue(receiver)
+    }
 
+    /**
+     * Checks to see if [uExpression] is of the form `<type>::class`, if not it returns null
+     * otherwise it creates a [ClassObjectValue] for it.
+     *
+     * In this case `<type>` can be either a primitive, a normal class, or an array (possibly
+     * multidimensional) of them.
+     */
+    private fun uClassLiteralExpressionToClassObjectValue(
+        uExpression: UClassLiteralExpression
+    ): ClassObjectValue? {
         // Make sure the type is present.
-        val type = receiver.type ?: return null
+        val type = uExpression.type ?: return null
 
         // Get the type of the class literal. e.g. if the expression was `X::class` then this
         // will be of type `X`, or if the expression was of type `Array<X>.class` then this will
@@ -245,7 +280,7 @@ internal class PsiValueFactory(
                 contextNullability = ContextNullability.forceNonNull,
             )
 
-        val unboxedTypeItem = unboxTypeItemIfNeeded(receiverTypeItem, receiver)
+        val unboxedTypeItem = unboxTypeItemIfNeeded(receiverTypeItem, uExpression)
 
         // If it is a ClassTypeItem then make sure it does not have any arguments. It is not
         // necessary to check array components as Kotlin does not support class literals for arrays
@@ -356,6 +391,13 @@ internal class PsiValueFactory(
         optionalTypeItem: TypeItem?,
         uExpression: UExpression
     ): ConstantValue? {
+        // If the type is supplied, and it's not a constant type then return immediately as this can
+        // never be treated as a constant value. If it is not supplied then drop through and check
+        // the actual value, if any.
+        if (optionalTypeItem != null && !optionalTypeItem.isConstantType()) {
+            return null
+        }
+
         if (uExpression is ULiteralExpression) {
             uExpression.value?.let { underlyingValue ->
                 // Check to see if the underlying value has been already been cast from the source
@@ -395,29 +437,41 @@ internal class PsiValueFactory(
     private fun psiToValue(
         optionalTypeItem: TypeItem?,
         psiValue: PsiAnnotationMemberValue,
-    ): Value? {
-        // Array literal.
-        if (psiValue is PsiArrayInitializerMemberValue) {
-            val arrayTypeItem = optionalTypeItem as? ArrayTypeItem
-            val elementType = arrayTypeItem?.componentType
-            val elements =
-                psiValue.initializers.map {
-                    psiToArrayElementValue(elementType, it) ?: unknownExpression(elementType, it)
-                }
-            return createArrayValue(elements)
-        }
-
-        return if (optionalTypeItem is ArrayTypeItem) {
-            // The type is an array so this is an example of not having to add curly braces around a
-            // single value in an annotation attribute. Create a value for the component type and
-            // then wrap it in an ArrayValue.
-            psiToArrayElementValue(optionalTypeItem.componentType, psiValue)?.let { singleValue ->
-                createArrayValue(listOf(singleValue))
+    ) =
+        when (psiValue) {
+            // Array literal.
+            is PsiArrayInitializerMemberValue -> {
+                val arrayTypeItem = optionalTypeItem as? ArrayTypeItem
+                val elementType = arrayTypeItem?.componentType
+                val elements =
+                    psiValue.initializers.map {
+                        psiToArrayElementValue(elementType, it)
+                            ?: unknownExpression(elementType, it)
+                    }
+                createArrayValue(elements)
             }
-        } else {
-            psiToArrayElementValue(optionalTypeItem, psiValue)
+            is PsiNewExpression -> {
+                // New expressions cannot be used with annotations (they use array literals) and if
+                // they are used with fields they always return a `null` value so just return
+                // immediately. This avoids issues when dealing with expressions like `field = new
+                // int[0]` which end up being evaluated in [psiToConstant] to an array or an Android
+                // Lint specific type.
+                null
+            }
+            else -> {
+                if (optionalTypeItem is ArrayTypeItem) {
+                    // The type is an array so this is an example of not having to add curly braces
+                    // around a single value in an annotation attribute. Create a value for the
+                    // component type and then wrap it in an ArrayValue.
+                    psiToArrayElementValue(optionalTypeItem.componentType, psiValue)?.let {
+                        singleValue ->
+                        createArrayValue(listOf(singleValue))
+                    }
+                } else {
+                    psiToArrayElementValue(optionalTypeItem, psiValue)
+                }
+            }
         }
-    }
 
     /** Create an [ArrayElementValue] of [optionalTypeItem] from [psiValue]. */
     private fun psiToArrayElementValue(
@@ -442,10 +496,9 @@ internal class PsiValueFactory(
             is PsiReferenceExpression -> {
                 val resolved = psiValue.resolve()
                 // Try and convert the resolved PsiElement to a Value and return it if succeeded.
-                resolvedPsiElementToValue(resolved) { psiToConstant(optionalTypeItem, psiValue) }
-                    ?.let {
-                        return it
-                    }
+                resolvedPsiElementToValue(optionalTypeItem, resolved)?.let {
+                    return it
+                }
             }
             // An annotation value.
             is PsiAnnotation -> {
@@ -464,14 +517,18 @@ internal class PsiValueFactory(
         optionalTypeItem: TypeItem?,
         psiValue: PsiAnnotationMemberValue,
     ): ConstantValue? {
+        // If the type is supplied, and it's not a constant type then return immediately as this can
+        // never be treated as a constant value. If it is not supplied then drop through and check
+        // the actual value, if any.
+        if (optionalTypeItem != null && !optionalTypeItem.isConstantType()) {
+            return null
+        }
+
         // Literal primitive or String.
         if (psiValue is PsiLiteralExpression) {
             return psiValue.value?.let { underlyingValue ->
                 createLiteralValue(optionalTypeItem, underlyingValue)
             }
-                ?: error(
-                    "Unknown value '$psiValue' of ${psiValue.javaClass} for type $optionalTypeItem"
-                )
         }
 
         // All others expressions are evaluated to a literal, if possible and returned.
@@ -494,15 +551,15 @@ internal class PsiValueFactory(
      * Try and convert the [resolved] [PsiElement] to an [ArrayElementValue].
      *
      * If [resolved] is a [PsiField] and it is not an enum constant then it will call
-     * [constantProvider] to find the [ConstantValue] for the [ConstantFieldValue].
+     * [FieldItem.constantValue] to find the [ConstantValue] for the [ConstantFieldValue].
      */
-    private inline fun resolvedPsiElementToValue(
+    private fun resolvedPsiElementToValue(
+        optionalTypeItem: TypeItem?,
         resolved: PsiElement?,
-        constantProvider: () -> ConstantValue?
     ): ArrayElementValue? {
         if (resolved is PsiField) {
             codebase.findField(resolved)?.let { fieldItem ->
-                return createFieldReferenceValue(fieldItem)
+                return createFieldReferenceValue(optionalTypeItem, fieldItem)
             }
         }
 

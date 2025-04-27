@@ -103,18 +103,6 @@ com.android.tools.metalava.ShowAnnotationTest
 com.android.tools.metalava.SyntaxErrorTest
   Invalid syntax[turbine]
 
-com.android.tools.metalava.SystemServiceCheckTest
-  Check SystemService -- can miss a permission with anyOf[turbine]
-  Check SystemService -- missing manifest permissions[turbine]
-  Check SystemService -- missing one permission with allOf[turbine]
-  Check SystemService -- must be system permission, not normal[turbine]
-  Check SystemService -- no permission annotation[turbine]
-  Check SystemService such that at least one permission must be defined with anyOf[turbine]
-  Invalid manifest[turbine]
-  SystemService OK, loaded from signature file[turbine]
-  SystemService OK, loaded from source[turbine]
-  Warning suppressed via annotation[turbine]
-
 com.android.tools.metalava.TypeUseAnnotationFilteringTest
   Keep type use annotations[turbine]
 
@@ -223,4 +211,3 @@ com.android.tools.metalava.stub.StubsTest
   Missing overridden method[turbine]
   Picking super class throwables[turbine]
   Skip type variables in casts[turbine]
-  Translate DeprecatedForSdk to Deprecated[turbine]

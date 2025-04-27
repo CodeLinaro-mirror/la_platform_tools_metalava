@@ -44,6 +44,10 @@ import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.getAttributeValue
 import com.android.tools.metalava.model.getCallableParameterDescriptorUsingDots
 import com.android.tools.metalava.model.psi.containsLinkTags
+import com.android.tools.metalava.model.value.asAny
+import com.android.tools.metalava.model.value.asBoolean
+import com.android.tools.metalava.model.value.asInt
+import com.android.tools.metalava.model.value.asString
 import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.Issues
@@ -171,19 +175,14 @@ class DocAnalyzer(
                     return result ?: emptyList()
                 }
 
-                /** Fallback if field can't be resolved or if an inlined string value is used */
+                /**
+                 * Fallback if field can't be resolved or if an inlined string value is used then
+                 * try and find the field in the `android.Manifest.permission` class if available.
+                 */
                 private fun findPermissionField(codebase: Codebase, value: Any): FieldItem? {
                     val perm = value.toString()
                     val permClass = codebase.findClass("android.Manifest.permission")
-                    permClass
-                        ?.fields()
-                        ?.filter {
-                            it.legacyInitialValue(requireConstant = false)?.toString() == perm
-                        }
-                        ?.forEach {
-                            return it
-                        }
-                    return null
+                    return permClass?.fields()?.firstOrNull { it.constantValue?.asString() == perm }
                 }
 
                 private fun handleAnnotation(
@@ -252,9 +251,8 @@ class DocAnalyzer(
                     val text =
                         (annotation.findAttribute("message")
                                 ?: annotation.findAttribute(ANNOTATION_ATTR_VALUE))
-                            ?.legacyValue
-                            ?.value()
-                            ?.toString() ?: return
+                            ?.value
+                            ?.asString() ?: return
                     if (text.isBlank() || item.documentation.contains(text)) {
                         return
                     }
@@ -326,7 +324,7 @@ class DocAnalyzer(
                                 values = attribute.leafValues()
                             }
                             "conditional" -> {
-                                conditional = attribute.legacyValue.value() == true
+                                conditional = attribute.value.asBoolean() == true
                             }
                         }
                     }
@@ -398,14 +396,10 @@ class DocAnalyzer(
                 }
 
                 private fun handleRange(annotation: AnnotationItem, item: Item) {
-                    val from: String? = annotation.findAttribute("from")?.legacyValue?.toSource()
-                    val to: String? = annotation.findAttribute("to")?.legacyValue?.toSource()
+                    val from = annotation.findAttribute("from")?.value?.asAny()
+                    val to = annotation.findAttribute("to")?.value?.asAny()
                     // TODO: inclusive/exclusive attributes on FloatRange!
                     if (from != null || to != null) {
-                        val args = HashMap<String, String>()
-                        if (from != null) args["from"] = from
-                        if (from != null) args["from"] = from
-                        if (to != null) args["to"] = to
                         val doc =
                             if (from != null && to != null) {
                                 "Value is between $from and $to inclusive"
@@ -420,7 +414,7 @@ class DocAnalyzer(
 
                 private fun handleTypeDef(annotation: AnnotationItem, item: Item) {
                     val values = annotation.findAttribute("value")?.leafValues() ?: return
-                    val flag = annotation.findAttribute("flag")?.legacyValue?.toSource() == "true"
+                    val flag = annotation.findAttribute("flag")?.value?.asBoolean() == true
 
                     // Look at macros_override.cs for the usage of these
                     // tags. In particular, search for def:dump_int_def
@@ -539,30 +533,29 @@ class DocAnalyzer(
                  */
                 private fun handleRequiresApi(annotation: AnnotationItem, item: SelectableItem) {
                     val level = run {
-                        val api =
-                            annotation.findAttribute("api")?.leafValues()?.firstOrNull()?.value()
+                        val api = annotation.findAttribute("api")?.value?.asInt()
                         if (api == null || api == 1) {
-                            annotation.findAttribute("value")?.leafValues()?.firstOrNull()?.value()
-                                ?: return
+                            annotation.findAttribute("value")?.value?.asInt() ?: return
                         } else {
                             api
                         }
                     }
 
-                    if (level is Int) {
-                        addApiVersionDocumentation(ApiVersion.fromLevel(level), item)
-                    }
+                    addApiVersionDocumentation(ApiVersion.fromLevel(level), item)
                 }
 
                 private fun handleRestrictedForEnvironment(
                     annotationItem: AnnotationItem,
                     item: Item
                 ) {
-                    val environmentsValue: String? =
-                        annotationItem.findAttribute("environments")?.legacyValue?.value()
-                            as String?
-                    val fromValue: String? =
-                        annotationItem.findAttribute("from")?.legacyValue?.toSource()
+                    val environmentsValue =
+                        annotationItem
+                            .findAttribute("environments")
+                            ?.value
+                            ?.asFlatList()
+                            ?.firstOrNull()
+                            ?.asString()
+                    val fromValue = annotationItem.findAttribute("from")?.value?.asInt()
 
                     if (environmentsValue == null) {
                         reporter.report(
@@ -592,12 +585,7 @@ class DocAnalyzer(
                 private fun handleColumn(annotation: AnnotationItem, item: Item) {
                     val value =
                         annotation.findAttribute("value")?.leafValues()?.firstOrNull() ?: return
-                    val readOnly =
-                        annotation
-                            .findAttribute("readOnly")
-                            ?.leafValues()
-                            ?.firstOrNull()
-                            ?.value() == true
+                    val readOnly = annotation.findAttribute("readOnly")?.value?.asBoolean() == true
                     val sb = StringBuilder(100)
                     val resolved = value.resolve()
                     val field = resolved as? FieldItem

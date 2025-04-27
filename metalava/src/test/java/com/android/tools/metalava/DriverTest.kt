@@ -1935,23 +1935,6 @@ val publishedApiSource: TestFile =
         )
         .indented()
 
-val deprecatedForSdkSource: TestFile =
-    java(
-            """
-    package android.annotation;
-    import static java.lang.annotation.RetentionPolicy.SOURCE;
-    import java.lang.annotation.Retention;
-    /** @hide */
-    @Retention(SOURCE)
-    @SuppressWarnings("WeakerAccess")
-    public @interface DeprecatedForSdk {
-        String value();
-        Class<?>[] allowIn() default {};
-    }
-    """
-        )
-        .indented()
-
 val DEFAULT_SKIP_EMIT_PACKAGES =
     listOf(
         // Do not emit classes in a number of java packages. While tests will

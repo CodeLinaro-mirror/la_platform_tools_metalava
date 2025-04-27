@@ -1011,7 +1011,7 @@ class CompatibilityCheckTest : DriverTest() {
                     field public static final int field1 = 1; // 0x1
                     field public static final int field2 = 2; // 0x2
                     field public int field3;
-                    field public int field4 = 4; // 0x4
+                    field public int field4;
                     field public int field5;
                     field public int field6;
                     field public int field7;

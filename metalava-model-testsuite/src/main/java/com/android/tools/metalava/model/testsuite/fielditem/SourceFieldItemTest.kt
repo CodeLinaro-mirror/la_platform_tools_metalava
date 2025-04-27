@@ -17,9 +17,12 @@
 package com.android.tools.metalava.model.testsuite.fielditem
 
 import com.android.tools.metalava.model.testsuite.BaseModelTest
+import com.android.tools.metalava.model.value.asAny
+import com.android.tools.metalava.model.value.asInt
 import com.android.tools.metalava.testing.java
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import org.junit.Test
 
 /** Common tests for [FieldItem.InitialValue]. */
@@ -55,8 +58,9 @@ class SourceFieldItemTest : BaseModelTest() {
                     Double.POSITIVE_INFINITY,
                     61184.toChar(),
                 )
-            assertEquals(fieldValues, classItem.fields().map { it.legacyInitialValue(false) })
-            assertEquals(fieldValues, classItem.fields().map { it.legacyInitialValue(true) })
+            assertEquals(fieldValues, classItem.fields().map { it.legacyInitialValue() })
+
+            assertEquals(fieldValues, classItem.fields().map { it.constantValue?.asAny() })
         }
     }
 
@@ -79,10 +83,11 @@ class SourceFieldItemTest : BaseModelTest() {
             val classItem = codebase.assertClass("test.pkg.Test")
             val fieldItem1 = classItem.assertField("field1")
             val fieldItem2 = classItem.assertField("field2")
-            assertEquals(38, fieldItem1.legacyInitialValue(true))
-            assertEquals(38, fieldItem1.legacyInitialValue(false))
-            assertEquals(91, fieldItem2.legacyInitialValue(true))
-            assertEquals(91, fieldItem2.legacyInitialValue(false))
+            assertEquals(38, fieldItem1.legacyInitialValue())
+            assertEquals(91, fieldItem2.legacyInitialValue())
+
+            assertEquals(38, fieldItem1.constantValue?.asInt())
+            assertEquals(91, fieldItem2.constantValue?.asInt())
         }
     }
 
@@ -112,10 +117,11 @@ class SourceFieldItemTest : BaseModelTest() {
             val fieldItem1 = classItem.assertField("field1")
             val fieldItem2 = classItem.assertField("field2")
 
-            assertEquals(null, fieldItem1.legacyInitialValue(false))
-            assertEquals(null, fieldItem1.legacyInitialValue(true))
-            assertEquals(null, fieldItem2.legacyInitialValue(true))
-            assertEquals(null, fieldItem2.legacyInitialValue(false))
+            assertEquals(null, fieldItem1.legacyInitialValue())
+            assertEquals(null, fieldItem2.legacyInitialValue())
+
+            assertEquals(null, fieldItem1.constantValue)
+            assertEquals(null, fieldItem2.constantValue)
         }
     }
 
@@ -136,8 +142,10 @@ class SourceFieldItemTest : BaseModelTest() {
             val classItem = codebase.assertClass("test.pkg.Test")
             val fieldItem = classItem.assertField("ENUM1")
 
-            assertNotNull(fieldItem.legacyInitialValue(true))
-            assertNotNull(fieldItem.legacyInitialValue(false))
+            assertNotNull(fieldItem.legacyInitialValue())
+
+            // An enum is not its own constant value.
+            assertNull(fieldItem.constantValue)
         }
     }
 
@@ -149,15 +157,18 @@ class SourceFieldItemTest : BaseModelTest() {
                     package test.pkg;
 
                     public class Test {
-                        public static final Class<?> field = String.class;;
+                        public static final Class<?> field = String.class;
                     }
                 """
             ),
         ) {
             val classItem = codebase.assertClass("test.pkg.Test")
             val fieldItem = classItem.assertField("field")
-            assertEquals(null, fieldItem.legacyInitialValue(true))
-            assertNotNull(fieldItem.legacyInitialValue(false))
+            assertEquals(null, fieldItem.legacyInitialValue())
+
+            // TODO(b/354633349): Class literals are not supported for fields as it is not clear
+            //  that is needed.
+            assertNull(fieldItem.constantValue)
         }
     }
 
@@ -177,8 +188,9 @@ class SourceFieldItemTest : BaseModelTest() {
             val classItem = codebase.assertClass("test.pkg.Test")
             val fieldItem = classItem.assertField("field")
 
-            assertEquals(null, fieldItem.legacyInitialValue(true))
-            assertEquals(7, fieldItem.legacyInitialValue(false))
+            assertEquals(null, fieldItem.legacyInitialValue())
+
+            assertNull(fieldItem.constantValue)
         }
     }
 
@@ -202,10 +214,11 @@ class SourceFieldItemTest : BaseModelTest() {
             val fieldItem1 = classItem.assertField("field1")
             val fieldItem2 = classItem.assertField("field2")
 
-            assertEquals(null, fieldItem1.legacyInitialValue(true))
-            assertEquals(27, fieldItem1.legacyInitialValue(false))
-            assertEquals(null, fieldItem2.legacyInitialValue(true))
-            assertEquals(91, fieldItem2.legacyInitialValue(false))
+            assertEquals(null, fieldItem1.legacyInitialValue())
+            assertEquals(null, fieldItem2.legacyInitialValue())
+
+            assertEquals(null, fieldItem1.constantValue)
+            assertEquals(null, fieldItem2.constantValue)
         }
     }
 
@@ -217,15 +230,18 @@ class SourceFieldItemTest : BaseModelTest() {
                     package test.pkg;
 
                     public class Test {
-                        public static Class<?> field = String.class;;
+                        public static Class<?> field = String.class;
                     }
                 """
             ),
         ) {
             val classItem = codebase.assertClass("test.pkg.Test")
             val fieldItem = classItem.assertField("field")
-            assertEquals(null, fieldItem.legacyInitialValue(true))
-            assertNotNull(fieldItem.legacyInitialValue(false))
+            assertEquals(null, fieldItem.legacyInitialValue())
+
+            // TODO(b/354633349): Class literals are not supported for fields as it is not clear
+            //  that is needed.
+            assertNull(fieldItem.constantValue)
         }
     }
 
@@ -266,7 +282,12 @@ class SourceFieldItemTest : BaseModelTest() {
             assertEquals(
                 fieldItem.legacyInitialValue(),
                 duplicateField.legacyInitialValue(),
-                message = "duplicated initial value"
+                message = "duplicated legacy initial value"
+            )
+            assertEquals(
+                fieldItem.constantValue,
+                duplicateField.constantValue,
+                message = "duplicated constant value"
             )
             assertEquals(classItem, duplicateField.inheritedFrom, message = "inheritedFrom")
         }

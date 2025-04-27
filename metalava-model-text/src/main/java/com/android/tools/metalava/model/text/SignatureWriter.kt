@@ -108,11 +108,7 @@ class SignatureWriter(
             write(field.name())
         }
 
-        field.writeValueWithSemicolon(
-            writer,
-            allowDefaultValue = false,
-            requireInitialValue = false
-        )
+        field.writeValueWithSemicolon(writer)
         write("\n")
     }
 
