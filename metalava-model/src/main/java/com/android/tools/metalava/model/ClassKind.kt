@@ -20,17 +20,30 @@ package com.android.tools.metalava.model
  * The kind of class.
  *
  * Corresponds to similarly named values in [javax.lang.model.element.ElementKind].
+ *
+ * @param supportsInitializerBlock `true` if the class kind supports initializer blocks, e.g. `{
+ *   field = 0; }` or `static { FIELD = 0; }`.
  */
-enum class ClassKind {
+enum class ClassKind(
+    val supportsInitializerBlock: Boolean,
+) {
     /** An interface. */
-    INTERFACE,
+    INTERFACE(
+        supportsInitializerBlock = false,
+    ),
 
     /** An enum class. */
-    ENUM,
+    ENUM(
+        supportsInitializerBlock = true,
+    ),
 
     /** An annotation class. */
-    ANNOTATION_TYPE,
+    ANNOTATION_TYPE(
+        supportsInitializerBlock = false,
+    ),
 
     /** A normal class. */
-    CLASS
+    CLASS(
+        supportsInitializerBlock = true,
+    ),
 }

@@ -49,7 +49,6 @@ import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Issues.Issue
 import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.reporter.Severity
-import com.intellij.psi.PsiField
 
 /**
  * Compares the current API with a previous version and makes sure the changes are compatible. For
@@ -725,27 +724,16 @@ class CompatibilityCheck(
                 val message =
                     "${describe(new, capitalize = true)} has changed type from $oldType to $newType"
                 report(Issues.CHANGED_TYPE, new, message)
-            } else if (!old.hasSameValue(new)) {
-                val prevValue = old.legacyInitialValue()
-                val prevString =
-                    if (prevValue == null && !old.modifiers.isFinal()) {
-                        "nothing/not constant"
-                    } else {
-                        prevValue
-                    }
-
-                val newValue = new.legacyInitialValue()
-                val newString =
-                    if (newValue is PsiField) {
-                        newValue.containingClass?.qualifiedName + "." + newValue.name
-                    } else {
-                        newValue
-                    }
+            } else if (!old.hasSameConstantValue(new)) {
+                val oldString = old.constantValue?.toValueString() ?: "nothing/not constant"
+                val newString = new.constantValue?.toValueString() ?: "nothing/not constant"
                 val message =
-                    "${describe(
-                    new,
-                    capitalize = true
-                )} has changed value from $prevString to $newString"
+                    "${
+                        describe(
+                            new,
+                            capitalize = true
+                        )
+                    } has changed value from $oldString to $newString"
 
                 report(Issues.CHANGED_VALUE, new, message)
             }
@@ -788,7 +776,7 @@ class CompatibilityCheck(
             oldModifiers.isFinal() &&
                 !newModifiers.isFinal() &&
                 oldModifiers.isStatic() &&
-                old.legacyInitialValue() != null
+                old.constantValue != null
         ) {
             report(
                 Issues.REMOVED_FINAL,

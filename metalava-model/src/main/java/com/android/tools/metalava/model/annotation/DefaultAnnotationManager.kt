@@ -20,7 +20,6 @@ import com.android.tools.metalava.model.ANDROIDX_ANNOTATION_PREFIX
 import com.android.tools.metalava.model.ANDROIDX_NONNULL
 import com.android.tools.metalava.model.ANDROIDX_NULLABLE
 import com.android.tools.metalava.model.ANDROID_ANNOTATION_PREFIX
-import com.android.tools.metalava.model.ANDROID_DEPRECATED_FOR_SDK
 import com.android.tools.metalava.model.ANDROID_FLAGGED_API
 import com.android.tools.metalava.model.ANDROID_NONNULL
 import com.android.tools.metalava.model.ANDROID_NULLABLE
@@ -261,7 +260,6 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
             "android.annotation.NonUiContext" -> return "androidx.annotation.NonUiContext"
 
             // Misc
-            ANDROID_DEPRECATED_FOR_SDK -> return ANDROID_DEPRECATED_FOR_SDK
             "android.annotation.CallSuper" -> return "androidx.annotation.CallSuper"
             "android.annotation.CheckResult" -> return "androidx.annotation.CheckResult"
             "android.annotation.Discouraged" -> return "androidx.annotation.Discouraged"
@@ -425,7 +423,6 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
             "dalvik.annotation.optimization.ReachabilitySensitive" -> return NO_ANNOTATION_TARGETS
 
             // TODO(aurimas): consider using annotation directly instead of modifiers
-            ANDROID_DEPRECATED_FOR_SDK,
             "kotlin.Deprecated" ->
                 return NO_ANNOTATION_TARGETS // tracked separately as a pseudo-modifier
             "java.lang.Deprecated", // tracked separately as a pseudo-modifier

@@ -24,6 +24,7 @@ import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.StripJavaLangPrefix
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.text.FileFormat.TypeArgumentSpacing
+import com.android.tools.metalava.model.value.asString
 import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiType
 import com.google.common.truth.Truth.assertThat
@@ -156,6 +157,7 @@ class SignatureInputOutputTest : Assertions {
             assertThat(field.type().isString()).isTrue()
             assertThat(field.modifiers.getVisibilityLevel()).isEqualTo(VisibilityLevel.PROTECTED)
             assertThat(field.legacyInitialValue()).isNull()
+            assertThat(field.constantValue).isNull()
         }
     }
 
@@ -165,7 +167,7 @@ class SignatureInputOutputTest : Assertions {
             """
                 package test.pkg {
                   public class Foo {
-                    field public static foo: String = "hi";
+                    field public static final foo: String = "hi";
                   }
                 }
             """
@@ -180,6 +182,7 @@ class SignatureInputOutputTest : Assertions {
             assertThat(field.modifiers.getVisibilityLevel()).isEqualTo(VisibilityLevel.PUBLIC)
             assertThat(field.modifiers.isStatic()).isTrue()
             assertThat(field.legacyInitialValue()).isEqualTo("hi")
+            assertThat(field.constantValue?.asString()).isEqualTo("hi")
         }
     }
 

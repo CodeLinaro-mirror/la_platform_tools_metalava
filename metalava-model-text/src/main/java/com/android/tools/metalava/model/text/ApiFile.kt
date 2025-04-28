@@ -1364,8 +1364,21 @@ private constructor(
         // Defer parsing the value string until needed.
         val fieldValue = valueString?.let { TextFieldValue(type, it) }
 
-        val initialValueProvider =
-            valueString?.let { valueParser.providerFor(type, it, ValueUseSite.FIELD) }
+        // In signature files fields have to be static and final in order for them to have a
+        // constant value in addition to a value.
+        val constantValueProvider =
+            if (valueString != null) {
+                if (modifiers.isStatic() && modifiers.isFinal())
+                    valueParser.providerFor(type, valueString, ValueUseSite.FIELD)
+                else {
+                    // Report that the value is being ignored.
+                    reportIssue(
+                        Issues.SIGNATURE_FILE_ERROR,
+                        "Field $name in $cl has a value of `$valueString` but is not `static` and `final`; ignoring value"
+                    )
+                    null
+                }
+            } else null
 
         if (";" != token) {
             throw ApiParseException("expected ; found $token", tokenizer)
@@ -1379,7 +1392,7 @@ private constructor(
                 containingClass = cl,
                 type = type,
                 isEnumConstant = isEnumConstant,
-                initialValueProvider = initialValueProvider,
+                constantValueProvider = constantValueProvider,
                 fieldValue = fieldValue,
             )
         field.markForMainApiSurface()

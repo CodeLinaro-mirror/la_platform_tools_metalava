@@ -170,14 +170,35 @@ interface ValueFactory {
     }
 
     /** Create a [FieldReferenceValue] from [fieldItem]. */
-    fun createFieldReferenceValue(fieldItem: FieldItem): ArrayElementValue {
+    fun createFieldReferenceValue(
+        optionalTypeItem: TypeItem?,
+        fieldItem: FieldItem
+    ): ArrayElementValue {
         // Make sure that the class type item does not have any arguments.
         val classTypeItem = fieldItem.containingClass().type().substitute(arguments = emptyList())
         val fieldName = fieldItem.name()
         return if (fieldItem.isEnumConstant()) {
             createEnumConstantValue(classTypeItem, fieldName)
         } else {
-            val constantValue = fieldItem.initialValue?.asLiteralValue()
+            // The actual constant value of a field reference is affected by the type of where it is
+            // used, just as it would if the field reference was replaced by its constant value. So,
+            // an `int` constant field that is used where a `long` is expected will be represented
+            // as a `LongValue` that was originally specified as an int.
+            val constantValue =
+                fieldItem.constantValue?.let { fieldConstantValue ->
+                    fieldConstantValue
+                        // If an optional type item is provided then it needs to be applied to the
+                        // field's constant value.
+                        .takeIf { optionalTypeItem != null }
+                        // So, get the field's underlying value.
+                        ?.asAny()
+                        // Then, create a LiteralValue of the correct type.
+                        ?.let { underlyingValue ->
+                            createLiteralValue(optionalTypeItem, underlyingValue)
+                        }
+                        // Otherwise, just use the field's constant value as is.
+                        ?: fieldConstantValue
+                }
             createConstantFieldValue(classTypeItem, fieldName, constantValue)
         }
     }
@@ -213,6 +234,9 @@ interface ValueFactory {
     /** Create an [AnnotationValue] that wraps an [AnnotationItem]. */
     fun createAnnotationValue(annotationItem: AnnotationItem): AnnotationValue =
         DefaultAnnotationValue(annotationItem)
+
+    /** Check if this [TypeItem] is a constant type, i.e. a [String] or a primitive type. */
+    fun TypeItem.isConstantType() = isString() || this is PrimitiveTypeItem
 
     companion object {
         /**

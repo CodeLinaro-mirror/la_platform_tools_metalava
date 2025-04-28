@@ -88,7 +88,17 @@ internal class TurbineValueFactory(private val globalContext: TurbineGlobalConte
         optionalTypeItem: TypeItem?,
         implementationValue: TurbineValue,
         valueUseSite: ValueUseSite,
-    ) = implementationValue.toValue(optionalTypeItem)
+    ) =
+        when (valueUseSite) {
+            ValueUseSite.ANNOTATION -> {
+                // For annotations convert to any Value.
+                implementationValue.toValue(optionalTypeItem)
+            }
+            ValueUseSite.FIELD -> {
+                // For fields convert to ConstantValues.
+                implementationValue.toConstant(optionalTypeItem)
+            }
+        }
 
     /** Create a [Value] of [optionalTypeItem] from this [TurbineValue]. */
     private fun TurbineValue.toValue(optionalTypeItem: TypeItem?): Value {

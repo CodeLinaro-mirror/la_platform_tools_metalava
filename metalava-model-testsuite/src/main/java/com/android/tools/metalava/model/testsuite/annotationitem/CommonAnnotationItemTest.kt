@@ -1318,28 +1318,10 @@ class CommonAnnotationItemTest : BaseModelTest() {
         }
     }
 
+    @RequiresCapabilities(Capability.JAVA)
     @Test
     fun `annotation toSource() with compound expression values`() {
         runCodebaseTest(
-            signature(
-                """
-                    // Signature format: 2.0
-                    package test.pkg {
-                      @test.pkg.Test.Anno(value=test.pkg.Test.FIELD1+test.pkg.Test.FIELD2, name="FirstName"+"LastName", id=1+test.pkg.FIELD1)
-                      public class Test {
-                        ctor public Test();
-                        field public static final int FIELD1 = 5;
-                        field public static final int FIELD2 = 7;
-                      }
-
-                      public @interface Test.Anno {
-                          method public int value();
-                          method public String name();
-                          method public int id();
-                      }
-                    }
-                """
-            ),
             java(
                 """
                     package test.pkg;
@@ -1366,8 +1348,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
             anno.assertAttributeValue("value", 12)
             anno.assertAttributeValue("name", "FirstNameLastName")
             anno.assertAttributeValue("id", 6)
-            val toSource =
-                "@test.pkg.Test.Anno(value=test.pkg.Test.FIELD1 + test.pkg.Test.FIELD2, name=\"FirstName\" + \"LastName\", id=1 + test.pkg.Test.FIELD1)"
+            val toSource = """@test.pkg.Test.Anno(value=0xc, name="FirstNameLastName", id=0x6)"""
             assertEquals(toSource, anno.toSource())
         }
     }

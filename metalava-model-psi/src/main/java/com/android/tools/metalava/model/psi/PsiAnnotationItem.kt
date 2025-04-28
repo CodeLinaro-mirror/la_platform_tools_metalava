@@ -30,6 +30,7 @@ import com.android.tools.metalava.model.DefaultAnnotationSingleAttributeValue
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.psi.CodePrinter.Companion.constantToExpression
 import com.android.tools.metalava.model.psi.CodePrinter.Companion.constantToSource
+import com.intellij.psi.JavaTokenType
 import com.intellij.psi.PsiAnnotation
 import com.intellij.psi.PsiAnnotationMemberValue
 import com.intellij.psi.PsiAnnotationMethod
@@ -260,27 +261,6 @@ private constructor(
                         }
                     }
                 }
-                is PsiBinaryExpression -> {
-                    appendValue(
-                        codebase,
-                        sb,
-                        value.lOperand,
-                        target,
-                        showDefaultAttrs = showDefaultAttrs,
-                        alwaysInlineValues = alwaysInlineValues,
-                    )
-                    sb.append(' ')
-                    sb.append(value.operationSign.text)
-                    sb.append(' ')
-                    appendValue(
-                        codebase,
-                        sb,
-                        value.rOperand,
-                        target,
-                        showDefaultAttrs = showDefaultAttrs,
-                        alwaysInlineValues = alwaysInlineValues,
-                    )
-                }
                 is PsiArrayInitializerMemberValue -> {
                     sb.append('{')
                     var first = true
@@ -313,6 +293,29 @@ private constructor(
                     )
                 }
                 else -> {
+                    // Special case the formatting of special floating point numbers which are
+                    // defined in terms of division by 0.
+                    if (
+                        value is PsiBinaryExpression &&
+                            value.operationTokenType == JavaTokenType.DIV
+                    ) {
+                        val right = value.rOperand
+                        if (right is PsiLiteral) {
+                            if (right.value == 0.0f || right.value == 0.0) {
+                                val left = value.lOperand
+                                if (left is PsiLiteral) {
+                                    sb.append(constantToSource(left.value))
+                                } else {
+                                    val source = getConstantSource(left)
+                                    sb.append(source)
+                                }
+                                sb.append(" / ")
+                                sb.append(constantToSource(right.value))
+                                return
+                            }
+                        }
+                    }
+
                     if (value is PsiExpression) {
                         val source = getConstantSource(value)
                         if (source != null) {

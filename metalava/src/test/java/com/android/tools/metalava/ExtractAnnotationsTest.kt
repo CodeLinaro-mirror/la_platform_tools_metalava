@@ -598,7 +598,7 @@ class ExtractAnnotationsTest : DriverTest() {
                 package test.pkg {
                   public class IntDefTest {
                     ctor public IntDefTest();
-                    method public void setFlags(Object, @IntDef(value={test.pkg.IntDefTest.STYLE_NORMAL, test.pkg.IntDefTest.STYLE_NO_TITLE, test.pkg.IntDefTest.STYLE_NO_FRAME, test.pkg.IntDefTest.STYLE_NO_INPUT, 3, 3 + 1}, flag=true) int);
+                    method public void setFlags(Object, @IntDef(value={test.pkg.IntDefTest.STYLE_NORMAL, test.pkg.IntDefTest.STYLE_NO_TITLE, test.pkg.IntDefTest.STYLE_NO_FRAME, test.pkg.IntDefTest.STYLE_NO_INPUT, 3, 0x4}, flag=true) int);
                     method public void setStyle(@IntDef({test.pkg.IntDefTest.STYLE_NORMAL, test.pkg.IntDefTest.STYLE_NO_TITLE, test.pkg.IntDefTest.STYLE_NO_FRAME, test.pkg.IntDefTest.STYLE_NO_INPUT}) int, int);
                     method public void testIntDef(int);
                     field public static final int STYLE_NORMAL = 0; // 0x0
@@ -612,7 +612,7 @@ class ExtractAnnotationsTest : DriverTest() {
                   }
                   public static class IntDefTest.Inner {
                     ctor public IntDefTest.Inner();
-                    method public void setInner(@IntDef(value={test.pkg.IntDefTest.STYLE_NORMAL, test.pkg.IntDefTest.STYLE_NO_TITLE, test.pkg.IntDefTest.STYLE_NO_FRAME, test.pkg.IntDefTest.STYLE_NO_INPUT, 3, 3 + 1}, flag=true) int);
+                    method public void setInner(@IntDef(value={test.pkg.IntDefTest.STYLE_NORMAL, test.pkg.IntDefTest.STYLE_NO_TITLE, test.pkg.IntDefTest.STYLE_NO_FRAME, test.pkg.IntDefTest.STYLE_NO_INPUT, 3, 0x4}, flag=true) int);
                   }
                 }
             """

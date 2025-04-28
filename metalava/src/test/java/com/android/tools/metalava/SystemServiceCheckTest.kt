@@ -32,7 +32,7 @@ class SystemServiceCheckTest : DriverTest() {
                         """
                     package test.pkg;
                     import android.annotation.RequiresPermission;
-                    @android.annotation.SystemService
+                    @android.annotation.SystemService("Myservice")
                     public class MyTest2 {
                         @RequiresPermission(anyOf={"foo.bar.PERMISSION1","foo.bar.PERMISSION2"})
                         public int myMethod1() { }
@@ -40,7 +40,7 @@ class SystemServiceCheckTest : DriverTest() {
                     """
                     ),
                     systemServiceSource,
-                    requiresPermissionSource
+                    requiresPermissionSource,
                 ),
             manifest =
                 """<?xml version="1.0" encoding="UTF-8"?>
@@ -70,7 +70,7 @@ class SystemServiceCheckTest : DriverTest() {
                         """
                     package test.pkg;
 
-                    @android.annotation.SystemService
+                    @android.annotation.SystemService("Myservice")
                     public class MyTest2 {
                         @android.annotation.RequiresPermission(anyOf={"foo.bar.PERMISSION1","foo.bar.PERMISSION2"})
                         public void myMethod1() {
@@ -78,7 +78,8 @@ class SystemServiceCheckTest : DriverTest() {
                     }
                     """
                     ),
-                    systemServiceSource
+                    systemServiceSource,
+                    requiresPermissionSource,
                 ),
             manifest =
                 """<?xml version="1.0" encoding="UTF-8"?>
@@ -109,14 +110,14 @@ class SystemServiceCheckTest : DriverTest() {
                     java(
                         """
                     package test.pkg;
-                    @android.annotation.SystemService
+                    @android.annotation.SystemService("Myservice")
                     public class MyTest1 {
                         public int myMethod2() { }
                     }
                     """
                     ),
                     systemServiceSource,
-                    requiresPermissionSource
+                    requiresPermissionSource,
                 ),
             manifest =
                 """<?xml version="1.0" encoding="UTF-8"?>
@@ -136,7 +137,7 @@ class SystemServiceCheckTest : DriverTest() {
                         """
                     package test.pkg;
                     import android.annotation.RequiresPermission;
-                    @android.annotation.SystemService
+                    @android.annotation.SystemService("myservice")
                     public class MyTest2 {
                         @RequiresPermission(anyOf={"foo.bar.PERMISSION1","foo.bar.PERMISSION2"})
                         public int myMethod1() { }
@@ -144,7 +145,7 @@ class SystemServiceCheckTest : DriverTest() {
                     """
                     ),
                     systemServiceSource,
-                    requiresPermissionSource
+                    requiresPermissionSource,
                 ),
             manifest =
                 """<?xml version="1.0" encoding="UTF-8"?>
@@ -175,7 +176,7 @@ class SystemServiceCheckTest : DriverTest() {
                         """
                     package test.pkg;
                     import android.annotation.RequiresPermission;
-                    @android.annotation.SystemService
+                    @android.annotation.SystemService("Myservice")
                     public class MyTest2 {
                         @RequiresPermission(anyOf={"foo.bar.PERMISSION1","foo.bar.PERMISSION2"})
                         public int myMethod1() { }
@@ -183,7 +184,7 @@ class SystemServiceCheckTest : DriverTest() {
                     """
                     ),
                     systemServiceSource,
-                    requiresPermissionSource
+                    requiresPermissionSource,
                 ),
             manifest =
                 """<?xml version="1.0" encoding="UTF-8"?>
@@ -205,7 +206,7 @@ class SystemServiceCheckTest : DriverTest() {
                         """
                         package test.pkg;
                         import android.annotation.RequiresPermission;
-                        @android.annotation.SystemService
+                        @android.annotation.SystemService("Myservice")
                         public class MyTest2 {
                             @RequiresPermission(allOf={"foo.bar.PERMISSION1","foo.bar.PERMISSION2"})
                             public int test() { }
@@ -213,7 +214,7 @@ class SystemServiceCheckTest : DriverTest() {
                         """
                     ),
                     systemServiceSource,
-                    requiresPermissionSource
+                    requiresPermissionSource,
                 ),
             manifest =
                 """<?xml version="1.0" encoding="UTF-8"?>
@@ -244,7 +245,7 @@ class SystemServiceCheckTest : DriverTest() {
                     package test.pkg;
                     import android.annotation.RequiresPermission;
                     @SuppressWarnings("WeakerAccess")
-                    @android.annotation.SystemService
+                    @android.annotation.SystemService("Myservice")
                     public class MyTest2 {
                         @RequiresPermission(anyOf={"foo.bar.PERMISSION1","foo.bar.PERMISSION2"})
                         public int test() { }
@@ -252,7 +253,7 @@ class SystemServiceCheckTest : DriverTest() {
                     """
                     ),
                     systemServiceSource,
-                    requiresPermissionSource
+                    requiresPermissionSource,
                 ),
             manifest =
                 """<?xml version="1.0" encoding="UTF-8"?>
@@ -277,9 +278,9 @@ class SystemServiceCheckTest : DriverTest() {
             expectedFail = DefaultLintErrorMessage,
             expectedIssues =
                 """
-                src/test/pkg/MyTest2.java:6: error: Method 'test' must be protected with a system permission. [RequiresPermission]
-                src/test/pkg/MyTest2.java:6: error: Permission 'Manifest.permission.MY_PERMISSION' is not defined by manifest TESTROOT/manifest.xml. [RequiresPermission]
-                src/test/pkg/MyTest2.java:6: error: Permission 'Manifest.permission.MY_PERMISSION2' is not defined by manifest TESTROOT/manifest.xml. [RequiresPermission]
+                src/test/pkg/MyTest2.java:8: error: Method 'test' must be protected with a system permission. [RequiresPermission]
+                src/test/pkg/MyTest2.java:8: error: Permission 'android.permission.MY_PERMISSION' is not defined by manifest TESTROOT/manifest.xml. [RequiresPermission]
+                src/test/pkg/MyTest2.java:8: error: Permission 'android.permission.MY_PERMISSION2' is not defined by manifest TESTROOT/manifest.xml. [RequiresPermission]
                 """,
             includeSystemApiAnnotations = true,
             sourceFiles =
@@ -288,15 +289,17 @@ class SystemServiceCheckTest : DriverTest() {
                         """
                     package test.pkg;
                     import android.annotation.RequiresPermission;
-                    @android.annotation.SystemService
+                    @android.annotation.SystemService("Myservice")
                     public class MyTest2 {
-                        @RequiresPermission(allOf={Manifest.permission.MY_PERMISSION,Manifest.permission.MY_PERMISSION2})
+                        public static final String MY_PERMISSION = "android.permission.MY_PERMISSION";
+                        public static final String MY_PERMISSION2 = "android.permission.MY_PERMISSION2";
+                        @RequiresPermission(allOf={MY_PERMISSION, MY_PERMISSION2})
                         public int test() { }
                     }
                     """
                     ),
                     systemServiceSource,
-                    requiresPermissionSource
+                    requiresPermissionSource,
                 ),
             manifest =
                 """<?xml version="1.0" encoding="UTF-8"?>
@@ -323,7 +326,7 @@ class SystemServiceCheckTest : DriverTest() {
                     package test.pkg;
                     import android.annotation.RequiresPermission;
                     @SuppressWarnings("WeakerAccess")
-                    @android.annotation.SystemService
+                    @android.annotation.SystemService("Myservice")
                     public class MyTest2 {
                         @RequiresPermission(anyOf={"foo.bar.PERMISSION1","foo.bar.PERMISSION2"})
                         public int test() { }
@@ -331,7 +334,7 @@ class SystemServiceCheckTest : DriverTest() {
                     """
                     ),
                     systemServiceSource,
-                    requiresPermissionSource
+                    requiresPermissionSource,
                 ),
             manifest =
                 """<?xml version="1.0" encoding="UTF-8"?>
@@ -351,7 +354,7 @@ class SystemServiceCheckTest : DriverTest() {
                         """
                     package test.pkg;
 
-                    @android.annotation.SystemService
+                    @android.annotation.SystemService("Myservice")
                     public class MyTest1 {
                         @android.annotation.SuppressLint({"RemovedField","RequiresPermission"})
                         @android.annotation.RequiresPermission(anyOf={"foo.bar.PERMISSION1","foo.bar.PERMISSION2"})
@@ -360,7 +363,8 @@ class SystemServiceCheckTest : DriverTest() {
                     }
                     """
                     ),
-                    systemServiceSource
+                    systemServiceSource,
+                    requiresPermissionSource,
                 ),
             manifest =
                 """<?xml version="1.0" encoding="UTF-8"?>

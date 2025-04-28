@@ -28,6 +28,7 @@ import com.android.tools.metalava.model.JAVA_LANG_STRING
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierListWriter
 import com.android.tools.metalava.model.PrimitiveTypeItem
+import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterBindings
 import com.android.tools.metalava.model.TypeParameterList
@@ -236,9 +237,9 @@ internal class JavaStubWriter(
             is PrimitiveTypeItem -> {
                 val kind = type.kind
                 return when (kind) {
-                    PrimitiveTypeItem.Primitive.BOOLEAN,
-                    PrimitiveTypeItem.Primitive.INT,
-                    PrimitiveTypeItem.Primitive.LONG -> kind.defaultValueString
+                    Primitive.BOOLEAN,
+                    Primitive.INT,
+                    Primitive.LONG -> kind.defaultValueString
                     else -> "(${kind.primitiveName})${kind.defaultValueString}"
                 }
             }
@@ -343,18 +344,23 @@ internal class JavaStubWriter(
         writer.print(field.type().toTypeString())
         writer.print(' ')
         writer.print(field.name())
-        val needsInitialization =
-            field.modifiers.isFinal() &&
-                field.legacyInitialValue(true) == null &&
-                field.containingClass().isClass()
-        field.writeValueWithSemicolon(
-            writer,
-            allowDefaultValue = !needsInitialization,
-            requireInitialValue = !needsInitialization
-        )
+
+        // Write the value, if any, falling back to the non-constant expression provider.
+        val valueWasWritten =
+            field.writeValueWithSemicolon(
+                writer,
+                JavaStubWriter::nonConstantExpressionProvider,
+            )
         writer.print("\n")
 
-        if (needsInitialization) {
+        // An initializer block is needed if no value was written by the call to
+        // `writeValueWithSemicolon(...)`, the field is final (so needs initializing) and the
+        // containing class supports initializer blocks.
+        val useInitializerBlock =
+            !valueWasWritten &&
+                field.modifiers.isFinal() &&
+                field.containingClass().classKind.supportsInitializerBlock
+        if (useInitializerBlock) {
             if (field.modifiers.isStatic()) {
                 writer.print("static ")
             }
@@ -392,5 +398,45 @@ internal class JavaStubWriter(
                 writer.print(type.toTypeString())
             }
         }
+    }
+
+    companion object {
+        /**
+         * Provide a non-constant expression for [field], if needed.
+         *
+         * Returns an expression, appropriate for the [field]'s [FieldItem.type] which will not be
+         * considered to be a constant expression as defined in JLS 15.28.
+         */
+        private fun nonConstantExpressionProvider(field: FieldItem): String? {
+            // Classes and enums can just use a separate initializer block.
+            if (field.containingClass().classKind.supportsInitializerBlock) return null
+            val fieldType = field.type()
+            return when {
+                fieldType is PrimitiveTypeItem -> {
+                    nonConstantExpressionForPrimitive[fieldType.kind]!!
+                }
+                fieldType.isString() -> {
+                    "java.lang.String.valueOf(0)"
+                }
+                else -> "null"
+            }
+        }
+
+        /**
+         * A map from [Primitive] to an expression that, if evaluated, will return in a value of the
+         * primitive type but which is not considered to be a constant expression so will not be
+         * inlined by the compiler.
+         */
+        private val nonConstantExpressionForPrimitive =
+            mapOf(
+                Primitive.BOOLEAN to """java.lang.Boolean.parseBoolean("false")""",
+                Primitive.BYTE to """java.lang.Byte.parseByte("0")""",
+                Primitive.CHAR to """"A".charAt(0)""",
+                Primitive.DOUBLE to """java.lang.Double.parseDouble("0")""",
+                Primitive.FLOAT to """java.lang.Float.parseFloat("0")""",
+                Primitive.INT to """java.lang.Integer.parseInt("0")""",
+                Primitive.LONG to """java.lang.Long.parseLong("0")""",
+                Primitive.SHORT to """java.lang.Short.parseShort("0")""",
+            )
     }
 }

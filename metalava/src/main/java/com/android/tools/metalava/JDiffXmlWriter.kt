@@ -163,7 +163,7 @@ class JDiffXmlWriter(
         writer.print(modifiers.isTransient())
         writer.print("\"\n volatile=\"")
         writer.print(modifiers.isVolatile())
-        field.initialValue?.asLiteralValue()?.let { literalValue ->
+        field.constantValue?.asLiteralValue()?.let { literalValue ->
             val value = XmlUtils.toXmlAttributeValue(literalValue.toValueString())
 
             writer.print("\"\n value=\"")

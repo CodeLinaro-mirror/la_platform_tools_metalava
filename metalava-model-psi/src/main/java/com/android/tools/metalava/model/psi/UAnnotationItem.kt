@@ -36,7 +36,6 @@ import com.intellij.psi.PsiLiteral
 import com.intellij.psi.impl.JavaConstantExpressionEvaluator
 import org.jetbrains.kotlin.asJava.elements.KtLightNullabilityAnnotation
 import org.jetbrains.uast.UAnnotation
-import org.jetbrains.uast.UBinaryExpression
 import org.jetbrains.uast.UCallExpression
 import org.jetbrains.uast.UClassLiteralExpression
 import org.jetbrains.uast.UElement
@@ -233,14 +232,6 @@ private constructor(
                 is UReferenceExpression -> {
                     // expand Foo to fully qualified name com.example.Foo
                     appendQualifiedName(codebase, sb, value)
-                    return
-                }
-                is UBinaryExpression -> {
-                    appendValue(codebase, sb, value.leftOperand, target, showDefaultAttrs)
-                    sb.append(' ')
-                    sb.append(value.operator.text)
-                    sb.append(' ')
-                    appendValue(codebase, sb, value.rightOperand, target, showDefaultAttrs)
                     return
                 }
                 is UCallExpression -> {

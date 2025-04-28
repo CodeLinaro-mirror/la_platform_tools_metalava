@@ -1015,7 +1015,7 @@ class ApiFileTest : DriverTest() {
                     method @Deprecated public boolean equals(Object?);
                     method @Deprecated public String toString();
                     field public static final String MY_CONSTANT1 = "constant";
-                    field public final String MY_CONSTANT2 = "constant";
+                    field public final String MY_CONSTANT2;
                     field public String! MY_CONSTANT3;
                   }
                 }

@@ -97,8 +97,8 @@ class StubsEnumTest : AbstractStubsTest() {
                 /** My 2nd documentation */
                 DEF;
                 protected void foo() { throw new RuntimeException("Stub!"); }
-                public static int field1 = 1; // 0x1
-                public int field2 = 2; // 0x2
+                public static int field1;
+                public int field2;
                 }
                 """
         )

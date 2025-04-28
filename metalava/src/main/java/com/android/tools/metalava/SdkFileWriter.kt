@@ -80,7 +80,7 @@ class SdkFileWriter(val codebase: Codebase, private val outputDir: File) {
 
                 // Get the value of the field, as a string even if it is defined in terms of another
                 // field. If it has no such value ignore the field.
-                val underlyingString = field.initialValue?.asString() ?: continue
+                val underlyingString = field.constantValue?.asString() ?: continue
 
                 // Get the SdkConstantType from the SdkConstant annotation's `value` attribute.
                 // Ignore, it if it is not an enum constant.

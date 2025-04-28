@@ -168,7 +168,7 @@ class DefaultItemFactory(
         containingClass: ClassItem,
         type: TypeItem,
         isEnumConstant: Boolean,
-        initialValueProvider: OptionalValueProvider?,
+        constantValueProvider: OptionalValueProvider?,
         fieldValue: FieldValue?,
     ): FieldItem =
         DefaultFieldItem(
@@ -183,7 +183,7 @@ class DefaultItemFactory(
             containingClass,
             type,
             isEnumConstant,
-            initialValueProvider,
+            constantValueProvider,
             fieldValue,
         )
 

@@ -39,6 +39,7 @@ abstract class AbstractStubsTest : DriverTest() {
         format: FileFormat = FileFormat.LATEST,
         sourceFiles: Array<TestFile> = emptyArray(),
         signatureSources: Array<String> = emptyArray(),
+        checkCompilation: Boolean = true,
         checkTextStubEquivalence: Boolean = false
     ) {
         val stubFilesArr = if (source.isNotEmpty()) arrayOf(java(source)) else stubFiles
@@ -48,7 +49,7 @@ abstract class AbstractStubsTest : DriverTest() {
             showAnnotations = showAnnotations,
             stubFiles = stubFilesArr,
             expectedIssues = warnings,
-            checkCompilation = true,
+            checkCompilation = checkCompilation,
             api = api,
             extraArguments = extraArguments,
             docStubs = docStubs,
@@ -75,7 +76,7 @@ abstract class AbstractStubsTest : DriverTest() {
                 showAnnotations = showAnnotations,
                 stubFiles = stubFilesArr,
                 expectedIssues = warnings,
-                checkCompilation = true,
+                checkCompilation = checkCompilation,
                 extraArguments = arrayOf(*extraArguments, ARG_EXCLUDE_ANNOTATION, ANDROIDX_NONNULL),
                 skipEmitPackages = skipEmitPackages,
                 format = format

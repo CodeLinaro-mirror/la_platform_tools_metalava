@@ -39,6 +39,4 @@ const val ANDROIDX_NULLABLE = "androidx.annotation.Nullable"
 const val RECENTLY_NULLABLE = "androidx.annotation.RecentlyNullable"
 const val RECENTLY_NONNULL = "androidx.annotation.RecentlyNonNull"
 
-const val ANDROID_DEPRECATED_FOR_SDK = "android.annotation.DeprecatedForSdk"
-
 const val ANDROIDX_REQUIRES_PERMISSION = "androidx.annotation.RequiresPermission"

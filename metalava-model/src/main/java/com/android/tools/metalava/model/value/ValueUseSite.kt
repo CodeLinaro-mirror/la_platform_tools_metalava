@@ -29,9 +29,6 @@ enum class ValueUseSite {
      * all [Value]s.
      */
     ANNOTATION,
-    /**
-     * Represents [FieldItem.initialValue] as it only allows [ConstantValue]s and
-     * [ConstantFieldValue]s.
-     */
+    /** Represents [FieldItem.constantValue] as it only allows [ConstantValue]s. */
     FIELD,
 }

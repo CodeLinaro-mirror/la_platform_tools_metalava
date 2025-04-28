@@ -1642,7 +1642,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
                 """
                 package test.pkg;
                 public class Foo {
-                    public final String nonNullStringConstant = "non null value";
+                    public static final String nonNullStringConstant = "non null value";
                     public final String nullStringConstant = null;
                     public String nonConstantString = "non null value";
                 }
@@ -1654,7 +1654,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
                 // Signature format: 2.0
                 package test.pkg {
                   public class Foo {
-                    field public final String nonNullStringConstant = "non null value";
+                    field public static final String nonNullStringConstant = "non null value";
                     field public final String nullStringConstant;
                     field public String nonConstantString;
                   }
