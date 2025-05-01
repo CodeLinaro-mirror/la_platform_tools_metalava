@@ -28,7 +28,6 @@ import com.android.tools.metalava.model.ANDROID_TEST_API
 import com.android.tools.metalava.model.ANNOTATION_EXTERNAL
 import com.android.tools.metalava.model.ANNOTATION_EXTERNAL_ONLY
 import com.android.tools.metalava.model.ANNOTATION_IN_ALL_STUBS
-import com.android.tools.metalava.model.ANNOTATION_IN_DOC_STUBS_AND_EXTERNAL
 import com.android.tools.metalava.model.ANNOTATION_SDK_STUBS_ONLY
 import com.android.tools.metalava.model.ANNOTATION_SIGNATURE_ONLY
 import com.android.tools.metalava.model.ANNOTATION_STUBS_ONLY
@@ -158,7 +157,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
         val qualifiedName = annotationItem.qualifiedName
 
         // Check to see if this requires a special [KeyFactory] and use it if it does.
-        val keyFactory = annotationNameToKeyFactory.get(qualifiedName)
+        val keyFactory = annotationNameToKeyFactory[qualifiedName]
         if (keyFactory != null) {
             return keyFactory(annotationItem)
         }
@@ -357,10 +356,15 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
 
     private fun passThroughAnnotation(qualifiedName: String) =
         config.passThroughAnnotations.contains(qualifiedName) ||
-            config.allShowAnnotations.matches(qualifiedName) ||
-            config.hideAnnotations.matches(qualifiedName)
+            config.allShowAnnotations.matchesAnnotationName(qualifiedName) ||
+            config.hideAnnotations.matchesAnnotationName(qualifiedName)
 
-    private val TYPEDEF_ANNOTATION_TARGETS =
+    /**
+     * Targets for type def annotations, i.e. `@IntDef` and `@StringDef` annotated annotations.
+     *
+     * Depends on the [DefaultAnnotationManager.Config.typedefMode].
+     */
+    private val typedefAnnotationTargets =
         if (
             config.typedefMode == TypedefMode.INLINE || config.typedefMode == TypedefMode.NONE
         ) // just here for compatibility purposes
@@ -389,7 +393,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
             "android.annotation.StringDef",
             "androidx.annotation.StringDef",
             "android.annotation.LongDef",
-            "androidx.annotation.LongDef" -> return TYPEDEF_ANNOTATION_TARGETS
+            "androidx.annotation.LongDef" -> return typedefAnnotationTargets
             "android.annotation.RestrictedForEnvironment" -> return ANNOTATION_EXTERNAL
 
             // Not directly API relevant
@@ -491,16 +495,6 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
         // habit of loading all annotation classes it encounters.)
 
         if (qualifiedName.startsWith("androidx.annotation.")) {
-            if (qualifiedName == ANDROIDX_NULLABLE || qualifiedName == ANDROIDX_NONNULL) {
-                // Right now, nullness annotations (other than @RecentlyNullable and
-                // @RecentlyNonNull)
-                // have to go in external annotations since they aren't in the class path for
-                // annotation processors. However, we do want them showing up in the
-                // documentation using
-                // their real annotation names.
-                return ANNOTATION_IN_DOC_STUBS_AND_EXTERNAL
-            }
-
             return ANNOTATION_EXTERNAL
         }
 

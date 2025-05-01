@@ -229,7 +229,7 @@ class ValueParser(
                     includeInterfaces = true,
                 )
                 ?.let { fieldItem -> createFieldReferenceValue(optionalTypeItem, fieldItem) }
-                ?: createEnumConstantValue(classTypeItem, fieldName)
+                ?: createFieldReferenceValue(classTypeItem.qualifiedName, fieldName)
         }
 
         // Handle a Java style annotation value which starts with an '@'.

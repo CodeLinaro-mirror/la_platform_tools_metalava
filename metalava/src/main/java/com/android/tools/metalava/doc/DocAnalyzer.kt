@@ -131,7 +131,7 @@ class DocAnalyzer(
             }
             is FieldReferenceValue -> {
                 // Format as a link to the field.
-                "{@link ${classTypeItem.qualifiedName}#$fieldName}"
+                "{@link ${qualifiedClassName}#$fieldName}"
             }
             else -> {
                 // Use default source formatting.

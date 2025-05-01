@@ -20,8 +20,6 @@ import com.android.tools.metalava.CodebaseComparator
 import com.android.tools.metalava.ComparisonVisitor
 import com.android.tools.metalava.JVM_DEFAULT_WITH_COMPATIBILITY
 import com.android.tools.metalava.cli.common.cliError
-import com.android.tools.metalava.model.ANDROID_SYSTEM_API
-import com.android.tools.metalava.model.ANDROID_TEST_API
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
@@ -55,11 +53,11 @@ import com.android.tools.metalava.reporter.Severity
  * example, you can make a previously nullable parameter non null, but not vice versa.
  */
 class CompatibilityCheck(
-    val filterReference: FilterPredicate,
-    private val apiType: ApiType,
+    private val filterReference: FilterPredicate,
     private val reporter: Reporter,
     private val issueConfiguration: IssueConfiguration,
     private val apiCompatAnnotations: Set<String>,
+    private val apiName: String?,
 ) : ComparisonVisitor() {
 
     var foundProblems = false
@@ -805,7 +803,6 @@ class CompatibilityCheck(
         }
     }
 
-    @Suppress("DEPRECATION")
     private fun handleAdded(issue: Issue, item: SelectableItem) {
         if (item.originallyHidden) {
             // This is an element which is hidden but is referenced from
@@ -819,16 +816,13 @@ class CompatibilityCheck(
             return
         }
 
-        var message = "Added ${describe(item)}"
-
-        // Clarify error message for removed API to make it less ambiguous
-        if (apiType == ApiType.REMOVED) {
-            message += " to the removed API"
-        } else if (options.allShowAnnotations.isNotEmpty()) {
-            if (options.allShowAnnotations.matchesAnnotationName(ANDROID_SYSTEM_API)) {
-                message += " to the system API"
-            } else if (options.allShowAnnotations.matchesAnnotationName(ANDROID_TEST_API)) {
-                message += " to the test API"
+        val message = buildString {
+            append("Added ")
+            append(describe(item))
+            if (apiName != null) {
+                append(" to the ")
+                append(apiName)
+                append(" API")
             }
         }
 
@@ -1035,6 +1029,7 @@ class CompatibilityCheck(
             reporter: Reporter,
             issueConfiguration: IssueConfiguration,
             apiCompatAnnotations: Set<String>,
+            apiName: String?,
         ) {
             val filter =
                 apiType
@@ -1046,10 +1041,10 @@ class CompatibilityCheck(
             val checker =
                 CompatibilityCheck(
                     filter,
-                    apiType,
                     reporter,
                     issueConfiguration,
                     apiCompatAnnotations,
+                    apiName,
                 )
 
             val oldFullCodebase =

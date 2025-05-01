@@ -78,10 +78,16 @@ sealed interface AnnotationItem {
      */
     val apiFlag: ApiFlag?
 
-    /** Generates source code for this annotation (using fully qualified names) */
+    /**
+     * Generates source code for this annotation (using fully qualified names).
+     *
+     * @param target the [AnnotationTarget] for which this is being generated.
+     * @param showDefaultAttrs `true` if this should include default values for any unspecified
+     *   attribute, `false` otherwise.
+     */
     fun toSource(
         target: AnnotationTarget = AnnotationTarget.SIGNATURE_FILE,
-        showDefaultAttrs: Boolean = true
+        showDefaultAttrs: Boolean = false,
     ): String
 
     /** The applicable targets for this annotation */
@@ -540,7 +546,12 @@ protected constructor(
         return formatAnnotationItem(qualifiedName, attributes)
     }
 
-    final override fun toString() = toSource()
+    final override fun toString() =
+        // Do not show default attributes (the default for toSource(...)) as that requires resolving
+        // the annotation class which has side effects and side effects in a [toString] method makes
+        // debugging harder. Also, adding in the defaults can make this appear as though it has
+        // attributes when it does not.
+        toSource()
 
     companion object {
         fun formatAnnotationItem(

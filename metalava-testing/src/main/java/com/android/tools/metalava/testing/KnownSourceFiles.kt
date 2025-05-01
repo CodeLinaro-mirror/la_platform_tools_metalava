@@ -246,4 +246,43 @@ object KnownSourceFiles {
                 }
             """
         )
+
+    val restrictToSource: TestFile =
+        TestFiles.kotlin(
+                """
+                    package androidx.annotation
+
+                    import androidx.annotation.RestrictTo.Scope
+                    import java.lang.annotation.ElementType.*
+
+                    @MustBeDocumented
+                    @Retention(AnnotationRetention.BINARY)
+                    @Target(
+                        AnnotationTarget.ANNOTATION_CLASS,
+                        AnnotationTarget.CLASS,
+                        AnnotationTarget.FUNCTION,
+                        AnnotationTarget.PROPERTY_GETTER,
+                        AnnotationTarget.PROPERTY_SETTER,
+                        AnnotationTarget.CONSTRUCTOR,
+                        AnnotationTarget.FIELD,
+                        AnnotationTarget.FILE
+                    )
+                    // Needed due to Kotlin's lack of PACKAGE annotation target
+                    // https://youtrack.jetbrains.com/issue/KT-45921
+                    @Suppress("DEPRECATED_JAVA_ANNOTATION")
+                    @java.lang.annotation.Target(ANNOTATION_TYPE, TYPE, METHOD, CONSTRUCTOR, FIELD, PACKAGE)
+                    annotation class RestrictTo(vararg val value: Scope) {
+                        enum class Scope {
+                            LIBRARY,
+                            LIBRARY_GROUP,
+                            LIBRARY_GROUP_PREFIX,
+                            @Deprecated("Use LIBRARY_GROUP_PREFIX instead.")
+                            GROUP_ID,
+                            TESTS,
+                            SUBCLASSES,
+                        }
+                    }
+                """
+            )
+            .indented()
 }

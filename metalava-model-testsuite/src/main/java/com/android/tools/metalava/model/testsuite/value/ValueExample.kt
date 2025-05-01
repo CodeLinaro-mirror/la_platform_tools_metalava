@@ -23,8 +23,7 @@ import com.android.tools.metalava.model.testing.classTypeItem
 import com.android.tools.metalava.model.testing.primitiveTypeForKind
 import com.android.tools.metalava.model.testing.value.annotationValue
 import com.android.tools.metalava.model.testing.value.arrayValueFromAny
-import com.android.tools.metalava.model.testing.value.constantFieldValue
-import com.android.tools.metalava.model.testing.value.enumConstantValue
+import com.android.tools.metalava.model.testing.value.fieldReferenceValue
 import com.android.tools.metalava.model.testing.value.literalValue
 import com.android.tools.metalava.model.testing.value.primitiveValueForKind
 import com.android.tools.metalava.model.value.Value
@@ -258,15 +257,7 @@ constructor(
                         expectations {
                             common = "@test.pkg.OtherAnnotation(intType = 1)"
                             source { attributeValue = "@OtherAnnotation(intType = 1)" }
-
-                            annotationToSource =
-                                "@test.pkg.OtherAnnotation(" +
-                                    "classType=void.class," +
-                                    " enumType=test.pkg.TestEnum.DEFAULT," +
-                                    " intType=1," +
-                                    " stringType=\"default\"," +
-                                    " stringArrayType={}" +
-                                    ")"
+                            annotationToSource = "@test.pkg.OtherAnnotation(intType=1)"
                         },
                     expectedKotlinLegacySource =
                         expectations {
@@ -303,14 +294,7 @@ constructor(
                         expectations {
                             common = "@test.pkg.OtherAnnotation"
 
-                            annotationToSource =
-                                "@test.pkg.OtherAnnotation(" +
-                                    "classType=void.class," +
-                                    " enumType=test.pkg.TestEnum.DEFAULT," +
-                                    " intType=0xffffffff," +
-                                    " stringType=\"default\"," +
-                                    " stringArrayType={}" +
-                                    ")"
+                            annotationToSource = "@test.pkg.OtherAnnotation"
                         },
                     expectedKotlinLegacySource =
                         expectations {
@@ -335,13 +319,7 @@ constructor(
                             common = "@test.pkg.OtherAnnotation(stringType = \"one\", intType = 3)"
 
                             annotationToSource =
-                                "@test.pkg.OtherAnnotation(" +
-                                    "classType=void.class," +
-                                    " enumType=test.pkg.TestEnum.DEFAULT," +
-                                    " intType=3," +
-                                    " stringType=\"one\"," +
-                                    " stringArrayType={}" +
-                                    ")"
+                                "@test.pkg.OtherAnnotation(stringType=\"one\", intType=3)"
                             source {
                                 attributeValue =
                                     "@test.pkg.OtherAnnotation(stringType=\"one\", intType=3)"
@@ -916,7 +894,34 @@ constructor(
                     // model specific object.
                     //   expectedLegacyValue = expectations {},
                     expectedValue =
-                        expectations { common = enumConstantValue("test.pkg.TestEnum", "VALUE1") },
+                        expectations {
+                            common = fieldReferenceValue("test.pkg.TestEnum", "VALUE1")
+                        },
+                ),
+                // Check a statically imported enum literal.
+                ValueExample(
+                    name = "enum - static import",
+                    javaType = "TestEnum",
+                    javaExpression = "VALUE1",
+                    javaImports = listOf("static test.pkg.TestEnum.VALUE1"),
+                    kotlinImports = listOf("test.pkg.TestEnum.VALUE1"),
+                    // Signature files does not support unqualified fields.
+                    validForInputFormats = notValidForSignature,
+                    expectedLegacySource =
+                        expectations {
+                            common = "test.pkg.TestEnum.VALUE1"
+                            source {
+                                // TODO(b/354633349): Fully qualified is better.
+                                attributeValue = "VALUE1"
+                            }
+                        },
+                    // Intentionally do not test the value of this because it returns an internal,
+                    // model specific object.
+                    //   expectedLegacyValue = expectations {},
+                    expectedValue =
+                        expectations {
+                            common = fieldReferenceValue("test.pkg.TestEnum", "VALUE1")
+                        },
                 ),
                 ValueExample(
                     name = "field - generic class constant",
@@ -944,7 +949,7 @@ constructor(
                     expectedValue =
                         expectations {
                             common =
-                                constantFieldValue(
+                                fieldReferenceValue(
                                     "test.pkg.GenericClass",
                                     "STRING_CONSTANT",
                                     literalValue("constant")
@@ -987,7 +992,7 @@ constructor(
                     expectedValue =
                         expectations {
                             common =
-                                constantFieldValue(
+                                fieldReferenceValue(
                                     "test.pkg.Constants",
                                     "INT_CONSTANT",
                                     primitiveValueForKind(Primitive.LONG, 37)
@@ -1508,7 +1513,7 @@ constructor(
                     expectedValue =
                         expectations {
                             common =
-                                constantFieldValue(
+                                fieldReferenceValue(
                                     "test.pkg.Constants",
                                     "STRING_CONSTANT",
                                     literalValue("constant")

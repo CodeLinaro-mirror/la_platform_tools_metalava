@@ -1811,44 +1811,7 @@ val widgetSource: TestFile =
         )
         .indented()
 
-val restrictToSource: TestFile =
-    kotlin(
-            """
-    package androidx.annotation
-
-    import androidx.annotation.RestrictTo.Scope
-    import java.lang.annotation.ElementType.*
-
-    @MustBeDocumented
-    @Retention(AnnotationRetention.BINARY)
-    @Target(
-        AnnotationTarget.ANNOTATION_CLASS,
-        AnnotationTarget.CLASS,
-        AnnotationTarget.FUNCTION,
-        AnnotationTarget.PROPERTY_GETTER,
-        AnnotationTarget.PROPERTY_SETTER,
-        AnnotationTarget.CONSTRUCTOR,
-        AnnotationTarget.FIELD,
-        AnnotationTarget.FILE
-    )
-    // Needed due to Kotlin's lack of PACKAGE annotation target
-    // https://youtrack.jetbrains.com/issue/KT-45921
-    @Suppress("DEPRECATED_JAVA_ANNOTATION")
-    @java.lang.annotation.Target(ANNOTATION_TYPE, TYPE, METHOD, CONSTRUCTOR, FIELD, PACKAGE)
-    annotation class RestrictTo(vararg val value: Scope) {
-        enum class Scope {
-            LIBRARY,
-            LIBRARY_GROUP,
-            LIBRARY_GROUP_PREFIX,
-            @Deprecated("Use LIBRARY_GROUP_PREFIX instead.")
-            GROUP_ID,
-            TESTS,
-            SUBCLASSES,
-        }
-    }
-    """
-        )
-        .indented()
+val restrictToSource = KnownSourceFiles.restrictToSource
 
 val visibleForTestingSource: TestFile =
     java(
@@ -1963,8 +1926,7 @@ enum class SystemApiType(
 ) {
     PRIVILEGED_APPS(
         annotationClass = ANDROID_SYSTEM_API,
-        // TODO(b/412581637): Should specify client=PRIVILEGED_APPS to be accurate.
-        annotationFilter = ANDROID_SYSTEM_API,
+        annotationFilter = "$ANDROID_SYSTEM_API(client=$ANDROID_SYSTEM_API.Client.PRIVILEGED_APPS)",
     ),
     // MODULE_LIBRARIES is not required yet.
     // SYSTEM_SERVER is not required yet.

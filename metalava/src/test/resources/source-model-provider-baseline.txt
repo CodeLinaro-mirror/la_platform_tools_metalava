@@ -9,6 +9,7 @@ com.android.tools.metalava.AnnotationsMergerTest
 
 com.android.tools.metalava.ApiAnalyzerTest
   Test PrivateSuperclass for inner class[turbine]
+  Test propagation of @hide through package and class nesting[turbine]
   Test references deprecated errors do not apply to inner class of deprecated class[turbine]
   Test that usage of effectively deprecated class is flagged[turbine]
 
@@ -70,6 +71,9 @@ com.android.tools.metalava.NormalizeOutputAnnotationTest
 com.android.tools.metalava.NullabilityAnnotationsValidatorTest
   Using class list[turbine]
 
+com.android.tools.metalava.NullnessMigrationTest
+  Merge nullness annotations in stubs that are not in the API signature file[turbine]
+
 com.android.tools.metalava.ParameterizedFlaggedApiTest
   Basic test that FlaggedApi annotated items can be hidden[turbine,system finalize foo_bar]
   Basic test that FlaggedApi annotated items can be hidden[turbine,system keep all]
@@ -84,6 +88,9 @@ com.android.tools.metalava.ParameterizedFlaggedApiTest
   Test that previously released APIs which are now system and flagged are not removed[turbine,system finalize foo_bar]
   Test that previously released APIs which are now system and flagged are not removed[turbine,system keep all]
 
+com.android.tools.metalava.ParameterizedSelectedApiVariantsTest
+  Test previously released codebases[turbine,base]
+
 com.android.tools.metalava.PolymorphicMethodsTest
   Test MethodHandle[turbine]
   Test VarHandle[turbine]
@@ -96,7 +103,8 @@ com.android.tools.metalava.RequiresFeatureTest
   Check RequiresFeature handling[turbine]
 
 com.android.tools.metalava.ShowAnnotationTest
-  Can't expose item from a hidden parent[turbine]
+  Basic showAnnotation test[turbine]
+  Basic showAnnotation with showUnannotated test[turbine]
   Testing parsing an annotation whose attribute references the annotated class[turbine]
   showAnnotation with default parameters[turbine]
 
@@ -121,8 +129,10 @@ com.android.tools.metalava.compatibility.CompatibilityCheckTest
   Conversion from MutableCollection to AbstractMutableCollection is not API-breaking[turbine]
   Empty bundle files[turbine]
   Expected API changes converting collections to Kotlin[turbine]
+  Incompatible Changes in Released System API [turbine]
   Incompatible method change -- final[turbine]
   No issues using the same classpath class twice[turbine]
+  Partial text file which references inner classes not listed elsewhere[turbine]
   Removed method from classpath[turbine]
 
 com.android.tools.metalava.doc.DocAnalyzerRangeTest

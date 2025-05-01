@@ -794,7 +794,7 @@ class AnnotationsMerger(
 
                     val annotationToMerge =
                         item.codebase.createAnnotation(
-                            annotation.toSource(showDefaultAttrs = false),
+                            annotation.toSource(),
                             item,
                         ) ?: continue
 

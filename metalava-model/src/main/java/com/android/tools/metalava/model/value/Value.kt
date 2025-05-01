@@ -28,6 +28,7 @@ import com.android.tools.metalava.model.javaEscapeString
 import com.android.tools.metalava.model.value.Value.Companion.toString
 import java.util.EnumSet
 import java.util.Objects
+import kotlin.reflect.KClass
 
 /**
  * Represents a value in a [Codebase].
@@ -94,8 +95,7 @@ sealed interface Value {
      * Get this [Value] as a [LiteralValue], or return `null` if it cannot be represented as one.
      *
      * This will return `null` for every [Value] except [LiteralValue] and maybe
-     * [ConstantFieldValue], which will return delegate this call to its
-     * [ConstantFieldValue.constantValue].
+     * [FieldReferenceValue], which will return its constant value if it has one.
      */
     fun asLiteralValue(): LiteralValue<*>? = null
 
@@ -243,37 +243,57 @@ data class ValueStringConfiguration(
 }
 
 /** Enumeration of the different types of [ValueKind]. */
-enum class ValueKind(val primitiveKind: Primitive? = null) {
-    ANNOTATION,
-    ARRAY,
+enum class ValueKind(
+    val valueKClass: KClass<out Value>,
+    val primitiveKind: Primitive? = null,
+) {
+    ANNOTATION(
+        valueKClass = AnnotationValue::class,
+    ),
+    ARRAY(
+        valueKClass = ArrayValue::class,
+    ),
     BOOLEAN(
+        valueKClass = BooleanValue::class,
         primitiveKind = Primitive.BOOLEAN,
     ),
     BYTE(
+        valueKClass = ByteValue::class,
         primitiveKind = Primitive.BYTE,
     ),
     CHAR(
+        valueKClass = CharValue::class,
         primitiveKind = Primitive.CHAR,
     ),
-    CLASS,
-    CONSTANT_FIELD,
+    CLASS(
+        valueKClass = ClassObjectValue::class,
+    ),
     DOUBLE(
+        valueKClass = DoubleValue::class,
         primitiveKind = Primitive.DOUBLE,
     ),
-    ENUM,
+    FIELD(
+        valueKClass = FieldReferenceValue::class,
+    ),
     FLOAT(
+        valueKClass = FloatValue::class,
         primitiveKind = Primitive.FLOAT,
     ),
     INT(
+        valueKClass = IntValue::class,
         primitiveKind = Primitive.INT,
     ),
     LONG(
+        valueKClass = LongValue::class,
         primitiveKind = Primitive.LONG,
     ),
     SHORT(
+        valueKClass = ShortValue::class,
         primitiveKind = Primitive.SHORT,
     ),
-    STRING,
+    STRING(
+        valueKClass = StringValue::class,
+    ),
     ;
 
     override fun toString() = super.toString().lowercase()
@@ -496,71 +516,33 @@ sealed interface StringValue : LiteralValue<String> {
 }
 
 /**
- * A [Value] that references a field in [classTypeItem] with name [fieldName].
+ * A [Value] that references a field in [qualifiedClassName] with name [fieldName].
  *
- * Sub-interfaces specialize this for [EnumConstantValue] and [ConstantFieldValue]. The reasons why
- * they are modelled as two separate interfaces are:
- * 1. They have different behavior, e.g. [ConstantFieldValue] has an optional [ConstantValue] but
- *    [EnumConstantValue] does not.
- * 2. The underlying models treat them differently, e.g. they need to do extra work to provide the
- *    [ConstantValue] for the [ConstantFieldValue].
- * 3. They are processed differently, e.g. sometimes the [ConstantFieldValue] is used directly,
- *    other times its [ConstantValue] is used.
+ * It has an optional [constantValue].
  */
 sealed interface FieldReferenceValue : ArrayElementValue {
-    /** The class type that contains the field. */
-    val classTypeItem: ClassTypeItem
+    override val kind: ValueKind
+        get() = ValueKind.FIELD
+
+    /** The qualified name of the class that contains the field. */
+    val qualifiedClassName: String
 
     /** The name of the field. */
     val fieldName: String
 
-    fun equalToFieldReferenceValue(other: FieldReferenceValue): Boolean {
-        return classTypeItem == other.classTypeItem && fieldName == other.fieldName
-    }
+    override fun equalToValue(other: Value) =
+        other is FieldReferenceValue &&
+            qualifiedClassName == other.qualifiedClassName &&
+            fieldName == other.fieldName
 
-    fun hashCodeForFieldReferenceValue() = Objects.hash(classTypeItem, fieldName)
+    override fun hashCodeForValue() = Objects.hash(qualifiedClassName, fieldName)
 
     override fun appendValueStringTo(
         builder: StringBuilder,
         configuration: ValueStringConfiguration
     ) {
-        builder.append(classTypeItem).append('.').append(fieldName)
+        builder.append(qualifiedClassName).append('.').append(fieldName)
     }
-}
-
-/** A [Value] that represents the initial value of a constant field. */
-sealed interface ConstantFieldValue : FieldReferenceValue {
-    override val kind: ValueKind
-        get() = ValueKind.CONSTANT_FIELD
-
-    /**
-     * The optional constant value of this field.
-     *
-     * Is `null` if the field does not reference a constant value.
-     */
-    val constantValue: ConstantValue?
-
-    /** The [constantValue], if present, may be a [LiteralValue]. */
-    override fun asLiteralValue() = constantValue?.asLiteralValue()
-
-    override fun equalToValue(other: Value) =
-        other is ConstantFieldValue &&
-            equalToFieldReferenceValue(other) &&
-            constantValue == other.constantValue
-
-    override fun hashCodeForValue() =
-        hashCodeForFieldReferenceValue() * 31 + constantValue.hashCode()
-}
-
-/** A [Value] that represents an enum constant. */
-sealed interface EnumConstantValue : FieldReferenceValue {
-    override val kind: ValueKind
-        get() = ValueKind.ENUM
-
-    override fun equalToValue(other: Value) =
-        other is EnumConstantValue && equalToFieldReferenceValue(other)
-
-    override fun hashCodeForValue() = hashCodeForFieldReferenceValue() * 31
 }
 
 /** A [Value] wrapper around an [annotationItem]. */
@@ -690,7 +672,7 @@ internal sealed class DefaultValue : Value {
 
     @Suppress("DEPRECATION")
     final override fun appendToStringTo(builder: StringBuilder) {
-        builder.append(javaClass.simpleName)
+        builder.append(kind.valueKClass.java.simpleName)
         builder.append("(")
         builder.append(debugStringForValue())
         builder.append(")")

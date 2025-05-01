@@ -29,9 +29,6 @@ interface AnnotationFilter {
     // tells whether an annotation is included by the filter
     fun matches(annotation: AnnotationItem): Boolean
 
-    // tells whether an annotation is included by this filter
-    fun matches(annotationSource: String): Boolean
-
     // Returns a sorted set of fully qualified annotation names that may be included by this filter.
     // Note that this filter might incorporate parameters but this function strips them.
     fun getIncludedAnnotationNames(): Set<String>
@@ -73,43 +70,12 @@ class AnnotationFilterBuilder {
     // Note that the order of calls to this method could affect the return from
     // {@link #firstQualifiedName} .
     fun add(option: String) {
-        val (matchResult, pattern) =
-            if (option.startsWith("!")) {
-                Pair(false, option.substring(1))
-            } else {
-                Pair(true, option)
-            }
-        inclusionExpressions.add(AnnotationFilterEntry.fromOption(pattern, matchResult))
+        inclusionExpressions.add(AnnotationFilterEntry.fromOption(option))
     }
 
     /** Build the [AnnotationFilter]. */
     fun build(): AnnotationFilter {
-        // Sort the expressions by match result, so that those expressions that exclude come before
-        // those which include.
-        val map =
-            inclusionExpressions
-                .sortedBy { it.matchResult }
-                .groupByTo(TreeMap()) { it.qualifiedName }
-
-        // Verify that the filter is consistent.
-        for ((fqn, patterns) in map.entries) {
-            val (includes, excludes) = patterns.partition { it.matchResult }
-            if (excludes.isNotEmpty()) {
-                for (exclude in excludes) {
-                    if (exclude.attributes.isEmpty()) {
-                        throw IllegalStateException(
-                            "Exclude pattern '$exclude' is invalid as it does not specify attributes"
-                        )
-                    }
-                }
-
-                if (includes.isEmpty()) {
-                    throw IllegalStateException(
-                        "Patterns for '$fqn' contains ${excludes.size} excludes but no includes"
-                    )
-                }
-            }
-        }
+        val map = inclusionExpressions.groupByTo(TreeMap()) { it.qualifiedName }
         return ImmutableAnnotationFilter(map)
     }
 }
@@ -118,11 +84,6 @@ class AnnotationFilterBuilder {
 private class ImmutableAnnotationFilter(
     private val qualifiedNameToEntries: Map<String, List<AnnotationFilterEntry>>
 ) : AnnotationFilter {
-
-    override fun matches(annotationSource: String): Boolean {
-        val wrapper = AnnotationFilterEntry.fromSource(annotationSource)
-        return matches(wrapper)
-    }
 
     override fun matches(annotation: AnnotationItem): Boolean {
         val qualifiedName = annotation.qualifiedName
@@ -138,8 +99,7 @@ private class ImmutableAnnotationFilter(
 
     private fun matches(annotation: AnnotationFilterEntry): Boolean {
         val entries = qualifiedNameToEntries[annotation.qualifiedName] ?: return false
-        return entries.firstOrNull { entry -> annotationsMatch(entry, annotation) }?.matchResult
-            ?: false
+        return entries.any { entry -> annotationsMatch(entry, annotation) }
     }
 
     override fun getIncludedAnnotationNames(): Set<String> = qualifiedNameToEntries.keys
@@ -198,27 +158,11 @@ private class ImmutableAnnotationFilter(
 // An AnnotationFilterEntry doesn't necessarily have a Codebase like an AnnotationItem does
 private class AnnotationFilterEntry(
     val qualifiedName: String,
-    val attributes: List<AnnotationAttribute>,
-    /** The result that will be returned from [AnnotationFilter.matches] when this entry matches. */
-    val matchResult: Boolean,
+    val attributes: List<AnnotationAttribute>
 ) {
     fun findAttribute(name: String?): AnnotationAttribute? {
         val actualName = name ?: ANNOTATION_ATTR_VALUE
         return attributes.firstOrNull { it.name == actualName }
-    }
-
-    override fun toString(): String {
-        return buildString {
-            if (!matchResult) {
-                append("!")
-            }
-            append(qualifiedName)
-            if (attributes.isNotEmpty()) {
-                append("(")
-                attributes.joinTo(this)
-                append(")")
-            }
-        }
     }
 
     companion object {
@@ -227,7 +171,7 @@ private class AnnotationFilterEntry(
             return fromOption(text)
         }
 
-        fun fromOption(text: String, matchResult: Boolean = true): AnnotationFilterEntry {
+        fun fromOption(text: String): AnnotationFilterEntry {
             val annotationItem =
                 DefaultAnnotationItem.createFromSource(
                     // Use the NoOpAnnotationManager whose `normalizeInputName(...)` method will not
@@ -238,7 +182,7 @@ private class AnnotationFilterEntry(
 
             val qualifiedName = annotationItem.qualifiedName
             val attributes = annotationItem.attributes
-            return AnnotationFilterEntry(qualifiedName, attributes, matchResult)
+            return AnnotationFilterEntry(qualifiedName, attributes)
         }
 
         fun fromAnnotationItem(annotationItem: AnnotationItem): AnnotationFilterEntry {
@@ -250,7 +194,7 @@ private class AnnotationFilterEntry(
             // @SystemApi actually is converted into @android.annotation.SystemApi(\
             // client=android.annotation.SystemApi.Client.PRIVILEGED_APPS,\
             // process=android.annotation.SystemApi.Process.ALL)
-            return fromSource(annotationItem.toSource())
+            return fromSource(annotationItem.toSource(showDefaultAttrs = true))
         }
     }
 }

@@ -16,27 +16,23 @@
 
 package com.android.tools.metalava.model.value
 
-import com.android.tools.metalava.model.ClassTypeItem
+import com.android.tools.metalava.model.value.Value.Companion.toString
 
-/** Base class for [FieldReferenceValue] implementations. */
-internal abstract class DefaultFieldReferenceValue(
-    final override val classTypeItem: ClassTypeItem,
+internal class DefaultFieldReferenceValue(
+    final override val qualifiedClassName: String,
     final override val fieldName: String,
+
+    /**
+     * The optional constant value of this field.
+     *
+     * Is `null` if the field does not reference a constant value.
+     *
+     * Note: This is NOT used in [equals], [hashCode] or [toString]. That is because this may be
+     * provided lazily and accessing it may have side effects but those methods are not expected to
+     * have side effects.
+     */
+    private val constantValue: ConstantValue? = null,
 ) : DefaultValue(), FieldReferenceValue {
-    init {
-        require(classTypeItem.arguments.isEmpty()) {
-            "Class type item ($classTypeItem) should not have any arguments"
-        }
-    }
+    /** The [constantValue], if present, may be a [LiteralValue]. */
+    override fun asLiteralValue() = constantValue?.asLiteralValue()
 }
-
-internal class DefaultConstantFieldValue(
-    classTypeItem: ClassTypeItem,
-    fieldName: String,
-    override val constantValue: ConstantValue?,
-) : DefaultFieldReferenceValue(classTypeItem, fieldName), ConstantFieldValue
-
-internal class DefaultEnumConstantValue(
-    classTypeItem: ClassTypeItem,
-    fieldName: String,
-) : DefaultFieldReferenceValue(classTypeItem, fieldName), EnumConstantValue

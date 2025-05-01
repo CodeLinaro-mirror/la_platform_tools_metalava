@@ -174,11 +174,10 @@ interface ValueFactory {
         optionalTypeItem: TypeItem?,
         fieldItem: FieldItem
     ): ArrayElementValue {
-        // Make sure that the class type item does not have any arguments.
-        val classTypeItem = fieldItem.containingClass().type().substitute(arguments = emptyList())
+        val qualifiedClassName = fieldItem.containingClass().qualifiedName()
         val fieldName = fieldItem.name()
         return if (fieldItem.isEnumConstant()) {
-            createEnumConstantValue(classTypeItem, fieldName)
+            createFieldReferenceValue(qualifiedClassName, fieldName)
         } else {
             // The actual constant value of a field reference is affected by the type of where it is
             // used, just as it would if the field reference was replaced by its constant value. So,
@@ -199,37 +198,31 @@ interface ValueFactory {
                         // Otherwise, just use the field's constant value as is.
                         ?: fieldConstantValue
                 }
-            createConstantFieldValue(classTypeItem, fieldName, constantValue)
+            createFieldReferenceValue(qualifiedClassName, fieldName, constantValue)
         }
     }
 
     /**
-     * Create a [ConstantFieldValue] called [fieldName] in [classTypeItem] with an optional
+     * Create a [FieldReferenceValue] called [fieldName] in [qualifiedClassName] with an optional
      * [constantValue].
      */
-    fun createConstantFieldValue(
-        classTypeItem: ClassTypeItem,
+    fun createFieldReferenceValue(
+        qualifiedClassName: String,
         fieldName: String,
-        constantValue: ConstantValue?,
+        constantValue: ConstantValue? = null,
     ): ArrayElementValue {
-        // Some special values need to be used instead of their fields (which can differ between
-        // Java and Kotlin).
-        if (constantValue != null && constantValue in constantValuesToUseInsteadOfField) {
-            return constantValue
-        }
+        // Create a field.
+        val fieldReferenceValue =
+            DefaultFieldReferenceValue(
+                qualifiedClassName,
+                fieldName,
+                constantValue,
+            )
 
-        return DefaultConstantFieldValue(
-            classTypeItem,
-            fieldName,
-            constantValue,
-        )
+        // The field may need mapping to a constant value to eliminate differences between Kotlin
+        // and Java.
+        return specialFieldsToReplacementValue[fieldReferenceValue] ?: fieldReferenceValue
     }
-
-    /** Create an [EnumConstantValue] called [fieldName] in [classTypeItem]. */
-    fun createEnumConstantValue(
-        classTypeItem: ClassTypeItem,
-        fieldName: String,
-    ): ArrayElementValue = DefaultEnumConstantValue(classTypeItem, fieldName)
 
     /** Create an [AnnotationValue] that wraps an [AnnotationItem]. */
     fun createAnnotationValue(annotationItem: AnnotationItem): AnnotationValue =
@@ -277,20 +270,41 @@ interface ValueFactory {
             )
 
         /**
-         * Set of [ConstantValue]s which should be used in place of any referencing field.
+         * Create a simple [FieldReferenceValue] for [fieldName] in class [qualifiedName]
          *
-         * These are normalized so that the values are the same whether they come from a jar file or
-         * a source file, or java or kotlin.
+         * Note: This does not work for fields in nested classes.
          */
-        private val constantValuesToUseInsteadOfField =
-            setOf(
-                DoubleValue.NaN,
-                DoubleValue.POSITIVE_INFINITY,
-                DoubleValue.NEGATIVE_INFINITY,
-                FloatValue.NaN,
-                FloatValue.POSITIVE_INFINITY,
-                FloatValue.NEGATIVE_INFINITY,
-            )
+        private fun fieldReference(qualifiedName: String, fieldName: String) =
+            DefaultFieldReferenceValue(qualifiedName, fieldName)
+
+        /**
+         * Adds mappings for special fields [field] of [type] to [value].
+         *
+         * This adds a mapping for each of the Java and Kotlin special fields called [field] of
+         * [type] to [value].
+         */
+        private fun MutableMap<FieldReferenceValue, ConstantValue>.addFieldMappings(
+            type: String,
+            field: String,
+            value: ConstantValue
+        ) {
+            put(fieldReference("java.lang.$type", field), value)
+            put(fieldReference("kotlin.jvm.internal.${type}CompanionObject", field), value)
+        }
+
+        /**
+         * Map from [FieldReferenceValue] to a [ConstantValue] for some special fields which differ
+         * between Java and Kotlin.
+         */
+        private val specialFieldsToReplacementValue = buildMap {
+            addFieldMappings("Double", "NaN", DoubleValue.NaN)
+            addFieldMappings("Double", "NEGATIVE_INFINITY", DoubleValue.NEGATIVE_INFINITY)
+            addFieldMappings("Double", "POSITIVE_INFINITY", DoubleValue.POSITIVE_INFINITY)
+
+            addFieldMappings("Float", "NaN", FloatValue.NaN)
+            addFieldMappings("Float", "NEGATIVE_INFINITY", FloatValue.NEGATIVE_INFINITY)
+            addFieldMappings("Float", "POSITIVE_INFINITY", FloatValue.POSITIVE_INFINITY)
+        }
 
         /**
          * Create a [PrimitiveValue] for [primitiveKind] and [primitiveValue].

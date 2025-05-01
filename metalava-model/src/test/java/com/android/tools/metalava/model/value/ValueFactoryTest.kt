@@ -61,10 +61,10 @@ class ValueFactoryTest {
         assertEquals(
             """
                 Expected array elements to be all of the same kind but found 4 different kinds of value:
-                    int -> DefaultIntValue(1), DefaultIntValue(2)
-                    float -> DefaultFloatValue(1.0f)
-                    double -> DefaultDoubleValue(3.0)
-                    string -> DefaultStringValue("text")
+                    int -> IntValue(1), IntValue(2)
+                    float -> FloatValue(1.0f)
+                    double -> DoubleValue(3.0)
+                    string -> StringValue("text")
             """
                 .trimIndent(),
             exception.message?.trimEnd()
