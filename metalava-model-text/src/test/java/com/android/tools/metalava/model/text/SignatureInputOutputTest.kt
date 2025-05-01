@@ -156,7 +156,6 @@ class SignatureInputOutputTest : Assertions {
             assertThat(field.name()).isEqualTo("foo")
             assertThat(field.type().isString()).isTrue()
             assertThat(field.modifiers.getVisibilityLevel()).isEqualTo(VisibilityLevel.PROTECTED)
-            assertThat(field.legacyInitialValue()).isNull()
             assertThat(field.constantValue).isNull()
         }
     }
@@ -181,7 +180,6 @@ class SignatureInputOutputTest : Assertions {
             assertThat(field.type().isString()).isTrue()
             assertThat(field.modifiers.getVisibilityLevel()).isEqualTo(VisibilityLevel.PUBLIC)
             assertThat(field.modifiers.isStatic()).isTrue()
-            assertThat(field.legacyInitialValue()).isEqualTo("hi")
             assertThat(field.constantValue?.asString()).isEqualTo("hi")
         }
     }

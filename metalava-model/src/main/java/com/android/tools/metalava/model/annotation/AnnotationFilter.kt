@@ -19,9 +19,10 @@ package com.android.tools.metalava.model.annotation
 import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
 import com.android.tools.metalava.model.AnnotationArrayAttributeValue
 import com.android.tools.metalava.model.AnnotationAttribute
+import com.android.tools.metalava.model.AnnotationContext
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationSingleAttributeValue
-import com.android.tools.metalava.model.DefaultAnnotationAttribute
+import com.android.tools.metalava.model.DefaultAnnotationItem
 import java.util.TreeMap
 
 interface AnnotationFilter {
@@ -227,23 +228,16 @@ private class AnnotationFilterEntry(
         }
 
         fun fromOption(text: String, matchResult: Boolean = true): AnnotationFilterEntry {
-            val index = text.indexOf("(")
+            val annotationItem =
+                DefaultAnnotationItem.createFromSource(
+                    // Use the NoOpAnnotationManager whose `normalizeInputName(...)` method will not
+                    // reject any annotations so createFromSource(...) will never return null.
+                    AnnotationContext.DEFAULT_RESOLVE_NULL,
+                    "@$text"
+                ) ?: error("Could not construct annotation from `$text`")
 
-            val qualifiedName =
-                if (index == -1) {
-                    text
-                } else {
-                    text.substring(0, index)
-                }
-
-            val attributes: List<AnnotationAttribute> =
-                if (index == -1) {
-                    emptyList()
-                } else {
-                    DefaultAnnotationAttribute.createList(
-                        text.substring(index + 1, text.lastIndexOf(')'))
-                    )
-                }
+            val qualifiedName = annotationItem.qualifiedName
+            val attributes = annotationItem.attributes
             return AnnotationFilterEntry(qualifiedName, attributes, matchResult)
         }
 

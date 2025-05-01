@@ -37,7 +37,6 @@ import com.intellij.psi.PsiTypeCastExpression
 import com.intellij.psi.PsiVariable
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.Name
-import org.jetbrains.uast.UAnnotation
 import org.jetbrains.uast.UBinaryExpression
 import org.jetbrains.uast.UBinaryExpressionWithType
 import org.jetbrains.uast.UBlockExpression
@@ -339,9 +338,6 @@ class CodePrinter(
             if (appendLiteralValue(sb, literalValue)) {
                 return true
             }
-        } else if (expression is UAnnotation) {
-            // TODO(b/354633349): Remove this branch once it has been shown that it is never taken.
-            error("$expression is both a UExpression and a UAnnotation")
         } else if (expression is UBinaryExpressionWithType) {
             if ((expression).isTypeCast()) {
                 sb.append('(').append(expression.type.canonicalText).append(')')

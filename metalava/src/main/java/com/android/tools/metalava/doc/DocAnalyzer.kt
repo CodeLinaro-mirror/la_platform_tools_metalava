@@ -44,7 +44,10 @@ import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.getAttributeValue
 import com.android.tools.metalava.model.getCallableParameterDescriptorUsingDots
 import com.android.tools.metalava.model.psi.containsLinkTags
-import com.android.tools.metalava.model.value.asAny
+import com.android.tools.metalava.model.value.FieldReferenceValue
+import com.android.tools.metalava.model.value.FloatingPointValue
+import com.android.tools.metalava.model.value.IntegralValue
+import com.android.tools.metalava.model.value.Value
 import com.android.tools.metalava.model.value.asBoolean
 import com.android.tools.metalava.model.value.asInt
 import com.android.tools.metalava.model.value.asString
@@ -110,6 +113,31 @@ class DocAnalyzer(
     }
 
     val mentionsNull: Pattern = Pattern.compile("\\bnull\\b")
+
+    /** Format this [Value] for use in handling `IntRange` and `FloatRange` annotations. */
+    private fun Value.forRange(): String =
+        when (this) {
+            is IntegralValue<*> -> {
+                // Format as an int if it will fit, otherwise a long.
+                val asLong = underlyingValue.toLong()
+                if (asLong >= Int.MIN_VALUE && asLong <= Int.MAX_VALUE) asLong.toString()
+                else "${asLong}L"
+            }
+            is FloatingPointValue<*> -> {
+                // Format as a float if it will fit, otherwise a double.
+                val asDouble = underlyingValue.toDouble()
+                if (asDouble >= -Float.MAX_VALUE && asDouble <= Float.MAX_VALUE) "${asDouble}f"
+                else asDouble.toString()
+            }
+            is FieldReferenceValue -> {
+                // Format as a link to the field.
+                "{@link ${classTypeItem.qualifiedName}#$fieldName}"
+            }
+            else -> {
+                // Use default source formatting.
+                toValueString()
+            }
+        }
 
     private fun documentsFromAnnotations() {
         // Note: Doclava1 inserts its own javadoc parameters into the documentation,
@@ -396,8 +424,8 @@ class DocAnalyzer(
                 }
 
                 private fun handleRange(annotation: AnnotationItem, item: Item) {
-                    val from = annotation.findAttribute("from")?.value?.asAny()
-                    val to = annotation.findAttribute("to")?.value?.asAny()
+                    val from = annotation.findAttribute("from")?.value?.forRange()
+                    val to = annotation.findAttribute("to")?.value?.forRange()
                     // TODO: inclusive/exclusive attributes on FloatRange!
                     if (from != null || to != null) {
                         val doc =

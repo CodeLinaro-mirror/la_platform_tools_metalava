@@ -133,6 +133,7 @@ com.android.tools.metalava.doc.DocAnalyzerRangeTest
   Add to existing parameter[turbine]
   Add to existing return value (ensuring it appears last)[turbine]
   Document ranges[turbine]
+  Test different values[turbine]
   Typedefs combined with ranges[turbine]
   Typedefs[turbine]
 

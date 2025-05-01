@@ -340,8 +340,11 @@ sealed interface BooleanValue : PrimitiveValue<Boolean> {
     override fun hashCodeForValue() = underlyingValue.hashCode()
 }
 
+/** A [Value] that encapsulates an integral value, i.e. a [Byte], [Int], [Long] or [Short]. */
+sealed interface IntegralValue<T : Number> : PrimitiveValue<T>
+
 /** A [Value] that encapsulates a [Byte]. */
-sealed interface ByteValue : PrimitiveValue<Byte> {
+sealed interface ByteValue : IntegralValue<Byte> {
     override val kind: ValueKind
         get() = ValueKind.BYTE
 
@@ -369,8 +372,11 @@ sealed interface CharValue : PrimitiveValue<Char> {
     }
 }
 
+/** A [Value] that encapsulates a floating point value, i.e. a [Double] or [Float]. */
+sealed interface FloatingPointValue<T : Number> : PrimitiveValue<T>
+
 /** A [Value] that encapsulates a [Double]. */
-sealed interface DoubleValue : PrimitiveValue<Double> {
+sealed interface DoubleValue : FloatingPointValue<Double> {
     override val kind: ValueKind
         get() = ValueKind.DOUBLE
 
@@ -401,7 +407,7 @@ sealed interface DoubleValue : PrimitiveValue<Double> {
 }
 
 /** A [Value] that encapsulates a [Float]. */
-sealed interface FloatValue : PrimitiveValue<Float> {
+sealed interface FloatValue : FloatingPointValue<Float> {
     override val kind: ValueKind
         get() = ValueKind.FLOAT
 
@@ -432,7 +438,7 @@ sealed interface FloatValue : PrimitiveValue<Float> {
 }
 
 /** A [Value] that encapsulates a [Int]. */
-sealed interface IntValue : PrimitiveValue<Int> {
+sealed interface IntValue : IntegralValue<Int> {
     override val kind: ValueKind
         get() = ValueKind.INT
 
@@ -443,7 +449,7 @@ sealed interface IntValue : PrimitiveValue<Int> {
 }
 
 /** A [Value] that encapsulates a [Long]. */
-sealed interface LongValue : PrimitiveValue<Long> {
+sealed interface LongValue : IntegralValue<Long> {
     override val kind: ValueKind
         get() = ValueKind.LONG
 
@@ -461,7 +467,7 @@ sealed interface LongValue : PrimitiveValue<Long> {
 }
 
 /** A [Value] that encapsulates a [Short]. */
-sealed interface ShortValue : PrimitiveValue<Short> {
+sealed interface ShortValue : IntegralValue<Short> {
     override val kind: ValueKind
         get() = ValueKind.SHORT
 

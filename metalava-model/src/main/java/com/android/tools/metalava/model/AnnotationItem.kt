@@ -750,9 +750,6 @@ class DefaultAnnotationAttribute(
             )
         }
 
-        /** Overload to supply `null` [AnnotationItem] to the following method. */
-        fun createList(source: String) = createList(null, source)
-
         fun createList(
             annotationItem: AnnotationItem?,
             source: String,

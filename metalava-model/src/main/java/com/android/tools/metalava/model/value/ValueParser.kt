@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.value
 
+import com.android.tools.metalava.model.AnnotationContext
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassResolver
@@ -37,6 +38,7 @@ import java.nio.file.Path
  * annotation created from a string.
  */
 class ValueParser(
+    private val annotationContext: AnnotationContext,
     private val typeItemParser: TypeItemParser,
 ) : ValueFactory, ImplementationValueToModelFactory<String> {
 
@@ -330,7 +332,14 @@ class ValueParser(
 
     companion object {
         /** The default instance of this. */
-        val DEFAULT = ValueParser(TypeItemParser.forValueParser(ClassResolver.THROWING))
+        val DEFAULT =
+            ValueParser(
+                // Any attempts to resolve an annotation's class in order to determine the type of
+                // its attributes will return null which will prevent any conversion of values to
+                // the correct type but still allow annotations to be parsed correctly.
+                AnnotationContext.DEFAULT_RESOLVE_NULL,
+                TypeItemParser.forValueParser(ClassResolver.THROWING),
+            )
 
         /**
          * Map of all the different string representations of various special floating point

@@ -89,9 +89,6 @@ enum class LegacyValueUseSite(
     /** The value of a field. */
     FIELD_VALUE(
         ValueUseSite.FIELD,
-        legacyValueGetter = {
-            testClassItem.assertField(FIELD_NAME).legacyFieldValue?.initialValue(true)
-        },
     ),
 
     /** The value of a field written out by [FieldItem.writeValueWithSemicolon]. */

@@ -11,9 +11,6 @@ com.android.tools.metalava.model.testsuite.documentation.CommonParameterizedDocu
 com.android.tools.metalava.model.testsuite.fielditem.CommonFieldItemTest
   Test implicit nullability of constant field initialized from @NonNull method
 
-com.android.tools.metalava.model.testsuite.fielditem.SourceFieldItemTest
-  test default value of an enum constant field
-
 com.android.tools.metalava.model.testsuite.methoditem.CommonParameterItemTest
   Test publicName reports correct name when called on binary class - Object#equals
   Test publicName reports correct name when called on binary class - ViewGroup#onLayout
@@ -120,9 +117,3 @@ com.android.tools.metalava.model.testsuite.value.CommonParameterizedAttributeVal
 
 com.android.tools.metalava.model.testsuite.value.CommonParameterizedFieldValueTest
   testFieldValue[source,field - long with int constant]
-  testLegacyValue[jar,double NaN]
-  testLegacyValue[jar,double negative infinity]
-  testLegacyValue[jar,double positive infinity]
-  testLegacyValue[jar,float NaN]
-  testLegacyValue[jar,float negative infinity]
-  testLegacyValue[jar,float positive infinity]

@@ -148,7 +148,7 @@ class ParameterizedValueParserTest : BaseModelTest() {
                             // Get the expected value. Uses LegacyValueUseSite.ATTRIBUTE_VALUE but
                             // any would be ok as all use sites have the same expected value.
                             val expectedValue =
-                                valueExample.expectedValue?.expectationFor(
+                                valueExample.expectedValue.expectationFor(
                                     producerKind,
                                     LegacyValueUseSite.ATTRIBUTE_VALUE
                                 ) ?: continue
@@ -213,12 +213,9 @@ class ParameterizedValueParserTest : BaseModelTest() {
                 .sortedWith(compareBy { it.label })
                 // Apply some filtering to remove known problematic cases.
                 .filter {
-                    // Ignore test cases that require imports as they are not fully qualified and
-                    // signature files require class types to be fully qualified.
-                    it.valueExample.javaImports.isEmpty() &&
-                        // Ignore test cases that have an empty string as an input as they are in
-                        // error.
-                        it.input.isNotEmpty()
+                    // Ignore any tests that use Kotlin syntax for representing array types as they
+                    // cannot yet be converted from `Array<X>` into `X[]`.
+                    !it.input.startsWith("Array<")
                 }
 
         /** Supply the list of test cases as the parameters for this test class. */
@@ -239,6 +236,9 @@ class ParameterizedValueParserTest : BaseModelTest() {
                         field public static final String STRING_CONSTANT = "constant";
                         field public static final int INT_CONSTANT = 37;
                       }
+                      public interface GenericClass<T> {
+                        field public static final String STRING_CONSTANT = "constant";
+                      }
                       public enum TestEnum {
                         enum_constant public static final test.pkg.TestEnum DEFAULT;
                         enum_constant public static final test.pkg.TestEnum VALUE1;
@@ -251,7 +251,7 @@ class ParameterizedValueParserTest : BaseModelTest() {
             // kind is not fully supported across implementation models.
             testCase.expectedValue.runValueTest { expected ->
                 val typeItem = codebase.assertClass("test.pkg.Foo").assertField("FIELD").type()
-                val valueParser = ValueParser(TypeItemParser.forValueParser(codebase))
+                val valueParser = ValueParser(codebase, TypeItemParser.forValueParser(codebase))
                 val actualValue = valueParser.parse(typeItem, testCase.input)
                 when (testCase.comparison) {
                     Comparison.STRICT -> {

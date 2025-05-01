@@ -252,11 +252,6 @@ private constructor(
                     // TODO: support UCallExpression for other cases than array initializers
                     // Drop out as it did not append on for other cases than array initializers
                 }
-                is UAnnotation -> {
-                    // TODO(b/354633349): Remove this branch once it has been shown that it is never
-                    // taken.
-                    error("$value is both a UExpression and a UAnnotation")
-                }
             }
 
             // Fallback, first try evaluating to a constant and using that.

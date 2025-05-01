@@ -431,10 +431,7 @@ abstract class BaseCommonParameterizedValueTest(
             // tests from the same example so check to make sure that it is valid, skipping if it is
             // not.
             skipTestIfNotValidForExpectedValue(
-                testCase.valueExample.expectedValue?.expectationFor(
-                    producerKind,
-                    legacyValueUseSite
-                )
+                testCase.valueExample.expectedValue.expectationFor(producerKind, legacyValueUseSite)
             )
 
             // Get the actual value.
@@ -491,14 +488,9 @@ abstract class BaseCommonParameterizedValueTest(
     protected fun checkExpectedValue(
         actualValueGetter: TestCaseContext.() -> Value?,
     ) {
-        val expectation =
-            testCase.valueExample.expectedValue
-                ?: throw AssumptionViolatedException(
-                    "No expected value provided",
-                )
-
         runTestOnCodebase {
             // Get the expected value.
+            val expectation = testCase.valueExample.expectedValue
             expectation.expectationFor(producerKind, legacyValueUseSite).runValueTest { expected ->
                 // Make sure the expected value is valid for this test.
                 skipTestIfNotValidForExpectedValue(expected)

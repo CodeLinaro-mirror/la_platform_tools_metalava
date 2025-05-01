@@ -40,11 +40,6 @@ class CommonParameterizedFieldValueTest :
     }
 
     @Test
-    fun testLegacyValue() {
-        checkLegacyValue()
-    }
-
-    @Test
     fun testFieldValue() {
         // This is identical for all field use sites so only needs testing once.
         checkExpectedValue {

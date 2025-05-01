@@ -22,7 +22,6 @@ import com.android.tools.metalava.model.testing.arrayTypeItem
 import com.android.tools.metalava.model.testing.classTypeItem
 import com.android.tools.metalava.model.testing.primitiveTypeForKind
 import com.android.tools.metalava.model.testing.value.annotationValue
-import com.android.tools.metalava.model.testing.value.annotationValueFromSource
 import com.android.tools.metalava.model.testing.value.arrayValueFromAny
 import com.android.tools.metalava.model.testing.value.constantFieldValue
 import com.android.tools.metalava.model.testing.value.enumConstantValue
@@ -162,13 +161,8 @@ constructor(
      * The expected [Value] for this case.
      *
      * This may differ by [ProducerKind] and [LegacyValueUseSite].
-     *
-     * This is optional at the moment to allow the expected value to be added incrementally as the
-     * [Value] model is expanded.
-     *
-     * TODO(b/354633349): Make this required.
      */
-    val expectedValue: Expectation<Value?>? = null,
+    val expectedValue: Expectation<Value?>,
 
     /**
      * Controls which [ValueExample]s in [allValueExamples] are run.
@@ -292,7 +286,10 @@ constructor(
                     expectedValue =
                         expectations {
                             common =
-                                annotationValueFromSource("@test.pkg.OtherAnnotation(intType=1)")
+                                annotationValue(
+                                    "test.pkg.OtherAnnotation",
+                                    "intType" to literalValue(1),
+                                )
                         },
                 ),
                 ValueExample(
@@ -373,8 +370,10 @@ constructor(
                     expectedValue =
                         expectations {
                             common =
-                                annotationValueFromSource(
-                                    "@test.pkg.OtherAnnotation(intType=3, stringType=\"one\")"
+                                annotationValue(
+                                    "test.pkg.OtherAnnotation",
+                                    "intType" to literalValue(3),
+                                    "stringType" to literalValue("one"),
                                 )
                         },
                 ),
@@ -392,6 +391,14 @@ constructor(
                         expectations { common = "test.pkg.SingleValueAnnotation(\"text\")" },
                     // Annotation literals cannot be used in fields.
                     suitableFor = allLegacyValueUseSitesExceptFields,
+                    expectedValue =
+                        expectations {
+                            common =
+                                annotationValue(
+                                    "test.pkg.SingleValueAnnotation",
+                                    "value" to literalValue("text"),
+                                )
+                        },
                 ),
                 // Check a simple boolean true value.
                 ValueExample(
@@ -915,8 +922,7 @@ constructor(
                     name = "field - generic class constant",
                     javaType = "String",
                     javaExpression = "GenericClass.STRING_CONSTANT",
-                    // TODO(b/354633349): Signature files does not support field references.
-                    validForInputFormats = notValidForSignature,
+                    signatureExpression = "test.pkg.GenericClass.STRING_CONSTANT",
                     expectedLegacySource =
                         expectations {
                             common = "\"constant\""
@@ -1084,6 +1090,7 @@ constructor(
                     expectedLegacySource = expectations { common = "3.141f" },
                     expectedLegacyValue = expectations { common = 3.141f },
                     expectedKotlinLegacySource = expectations { attributeDefaultValue = "3.141" },
+                    expectedValue = expectations { common = literalValue(3.141f) },
                 ),
                 // Check a special float - Nan.
                 ValueExample(
@@ -1520,7 +1527,8 @@ constructor(
                     name = "method call",
                     javaType = "String",
                     javaExpression = "System.getProperty(\"PROPERTY\")",
-                    // Only suitable for use in fields.
+                    // Only suitable for use in fields as annotations cannot use non-constant
+                    // methods.
                     suitableFor = allFieldLegacyValueUseSites,
                     // Signature never has a method call for a value.
                     validForInputFormats = notValidForSignature,
@@ -1533,7 +1541,7 @@ constructor(
                     name = "null",
                     javaType = "String",
                     javaExpression = "null",
-                    // Only suitable for use in fields.
+                    // Only suitable for use in fields as annotations cannot have `null` values.
                     suitableFor = allFieldLegacyValueUseSites,
                     // Signature never has a null field value.
                     validForInputFormats = notValidForSignature,
