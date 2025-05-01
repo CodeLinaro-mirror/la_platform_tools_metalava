@@ -50,6 +50,8 @@ import com.android.tools.metalava.cli.lint.ARG_UPDATE_BASELINE_API_LINT
 import com.android.tools.metalava.cli.signature.ARG_FORMAT
 import com.android.tools.metalava.model.ANDROIDX_ANNOTATION_PACKAGE
 import com.android.tools.metalava.model.ANDROID_ANNOTATION_PACKAGE
+import com.android.tools.metalava.model.ANDROID_SYSTEM_API
+import com.android.tools.metalava.model.ANDROID_TEST_API
 import com.android.tools.metalava.model.Assertions
 import com.android.tools.metalava.model.StripJavaLangPrefix
 import com.android.tools.metalava.model.provider.Capability
@@ -465,7 +467,7 @@ abstract class DriverTest :
         /** See [TestEnvironment.skipEmitPackages], defaults to [DEFAULT_SKIP_EMIT_PACKAGES]. */
         skipEmitPackages: List<String>? = null,
         /** Whether we should include --showAnnotations=android.annotation.SystemApi */
-        includeSystemApiAnnotations: Boolean = false,
+        includeSystemApiAnnotations: SystemApiType? = null,
         /** Whether we should warn about super classes that are stripped because they are hidden */
         includeStrippedSuperclassWarnings: Boolean = false,
         /**
@@ -788,19 +790,16 @@ abstract class DriverTest :
             }
 
         val showAnnotationArguments =
-            if (showAnnotations.isNotEmpty() || includeSystemApiAnnotations) {
+            if (showAnnotations.isNotEmpty() || includeSystemApiAnnotations != null) {
                 val args = mutableListOf<String>()
                 for (annotation in showAnnotations) {
                     args.add(ARG_SHOW_ANNOTATION)
                     args.add(annotation)
                 }
-                if (includeSystemApiAnnotations && !args.contains("android.annotation.SystemApi")) {
-                    args.add(ARG_SHOW_ANNOTATION)
-                    args.add("android.annotation.SystemApi")
-                }
-                if (includeSystemApiAnnotations && !args.contains("android.annotation.TestApi")) {
-                    args.add(ARG_SHOW_ANNOTATION)
-                    args.add("android.annotation.TestApi")
+                if (includeSystemApiAnnotations != null) {
+                    if (!args.contains(includeSystemApiAnnotations.annotationClass)) {
+                        args.addAll(includeSystemApiAnnotations.extraArguments)
+                    }
                 }
                 args.toTypedArray()
             } else {
@@ -1945,3 +1944,45 @@ val TYPE_USE_FORMAT =
         kotlinStyleNulls = false,
         specifiedStripJavaLangPrefix = StripJavaLangPrefix.ALWAYS,
     )
+
+/**
+ * Enumeration of the different types of system APIs used in Android.
+ *
+ * While this is Android specific it does test behavior relied upon by other users of Metalava, e.g.
+ * AndroidX.
+ *
+ * @param annotationClass The annotation class name, used to check to see if this is present in the
+ *   arguments already.
+ * @param annotationFilter The annotation filter to pass on the command line, e.g. for a
+ *   `--show-annotation` option.
+ */
+enum class SystemApiType(
+    val annotationClass: String,
+    private val annotationFilter: String = ANDROID_SYSTEM_API,
+    private val forStubs: List<SystemApiType> = emptyList()
+) {
+    PRIVILEGED_APPS(
+        annotationClass = ANDROID_SYSTEM_API,
+        // TODO(b/412581637): Should specify client=PRIVILEGED_APPS to be accurate.
+        annotationFilter = ANDROID_SYSTEM_API,
+    ),
+    // MODULE_LIBRARIES is not required yet.
+    // SYSTEM_SERVER is not required yet.
+    TEST(
+        annotationClass = ANDROID_TEST_API,
+        annotationFilter = ANDROID_TEST_API,
+        forStubs = listOf(PRIVILEGED_APPS),
+    ),
+    ;
+
+    /** The arguments to pass on the command line. */
+    val extraArguments
+        get() = buildList {
+            add(ARG_SHOW_ANNOTATION)
+            add(annotationFilter)
+            for (forStub in forStubs) {
+                add(ARG_SHOW_FOR_STUB_PURPOSES_ANNOTATION)
+                add(forStub.annotationFilter)
+            }
+        }
+}

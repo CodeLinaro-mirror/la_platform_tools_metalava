@@ -1313,11 +1313,7 @@ constructor(
                                     "('_'.code shl 24) or ('P'.code shl 16) or ('N'.code shl 8) or 'G'.code"
                             }
                         },
-                    expectedLegacyValue =
-                        expectations {
-                            common = 1599098439
-                            source { attributeValue = "('_'<<24)|('P'<<16)|('N'<<8)|'G'" }
-                        },
+                    expectedLegacyValue = expectations { common = 1599098439 },
                     expectedKotlinLegacyValue =
                         expectations { source { attributeValue = 1599098439 } },
                     expectedValue = expectations { common = literalValue(1599098439) },

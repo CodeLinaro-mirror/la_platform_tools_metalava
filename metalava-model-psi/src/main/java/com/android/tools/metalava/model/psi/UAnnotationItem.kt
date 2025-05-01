@@ -152,12 +152,11 @@ private constructor(
             codebase: PsiBasedCodebase,
             sb: StringBuilder,
             uAnnotation: UAnnotation,
-            originalName: String?,
+            originalName: String,
             target: AnnotationTarget,
             showDefaultAttrs: Boolean
         ) {
-            val qualifiedName =
-                codebase.annotationManager.normalizeOutputName(originalName, target) ?: return
+            val qualifiedName = codebase.annotationManager.normalizeOutputName(originalName, target)
 
             val attributes = getAttributes(uAnnotation, showDefaultAttrs)
             if (attributes.isEmpty()) {

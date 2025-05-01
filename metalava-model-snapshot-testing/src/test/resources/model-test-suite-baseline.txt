@@ -189,8 +189,6 @@ com.android.tools.metalava.model.testsuite.value.CommonParameterizedAnnotationTo
   testLegacySource[turbine,source,long with int]
 
 com.android.tools.metalava.model.testsuite.value.CommonParameterizedAttributeDefaultValueTest
-  testLegacySource[psi,java,k1,source,int - complex]
-  testLegacySource[psi,java,k2,source,int - complex]
   testLegacySource[text,source,String array]
   testLegacySource[text,source,annotation - multiple attributes]
   testLegacySource[text,source,annotation]
@@ -225,12 +223,9 @@ com.android.tools.metalava.model.testsuite.value.CommonParameterizedAttributeDef
   testLegacySource[turbine,source,double with int]
   testLegacySource[turbine,source,float with int]
   testLegacySource[turbine,source,long with int]
-  testMethodDefaultValue[psi,java,k1,source,int - complex]
-  testMethodDefaultValue[psi,java,k2,source,int - complex]
 
 com.android.tools.metalava.model.testsuite.value.CommonParameterizedAttributeValueTest
   testLegacySource[text,source,String using constant]
-  testLegacySource[text,source,annotation - multiple attributes]
   testLegacySource[text,source,annotation]
   testLegacySource[text,source,char escaped]
   testLegacySource[text,source,char unicode]
@@ -279,7 +274,6 @@ com.android.tools.metalava.model.testsuite.value.CommonParameterizedAttributeVal
   testLegacyValue[psi,kotlin,k1,source,annotation - no attributes]
   testLegacyValue[psi,kotlin,k1,source,annotation - single value]
   testLegacyValue[text,source,String using constant]
-  testLegacyValue[text,source,annotation - multiple attributes]
   testLegacyValue[text,source,annotation]
   testLegacyValue[text,source,array - empty]
   testLegacyValue[text,source,byte]
@@ -326,7 +320,6 @@ com.android.tools.metalava.model.testsuite.value.CommonParameterizedAttributeVal
   testLegacyValue[turbine,source,double with int]
   testLegacyValue[turbine,source,field - long with int constant]
   testLegacyValue[turbine,source,float with int]
-  testLegacyValue[turbine,source,int - complex]
   testLegacyValue[turbine,source,long with int]
   testLegacyValue[turbine,source,short]
 

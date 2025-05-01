@@ -158,10 +158,10 @@ private constructor(
             target: AnnotationTarget,
             showDefaultAttrs: Boolean
         ) {
-            val alwaysInlineValues = qualifiedName == "android.annotation.FlaggedApi"
-            val outputName =
-                codebase.annotationManager.normalizeOutputName(qualifiedName, target) ?: return
+            qualifiedName ?: return
+            val outputName = codebase.annotationManager.normalizeOutputName(qualifiedName, target)
 
+            val alwaysInlineValues = qualifiedName == "android.annotation.FlaggedApi"
             val attributes = getAttributes(psiAnnotation, showDefaultAttrs)
             if (attributes.isEmpty()) {
                 sb.append("@$outputName")
@@ -282,15 +282,17 @@ private constructor(
                     sb.append('}')
                 }
                 is PsiAnnotation -> {
-                    appendAnnotation(
-                        codebase,
-                        sb,
-                        value,
-                        // Normalize the input name of the annotation.
-                        codebase.annotationManager.normalizeInputName(value.qualifiedName),
-                        target,
-                        showDefaultAttrs
-                    )
+                    value.qualifiedName?.let { qualifiedName ->
+                        appendAnnotation(
+                            codebase,
+                            sb,
+                            value,
+                            // Normalize the input name of the annotation.
+                            codebase.annotationManager.normalizeInputName(qualifiedName),
+                            target,
+                            showDefaultAttrs
+                        )
+                    }
                 }
                 else -> {
                     // Special case the formatting of special floating point numbers which are

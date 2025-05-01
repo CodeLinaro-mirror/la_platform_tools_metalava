@@ -28,7 +28,6 @@ import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
-import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.DefaultTypeParameterList
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.Item
@@ -1107,12 +1106,11 @@ private constructor(
         while (true) {
             val annotationSource = getAnnotationSource(tokenizer, token) ?: break
             token = tokenizer.current
-            DefaultAnnotationItem.createFromSource(
-                    codebase,
-                    annotationSource,
-                    valueParser,
-                )
-                ?.let { annotationItem -> add(annotationItem) }
+            // TODO(b/354633349): Look at just passing the tokenizer through to
+            //  parseAnnotationItem(Tokenizer) to save some time.
+            valueParser.parseAnnotationItem(annotationSource)?.let { annotationItem ->
+                add(annotationItem)
+            }
         }
     }
 

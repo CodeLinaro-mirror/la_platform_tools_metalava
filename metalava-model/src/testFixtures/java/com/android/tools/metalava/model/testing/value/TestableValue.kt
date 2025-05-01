@@ -82,22 +82,23 @@ fun annotationValueFromSource(source: String) =
     )
 
 fun annotationValue(qualifiedClassName: String, vararg attributes: Pair<String, Value>) =
-    Value.createAnnotationValue(
-        DefaultAnnotationItem.createAttributesLazily(
-            AnnotationContext.DEFAULT_RESOLVE_NULL,
-            FileLocation.UNKNOWN,
-            qualifiedClassName,
-            {
-                attributes.map { (name, value) ->
-                    DefaultAnnotationAttribute(
-                        name,
-                        value.provider(),
-                        value.asAnnotationAttributeValue(),
-                    )
-                }
+    Value.createAnnotationValue(annotationItem(qualifiedClassName, *attributes))
+
+fun annotationItem(qualifiedClassName: String, vararg attributes: Pair<String, Value>) =
+    DefaultAnnotationItem.createAttributesLazily(
+        AnnotationContext.DEFAULT_RESOLVE_NULL,
+        FileLocation.UNKNOWN,
+        qualifiedClassName,
+        {
+            attributes.map { (name, value) ->
+                DefaultAnnotationAttribute(
+                    name,
+                    value.provider(),
+                    value.asAnnotationAttributeValue(),
+                )
             }
-        )!!
-    )
+        }
+    )!!
 
 /**
  * The set of [ValueKind]s that are fully supported across models and so will be tested rigorously,

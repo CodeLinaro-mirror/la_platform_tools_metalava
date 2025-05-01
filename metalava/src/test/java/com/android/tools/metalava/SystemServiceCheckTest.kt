@@ -25,7 +25,7 @@ class SystemServiceCheckTest : DriverTest() {
     fun `SystemService OK, loaded from signature file`() {
         check(
             expectedIssues = "", // OK
-            includeSystemApiAnnotations = true,
+            includeSystemApiAnnotations = SystemApiType.PRIVILEGED_APPS,
             sourceFiles =
                 arrayOf(
                     java(
@@ -63,7 +63,7 @@ class SystemServiceCheckTest : DriverTest() {
     fun `SystemService OK, loaded from source`() {
         check(
             expectedIssues = "", // OK
-            includeSystemApiAnnotations = true,
+            includeSystemApiAnnotations = SystemApiType.PRIVILEGED_APPS,
             sourceFiles =
                 arrayOf(
                     java(
@@ -104,7 +104,7 @@ class SystemServiceCheckTest : DriverTest() {
             expectedFail = DefaultLintErrorMessage,
             expectedIssues =
                 "src/test/pkg/MyTest1.java:4: error: Method 'myMethod2' must be protected with a system permission. [RequiresPermission]",
-            includeSystemApiAnnotations = true,
+            includeSystemApiAnnotations = SystemApiType.PRIVILEGED_APPS,
             sourceFiles =
                 arrayOf(
                     java(
@@ -130,7 +130,7 @@ class SystemServiceCheckTest : DriverTest() {
     fun `Check SystemService -- can miss a permission with anyOf`() {
         check(
             expectedIssues = "",
-            includeSystemApiAnnotations = true,
+            includeSystemApiAnnotations = SystemApiType.PRIVILEGED_APPS,
             sourceFiles =
                 arrayOf(
                     java(
@@ -169,7 +169,7 @@ class SystemServiceCheckTest : DriverTest() {
                 src/test/pkg/MyTest2.java:6: error: Method 'myMethod1' must be protected with a system permission. [RequiresPermission]
                 src/test/pkg/MyTest2.java:6: error: None of the permissions foo.bar.PERMISSION1, foo.bar.PERMISSION2 are defined by manifest TESTROOT/manifest.xml. [RequiresPermission]
                 """,
-            includeSystemApiAnnotations = true,
+            includeSystemApiAnnotations = SystemApiType.PRIVILEGED_APPS,
             sourceFiles =
                 arrayOf(
                     java(
@@ -199,7 +199,7 @@ class SystemServiceCheckTest : DriverTest() {
             expectedFail = DefaultLintErrorMessage,
             expectedIssues =
                 "src/test/pkg/MyTest2.java:6: error: Permission 'foo.bar.PERMISSION2' is not defined by manifest TESTROOT/manifest.xml. [RequiresPermission]",
-            includeSystemApiAnnotations = true,
+            includeSystemApiAnnotations = SystemApiType.PRIVILEGED_APPS,
             sourceFiles =
                 arrayOf(
                     java(
@@ -237,7 +237,7 @@ class SystemServiceCheckTest : DriverTest() {
                 "src/test/pkg/MyTest2.java:7: error: Method 'test' must be protected with a system " +
                     "permission; it currently allows non-system callers holding [foo.bar.PERMISSION1, " +
                     "foo.bar.PERMISSION2] [RequiresPermission]",
-            includeSystemApiAnnotations = true,
+            includeSystemApiAnnotations = SystemApiType.PRIVILEGED_APPS,
             sourceFiles =
                 arrayOf(
                     java(
@@ -282,7 +282,7 @@ class SystemServiceCheckTest : DriverTest() {
                 src/test/pkg/MyTest2.java:8: error: Permission 'android.permission.MY_PERMISSION' is not defined by manifest TESTROOT/manifest.xml. [RequiresPermission]
                 src/test/pkg/MyTest2.java:8: error: Permission 'android.permission.MY_PERMISSION2' is not defined by manifest TESTROOT/manifest.xml. [RequiresPermission]
                 """,
-            includeSystemApiAnnotations = true,
+            includeSystemApiAnnotations = SystemApiType.PRIVILEGED_APPS,
             sourceFiles =
                 arrayOf(
                     java(
@@ -318,7 +318,7 @@ class SystemServiceCheckTest : DriverTest() {
                 src/test/pkg/MyTest2.java:7: error: Method 'test' must be protected with a system permission. [RequiresPermission]
                 src/test/pkg/MyTest2.java:7: error: None of the permissions foo.bar.PERMISSION1, foo.bar.PERMISSION2 are defined by manifest TESTROOT/manifest.xml. [RequiresPermission]
                 """,
-            includeSystemApiAnnotations = true,
+            includeSystemApiAnnotations = SystemApiType.PRIVILEGED_APPS,
             sourceFiles =
                 arrayOf(
                     java(
@@ -347,7 +347,7 @@ class SystemServiceCheckTest : DriverTest() {
     fun `Warning suppressed via annotation`() {
         check(
             expectedIssues = "", // OK (suppressed)
-            includeSystemApiAnnotations = true,
+            includeSystemApiAnnotations = SystemApiType.PRIVILEGED_APPS,
             sourceFiles =
                 arrayOf(
                     java(

@@ -21,7 +21,6 @@ import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.ClassTypeItem
-import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.JAVA_LANG_OBJECT
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.ReferenceTypeItem
@@ -48,6 +47,9 @@ open class TypeItemParser(
     val kotlinStyleNulls: Boolean = false,
     private val errorReporter: TypeItemParserErrorReporter = TypeItemParserErrorReporter.THROWING,
 ) {
+    /** [ValueParser] used for parsing type use annotations. */
+    private val valueParser = ValueParser(annotationContext, this)
+
     /** A [TypeItem] representing `java.lang.Object`, suitable for general use. */
     private val objectType: ReferenceTypeItem
         get() =
@@ -454,8 +456,7 @@ open class TypeItemParser(
         while (trimmed.startsWith('@')) {
             val end = findAnnotationEnd(trimmed, 1)
             val annotationSource = trimmed.substring(0, end).trim()
-            DefaultAnnotationItem.createFromSource(annotationContext, annotationSource)?.let {
-                annotationItem ->
+            valueParser.parseAnnotationItem(annotationSource)?.let { annotationItem ->
                 annotations.add(annotationItem)
             }
             trimmed = trimmed.substring(end).trim()
@@ -498,8 +499,7 @@ open class TypeItemParser(
                 break
             }
             val annotationSource = trimmed.substring(start)
-            DefaultAnnotationItem.createFromSource(annotationContext, annotationSource)?.let {
-                annotationItem ->
+            valueParser.parseAnnotationItem(annotationSource)?.let { annotationItem ->
                 annotations.add(annotationItem)
             }
             // Cut this annotation off, so now the next one can end at the last index.

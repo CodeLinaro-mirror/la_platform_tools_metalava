@@ -736,7 +736,7 @@ class ApiAnalyzerTest : DriverTest() {
         check(
             // Include system API annotations as a show annotation overrides hidden on a class that
             // is in a hidden package.
-            includeSystemApiAnnotations = true,
+            includeSystemApiAnnotations = SystemApiType.PRIVILEGED_APPS,
             // This is set to true so any class that is incorrectly unhidden will be included in the
             // generated API and fail the test.
             showUnannotated = true,
