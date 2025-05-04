@@ -24,7 +24,6 @@ import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.DefaultTypeParameterList
 import com.android.tools.metalava.model.ExceptionTypeItem
-import com.android.tools.metalava.model.FixedFieldValue
 import com.android.tools.metalava.model.ItemDocumentation.Companion.toItemDocumentationFactory
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.ModifierFlags.Companion.ABSTRACT
@@ -51,7 +50,6 @@ import com.android.tools.metalava.model.createMutableModifiers
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.item.DefaultTypeParameterItem
-import com.android.tools.metalava.model.item.FieldValue
 import com.android.tools.metalava.model.item.ParameterDefaultValue
 import com.android.tools.metalava.model.type.MethodFingerprint
 import com.android.tools.metalava.model.value.ValueUseSite
@@ -395,7 +393,6 @@ internal class TurbineClassBuilder(
                     field.annotations(),
                 )
             val isEnumConstant = (flags and TurbineFlag.ACC_ENUM) != 0
-            val fieldValue = createInitialValue(field)
             val type =
                 typeItemFactory.getFieldType(
                     underlyingType = field.type(),
@@ -405,7 +402,7 @@ internal class TurbineClassBuilder(
                     isInitialValueNonNull = {
                         // The initial value is non-null if the value is a literal which is not
                         // null.
-                        fieldValue.initialValue(false) != null
+                        isInitialValueNonNull(field)
                     }
                 )
 
@@ -432,7 +429,6 @@ internal class TurbineClassBuilder(
                     type = type,
                     isEnumConstant = isEnumConstant,
                     constantValueProvider = constantValueProvider,
-                    fieldValue = fieldValue,
                 )
 
             classItem.addField(fieldItem)
@@ -649,10 +645,16 @@ internal class TurbineClassBuilder(
             .toItemDocumentationFactory()
     }
 
-    private fun createInitialValue(field: FieldInfo): FieldValue {
+    /**
+     * Check to see whether the initial value for [field] is non-null.
+     *
+     * If it is `non-null` then the field itself can be treated as if it is non-null, i.e. as if it
+     * had an `@NonNull` annotation.
+     */
+    private fun isInitialValueNonNull(field: FieldInfo): Boolean {
         val optExpr = field.decl()?.init()
-        val expr = if (optExpr != null && optExpr.isPresent()) optExpr.get() else null
-        val constantValue = field.value()?.getValue()
+        val expr = if (optExpr != null && optExpr.isPresent) optExpr.get() else null
+        val constantValue = field.value()?.value
 
         val initialValueWithoutRequiredConstant =
             when {
@@ -673,7 +675,7 @@ internal class TurbineClassBuilder(
                     }
             }
 
-        return FixedFieldValue(constantValue, initialValueWithoutRequiredConstant)
+        return initialValueWithoutRequiredConstant != null
     }
 
     /**

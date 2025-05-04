@@ -16,10 +16,16 @@
 
 package com.android.tools.metalava.model.value
 
+import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
+import com.android.tools.metalava.model.AnnotationAttribute
+import com.android.tools.metalava.model.AnnotationContext
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.ClassTypeItem
+import com.android.tools.metalava.model.DefaultAnnotationAttribute
+import com.android.tools.metalava.model.DefaultAnnotationAttributeValue
+import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
@@ -27,9 +33,11 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.javaUnescapeString
 import com.android.tools.metalava.model.parser.ParseException
+import com.android.tools.metalava.model.parser.TokenPurpose
 import com.android.tools.metalava.model.parser.Tokenizer
 import com.android.tools.metalava.model.type.ContextNullability
 import com.android.tools.metalava.model.type.TypeItemParser
+import com.android.tools.metalava.reporter.FileLocation
 import java.nio.file.Path
 
 /**
@@ -37,6 +45,7 @@ import java.nio.file.Path
  * annotation created from a string.
  */
 class ValueParser(
+    private val annotationContext: AnnotationContext,
     private val typeItemParser: TypeItemParser,
 ) : ValueFactory, ImplementationValueToModelFactory<String> {
 
@@ -74,6 +83,23 @@ class ValueParser(
             attributeName,
             text,
         )
+
+    /**
+     * Get a [CombinedValueProvider] that will create (and cache) a [Value] for attribute
+     * [attributeName] of [annotationClassName] from [text].
+     *
+     * @param annotationClassName the containing [AnnotationItem]'s qualified class name.
+     * @param attributeName the name of the attribute whose value it will provide.
+     * @param text the String value to be parsed.
+     */
+    private fun providerForAnnotationValue(
+        annotationClassName: String,
+        attributeName: String,
+        text: String
+    ) =
+        CachingAnnotationValueProvider(this, attributeName, text) {
+            annotationContext.resolveClass(annotationClassName)
+        }
 
     override fun implementationValueToModelValue(
         optionalTypeItem: TypeItem?,
@@ -203,7 +229,23 @@ class ValueParser(
                     includeInterfaces = true,
                 )
                 ?.let { fieldItem -> createFieldReferenceValue(optionalTypeItem, fieldItem) }
-                ?: createEnumConstantValue(classTypeItem, fieldName)
+                ?: createFieldReferenceValue(classTypeItem.qualifiedName, fieldName)
+        }
+
+        // Handle a Java style annotation value which starts with an '@'.
+        val first = text.first()
+        if (first == '@') {
+            parseAnnotationValue(text)?.let {
+                return it
+            } ?: unknownToken(optionalTypeItem, text)
+        }
+
+        // Check to see if it is a Kotlin annotation value, which looks like a constructor call for
+        // the annotation class.
+        annotationConstructorPattern.matchAt(text, 0)?.let {
+            parseAnnotationValue(text)?.let {
+                return it
+            } ?: unknownToken(optionalTypeItem, text)
         }
 
         unknownToken(optionalTypeItem, text)
@@ -328,9 +370,181 @@ class ValueParser(
         throw ValueProviderException("Unsupported numeric value <$text> of $optionalTypeItem")
     }
 
+    /** Parse [text] to produce an [AnnotationValue], if possible. */
+    private fun parseAnnotationValue(text: String): AnnotationValue? {
+        val annotationItem = parseAnnotationItem(text) ?: return null
+        return createAnnotationValue(annotationItem)
+    }
+
+    /** Parse [text] to produce an [AnnotationItem], if possible. */
+    fun parseAnnotationItem(text: String): AnnotationItem? {
+        val tokenizer = tokenizerOf(text)
+
+        // Parse the annotation item from the tokenizer.
+        val annotationItem = parseAnnotationItem(tokenizer)
+
+        // Make sure that all the significant text was consumed.
+        tokenizer.getToken()?.let { token ->
+            error(
+                "Expected to consume all the contents of `$text` but did not, next token is '$token', remainder is '${tokenizer.remainder()}'"
+            )
+        }
+
+        return annotationItem
+    }
+
+    /**
+     * Parse stream of tokens produced by [tokenizer] to create an [AnnotationItem], if possible.
+     *
+     * On entry [tokenizer] next token must be the annotation's class name, optionally prefixed with
+     * an `@`. On exit, the next token will be the one after the annotation.
+     */
+    private fun parseAnnotationItem(tokenizer: Tokenizer): AnnotationItem? {
+        // May start with an '@', the remainder is the annotation class name.
+        val annotationClassName =
+            tokenizer.requireToken().let { token ->
+                if (token[0] == '@') token.substring(1) else token
+            }
+
+        val token = tokenizer.getToken()
+        val attributes =
+            when (token) {
+                "(" -> {
+                    parseAnnotationAttributes(annotationClassName, tokenizer).also {
+                        require(tokenizer.current == ")") {
+                            "Expected ')' but found ${tokenizer.current}"
+                        }
+                    }
+                }
+                else -> emptyList()
+            }
+
+        return DefaultAnnotationItem.createAttributesLazily(
+            annotationContext,
+            FileLocation.UNKNOWN,
+            annotationClassName,
+            { attributes }
+        )
+    }
+
+    /**
+     * Parse stream of tokens produced by [tokenizer] to create a list of [AnnotationAttribute]s for
+     * [annotationClassName].
+     *
+     * On entry [tokenizer]'s [Tokenizer.current] must be `(`. On exit, it will be the matching `)`.
+     */
+    private fun parseAnnotationAttributes(
+        @Suppress("UNUSED_PARAMETER") annotationClassName: String,
+        tokenizer: Tokenizer
+    ): List<AnnotationAttribute> {
+        require(tokenizer.current == "(") { "Expected '(' but found ${tokenizer.current}" }
+
+        // At this point there are a number of possibilities:
+        // * ")", i.e. close parenthesis for an empty list of annotation attributes.
+        // * <any value> (which is equivalent to 'value=<any value>').
+        // * <attribute-name>=<any value>.
+        tokenizer.requireToken(purpose = TokenPurpose.VALUE).let { token ->
+            // A minor optimization to avoid creating a new mutable list only for it to be empty.
+            if (token == ")") return emptyList()
+        }
+
+        return buildList {
+            do {
+                // At this point there are three possibilities for the token:
+                // * `)` - closing of the attribute list after a trailing `,`.
+                // * <any value> (which is equivalent to 'value=<any value>').
+                // * <attribute-name>=<any value>.
+                val token = tokenizer.current
+                if (token == ")") return@buildList
+
+                // Differentiate between them by checking the next token. If it is = then it is
+                // the second option, otherwise it is the first. After this the tokenizer.current
+                // must be the next token after the value.
+                val nextToken = tokenizer.requireToken()
+                val (attributeName, valueText) =
+                    if (nextToken == "=") {
+                        // Get the next token as a value.
+                        val valueToken = tokenizer.requireToken(purpose = TokenPurpose.VALUE)
+                        // Get the next token ready in the tokenizer.
+                        tokenizer.requireToken()
+                        // Pair up the attribute name and value text.
+                        token to valueToken
+                    } else {
+                        // Pair up the default attribute name and the value text.
+                        ANNOTATION_ATTR_VALUE to token
+                    }
+
+                // Patch the value if necessary.
+                val patchedValue =
+                    if (tokenizer.current == "-") {
+                        // TODO(b/354633349): Temporary workaround that is needed because some
+                        //  historical files from `prebuilts/sdk` have expressions like
+                        //  `0x400000000 - 1`. Those files have been fixed downstream but the
+                        //  `prebuilts/sdk` repository is not modifiable in aosp/metalava-main.
+                        val expectingOne =
+                            tokenizer.requireToken(purpose = TokenPurpose.VALUE) == "1"
+                        require(expectingOne) {
+                            """Expected "... - 1" but found "... - $expectingOne""""
+                        }
+
+                        // Get the next token ready in the tokenizer.
+                        tokenizer.requireToken()
+
+                        (Integer.decode(valueText) - 1).toString()
+                    } else valueText
+
+                // At this point there are two possibilities:
+                // * ",", i.e. the separator between this and the next attribute.
+                // * "," followed by ")", i.e. an unnecessary comma following by the closing
+                //   parenthesis of the attribute list.
+                // * ")", i.e. close parenthesis for the list of annotation attributes.
+                when (val separator = tokenizer.current) {
+                    "," -> {
+                        // Get the next token which should be a value ready in the tokenizer but
+                        // could also be a close parenthesis.
+                        tokenizer.requireToken(purpose = TokenPurpose.VALUE)
+                    }
+                    ")" -> {
+                        // Nothing to do, will break out next time around the loop but this case
+                        // allows the else clause to throw an error.
+                    }
+                    else ->
+                        throw ValueProviderException(
+                            "Unknown token <$separator>, expected one of `,` or `)`"
+                        )
+                }
+
+                // Get Value provider.
+                val valueProvider =
+                    providerForAnnotationValue(
+                        annotationClassName,
+                        attributeName,
+                        patchedValue,
+                    )
+
+                // Add the attribute to the list.
+                add(
+                    DefaultAnnotationAttribute(
+                        attributeName,
+                        valueProvider,
+                        // Create legacy attribute value.
+                        DefaultAnnotationAttributeValue.create(valueText),
+                    )
+                )
+            } while (true)
+        }
+    }
+
     companion object {
         /** The default instance of this. */
-        val DEFAULT = ValueParser(TypeItemParser.forValueParser(ClassResolver.THROWING))
+        val DEFAULT =
+            ValueParser(
+                // Any attempts to resolve an annotation's class in order to determine the type of
+                // its attributes will return null which will prevent any conversion of values to
+                // the correct type but still allow annotations to be parsed correctly.
+                AnnotationContext.DEFAULT_RESOLVE_NULL,
+                TypeItemParser.forValueParser(ClassResolver.THROWING),
+            )
 
         /**
          * Map of all the different string representations of various special floating point
@@ -424,5 +638,12 @@ class ValueParser(
 
         /** Index of field name group in [fieldReferencePattern]. */
         private const val FIELD_NAME_GROUP_INDEX = 2
+
+        /**
+         * Pattern to match a Kotlin style annotation value which looks like a constructor call for
+         * the annotation's class.
+         */
+        internal val annotationConstructorPattern =
+            Regex("""([a-zA-Z0-9_]+(?:\.[a-zA-Z0-9_]+)*)\(""")
     }
 }

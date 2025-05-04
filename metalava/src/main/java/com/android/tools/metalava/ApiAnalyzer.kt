@@ -21,7 +21,6 @@ import com.android.tools.metalava.manifest.Manifest
 import com.android.tools.metalava.manifest.emptyManifest
 import com.android.tools.metalava.model.ANDROIDX_REQUIRES_PERMISSION
 import com.android.tools.metalava.model.ANDROID_ANNOTATION_PREFIX
-import com.android.tools.metalava.model.ANDROID_SYSTEM_API
 import com.android.tools.metalava.model.AnnotationAttributeValue
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.BaseItemVisitor
@@ -31,6 +30,7 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.Item
@@ -513,9 +513,16 @@ class ApiAnalyzer(
             return
         }
 
+        // Create a special annotation with no attributes. This will not work in Android but it will
+        // work in SystemServerCheckTest.
+        // TODO(b/412743564): Fix this so it works in Android.
+        val systemServiceCheckAnnotation =
+            DefaultAnnotationItem.createFromSource(codebase, "@$ANDROID_SYSTEM_SERVICE_CHECK")
+
         val checkSystemApi =
             !reporter.isSuppressed(Issues.REQUIRES_PERMISSION) &&
-                config.allShowAnnotations.matches(ANDROID_SYSTEM_API) &&
+                systemServiceCheckAnnotation != null &&
+                config.allShowAnnotations.matches(systemServiceCheckAnnotation) &&
                 !config.manifest.isEmpty()
         val checkHiddenShowAnnotations =
             !reporter.isSuppressed(Issues.UNHIDDEN_SYSTEM_API) &&
@@ -1030,3 +1037,9 @@ private fun MethodItemSet.removeMatchingMethods(method: MethodItem) {
         }
     }
 }
+
+/**
+ * A special constant used to ensure that [ApiAnalyzer.checkSystemPermissions] is only called from
+ * the SystemServiceCheckTest.
+ */
+const val ANDROID_SYSTEM_SERVICE_CHECK = "android.annotation.SystemServiceCheck"

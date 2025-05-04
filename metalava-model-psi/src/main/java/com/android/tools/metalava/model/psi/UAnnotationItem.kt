@@ -152,12 +152,11 @@ private constructor(
             codebase: PsiBasedCodebase,
             sb: StringBuilder,
             uAnnotation: UAnnotation,
-            originalName: String?,
+            originalName: String,
             target: AnnotationTarget,
             showDefaultAttrs: Boolean
         ) {
-            val qualifiedName =
-                codebase.annotationManager.normalizeOutputName(originalName, target) ?: return
+            val qualifiedName = codebase.annotationManager.normalizeOutputName(originalName, target)
 
             val attributes = getAttributes(uAnnotation, showDefaultAttrs)
             if (attributes.isEmpty()) {
@@ -251,11 +250,6 @@ private constructor(
                     }
                     // TODO: support UCallExpression for other cases than array initializers
                     // Drop out as it did not append on for other cases than array initializers
-                }
-                is UAnnotation -> {
-                    // TODO(b/354633349): Remove this branch once it has been shown that it is never
-                    // taken.
-                    error("$value is both a UExpression and a UAnnotation")
                 }
             }
 

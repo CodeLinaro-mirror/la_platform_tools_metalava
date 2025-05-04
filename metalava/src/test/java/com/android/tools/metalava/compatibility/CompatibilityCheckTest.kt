@@ -20,6 +20,7 @@ import com.android.tools.lint.checks.infrastructure.TestFiles.base64gzip
 import com.android.tools.metalava.ARG_SHOW_ANNOTATION
 import com.android.tools.metalava.ARG_SHOW_UNANNOTATED
 import com.android.tools.metalava.DriverTest
+import com.android.tools.metalava.SystemApiType
 import com.android.tools.metalava.androidxNonNullSource
 import com.android.tools.metalava.androidxNullableSource
 import com.android.tools.metalava.cli.common.ARG_ERROR_CATEGORY
@@ -1984,7 +1985,7 @@ class CompatibilityCheckTest : DriverTest() {
         // from the base API. When parsing these code bases we need to gracefully handle
         // references to inner classes.
         check(
-            includeSystemApiAnnotations = true,
+            includeSystemApiAnnotations = SystemApiType.PRIVILEGED_APPS,
             expectedIssues =
                 """
                 released-api.txt:5: error: Removed method test.pkg.Bar.Inner1.Inner2.removedMethod() [RemovedMethod]
@@ -2033,11 +2034,6 @@ class CompatibilityCheckTest : DriverTest() {
                     ),
                     systemApiSource,
                 ),
-            extraArguments =
-                arrayOf(
-                    ARG_SHOW_ANNOTATION,
-                    "android.annotation.SystemApi",
-                ),
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
@@ -2055,7 +2051,7 @@ class CompatibilityCheckTest : DriverTest() {
         // Incompatible changes to a released System API should be detected
         // In this case removing final and changing value of constant
         check(
-            includeSystemApiAnnotations = true,
+            includeSystemApiAnnotations = SystemApiType.TEST,
             expectedIssues =
                 """
                 src/android/rolecontrollerservice/RoleControllerService.java:8: error: Method android.rolecontrollerservice.RoleControllerService.sendNetworkScore has removed 'final' qualifier [RemovedFinalStrict]
@@ -2078,11 +2074,6 @@ class CompatibilityCheckTest : DriverTest() {
                     """
                     ),
                     systemApiSource,
-                ),
-            extraArguments =
-                arrayOf(
-                    ARG_SHOW_ANNOTATION,
-                    "android.annotation.TestApi",
                 ),
             checkCompatibilityApiReleased =
                 """

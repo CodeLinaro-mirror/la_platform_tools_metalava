@@ -297,7 +297,7 @@ private constructor(
                     }
                 }
 
-                val source = printAnnotation.toSource(target, showDefaultAttrs = false)
+                val source = printAnnotation.toSource(target)
 
                 if (omitCommonPackages) {
                     writer.write(AnnotationItem.shortenAnnotation(source))

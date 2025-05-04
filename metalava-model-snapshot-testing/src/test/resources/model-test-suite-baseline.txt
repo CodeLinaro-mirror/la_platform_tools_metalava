@@ -65,9 +65,6 @@ com.android.tools.metalava.model.testsuite.documentation.CommonParameterizedDocu
 com.android.tools.metalava.model.testsuite.fielditem.CommonFieldItemTest
   Test implicit nullability of constant field initialized from @NonNull method[turbine]
 
-com.android.tools.metalava.model.testsuite.fielditem.SourceFieldItemTest
-  test default value of an enum constant field[turbine]
-
 com.android.tools.metalava.model.testsuite.methoditem.CommonParameterItemTest
   Test publicName reports correct name when called on binary class - Object#equals[turbine]
   Test publicName reports correct name when called on binary class - ViewGroup#onLayout[turbine]
@@ -144,8 +141,6 @@ com.android.tools.metalava.model.testsuite.typeitem.CommonTypeStringTest
   Type string[psi,java,k2,null annotated parameterized inner type - kotlin nulls]
 
 com.android.tools.metalava.model.testsuite.value.CommonParameterizedAnnotationToSourceValueTest
-  testLegacySource[text,source,annotation - multiple attributes]
-  testLegacySource[text,source,annotation - no attributes]
   testLegacySource[text,source,annotation]
   testLegacySource[text,source,char escaped]
   testLegacySource[text,source,char unicode]
@@ -168,9 +163,6 @@ com.android.tools.metalava.model.testsuite.value.CommonParameterizedAnnotationTo
   testLegacySource[text,source,int negative]
   testLegacySource[text,source,int positive]
   testLegacySource[text,source,long with lower l]
-  testLegacySource[turbine,jar,annotation - multiple attributes]
-  testLegacySource[turbine,jar,annotation - no attributes]
-  testLegacySource[turbine,jar,annotation]
   testLegacySource[turbine,jar,double NaN]
   testLegacySource[turbine,jar,double negative infinity]
   testLegacySource[turbine,jar,double positive infinity]
@@ -178,9 +170,6 @@ com.android.tools.metalava.model.testsuite.value.CommonParameterizedAnnotationTo
   testLegacySource[turbine,jar,float negative infinity]
   testLegacySource[turbine,jar,float positive infinity]
   testLegacySource[turbine,source,String using constant]
-  testLegacySource[turbine,source,annotation - multiple attributes]
-  testLegacySource[turbine,source,annotation - no attributes]
-  testLegacySource[turbine,source,annotation]
   testLegacySource[turbine,source,double NaN]
   testLegacySource[turbine,source,double with int]
   testLegacySource[turbine,source,field - generic class constant]
@@ -192,8 +181,6 @@ com.android.tools.metalava.model.testsuite.value.CommonParameterizedAnnotationTo
   testLegacySource[turbine,source,long with int]
 
 com.android.tools.metalava.model.testsuite.value.CommonParameterizedAttributeDefaultValueTest
-  testLegacySource[psi,java,k1,source,int - complex]
-  testLegacySource[psi,java,k2,source,int - complex]
   testLegacySource[text,source,String array]
   testLegacySource[text,source,annotation - multiple attributes]
   testLegacySource[text,source,annotation]
@@ -228,12 +215,9 @@ com.android.tools.metalava.model.testsuite.value.CommonParameterizedAttributeDef
   testLegacySource[turbine,source,double with int]
   testLegacySource[turbine,source,float with int]
   testLegacySource[turbine,source,long with int]
-  testMethodDefaultValue[psi,java,k1,source,int - complex]
-  testMethodDefaultValue[psi,java,k2,source,int - complex]
 
 com.android.tools.metalava.model.testsuite.value.CommonParameterizedAttributeValueTest
   testLegacySource[text,source,String using constant]
-  testLegacySource[text,source,annotation - multiple attributes]
   testLegacySource[text,source,annotation]
   testLegacySource[text,source,char escaped]
   testLegacySource[text,source,char unicode]
@@ -243,6 +227,7 @@ com.android.tools.metalava.model.testsuite.value.CommonParameterizedAttributeVal
   testLegacySource[text,source,class literal - basic class]
   testLegacySource[text,source,class literal - generic class]
   testLegacySource[text,source,enum]
+  testLegacySource[text,source,field - generic class constant]
   testLegacySource[text,source,field - long with int constant]
   testLegacySource[turbine,jar,annotation - multiple attributes]
   testLegacySource[turbine,jar,annotation]
@@ -262,6 +247,7 @@ com.android.tools.metalava.model.testsuite.value.CommonParameterizedAttributeVal
   testLegacySource[turbine,source,double positive infinity]
   testLegacySource[turbine,source,double with exponent]
   testLegacySource[turbine,source,double with int]
+  testLegacySource[turbine,source,enum - static import]
   testLegacySource[turbine,source,enum]
   testLegacySource[turbine,source,field - generic class constant]
   testLegacySource[turbine,source,field - long with int constant]
@@ -281,7 +267,6 @@ com.android.tools.metalava.model.testsuite.value.CommonParameterizedAttributeVal
   testLegacyValue[psi,kotlin,k1,source,annotation - no attributes]
   testLegacyValue[psi,kotlin,k1,source,annotation - single value]
   testLegacyValue[text,source,String using constant]
-  testLegacyValue[text,source,annotation - multiple attributes]
   testLegacyValue[text,source,annotation]
   testLegacyValue[text,source,array - empty]
   testLegacyValue[text,source,byte]
@@ -303,6 +288,7 @@ com.android.tools.metalava.model.testsuite.value.CommonParameterizedAttributeVal
   testLegacyValue[text,source,double positive infinity]
   testLegacyValue[text,source,double with exponent]
   testLegacyValue[text,source,double with int]
+  testLegacyValue[text,source,field - generic class constant]
   testLegacyValue[text,source,field - long with int constant]
   testLegacyValue[text,source,float - hex]
   testLegacyValue[text,source,float NaN]
@@ -327,7 +313,6 @@ com.android.tools.metalava.model.testsuite.value.CommonParameterizedAttributeVal
   testLegacyValue[turbine,source,double with int]
   testLegacyValue[turbine,source,field - long with int constant]
   testLegacyValue[turbine,source,float with int]
-  testLegacyValue[turbine,source,int - complex]
   testLegacyValue[turbine,source,long with int]
   testLegacyValue[turbine,source,short]
 
@@ -335,21 +320,6 @@ com.android.tools.metalava.model.testsuite.value.CommonParameterizedFieldValueTe
   testFieldValue[psi,kotlin,k1,source,null - intermediate non-constant expression]
   testFieldValue[psi,kotlin,k2,source,null - intermediate non-constant expression]
   testFieldValue[turbine,source,field - long with int constant]
-  testLegacyValue[text,source,byte]
-  testLegacyValue[text,source,double NaN]
-  testLegacyValue[text,source,double negative infinity]
-  testLegacyValue[text,source,double positive infinity]
-  testLegacyValue[text,source,float NaN]
-  testLegacyValue[text,source,float negative infinity]
-  testLegacyValue[text,source,float positive infinity]
-  testLegacyValue[text,source,long with int]
-  testLegacyValue[text,source,short]
-  testLegacyValue[turbine,jar,double NaN]
-  testLegacyValue[turbine,jar,double negative infinity]
-  testLegacyValue[turbine,jar,double positive infinity]
-  testLegacyValue[turbine,jar,float NaN]
-  testLegacyValue[turbine,jar,float negative infinity]
-  testLegacyValue[turbine,jar,float positive infinity]
 
 com.android.tools.metalava.model.testsuite.value.CommonParameterizedFieldWriteWithSemicolonValueTest
   testLegacySource[psi,kotlin,k1,source,null - intermediate non-constant expression]

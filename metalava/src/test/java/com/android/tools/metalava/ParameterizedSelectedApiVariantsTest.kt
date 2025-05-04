@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava
 
-import com.android.tools.metalava.model.ANDROID_SYSTEM_API
 import com.android.tools.metalava.model.api.surface.ApiVariantType
 import com.android.tools.metalava.model.testing.surfaces.SelectedApiVariantsTestData
 import com.android.tools.metalava.model.testing.surfaces.selectedApiVariantsTestData
@@ -44,12 +43,11 @@ class ParameterizedSelectedApiVariantsTest : DriverTest() {
                 .partition { apiVariantTypeForTestSignatureFile(it) != ApiVariantType.REMOVED }
 
         // If the test needs a base ApiSurface then add --show-annotation SystemApi to create one.
-        val extraArguments =
-            if (testData.needsBase) arrayOf(ARG_SHOW_ANNOTATION, ANDROID_SYSTEM_API)
-            else emptyArray()
+        val includeSystemApiAnnotations =
+            if (testData.needsBase) SystemApiType.PRIVILEGED_APPS else null
 
         check(
-            extraArguments = extraArguments,
+            includeSystemApiAnnotations = includeSystemApiAnnotations,
             // Although this test is only check the selectedApiVariants state it must provide source
             // files as otherwise the compatibility check will fail as it will compare the API
             // loaded from the signature files against an empty Codebase and report that items have

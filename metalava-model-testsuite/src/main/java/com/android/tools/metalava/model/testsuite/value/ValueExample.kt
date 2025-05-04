@@ -22,10 +22,8 @@ import com.android.tools.metalava.model.testing.arrayTypeItem
 import com.android.tools.metalava.model.testing.classTypeItem
 import com.android.tools.metalava.model.testing.primitiveTypeForKind
 import com.android.tools.metalava.model.testing.value.annotationValue
-import com.android.tools.metalava.model.testing.value.annotationValueFromSource
 import com.android.tools.metalava.model.testing.value.arrayValueFromAny
-import com.android.tools.metalava.model.testing.value.constantFieldValue
-import com.android.tools.metalava.model.testing.value.enumConstantValue
+import com.android.tools.metalava.model.testing.value.fieldReferenceValue
 import com.android.tools.metalava.model.testing.value.literalValue
 import com.android.tools.metalava.model.testing.value.primitiveValueForKind
 import com.android.tools.metalava.model.value.Value
@@ -162,13 +160,8 @@ constructor(
      * The expected [Value] for this case.
      *
      * This may differ by [ProducerKind] and [LegacyValueUseSite].
-     *
-     * This is optional at the moment to allow the expected value to be added incrementally as the
-     * [Value] model is expanded.
-     *
-     * TODO(b/354633349): Make this required.
      */
-    val expectedValue: Expectation<Value?>? = null,
+    val expectedValue: Expectation<Value?>,
 
     /**
      * Controls which [ValueExample]s in [allValueExamples] are run.
@@ -264,15 +257,7 @@ constructor(
                         expectations {
                             common = "@test.pkg.OtherAnnotation(intType = 1)"
                             source { attributeValue = "@OtherAnnotation(intType = 1)" }
-
-                            annotationToSource =
-                                "@test.pkg.OtherAnnotation(" +
-                                    "classType=void.class," +
-                                    " enumType=test.pkg.TestEnum.DEFAULT," +
-                                    " intType=1," +
-                                    " stringType=\"default\"," +
-                                    " stringArrayType={}" +
-                                    ")"
+                            annotationToSource = "@test.pkg.OtherAnnotation(intType=1)"
                         },
                     expectedKotlinLegacySource =
                         expectations {
@@ -292,7 +277,10 @@ constructor(
                     expectedValue =
                         expectations {
                             common =
-                                annotationValueFromSource("@test.pkg.OtherAnnotation(intType=1)")
+                                annotationValue(
+                                    "test.pkg.OtherAnnotation",
+                                    "intType" to literalValue(1),
+                                )
                         },
                 ),
                 ValueExample(
@@ -306,14 +294,7 @@ constructor(
                         expectations {
                             common = "@test.pkg.OtherAnnotation"
 
-                            annotationToSource =
-                                "@test.pkg.OtherAnnotation(" +
-                                    "classType=void.class," +
-                                    " enumType=test.pkg.TestEnum.DEFAULT," +
-                                    " intType=0xffffffff," +
-                                    " stringType=\"default\"," +
-                                    " stringArrayType={}" +
-                                    ")"
+                            annotationToSource = "@test.pkg.OtherAnnotation"
                         },
                     expectedKotlinLegacySource =
                         expectations {
@@ -338,13 +319,7 @@ constructor(
                             common = "@test.pkg.OtherAnnotation(stringType = \"one\", intType = 3)"
 
                             annotationToSource =
-                                "@test.pkg.OtherAnnotation(" +
-                                    "classType=void.class," +
-                                    " enumType=test.pkg.TestEnum.DEFAULT," +
-                                    " intType=3," +
-                                    " stringType=\"one\"," +
-                                    " stringArrayType={}" +
-                                    ")"
+                                "@test.pkg.OtherAnnotation(stringType=\"one\", intType=3)"
                             source {
                                 attributeValue =
                                     "@test.pkg.OtherAnnotation(stringType=\"one\", intType=3)"
@@ -373,8 +348,10 @@ constructor(
                     expectedValue =
                         expectations {
                             common =
-                                annotationValueFromSource(
-                                    "@test.pkg.OtherAnnotation(intType=3, stringType=\"one\")"
+                                annotationValue(
+                                    "test.pkg.OtherAnnotation",
+                                    "intType" to literalValue(3),
+                                    "stringType" to literalValue("one"),
                                 )
                         },
                 ),
@@ -392,6 +369,14 @@ constructor(
                         expectations { common = "test.pkg.SingleValueAnnotation(\"text\")" },
                     // Annotation literals cannot be used in fields.
                     suitableFor = allLegacyValueUseSitesExceptFields,
+                    expectedValue =
+                        expectations {
+                            common =
+                                annotationValue(
+                                    "test.pkg.SingleValueAnnotation",
+                                    "value" to literalValue("text"),
+                                )
+                        },
                 ),
                 // Check a simple boolean true value.
                 ValueExample(
@@ -909,14 +894,40 @@ constructor(
                     // model specific object.
                     //   expectedLegacyValue = expectations {},
                     expectedValue =
-                        expectations { common = enumConstantValue("test.pkg.TestEnum", "VALUE1") },
+                        expectations {
+                            common = fieldReferenceValue("test.pkg.TestEnum", "VALUE1")
+                        },
+                ),
+                // Check a statically imported enum literal.
+                ValueExample(
+                    name = "enum - static import",
+                    javaType = "TestEnum",
+                    javaExpression = "VALUE1",
+                    javaImports = listOf("static test.pkg.TestEnum.VALUE1"),
+                    kotlinImports = listOf("test.pkg.TestEnum.VALUE1"),
+                    // Signature files does not support unqualified fields.
+                    validForInputFormats = notValidForSignature,
+                    expectedLegacySource =
+                        expectations {
+                            common = "test.pkg.TestEnum.VALUE1"
+                            source {
+                                // TODO(b/354633349): Fully qualified is better.
+                                attributeValue = "VALUE1"
+                            }
+                        },
+                    // Intentionally do not test the value of this because it returns an internal,
+                    // model specific object.
+                    //   expectedLegacyValue = expectations {},
+                    expectedValue =
+                        expectations {
+                            common = fieldReferenceValue("test.pkg.TestEnum", "VALUE1")
+                        },
                 ),
                 ValueExample(
                     name = "field - generic class constant",
                     javaType = "String",
                     javaExpression = "GenericClass.STRING_CONSTANT",
-                    // TODO(b/354633349): Signature files does not support field references.
-                    validForInputFormats = notValidForSignature,
+                    signatureExpression = "test.pkg.GenericClass.STRING_CONSTANT",
                     expectedLegacySource =
                         expectations {
                             common = "\"constant\""
@@ -938,7 +949,7 @@ constructor(
                     expectedValue =
                         expectations {
                             common =
-                                constantFieldValue(
+                                fieldReferenceValue(
                                     "test.pkg.GenericClass",
                                     "STRING_CONSTANT",
                                     literalValue("constant")
@@ -981,7 +992,7 @@ constructor(
                     expectedValue =
                         expectations {
                             common =
-                                constantFieldValue(
+                                fieldReferenceValue(
                                     "test.pkg.Constants",
                                     "INT_CONSTANT",
                                     primitiveValueForKind(Primitive.LONG, 37)
@@ -1084,6 +1095,7 @@ constructor(
                     expectedLegacySource = expectations { common = "3.141f" },
                     expectedLegacyValue = expectations { common = 3.141f },
                     expectedKotlinLegacySource = expectations { attributeDefaultValue = "3.141" },
+                    expectedValue = expectations { common = literalValue(3.141f) },
                 ),
                 // Check a special float - Nan.
                 ValueExample(
@@ -1306,11 +1318,7 @@ constructor(
                                     "('_'.code shl 24) or ('P'.code shl 16) or ('N'.code shl 8) or 'G'.code"
                             }
                         },
-                    expectedLegacyValue =
-                        expectations {
-                            common = 1599098439
-                            source { attributeValue = "('_'<<24)|('P'<<16)|('N'<<8)|'G'" }
-                        },
+                    expectedLegacyValue = expectations { common = 1599098439 },
                     expectedKotlinLegacyValue =
                         expectations { source { attributeValue = 1599098439 } },
                     expectedValue = expectations { common = literalValue(1599098439) },
@@ -1505,7 +1513,7 @@ constructor(
                     expectedValue =
                         expectations {
                             common =
-                                constantFieldValue(
+                                fieldReferenceValue(
                                     "test.pkg.Constants",
                                     "STRING_CONSTANT",
                                     literalValue("constant")
@@ -1520,7 +1528,8 @@ constructor(
                     name = "method call",
                     javaType = "String",
                     javaExpression = "System.getProperty(\"PROPERTY\")",
-                    // Only suitable for use in fields.
+                    // Only suitable for use in fields as annotations cannot use non-constant
+                    // methods.
                     suitableFor = allFieldLegacyValueUseSites,
                     // Signature never has a method call for a value.
                     validForInputFormats = notValidForSignature,
@@ -1533,7 +1542,7 @@ constructor(
                     name = "null",
                     javaType = "String",
                     javaExpression = "null",
-                    // Only suitable for use in fields.
+                    // Only suitable for use in fields as annotations cannot have `null` values.
                     suitableFor = allFieldLegacyValueUseSites,
                     // Signature never has a null field value.
                     validForInputFormats = notValidForSignature,

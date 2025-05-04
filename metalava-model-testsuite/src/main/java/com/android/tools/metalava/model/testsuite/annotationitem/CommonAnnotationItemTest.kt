@@ -20,12 +20,15 @@ import com.android.tools.metalava.model.ANNOTATION_IN_ALL_STUBS
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.annotation.AnnotationFilter
+import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
 import com.android.tools.metalava.model.getAttributeValue
 import com.android.tools.metalava.model.getAttributeValues
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.reporter.FileLocation
+import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import kotlin.test.assertEquals
@@ -1230,8 +1233,8 @@ class CommonAnnotationItemTest : BaseModelTest() {
                       }
 
                       public @interface Test.Anno {
-                          method public Enum stringValue();
-                          method public Enum[] stringArrayValue();
+                          method public Enum enumValue();
+                          method public Enum[] enumArrayValue();
                       }
 
                       public enum Enum {
@@ -1588,6 +1591,63 @@ class CommonAnnotationItemTest : BaseModelTest() {
             // Make sure that it correctly computes targets for an annotation class from the
             // source path.
             assertEquals(ANNOTATION_IN_ALL_STUBS, annotationItem.targets)
+        }
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `annotation on internal`() {
+        // Create a filter that will treat RestrictTo(Scope.LIBRARY) as a show annotation.
+        val showFilter =
+            AnnotationFilter.create(
+                listOf(
+                    "androidx.annotation.RestrictTo(androidx.annotation.RestrictTo.Scope.LIBRARY)",
+                )
+            )
+
+        runCodebaseTest(
+            inputSet(
+                kotlin(
+                    """
+                        package test.pkg
+
+                        import androidx.annotation.RestrictTo
+
+                        // Defined during codebase construction as it is accessible because while it
+                        // is internal it is annotated with a show annotation.
+                        @RestrictTo(RestrictTo.Scope.LIBRARY)
+                        internal class Foo
+
+                        // Not defined during codebase construction as it is inaccessible because it
+                        // is internal and while it has an annotation it is not a show annotation as
+                        // the scope is incorrect.
+                        @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
+                        internal class Bar
+
+                        // Not defined during codebase construction as it is inaccessible because it
+                        // is internal.
+                        internal class Baz
+                    """
+                ),
+                KnownSourceFiles.restrictToSource,
+            ),
+            testFixture =
+                TestFixture(
+                    DefaultAnnotationManager(
+                        config =
+                            DefaultAnnotationManager.Config(
+                                allShowAnnotations = showFilter,
+                                showAnnotations = showFilter,
+                            )
+                    )
+                ),
+        ) {
+            // This should be defined.
+            codebase.assertClass("test.pkg.Foo")
+            // This should not be defined.
+            codebase.assertResolvedClass("test.pkg.Bar")
+            // This should not be defined.
+            codebase.assertResolvedClass("test.pkg.Baz")
         }
     }
 

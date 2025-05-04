@@ -28,7 +28,6 @@ import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
-import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.DefaultTypeParameterList
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.Item
@@ -246,7 +245,10 @@ private constructor(
 
     /** The [ValueParser] to use for creating [Value]s from a signature file. */
     private val valueParser =
-        ValueParser(TypeItemParser.forValueParser(codebase, typeItemParserErrorReporter))
+        ValueParser(
+            codebase,
+            TypeItemParser.forValueParser(codebase, typeItemParserErrorReporter),
+        )
 
     /**
      * Whether types should be interpreted to be in Kotlin format (e.g. ? suffix means nullable, !
@@ -1104,12 +1106,11 @@ private constructor(
         while (true) {
             val annotationSource = getAnnotationSource(tokenizer, token) ?: break
             token = tokenizer.current
-            DefaultAnnotationItem.createFromSource(
-                    codebase,
-                    annotationSource,
-                    valueParser,
-                )
-                ?.let { annotationItem -> add(annotationItem) }
+            // TODO(b/354633349): Look at just passing the tokenizer through to
+            //  parseAnnotationItem(Tokenizer) to save some time.
+            valueParser.parseAnnotationItem(annotationSource)?.let { annotationItem ->
+                add(annotationItem)
+            }
         }
     }
 
@@ -1361,9 +1362,6 @@ private constructor(
             )
         synchronizeNullability(type, modifiers)
 
-        // Defer parsing the value string until needed.
-        val fieldValue = valueString?.let { TextFieldValue(type, it) }
-
         // In signature files fields have to be static and final in order for them to have a
         // constant value in addition to a value.
         val constantValueProvider =
@@ -1393,7 +1391,6 @@ private constructor(
                 type = type,
                 isEnumConstant = isEnumConstant,
                 constantValueProvider = constantValueProvider,
-                fieldValue = fieldValue,
             )
         field.markForMainApiSurface()
         cl.addField(field)

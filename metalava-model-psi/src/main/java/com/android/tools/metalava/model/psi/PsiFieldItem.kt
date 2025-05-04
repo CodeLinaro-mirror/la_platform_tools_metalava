@@ -30,15 +30,12 @@ import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.isNonNullAnnotation
 import com.android.tools.metalava.model.item.DefaultFieldItem
-import com.android.tools.metalava.model.item.FieldValue
 import com.android.tools.metalava.model.value.OptionalValueProvider
 import com.android.tools.metalava.model.value.ValueUseSite
 import com.intellij.psi.PsiCallExpression
-import com.intellij.psi.PsiClassType
 import com.intellij.psi.PsiEnumConstant
 import com.intellij.psi.PsiField
 import com.intellij.psi.PsiModifierListOwner
-import com.intellij.psi.PsiPrimitiveType
 import com.intellij.psi.PsiReference
 import com.intellij.psi.impl.JavaConstantExpressionEvaluator
 import org.jetbrains.uast.UField
@@ -53,7 +50,6 @@ internal class PsiFieldItem(
     type: TypeItem,
     private val isEnumConstant: Boolean,
     constantValueProvider: OptionalValueProvider?,
-    override val legacyFieldValue: FieldValue?,
 ) :
     DefaultFieldItem(
         codebase = codebase,
@@ -68,7 +64,6 @@ internal class PsiFieldItem(
         type = type,
         isEnumConstant = isEnumConstant,
         constantValueProvider = constantValueProvider,
-        legacyFieldValue = legacyFieldValue,
     ),
     FieldItem,
     PsiItem {
@@ -104,9 +99,6 @@ internal class PsiFieldItem(
 
             val isEnumConstant = psiField is PsiEnumConstant
 
-            // Wrap the PsiField in a PsiFieldValue that can provide the field's initial value.
-            val fieldValue = PsiFieldValue(psiField)
-
             // Create a type for the field, taking into account the modifiers, whether it is an
             // enum constant and whether the field's initial value is non-null.
             val fieldType =
@@ -119,8 +111,7 @@ internal class PsiFieldItem(
                         // The initial value is non-null if the field initializer is a method that
                         // is annotated as being non-null so would produce a non-null value, or the
                         // value is a literal which is not null.
-                        psiField.isFieldInitializerNonNull() ||
-                            fieldValue.initialValue(false) != null
+                        psiField.isFieldInitializerNonNull()
                     },
                 )
 
@@ -151,7 +142,6 @@ internal class PsiFieldItem(
                 type = fieldType,
                 isEnumConstant = isEnumConstant,
                 constantValueProvider = constantValueProvider,
-                legacyFieldValue = fieldValue,
             )
         }
 
@@ -197,51 +187,40 @@ internal class PsiFieldItem(
  * [TypeNullability] is known to be [TypeNullability.NONNULL].
  */
 private fun PsiField.isFieldInitializerNonNull(): Boolean {
+    // If no initializer was provided then it cannot be non-null.
+    val initializer = initializer ?: return false
+
     // If we're looking at a final field, look on the right hand side of the field to the
     // field initialization. If that right hand side for example represents a method call,
     // and the method we're calling is annotated with @NonNull, then the field (since it is
     // final) will always be @NonNull as well.
-    val resolved =
-        when (val initializer = initializer) {
-            is PsiReference -> {
-                initializer.resolve()
-            }
-            is PsiCallExpression -> {
-                initializer.resolveMethod()
-            }
-            else -> null
-        } ?: return false
-
-    return resolved is PsiModifierListOwner &&
-        resolved.annotations.any { isNonNullAnnotation(it.qualifiedName ?: "") }
-}
-
-/**
- * Wrapper around a [PsiField] that will provide access to the initial value of the field, if
- * available, or `null` otherwise.
- */
-class PsiFieldValue(private val psiField: PsiField) : FieldValue {
-
-    override fun initialValue(requireConstant: Boolean): Any? {
-        val constant = psiField.computeConstantValue()
-        // Offset [ClsFieldImpl#computeConstantValue] for [TYPE] field in boxed primitive types.
-        // Those fields hold [Class] object, but the constant value should not be of [PsiType].
+    when (initializer) {
+        is PsiReference -> {
+            initializer.resolve()
+        }
+        is PsiCallExpression -> {
+            initializer.resolveMethod()
+        }
+        else -> null
+    }?.let { resolved ->
         if (
-            constant is PsiPrimitiveType &&
-                psiField.name == "TYPE" &&
-                (psiField.type as? PsiClassType)?.computeQualifiedName() == "java.lang.Class"
+            resolved is PsiModifierListOwner &&
+                resolved.annotations.any { isNonNullAnnotation(it.qualifiedName ?: "") }
         ) {
-            return null
-        }
-        if (constant != null) {
-            return constant
-        }
-
-        return if (!requireConstant) {
-            val initializer = psiField.initializer ?: return null
-            JavaConstantExpressionEvaluator.computeConstantExpression(initializer, false)
-        } else {
-            null
+            return true
         }
     }
+
+    // Try and compute a constant value.
+    computeConstantValue()?.let {
+        // If it was non-null then the field must be non-null.
+        return true
+    }
+
+    JavaConstantExpressionEvaluator.computeConstantExpression(initializer, false)?.let {
+        // If it was non-null then the field must be non-null.
+        return true
+    }
+
+    return false
 }

@@ -19,6 +19,7 @@ package com.android.tools.metalava.doc
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.intDefAnnotationSource
 import com.android.tools.metalava.intRangeAnnotationSource
+import com.android.tools.metalava.testing.KnownSourceFiles.floatRangeAnnotationSource
 import com.android.tools.metalava.testing.java
 import org.junit.Test
 
@@ -580,6 +581,58 @@ class DocAnalyzerRangeTest : DriverTest() {
                     """
                     )
                 )
+        )
+    }
+
+    @Test
+    fun `Test different values`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            import android.annotation.FloatRange;
+                            import android.annotation.IntRange;
+                            public class RangeTest {
+                                /**
+                                 * Blah.
+                                 */
+                                public int test1(
+                                    @IntRange(from = Integer.MIN_VALUE) int i1,
+                                    @IntRange(from = Integer.MAX_VALUE - 1) int i2,
+                                    @IntRange(from = 1L << 40) int i3,
+                                    @FloatRange(from = 10.5f) int f1,
+                                    @FloatRange(from = 10.0E112) int f2) { }
+                            }
+                        """
+                    ),
+                    floatRangeAnnotationSource,
+                    intRangeAnnotationSource,
+                ),
+            checkCompilation = true,
+            docStubs = true,
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class RangeTest {
+                            public RangeTest() { throw new RuntimeException("Stub!"); }
+                            /**
+                             * Blah.
+                             * @param i1 Value is {@link java.lang.Integer#MIN_VALUE} or greater
+                             * @param i2 Value is 2147483646 or greater
+                             * @param i3 Value is 1099511627776L or greater
+                             * @param f1 Value is 10.5f or greater
+                             * @param f2 Value is 1.0E113 or greater
+                             */
+                            public int test1(int i1, int i2, int i3, int f1, int f2) { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                ),
         )
     }
 }

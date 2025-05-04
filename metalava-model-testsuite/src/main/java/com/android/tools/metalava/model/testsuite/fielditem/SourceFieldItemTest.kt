@@ -21,7 +21,6 @@ import com.android.tools.metalava.model.value.asAny
 import com.android.tools.metalava.model.value.asInt
 import com.android.tools.metalava.testing.java
 import kotlin.test.assertEquals
-import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import org.junit.Test
 
@@ -58,8 +57,6 @@ class SourceFieldItemTest : BaseModelTest() {
                     Double.POSITIVE_INFINITY,
                     61184.toChar(),
                 )
-            assertEquals(fieldValues, classItem.fields().map { it.legacyInitialValue() })
-
             assertEquals(fieldValues, classItem.fields().map { it.constantValue?.asAny() })
         }
     }
@@ -83,9 +80,6 @@ class SourceFieldItemTest : BaseModelTest() {
             val classItem = codebase.assertClass("test.pkg.Test")
             val fieldItem1 = classItem.assertField("field1")
             val fieldItem2 = classItem.assertField("field2")
-            assertEquals(38, fieldItem1.legacyInitialValue())
-            assertEquals(91, fieldItem2.legacyInitialValue())
-
             assertEquals(38, fieldItem1.constantValue?.asInt())
             assertEquals(91, fieldItem2.constantValue?.asInt())
         }
@@ -117,9 +111,6 @@ class SourceFieldItemTest : BaseModelTest() {
             val fieldItem1 = classItem.assertField("field1")
             val fieldItem2 = classItem.assertField("field2")
 
-            assertEquals(null, fieldItem1.legacyInitialValue())
-            assertEquals(null, fieldItem2.legacyInitialValue())
-
             assertEquals(null, fieldItem1.constantValue)
             assertEquals(null, fieldItem2.constantValue)
         }
@@ -142,8 +133,6 @@ class SourceFieldItemTest : BaseModelTest() {
             val classItem = codebase.assertClass("test.pkg.Test")
             val fieldItem = classItem.assertField("ENUM1")
 
-            assertNotNull(fieldItem.legacyInitialValue())
-
             // An enum is not its own constant value.
             assertNull(fieldItem.constantValue)
         }
@@ -164,7 +153,6 @@ class SourceFieldItemTest : BaseModelTest() {
         ) {
             val classItem = codebase.assertClass("test.pkg.Test")
             val fieldItem = classItem.assertField("field")
-            assertEquals(null, fieldItem.legacyInitialValue())
 
             // TODO(b/354633349): Class literals are not supported for fields as it is not clear
             //  that is needed.
@@ -187,8 +175,6 @@ class SourceFieldItemTest : BaseModelTest() {
         ) {
             val classItem = codebase.assertClass("test.pkg.Test")
             val fieldItem = classItem.assertField("field")
-
-            assertEquals(null, fieldItem.legacyInitialValue())
 
             assertNull(fieldItem.constantValue)
         }
@@ -214,9 +200,6 @@ class SourceFieldItemTest : BaseModelTest() {
             val fieldItem1 = classItem.assertField("field1")
             val fieldItem2 = classItem.assertField("field2")
 
-            assertEquals(null, fieldItem1.legacyInitialValue())
-            assertEquals(null, fieldItem2.legacyInitialValue())
-
             assertEquals(null, fieldItem1.constantValue)
             assertEquals(null, fieldItem2.constantValue)
         }
@@ -237,7 +220,6 @@ class SourceFieldItemTest : BaseModelTest() {
         ) {
             val classItem = codebase.assertClass("test.pkg.Test")
             val fieldItem = classItem.assertField("field")
-            assertEquals(null, fieldItem.legacyInitialValue())
 
             // TODO(b/354633349): Class literals are not supported for fields as it is not clear
             //  that is needed.
@@ -279,11 +261,6 @@ class SourceFieldItemTest : BaseModelTest() {
                 message = "duplicated modifiers"
             )
             assertEquals(fieldItem.type(), duplicateField.type(), message = "duplicated types")
-            assertEquals(
-                fieldItem.legacyInitialValue(),
-                duplicateField.legacyInitialValue(),
-                message = "duplicated legacy initial value"
-            )
             assertEquals(
                 fieldItem.constantValue,
                 duplicateField.constantValue,

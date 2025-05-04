@@ -27,16 +27,15 @@ interface AnnotationManager {
      *
      * Annotations that should not be used internally are mapped to null.
      */
-    fun normalizeInputName(qualifiedName: String?): String?
+    fun normalizeInputName(qualifiedName: String): String?
 
     /**
      * Maps an annotation name to the name to be used in signatures/stubs/external annotation files.
-     * Annotations that should not be exported are mapped to null.
      */
     fun normalizeOutputName(
-        qualifiedName: String?,
+        qualifiedName: String,
         target: AnnotationTarget = AnnotationTarget.SIGNATURE_FILE
-    ): String?
+    ): String
 
     /** Returns true if [annotationName] is the name of one of the show annotations. */
     fun isShowAnnotationName(annotationName: String): Boolean = false
@@ -150,11 +149,11 @@ internal class NoOpAnnotationManager : BaseAnnotationManager() {
         return NoOpAnnotationInfo(annotationItem.qualifiedName)
     }
 
-    override fun normalizeInputName(qualifiedName: String?): String? {
+    override fun normalizeInputName(qualifiedName: String): String {
         return qualifiedName
     }
 
-    override fun normalizeOutputName(qualifiedName: String?, target: AnnotationTarget): String? {
+    override fun normalizeOutputName(qualifiedName: String, target: AnnotationTarget): String {
         return qualifiedName
     }
 

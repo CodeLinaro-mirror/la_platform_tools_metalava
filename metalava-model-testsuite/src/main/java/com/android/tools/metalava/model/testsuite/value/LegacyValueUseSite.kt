@@ -78,7 +78,7 @@ enum class LegacyValueUseSite(
             // Get the annotation to test.
             val annotation = testClassItem.modifiers.annotations().first()
 
-            // Generate the whole annotation representation.
+            // Generate the whole annotation representation, not including default values.
             val wholeAnnotation = annotation.toSource()
 
             // Extract the value from the whole annotation.
@@ -89,9 +89,6 @@ enum class LegacyValueUseSite(
     /** The value of a field. */
     FIELD_VALUE(
         ValueUseSite.FIELD,
-        legacyValueGetter = {
-            testClassItem.assertField(FIELD_NAME).legacyFieldValue?.initialValue(true)
-        },
     ),
 
     /** The value of a field written out by [FieldItem.writeValueWithSemicolon]. */

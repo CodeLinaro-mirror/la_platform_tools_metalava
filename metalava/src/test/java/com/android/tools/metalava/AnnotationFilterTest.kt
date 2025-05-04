@@ -18,8 +18,9 @@ package com.android.tools.metalava
 
 import com.android.tools.metalava.model.annotation.AnnotationFilter
 import com.android.tools.metalava.model.annotation.AnnotationFilterBuilder
+import com.android.tools.metalava.model.testing.value.annotationItem
+import com.android.tools.metalava.model.testing.value.literalValue
 import org.junit.Assert.assertEquals
-import org.junit.AssumptionViolatedException
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
@@ -42,11 +43,9 @@ class AnnotationFilterTest(private val params: Params) {
     data class Params(
         val name: String,
         val patterns: List<String>,
-        val expectedError: String? = null,
         val expectedIncludedAnnotationNames: Set<String> = emptySet(),
         val expectedEmpty: Boolean = false,
         val expectedMatchesSimple: Boolean = false,
-        val expectedMatchesImplicitValue: Boolean = false,
         val expectedMatchesNamedValue: Boolean = false,
         val expectedMatchesNamedOther: Boolean = false,
         val expectedMatchesAnnotationName: Boolean = expectedMatchesSimple,
@@ -71,7 +70,6 @@ class AnnotationFilterTest(private val params: Params) {
                     patterns = listOf("test.pkg.Annotation"),
                     expectedIncludedAnnotationNames = setOf("test.pkg.Annotation"),
                     expectedMatchesSimple = true,
-                    expectedMatchesImplicitValue = true,
                     expectedMatchesNamedValue = true,
                     expectedMatchesNamedOther = true,
                 ),
@@ -80,7 +78,6 @@ class AnnotationFilterTest(private val params: Params) {
                     patterns = listOf("test.pkg.Annotation()"),
                     expectedIncludedAnnotationNames = setOf("test.pkg.Annotation"),
                     expectedMatchesSimple = true,
-                    expectedMatchesImplicitValue = true,
                     expectedMatchesNamedValue = true,
                     expectedMatchesNamedOther = true,
                 ),
@@ -100,7 +97,6 @@ class AnnotationFilterTest(private val params: Params) {
                     name = "implicit-value",
                     patterns = listOf("""test.pkg.Annotation("value")"""),
                     expectedIncludedAnnotationNames = setOf("test.pkg.Annotation"),
-                    expectedMatchesImplicitValue = true,
                     expectedMatchesNamedValue = true,
                     expectedMatchesAnnotationName = true,
                 ),
@@ -108,7 +104,6 @@ class AnnotationFilterTest(private val params: Params) {
                     name = "named-value",
                     patterns = listOf("""test.pkg.Annotation(value = "value")"""),
                     expectedIncludedAnnotationNames = setOf("test.pkg.Annotation"),
-                    expectedMatchesImplicitValue = true,
                     expectedMatchesNamedValue = true,
                     expectedMatchesAnnotationName = true,
                 ),
@@ -132,51 +127,10 @@ class AnnotationFilterTest(private val params: Params) {
                             "other.OtherAnnotation",
                             "test.pkg.Annotation",
                         ),
-                    expectedMatchesImplicitValue = true,
                     expectedMatchesNamedValue = true,
                     expectedMatchesNamedOther = true,
                     expectedMatchesAnnotationName = true,
                     expectedMatchesOtherAnnotationName = true,
-                ),
-                Params(
-                    name = "excluding-no-attributes",
-                    patterns = listOf("!test.pkg.Annotation"),
-                    expectedError =
-                        "Exclude pattern '!test.pkg.Annotation' is invalid as it does not specify attributes",
-                ),
-                Params(
-                    name = "excluding-no-excluding",
-                    patterns =
-                        listOf(
-                            """!test.pkg.Annotation(value = "value")""",
-                            """!test.pkg.Annotation(value = "other")""",
-                        ),
-                    expectedError =
-                        "Patterns for 'test.pkg.Annotation' contains 2 excludes but no includes",
-                ),
-                Params(
-                    name = "excluding-more-specific-first",
-                    patterns =
-                        listOf(
-                            """!test.pkg.Annotation(value = "value")""",
-                            "test.pkg.Annotation",
-                        ),
-                    expectedIncludedAnnotationNames = setOf("test.pkg.Annotation"),
-                    expectedMatchesSimple = true,
-                    expectedMatchesNamedOther = true,
-                    expectedMatchesAnnotationName = true,
-                ),
-                Params(
-                    name = "excluding-more-specific-last",
-                    patterns =
-                        listOf(
-                            "test.pkg.Annotation",
-                            """!test.pkg.Annotation(value = "value")""",
-                        ),
-                    expectedIncludedAnnotationNames = setOf("test.pkg.Annotation"),
-                    expectedMatchesSimple = true,
-                    expectedMatchesNamedOther = true,
-                    expectedMatchesAnnotationName = true,
                 ),
             )
 
@@ -184,20 +138,9 @@ class AnnotationFilterTest(private val params: Params) {
     }
 
     private fun buildFilter(): AnnotationFilter {
-        var error: String? = null
-        try {
-            val builder = AnnotationFilterBuilder()
-            params.patterns.forEach(builder::add)
-            val filter = builder.build()
-            if (params.expectedError == null) {
-                return filter
-            }
-        } catch (e: IllegalStateException) {
-            error = e.message
-        }
-
-        assertEquals(params.expectedError, error)
-        throw AssumptionViolatedException("filter was not built")
+        val builder = AnnotationFilterBuilder()
+        params.patterns.forEach(builder::add)
+        return builder.build()
     }
 
     @Test
@@ -209,47 +152,38 @@ class AnnotationFilterTest(private val params: Params) {
     }
 
     @Test
-    fun `Test match simple annotation no parentheses`() {
+    fun `Test match simple annotation no attributes`() {
         val filter = buildFilter()
 
-        assertEquals(params.expectedMatchesSimple, filter.matches("test.pkg.Annotation"))
-    }
+        val annotationItem = annotationItem("test.pkg.Annotation")
 
-    @Test
-    fun `Test match simple annotation, parentheses but no arguments`() {
-        val filter = buildFilter()
-
-        assertEquals(params.expectedMatchesSimple, filter.matches("test.pkg.Annotation()"))
-    }
-
-    @Test
-    fun `Test match annotation, implicit property name`() {
-        val filter = buildFilter()
-
-        assertEquals(
-            params.expectedMatchesImplicitValue,
-            filter.matches("""test.pkg.Annotation("value")""")
-        )
+        assertEquals(params.expectedMatchesSimple, filter.matches(annotationItem))
     }
 
     @Test
     fun `Test match annotation, value property`() {
         val filter = buildFilter()
 
-        assertEquals(
-            params.expectedMatchesNamedValue,
-            filter.matches("""test.pkg.Annotation(value = "value")""")
-        )
+        val annotationItem =
+            annotationItem(
+                "test.pkg.Annotation",
+                "value" to literalValue("value"),
+            )
+
+        assertEquals(params.expectedMatchesNamedValue, filter.matches(annotationItem))
     }
 
     @Test
     fun `Test match annotation, other property`() {
         val filter = buildFilter()
 
-        assertEquals(
-            params.expectedMatchesNamedOther,
-            filter.matches("""test.pkg.Annotation(other = "other")""")
-        )
+        val annotationItem =
+            annotationItem(
+                "test.pkg.Annotation",
+                "other" to literalValue("other"),
+            )
+
+        assertEquals(params.expectedMatchesNamedOther, filter.matches(annotationItem))
     }
 
     @Test

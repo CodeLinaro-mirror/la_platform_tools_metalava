@@ -61,7 +61,7 @@ class ApiSelectionOptions(
                 .trimIndent()
     ) {
 
-    private val apiSurface by
+    internal val apiSurface by
         option(
             ARG_API_SURFACE,
             metavar = "<surface>",

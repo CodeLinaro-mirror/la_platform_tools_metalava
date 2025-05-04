@@ -31,7 +31,7 @@ class ShowAnnotationTest : DriverTest() {
     @Test
     fun `Basic showAnnotation test`() {
         check(
-            includeSystemApiAnnotations = true,
+            includeSystemApiAnnotations = SystemApiType.PRIVILEGED_APPS,
             expectedIssues =
                 "src/test/pkg/Foo.java:18: error: @SystemApi APIs must also be marked @hide: method test.pkg.Foo.method4() [UnhiddenSystemApi]",
             expectedFail = DefaultLintErrorMessage,
@@ -85,7 +85,7 @@ class ShowAnnotationTest : DriverTest() {
     @Test
     fun `Basic showAnnotation with showUnannotated test`() {
         check(
-            includeSystemApiAnnotations = true,
+            includeSystemApiAnnotations = SystemApiType.PRIVILEGED_APPS,
             showUnannotated = true,
             expectedIssues =
                 "src/test/pkg/Foo.java:18: error: @SystemApi APIs must also be marked @hide: method test.pkg.Foo.method4() [UnhiddenSystemApi]",
@@ -147,7 +147,7 @@ class ShowAnnotationTest : DriverTest() {
     @Test
     fun `Check @TestApi handling`() {
         check(
-            includeSystemApiAnnotations = true,
+            includeSystemApiAnnotations = SystemApiType.TEST,
             sourceFiles =
                 arrayOf(
                     java(
@@ -181,11 +181,6 @@ class ShowAnnotationTest : DriverTest() {
                     """
                     ),
                     testApiSource,
-                ),
-            extraArguments =
-                arrayOf(
-                    ARG_SHOW_ANNOTATION,
-                    "android.annotation.TestApi",
                 ),
             api =
                 """
@@ -270,12 +265,7 @@ class ShowAnnotationTest : DriverTest() {
                 """
             """
                     .trimIndent(),
-            includeSystemApiAnnotations = true,
-            extraArguments =
-                arrayOf(
-                    ARG_SHOW_ANNOTATION,
-                    "android.annotation.TestApi",
-                )
+            includeSystemApiAnnotations = SystemApiType.TEST,
         )
     }
 
@@ -380,9 +370,9 @@ class ShowAnnotationTest : DriverTest() {
             showAnnotations = arrayOf("android.annotation.SystemApi"),
             expectedIssues =
                 """
-                    src/test/pkg/Class1.java:8: error: Attempting to unhide method test.pkg.Class1.method1(), but surrounding class test.pkg.Class1 is hidden and should also be annotated with @android.annotation.SystemApi(client=android.annotation.SystemApi.Client.PRIVILEGED_APPS) [ShowingMemberInHiddenClass]
-                    src/test/pkg/Class1.java:12: error: Attempting to unhide class test.pkg.Class1.InnerClass1, but surrounding class test.pkg.Class1 is hidden and should also be annotated with @android.annotation.SystemApi(client=android.annotation.SystemApi.Client.PRIVILEGED_APPS) [ShowingMemberInHiddenClass]
-                    src/test/pkg/Class2.java:11: error: Attempting to unhide method test.pkg.Class2.InnerClass2.method2(), but surrounding class test.pkg.Class2.InnerClass2 is hidden and should also be annotated with @android.annotation.SystemApi(client=android.annotation.SystemApi.Client.PRIVILEGED_APPS) [ShowingMemberInHiddenClass]
+                    src/test/pkg/Class1.java:8: error: Attempting to unhide method test.pkg.Class1.method1(), but surrounding class test.pkg.Class1 is hidden and should also be annotated with @android.annotation.SystemApi [ShowingMemberInHiddenClass]
+                    src/test/pkg/Class1.java:12: error: Attempting to unhide class test.pkg.Class1.InnerClass1, but surrounding class test.pkg.Class1 is hidden and should also be annotated with @android.annotation.SystemApi [ShowingMemberInHiddenClass]
+                    src/test/pkg/Class2.java:11: error: Attempting to unhide method test.pkg.Class2.InnerClass2.method2(), but surrounding class test.pkg.Class2.InnerClass2 is hidden and should also be annotated with @android.annotation.SystemApi [ShowingMemberInHiddenClass]
                 """,
             expectedFail = DefaultLintErrorMessage,
         )

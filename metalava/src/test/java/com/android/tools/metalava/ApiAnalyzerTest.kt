@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
@@ -732,11 +733,10 @@ class ApiAnalyzerTest : DriverTest() {
 
     @Test
     fun `Test propagation of @hide through package and class nesting`() {
-        //
         check(
             // Include system API annotations as a show annotation overrides hidden on a class that
             // is in a hidden package.
-            includeSystemApiAnnotations = true,
+            includeSystemApiAnnotations = SystemApiType.PRIVILEGED_APPS,
             // This is set to true so any class that is incorrectly unhidden will be included in the
             // generated API and fail the test.
             showUnannotated = true,
@@ -796,6 +796,7 @@ class ApiAnalyzerTest : DriverTest() {
                             public class C {}
                         """
                     ),
+                    KnownSourceFiles.systemApiSource,
                 ),
             api =
                 """

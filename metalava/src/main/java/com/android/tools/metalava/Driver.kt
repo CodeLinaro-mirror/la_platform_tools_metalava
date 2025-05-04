@@ -552,8 +552,12 @@ private fun ActionContext.checkCompatibility(
             signatureFileCache.load(signatureFiles, classResolverProvider.classResolver)
         }
 
-    // If configured, compares the new API with the previous API and reports
-    // any incompatibilities.
+    val apiName =
+        if (apiType == ApiType.REMOVED) {
+            "removed"
+        } else options.apiSelectionOptions.apiSurface
+
+    // If configured, compares the new API with the previous API and reports any incompatibilities.
     CompatibilityCheck.checkCompatibility(
         newCodebase,
         oldCodebase,
@@ -561,6 +565,7 @@ private fun ActionContext.checkCompatibility(
         reporter,
         options.issueConfiguration,
         options.apiCompatAnnotations,
+        apiName,
     )
 }
 

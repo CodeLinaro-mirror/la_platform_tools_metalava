@@ -35,8 +35,8 @@ import com.android.tools.metalava.model.value.CachingAnnotationValueProvider
 import com.android.tools.metalava.model.value.CachingValueProvider
 import com.android.tools.metalava.model.value.ClassObjectValue
 import com.android.tools.metalava.model.value.CombinedValueProvider
-import com.android.tools.metalava.model.value.ConstantFieldValue
 import com.android.tools.metalava.model.value.ConstantValue
+import com.android.tools.metalava.model.value.FieldReferenceValue
 import com.android.tools.metalava.model.value.ImplementationValueToModelFactory
 import com.android.tools.metalava.model.value.Value
 import com.android.tools.metalava.model.value.ValueFactory
@@ -63,6 +63,7 @@ import org.jetbrains.uast.UClassLiteralExpression
 import org.jetbrains.uast.UExpression
 import org.jetbrains.uast.ULiteralExpression
 import org.jetbrains.uast.UQualifiedReferenceExpression
+import org.jetbrains.uast.UResolvable
 import org.jetbrains.uast.USimpleNameReferenceExpression
 import org.jetbrains.uast.UastCallKind
 import org.jetbrains.uast.UastQualifiedExpressionAccessType
@@ -204,6 +205,7 @@ internal class PsiValueFactory(
         uExpression: UExpression
     ): ArrayElementValue? {
         when (uExpression) {
+            // Handle a qualified reference, i.e. one of the form <receiver>.<selector>.
             is UQualifiedReferenceExpression -> {
                 // Check to see if it is a class literal and if so then create a ClassObjectValue
                 // and return it, otherwise drop through.
@@ -211,10 +213,15 @@ internal class PsiValueFactory(
                     return it
                 }
 
-                // Resolve it and convert it to a Value if possible.
-                val resolved = uExpression.resolve()
-                // Try and convert the resolved PsiElement to a Value and return it if succeeded.
-                resolvedPsiElementToValue(optionalTypeItem, resolved)?.let {
+                // Try and resolve it and convert to a value.
+                uResolvableToValue(optionalTypeItem, uExpression)?.let {
+                    return it
+                }
+            }
+            // Handle an unqualified reference, i.e. one of the form <identifier>.
+            is USimpleNameReferenceExpression -> {
+                // Try and resolve it and convert to a value.
+                uResolvableToValue(optionalTypeItem, uExpression)?.let {
                     return it
                 }
             }
@@ -291,6 +298,22 @@ internal class PsiValueFactory(
             else unboxedTypeItem
 
         return createClassObjectValue(classLiteralTypeItem)
+    }
+
+    /** Try and convert a [UResolvable] to an [ArrayElementValue]. */
+    private fun uResolvableToValue(
+        optionalTypeItem: TypeItem?,
+        uResolvable: UResolvable
+    ): ArrayElementValue? {
+        // Resolve it and convert it to a Value if possible.
+        val resolved = uResolvable.resolve()
+
+        // Try and convert the resolved PsiElement to a Value and return it if succeeded.
+        resolvedPsiElementToValue(optionalTypeItem, resolved)?.let {
+            return it
+        }
+
+        return null
     }
 
     /**
@@ -551,7 +574,7 @@ internal class PsiValueFactory(
      * Try and convert the [resolved] [PsiElement] to an [ArrayElementValue].
      *
      * If [resolved] is a [PsiField] and it is not an enum constant then it will call
-     * [FieldItem.constantValue] to find the [ConstantValue] for the [ConstantFieldValue].
+     * [FieldItem.constantValue] to find the [ConstantValue] for the [FieldReferenceValue].
      */
     private fun resolvedPsiElementToValue(
         optionalTypeItem: TypeItem?,

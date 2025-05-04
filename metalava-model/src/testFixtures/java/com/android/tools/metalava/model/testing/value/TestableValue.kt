@@ -22,15 +22,13 @@ import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.asAnnotationAttributeValue
-import com.android.tools.metalava.model.testing.classTypeItem
 import com.android.tools.metalava.model.testing.primitiveTypeForKind
 import com.android.tools.metalava.model.value.AnnotationValue
 import com.android.tools.metalava.model.value.ArrayElementValue
 import com.android.tools.metalava.model.value.ArrayValue
 import com.android.tools.metalava.model.value.ClassObjectValue
-import com.android.tools.metalava.model.value.ConstantFieldValue
 import com.android.tools.metalava.model.value.ConstantValue
-import com.android.tools.metalava.model.value.EnumConstantValue
+import com.android.tools.metalava.model.value.FieldReferenceValue
 import com.android.tools.metalava.model.value.LiteralValue
 import com.android.tools.metalava.model.value.PrimitiveValue
 import com.android.tools.metalava.model.value.Value
@@ -60,20 +58,14 @@ fun arrayValue(vararg values: ArrayElementValue) = Value.createArrayValue(values
 fun classObjectValue(typeItem: TypeItem) = Value.createClassObjectValue(typeItem)
 
 /**
- * Create a [ConstantFieldValue] called [fieldName] in [qualifiedClassName] with an optional
+ * Create a [FieldReferenceValue] called [fieldName] in [qualifiedClassName] with an optional
  * [constantValue].
  */
-fun constantFieldValue(
+fun fieldReferenceValue(
     qualifiedClassName: String,
     fieldName: String,
     constantValue: ConstantValue? = null
-) = Value.createConstantFieldValue(classTypeItem(qualifiedClassName), fieldName, constantValue)
-
-/** Create an [EnumConstantValue] called [fieldName] in [qualifiedClassName]. */
-fun enumConstantValue(
-    qualifiedClassName: String,
-    fieldName: String,
-) = Value.createEnumConstantValue(classTypeItem(qualifiedClassName), fieldName)
+) = Value.createFieldReferenceValue(qualifiedClassName, fieldName, constantValue)
 
 /** Create an [AnnotationValue] from [source]. */
 fun annotationValueFromSource(source: String) =
@@ -82,22 +74,23 @@ fun annotationValueFromSource(source: String) =
     )
 
 fun annotationValue(qualifiedClassName: String, vararg attributes: Pair<String, Value>) =
-    Value.createAnnotationValue(
-        DefaultAnnotationItem.createAttributesLazily(
-            AnnotationContext.DEFAULT_RESOLVE_NULL,
-            FileLocation.UNKNOWN,
-            qualifiedClassName,
-            {
-                attributes.map { (name, value) ->
-                    DefaultAnnotationAttribute(
-                        name,
-                        value.provider(),
-                        value.asAnnotationAttributeValue(),
-                    )
-                }
+    Value.createAnnotationValue(annotationItem(qualifiedClassName, *attributes))
+
+fun annotationItem(qualifiedClassName: String, vararg attributes: Pair<String, Value>) =
+    DefaultAnnotationItem.createAttributesLazily(
+        AnnotationContext.DEFAULT_RESOLVE_NULL,
+        FileLocation.UNKNOWN,
+        qualifiedClassName,
+        {
+            attributes.map { (name, value) ->
+                DefaultAnnotationAttribute(
+                    name,
+                    value.provider(),
+                    value.asAnnotationAttributeValue(),
+                )
             }
-        )!!
-    )
+        }
+    )!!
 
 /**
  * The set of [ValueKind]s that are fully supported across models and so will be tested rigorously,
@@ -111,8 +104,7 @@ private val fullySupportedValueKinds =
         addAll(ValueKind.LITERAL_KINDS)
         add(ValueKind.ARRAY)
         add(ValueKind.CLASS)
-        add(ValueKind.CONSTANT_FIELD)
-        add(ValueKind.ENUM)
+        add(ValueKind.FIELD)
     }
 
 /**

@@ -20,6 +20,7 @@ import com.android.tools.lint.checks.infrastructure.TestFiles
 import com.android.tools.metalava.ARG_CURRENT_CODENAME
 import com.android.tools.metalava.ARG_CURRENT_VERSION
 import com.android.tools.metalava.DriverTest
+import com.android.tools.metalava.SystemApiType
 import com.android.tools.metalava.columnSource
 import com.android.tools.metalava.lint.DefaultLintErrorMessage
 import com.android.tools.metalava.model.provider.Capability
@@ -919,7 +920,7 @@ class DocAnalyzerTest : DriverTest() {
                     ARG_CURRENT_VERSION,
                     "35" // not real api level of Z
                 ),
-            includeSystemApiAnnotations = true,
+            includeSystemApiAnnotations = SystemApiType.PRIVILEGED_APPS,
             sourceFiles =
                 arrayOf(
                     java(
@@ -981,7 +982,6 @@ class DocAnalyzerTest : DriverTest() {
                     ARG_CURRENT_CODENAME,
                     "Z",
                 ),
-            includeSystemApiAnnotations = true,
             sourceFiles =
                 arrayOf(
                     java(

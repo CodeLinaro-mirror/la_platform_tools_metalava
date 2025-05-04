@@ -517,9 +517,9 @@ private constructor(
 
         // Get the flag value, should be a reference to a constant field.
         val flagValue = attr.value
-        if (flagValue.kind != ValueKind.CONSTANT_FIELD) {
-            // It is not a reference to a constant field so get the string value and try and see if
-            // the field could be found.
+        if (flagValue.kind != ValueKind.FIELD) {
+            // It is not a reference to a field so get the string value and try and see if the field
+            // could be found.
             val value = flagValue.asString()
 
             // Reverse engineer the string value to a field reference and resolve it to a FieldItem,
