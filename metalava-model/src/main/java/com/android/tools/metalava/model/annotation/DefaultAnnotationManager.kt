@@ -512,7 +512,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
         }
 
         if (cls.isAnnotationType()) {
-            val retention = cls.getRetention()
+            val retention = cls.annotationClass.retention
             if (
                 retention == AnnotationRetention.RUNTIME ||
                     retention == AnnotationRetention.CLASS ||

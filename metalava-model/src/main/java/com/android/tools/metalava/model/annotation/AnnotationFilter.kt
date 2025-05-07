@@ -16,13 +16,12 @@
 
 package com.android.tools.metalava.model.annotation
 
-import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
-import com.android.tools.metalava.model.AnnotationArrayAttributeValue
-import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationContext
 import com.android.tools.metalava.model.AnnotationItem
-import com.android.tools.metalava.model.AnnotationSingleAttributeValue
 import com.android.tools.metalava.model.DefaultAnnotationItem
+import com.android.tools.metalava.model.value.ArrayElementValue
+import com.android.tools.metalava.model.value.ArrayValue
+import com.android.tools.metalava.model.value.Value
 import java.util.TreeMap
 
 interface AnnotationFilter {
@@ -88,8 +87,8 @@ private class ImmutableAnnotationFilter(
     override fun matches(annotation: AnnotationItem): Boolean {
         val qualifiedName = annotation.qualifiedName
         // If the annotation name is not in the map of annotation names that can be matched then
-        // this can never match so return immediately rather than generating the source
-        // representation of the annotation.
+        // this can never match so return immediately rather than generating a entry for the
+        // annotation.
         if (qualifiedName !in qualifiedNameToEntries) {
             return false
         }
@@ -120,56 +119,46 @@ private class ImmutableAnnotationFilter(
         filter: AnnotationFilterEntry,
         existingAnnotation: AnnotationFilterEntry
     ): Boolean {
-        if (filter.attributes.count() > existingAnnotation.attributes.count()) {
+        // The annotation must have an attribute for each attribute in the filter.
+        if (filter.attributes.size > existingAnnotation.attributes.size) {
             return false
         }
-        for (attribute in filter.attributes) {
-            val existingValue = existingAnnotation.findAttribute(attribute.name)?.legacyValue
-            val existingValueSource = existingValue?.toSource()
-            val attributeValueSource = attribute.legacyValue.toSource()
-            if (attribute.name == "value") {
-                // Special-case where varargs value annotation attribute can be specified with
-                // either @Foo(BAR) or @Foo({BAR}) and they are equivalent.
-                when {
-                    attribute.legacyValue is AnnotationSingleAttributeValue &&
-                        existingValue is AnnotationArrayAttributeValue -> {
-                        if (existingValueSource != "{$attributeValueSource}") return false
-                    }
-                    attribute.legacyValue is AnnotationArrayAttributeValue &&
-                        existingValue is AnnotationSingleAttributeValue -> {
-                        if ("{$existingValueSource}" != attributeValueSource) return false
-                    }
-                    else -> {
-                        if (existingValueSource != attributeValueSource) return false
-                    }
-                }
-            } else {
-                if (existingValueSource != attributeValueSource) {
-                    return false
-                }
-            }
+
+        // The annotation must have the same value as every filter attribute.
+        val annotationAttributes = existingAnnotation.attributes
+        return filter.attributes.all { (attributeName, filterValue) ->
+            filterValue == annotationAttributes[attributeName]
         }
-        return true
     }
 }
 
-// An AnnotationFilterEntry filters for annotations having a certain qualifiedName and
-// possibly certain attributes.
-// An AnnotationFilterEntry doesn't necessarily have a Codebase like an AnnotationItem does
-private class AnnotationFilterEntry(
+/**
+ * An [AnnotationFilterEntry] filters for annotations having a certain [qualifiedName] and possibly
+ * certain [attributes].
+ *
+ * An [AnnotationFilterEntry] does not have a Codebase like an [AnnotationItem] does.
+ */
+private class AnnotationFilterEntry
+private constructor(
     val qualifiedName: String,
-    val attributes: List<AnnotationAttribute>
+    val attributes: Map<String, Value>,
 ) {
-    fun findAttribute(name: String?): AnnotationAttribute? {
-        val actualName = name ?: ANNOTATION_ATTR_VALUE
-        return attributes.firstOrNull { it.name == actualName }
-    }
-
     companion object {
-        fun fromSource(source: String): AnnotationFilterEntry {
-            val text = source.replace("@", "")
-            return fromOption(text)
-        }
+        /** Normalize this [Value] to simplify comparison. */
+        private fun Value.normalizeValue(): Value =
+            when (this) {
+                is ArrayValue -> {
+                    val size = elements.size
+                    when (size) {
+                        0 -> this
+                        // Replace an array containing a single value with the normalized value.
+                        1 -> elements[0]
+                        // Normalize the elements of the array.
+                        else -> Value.createArrayValue(elements)
+                    }
+                }
+                is ArrayElementValue -> this
+            }
 
         fun fromOption(text: String): AnnotationFilterEntry {
             val annotationItem =
@@ -180,21 +169,23 @@ private class AnnotationFilterEntry(
                     "@$text"
                 ) ?: error("Could not construct annotation from `$text`")
 
-            val qualifiedName = annotationItem.qualifiedName
-            val attributes = annotationItem.attributes
-            return AnnotationFilterEntry(qualifiedName, attributes)
+            return fromAnnotationItem(annotationItem)
         }
 
         fun fromAnnotationItem(annotationItem: AnnotationItem): AnnotationFilterEntry {
-            // Have to call toSource to resolve attribute values into fully qualified class names.
-            // For example: resolving RestrictTo(LIBRARY_GROUP) into
-            // RestrictTo(androidx.annotation.RestrictTo.Scope.LIBRARY_GROUP)
-            // In addition, toSource (with the default argument showDefaultAttrs=true) retrieves
-            // default attributes from the definition of the annotation. For example,
-            // @SystemApi actually is converted into @android.annotation.SystemApi(\
-            // client=android.annotation.SystemApi.Client.PRIVILEGED_APPS,\
-            // process=android.annotation.SystemApi.Process.ALL)
-            return fromSource(annotationItem.toSource(showDefaultAttrs = true))
+            val qualifiedName = annotationItem.qualifiedName
+
+            // Create a map from attribute name to normalized value.
+            val attributes =
+                annotationItem.attributes.associateBy({ it.name }) { it.value.normalizeValue() }
+
+            // Merge in any default values.
+            val withDefaults =
+                annotationItem.annotationContext
+                    .defaultsForAnnotationClass(annotationItem.qualifiedName)
+                    .apply(attributes)
+
+            return AnnotationFilterEntry(qualifiedName, withDefaults)
         }
     }
 }

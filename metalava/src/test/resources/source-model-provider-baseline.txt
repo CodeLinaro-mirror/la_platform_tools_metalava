@@ -1,15 +1,9 @@
-com.android.tools.metalava.AndroidApiChecksTest
-  Document Permissions[turbine]
-
 com.android.tools.metalava.AnnotationsMergerTest
-  Merge Contract and Language annotations from XML files[turbine]
-  Merge Contract and Language annotations from signature files[turbine]
   Merge type use qualifier annotations from Java stub files[turbine]
   Signature files contain annotations[turbine]
 
 com.android.tools.metalava.ApiAnalyzerTest
   Test PrivateSuperclass for inner class[turbine]
-  Test propagation of @hide through package and class nesting[turbine]
   Test references deprecated errors do not apply to inner class of deprecated class[turbine]
   Test that usage of effectively deprecated class is flagged[turbine]
 
@@ -30,19 +24,12 @@ com.android.tools.metalava.DuplicateClassTest
   Test duplicate classes[turbine]
 
 com.android.tools.metalava.ExtractAnnotationsTest
-  Check java typedef extraction and warning about non-source retention of typedefs[turbine]
   Check warning about unexpected returns from typedef method[turbine]
-  Extract annotations from class[turbine]
-  Extract permission annotations[turbine]
-  Include merged annotations in exported source annotations[turbine]
   Inlining typedef signatures in api files[turbine]
-  Only including class retention annotations in stubs[turbine]
-  Test annotations on inherited methods[turbine]
-  Test generics in XML attributes are encoded[turbine]
-  Test string literal encoding[turbine]
 
 com.android.tools.metalava.FlaggedApiEdgeCasesTest
   Test javadoc for flagged class includes @apiSince[turbine]
+  Test unresolvable flag field[turbine]
 
 com.android.tools.metalava.Java9LanguageFeaturesTest
   Basic class signature extraction[turbine]
@@ -71,26 +58,6 @@ com.android.tools.metalava.NormalizeOutputAnnotationTest
 com.android.tools.metalava.NullabilityAnnotationsValidatorTest
   Using class list[turbine]
 
-com.android.tools.metalava.NullnessMigrationTest
-  Merge nullness annotations in stubs that are not in the API signature file[turbine]
-
-com.android.tools.metalava.ParameterizedFlaggedApiTest
-  Basic test that FlaggedApi annotated items can be hidden[turbine,system finalize foo_bar]
-  Basic test that FlaggedApi annotated items can be hidden[turbine,system keep all]
-  Test that annotated class members are handled correctly when flagged APIs are hidden[turbine,system finalize foo_bar]
-  Test that annotated class members are handled correctly when flagged APIs are hidden[turbine,system keep all]
-  Test that cross references are handled correctly when flagged APIs are hidden[turbine,system finalize foo_bar]
-  Test that cross references are handled correctly when flagged APIs are hidden[turbine,system keep all]
-  Test that method overrides are handled correctly when flagged APIs are hidden[turbine,system finalize foo_bar]
-  Test that method overrides are handled correctly when flagged APIs are hidden[turbine,system keep all]
-  Test that previously released APIs which are now system and flagged are not removed[turbine,module_lib finalize foo_bar]
-  Test that previously released APIs which are now system and flagged are not removed[turbine,module_lib keep all]
-  Test that previously released APIs which are now system and flagged are not removed[turbine,system finalize foo_bar]
-  Test that previously released APIs which are now system and flagged are not removed[turbine,system keep all]
-
-com.android.tools.metalava.ParameterizedSelectedApiVariantsTest
-  Test previously released codebases[turbine,base]
-
 com.android.tools.metalava.PolymorphicMethodsTest
   Test MethodHandle[turbine]
   Test VarHandle[turbine]
@@ -103,10 +70,7 @@ com.android.tools.metalava.RequiresFeatureTest
   Check RequiresFeature handling[turbine]
 
 com.android.tools.metalava.ShowAnnotationTest
-  Basic showAnnotation test[turbine]
-  Basic showAnnotation with showUnannotated test[turbine]
   Testing parsing an annotation whose attribute references the annotated class[turbine]
-  showAnnotation with default parameters[turbine]
 
 com.android.tools.metalava.SyntaxErrorTest
   Invalid syntax[turbine]
@@ -129,10 +93,8 @@ com.android.tools.metalava.compatibility.CompatibilityCheckTest
   Conversion from MutableCollection to AbstractMutableCollection is not API-breaking[turbine]
   Empty bundle files[turbine]
   Expected API changes converting collections to Kotlin[turbine]
-  Incompatible Changes in Released System API [turbine]
   Incompatible method change -- final[turbine]
   No issues using the same classpath class twice[turbine]
-  Partial text file which references inner classes not listed elsewhere[turbine]
   Removed method from classpath[turbine]
 
 com.android.tools.metalava.doc.DocAnalyzerRangeTest

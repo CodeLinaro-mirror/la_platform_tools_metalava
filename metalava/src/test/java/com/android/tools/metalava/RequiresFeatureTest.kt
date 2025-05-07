@@ -117,7 +117,7 @@ class RequiresFeatureTest : DriverTest() {
             expectedText =
                 "Requires the PackageManager#FEATURE_HIDDEN feature which can be detected using {@link android.content.pm.PackageManager#hasSystemFeature(String) PackageManager.hasSystemFeature(String)}.",
             expectedIssues =
-                "src/test/pkg/FeatureUser.java:6: error: Feature field PackageManager.FEATURE_HIDDEN required by class test.pkg.FeatureUser is hidden or removed [MissingPermission]",
+                "src/test/pkg/FeatureUser.java:6: error: Feature field android.content.pm.PackageManager.FEATURE_HIDDEN required by class test.pkg.FeatureUser is hidden or removed [MissingPermission]",
         )
     }
 

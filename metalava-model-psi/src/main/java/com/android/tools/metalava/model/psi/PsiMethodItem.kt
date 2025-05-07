@@ -32,6 +32,7 @@ import com.android.tools.metalava.model.item.ParameterItemsFactory
 import com.android.tools.metalava.model.psi.PsiCallableItem.Companion.parameterList
 import com.android.tools.metalava.model.psi.PsiCallableItem.Companion.throwsTypes
 import com.android.tools.metalava.model.type.MethodFingerprint
+import com.android.tools.metalava.model.value.CombinedValueProvider
 import com.android.tools.metalava.model.value.OptionalValueProvider
 import com.android.tools.metalava.model.value.ValueUseSite
 import com.android.tools.metalava.reporter.FileLocation
@@ -242,28 +243,7 @@ internal class PsiMethodItem(
                     isAnnotationElement = isAnnotationElement,
                 )
 
-            val defaultValueProvider =
-                when (psiMethod) {
-                    is UAnnotationMethod -> {
-                        psiMethod.uastDefaultValue?.let { uDefaultValue ->
-                            codebase.valueFactory.providerFor(
-                                returnType,
-                                uDefaultValue,
-                                ValueUseSite.ANNOTATION,
-                            )
-                        }
-                    }
-                    is PsiAnnotationMethod -> {
-                        psiMethod.defaultValue?.let { psiDefaultValue ->
-                            codebase.valueFactory.providerFor(
-                                returnType,
-                                psiDefaultValue,
-                                ValueUseSite.ANNOTATION,
-                            )
-                        }
-                    }
-                    else -> null
-                }
+            val defaultValueProvider = psiMethod.defaultValueProvider(codebase, returnType)
 
             val method =
                 PsiMethodItem(
@@ -291,4 +271,33 @@ internal class PsiMethodItem(
             return method
         }
     }
+}
+
+internal fun PsiMethod.defaultValueProvider(
+    codebase: PsiBasedCodebase,
+    returnType: TypeItem
+): CombinedValueProvider? {
+    val defaultValueProvider =
+        when (this) {
+            is UAnnotationMethod -> {
+                uastDefaultValue?.let { uDefaultValue ->
+                    codebase.valueFactory.providerFor(
+                        returnType,
+                        uDefaultValue,
+                        ValueUseSite.ANNOTATION,
+                    )
+                }
+            }
+            is PsiAnnotationMethod -> {
+                defaultValue?.let { psiDefaultValue ->
+                    codebase.valueFactory.providerFor(
+                        returnType,
+                        psiDefaultValue,
+                        ValueUseSite.ANNOTATION,
+                    )
+                }
+            }
+            else -> null
+        }
+    return defaultValueProvider
 }

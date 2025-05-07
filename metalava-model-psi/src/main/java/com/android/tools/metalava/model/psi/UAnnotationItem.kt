@@ -27,8 +27,6 @@ import com.android.tools.metalava.model.DefaultAnnotationArrayAttributeValue
 import com.android.tools.metalava.model.DefaultAnnotationAttribute
 import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.DefaultAnnotationSingleAttributeValue
-import com.android.tools.metalava.model.Item
-import com.intellij.psi.PsiAnnotationMethod
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiExpression
 import com.intellij.psi.PsiField
@@ -57,12 +55,10 @@ private constructor(
         fileLocation = PsiFileLocation.fromPsiElement(uAnnotation.sourcePsi),
         originalName = originalName,
         qualifiedName = qualifiedName,
-        attributesGetter = { annotationItem ->
-            getAnnotationAttributes(annotationContext, annotationItem, uAnnotation)
-        },
+        attributesGetter = { getAnnotationAttributes(annotationContext, uAnnotation) },
     ) {
 
-    override fun toSource(target: AnnotationTarget, showDefaultAttrs: Boolean): String {
+    override fun toSource(target: AnnotationTarget): String {
         val sb = StringBuilder(60)
         appendAnnotation(
             annotationContext,
@@ -70,7 +66,6 @@ private constructor(
             uAnnotation,
             qualifiedName,
             target,
-            showDefaultAttrs
         )
         return sb.toString()
     }
@@ -88,16 +83,16 @@ private constructor(
     companion object {
         private fun getAnnotationAttributes(
             codebase: PsiBasedCodebase,
-            annotationItem: AnnotationItem,
             uAnnotation: UAnnotation
-        ): List<AnnotationAttribute> =
-            uAnnotation.attributeValues
+        ): List<AnnotationAttribute> {
+            val annotationPsiClass = uAnnotation.resolve()
+            return uAnnotation.attributeValues
                 .map { attribute ->
                     val name = attribute.name ?: ANNOTATION_ATTR_VALUE
                     DefaultAnnotationAttribute(
                         name,
                         codebase.valueFactory.providerForAnnotationValue(
-                            annotationItem,
+                            annotationPsiClass,
                             name,
                             attribute.expression
                         ),
@@ -105,6 +100,7 @@ private constructor(
                     )
                 }
                 .toList()
+        }
 
         fun create(
             codebase: PsiBasedCodebase,
@@ -127,38 +123,16 @@ private constructor(
             )
         }
 
-        private fun getAttributes(
-            annotation: UAnnotation,
-            showDefaultAttrs: Boolean
-        ): List<Pair<String?, UExpression?>> {
-            val annotationClass = annotation.javaPsi?.nameReferenceElement?.resolve() as? PsiClass
-            val list = mutableListOf<Pair<String?, UExpression?>>()
-            if (annotationClass != null && showDefaultAttrs) {
-                for (method in annotationClass.methods) {
-                    if (method !is PsiAnnotationMethod) {
-                        continue
-                    }
-                    list.add(Pair(method.name, annotation.findAttributeValue(method.name)))
-                }
-            } else {
-                for (attr in annotation.attributeValues) {
-                    list.add(Pair(attr.name, attr.expression))
-                }
-            }
-            return list
-        }
-
         private fun appendAnnotation(
             codebase: PsiBasedCodebase,
             sb: StringBuilder,
             uAnnotation: UAnnotation,
             originalName: String,
             target: AnnotationTarget,
-            showDefaultAttrs: Boolean
         ) {
             val qualifiedName = codebase.annotationManager.normalizeOutputName(originalName, target)
 
-            val attributes = getAttributes(uAnnotation, showDefaultAttrs)
+            val attributes = uAnnotation.attributeValues
             if (attributes.isEmpty()) {
                 sb.append("@$qualifiedName")
                 return
@@ -169,10 +143,10 @@ private constructor(
             sb.append("(")
             if (
                 attributes.size == 1 &&
-                    (attributes[0].first == null || attributes[0].first == ANNOTATION_ATTR_VALUE)
+                    (attributes[0].name == null || attributes[0].name == ANNOTATION_ATTR_VALUE)
             ) {
                 // Special case: omit "value" if it's the only attribute
-                appendValue(codebase, sb, attributes[0].second, target, showDefaultAttrs)
+                appendValue(codebase, sb, attributes[0].expression, target)
             } else {
                 var first = true
                 for (attribute in attributes) {
@@ -181,9 +155,9 @@ private constructor(
                     } else {
                         sb.append(", ")
                     }
-                    sb.append(attribute.first ?: ANNOTATION_ATTR_VALUE)
+                    sb.append(attribute.name ?: ANNOTATION_ATTR_VALUE)
                     sb.append('=')
-                    appendValue(codebase, sb, attribute.second, target, showDefaultAttrs)
+                    appendValue(codebase, sb, attribute.expression, target)
                 }
             }
             sb.append(")")
@@ -194,7 +168,6 @@ private constructor(
             sb: StringBuilder,
             value: UExpression?,
             target: AnnotationTarget,
-            showDefaultAttrs: Boolean
         ) {
             // Compute annotation string -- we don't just use value.text here
             // because that may not use fully qualified names, e.g. the source may say
@@ -243,7 +216,7 @@ private constructor(
                             } else {
                                 sb.append(", ")
                             }
-                            appendValue(codebase, sb, initializer, target, showDefaultAttrs)
+                            appendValue(codebase, sb, initializer, target)
                         }
                         sb.append('}')
                         return
@@ -360,16 +333,6 @@ internal class UAnnotationSingleAttributeValue(
 
             return getText(psiValue).removeSurrounding("\"")
         }
-    }
-
-    override fun resolve(): Item? {
-        if (psiValue is UReferenceExpression) {
-            when (val resolved = psiValue.resolve()) {
-                is PsiField -> return codebase.findField(resolved)
-                is PsiClass -> return codebase.findOrCreateClass(resolved)
-            }
-        }
-        return null
     }
 }
 

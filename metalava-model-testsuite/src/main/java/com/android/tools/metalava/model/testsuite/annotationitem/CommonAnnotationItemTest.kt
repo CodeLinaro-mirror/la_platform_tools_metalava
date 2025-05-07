@@ -26,12 +26,19 @@ import com.android.tools.metalava.model.getAttributeValue
 import com.android.tools.metalava.model.getAttributeValues
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
+import com.android.tools.metalava.model.testing.value.arrayValue
+import com.android.tools.metalava.model.testing.value.assertValuesAreStrictlyEqual
+import com.android.tools.metalava.model.testing.value.fieldReferenceValue
 import com.android.tools.metalava.model.testsuite.BaseModelTest
+import com.android.tools.metalava.model.value.FieldReferenceValue
+import com.android.tools.metalava.model.value.Value
 import com.android.tools.metalava.reporter.FileLocation
+import com.android.tools.metalava.reporter.RecordingReporter
 import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import kotlin.test.assertEquals
+import kotlin.test.assertSame
 import org.junit.Test
 
 /** Annotation that is added on a line before the item being annotated. */
@@ -683,8 +690,8 @@ class CommonAnnotationItemTest : BaseModelTest() {
                       }
 
                       public @interface Test.Anno {
-                          method public Enum stringValue();
-                          method public Enum[] stringArrayValue();
+                          method public Enum enumValue();
+                          method public Enum[] enumArrayValue();
                       }
 
                       public enum Enum {
@@ -727,6 +734,17 @@ class CommonAnnotationItemTest : BaseModelTest() {
                 "enumArrayValue",
                 listOf("test.pkg.Enum.ENUM1", "test.pkg.Enum.ENUM2")
             )
+
+            // Make sure that the enum value resolves to the enum field.
+            val enumValue = anno.assertAttribute("enumValue").value as FieldReferenceValue
+            val enum1Field = codebase.assertClass("test.pkg.Enum").assertField("ENUM1")
+            assertSame(enum1Field, enumValue.resolve(), message = "enumValue.resolve()")
+
+            val enumArrayValue =
+                anno.assertAttribute("enumArrayValue").value.asFlatList().map {
+                    it as FieldReferenceValue
+                }
+            assertSame(enum1Field, enumArrayValue[0].resolve(), "enumArrayValue[0].resolve()")
         }
     }
 
@@ -770,6 +788,92 @@ class CommonAnnotationItemTest : BaseModelTest() {
             val anno = testClass.modifiers.annotations().single()
 
             anno.assertAttributeValue("value", 5)
+        }
+    }
+
+    @Test
+    fun `annotation with unknown field`() {
+        val reporter = RecordingReporter()
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      @test.pkg.Test.Anno(
+                          intValue = other.pkg.TestEnum.UNKNOWN,
+                          intArrayValue = {TestEnum.UNKNOWN, UNKNOWN},
+                      )
+                      public class Test {
+                        ctor public Test();
+                      }
+
+                      public @interface Test.Anno {
+                          method public int intValue();
+                          method public int[] intArrayValue();
+                      }
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+                    import other.pkg.TestEnum;
+                    import static other.pkg.TestEnum.UNKNOWN;
+
+                    @Test.Anno(
+                      intValue = other.pkg.TestEnum.UNKNOWN,
+                      intArrayValue = {TestEnum.UNKNOWN, UNKNOWN}
+                    )
+                    public class Test {
+                        public Test() {}
+
+                        public @interface Anno {
+                          int intValue();
+                          int[] intArrayValue();
+                        }
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+                    import other.pkg.TestEnum
+                    import other.pkg.TestEnum.UNKNOWN
+
+                    @Test.Anno(
+                      intValue = other.pkg.TestEnum.UNKNOWN,
+                      intArrayValue = [TestEnum.UNKNOWN, UNKNOWN]
+                    )
+                    class Test {
+                        annotation class Anno(
+                          val intValue: Int,
+                          val intArrayValue: IntArray,
+                        )
+                    }
+                """
+            ),
+            testFixture =
+                TestFixture(
+                    reporter = reporter,
+                )
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            val anno = testClass.modifiers.annotations().single()
+
+            val intValue = anno.assertAttribute("intValue").value
+            assertValuesAreStrictlyEqual(
+                intValue,
+                fieldReferenceValue("other.pkg.TestEnum", "UNKNOWN")
+            )
+
+            val intArrayValue = anno.assertAttribute("intArrayValue").value
+            assertValuesAreStrictlyEqual(
+                intArrayValue,
+                arrayValue(
+                    fieldReferenceValue("TestEnum", "UNKNOWN"),
+                    fieldReferenceValue("", "UNKNOWN"),
+                )
+            )
         }
     }
 
@@ -1506,6 +1610,43 @@ class CommonAnnotationItemTest : BaseModelTest() {
                 "@test.pkg.Test.Anno({java.lang.Double.POSITIVE_INFINITY, java.lang.Double.NEGATIVE_INFINITY})",
                 anno.toSource()
             )
+        }
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `annotation on @file`() {
+        runCodebaseTest(
+            inputSet(
+                kotlin(
+                    """
+                        @file:RestrictTo(RestrictTo.Scope.LIBRARY)
+                        package test.pkg
+
+                        import androidx.annotation.RestrictTo
+
+                        class Foo
+
+                        const val CONSTANT = 1
+                    """
+                ),
+                KnownSourceFiles.restrictToSource,
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.FooKt")
+            val anno = testClass.modifiers.annotations().single()
+
+            val attribute = anno.assertAttribute("value")
+            val expected =
+                arrayValue(
+                    Value.createFieldReferenceValue(
+                        codebase,
+                        "androidx.annotation.RestrictTo.Scope",
+                        "LIBRARY"
+                    ),
+                )
+            val actual = attribute.value
+            assertEquals(expected, actual)
         }
     }
 

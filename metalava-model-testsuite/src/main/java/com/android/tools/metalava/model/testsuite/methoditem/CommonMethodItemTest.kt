@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.testsuite.methoditem
 
 import com.android.tools.metalava.model.JAVA_LANG_THROWABLE
 import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.createAndroidModuleDescription
 import com.android.tools.metalava.testing.createCommonModuleDescription
@@ -28,6 +29,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotEquals
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 import org.junit.Test
 
 /** Common tests for implementations of [MethodItem]. */
@@ -454,6 +456,64 @@ class CommonMethodItemTest : BaseModelTest() {
 
             // check that there aren't any other methods present
             assertEquals(fooClass.methods().size, 7)
+        }
+    }
+
+    @Test
+    fun `JvmOverloads with initial vararg parameter`() {
+        val commonSource =
+            kotlin(
+                "commonMain/src/test/pkg/Foo.kt",
+                """
+                package test.pkg
+                import kotlin.jvm.JvmOverloads
+                expect class Foo {
+                    @JvmOverloads
+                    fun foo(vararg str: String, bool: Boolean = true)
+                }
+                """
+            )
+        val androidSource =
+            kotlin(
+                "androidMain/src/test/pkg/Foo.kt",
+                """
+                package test.pkg
+                actual class Foo {
+                    @JvmOverloads
+                    actual fun foo(vararg str: String, bool: Boolean) = Unit
+                }
+                """
+            )
+
+        runCodebaseTest(
+            inputSet(androidSource, commonSource),
+            projectDescription =
+                createProjectDescription(
+                    createAndroidModuleDescription(arrayOf(androidSource)),
+                    createCommonModuleDescription(arrayOf(commonSource)),
+                ),
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+
+            // Overload with both parameters: parameter is not varargs because it is not final.
+            val withArrayType = fooClass.methods().single { it.parameters().size == 2 }
+            withArrayType.parameters()[0].type().assertArrayTypeItem {
+                assertFalse(isVarargs)
+                assertTrue(componentType.isString())
+            }
+            withArrayType.parameters()[1].type().assertPrimitiveTypeItem {
+                assertEquals(kind, PrimitiveTypeItem.Primitive.BOOLEAN)
+            }
+
+            // Overload with single parameter: parameter is varargs because it is final.
+            val withVarargsType = fooClass.methods().single { it.parameters().size == 1 }
+            withVarargsType.parameters()[0].type().assertArrayTypeItem {
+                assertTrue(isVarargs)
+                assertTrue(componentType.isString())
+            }
+
+            // Check there are no other methods.
+            assertEquals(fooClass.methods().size, 2)
         }
     }
 }

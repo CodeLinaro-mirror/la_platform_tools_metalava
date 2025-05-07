@@ -20,7 +20,6 @@ import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
 import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationAttributeValue
 import com.android.tools.metalava.model.AnnotationItem
-import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultAnnotationArrayAttributeValue
 import com.android.tools.metalava.model.DefaultAnnotationAttribute
 import com.android.tools.metalava.model.DefaultAnnotationItem
@@ -29,6 +28,7 @@ import com.android.tools.metalava.model.value.ValueProvider
 import com.android.tools.metalava.reporter.FileLocation
 import com.google.common.collect.ImmutableList
 import com.google.common.collect.ImmutableMap
+import com.google.turbine.binder.bound.TypeBoundClass
 import com.google.turbine.model.Const
 import com.google.turbine.model.Const.ArrayInitValue
 import com.google.turbine.model.Const.Kind
@@ -42,14 +42,10 @@ import com.google.turbine.type.AnnoInfo
 /**
  * Factory for creating [AnnotationItem]s from [AnnoInfo]s.
  *
- * @param codebase the [Codebase] to which the [AnnotationItem] will belong.
- * @param sourceFileCache provides mapping from [AnnoInfo.source] to location.
+ * @param globalContext provides access to some global context needed by this.
  */
-internal class TurbineAnnotationFactory(
-    private val codebase: Codebase,
-    private val sourceFileCache: TurbineSourceFileCache,
-    private val valueFactory: TurbineValueFactory,
-) {
+internal class TurbineAnnotationFactory(globalContext: TurbineGlobalContext) :
+    TurbineGlobalContext by globalContext {
     /** Creates a list of AnnotationItems from given list of Turbine Annotations */
     internal fun createAnnotations(
         annotations: List<AnnoInfo>,
@@ -78,13 +74,15 @@ internal class TurbineAnnotationFactory(
                 ?.let { sourceFile -> TurbineFileLocation.forTree(sourceFile, tree) }
                 ?: FileLocation.UNKNOWN
 
+        val annotationClass = annotation.sym()?.let { typeBoundClassForSymbol(it) }
+
         return DefaultAnnotationItem.createAttributesLazily(
             codebase,
             fileLocation,
             qualifiedName
         ) { annotationItem ->
             getAnnotationAttributes(
-                annotationItem,
+                annotationClass,
                 annotation.values(),
                 tree?.args(),
                 fieldResolver,
@@ -94,7 +92,7 @@ internal class TurbineAnnotationFactory(
 
     /** Creates a list of AnnotationAttribute from the map of name-value attribute pairs */
     private fun getAnnotationAttributes(
-        annotationItem: AnnotationItem,
+        annotationClass: TypeBoundClass?,
         attrs: ImmutableMap<String, Const>,
         exprs: ImmutableList<Expression>?,
         fieldResolver: TurbineFieldResolver?,
@@ -112,7 +110,7 @@ internal class TurbineAnnotationFactory(
                             DefaultAnnotationAttribute(
                                 name,
                                 createAttributeValueProvider(
-                                    annotationItem,
+                                    annotationClass,
                                     name,
                                     const,
                                     assignExp,
@@ -134,7 +132,7 @@ internal class TurbineAnnotationFactory(
                             DefaultAnnotationAttribute(
                                 name,
                                 createAttributeValueProvider(
-                                    annotationItem,
+                                    annotationClass,
                                     name,
                                     const,
                                     exp,
@@ -152,7 +150,7 @@ internal class TurbineAnnotationFactory(
                     DefaultAnnotationAttribute(
                         name,
                         createAttributeValueProvider(
-                            annotationItem,
+                            annotationClass,
                             name,
                             const,
                             null,
@@ -166,15 +164,26 @@ internal class TurbineAnnotationFactory(
         return attributes
     }
 
+    /**
+     * Create a [CombinedValueProvider] that will create (and cache) a [Value]
+     *
+     * @param annotationClass the optional [TypeBoundClass] for the annotation. If provided it will
+     *   be used to find a [TypeItem] for the annotation attribute called [attributeName].
+     * @param attributeName the name of the annotation.
+     * @param const the [Const] value.
+     * @param expr the optional source [Expression].
+     * @param fieldResolver the optional [TurbineFieldResolver] used to resolve field [expr]s to the
+     *   field definition.
+     */
     private fun createAttributeValueProvider(
-        annotationItem: AnnotationItem,
+        annotationClass: TypeBoundClass?,
         attributeName: String,
         const: Const,
         expr: Expression?,
         fieldResolver: TurbineFieldResolver?,
     ): ValueProvider {
         val turbineValue = TurbineValue(const, expr, fieldResolver)
-        return valueFactory.providerForAnnotationValue(annotationItem, attributeName, turbineValue)
+        return valueFactory.providerForAnnotationValue(annotationClass, attributeName, turbineValue)
     }
 
     private fun createAttrValue(

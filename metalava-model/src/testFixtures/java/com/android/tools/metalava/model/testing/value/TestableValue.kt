@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.testing.value
 
 import com.android.tools.metalava.model.AnnotationContext
+import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.DefaultAnnotationAttribute
 import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
@@ -65,7 +66,13 @@ fun fieldReferenceValue(
     qualifiedClassName: String,
     fieldName: String,
     constantValue: ConstantValue? = null
-) = Value.createFieldReferenceValue(qualifiedClassName, fieldName, constantValue)
+) =
+    Value.createFieldReferenceValue(
+        ClassResolver.THROWING,
+        qualifiedClassName,
+        fieldName,
+        constantValue,
+    )
 
 /** Create an [AnnotationValue] from [source]. */
 fun annotationValueFromSource(source: String) =
@@ -102,6 +109,7 @@ fun annotationItem(qualifiedClassName: String, vararg attributes: Pair<String, V
 private val fullySupportedValueKinds =
     EnumSet.noneOf(ValueKind::class.java).apply {
         addAll(ValueKind.LITERAL_KINDS)
+        add(ValueKind.ANNOTATION)
         add(ValueKind.ARRAY)
         add(ValueKind.CLASS)
         add(ValueKind.FIELD)

@@ -18,7 +18,10 @@ package com.android.tools.metalava.model.value
 import com.android.tools.metalava.model.testing.arrayTypeItem
 import com.android.tools.metalava.model.testing.classTypeItem
 import com.android.tools.metalava.model.testing.stringType
+import com.android.tools.metalava.model.testing.value.arrayValue
 import com.android.tools.metalava.model.testing.value.arrayValueFromAny
+import com.android.tools.metalava.model.testing.value.fieldReferenceValue
+import com.android.tools.metalava.model.testing.value.literalValue
 import com.android.tools.metalava.model.testing.variableTypeItem
 import com.android.tools.metalava.model.testing.wildcardTypeItem
 import kotlin.test.assertEquals
@@ -69,6 +72,17 @@ class ValueFactoryTest {
                 .trimIndent(),
             exception.message?.trimEnd()
         )
+    }
+
+    @Test
+    fun `createArrayValue - mixture of one kind plus field`() {
+        val arrayValue =
+            arrayValue(
+                literalValue("text"),
+                fieldReferenceValue("test.pkg.Foo", "FIELD"),
+            )
+
+        assertEquals("{\"text\", test.pkg.Foo.FIELD}", arrayValue.toValueString())
     }
 
     @Test

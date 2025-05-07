@@ -45,6 +45,9 @@ import com.android.tools.metalava.model.ModifierFlags.Companion.VARARG
 import com.android.tools.metalava.model.ModifierFlags.Companion.VISIBILITY_LEVEL_ENUMS
 import com.android.tools.metalava.model.ModifierFlags.Companion.VISIBILITY_MASK
 import com.android.tools.metalava.model.ModifierFlags.Companion.VOLATILE
+import com.android.tools.metalava.model.value.FieldReferenceValue
+import com.android.tools.metalava.model.value.Value
+import com.android.tools.metalava.model.value.asInt
 import java.lang.annotation.Retention
 import java.lang.annotation.RetentionPolicy
 
@@ -544,10 +547,18 @@ fun createMutableModifiers(
  * @param otherwiseValue the value of the `otherwise` attribute, or `""` if no attribute is
  *   provided.
  */
-private fun useVisibilityFromVisibleForTesting(otherwiseValue: String, flags: Int): Int {
+private fun useVisibilityFromVisibleForTesting(otherwiseValue: Value, flags: Int): Int {
     /** Check to see if this matches [visibility] or numeric [value]. */
-    fun String.matchesVisibility(visibility: String, value: Int) =
-        endsWith(visibility) || equals(value.toString())
+    fun Value.matchesVisibility(visibility: String, value: Int) =
+        // If it is a field then check the name, otherwise check to see if the numeric value
+        // matches. Do not call asInt() on FieldReferenceValue as that would cause the field to be
+        // resolved which could cause problems as this is called during Codebase construction. It
+        // does mean that if a custom constant field was used instead of one of the ones from
+        // VisibleForTesting.Companion then it might not work as expected. However, that would be
+        // confusing having `@VisibleForTesting(otherwise = CUSTOM_FIELD)`. If supporting that was
+        // required then the processing of @VisibleForTesting would have to be done AFTER codebase
+        // creation.
+        if (this is FieldReferenceValue) fieldName == visibility else asInt() == value
 
     val visibilityFlags =
         when {
@@ -584,9 +595,8 @@ fun createMutableModifiers(
         annotations
             .find { it.qualifiedName == ANDROIDX_VISIBLE_FOR_TESTING }
             ?.let { visibleForTesting ->
-                visibleForTesting.findAttribute(ATTR_OTHERWISE)?.legacyValue?.let { otherwiseValue
-                    ->
-                    useVisibilityFromVisibleForTesting(otherwiseValue.toSource(), flags)
+                visibleForTesting.findAttribute(ATTR_OTHERWISE)?.value?.let { otherwiseValue ->
+                    useVisibilityFromVisibleForTesting(otherwiseValue, flags)
                 }
             } ?: flags
 

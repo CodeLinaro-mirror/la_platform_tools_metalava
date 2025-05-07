@@ -155,7 +155,7 @@
     <xs:complexType name="ApiFlagType">
         <xs:annotation>
             <xs:documentation>
-                The type of the `api-flag` element defined inside `ApiSurfacesType`.
+                The type of the `api-flag` element defined inside `ApiFlagsType`.
             </xs:documentation>
         </xs:annotation>
         <xs:choice/>

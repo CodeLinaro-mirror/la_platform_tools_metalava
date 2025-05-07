@@ -239,8 +239,7 @@ internal class PsiCallableBody(private val callable: PsiCallableItem) : Callable
     }
 }
 
-/** Public for use only in ExtractAnnotations */
-val AnnotationItem.uAnnotation: UAnnotation?
+private val AnnotationItem.uAnnotation: UAnnotation?
     get() =
         when (this) {
             is UAnnotationItem -> uAnnotation

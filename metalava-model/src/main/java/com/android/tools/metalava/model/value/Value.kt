@@ -21,6 +21,7 @@ import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.TypeItem
@@ -108,6 +109,14 @@ sealed interface Value {
      * This is needed as some [Value]s will reference items in the [Codebase].
      */
     fun snapshot(targetCodebase: Codebase) = this
+
+    /**
+     * Transform this [Value].
+     *
+     * @param transformer transforms an [ArrayElementValue] to either another [ArrayElementValue] or
+     *   `null` if the input [ArrayElementValue] should be ignored for some reason.
+     */
+    fun transform(transformer: (ArrayElementValue) -> ArrayElementValue?): Value?
 
     /**
      * A string representation of the value.
@@ -200,11 +209,17 @@ fun Value.asAny() = asLiteralValue()?.underlyingValue
 /** Get this [Value] as a [Boolean], or `null` if it cannot be represented as a [Boolean]. */
 fun Value.asBoolean() = (asLiteralValue() as? BooleanValue)?.underlyingValue
 
+/** Get this [Value] as a [Double], or `null` if it cannot be represented as a [Double]. */
+fun Value.asDouble() = (asLiteralValue() as? DoubleValue)?.underlyingValue
+
 /** Get this [Value] as a [Float], or `null` if it cannot be represented as a [Float]. */
 fun Value.asFloat() = (asLiteralValue() as? FloatValue)?.underlyingValue
 
 /** Get this [Value] as an [Int], or `null` if it cannot be represented as a [Int]. */
 fun Value.asInt() = (asLiteralValue() as? IntValue)?.underlyingValue
+
+/** Get this [Value] as a [Long], or `null` if it cannot be represented as a [Long]. */
+fun Value.asLong() = (asLiteralValue() as? LongValue)?.underlyingValue
 
 /** Get this [Value] as a [String], or `null` if it cannot be represented as a [String]. */
 fun Value.asString() = (asLiteralValue() as? StringValue)?.underlyingValue
@@ -313,6 +328,13 @@ enum class ValueKind(
 /** A [Value] that is allowed to be used in [ArrayValue.elements]. */
 sealed interface ArrayElementValue : Value {
     override fun asFlatList() = listOf(this)
+
+    /** Override to specialize the return type. */
+    override fun snapshot(targetCodebase: Codebase): ArrayElementValue = this
+
+    /** Override to specialize the return type. */
+    override fun transform(transformer: (ArrayElementValue) -> ArrayElementValue?) =
+        transformer(this)
 }
 
 /** A [Value] that can be used in a constant field as defined by JLS 15.28. */
@@ -530,6 +552,9 @@ sealed interface FieldReferenceValue : ArrayElementValue {
     /** The name of the field. */
     val fieldName: String
 
+    /** Resolve this to a [FieldItem], if possible. */
+    fun resolve(): FieldItem?
+
     override fun equalToValue(other: Value) =
         other is FieldReferenceValue &&
             qualifiedClassName == other.qualifiedClassName &&
@@ -541,7 +566,10 @@ sealed interface FieldReferenceValue : ArrayElementValue {
         builder: StringBuilder,
         configuration: ValueStringConfiguration
     ) {
-        builder.append(qualifiedClassName).append('.').append(fieldName)
+        if (qualifiedClassName != "") {
+            builder.append(qualifiedClassName).append('.')
+        }
+        builder.append(fieldName)
     }
 }
 
@@ -650,6 +678,25 @@ sealed interface ArrayValue : Value {
             }
             builder.append('}')
         }
+    }
+
+    override fun snapshot(targetCodebase: Codebase): ArrayValue {
+        if (elements.isEmpty()) return this
+        val snapshotElements = elements.map { it.snapshot(targetCodebase) }
+        return Value.createArrayValue(snapshotElements)
+    }
+
+    /**
+     * Transform this [ArrayValue].
+     *
+     * Applies [transformer] to each of the [ArrayElementValue]s in [elements] to create a new list
+     * and then wraps it in a new [ArrayValue]. If [transformer] returns `null` for an element then
+     * it is not added to the resulting list.
+     */
+    override fun transform(transformer: (ArrayElementValue) -> ArrayElementValue?): ArrayValue? {
+        if (elements.isEmpty()) return this
+        val transformedElements = elements.mapNotNull { transformer(it) }
+        return Value.createArrayValue(transformedElements)
     }
 }
 
