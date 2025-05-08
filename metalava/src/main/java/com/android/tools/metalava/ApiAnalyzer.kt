@@ -21,7 +21,6 @@ import com.android.tools.metalava.manifest.Manifest
 import com.android.tools.metalava.manifest.emptyManifest
 import com.android.tools.metalava.model.ANDROIDX_REQUIRES_PERMISSION
 import com.android.tools.metalava.model.ANDROID_ANNOTATION_PREFIX
-import com.android.tools.metalava.model.AnnotationAttributeValue
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.BaseTypeVisitor
@@ -44,8 +43,10 @@ import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.annotation.AnnotationFilter
 import com.android.tools.metalava.model.source.SourceParser
+import com.android.tools.metalava.model.value.asString
 import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiVisitor
+import com.android.tools.metalava.permission.getRequiresPermissionInfo
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import java.io.File
@@ -426,75 +427,62 @@ class ApiAnalyzer(
         val annotation = method.modifiers.findAnnotation(ANDROIDX_REQUIRES_PERMISSION)
         var hasAnnotation = false
 
-        if (annotation != null) {
+        val requiresPermissionInfo = annotation?.getRequiresPermissionInfo()
+        if (requiresPermissionInfo != null) {
             hasAnnotation = true
-            for (attribute in annotation.attributes) {
-                var values: List<AnnotationAttributeValue>? = null
-                var any = false
-                when (attribute.name) {
-                    "value",
-                    "allOf" -> {
-                        values = attribute.leafValues()
-                    }
-                    "anyOf" -> {
-                        any = true
-                        values = attribute.leafValues()
-                    }
-                }
+            val values = requiresPermissionInfo.permissionValues
+            val any = requiresPermissionInfo.any
 
-                values ?: continue
-
-                val system = ArrayList<String>()
-                val nonSystem = ArrayList<String>()
-                val missing = ArrayList<String>()
-                for (value in values) {
-                    val perm = (value.value() ?: value.toSource()).toString()
-                    val level = config.manifest.getPermissionLevel(perm)
-                    if (level == null) {
-                        if (any) {
-                            missing.add(perm)
-                            continue
-                        }
-
-                        reporter.report(
-                            Issues.REQUIRES_PERMISSION,
-                            method,
-                            "Permission '$perm' is not defined by manifest ${config.manifest}."
-                        )
+            val system = ArrayList<String>()
+            val nonSystem = ArrayList<String>()
+            val missing = ArrayList<String>()
+            for (value in values) {
+                val permission = value.asString() ?: continue
+                val level = config.manifest.getPermissionLevel(permission)
+                if (level == null) {
+                    if (any) {
+                        missing.add(permission)
                         continue
                     }
-                    if (
-                        level.contains("normal") ||
-                            level.contains("dangerous") ||
-                            level.contains("ephemeral")
-                    ) {
-                        nonSystem.add(perm)
-                    } else {
-                        system.add(perm)
-                    }
-                }
-                if (any && missing.size == values.size) {
-                    reporter.report(
-                        Issues.REQUIRES_PERMISSION,
-                        method,
-                        "None of the permissions ${missing.joinToString()} are defined by manifest " +
-                            "${config.manifest}."
-                    )
-                }
 
-                if (system.isEmpty() && nonSystem.isEmpty()) {
-                    hasAnnotation = false
-                } else if (any && nonSystem.isNotEmpty() || !any && system.isEmpty()) {
                     reporter.report(
                         Issues.REQUIRES_PERMISSION,
                         method,
-                        "Method '" +
-                            method.name() +
-                            "' must be protected with a system permission; it currently" +
-                            " allows non-system callers holding " +
-                            nonSystem.toString()
+                        "Permission '$permission' is not defined by manifest ${config.manifest}."
                     )
+                    continue
                 }
+                if (
+                    level.contains("normal") ||
+                        level.contains("dangerous") ||
+                        level.contains("ephemeral")
+                ) {
+                    nonSystem.add(permission)
+                } else {
+                    system.add(permission)
+                }
+            }
+            if (any && missing.size == values.size) {
+                reporter.report(
+                    Issues.REQUIRES_PERMISSION,
+                    method,
+                    "None of the permissions ${missing.joinToString()} are defined by manifest " +
+                        "${config.manifest}."
+                )
+            }
+
+            if (system.isEmpty() && nonSystem.isEmpty()) {
+                hasAnnotation = false
+            } else if (any && nonSystem.isNotEmpty() || !any && system.isEmpty()) {
+                reporter.report(
+                    Issues.REQUIRES_PERMISSION,
+                    method,
+                    "Method '" +
+                        method.name() +
+                        "' must be protected with a system permission; it currently" +
+                        " allows non-system callers holding " +
+                        nonSystem.toString()
+                )
             }
         }
 

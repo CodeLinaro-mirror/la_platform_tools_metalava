@@ -670,17 +670,23 @@ internal class PsiCodebaseAssembler(
             return it
         }
 
-        // Create the ClassItem from a heavyweight PsiClass, if available.
-        deferredHeavyweightPsiClasses.remove(qualifiedName)?.let {
-            return findOrCreateClass(it)
+        return findPsiClass(qualifiedName)?.let {
+            // Remove it, if it was a heavyweight PsiClass.
+            deferredHeavyweightPsiClasses.remove(qualifiedName)
+            findOrCreateClass(it)
+        }
+    }
+
+    internal fun findPsiClass(qualifiedName: String): PsiClass? {
+        // Return a heavyweight PsiClass, if available.
+        deferredHeavyweightPsiClasses[qualifiedName]?.let {
+            return it
         }
 
         // The following cannot find a class whose name does not correspond to the file name, e.g.
         // in Java a class that is a second top level class.
         val finder = JavaPsiFacade.getInstance(project)
-        val psiClass =
-            finder.findClass(qualifiedName, GlobalSearchScope.allScope(project)) ?: return null
-        return findOrCreateClass(psiClass)
+        return finder.findClass(qualifiedName, GlobalSearchScope.allScope(project))
     }
 
     /**

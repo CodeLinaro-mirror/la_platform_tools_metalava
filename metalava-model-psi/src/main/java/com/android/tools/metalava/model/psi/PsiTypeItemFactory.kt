@@ -51,6 +51,7 @@ import org.jetbrains.kotlin.analysis.api.types.KaFunctionType
 import org.jetbrains.kotlin.analysis.api.types.KaTypeMappingMode
 import org.jetbrains.kotlin.psi.KtElement
 import org.jetbrains.kotlin.utils.addToStdlib.ifNotEmpty
+import org.jetbrains.uast.UParameter
 import org.jetbrains.uast.kotlin.isKotlin
 
 /**
@@ -103,17 +104,36 @@ internal class PsiTypeItemFactory(
         parameterIndex: Int,
         isVarArg: Boolean
     ): TypeItem {
-        // Workaround for b/388030457, b/388508139: when a vararg is used in kotlin for a parameter
-        // that isn't final, it should be a regular PsiArrayType, not a PsiEllipsisType, but psi
-        // gets it wrong in some cases.
+        val isFinalParameter = parameterIndex + 1 == fingerprint.parameterCount
         val fixedUnderlyingParameterType =
             if (
+                // Workaround for b/388030457, b/388508139: when a vararg is used in kotlin for a
+                // parameter that isn't final, it should be a regular PsiArrayType, not a
+                // PsiEllipsisType, but psi gets it wrong in some cases.
                 underlyingParameterType.context?.isKotlin() == true &&
                     underlyingParameterType.psiType is PsiEllipsisType &&
-                    parameterIndex + 1 != fingerprint.parameterCount
+                    !isFinalParameter
             ) {
                 underlyingParameterType.copy(
                     psiType = underlyingParameterType.psiType.toArrayType()
+                )
+            } else if (
+                // Part of the workaround for https://youtrack.jetbrains.com/issue/KT-57537: for
+                // expect/actual JvmOverloads methods, the overloads aren't present in UAST and are
+                // created by metalava. A non-final varargs parameter will not have a
+                // PsiEllipsisType, but if the varargs parameter becomes final in one of the
+                // overloads, it needs to be switched to a PsiEllipsisType.
+                isFinalParameter &&
+                    !isVarArg &&
+                    underlyingParameterType.psiType is PsiArrayType &&
+                    (underlyingParameterType.context as? UParameter).hasVarargModifier()
+            ) {
+                underlyingParameterType.copy(
+                    psiType =
+                        PsiEllipsisType(
+                            underlyingParameterType.psiType.componentType,
+                            underlyingParameterType.psiType.annotationProvider
+                        )
                 )
             } else {
                 underlyingParameterType
@@ -127,6 +147,9 @@ internal class PsiTypeItemFactory(
             isVarArg
         )
     }
+
+    private fun UParameter?.hasVarargModifier() =
+        this?.modifierList?.text?.contains("vararg") == true
 
     /**
      * Returns a [PsiTypeItem] representing the [psiType]. The [context] is used to get nullability

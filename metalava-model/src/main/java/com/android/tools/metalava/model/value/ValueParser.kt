@@ -204,9 +204,9 @@ class ValueParser(
         // Check to see if it looks like a field reference.
         fieldReferencePattern.matchEntire(text)?.let { matchResult ->
 
-            // Get the class and field. The pattern requires both so it is safe to assume they are
-            // both available.
-            val className = matchResult.groups[CLASS_NAME_GROUP_INDEX]!!.value
+            // Get the class and field. The class name is optional but the field name is required so
+            // it is safe to assume it is available.
+            val className = matchResult.groups[CLASS_NAME_GROUP_INDEX]?.value ?: ""
             val fieldName = matchResult.groups[FIELD_NAME_GROUP_INDEX]!!.value
 
             // Parse the class name to a type.
@@ -217,19 +217,13 @@ class ValueParser(
                     ContextNullability.forceNonNull,
                 ) as ClassTypeItem
 
-            // Resolve the class type item to a ClassItem and find its FieldItem. If no such
-            // FieldItem exists then assume it is an enum constant as without a field there is no
-            // constant value.
-            return classTypeItem
-                .asClass()
-                // Search through the super class and interface hierarchy to find the field.
-                ?.findField(
-                    fieldName,
-                    includeSuperClasses = true,
-                    includeInterfaces = true,
-                )
-                ?.let { fieldItem -> createFieldReferenceValue(optionalTypeItem, fieldItem) }
-                ?: createFieldReferenceValue(classTypeItem.qualifiedName, fieldName)
+            val qualifiedClassName = classTypeItem.qualifiedName
+            return createFieldReferenceValueWithDeferredConstantValue(
+                annotationContext,
+                qualifiedClassName,
+                fieldName,
+                optionalTypeItem,
+            )
         }
 
         // Handle a Java style annotation value which starts with an '@'.
@@ -629,9 +623,12 @@ class ValueParser(
         /** Index of type group in [classLiteralPattern]. */
         private const val TYPE_GROUP_INDEX = 1
 
-        /** Pattern to match a field, including a class literal of the form `<class>.class`. */
+        /**
+         * Pattern to match a field, including a class literal of the form `<class>.class` and an
+         * unqualified field of the form `FIELD`.
+         */
         internal val fieldReferencePattern =
-            Regex("""([a-zA-Z0-9_]+(?:\.[a-zA-Z0-9_]+)*)\.([a-zA-Z0-9_]+)""")
+            Regex("""(?:([a-zA-Z0-9_]+(?:\.[a-zA-Z0-9_]+)*)\.)?([a-zA-Z0-9_]+)""")
 
         /** Index of class name group in [fieldReferencePattern]. */
         private const val CLASS_NAME_GROUP_INDEX = 1

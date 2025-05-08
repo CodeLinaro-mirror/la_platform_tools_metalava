@@ -212,12 +212,7 @@ internal class TurbineCodebaseInitialiser(
         valueFactory = TurbineValueFactory(this)
 
         // Create a factory for creating annotations from AnnoInfo.
-        annotationFactory =
-            TurbineAnnotationFactory(
-                codebase,
-                sourceFileCache,
-                valueFactory,
-            )
+        annotationFactory = TurbineAnnotationFactory(this)
 
         // Create the global TurbineTypeItemFactory.
         globalTypeItemFactory =

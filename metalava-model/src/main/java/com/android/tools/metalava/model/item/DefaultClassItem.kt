@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model.item
 
-import com.android.tools.metalava.model.AnnotationRetention
 import com.android.tools.metalava.model.ApiVariantSelectorsFactory
 import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.ClassItem
@@ -35,6 +34,7 @@ import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.model.annotation.AnnotationClass
 import com.android.tools.metalava.model.type.DefaultResolvedClassTypeItem
 import com.android.tools.metalava.reporter.FileLocation
 
@@ -284,19 +284,19 @@ open class DefaultClassItem(
         mutableNestedClasses.add(classItem)
     }
 
-    /** Cache result of [getRetention]. */
-    private var cacheRetention: AnnotationRetention? = null
+    /** Cache value of [annotationClass]. */
+    private lateinit var cachedAnnotationClass: AnnotationClass
 
-    final override fun getRetention(): AnnotationRetention {
-        cacheRetention?.let {
-            return it
+    override val annotationClass: AnnotationClass
+        get() {
+            if (classKind != ClassKind.ANNOTATION_TYPE) {
+                error("annotationClass can only be accessed on annotation classes")
+            }
+
+            if (!::cachedAnnotationClass.isInitialized) {
+                cachedAnnotationClass = DefaultAnnotationClass(this)
+            }
+
+            return cachedAnnotationClass
         }
-
-        if (!isAnnotationType()) {
-            error("getRetention() should only be called on annotation classes")
-        }
-
-        cacheRetention = ClassItem.findRetention(this)
-        return cacheRetention!!
-    }
 }

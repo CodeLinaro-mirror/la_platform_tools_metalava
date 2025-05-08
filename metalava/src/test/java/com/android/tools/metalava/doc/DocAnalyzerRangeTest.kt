@@ -135,7 +135,7 @@ class DocAnalyzerRangeTest : DriverTest() {
                     public class TypedefTest {
                     public TypedefTest() { throw new RuntimeException("Stub!"); }
                     /**
-                     * @param flags Value is either <code>0</code> or a combination of {@link test.pkg.TypedefTest#STYLE_NORMAL}, {@link test.pkg.TypedefTest#STYLE_NO_TITLE}, {@link test.pkg.TypedefTest#STYLE_NO_FRAME}, {@link test.pkg.TypedefTest#STYLE_NO_INPUT}, 2, and 3 + 1
+                     * @param flags Value is either <code>0</code> or a combination of {@link test.pkg.TypedefTest#STYLE_NORMAL}, {@link test.pkg.TypedefTest#STYLE_NO_TITLE}, {@link test.pkg.TypedefTest#STYLE_NO_FRAME}, {@link test.pkg.TypedefTest#STYLE_NO_INPUT}, 2, and 4
                      */
                     public void setFlags(java.lang.Object first, int flags) { throw new RuntimeException("Stub!"); }
                     /**

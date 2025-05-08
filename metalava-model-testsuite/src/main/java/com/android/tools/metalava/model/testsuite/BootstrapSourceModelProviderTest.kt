@@ -480,7 +480,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             assertEquals("test.SimpleClass", custAnno1Attr3.legacyValue.value())
             assertEquals(annoClassItem1, customAnno1.resolve())
             assertEquals(true, retAnno.isRetention())
-            assertEquals(AnnotationRetention.RUNTIME, annoClassItem1.getRetention())
+            assertEquals(AnnotationRetention.RUNTIME, annoClassItem1.annotationClass.retention)
 
             assertEquals(annoClassItem2, customAnno2.resolve())
             assertEquals(12, custAnno2Attr1.legacyValue.value())

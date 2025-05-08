@@ -18,8 +18,9 @@ package com.android.tools.metalava.model.value
 
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
+import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.ClassTypeItem
-import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
@@ -135,13 +136,16 @@ interface ValueFactory {
      *
      * Every call that supplies an empty [elements] will return the same instance of [ArrayValue].
      * It is the caller's responsibility to ensure that every [ArrayElementValue] in [elements] has
-     * the same [Value.kind]. This will throw an exception if it does not.
+     * the same [Value.kind] (excluding [ValueKind.FIELD]). This will throw an exception if it does
+     * not.
      */
-    fun createArrayValue(elements: List<ArrayElementValue>): Value {
+    fun createArrayValue(elements: List<ArrayElementValue>): ArrayValue {
         if (elements.isEmpty()) return EMPTY_ARRAY
         val groupedByKind = elements.groupBy { it.kind }
         val kindCount = groupedByKind.size
-        if (kindCount == 1) return DefaultArrayValue(elements)
+        // Only allow 1 kind or 2 if one of them is field.
+        if (kindCount == 1 || (kindCount == 2 && ValueKind.FIELD in groupedByKind))
+            return DefaultArrayValue(elements)
         val message = buildString {
             append("Expected array elements to be all of the same kind but found ")
             append(kindCount)
@@ -169,37 +173,38 @@ interface ValueFactory {
         return DefaultClassObjectValue(typeItem)
     }
 
-    /** Create a [FieldReferenceValue] from [fieldItem]. */
-    fun createFieldReferenceValue(
+    /**
+     * Create a [FieldReferenceValue] called [fieldName] in [qualifiedClassName].
+     *
+     * If the field has a constant initializer then it will be retrieved when calling
+     * [FieldReferenceValue.asLiteralValue].
+     *
+     * @param classResolver used to resolve [qualifiedClassName] to a [ClassItem] in
+     *   [FieldReferenceValue.resolve]
+     * @param qualifiedClassName the qualified name of the class containing the field. Is an empty
+     *   string if the field is unqualified.
+     * @param fieldName the name of the field.
+     * @param optionalTypeItem the optional [TypeItem] determined by the context within which the
+     *   [FieldReferenceValue] will be used.
+     */
+    fun createFieldReferenceValueWithDeferredConstantValue(
+        classResolver: ClassResolver,
+        qualifiedClassName: String,
+        fieldName: String,
         optionalTypeItem: TypeItem?,
-        fieldItem: FieldItem
     ): ArrayElementValue {
-        val qualifiedClassName = fieldItem.containingClass().qualifiedName()
-        val fieldName = fieldItem.name()
-        return if (fieldItem.isEnumConstant()) {
-            createFieldReferenceValue(qualifiedClassName, fieldName)
-        } else {
-            // The actual constant value of a field reference is affected by the type of where it is
-            // used, just as it would if the field reference was replaced by its constant value. So,
-            // an `int` constant field that is used where a `long` is expected will be represented
-            // as a `LongValue` that was originally specified as an int.
-            val constantValue =
-                fieldItem.constantValue?.let { fieldConstantValue ->
-                    fieldConstantValue
-                        // If an optional type item is provided then it needs to be applied to the
-                        // field's constant value.
-                        .takeIf { optionalTypeItem != null }
-                        // So, get the field's underlying value.
-                        ?.asAny()
-                        // Then, create a LiteralValue of the correct type.
-                        ?.let { underlyingValue ->
-                            createLiteralValue(optionalTypeItem, underlyingValue)
-                        }
-                        // Otherwise, just use the field's constant value as is.
-                        ?: fieldConstantValue
-                }
-            createFieldReferenceValue(qualifiedClassName, fieldName, constantValue)
-        }
+        // Create a field.
+        val fieldReferenceValue =
+            LazyFieldReferenceValue(
+                classResolver,
+                qualifiedClassName,
+                fieldName,
+                optionalTypeItem,
+            )
+
+        // The field may need mapping to a constant value to eliminate differences between Kotlin
+        // and Java.
+        return normalizeFieldReferenceValue(fieldReferenceValue)
     }
 
     /**
@@ -207,6 +212,7 @@ interface ValueFactory {
      * [constantValue].
      */
     fun createFieldReferenceValue(
+        classResolver: ClassResolver,
         qualifiedClassName: String,
         fieldName: String,
         constantValue: ConstantValue? = null,
@@ -214,6 +220,7 @@ interface ValueFactory {
         // Create a field.
         val fieldReferenceValue =
             DefaultFieldReferenceValue(
+                classResolver,
                 qualifiedClassName,
                 fieldName,
                 constantValue,
@@ -221,6 +228,13 @@ interface ValueFactory {
 
         // The field may need mapping to a constant value to eliminate differences between Kotlin
         // and Java.
+        return normalizeFieldReferenceValue(fieldReferenceValue)
+    }
+
+    /** Normalize [FieldReferenceValue]s to eliminate differences between Java and Kotlin. */
+    private fun normalizeFieldReferenceValue(
+        fieldReferenceValue: FieldReferenceValue
+    ): ArrayElementValue {
         return specialFieldsToReplacementValue[fieldReferenceValue] ?: fieldReferenceValue
     }
 
@@ -275,7 +289,7 @@ interface ValueFactory {
          * Note: This does not work for fields in nested classes.
          */
         private fun fieldReference(qualifiedName: String, fieldName: String) =
-            DefaultFieldReferenceValue(qualifiedName, fieldName)
+            DefaultFieldReferenceValue(ClassResolver.THROWING, qualifiedName, fieldName)
 
         /**
          * Adds mappings for special fields [field] of [type] to [value].

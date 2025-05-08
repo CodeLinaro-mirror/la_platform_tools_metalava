@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.value.StringValue
 import com.android.tools.metalava.reporter.BaselineKey
 import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.Reportable
@@ -453,16 +454,11 @@ abstract class DefaultItem(
                 if (annotationName in SUPPRESS_ANNOTATIONS) {
                     for (attribute in annotation.attributes) {
                         // Assumption that all annotations in SUPPRESS_ANNOTATIONS only have
-                        // one attribute such as value/names that is varargs of String
-                        val value = attribute.legacyValue
-                        if (value is AnnotationArrayAttributeValue) {
-                            // Example: @SuppressLint({"RequiresFeature", "AllUpper"})
-                            for (innerValue in value.values) {
-                                innerValue.value()?.toString()?.let { add(it) }
-                            }
-                        } else {
-                            // Example: @SuppressLint("RequiresFeature")
-                            value.value()?.toString()?.let { add(it) }
+                        // one attribute such as value/names that is an array of String, e.g.
+                        // Example: @SuppressLint({"RequiresFeature", "AllUpper"})
+                        // Example: @SuppressLint("RequiresFeature")
+                        for (value in attribute.value.asFlatList()) {
+                            if (value is StringValue) add(value.underlyingValue)
                         }
                     }
                 }

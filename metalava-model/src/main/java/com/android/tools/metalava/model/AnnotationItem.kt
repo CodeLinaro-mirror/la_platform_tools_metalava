@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.annotation.AnnotationDefaults
 import com.android.tools.metalava.model.api.flags.ApiFlag
 import com.android.tools.metalava.model.api.flags.ApiFlags
 import com.android.tools.metalava.model.type.TypeItemParser
@@ -82,13 +83,8 @@ sealed interface AnnotationItem {
      * Generates source code for this annotation (using fully qualified names).
      *
      * @param target the [AnnotationTarget] for which this is being generated.
-     * @param showDefaultAttrs `true` if this should include default values for any unspecified
-     *   attribute, `false` otherwise.
      */
-    fun toSource(
-        target: AnnotationTarget = AnnotationTarget.SIGNATURE_FILE,
-        showDefaultAttrs: Boolean = false,
-    ): String
+    fun toSource(target: AnnotationTarget = AnnotationTarget.SIGNATURE_FILE): String
 
     /** The applicable targets for this annotation */
     val targets: Set<AnnotationTarget>
@@ -197,7 +193,7 @@ sealed interface AnnotationItem {
             val cls = resolve()
             if (cls != null) {
                 if (cls.isAnnotationType()) {
-                    return cls.getRetention()
+                    return cls.annotationClass.retention
                 }
             }
 
@@ -392,6 +388,16 @@ interface AnnotationContext : ClassResolver {
     /** The manager of annotations within this context. */
     val annotationManager: AnnotationManager
 
+    /**
+     * Get the defaults for the annotation class called [qualifiedName].
+     *
+     * While the default implementation is in terms of [resolveClass] this is separate to allow
+     * subclasses to provide defaults without resolving a [ClassItem] as that can have side effects
+     * which cause problems if done during [Codebase] construction.
+     */
+    fun defaultsForAnnotationClass(qualifiedName: String) =
+        resolveClass(qualifiedName)?.annotationClass?.defaults ?: AnnotationDefaults.EMPTY
+
     companion object {
         /**
          * Instance that can be used in contexts where [resolveClass] is not required, e.g. testing
@@ -539,19 +545,14 @@ protected constructor(
         return result
     }
 
-    override fun toSource(target: AnnotationTarget, showDefaultAttrs: Boolean): String {
+    override fun toSource(target: AnnotationTarget): String {
         val qualifiedName =
             annotationContext.annotationManager.normalizeOutputName(qualifiedName, target)
 
         return formatAnnotationItem(qualifiedName, attributes)
     }
 
-    final override fun toString() =
-        // Do not show default attributes (the default for toSource(...)) as that requires resolving
-        // the annotation class which has side effects and side effects in a [toString] method makes
-        // debugging harder. Also, adding in the defaults can make this appear as though it has
-        // attributes when it does not.
-        toSource()
+    final override fun toString() = toSource()
 
     companion object {
         fun formatAnnotationItem(
@@ -671,11 +672,6 @@ sealed interface AnnotationAttributeValue {
     fun value(): Any?
 
     /**
-     * If the annotation declaration references a field (or class etc.), return the resolved class
-     */
-    fun resolve(): Item?
-
-    /**
      * Take a snapshot of this [AnnotationAttributeValue] suitable for use in a snapshot [Codebase].
      */
     fun snapshot(): AnnotationAttributeValue
@@ -707,10 +703,6 @@ sealed interface AnnotationSingleAttributeValue : AnnotationAttributeValue {
 sealed interface AnnotationArrayAttributeValue : AnnotationAttributeValue {
     /** The annotation values */
     val values: List<AnnotationAttributeValue>
-
-    override fun resolve(): Item? {
-        error("resolve() should not be called on an array value")
-    }
 
     override fun value() = values.mapNotNull { it.value() }.toTypedArray()
 }
@@ -846,8 +838,6 @@ open class DefaultAnnotationSingleAttributeValue(
 ) : DefaultAnnotationAttributeValue(sourceGetter), AnnotationSingleAttributeValue {
 
     override val value by lazy(LazyThreadSafetyMode.NONE, valueGetter)
-
-    override fun resolve(): Item? = null
 
     override fun snapshot(): AnnotationSingleAttributeValue {
         // Take a snapshot of the value and sources by immediately forcing them to be initialized

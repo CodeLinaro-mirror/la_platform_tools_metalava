@@ -59,7 +59,7 @@ class CodePrinter(
      * Whether we should inline the values of fields, e.g. instead of "Integer.MAX_VALUE" we'd emit
      * "0x7fffffff"
      */
-    private val inlineFieldValues: Boolean = true,
+    private val inlineFieldValues: Boolean = false,
     /** Whether we should inline constants when possible, e.g. instead of "2*20+2" we'd emit "42" */
     private val inlineConstants: Boolean = true,
     /**
@@ -277,7 +277,7 @@ class CodePrinter(
             when (val resolved = expression.resolve()) {
                 is PsiField -> {
                     @Suppress("UnnecessaryVariable") val field = resolved
-                    if (!inlineFieldValues) {
+                    if (inlineFieldValues) {
                         val value = field.computeConstantValue()
                         if (appendLiteralValue(sb, value)) {
                             return true
