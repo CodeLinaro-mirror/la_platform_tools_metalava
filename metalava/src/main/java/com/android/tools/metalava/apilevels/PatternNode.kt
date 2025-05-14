@@ -443,6 +443,26 @@ sealed class PatternNode {
         },
 
         /**
+         * Corresponds to the [PatternFileState.library] and [MatchedPatternFile.library]
+         * properties.
+         */
+        LIBRARY(
+            "library",
+            help = {
+                """
+                    Optional property that stores the name of a library.
+                """
+            },
+        ) {
+            override fun track(
+                config: ScanConfig,
+                state: PatternFileState,
+                value: String,
+                placeholder: Placeholder,
+            ) = state.copy(library = value)
+        },
+
+        /**
          * Corresponds to the [PatternFileState.module] and [MatchedPatternFile.module] properties.
          */
         MODULE(
@@ -586,6 +606,28 @@ sealed class PatternNode {
 
                     A pattern that includes this must also include `$MODULE` as SDK extension APIs
                     are stored in a file per extension module.
+                """
+            },
+        ),
+
+        /**
+         * The {library} placeholder.
+         *
+         * Generally, each version/module pair is supposed to have a single file representing it for
+         * each surface. However, sometimes it can be broken down into multiple files, e.g.
+         * `android.test.base.jar` was previously part of `android.jar` but was separated out. So,
+         * in order to generate an accurate history of the `android.test` classes it is necessary to
+         * include the `android.test.base.jar` alongside `android.jar`. That can be achieved by
+         * using the {library} placeholder.
+         */
+        LIBRARY(
+            property = Property.LIBRARY,
+            format = null,
+            pattern = """[a-z-.]+""",
+            help = {
+                """
+                    Matches a library name which must consist of lower case letters, hyphens and
+                    `.`s.
                 """
             },
         ),
@@ -819,6 +861,9 @@ internal data class PatternFileState(
 
     /** The optional surface that was extracted from the path. */
     val surface: ApiSurface? = null,
+
+    /** The optional name of the library. */
+    val library: String? = null,
 ) {
     /**
      * Construct a [MatchedPatternFile] from this.
@@ -835,6 +880,7 @@ internal data class PatternFileState(
                 extension = extension,
                 module = module,
                 surface = surface,
+                library = library,
             )
 
     /**
@@ -871,6 +917,9 @@ data class MatchedPatternFile(
 
     /** The optional surface that was extracted from the [File] path. */
     val surface: ApiSurface? = null,
+
+    /** The optional library that was extracted from the [File] path. */
+    val library: String? = null,
 ) {
     /**
      * Create a string representation of the properties, used for testing and debugging.
@@ -899,6 +948,11 @@ data class MatchedPatternFile(
                 append(surface.name)
                 append("'")
             }
+            if (library != null) {
+                append(", library='")
+                append(library)
+                append("'")
+            }
             append(")")
         }
     }
@@ -917,6 +971,8 @@ private val matchedPatternFileComparator: Comparator<MatchedPatternFile> =
         { it.module },
         // Then sort them from the lowest version to the highest version.
         { it.version },
+        // Group into those without libraries and then by those with library, in order.
+        { it.library },
         // Then group into those without surface and then by those with a surface, in order.
         { it.surface },
     )

@@ -87,7 +87,9 @@ internal class PsiSourceParser(
         classPath: List<File>,
         apiPackages: PackageFilter?,
         projectDescription: File?,
+        compiledSourceJar: File?,
     ): Codebase {
+        // TODO: compiledSourceJar used in followup
         return parseAbsoluteSources(
             sourceSet.absoluteCopy().extractRoots(reporter),
             description,

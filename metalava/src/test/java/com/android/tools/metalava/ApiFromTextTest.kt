@@ -543,7 +543,7 @@ class ApiFromTextTest : DriverTest() {
                 package libcore.util {
                   public @interface NonNull {
                     method public abstract int from() default java.lang.Integer.MIN_VALUE;
-                    method public abstract double fromWithCast() default (double)java.lang.Float.NEGATIVE_INFINITY;
+                    method public abstract double fromWithCast() default java.lang.Double.NEGATIVE_INFINITY;
                     method public abstract String myString() default "This is a \"string\"";
                     method public abstract int to() default java.lang.Integer.MAX_VALUE;
                   }

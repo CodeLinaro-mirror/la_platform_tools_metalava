@@ -149,7 +149,6 @@ com.android.tools.metalava.lint.CheckBuilderTest
   Check builders[turbine]
 
 com.android.tools.metalava.stub.StubsAnnotationTest
-  Annotation default values[turbine]
   Annotation nested rewriting[turbine]
   Pass through libcore annotations[turbine]
   Rewrite unknown nullability annotations as doc stubs[turbine]

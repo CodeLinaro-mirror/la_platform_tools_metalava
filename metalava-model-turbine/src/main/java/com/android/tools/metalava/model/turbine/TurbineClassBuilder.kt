@@ -475,7 +475,6 @@ internal class TurbineClassBuilder(
                     isAnnotationElement = isAnnotationElement,
                 )
 
-            val defaultValue = defaultTurbineValue?.getSourceForMethodDefault() ?: ""
             val defaultValueProvider =
                 defaultTurbineValue?.let {
                     valueFactory.providerFor(returnType, it, ValueUseSite.ANNOTATION)
@@ -500,7 +499,6 @@ internal class TurbineClassBuilder(
                     },
                     throwsTypes = getThrowsList(method.exceptions(), methodTypeItemFactory),
                     defaultValueProvider = defaultValueProvider,
-                    annotationDefault = defaultValue,
                 )
 
             // Ignore enum synthetic methods.

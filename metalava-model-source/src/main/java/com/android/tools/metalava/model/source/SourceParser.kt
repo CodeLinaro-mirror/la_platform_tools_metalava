@@ -43,6 +43,8 @@ interface SourceParser {
      *   [Codebase.getTopLevelClassesFromSource] list.
      * @param projectDescription Lint project model that can describe project structures in detail.
      *   Only supported by the PSI model.
+     * @param compiledSourceJar A jar file containing the compiled version of [sourceSet]. Used to
+     *   add the compiled JVM forms of Kotlin source APIs. Only supported by the PSI model.
      */
     fun parseSources(
         sourceSet: SourceSet,
@@ -50,6 +52,7 @@ interface SourceParser {
         classPath: List<File>,
         apiPackages: PackageFilter?,
         projectDescription: File?,
+        compiledSourceJar: File?,
     ): Codebase
 
     /**

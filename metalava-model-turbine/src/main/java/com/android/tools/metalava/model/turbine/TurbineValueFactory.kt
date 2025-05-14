@@ -125,7 +125,15 @@ internal class TurbineValueFactory(globalContext: TurbineGlobalContext) :
                 }
 
             val values = turbineValues.map { it.toArrayElementValue(elementTypeItem) }
-            return createArrayValue(values)
+
+            // If the source was a single non-array expression of an array type then that needs to
+            // be passed to the `ArrayValue`. Turbine has automatically wrapped that in an
+            // `ArrayInitValue` so check the expression. If the expression was provided (i.e. from
+            // sources not jars) but was not an `ArrayInit` expression (no `exprElements) then it
+            // was unwrapped in the sources, otherwise it was not.
+            val wasUnwrappedInSource = expr != null && exprElements == null
+
+            return createArrayValue(values, wasUnwrappedInSource)
         }
 
         return if (optionalTypeItem is ArrayTypeItem) {
@@ -133,7 +141,7 @@ internal class TurbineValueFactory(globalContext: TurbineGlobalContext) :
             // single value in an annotation attribute. Create a value for the component type and
             // then wrap it in an ArrayValue.
             val singleValue = toArrayElementValue(optionalTypeItem.componentType)
-            createArrayValue(listOf(singleValue))
+            createArrayValue(listOf(singleValue), wasUnwrappedInSource = true)
         } else {
             toArrayElementValue(optionalTypeItem)
         }
@@ -154,7 +162,11 @@ internal class TurbineValueFactory(globalContext: TurbineGlobalContext) :
                         ContextNullability.forceNonNull
                     )
 
-                return createClassObjectValue(classLiteralTypeItem)
+                return createClassObjectValue(
+                    classLiteralTypeItem,
+                    // Java does not need the source expression.
+                    null,
+                )
             }
             Const.Kind.ANNOTATION -> {
                 const as TurbineAnnotationValue

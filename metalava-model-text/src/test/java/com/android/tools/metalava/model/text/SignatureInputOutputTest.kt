@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.StripJavaLangPrefix
 import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.model.testing.value.fieldReferenceValue
 import com.android.tools.metalava.model.text.FileFormat.TypeArgumentSpacing
 import com.android.tools.metalava.model.value.asString
 import com.android.tools.metalava.model.visitors.ApiPredicate
@@ -257,7 +258,8 @@ class SignatureInputOutputTest : Assertions {
                 .isEqualTo(PrimitiveTypeItem.Primitive.INT)
             assertThat(method.parameters()).isEmpty()
 
-            assertThat(method.legacyDefaultValue()).isEqualTo("java.lang.Integer.MIN_VALUE")
+            assertThat(method.defaultValue)
+                .isEqualTo(fieldReferenceValue("java.lang.Integer", "MIN_VALUE"))
         }
     }
 

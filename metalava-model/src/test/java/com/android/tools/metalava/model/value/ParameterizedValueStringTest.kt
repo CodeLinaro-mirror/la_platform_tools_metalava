@@ -104,6 +104,21 @@ class ParameterizedValueStringTest {
         companion object {
             val DEFAULT = LabelledConfig("default", ValueStringConfiguration.DEFAULT)
 
+            val ANNOTATION_ATTRIBUTE_NAME_VALUE_WITHOUT_SPACES =
+                LabelledConfig(
+                    "annotation-attribute-name-value-without-spaces",
+                    ValueStringConfiguration(
+                        annotationAttributeNameValueSeparator =
+                            AnnotationAttributeNameValueSeparator.WITHOUT_SPACES,
+                    )
+                )
+
+            val CLASS_OBJECT_VALUE_SOURCE =
+                LabelledConfig(
+                    "class-object-value-as-source",
+                    ValueStringConfiguration(classObjectValueFormat = ClassObjectValueFormat.SOURCE)
+                )
+
             val TREAT_AS_INT =
                 LabelledConfig(
                     "treat-as-int",
@@ -117,12 +132,29 @@ class ParameterizedValueStringTest {
                     "treat-as-int/unwrap",
                     ValueStringConfiguration(
                         treatAsIntIfOriginallySpecifiedAsInt = true,
-                        unwrapSingleArrayElement = true,
+                        singleArrayElementFormat = SingleArrayElementFormat.UNWRAP,
                     ),
                 )
 
+            val UNSORTED_ATTRIBUTES =
+                LabelledConfig(
+                    "unsorted",
+                    ValueStringConfiguration(sortAnnotationAttributes = false)
+                )
+
             val UNWRAP_SINGLE_ARRAY_ELEMENT =
-                LabelledConfig("unwrap", ValueStringConfiguration(unwrapSingleArrayElement = true))
+                LabelledConfig(
+                    "unwrap",
+                    ValueStringConfiguration(
+                        singleArrayElementFormat = SingleArrayElementFormat.UNWRAP,
+                    )
+                )
+
+            val VALUE_LANGUAGE_KOTLIN =
+                LabelledConfig(
+                    "value-language-kotlin",
+                    ValueStringConfiguration(valueLanguage = ValueLanguage.KOTLIN)
+                )
         }
     }
 
@@ -231,17 +263,68 @@ class ParameterizedValueStringTest {
                 testCasesForValue(
                     value = annotationValueFromSource("@test.pkg.Anno"),
                     expectedDefaultValueString = "@test.pkg.Anno",
-                ),
+                ) {
+                    verifyConfigChangesOutput(
+                        LabelledConfig.VALUE_LANGUAGE_KOTLIN,
+                        "test.pkg.Anno()"
+                    )
+
+                    verifyConfigMatchesDefault(
+                        LabelledConfig.ANNOTATION_ATTRIBUTE_NAME_VALUE_WITHOUT_SPACES
+                    )
+                },
                 testCasesForValue(
                     value = annotationValueFromSource("@test.pkg.Anno(intValue = 1)"),
                     expectedDefaultValueString = "@test.pkg.Anno(intValue = 1)",
                     expectedDefaultDebugString = "@test.pkg.Anno(intValue = IntValue(1))",
-                ),
+                ) {
+                    verifyConfigChangesOutput(
+                        LabelledConfig.VALUE_LANGUAGE_KOTLIN,
+                        "test.pkg.Anno(intValue = 1)"
+                    )
+
+                    verifyConfigChangesOutput(
+                        LabelledConfig.ANNOTATION_ATTRIBUTE_NAME_VALUE_WITHOUT_SPACES,
+                        "@test.pkg.Anno(intValue=1)"
+                    )
+                },
                 testCasesForValue(
+                    // An annotation with an explicit value attribute
                     value = annotationValueFromSource("@test.pkg.Anno(value = 1)"),
-                    expectedDefaultValueString = "@test.pkg.Anno(value = 1)",
-                    expectedDefaultDebugString = "@test.pkg.Anno(value = IntValue(1))",
-                ),
+                    expectedDefaultValueString = "@test.pkg.Anno(1)",
+                    expectedDefaultDebugString = "@test.pkg.Anno(IntValue(1))",
+                ) {
+                    verifyConfigMatchesDefault(
+                        LabelledConfig.ANNOTATION_ATTRIBUTE_NAME_VALUE_WITHOUT_SPACES
+                    )
+                },
+                testCasesForValue(
+                    // An annotation with an implicit value attribute
+                    value = annotationValueFromSource("@test.pkg.Anno(1)"),
+                    expectedDefaultValueString = "@test.pkg.Anno(1)",
+                    expectedDefaultDebugString = "@test.pkg.Anno(IntValue(1))",
+                ) {
+                    verifyConfigMatchesDefault(
+                        LabelledConfig.ANNOTATION_ATTRIBUTE_NAME_VALUE_WITHOUT_SPACES
+                    )
+                },
+                testCasesForValue(
+                    // An annotation with an explicit value attribute and another attribute.
+                    value = annotationValueFromSource("@test.pkg.Anno(value = 1, intValue = 3)"),
+                    expectedDefaultValueString = "@test.pkg.Anno(intValue = 3, value = 1)",
+                    expectedDefaultDebugString =
+                        "@test.pkg.Anno(intValue = IntValue(3), value = IntValue(1))",
+                ) {
+                    verifyConfigChangesOutput(
+                        LabelledConfig.UNSORTED_ATTRIBUTES,
+                        "@test.pkg.Anno(value = 1, intValue = 3)"
+                    )
+
+                    verifyConfigChangesOutput(
+                        LabelledConfig.ANNOTATION_ATTRIBUTE_NAME_VALUE_WITHOUT_SPACES,
+                        "@test.pkg.Anno(intValue=3, value=1)"
+                    )
+                },
                 testCasesForValue(
                     // Create an annotation with attribute in non-alphabetical order.
                     value =
@@ -249,7 +332,12 @@ class ParameterizedValueStringTest {
                     expectedDefaultValueString = "@test.pkg.Anno(intValue = 1, longValue = 1L)",
                     expectedDefaultDebugString =
                         "@test.pkg.Anno(intValue = IntValue(1), longValue = LongValue(1L))",
-                ),
+                ) {
+                    verifyConfigChangesOutput(
+                        LabelledConfig.UNSORTED_ATTRIBUTES,
+                        "@test.pkg.Anno(longValue = 1L, intValue = 1)"
+                    )
+                },
                 testCasesForValue(
                     value =
                         annotationValue(
@@ -259,7 +347,12 @@ class ParameterizedValueStringTest {
                     expectedDefaultValueString = "@test.pkg.Anno(nested = @other.pkg.OtherAnno)",
                     expectedDefaultDebugString =
                         "@test.pkg.Anno(nested = AnnotationValue(@other.pkg.OtherAnno))",
-                ),
+                ) {
+                    verifyConfigChangesOutput(
+                        LabelledConfig.VALUE_LANGUAGE_KOTLIN,
+                        "test.pkg.Anno(nested = other.pkg.OtherAnno())"
+                    )
+                },
                 // ********************************* Arrays *********************************
                 testCasesForValue(
                     value = arrayValueFromAny(),
@@ -370,13 +463,28 @@ class ParameterizedValueStringTest {
                     expectedDefaultValueString = "java.lang.String.class",
                 ),
                 testCasesForValue(
-                    value = classObjectValue(arrayTypeItem(primitiveTypeForKind(Primitive.INT))),
+                    value =
+                        classObjectValue(
+                            arrayTypeItem(primitiveTypeForKind(Primitive.INT)),
+                            sourceExpression = "IntArray::class"
+                        ),
                     expectedDefaultValueString = "int[].class",
-                ),
+                ) {
+                    // The value being tested has a source expression so this configuration will
+                    // produce a different result than the default.
+                    verifyConfigChangesOutput(
+                        LabelledConfig.CLASS_OBJECT_VALUE_SOURCE,
+                        "IntArray::class"
+                    )
+                },
                 testCasesForValue(
                     value = classObjectValue(arrayTypeItem(arrayTypeItem(stringType()))),
                     expectedDefaultValueString = "java.lang.String[][].class",
-                ),
+                ) {
+                    // The value being tested does not have a source expression so this
+                    // configuration will not produce a different result than the default.
+                    verifyConfigMatchesDefault(LabelledConfig.CLASS_OBJECT_VALUE_SOURCE)
+                },
                 // ****************************** Constant Fields ******************************
                 testCasesForValue(
                     value = fieldReferenceValue("test.pkg.AClass", "FIELD"),

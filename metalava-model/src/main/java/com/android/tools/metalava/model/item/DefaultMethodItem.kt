@@ -47,7 +47,6 @@ open class DefaultMethodItem(
     throwsTypes: List<ExceptionTypeItem>,
     callableBodyFactory: CallableBodyFactory,
     private val defaultValueProvider: OptionalValueProvider?,
-    private val annotationDefault: String = "",
 ) :
     DefaultCallableItem(
         codebase,
@@ -70,8 +69,6 @@ open class DefaultMethodItem(
     final override var inheritedFrom: ClassItem? = null
 
     override fun isExtensionMethod(): Boolean = false // java does not support extension methods
-
-    override fun legacyDefaultValue() = annotationDefault
 
     final override val defaultValue
         get() = defaultValueProvider?.optionalValue
@@ -126,7 +123,6 @@ open class DefaultMethodItem(
                 throwsTypes = throwsTypes,
                 callableBodyFactory = body::duplicate,
                 defaultValueProvider = defaultValueProvider,
-                annotationDefault = annotationDefault,
             )
             .also { duplicated ->
                 duplicated.inheritedFrom = containingClass()

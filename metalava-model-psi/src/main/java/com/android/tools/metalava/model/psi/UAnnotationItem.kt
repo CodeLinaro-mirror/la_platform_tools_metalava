@@ -96,7 +96,7 @@ private constructor(
                             name,
                             attribute.expression
                         ),
-                        createValue(codebase, attribute.expression)
+                        createValue(attribute.expression)
                     )
                 }
                 .toList()
@@ -286,22 +286,20 @@ private constructor(
     }
 }
 
-private fun createValue(codebase: PsiBasedCodebase, value: UExpression): AnnotationAttributeValue {
+private fun createValue(value: UExpression): AnnotationAttributeValue {
     return if (value.isArrayInitializer()) {
         val uCallExpression = value as UCallExpression
         DefaultAnnotationArrayAttributeValue(
             { getText(uCallExpression) },
-            { uCallExpression.valueArguments.map { createValue(codebase, it) }.toList() }
+            { uCallExpression.valueArguments.map { createValue(it) }.toList() }
         )
     } else {
-        UAnnotationSingleAttributeValue(codebase, value)
+        UAnnotationSingleAttributeValue(value)
     }
 }
 
-internal class UAnnotationSingleAttributeValue(
-    private val codebase: PsiBasedCodebase,
-    private val psiValue: UExpression
-) : DefaultAnnotationSingleAttributeValue({ getText(psiValue) }, { getValue(psiValue) }) {
+internal class UAnnotationSingleAttributeValue(private val psiValue: UExpression) :
+    DefaultAnnotationSingleAttributeValue({ getText(psiValue) }, { getValue(psiValue) }) {
 
     companion object {
         private fun getValue(psiValue: UExpression): Any? {

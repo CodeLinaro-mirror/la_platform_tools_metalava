@@ -16,5 +16,28 @@
 
 package com.android.tools.metalava.model.value
 
-internal class DefaultArrayValue(override val elements: List<ArrayElementValue>) :
-    DefaultValue(), ArrayValue
+import com.android.tools.metalava.model.Codebase
+
+internal class DefaultArrayValue(
+    override val elements: List<ArrayElementValue>,
+    private val wasUnwrappedInSource: Boolean,
+) : DefaultValue(), ArrayValue {
+    override fun appendValueStringTo(
+        builder: StringBuilder,
+        configuration: ValueStringConfiguration
+    ) {
+        @Suppress("DEPRECATION")
+        if (
+            wasUnwrappedInSource &&
+                configuration.singleArrayElementFormat == SingleArrayElementFormat.SOURCE
+        ) {
+            configuration.appendNestedValueTo(builder, elements[0])
+        } else super.appendValueStringTo(builder, configuration)
+    }
+
+    override fun snapshot(targetCodebase: Codebase): ArrayValue {
+        if (elements.isEmpty()) return this
+        val snapshotElements = elements.map { it.snapshot(targetCodebase) }
+        return Value.createArrayValue(snapshotElements, wasUnwrappedInSource)
+    }
+}

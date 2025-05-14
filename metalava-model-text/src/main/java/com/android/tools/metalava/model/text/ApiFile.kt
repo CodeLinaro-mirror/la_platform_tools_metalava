@@ -274,6 +274,13 @@ private constructor(
      */
     private var appending: Boolean = false
 
+    /**
+     * A map from [DefaultClassItem] to list of [ClassCharacteristics] for re-definition of the
+     * original class that needs to be checked for consistency against the [DefaultClassItem] and
+     * then merge any extensions into it.
+     */
+    private var deferredMerges = mutableMapOf<DefaultClassItem, MutableList<ClassCharacteristics>>()
+
     /** Map from [ClassItem] to [TextTypeItemFactory]. */
     private val classToTypeItemFactory = IdentityHashMap<ClassItem, TextTypeItemFactory>()
 
@@ -335,6 +342,8 @@ private constructor(
                 )
                 first = false
             }
+
+            parser.performAnyDeferredMerges()
 
             apiStatsConsumer(parser.stats)
 
@@ -743,21 +752,34 @@ private constructor(
             modifiers.setStatic(false)
         }
 
-        // Get the characteristics of the class being added as they may be needed to compare against
-        // the characteristics of the same class from a previously processed signature file.
-        val newClassCharacteristics =
-            ClassCharacteristics(
-                fileLocation = classPosition,
-                qualifiedName = qualifiedClassName,
-                fullName = fullName,
-                classKind = classKind,
-                modifiers = modifiers.toImmutable(),
-                superClassType = superClassType,
-            )
+        // Check for the existing class from a previously parsed file. If it was found then use that
+        // and return. If it could not be found then drop through to create it.
+        codebase.findClassInCodebase(qualifiedClassName)?.let { existingClass ->
 
-        // Check to see if there is an existing class, if so merge this class definition into that
-        // one and return. Otherwise, drop through and create a whole new class.
-        if (tryMergingIntoExistingClass(tokenizer, newClassCharacteristics)) {
+            // Parse the class body adding each member created to the existing class.
+            parseClassBody(tokenizer, existingClass, typeItemFactoryForClass(existingClass))
+
+            // Although the class was first defined in a separate file it is being modified in the
+            // current file so that may include it in the main API surface.
+            existingClass.markExistingClassForMainApiSurface()
+
+            // Get the characteristics of the class being added as they may be needed to compare
+            // against the characteristics of the same class from a previously processed signature
+            // file.
+            val newClassCharacteristics =
+                ClassCharacteristics(
+                    fileLocation = classPosition,
+                    qualifiedName = qualifiedClassName,
+                    fullName = fullName,
+                    classKind = classKind,
+                    modifiers = modifiers.toImmutable(),
+                    superClassType = superClassType,
+                )
+
+            // Perform any merge checks after loading all the files. That is needed because merging
+            // may resolve classes and doing that during parsing can lead to issues.
+            deferMergingIntoExistingClass(existingClass, newClassCharacteristics)
+
             return
         }
 
@@ -800,23 +822,39 @@ private constructor(
     }
 
     /**
+     * Defer merging [newClassCharacteristics] into [existingClass] until after all signature files
+     * have been resolved.
+     */
+    private fun deferMergingIntoExistingClass(
+        existingClass: DefaultClassItem,
+        newClassCharacteristics: ClassCharacteristics
+    ) {
+        val merges = deferredMerges.computeIfAbsent(existingClass) { mutableListOf() }
+        merges.add(newClassCharacteristics)
+    }
+
+    /** Perform any deferred merges added by [deferMergingIntoExistingClass]. */
+    private fun performAnyDeferredMerges() {
+        for ((existingClass, newClasses) in deferredMerges) {
+            for (newClassCharacteristics in newClasses) {
+                tryMergingIntoExistingClass(existingClass, newClassCharacteristics)
+            }
+        }
+    }
+
+    /**
      * Try merging the new class into an existing class that was previously loaded from a separate
      * signature file.
      *
-     * Will throw an exception if there is an existing class but it is not compatible with the new
+     * Will throw an exception if there is an existing class, but it is not compatible with the new
      * class.
      *
      * @return `false` if there is no existing class, `true` if there is and the merge succeeded.
      */
     private fun tryMergingIntoExistingClass(
-        tokenizer: Tokenizer,
+        existingClass: DefaultClassItem,
         newClassCharacteristics: ClassCharacteristics,
-    ): Boolean {
-        // Check for the existing class from a previously parsed file. If it could not be found
-        // then return.
-        val existingClass =
-            codebase.findClassInCodebase(newClassCharacteristics.qualifiedName) ?: return false
-
+    ) {
         // Make sure the new class characteristics are compatible with the old class
         // characteristic.
         val existingCharacteristics = ClassCharacteristics.of(existingClass)
@@ -845,15 +883,6 @@ private constructor(
             // definition found later should be prioritized, overwrite the superclass type.
             existingClass.setSuperClassType(newSuperClassType)
         }
-
-        // Parse the class body adding each member created to the existing class.
-        parseClassBody(tokenizer, existingClass, typeItemFactoryForClass(existingClass))
-
-        // Although the class was first defined in a separate file it is being modified in the
-        // current file so that may include it in the main API surface.
-        existingClass.markExistingClassForMainApiSurface()
-
-        return true
     }
 
     /** Get the [TextTypeItemFactory] for a previously created [ClassItem]. */
@@ -1253,7 +1282,7 @@ private constructor(
         }
 
         var throwsList = emptyList<ExceptionTypeItem>()
-        var defaultAnnotationMethodValue = ""
+        var defaultAnnotationMethodValue: String? = null
 
         when (token) {
             "throws" -> {
@@ -1270,13 +1299,9 @@ private constructor(
         }
 
         val defaultValueProvider =
-            if (defaultAnnotationMethodValue.isNotEmpty())
-                valueParser.providerFor(
-                    returnType,
-                    defaultAnnotationMethodValue,
-                    ValueUseSite.ANNOTATION,
-                )
-            else null
+            defaultAnnotationMethodValue?.let { valueString ->
+                valueParser.providerFor(returnType, valueString, ValueUseSite.ANNOTATION)
+            }
 
         method =
             itemFactory.createMethodItem(
@@ -1292,7 +1317,6 @@ private constructor(
                 },
                 throwsTypes = throwsList,
                 defaultValueProvider = defaultValueProvider,
-                annotationDefault = defaultAnnotationMethodValue,
             )
 
         // Ignore enum synthetic methods. They are no longer included in signature files as they add

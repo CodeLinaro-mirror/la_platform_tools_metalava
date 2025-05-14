@@ -19,6 +19,12 @@ package com.android.tools.metalava.model.testsuite.methoditem
 import com.android.tools.metalava.model.JAVA_LANG_THROWABLE
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
+import com.android.tools.metalava.model.testing.classTypeItem
+import com.android.tools.metalava.model.testing.value.annotationValue
+import com.android.tools.metalava.model.testing.value.arrayValueFromAny
+import com.android.tools.metalava.model.testing.value.classObjectValue
+import com.android.tools.metalava.model.testing.value.fieldReferenceValue
+import com.android.tools.metalava.model.testing.value.literalValue
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.createAndroidModuleDescription
 import com.android.tools.metalava.testing.createCommonModuleDescription
@@ -377,26 +383,26 @@ class CommonMethodItemTest : BaseModelTest() {
             val classItem = codebase.assertClass("test.pkg.TestAnnotation")
 
             val values =
-                listOf<String>(
-                    "7",
-                    "-7",
-                    "1",
-                    "1.0f",
-                    "-1.0f",
-                    "1L",
-                    "-1L",
-                    "false",
-                    "\"pref\"",
-                    "{'a', 'b', 'c'}",
-                    "\'a\'",
-                    "java.lang.Double.NEGATIVE_INFINITY",
-                    "7",
-                    "12",
-                    "@test.pkg.TestAnnotation.InnerAnnotation",
-                    "java.lang.Integer.class",
-                    "test.pkg.TestAnnotation.InnerEnum.ENUM1"
+                listOf(
+                    literalValue(7),
+                    literalValue(-7),
+                    literalValue(1.toByte()),
+                    literalValue(1.0f),
+                    literalValue(-1.0f),
+                    literalValue(1L),
+                    literalValue(-1L),
+                    literalValue(false),
+                    literalValue("pref"),
+                    arrayValueFromAny('a', 'b', 'c'),
+                    arrayValueFromAny('a'),
+                    fieldReferenceValue("java.lang.Double", "NEGATIVE_INFINITY"),
+                    literalValue(7),
+                    literalValue(12),
+                    annotationValue("test.pkg.TestAnnotation.InnerAnnotation"),
+                    classObjectValue(classTypeItem("java.lang.Integer")),
+                    fieldReferenceValue("test.pkg.TestAnnotation.InnerEnum", "ENUM1"),
                 )
-            assertEquals(values, classItem.methods().map { it.legacyDefaultValue() })
+            assertEquals(values, classItem.methods().map { it.defaultValue })
         }
     }
 

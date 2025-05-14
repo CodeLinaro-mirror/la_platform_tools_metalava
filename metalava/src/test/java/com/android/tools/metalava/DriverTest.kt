@@ -26,6 +26,7 @@ import com.android.tools.lint.checks.infrastructure.TestFiles.java
 import com.android.tools.lint.checks.infrastructure.TestFiles.kotlin
 import com.android.tools.lint.checks.infrastructure.stripComments
 import com.android.tools.lint.client.api.LintClient
+import com.android.tools.metalava.cli.common.ARG_COMPILED_SOURCES
 import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.cli.common.ARG_NO_COLOR
 import com.android.tools.metalava.cli.common.ARG_QUIET
@@ -527,6 +528,8 @@ abstract class DriverTest :
         sourceFiles: Array<TestFile> = emptyArray(),
         /** Lint project description */
         projectDescription: TestFile? = null,
+        /** Jar file with the compiled sources loaded in addition to [sourceFiles]. */
+        compiledSourceJar: TestFile? = null,
         /** [ARG_REPEAT_ERRORS_MAX] */
         repeatErrorsMax: Int = 0,
         /**
@@ -610,6 +613,18 @@ abstract class DriverTest :
         fun pathUnderProject(path: String): String = File(project, path).path
 
         val projectDescriptionFile = projectDescription?.createFile(project)
+
+        val compiledSourceJarFile = compiledSourceJar?.createFile(project)
+        if (
+            compiledSourceJarFile != null &&
+                Capability.JAR_WITH_SOURCES !in codebaseCreatorConfig.creator.capabilities
+        ) {
+            error(
+                "Provider ${codebaseCreatorConfig.providerName} does not support compiled " +
+                    "sources; please add `@RequiresCapabilities(Capability.JAR_WITH_SOURCES)` to " +
+                    "the test"
+            )
+        }
 
         val apiClassResolutionArgs =
             arrayOf(ARG_API_CLASS_RESOLUTION, apiClassResolution.optionValue)
@@ -1072,6 +1087,10 @@ abstract class DriverTest :
                             add(androidJar.path)
                             addAll(classpathArgs)
                             addAll(kotlinPathArgs)
+                        }
+                        if (compiledSourceJarFile != null) {
+                            add(ARG_COMPILED_SOURCES)
+                            add(compiledSourceJarFile.absolutePath)
                         }
                     }
                     .toTypedArray()

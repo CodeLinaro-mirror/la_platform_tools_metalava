@@ -499,6 +499,36 @@ class ApiFileTest : BaseTextCodebaseTest() {
     }
 
     @Test
+    fun `Test classes split across multiple files`() {
+        runSignatureTest(
+            signature(
+                "current.txt",
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                        public class Foo {
+                        }
+                    }
+                """
+            ),
+            signature(
+                "system.txt",
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                        @test.pkg.Anno(12) public class Foo {
+                        }
+
+                        public @interface Anno {
+                            method public int value();
+                        }
+                    }
+                """
+            ),
+        ) {}
+    }
+
+    @Test
     fun `Test unknown interface should still be marked as such`() {
         runSignatureTest(
             signature(

@@ -236,6 +236,34 @@ interface CallableItem : MemberItem, TypeParameterListOwner {
         }
     }
 
+    /**
+     * Like [CallableItem.internalName] but is the desc-portion of the internal signature, e.g. for
+     * the method "void create(int x, int y)" the internal name of the constructor is "create" and
+     * the desc is "(II)V"
+     */
+    fun internalDesc(voidConstructorTypes: Boolean = false): String {
+        val sb = StringBuilder()
+        sb.append("(")
+
+        // Inner, i.e. non-static nested, classes get an implicit constructor parameter for the
+        // outer type
+        if (
+            isConstructor() &&
+                containingClass().containingClass() != null &&
+                !containingClass().modifiers.isStatic()
+        ) {
+            sb.append(containingClass().containingClass()?.type()?.internalName() ?: "")
+        }
+
+        for (parameter in parameters()) {
+            sb.append(parameter.type().internalName())
+        }
+
+        sb.append(")")
+        sb.append(if (voidConstructorTypes && isConstructor()) "V" else returnType().internalName())
+        return sb.toString()
+    }
+
     companion object {
         private fun compareCallables(
             o1: CallableItem,

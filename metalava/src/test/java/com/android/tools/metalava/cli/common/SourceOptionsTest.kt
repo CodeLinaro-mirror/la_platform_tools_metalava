@@ -30,6 +30,9 @@ Sources:
                                              stubs; the --stub-packages name is historical.
 
                                              See `metalava help package-filters` for more information.
+  --compiled-sources <path>                  Jar file with the compiled version of --source-files, loaded in addition to
+                                             the source files. Used to include the bytecode version of Kotlin source
+                                             APIs.
     """
         .trimIndent()
 

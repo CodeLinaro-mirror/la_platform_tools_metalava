@@ -135,6 +135,7 @@ class AnnotationsMerger(
                         classPath = options.classpath,
                         apiPackages = options.apiPackages,
                         projectDescription = null,
+                        compiledSourceJar = null,
                     )
                 mergeJavaStubsCodebase(javaStubsCodebase)
             }

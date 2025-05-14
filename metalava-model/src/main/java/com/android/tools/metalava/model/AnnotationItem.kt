@@ -129,10 +129,7 @@ sealed interface AnnotationItem {
     }
 
     /** Returns the given named attribute if specified */
-    fun findAttribute(name: String?): AnnotationAttribute? {
-        val actualName = name ?: ANNOTATION_ATTR_VALUE
-        return attributes.firstOrNull { it.name == actualName }
-    }
+    fun findAttribute(name: String) = attributes.firstOrNull { it.name == name }
 
     /** Find the class declaration for the given annotation */
     fun resolve(): ClassItem?
@@ -648,16 +645,6 @@ sealed interface AnnotationAttribute {
      * fields.
      */
     val value: Value
-
-    /**
-     * Return all leaf values; this flattens the complication of handling
-     * {@code @SuppressLint("warning")} and {@code @SuppressLint({"warning1","warning2"})
-     */
-    fun leafValues(): List<AnnotationAttributeValue> {
-        val result = mutableListOf<AnnotationAttributeValue>()
-        AnnotationAttributeValue.addValues(legacyValue, result)
-        return result
-    }
 }
 
 const val ANNOTATION_VALUE_FALSE = "false"
@@ -738,17 +725,17 @@ class DefaultAnnotationAttribute(
     }
 
     override fun toString(): String {
-        return "$name=$legacyValue"
+        return "$name=${value.toValueString()}"
     }
 
     override fun equals(other: Any?): Boolean {
         if (other !is AnnotationAttribute) return false
-        return name == other.name && legacyValue == other.legacyValue
+        return name == other.name && value == other.value
     }
 
     override fun hashCode(): Int {
         var result = name.hashCode()
-        result = 31 * result + legacyValue.hashCode()
+        result = 31 * result + value.hashCode()
         return result
     }
 }

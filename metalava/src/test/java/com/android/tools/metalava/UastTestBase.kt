@@ -25,6 +25,7 @@ import com.android.tools.metalava.testing.createAndroidModuleDescription
 import com.android.tools.metalava.testing.createCommonModuleDescription
 import com.android.tools.metalava.testing.createModuleDescription
 import com.android.tools.metalava.testing.createProjectDescription
+import com.android.tools.metalava.testing.defaultJvmPlatforms
 import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
 
@@ -1815,7 +1816,7 @@ abstract class UastTestBase : DriverTest() {
     }
 
     @Test
-    fun `default parameter value from common, with android=false for common`() {
+    fun `default parameter value from common, without jvm platform set for common`() {
         val commonSource =
             kotlin(
                 "commonMain/src/test/pkg/Foo.kt",
@@ -1856,7 +1857,7 @@ abstract class UastTestBase : DriverTest() {
     }
 
     @Test
-    fun `default parameter value from common, with android=true for common`() {
+    fun `default parameter value from common, with jvm platform set for common`() {
         // b/322156458
         val modifier =
             if (isK2) {
@@ -1891,9 +1892,10 @@ abstract class UastTestBase : DriverTest() {
                     createAndroidModuleDescription(arrayOf(androidSource)),
                     createModuleDescription(
                         moduleName = "commonMain",
-                        android = true,
+                        android = false,
+                        kotlinPlatforms = defaultJvmPlatforms,
                         sourceFiles = arrayOf(commonSource),
-                        dependsOn = emptyList()
+                        dependsOn = emptyList(),
                     ),
                 ),
             api =

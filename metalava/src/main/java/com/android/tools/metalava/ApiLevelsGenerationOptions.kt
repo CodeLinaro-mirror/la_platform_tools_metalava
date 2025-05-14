@@ -361,13 +361,9 @@ class ApiLevelsGenerationOptions(
         files: List<MatchedPatternFile>,
     ): VersionedApi {
         val version = updater.apiVersion
-        val jar =
-            files.singleOrNull()?.file
-                ?: error(
-                    "Expected only one jar file for version $version but found ${files.size}:\n${files.joinToString("\n") {"    $it"}}"
-                )
-        verbosePrint { "Found API $version at $jar" }
-        return VersionedJarApi(jar, updater)
+        val jarFiles = files.map { it.file }
+        verbosePrint { "Found API $version at ${jarFiles.joinToString()}" }
+        return VersionedJarApi(jarFiles, updater)
     }
 
     /** Print string returned by [message] if verbose output has been requested. */
@@ -533,14 +529,20 @@ class ApiLevelsGenerationOptions(
             if (moduleMap.isEmpty())
                 continue // TODO(b/259115852): remove this (though it is an optimization too).
 
-            val byVersion = moduleFiles.groupBy { it.version }
-            byVersion.mapTo(list) { (version, files) ->
-                val extVersion = ExtVersion.fromLevel(version.major)
+            // Extension modules only have a major version so group by that.
+            val byMajorVersion = moduleFiles.groupBy { it.version.major }
+            val lastMajorVersion = byMajorVersion.keys.max()
+            byMajorVersion.mapTo(list) { (extVersionNumber, files) ->
+                val extVersion = ExtVersion.fromLevel(extVersionNumber)
+                // If the extension is the last extension version then it will make sure that any
+                // new APIs appear to have been added in `versionNotInAndroidSdk`.
+                val isLatestExtVersion = extVersionNumber == lastMajorVersion
                 val updater =
                     ApiHistoryUpdater.forExtVersion(
                         versionNotInAndroidSdk,
                         extVersion,
                         mainlineModule,
+                        isLatestExtVersion,
                     )
                 versionedApiFactory(updater, files)
             }
