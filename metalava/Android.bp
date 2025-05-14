@@ -50,6 +50,7 @@ java_binary_host {
         "metalava-tools-common-m2-deps",
         "metalava-gradle-plugin-deps",
         "gson-prebuilt-jar-2.9.1",
+        "kotlin_metadata_jvm",
     ],
     main_class: "com.android.tools.metalava.Driver",
     target: {

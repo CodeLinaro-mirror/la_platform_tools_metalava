@@ -128,8 +128,12 @@ internal class PsiCodebaseAssembler(
      */
     private val deferredHeavyweightPsiClasses = mutableMapOf<String, PsiClass>()
 
+    /** If [PsiSourceParser.mergeFromJar] is used, this is the environment used to load the jar. */
+    var mergedJarEnvironment: UastEnvironment? = null
+
     fun dispose() {
         uastEnvironment.dispose()
+        mergedJarEnvironment?.dispose()
     }
 
     private fun getFactory() = JavaPsiFacade.getElementFactory(project)

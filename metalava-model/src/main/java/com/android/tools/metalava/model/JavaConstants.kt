@@ -40,6 +40,8 @@ const val KT_RETENTION = "kotlin.annotation.Retention"
 
 const val JVM_STATIC = "kotlin.jvm.JvmStatic"
 
+const val KOTLIN_METADATA = "kotlin.Metadata"
+
 /** True if the annotation name represents @Retention (either the Java or Kotlin version) */
 fun isRetention(qualifiedName: String?): Boolean =
     JAVA_RETENTION == qualifiedName || KT_RETENTION == qualifiedName

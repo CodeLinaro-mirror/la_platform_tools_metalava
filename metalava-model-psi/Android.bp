@@ -32,5 +32,6 @@ java_library_host {
         "metalava-tools-common-m2-deps",
         // Needed for guava stuff
         "metalava-gradle-plugin-deps",
+        "kotlin_metadata_jvm",
     ],
 }

@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.lint.checks.infrastructure.TestFiles.base64gzip
 import com.android.tools.metalava.cli.common.ARG_ERROR
 import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.lint.DefaultLintErrorMessage
@@ -867,6 +868,94 @@ class ApiAnalyzerTest : DriverTest() {
                     )
                 ),
             extraArguments = arrayOf(ARG_ERROR, Issues.INHERIT_CHANGES_SIGNATURE.name)
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN, Capability.JAR_WITH_SOURCES)
+    @Test
+    fun `Checks do not run on bytecode-only items`() {
+        check(
+            expectedIssues =
+                """
+                src/test/pkg/IntValue.kt:8: warning: Method test.pkg.Foo.usesHiddenTypeAndValueClass(int) references hidden type test.pkg.HiddenClass. [HiddenTypeParameter]
+                src/test/pkg/IntValue.kt:8: warning: Return type of unavailable type test.pkg.HiddenClass in test.pkg.Foo.usesHiddenTypeAndValueClass() [UnavailableSymbol]
+                src/test/pkg/IntValue.kt:8: error: Class test.pkg.HiddenClass is hidden but was referenced (in return type) from public method test.pkg.Foo.usesHiddenTypeAndValueClass(int) [ReferencesHidden]
+                """,
+            expectedFail = DefaultLintErrorMessage,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                            package test.pkg
+                            @JvmInline value class IntValue(val v: Int)
+
+                            /** @hide */
+                            class HiddenClass
+
+                            interface Foo {
+                                fun usesHiddenTypeAndValueClass(iv: IntValue): HiddenClass
+                            }
+                        """
+                    )
+                ),
+            // Compiled from the source above with [generateBase64gzipFromKotlin]
+            compiledSourceJar =
+                base64gzip(
+                    "test.jar",
+                    // kotlinc version info: kotlinc-jvm 1.9.23 (JRE 17.0.6+10-b802.1)
+                    "" +
+                        "H4sIAAAAAAAA/31WeTgU3hoeM0ayZBvCVD8TIcuQLWRJ00wxYUwI2cZOxjbG" +
+                        "zqSGMGookSxFKvs6lCU7WSZClDUSgxQSIurSvc+96rl1zvP9d773O8/3nu89" +
+                        "LwYNYoYAWFlZAQAADLB7QQDMAH2ksY6srgFKTl/HQBeFPG8M10d97wAAlvXp" +
+                        "nefQsvAeTrSsVBe9uwwr/0pxfMoHrqcvo6vfQ8ylYRf1ZL2l9Oh0adPFLrn2" +
+                        "dvrk1LspIACD3sNaxHe0SG27wPHtwPyx/P7t8HUk+Mp5XXKW0/XwNcW5Ex3h" +
+                        "9u44AiHUePQ81ATyYzSl6IVTeMpLbOn9VcQwmSreYpEHybpfTskwyTbq6OP1" +
+                        "azxVGj2o/4haM2szflVOfWOcnUv9fHiJ4r53KaRbkwGfnG7JwybP+Wh3aTL8" +
+                        "u9bTCKsLJNIPUL2V+zExzc4Vn5Utny6vmkxzV4tj8iwlzhV0yxbfjsrHw8Gm" +
+                        "7RRYMzf8onU8LKFdmCMfSUIgOPQOHPAOWvXDJ+FoXkyEdFxbHj6Ac/ho91B/" +
+                        "UMSET2ubQJD1kGeW/0ObihGa9AlT0UieyBnQcMkzpDY5M1IMK8WMEuI9aJg8" +
+                        "cOVKZ5brwIfEsib5lMqZqczJ+vaaSGnBpDuuke06POkXUuNibmG9p37w2yTF" +
+                        "eMpLHtwnCHdkcSiaEC5Ej0JPPxqUZChz4MyO+Hnyhlc/qq7GDpcAgU2QQ7dh" +
+                        "gwjYvvxSB7cYSyJNmS6SZydcJqzwuTletDa/6K5TC+f9VgVURt348iCDw61v" +
+                        "sPDZYrlSzfVsWm0nd05gtelVGLEn5o4nopONC9jvtYfAy9jyY0Py48x1jHLV" +
+                        "Cl+7JNZYiLKiZ7+uitL3uUgPArnE3iBYPlrqBcYcsxdUAFvXiSapNUrOv66J" +
+                        "+fh+1aJ/xC3PTdU3viB5XiPfPL3SPki8PaCcP1MI5xPdCX718ZsYCdcJVRs/" +
+                        "wbzZN9tAvE0l3Kb0gW6HWUpKXThMk3Ch9mqdO3Ghq9ZaWFvzzmRghcbNGLbC" +
+                        "5ZCZ+ecuZnspbblwSNVzBiRjbsI70Zn6Y6Ni6y73UC43ApviQE/ivBXBLSrG" +
+                        "Z2WOzRq4ZWUccbinSc+4uasWZxmpNzs5kjAythYVOniIQxRsN6FbVoVXTk8e" +
+                        "5kcnlpsqSCPLcJ3BIgeGFum93++ac32aQxUMSppT3QN1i44f7C60QA6Xz65k" +
+                        "TL7S6CvLyTTGG4ATx85/Pq8jYU5jzRRbT/VQ05X5GJ+ThOGarTfKUp5jV6td" +
+                        "5AwBi82c7o9T5BGsQwt/lt1is1sWTMLan3m5IlojXnrmaRD5OGlJc+1kb0An" +
+                        "Nbxdl/2kBwuPpMIVvpG5J0ZVN1zDgCnQtOwVvhGtecUo3zS6b9884ebCk1m1" +
+                        "jCVW93SsX+ngl1nthjqEmK9qKFsY2V/gS/vClPLI9Ae0hf34Ekl+JPKAKCwZ" +
+                        "jGvr08zUY/H6ZwE8XgrHSsNBd7UaQuQyKwI1os6mhxAapmjgaUp4pToxNiIn" +
+                        "+u397+rFfniZcsrDDf16VkIJerr/MrRwraxxWFa09ysAHb4q++50bYtNuOfc" +
+                        "c7NPRRc05PU65ExJz9StWll8TYWlvxbL1ZG1lkB2E/d49q203eAeRDMq9cYf" +
+                        "XJ5jPrS+7u2+Mde9mLpqpR567pu9gnIFt0Kx2zgfCJzfw2PIkbvy+KItXKtp" +
+                        "QwBl5QJXsWzeJPYgB5DNyFctoTY+1OmOllSK0H6h/a9DJuIoEz9+ao7xLI+g" +
+                        "HDMAMLznb5ojvFtzzro6ODh6IHYE59+ygzeqNgDqQDQV6w9LdyBOL5rkRbA3" +
+                        "G9hnirXqY/iUlYxBJxrCHQfkQSXvL26CpPnYETJbkpNWWTQ1NWqwBMOplqSl" +
+                        "xZRqS81weFgytly8YJUnElclxGbfa8uxHn6HTQ5StTBK3FPq3HdWXtVZTzq4" +
+                        "K05V1d05/srk4WglRK/W0SaMx9ba+FFEhnKsezbNX7SAlcz/fqlHSQdpxpEs" +
+                        "WF8f+b4u26w/CkyM3FqnEwMjqjUM3bXy6M6c1vZJOUUXrjECNfptlz7lFuEv" +
+                        "kvkCNWivsoXAN2GvsRZjBigrtTDIaFyqnfRcdLFsq9QAui80SnwyvQZbkj1m" +
+                        "SDMRHTRFGQVlEB0iTOJVsq/2NXQWLm2R+bFjp0A5D/zza3gmsnnVSeIVe8vQ" +
+                        "6eHVbf4CTyNGW5wxoR2lB8VC8tfN1uIR6ZJsWjFvZi4LJRTrVoZfwqh4hTHt" +
+                        "EJNDyz9hxAQAtDP9jRje3cSgPD3/8w9gGjz6TkJSn+i6v054V4HphTwVgale" +
+                        "Ho2CShjn5BpJYnUq39NynvSId1V1FCKCKBsSi/xRoJjG69RTGtewcdxn844v" +
+                        "+zm/hb54snCvDhBw4xuZ+Dif0n3m6tdiyRBumHBHTizBlWUp5TsmTf0f5cam" +
+                        "XqngrLJzyf77GXMP26sU5Pp14AWhQ2nX30qU8eDWvDeyCJpLj0OOBDbwqbc4" +
+                        "cHPd/mCYpaKS2AoxULeS14aPeCcz8ofmY9mSLvHVmRo49erW8k26Xt/Cmgzk" +
+                        "AoFLKsf6TJLkO1f3SlACFSH6PDEux7jWjTfZTotcKZu2GxPY+8wNmXnkpsUw" +
+                        "ZS72+oMzNto9drWbM/0guc9JSY1c0IbPTVfJue34RhSjO+END/TNN0MRchrp" +
+                        "ociXhOKtb8rKHivUex6b77pRNxj3ElpnS/ReGF8c7Q5sIlqTF/FGBgb9GV38" +
+                        "j8OOfPx+5EsAbM4MaSqhNF6yLODPvxELDM6rogTH7gmBFrsVXLOIkXdEmz3X" +
+                        "f/TmrDe7EZdDSXTBISAFTxkW8Jfxk/lkoSQrLDDGtUMtFG86nbJNqxXwb9RC" +
+                        "t+O/NgOPc/WAX/L0dXf1sMF7OhDdHe1tbW2dtoPZzoBFEmP30g7wc55XDtc8" +
+                        "49vOFPzpIZiAEMD/0Hf7ix0T8+v6k6X5HWW3Yuz/BYH0Z2fyO8ju1y38C8gy" +
+                        "89+k5nec3a3k/QUnluX/Tcbv+bvbBf0l35n1r+3HoMEsO8fA29ty+wJNO3iA" +
+                        "fwFEnOJ9NQoAAA=="
+                )
         )
     }
 }
