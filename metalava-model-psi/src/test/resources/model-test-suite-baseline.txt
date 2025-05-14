@@ -13,6 +13,9 @@ com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTe
   annotation with enum values[java,k1]
   annotation with enum values[java,k2]
 
+com.android.tools.metalava.model.testsuite.classitem.CommonDataClassTest
+  Test data class copy method visibility with ConsistentCopyVisibility[kotlin,k1]
+
 com.android.tools.metalava.model.testsuite.typealiasitem.CommonTypeAliasItemTest
   accessing type alias from codebase[kotlin,k1]
   accessing type alias from package[kotlin,k1]
@@ -44,6 +47,7 @@ com.android.tools.metalava.model.testsuite.typeitem.CommonTypeStringTest
   Type string[java,k2,null annotated parameterized inner type - kotlin nulls]
 
 com.android.tools.metalava.model.testsuite.value.CommonParameterizedAttributeValueTest
+  testLegacyValue[kotlin,k1,source,annotation - array of annotations]
   testLegacyValue[kotlin,k1,source,annotation - multiple attributes]
   testLegacyValue[kotlin,k1,source,annotation - no attributes]
   testLegacyValue[kotlin,k1,source,annotation - single value]

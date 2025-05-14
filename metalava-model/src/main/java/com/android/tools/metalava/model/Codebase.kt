@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model
 
-import com.android.tools.metalava.model.DefaultAnnotationItem.Companion.formatAnnotationItem
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.reporter.ThrowingReporter
@@ -119,10 +118,26 @@ interface Codebase : ClassResolver, AnnotationContext {
      */
     fun createAnnotationFromAttributes(
         originalName: String,
-        attributes: List<AnnotationAttribute> = emptyList(),
-        context: Item? = null
+        attributes: List<Pair<String, String>> = emptyList(),
+        context: Item? = null,
     ): AnnotationItem? {
-        val source = formatAnnotationItem(originalName, attributes)
+        val source = buildString {
+            append("@")
+            append(originalName)
+            if (attributes.isNotEmpty()) {
+                append("(")
+                attributes.forEachIndexed { i, attribute ->
+                    if (i != 0) {
+                        append(", ")
+                    }
+                    append(attribute.first)
+                    append("=")
+                    append(attribute.second)
+                }
+                append(")")
+            }
+        }
+
         return createAnnotation(source, context)
     }
 

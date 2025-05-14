@@ -22,6 +22,7 @@ import com.android.tools.metalava.model.testing.arrayTypeItem
 import com.android.tools.metalava.model.testing.classTypeItem
 import com.android.tools.metalava.model.testing.primitiveTypeForKind
 import com.android.tools.metalava.model.testing.value.annotationValue
+import com.android.tools.metalava.model.testing.value.arrayValue
 import com.android.tools.metalava.model.testing.value.arrayValueFromAny
 import com.android.tools.metalava.model.testing.value.classObjectValue
 import com.android.tools.metalava.model.testing.value.fieldReferenceValue
@@ -376,6 +377,63 @@ constructor(
                                 annotationValue(
                                     "test.pkg.SingleValueAnnotation",
                                     "value" to literalValue("text"),
+                                )
+                        },
+                ),
+                ValueExample(
+                    name = "annotation - array of annotations",
+                    javaType = "test.pkg.OtherAnnotation[]",
+                    javaExpression =
+                        "{@test.pkg.OtherAnnotation(intType = 1), @test.pkg.OtherAnnotation(intType = 2)}",
+                    kotlinType = "Array<test.pkg.OtherAnnotation>",
+                    kotlinExpression =
+                        "[test.pkg.OtherAnnotation(intType = 1), test.pkg.OtherAnnotation(intType = 2)]",
+                    expectedLegacySource =
+                        expectations {
+                            common =
+                                "{@test.pkg.OtherAnnotation(intType = 1), @test.pkg.OtherAnnotation(intType = 2)}"
+                            annotationToSource =
+                                "{@test.pkg.OtherAnnotation(intType=1), @test.pkg.OtherAnnotation(intType=2)}"
+                        },
+                    expectedKotlinLegacySource =
+                        expectations {
+                            common =
+                                "[test.pkg.OtherAnnotation(intType = 1), test.pkg.OtherAnnotation(intType = 2)]"
+                            attributeDefaultValue =
+                                "{test.pkg.OtherAnnotation(intType=1), test.pkg.OtherAnnotation(intType=2)}"
+                            annotationToSource =
+                                "{test.pkg.OtherAnnotation(1), test.pkg.OtherAnnotation(2)}"
+                        },
+                    expectedLegacyValue =
+                        expectations {
+                            attributeValue =
+                                arrayOf(
+                                    "@test.pkg.OtherAnnotation(intType = 1)",
+                                    "@test.pkg.OtherAnnotation(intType = 2)"
+                                )
+                        },
+                    expectedKotlinLegacyValue =
+                        expectations {
+                            attributeValue =
+                                arrayOf(
+                                    "test.pkg.OtherAnnotation(intType = 1)",
+                                    "test.pkg.OtherAnnotation(intType = 2)"
+                                )
+                        },
+                    // Annotation literals cannot be used in fields.
+                    suitableFor = allLegacyValueUseSitesExceptFields,
+                    expectedValue =
+                        expectations {
+                            common =
+                                arrayValue(
+                                    annotationValue(
+                                        "test.pkg.OtherAnnotation",
+                                        "intType" to literalValue(1),
+                                    ),
+                                    annotationValue(
+                                        "test.pkg.OtherAnnotation",
+                                        "intType" to literalValue(2),
+                                    ),
                                 )
                         },
                 ),

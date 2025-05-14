@@ -641,11 +641,7 @@ private constructor(
         var classKind = ClassKind.CLASS
         var superClassType: ClassTypeItem? = null
 
-        // Metalava: including annotations in file now
-        val annotations = getAnnotations(tokenizer, token)
-        token = tokenizer.current
-        val modifiers = parseModifiers(tokenizer, token, annotations)
-
+        val modifiers = parseModifiers(tokenizer, token)
         // Remember this position as this seems like a good place to use to report issues with the
         // class item.
         val classPosition = tokenizer.fileLocation()
@@ -1169,10 +1165,7 @@ private constructor(
         var token = startingToken
         val method: ConstructorItem
 
-        // Metalava: including annotations in file now
-        val annotations = getAnnotations(tokenizer, token)
-        token = tokenizer.current
-        val modifiers = parseModifiers(tokenizer, token, annotations)
+        val modifiers = parseModifiers(tokenizer, token)
 
         // Get a TypeParameterList and accompanying TypeItemFactory
         val (typeParameterList, typeItemFactory) =
@@ -1229,10 +1222,7 @@ private constructor(
         var token = startingToken
         val method: MethodItem
 
-        // Metalava: including annotations in file now
-        val annotations = getAnnotations(tokenizer, token)
-        token = tokenizer.current
-        val modifiers = parseModifiers(tokenizer, token, annotations)
+        val modifiers = parseModifiers(tokenizer, token)
 
         // Get a TypeParameterList and accompanying TypeParameterScope
         val (typeParameterList, typeItemFactory) =
@@ -1271,7 +1261,7 @@ private constructor(
         val returnType =
             typeItemFactory.getMethodReturnType(
                 returnTypeString,
-                annotations,
+                modifiers.annotations(),
                 MethodFingerprint(name, parameters.size),
                 cl.isAnnotationType()
             )
@@ -1344,9 +1334,7 @@ private constructor(
         isEnumConstant: Boolean,
     ) {
         var token = startingToken
-        val annotations = getAnnotations(tokenizer, token)
-        token = tokenizer.current
-        val modifiers = parseModifiers(tokenizer, token, annotations)
+        val modifiers = parseModifiers(tokenizer, token)
         token = tokenizer.current
         tokenizer.assertIdent(token)
 
@@ -1382,7 +1370,7 @@ private constructor(
                 isEnumConstant = isEnumConstant,
                 isFinal = modifiers.isFinal(),
                 isInitialValueNonNull = { valueString != null && valueString != "null" },
-                itemAnnotations = annotations,
+                itemAnnotations = modifiers.annotations(),
             )
         synchronizeNullability(type, modifiers)
 
@@ -1420,14 +1408,29 @@ private constructor(
         cl.addField(field)
     }
 
-    private fun parseModifiers(
-        tokenizer: Tokenizer,
-        startingToken: String?,
-        annotations: List<AnnotationItem>
-    ): MutableModifierList {
-        var token = startingToken
+    /**
+     * Parses and creates modifiers, including annotations and keyword modifiers.
+     *
+     * If there is no visibility modifier, [VisibilityLevel.PACKAGE_PRIVATE] is used.
+     *
+     * When the method returns, the current token of [tokenizer] will be the first token after the
+     * modifiers.
+     */
+    private fun parseModifiers(tokenizer: Tokenizer, startingToken: String): MutableModifierList {
+        val annotations = getAnnotations(tokenizer, startingToken)
         val modifiers = createModifiers(VisibilityLevel.PACKAGE_PRIVATE, annotations)
+        parseKeywordModifiers(tokenizer, modifiers)
+        return modifiers
+    }
 
+    /**
+     * Updates the [modifiers] to reflect all modifier keywords parsed from [tokenizer].
+     *
+     * The method starts processing from the current token of [tokenizer]. When the method returns,
+     * the current token of [tokenizer] will be the first token after the modifiers.
+     */
+    private fun parseKeywordModifiers(tokenizer: Tokenizer, modifiers: MutableModifierList) {
+        var token = tokenizer.current
         processModifiers@ while (true) {
             token =
                 when (token) {
@@ -1526,7 +1529,6 @@ private constructor(
                     else -> break@processModifiers
                 }
         }
-        return modifiers
     }
 
     /** Creates a [MutableModifierList], setting the deprecation based on the [annotations]. */
@@ -1549,11 +1551,7 @@ private constructor(
         startingToken: String
     ) {
         var token = startingToken
-
-        // Metalava: including annotations in file now
-        val annotations = getAnnotations(tokenizer, token)
-        token = tokenizer.current
-        val modifiers = parseModifiers(tokenizer, token, annotations)
+        val modifiers = parseModifiers(tokenizer, token)
 
         // Get a TypeParameterList and accompanying TypeParameterScope
         val (typeParameterList, typeItemFactory) =
@@ -1786,10 +1784,7 @@ private constructor(
                 token = tokenizer.requireToken()
             }
 
-            // Metalava: including annotations in file now
-            val annotations = getAnnotations(tokenizer, token)
-            token = tokenizer.current
-            val modifiers = parseModifiers(tokenizer, token, annotations)
+            val modifiers = parseModifiers(tokenizer, token)
             token = tokenizer.current
 
             val typeString: String

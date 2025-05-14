@@ -38,15 +38,6 @@ import kotlin.jvm.optionals.getOrNull
 interface ValueProvider {
     /** Get the value, creating it if necessary. */
     val value: Value
-
-    companion object {
-        /** A temporary [ValueProvider] which throws an error when called. */
-        val UNSUPPORTED =
-            object : ValueProvider {
-                override val value: Value
-                    get() = throw ValueProviderException("value provider is not yet supported")
-            }
-    }
 }
 
 /** Return a provider for this [Value]. */

@@ -17,6 +17,7 @@ com.android.tools.metalava.model.testsuite.typeitem.CommonTypeParameterItemTest
   Test type parameter with annotations
 
 com.android.tools.metalava.model.testsuite.value.CommonParameterizedAnnotationToSourceValueTest
+  testLegacySource[source,annotation - array of annotations]
   testLegacySource[source,annotation]
   testLegacySource[source,char escaped]
   testLegacySource[source,char unicode]

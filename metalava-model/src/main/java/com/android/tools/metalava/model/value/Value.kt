@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model.value
 
-import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
 import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
@@ -676,43 +675,7 @@ sealed interface AnnotationValue : ArrayElementValue {
     override fun appendValueStringTo(
         builder: StringBuilder,
         configuration: ValueStringConfiguration
-    ) {
-        val language = configuration.valueLanguage
-        builder.append(language.annotationClassPrefix)
-        builder.append(annotationItem.qualifiedName)
-        val attributes = annotationItem.attributes
-        if (language.annotationAttributesListRequiresParentheses || attributes.isNotEmpty()) {
-            builder.append("(")
-
-            val nameValueSeparator = configuration.annotationAttributeNameValueSeparator.text
-
-            val singleAttribute = attributes.singleOrNull()
-            if (singleAttribute == null) {
-                var separator = ""
-
-                // Get the attributes in the correct order.
-                val orderedAttributes =
-                    if (configuration.sortAnnotationAttributes) attributes.sortedBy { it.name }
-                    else attributes
-
-                for (attribute in orderedAttributes) {
-                    builder.append(separator)
-                    builder.append(attribute.name).append(nameValueSeparator)
-                    configuration.appendNestedValueTo(builder, attribute.value)
-                    separator = ", "
-                }
-            } else {
-                // A single attribute whose attribute name is "value" can just use the value.
-                val name = singleAttribute.name
-                if (name != ANNOTATION_ATTR_VALUE) {
-                    builder.append(name).append(nameValueSeparator)
-                }
-                configuration.appendNestedValueTo(builder, singleAttribute.value)
-            }
-
-            builder.append(")")
-        }
-    }
+    ) = annotationItem.appendAnnotationStringTo(builder, configuration)
 }
 
 /** A [Value] reference to a [Class] object. */

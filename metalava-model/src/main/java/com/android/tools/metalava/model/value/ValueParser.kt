@@ -151,8 +151,7 @@ class ValueParser(
                 val elements = buildList {
                     while (true) {
                         // The next token could be the end of the array or a value.
-                        // TODO(b/354633349): Handle annotations in arrays.
-                        val valueToken = tokenizer.requireToken()
+                        val valueToken = tokenizer.requireToken(purpose = TokenPurpose.VALUE)
 
                         // If it is the end of the array (because the array is empty) then break
                         // out.
