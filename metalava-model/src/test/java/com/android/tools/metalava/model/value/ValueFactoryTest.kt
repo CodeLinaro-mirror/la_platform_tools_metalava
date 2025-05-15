@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.testing.classTypeItem
 import com.android.tools.metalava.model.testing.stringType
 import com.android.tools.metalava.model.testing.value.arrayValue
 import com.android.tools.metalava.model.testing.value.arrayValueFromAny
+import com.android.tools.metalava.model.testing.value.classObjectValue
 import com.android.tools.metalava.model.testing.value.fieldReferenceValue
 import com.android.tools.metalava.model.testing.value.literalValue
 import com.android.tools.metalava.model.testing.variableTypeItem
@@ -89,7 +90,7 @@ class ValueFactoryTest {
     fun `createClassObjectValue - invalid variable type`() {
         val exception =
             assertThrows(IllegalStateException::class.java) {
-                Value.createClassObjectValue(variableTypeItem("T"))
+                classObjectValue(variableTypeItem("T"))
             }
 
         assertEquals("'T' is an invalid type for a class object value", exception.message)
@@ -99,7 +100,7 @@ class ValueFactoryTest {
     fun `createClassObjectValue - array of invalid variable type`() {
         val exception =
             assertThrows(IllegalStateException::class.java) {
-                Value.createClassObjectValue(arrayTypeItem(variableTypeItem("T")))
+                classObjectValue(arrayTypeItem(variableTypeItem("T")))
             }
 
         assertEquals("'T' is an invalid type for a class object value", exception.message)
@@ -108,9 +109,7 @@ class ValueFactoryTest {
     @Test
     fun `createClassObjectValue - invalid wildcard type`() {
         val exception =
-            assertThrows(IllegalStateException::class.java) {
-                Value.createClassObjectValue(wildcardTypeItem())
-            }
+            assertThrows(IllegalStateException::class.java) { classObjectValue(wildcardTypeItem()) }
 
         assertEquals("'?' is an invalid type for a class object value", exception.message)
     }
@@ -119,9 +118,7 @@ class ValueFactoryTest {
     fun `createClassObjectValue - invalid class arguments`() {
         val exception =
             assertThrows(IllegalStateException::class.java) {
-                Value.createClassObjectValue(
-                    classTypeItem("java.util.List", arguments = listOf(stringType()))
-                )
+                classObjectValue(classTypeItem("java.util.List", arguments = listOf(stringType())))
             }
 
         assertEquals(

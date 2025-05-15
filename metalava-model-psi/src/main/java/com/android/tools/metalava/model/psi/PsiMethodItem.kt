@@ -23,7 +23,7 @@ import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.MethodItem
-import com.android.tools.metalava.model.TargetLanguageSet
+import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
@@ -64,12 +64,13 @@ internal class PsiMethodItem(
     typeParameterList: TypeParameterList,
     throwsTypes: List<ExceptionTypeItem>,
     val defaultValueProvider: OptionalValueProvider?,
+    targetLanguages: Set<TargetLanguage>
 ) :
     DefaultMethodItem(
         codebase = codebase,
         fileLocation = fileLocation,
         sourceLanguage = psiMethod.sourceLanguage,
-        targetLanguages = TargetLanguageSet.ALL,
+        targetLanguages = targetLanguages,
         modifiers = modifiers,
         documentationFactory = documentationFactory,
         variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
@@ -105,19 +106,6 @@ internal class PsiMethodItem(
                     (psiMethod.sourcePsi as KtParameter).hasValOrVar())
     }
 
-    override fun legacyDefaultValue(): String {
-        return when (psiMethod) {
-            is UAnnotationMethod -> {
-                psiMethod.uastDefaultValue?.let { codebase.printer.toSourceString(it) } ?: ""
-            }
-            is PsiAnnotationMethod -> {
-                psiMethod.defaultValue?.let { codebase.printer.toSourceExpression(it, this) }
-                    ?: super.legacyDefaultValue()
-            }
-            else -> super.legacyDefaultValue()
-        }
-    }
-
     override fun duplicate(targetContainingClass: ClassItem): PsiMethodItem {
         // If duplicating within the same codebase type then map the type variables, otherwise do
         // not. That is because this can end up substituting a `TypeItem` implementation of one
@@ -148,6 +136,7 @@ internal class PsiMethodItem(
                 typeParameterList,
                 throwsTypes(),
                 defaultValueProvider,
+                targetLanguages,
             )
             .also { duplicated ->
                 duplicated.inheritedFrom = containingClass()
@@ -181,6 +170,7 @@ internal class PsiMethodItem(
             psiMethod: PsiMethod,
             enclosingClassTypeItemFactory: PsiTypeItemFactory,
             psiParameters: List<PsiParameter> = psiMethod.psiParameters,
+            targetLanguages: Set<TargetLanguage> = containingClass.targetLanguages,
         ): PsiMethodItem {
             assert(!psiMethod.isConstructor)
             // UAST workaround: @JvmName for UMethod with fake LC PSI
@@ -266,6 +256,7 @@ internal class PsiMethodItem(
                     typeParameterList = typeParameterList,
                     throwsTypes = throwsTypes(psiMethod, methodTypeItemFactory),
                     defaultValueProvider = defaultValueProvider,
+                    targetLanguages = targetLanguages,
                 )
 
             return method

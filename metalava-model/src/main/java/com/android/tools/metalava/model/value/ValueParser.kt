@@ -130,12 +130,10 @@ class ValueParser(
             }
             optionalTypeItem is ArrayTypeItem -> {
                 // The type is an array so this is an example of not having to add curly braces
-                // around a
-                // single value in an annotation attribute. Create a value for the component type
-                // and
-                // then wrap it in an ArrayValue.
+                // around a single value in an annotation attribute. Create a value for the
+                // component type and then wrap it in an ArrayValue.
                 val singleValue = parseArrayElementValue(optionalTypeItem.componentType, text)
-                createArrayValue(listOf(singleValue))
+                createArrayValue(listOf(singleValue), wasUnwrappedInSource = true)
             }
             else -> {
                 parseArrayElementValue(optionalTypeItem, text)
@@ -153,8 +151,7 @@ class ValueParser(
                 val elements = buildList {
                     while (true) {
                         // The next token could be the end of the array or a value.
-                        // TODO(b/354633349): Handle annotations in arrays.
-                        val valueToken = tokenizer.requireToken()
+                        val valueToken = tokenizer.requireToken(purpose = TokenPurpose.VALUE)
 
                         // If it is the end of the array (because the array is empty) then break
                         // out.
@@ -198,7 +195,7 @@ class ValueParser(
             val typeString = matchResult.groups[TYPE_GROUP_INDEX]!!.value
             val classLiteralTypeItem =
                 typeItemParser.obtainTypeFromString(typeString, TypeParameterScope.empty)
-            return createClassObjectValue(classLiteralTypeItem)
+            return createClassObjectValue(classLiteralTypeItem, text)
         }
 
         // Check to see if it looks like a field reference.

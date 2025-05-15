@@ -17,6 +17,7 @@
 package com.android.tools.metalava.cli.common
 
 import com.android.SdkConstants
+import com.android.tools.metalava.ARG_SOURCE_FILES
 import com.android.tools.metalava.model.PackageFilter
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import com.github.ajalt.clikt.parameters.options.convert
@@ -26,6 +27,8 @@ import java.io.File
 const val ARG_SOURCE_PATH = "--source-path"
 
 const val ARG_STUB_PACKAGES = "--stub-packages"
+
+const val ARG_COMPILED_SOURCES = "--compiled-sources"
 
 /** The name of the group, can be used in help text to refer to the options in this group. */
 const val SOURCE_OPTIONS_GROUP = "Sources"
@@ -90,4 +93,18 @@ class SourceOptions :
                         .trimIndent()
             )
             .convert { PackageFilter.parse(it) }
+
+    val compiledSourceJar by
+        option(
+                ARG_COMPILED_SOURCES,
+                metavar = "<path>",
+                help =
+                    """
+                        Jar file with the compiled version of $ARG_SOURCE_FILES, loaded in addition
+                        to the source files. Used to include the bytecode version of Kotlin source
+                        APIs.
+                    """
+                        .trimIndent(),
+            )
+            .existingFile()
 }

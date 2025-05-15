@@ -83,6 +83,9 @@ interface ModelSuiteRunner : FilterableCodebaseCreator {
 
         /** An XML file describing the structure of the project (mainly used for KMP projects). */
         val projectDescription: File?,
+
+        /** A jar file with the compiled sources of [mainSourceDir]. */
+        val compiledSourceJar: TestFile?,
     )
 
     /**

@@ -778,7 +778,7 @@ object KotlinTestClassCreator : TestClassCreator {
                 package test.pkg
                 object Constants {
                     const val STRING_CONSTANT = "constant"
-                    const val INT_CONSTANT = 37;
+                    const val INT_CONSTANT = 37
                 }
             """
         )
@@ -818,7 +818,7 @@ object KotlinTestClassCreator : TestClassCreator {
                         val enumType: TestEnum = TestEnum.DEFAULT,
                         val intType: Int = -1,
                         val stringType: String = "default",
-                        val stringArrayType: Array<String> = emptyArray(),
+                        val stringArrayType: Array<String> = [],
                     )
                 """
             )

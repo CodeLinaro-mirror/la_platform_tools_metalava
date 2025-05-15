@@ -21,6 +21,7 @@ import com.android.tools.metalava.testing.createAndroidModuleDescription
 import com.android.tools.metalava.testing.createCommonModuleDescription
 import com.android.tools.metalava.testing.createModuleDescription
 import com.android.tools.metalava.testing.createProjectDescription
+import com.android.tools.metalava.testing.defaultJvmPlatforms
 import com.android.tools.metalava.testing.kotlin
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
@@ -58,8 +59,9 @@ class PsiCodebasePropertyTest : BaseModelTest() {
                     createModuleDescription(
                         moduleName = "main",
                         android = true,
+                        kotlinPlatforms = defaultJvmPlatforms,
                         sourceFiles = arrayOf(source),
-                        dependsOn = emptyList()
+                        dependsOn = emptyList(),
                     )
                 )
         ) {

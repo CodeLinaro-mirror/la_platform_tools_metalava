@@ -44,6 +44,7 @@ import com.android.tools.metalava.model.asAnnotationAttributeValue
 import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.value.AnnotationValue
 import com.android.tools.metalava.model.value.FieldReferenceValue
+import com.android.tools.metalava.model.value.SingleArrayElementFormat
 import com.android.tools.metalava.model.value.Value
 import com.android.tools.metalava.model.value.ValueStringConfiguration
 import com.android.tools.metalava.model.value.asDouble
@@ -553,7 +554,7 @@ class ExtractAnnotations(
          */
         private val EXTRACT_VALUE_STRING_CONFIGURATION =
             ValueStringConfiguration(
-                unwrapSingleArrayElement = true,
+                singleArrayElementFormat = SingleArrayElementFormat.UNWRAP,
             )
     }
 }

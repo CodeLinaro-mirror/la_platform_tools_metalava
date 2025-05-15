@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava
 
-import com.android.tools.metalava.apilevels.internalDesc
 import com.android.tools.metalava.manifest.Manifest
 import com.android.tools.metalava.manifest.emptyManifest
 import com.android.tools.metalava.model.ANDROIDX_REQUIRES_PERMISSION
@@ -38,6 +37,7 @@ import com.android.tools.metalava.model.PackageList
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SelectableItem
+import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VariableTypeItem
@@ -520,6 +520,8 @@ class ApiAnalyzer(
             object :
                 ApiVisitor(
                     apiPredicateConfig = @Suppress("DEPRECATION") options.apiPredicateConfig,
+                    // Don't run checks on elements that only exist in bytecode.
+                    targetLanguages = TargetLanguageSet.SOURCE,
                 ) {
                 override fun visitParameter(parameter: ParameterItem) {
                     checkTypeReferencesHidden(parameter, parameter.type())
@@ -643,7 +645,12 @@ class ApiAnalyzer(
     fun handleStripping() {
         val notStrippable = HashSet<ClassItem>(5000)
 
-        val filter = ApiPredicate(config = config.apiPredicateConfig.copy(ignoreShown = true))
+        val filter = FilterPredicate { selectableItem ->
+            ApiPredicate(config = config.apiPredicateConfig.copy(ignoreShown = true))
+                .test(selectableItem) &&
+                // Don't consider references from elements that only exist in bytecode.
+                selectableItem.targetLanguages != TargetLanguageSet.BYTECODE_ONLY
+        }
 
         // If a class is public or protected, not hidden, not imported and marked as included,
         // then we can't strip it
@@ -658,7 +665,9 @@ class ApiAnalyzer(
             if (!cl.isHiddenOrRemoved()) {
                 val publiclyConstructable =
                     !cl.modifiers.isSealed() && cl.constructors().any { it.isApiCandidate() }
-                for (m in cl.methods()) {
+                for (m in
+                // Don't run checks on elements that only exist in bytecode.
+                cl.methods().filter { it.targetLanguages != TargetLanguageSet.BYTECODE_ONLY }) {
                     if (!m.isApiCandidate()) {
                         if (publiclyConstructable && m.modifiers.isAbstract()) {
                             reporter.report(

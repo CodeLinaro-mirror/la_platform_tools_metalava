@@ -200,7 +200,6 @@ class DefaultItemFactory(
         throwsTypes: List<ExceptionTypeItem>,
         callableBodyFactory: CallableBodyFactory = CallableBody.UNAVAILABLE_FACTORY,
         defaultValueProvider: OptionalValueProvider?,
-        annotationDefault: String,
     ): MethodItem =
         DefaultMethodItem(
             codebase,
@@ -218,7 +217,6 @@ class DefaultItemFactory(
             throwsTypes,
             callableBodyFactory,
             defaultValueProvider,
-            annotationDefault,
         )
 
     /** Create a [ParameterItem]. */

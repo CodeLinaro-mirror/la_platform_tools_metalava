@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.value.asString
@@ -83,7 +84,8 @@ class SdkFileWriter(val codebase: Codebase, private val outputDir: File) {
 
                 // Get the SdkConstantType from the SdkConstant annotation's `value` attribute,
                 // if available.
-                val sdkConstantType = sdkConstantAnnotation.findAttribute(null)?.value ?: continue
+                val sdkConstantType =
+                    sdkConstantAnnotation.findAttribute(ANNOTATION_ATTR_VALUE)?.value ?: continue
 
                 // Add the field value to the appropriate collection for the SdkConstantType.
                 when (sdkConstantType.toValueString()) {

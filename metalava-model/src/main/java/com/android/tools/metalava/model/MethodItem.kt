@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.value.LegacyValueFormatter
 import com.android.tools.metalava.model.value.Value
 
 @MetalavaApi
@@ -236,7 +237,10 @@ interface MethodItem : CallableItem, InheritableItem {
      * that exposes implementation details. It will be replaced by a properly modelled value
      * representation.
      */
-    fun legacyDefaultValue(): String
+    fun legacyDefaultValue() =
+        defaultValue?.let { value ->
+            LegacyValueFormatter.ATTRIBUTE_DEFAULT_FORMATTER.format(value, this)
+        } ?: ""
 
     /**
      * The optional default value of the method.

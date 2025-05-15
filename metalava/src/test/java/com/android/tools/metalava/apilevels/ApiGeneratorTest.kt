@@ -33,7 +33,6 @@ import com.android.tools.metalava.KnownConfigFiles
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import com.android.tools.metalava.testing.signature
-import com.android.tools.metalava.testing.xml
 import com.google.common.truth.Truth.assertThat
 import com.google.gson.GsonBuilder
 import com.google.gson.JsonElement
@@ -929,6 +928,122 @@ class ApiGeneratorTest : DriverTest() {
                     <class name="test.pkg.Foo" since="1.3">
                         <extends name="test.pkg.Bar"/>
                         <field name="field" since="2.0"/>
+                    </class>
+                </api>
+            """
+        )
+    }
+
+    @Test
+    fun `Test deprecating SDK extension API`() {
+        val root = buildFileStructure {
+            dir("39") {
+                signature(
+                    "api.txt",
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          public class Foo {
+                          }
+                        }
+                    """
+                )
+            }
+            dir("40") {
+                signature(
+                    "api.txt",
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          @Deprecated public class Foo {
+                          }
+                        }
+                    """
+                )
+            }
+            dir("extensions") {
+                dir("102") {
+                    signature(
+                        "module.txt",
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public class Foo {
+                              }
+                            }
+                        """
+                    )
+                }
+                dir("103") {
+                    signature(
+                        "module.txt",
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              @Deprecated public class Foo {
+                              }
+                            }
+                        """
+                    )
+                }
+            }
+        }
+
+        val sdkExtensionsInfoXml =
+            temporaryFolder.newFile("sdk-extensions-info.xml").apply {
+                writeText(
+                    """
+                        <?xml version="1.0" encoding="utf-8"?>
+                        <sdk-extensions-info>
+                        <sdk id="39" shortname="J-ext" name="J Extensions" reference="VersionCode.J"/>
+                        <sdk id="40" shortname="K-ext" name="K Extensions" reference="VersionCode.K"/>
+                        <symbol jar="module" pattern="*" sdks="J-ext,K-ext" />
+                        </sdk-extensions-info>
+                    """
+                        .trimIndent()
+                )
+            }
+
+        val apiVersionsXml = temporaryFolder.newFile("api-versions.xml")
+
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            /**
+                             * @deprecated Deprecated
+                             */
+                            @Deprecated public class Foo {
+                                private Foo() {}
+                            }
+                        """
+                    ),
+                ),
+            extraArguments =
+                arrayOf(
+                    ARG_GENERATE_API_LEVELS,
+                    apiVersionsXml.path,
+                    ARG_SDK_INFO_FILE,
+                    sdkExtensionsInfoXml.path,
+                    ARG_API_VERSION_SIGNATURE_PATTERN,
+                    "$root/{version:major.minor?}/api.txt",
+                    ARG_API_VERSION_SIGNATURE_PATTERN,
+                    "$root/extensions/{version:extension}/{module}.txt",
+                    ARG_CURRENT_VERSION,
+                    "41",
+                    ARG_REMOVE_MISSING_CLASS_REFERENCES_IN_API_LEVELS,
+                ),
+        )
+
+        apiVersionsXml.checkApiVersionsXmlContent(
+            """
+                <?xml version="1.0" encoding="utf-8"?>
+                <api version="3" min="39">
+                    <sdk id="39" shortname="J-ext" name="J Extensions" reference="VersionCode.J"/>
+                    <sdk id="40" shortname="K-ext" name="K Extensions" reference="VersionCode.K"/>
+                    <class name="test/pkg/Foo" module="module" since="39" sdks="39:102,0:39" deprecated="40">
                     </class>
                 </api>
             """

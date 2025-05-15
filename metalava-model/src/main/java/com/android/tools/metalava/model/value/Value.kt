@@ -227,17 +227,27 @@ fun Value.asString() = (asLiteralValue() as? StringValue)?.underlyingValue
 /**
  * Configuration options for how to represent a value as a string.
  *
+ * @param annotationAttributeNameValueSeparator The string to use to separate annotation attribute
+ *   name and value.
+ * @param classObjectValueFormat How to format a [ClassObjectValue].
  * @param nestedValueAppender The function to use to append nested [Value]s to a [StringBuilder].
+ * @param singleArrayElementFormat How to treat an array that contains only a single element.
+ * @param sortAnnotationAttributes Whether to sort the attributes by name or keep them in the order
+ *   they were added.
  * @param treatAsIntIfOriginallySpecifiedAsInt Whether to treat a `double`, `float`, or `long` as an
  *   `int` if it was originally specified as an `int`.
- * @param unwrapSingleArrayElement Whether to add braces around an array that contains only a single
- *   element.
+ * @param valueLanguage The language whose representation of [Value] should be used.
  */
 data class ValueStringConfiguration(
+    val annotationAttributeNameValueSeparator: AnnotationAttributeNameValueSeparator =
+        AnnotationAttributeNameValueSeparator.WITH_SPACES,
+    val classObjectValueFormat: ClassObjectValueFormat = ClassObjectValueFormat.JAVA,
     val nestedValueAppender: (Value, StringBuilder, ValueStringConfiguration) -> Unit =
         Value::appendValueStringTo,
+    val singleArrayElementFormat: SingleArrayElementFormat = SingleArrayElementFormat.WRAP,
+    val sortAnnotationAttributes: Boolean = true,
     val treatAsIntIfOriginallySpecifiedAsInt: Boolean = false,
-    val unwrapSingleArrayElement: Boolean = false,
+    val valueLanguage: ValueLanguage = ValueLanguage.JAVA,
 ) {
     /** Use the [nestedValueAppender] to append a string representation of [Value] to [builder]. */
     fun appendNestedValueTo(builder: StringBuilder, value: Value) {
@@ -255,6 +265,69 @@ data class ValueStringConfiguration(
                 nestedValueAppender = { value, builder, _ -> value.appendToStringTo(builder) },
             )
     }
+}
+
+enum class AnnotationAttributeNameValueSeparator(val text: String) {
+    WITH_SPACES(text = " = "),
+    WITHOUT_SPACES(text = "="),
+}
+
+/** Enumeration of how a [ClassObjectValue] should be formatted. */
+enum class ClassObjectValueFormat {
+    /** Use Java style, i.e. <type>.class. */
+    JAVA,
+
+    /**
+     * Use the same representation as the source, i.e. if the source was unqualified Kotlin style
+     * class literal then use that. If the source representation is not available then behave as
+     * [JAVA].
+     */
+    SOURCE,
+}
+
+/** Enumeration of how an array containing a single element should be formatted. */
+enum class SingleArrayElementFormat {
+    /** Always wrap the element inside an array. */
+    WRAP,
+
+    /** Do not wrap the element inside an array. */
+    UNWRAP,
+
+    /**
+     * Use the same representation as the source, i.e. if the source was unwrapped then leave it
+     * unwrapped, otherwise wrap it.
+     */
+    @Deprecated(
+        message = "Relying on the source representation leads to inconsistencies",
+        replaceWith = ReplaceWith("WRAP"),
+    )
+    SOURCE,
+}
+
+/** Enumeration of the language the value should be formatted for. */
+enum class ValueLanguage(
+    /** Prefix to add before an annotation class name. */
+    val annotationClassPrefix: String,
+
+    /**
+     * `true` if the annotation requires parentheses even if the attributes are empty, `false`
+     * otherwise.
+     */
+    val annotationAttributesListRequiresParentheses: Boolean,
+) {
+    /** Values should be represented as they would in Java. */
+    JAVA(
+        /** Java style annotations, e.g. @MarkerAnnotation. */
+        annotationClassPrefix = "@",
+        annotationAttributesListRequiresParentheses = false,
+    ),
+
+    /** Values should be represented as they would in Kotlin. */
+    KOTLIN(
+        /** Kotlin style annotations, e.g. MarkerAnnotation(). */
+        annotationClassPrefix = "",
+        annotationAttributesListRequiresParentheses = true,
+    ),
 }
 
 /** Enumeration of the different types of [ValueKind]. */
@@ -602,22 +675,7 @@ sealed interface AnnotationValue : ArrayElementValue {
     override fun appendValueStringTo(
         builder: StringBuilder,
         configuration: ValueStringConfiguration
-    ) {
-        builder.append("@")
-        builder.append(annotationItem.qualifiedName)
-        val attributes = annotationItem.attributes
-        if (attributes.isNotEmpty()) {
-            builder.append("(")
-            var separator = ""
-            for (attribute in attributes.sortedBy { it.name }) {
-                builder.append(separator).append(attribute.name).append(" = ")
-
-                configuration.appendNestedValueTo(builder, attribute.value)
-                separator = ", "
-            }
-            builder.append(")")
-        }
-    }
+    ) = annotationItem.appendAnnotationStringTo(builder, configuration)
 }
 
 /** A [Value] reference to a [Class] object. */
@@ -666,7 +724,10 @@ sealed interface ArrayValue : Value {
         builder: StringBuilder,
         configuration: ValueStringConfiguration
     ) {
-        if (configuration.unwrapSingleArrayElement && elements.size == 1) {
+        if (
+            elements.size == 1 &&
+                configuration.singleArrayElementFormat == SingleArrayElementFormat.UNWRAP
+        ) {
             configuration.appendNestedValueTo(builder, elements[0])
         } else {
             builder.append('{')
@@ -678,12 +739,6 @@ sealed interface ArrayValue : Value {
             }
             builder.append('}')
         }
-    }
-
-    override fun snapshot(targetCodebase: Codebase): ArrayValue {
-        if (elements.isEmpty()) return this
-        val snapshotElements = elements.map { it.snapshot(targetCodebase) }
-        return Value.createArrayValue(snapshotElements)
     }
 
     /**

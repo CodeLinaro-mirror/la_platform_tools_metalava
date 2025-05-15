@@ -655,6 +655,7 @@ private fun ActionContext.loadFromSources(
             classPath = options.classpath,
             apiPackages = options.apiPackages,
             projectDescription = options.projectDescription,
+            compiledSourceJar = options.compiledSourceJar
         )
 
     progressTracker.progress("Analyzing API: ")

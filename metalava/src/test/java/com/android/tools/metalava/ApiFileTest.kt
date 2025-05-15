@@ -1267,6 +1267,104 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    /**
+     * Test for b/174708311 [RequiresOptIn] annotations on properties should be implicitly
+     * propagated to getters / setters to match Kotlin compiler behavior
+     */
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Test RequiresOptIn on properties`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+
+                        @RequiresOptIn
+                        @Retention(AnnotationRetention.BINARY)
+                        annotation class ExperimentalBar
+
+                        class FancyBar
+
+                        @ExperimentalBar
+                        val ExperimentalPropertyWithGetter: FancyBar = FancyBar()
+
+                        @JvmField
+                        @ExperimentalBar
+                        val ExperimentalJvmFieldProperty: FancyBar = FancyBar()
+
+                        @ExperimentalBar
+                        const val ExperimentalConstField: Int = 5
+
+                        @ExperimentalBar
+                        var experimentalPropertyWithGetterAndSetter: FancyBar? = null
+
+                        object Bar {
+                            @ExperimentalBar
+                            val ExperimentalPropertyWithGetterInsideObject: FancyBar = FancyBar()
+                        }
+
+                        @ExperimentalBar
+                        var experimentalPropertyWithCustomGetterAndSetter: FancyBar?
+                            get() = null
+                            set(value) {}
+
+                        /*
+                        The Kotlin compiler does not support explicit RequiresOptIn annotations on
+                        getters (it does for setters), but previously this was used by consumers in
+                        order to enable proper Metalava tracking and make the experimental lint
+                        check consider the getter experimental. This is a regression test to make
+                        sure that we do not add the annotation twice, if it is already present.
+                         */
+                        @Suppress("OPT_IN_MARKER_ON_WRONG_TARGET")
+                        @get:ExperimentalBar
+                        @set:ExperimentalBar
+                        @ExperimentalBar
+                        var experimentalPropertyWithExplicitAnnotationsOnGetterAndSetter: FancyBar?
+                            get() = null
+                            set(value) {}
+                        """
+                    )
+                ),
+            format = FileFormat.V5,
+            api =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public final class Bar {
+                    method @SuppressCompatibility @test.pkg.ExperimentalBar public test.pkg.FancyBar getExperimentalPropertyWithGetterInsideObject();
+                    property @SuppressCompatibility @test.pkg.ExperimentalBar public test.pkg.FancyBar ExperimentalPropertyWithGetterInsideObject;
+                    field public static final test.pkg.Bar INSTANCE;
+                  }
+                  @SuppressCompatibility @kotlin.RequiresOptIn @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention.BINARY) public @interface ExperimentalBar {
+                  }
+                  public final class ExperimentalBarKt {
+                    method @SuppressCompatibility @test.pkg.ExperimentalBar public static test.pkg.FancyBar? getExperimentalPropertyWithCustomGetterAndSetter();
+                    method @SuppressCompatibility @test.pkg.ExperimentalBar public static test.pkg.FancyBar? getExperimentalPropertyWithExplicitAnnotationsOnGetterAndSetter();
+                    method @SuppressCompatibility @test.pkg.ExperimentalBar public static test.pkg.FancyBar getExperimentalPropertyWithGetter();
+                    method @SuppressCompatibility @test.pkg.ExperimentalBar public static test.pkg.FancyBar? getExperimentalPropertyWithGetterAndSetter();
+                    method @SuppressCompatibility @test.pkg.ExperimentalBar public static void setExperimentalPropertyWithCustomGetterAndSetter(test.pkg.FancyBar?);
+                    method @SuppressCompatibility @test.pkg.ExperimentalBar public static void setExperimentalPropertyWithExplicitAnnotationsOnGetterAndSetter(test.pkg.FancyBar?);
+                    method @SuppressCompatibility @test.pkg.ExperimentalBar public static void setExperimentalPropertyWithGetterAndSetter(test.pkg.FancyBar?);
+                    property @SuppressCompatibility @test.pkg.ExperimentalBar public static int ExperimentalConstField;
+                    property @SuppressCompatibility @test.pkg.ExperimentalBar public static test.pkg.FancyBar ExperimentalJvmFieldProperty;
+                    property @SuppressCompatibility @test.pkg.ExperimentalBar public static test.pkg.FancyBar ExperimentalPropertyWithGetter;
+                    property @SuppressCompatibility @test.pkg.ExperimentalBar public static test.pkg.FancyBar? experimentalPropertyWithCustomGetterAndSetter;
+                    property @SuppressCompatibility @test.pkg.ExperimentalBar public static test.pkg.FancyBar? experimentalPropertyWithExplicitAnnotationsOnGetterAndSetter;
+                    property @SuppressCompatibility @test.pkg.ExperimentalBar public static test.pkg.FancyBar? experimentalPropertyWithGetterAndSetter;
+                    field @SuppressCompatibility @test.pkg.ExperimentalBar public static final int ExperimentalConstField = 5; // 0x5
+                    field @SuppressCompatibility @test.pkg.ExperimentalBar public static final test.pkg.FancyBar ExperimentalJvmFieldProperty;
+                  }
+                  public final class FancyBar {
+                    ctor public FancyBar();
+                  }
+                }
+                """,
+            suppressCompatibilityMetaAnnotations = arrayOf("kotlin.RequiresOptIn")
+        )
+    }
+
     @Test
     fun `Extract class with generics`() {
         // Basic interface with generics; makes sure <T extends Object> is written as just <T>

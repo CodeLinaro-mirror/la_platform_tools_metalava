@@ -73,6 +73,7 @@ import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SelectableItem
+import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeStringConfiguration
@@ -212,6 +213,9 @@ private constructor(
         // even when the signatures match that of a super method exactly (notably the ones checking
         // that nullability overrides are consistent).
         apiFilters = ApiType.PUBLIC_API.getNonElidingApiFilters(apiPredicateConfig),
+        // API lint checks are only relevant to the API surface as used from source, not APIs that
+        // only exist in bytecode.
+        targetLanguages = TargetLanguageSet.SOURCE,
     ) {
 
     /** Predicate that checks if the item appears in the signature file. */

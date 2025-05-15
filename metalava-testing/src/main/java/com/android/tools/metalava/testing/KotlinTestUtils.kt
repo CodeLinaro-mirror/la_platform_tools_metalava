@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava.testing
 
+import com.android.tools.lint.checks.infrastructure.TestFile
+import com.android.tools.lint.checks.infrastructure.TestFiles.toBase64gzip
 import java.io.File
 
 private const val DOT_KT = ".kt"
@@ -45,4 +47,61 @@ fun findKotlinStdlibPaths(sources: Array<String>): List<File> {
     } else {
         emptyList()
     }
+}
+
+/**
+ * Utility to create the base64gzip of a jar file compiled from test source [kotlinFiles].
+ *
+ * [kotlincPath] should be the absolute path to a local kotlinc binary
+ * (https://kotlinlang.org/docs/command-line.html).
+ *
+ * The output includes a comment with the kotlinc version used followed by the base64gzip.
+ *
+ * Example:
+ * ```
+ * val kotlinFiles = listOf(
+ *     kotlin("package test\nclass MyClass"),
+ * )
+ * val base64gzip = generateBase64gzipFromKotlin(kotlinFiles, "/path/to/kotlinc")
+ * ```
+ *
+ * Use base64gzip in your test with `base64gzip("test.jar", base64gzip)`
+ */
+fun generateBase64gzipFromKotlin(kotlinFiles: List<TestFile>, kotlincPath: String): String {
+    // Create all test kotlin files.
+    val workingDirectory = TestFile.createTempDirectory()
+    workingDirectory.mkdirs()
+    val kotlinFilePaths =
+        kotlinFiles.map { kotlinFile -> kotlinFile.createFile(workingDirectory).absolutePath }
+
+    // Create the jar file which will be used as output.
+    val outputJar = File(workingDirectory, "out.jar")
+    outputJar.createNewFile()
+
+    // Run the Kotlin compiler.
+    val proc =
+        ProcessBuilder(kotlincPath, "-d", outputJar.absolutePath, *kotlinFilePaths.toTypedArray())
+            .directory(workingDirectory)
+            .redirectOutput(ProcessBuilder.Redirect.PIPE)
+            .redirectError(ProcessBuilder.Redirect.PIPE)
+            .start()
+    proc.waitFor()
+
+    if (proc.exitValue() != 0) {
+        error("Could not create jar:\n${proc.errorReader().readText()}")
+    }
+
+    // Convert the jar to base64gzip that can be used in tests.
+    val base64gzip = toBase64gzip(outputJar)
+
+    // Get the kotlinc version used to include in a comment
+    val versionProc =
+        ProcessBuilder(kotlincPath, "-version")
+            .redirectOutput(ProcessBuilder.Redirect.PIPE)
+            .redirectError(ProcessBuilder.Redirect.PIPE)
+            .start()
+    versionProc.waitFor()
+    val versionOutput = versionProc.errorReader().readText()
+
+    return "// kotlinc version $versionOutput$base64gzip"
 }

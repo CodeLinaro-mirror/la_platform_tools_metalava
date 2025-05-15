@@ -251,6 +251,49 @@ class ApiLevelsGenerationOptionsTest :
     private fun List<VersionedApi>.dump() = cleanupString(joinToString("\n"))
 
     @Test
+    fun `Test multiple jar files for version forAndroidConfig`() {
+        val root = buildFileStructure {
+            dir("1") {
+                dir("public") {
+                    emptyFile("foo.jar")
+                    emptyFile("bar.jar")
+                }
+            }
+            dir("2") {
+                dir("public") {
+                    emptyFile("foo.jar")
+                    emptyFile("bar.jar")
+                    emptyFile("baz.jar")
+                }
+            }
+        }
+
+        val apiVersionsXml = temporaryFolder.newFile("api-versions.xml")
+        runTest(
+            ARG_CURRENT_VERSION,
+            "30",
+            ARG_GENERATE_API_LEVELS,
+            apiVersionsXml.path,
+            ARG_ANDROID_JAR_PATTERN,
+            "$root/{version:level}/*/{library}.jar",
+        ) {
+            val apiHistoryConfig = options.testForAndroidConfig()
+            assertThat(apiHistoryConfig).isNotNull()
+
+            // Compute the list of versioned files.
+            assertThat(apiHistoryConfig!!.versionedApis.dump())
+                .isEqualTo(
+                    """
+                        VersionedJarApi(jar=TESTROOT/1/public/{bar,foo}.jar, updater=ApiVersionUpdater(version=1))
+                        VersionedJarApi(jar=TESTROOT/2/public/{bar,baz,foo}.jar, updater=ApiVersionUpdater(version=2))
+                        VersionedSourceApi(version=30)
+                    """
+                        .trimIndent()
+                )
+        }
+    }
+
+    @Test
     fun `Test extension jar files in forAndroidConfig`() {
         val root = buildFileStructure {
             dir("1") {

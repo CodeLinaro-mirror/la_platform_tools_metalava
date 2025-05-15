@@ -56,7 +56,8 @@ fun arrayValueFromAny(vararg literals: Any) =
 fun arrayValue(vararg values: ArrayElementValue) = Value.createArrayValue(values.toList())
 
 /** Create a [ClassObjectValue] containing [typeItem]. */
-fun classObjectValue(typeItem: TypeItem) = Value.createClassObjectValue(typeItem)
+fun classObjectValue(typeItem: TypeItem, sourceExpression: String? = null) =
+    Value.createClassObjectValue(typeItem, sourceExpression)
 
 /**
  * Create a [FieldReferenceValue] called [fieldName] in [qualifiedClassName] with an optional

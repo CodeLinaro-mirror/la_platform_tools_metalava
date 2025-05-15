@@ -98,7 +98,7 @@ private constructor(
                                 name,
                                 value,
                             ),
-                            createValue(codebase, value),
+                            createValue(value),
                         )
                     }
                 }
@@ -307,24 +307,19 @@ private constructor(
     }
 }
 
-private fun createValue(
-    codebase: PsiBasedCodebase,
-    value: PsiAnnotationMemberValue
-): AnnotationAttributeValue {
+private fun createValue(value: PsiAnnotationMemberValue): AnnotationAttributeValue {
     return if (value is PsiArrayInitializerMemberValue) {
         DefaultAnnotationArrayAttributeValue(
             { value.text },
-            { value.initializers.map { createValue(codebase, it) }.toList() }
+            { value.initializers.map { createValue(it) }.toList() }
         )
     } else {
-        PsiAnnotationSingleAttributeValue(codebase, value)
+        PsiAnnotationSingleAttributeValue(value)
     }
 }
 
-internal class PsiAnnotationSingleAttributeValue(
-    private val codebase: PsiBasedCodebase,
-    private val psiValue: PsiAnnotationMemberValue
-) : DefaultAnnotationSingleAttributeValue({ psiValue.text }, { getValue(psiValue) }) {
+internal class PsiAnnotationSingleAttributeValue(private val psiValue: PsiAnnotationMemberValue) :
+    DefaultAnnotationSingleAttributeValue({ psiValue.text }, { getValue(psiValue) }) {
 
     companion object {
         private fun getValue(psiValue: PsiAnnotationMemberValue): Any {

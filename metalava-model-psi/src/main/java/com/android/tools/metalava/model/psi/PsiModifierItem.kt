@@ -187,9 +187,36 @@ internal object PsiModifierItem {
                 if (annotationItem !in modifiers.annotations()) {
                     modifiers.addAnnotation(annotationItem)
                 }
+
                 // Make sure static definitions are marked
                 if (annotationItem.qualifiedName == JVM_STATIC) {
                     modifiers.setStatic(true)
+                }
+
+                // Special case for RequiresOptIn-annotated annotations: when these are applied
+                // to a property, they are implicitly propagated to the getter and setter
+                // (if present) for Kotlin clients. Match Kotlin compiler behavior by propagating.
+                // Note that the AndroidX experimental lint check will not recognize usages of the
+                // accessors by Java clients as experimental. Because of this AndroidX bans defining
+                // public experimental properties in projects that target Java clients.
+                if (uAnnotation.resolve()?.hasAnnotation("kotlin.RequiresOptIn") == true) {
+                    if (getter != null) {
+                        // Manually setting a RequiresOptIn annotation on a getter causes a
+                        // compiler warning, but this can be suppressed with
+                        // @Suppress("OPT_IN_MARKER_ON_WRONG_TARGET"). Safely handle
+                        // such cases by only adding the annotation if it wasn't explicitly added.
+                        if (annotationItem !in getter.modifiers.annotations()) {
+                            getter.mutateModifiers { addAnnotation(annotationItem) }
+                        }
+                    }
+                    if (setter != null) {
+                        // Explicit RequiresOptIn annotations on setters are supported by the
+                        // compiler, so we should only add this annotation implicitly if it is not
+                        // already explicitly provided.
+                        if (annotationItem !in setter.modifiers.annotations()) {
+                            setter.mutateModifiers { addAnnotation(annotationItem) }
+                        }
+                    }
                 }
             }
         }

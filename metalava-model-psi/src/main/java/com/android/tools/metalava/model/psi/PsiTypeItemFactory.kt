@@ -321,6 +321,22 @@ internal class PsiTypeItemFactory(
                             kotlinType = kotlinType,
                             contextNullability = contextNullability,
                         )
+                    } else if (psiType.className?.toIntOrNull() != null) {
+                        // Workaround for b/407632515: a synthetic delegate lambda method loaded
+                        // from a jar has a number as the class name and causes on error when
+                        // creating the outer class type. Reload the PsiType, updating the qualified
+                        // name to one which doesn't make a number appear a class type.
+                        // Replace `.`s before numbers with `$`s, like would be present in the
+                        // compiled type.
+                        val workaroundQualifiedName =
+                            psiType.computeQualifiedName().replace(Regex("\\.(\\d)"), "\\$$1")
+                        val workaroundPsiType = assembler.createPsiType(workaroundQualifiedName)
+                        return createTypeItem(
+                            workaroundPsiType,
+                            kotlinType,
+                            contextNullability,
+                            creatingClassTypeForClass
+                        )
                     } else {
                         val classType =
                             createClassTypeItem(

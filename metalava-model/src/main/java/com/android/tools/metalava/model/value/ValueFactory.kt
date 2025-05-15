@@ -95,7 +95,7 @@ interface ValueFactory {
                 }
                 is ClassTypeItem -> {
                     // The only allowable class type is a String.
-                    if (optionalTypeItem.isString() && underlyingValue is String)
+                    if (optionalTypeItem.isPossiblyUnresolvedString() && underlyingValue is String)
                         DefaultStringValue(underlyingValue)
                     else null
                 }
@@ -139,13 +139,18 @@ interface ValueFactory {
      * the same [Value.kind] (excluding [ValueKind.FIELD]). This will throw an exception if it does
      * not.
      */
-    fun createArrayValue(elements: List<ArrayElementValue>): ArrayValue {
+    fun createArrayValue(
+        elements: List<ArrayElementValue>,
+        wasUnwrappedInSource: Boolean = false
+    ): ArrayValue {
         if (elements.isEmpty()) return EMPTY_ARRAY
+        if (wasUnwrappedInSource && elements.size != 1)
+            error("wasUnwrappedInSource was set to true but array does not contain 1 element")
         val groupedByKind = elements.groupBy { it.kind }
         val kindCount = groupedByKind.size
         // Only allow 1 kind or 2 if one of them is field.
         if (kindCount == 1 || (kindCount == 2 && ValueKind.FIELD in groupedByKind))
-            return DefaultArrayValue(elements)
+            return DefaultArrayValue(elements, wasUnwrappedInSource)
         val message = buildString {
             append("Expected array elements to be all of the same kind but found ")
             append(kindCount)
@@ -168,9 +173,9 @@ interface ValueFactory {
      * * A [ClassTypeItem] with no [ClassTypeItem.arguments].
      * * An [ArrayTypeItem] of one of these (including [ArrayTypeItem]).
      */
-    fun createClassObjectValue(typeItem: TypeItem): ClassObjectValue {
+    fun createClassObjectValue(typeItem: TypeItem, sourceExpression: String?): ClassObjectValue {
         typeItem.accept(classObjectValueTypeChecker)
-        return DefaultClassObjectValue(typeItem)
+        return DefaultClassObjectValue(typeItem, sourceExpression)
     }
 
     /**
@@ -242,8 +247,19 @@ interface ValueFactory {
     fun createAnnotationValue(annotationItem: AnnotationItem): AnnotationValue =
         DefaultAnnotationValue(annotationItem)
 
+    /**
+     * Check to see whether this [TypeItem] is `java.lang.String`.
+     *
+     * As the definition of `java.lang.String` may not have been provided to Metalava also check for
+     * `String` as that is most likely to be an unresolved reference to `java.lang.String`. If it
+     * was a custom class then presumably that would be defined somewhere in which case it would
+     * have been resolved to the class and so would not be an unqualified name.
+     */
+    fun TypeItem.isPossiblyUnresolvedString() =
+        isString() || (this is ClassTypeItem && qualifiedName == "String")
+
     /** Check if this [TypeItem] is a constant type, i.e. a [String] or a primitive type. */
-    fun TypeItem.isConstantType() = isString() || this is PrimitiveTypeItem
+    fun TypeItem.isConstantType() = isPossiblyUnresolvedString() || this is PrimitiveTypeItem
 
     companion object {
         /**
@@ -477,7 +493,7 @@ interface ValueFactory {
         }
 
         /** An empty [ArrayValue]. */
-        private val EMPTY_ARRAY = DefaultArrayValue(emptyList())
+        private val EMPTY_ARRAY = DefaultArrayValue(emptyList(), wasUnwrappedInSource = false)
 
         /** Checks the [TypeItem] supplied to [createClassObjectValue]. */
         val classObjectValueTypeChecker =

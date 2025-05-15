@@ -481,7 +481,7 @@ class BinaryCompatibilityInterfaceMethodsTest : DriverTest() {
                 """
                 package test.pkg {
                   public @interface Foo {
-                    method public void bar(int) default 0;
+                    method public int bar(int) default 0;
                   }
                 }
             """,
@@ -489,7 +489,7 @@ class BinaryCompatibilityInterfaceMethodsTest : DriverTest() {
                 """
                 package test.pkg {
                   public @interface Foo {
-                    method public void bar(int);
+                    method public int bar(int);
                   }
                 }
             """
@@ -511,7 +511,7 @@ class BinaryCompatibilityInterfaceMethodsTest : DriverTest() {
                 """
                 package test.pkg {
                   public @interface Foo {
-                    method public void bar(int) default 1;
+                    method public int bar(int) default 1;
                   }
                 }
             """,
@@ -519,7 +519,7 @@ class BinaryCompatibilityInterfaceMethodsTest : DriverTest() {
                 """
                 package test.pkg {
                   public @interface Foo {
-                    method public void bar(int) default 0;
+                    method public int bar(int) default 0;
                   }
                 }
             """
@@ -537,7 +537,7 @@ class BinaryCompatibilityInterfaceMethodsTest : DriverTest() {
                 """
                 package test.pkg {
                   public @interface Foo {
-                    method public void bar(int);
+                    method public int bar(int);
                   }
                 }
             """,
@@ -545,7 +545,7 @@ class BinaryCompatibilityInterfaceMethodsTest : DriverTest() {
                 """
                 package test.pkg {
                   public @interface Foo {
-                    method public void bar(int) default 0;
+                    method public int bar(int) default 0;
                   }
                 }
             """

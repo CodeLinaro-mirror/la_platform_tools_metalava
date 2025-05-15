@@ -25,7 +25,9 @@ import com.android.tools.metalava.model.value.ArrayValue
 import com.android.tools.metalava.model.value.Value
 import com.android.tools.metalava.model.value.ValueParser
 import com.android.tools.metalava.model.value.ValueProvider
+import com.android.tools.metalava.model.value.ValueStringConfiguration
 import com.android.tools.metalava.reporter.FileLocation
+import java.lang.StringBuilder
 import kotlin.reflect.KClass
 
 fun isNullnessAnnotation(qualifiedName: String): Boolean =
@@ -80,6 +82,50 @@ sealed interface AnnotationItem {
     val apiFlag: ApiFlag?
 
     /**
+     * Append the string representation of this annotation to the [builder] according to
+     * [configuration].
+     */
+    fun appendAnnotationStringTo(
+        builder: StringBuilder,
+        configuration: ValueStringConfiguration,
+    ) {
+        val language = configuration.valueLanguage
+        builder.append(language.annotationClassPrefix)
+        builder.append(qualifiedName)
+        if (language.annotationAttributesListRequiresParentheses || attributes.isNotEmpty()) {
+            builder.append("(")
+
+            val nameValueSeparator = configuration.annotationAttributeNameValueSeparator.text
+
+            val singleAttribute = attributes.singleOrNull()
+            if (singleAttribute == null) {
+                var separator = ""
+
+                // Get the attributes in the correct order.
+                val orderedAttributes =
+                    if (configuration.sortAnnotationAttributes) attributes.sortedBy { it.name }
+                    else attributes
+
+                for (attribute in orderedAttributes) {
+                    builder.append(separator)
+                    builder.append(attribute.name).append(nameValueSeparator)
+                    configuration.appendNestedValueTo(builder, attribute.value)
+                    separator = ", "
+                }
+            } else {
+                // A single attribute whose attribute name is "value" can just use the value.
+                val name = singleAttribute.name
+                if (name != ANNOTATION_ATTR_VALUE) {
+                    builder.append(name).append(nameValueSeparator)
+                }
+                configuration.appendNestedValueTo(builder, singleAttribute.value)
+            }
+
+            builder.append(")")
+        }
+    }
+
+    /**
      * Generates source code for this annotation (using fully qualified names).
      *
      * @param target the [AnnotationTarget] for which this is being generated.
@@ -129,10 +175,7 @@ sealed interface AnnotationItem {
     }
 
     /** Returns the given named attribute if specified */
-    fun findAttribute(name: String?): AnnotationAttribute? {
-        val actualName = name ?: ANNOTATION_ATTR_VALUE
-        return attributes.firstOrNull { it.name == actualName }
-    }
+    fun findAttribute(name: String) = attributes.firstOrNull { it.name == name }
 
     /** Find the class declaration for the given annotation */
     fun resolve(): ClassItem?
@@ -552,10 +595,12 @@ protected constructor(
         return formatAnnotationItem(qualifiedName, attributes)
     }
 
-    final override fun toString() = toSource()
+    final override fun toString() = buildString {
+        appendAnnotationStringTo(this, ValueStringConfiguration.DEFAULT)
+    }
 
     companion object {
-        fun formatAnnotationItem(
+        private fun formatAnnotationItem(
             qualifiedName: String,
             attributes: List<AnnotationAttribute>,
         ): String {
@@ -648,16 +693,6 @@ sealed interface AnnotationAttribute {
      * fields.
      */
     val value: Value
-
-    /**
-     * Return all leaf values; this flattens the complication of handling
-     * {@code @SuppressLint("warning")} and {@code @SuppressLint({"warning1","warning2"})
-     */
-    fun leafValues(): List<AnnotationAttributeValue> {
-        val result = mutableListOf<AnnotationAttributeValue>()
-        AnnotationAttributeValue.addValues(legacyValue, result)
-        return result
-    }
 }
 
 const val ANNOTATION_VALUE_FALSE = "false"
@@ -675,21 +710,6 @@ sealed interface AnnotationAttributeValue {
      * Take a snapshot of this [AnnotationAttributeValue] suitable for use in a snapshot [Codebase].
      */
     fun snapshot(): AnnotationAttributeValue
-
-    companion object {
-        fun addValues(
-            value: AnnotationAttributeValue,
-            into: MutableList<AnnotationAttributeValue>
-        ) {
-            if (value is AnnotationArrayAttributeValue) {
-                for (v in value.values) {
-                    addValues(v, into)
-                }
-            } else if (value is AnnotationSingleAttributeValue) {
-                into.add(value)
-            }
-        }
-    }
 }
 
 /** An annotation value (for a single item, not an array) */
@@ -716,39 +736,18 @@ class DefaultAnnotationAttribute(
     override val value: Value
         get() = valueProvider.value
 
-    companion object {
-        /** Overload to supply `null` [AnnotationItem] to the following method. */
-        fun create(name: String, value: String) = create(null, name, value)
-
-        fun create(
-            annotationItem: AnnotationItem?,
-            name: String,
-            value: String,
-            valueParser: ValueParser = ValueParser.DEFAULT,
-        ): DefaultAnnotationAttribute {
-            return DefaultAnnotationAttribute(
-                name,
-                // If annotation item is null then the [ValueProvider] is not going to be used so
-                // use one that will throw an exception when called.
-                if (annotationItem == null) ValueProvider.UNSUPPORTED
-                else valueParser.providerForAnnotationValue(annotationItem, name, value),
-                DefaultAnnotationAttributeValue.create(value),
-            )
-        }
-    }
-
     override fun toString(): String {
-        return "$name=$legacyValue"
+        return "$name=${value.toValueString()}"
     }
 
     override fun equals(other: Any?): Boolean {
         if (other !is AnnotationAttribute) return false
-        return name == other.name && legacyValue == other.legacyValue
+        return name == other.name && value == other.value
     }
 
     override fun hashCode(): Int {
         var result = name.hashCode()
-        result = 31 * result + legacyValue.hashCode()
+        result = 31 * result + value.hashCode()
         return result
     }
 }
