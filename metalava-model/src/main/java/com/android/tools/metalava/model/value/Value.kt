@@ -184,8 +184,18 @@ sealed interface Value {
      * interfaces this will need to be implemented in the implementation classes.
      */
     @Deprecated(message = "Do not call directly", replaceWith = ReplaceWith("toString()"))
-    fun appendDebugStringTo(builder: StringBuilder) =
+    fun appendDebugStringTo(builder: StringBuilder) {
         appendValueStringTo(builder, ValueStringConfiguration.DEBUG)
+        appendLegacyStateTo(builder)
+    }
+
+    /**
+     * Append any legacy state to the string representation.
+     *
+     * Care must be taken when deciding what legacy state needs to be included in the string
+     * representation as that will affect whether values are considered strictly equal or not.
+     */
+    fun appendLegacyStateTo(builder: StringBuilder) {}
 
     /** Append this [Value]'s [toString] result to [builder]. */
     fun appendToStringTo(builder: StringBuilder)
@@ -430,7 +440,16 @@ sealed interface ArrayElementValue : Value {
 }
 
 /** A [Value] that can be used in a constant field as defined by JLS 15.28. */
-sealed interface ConstantValue : ArrayElementValue
+sealed interface ConstantValue : ArrayElementValue {
+    /**
+     * Convert this [ConstantValue] to be of the [optionalTypeItem].
+     *
+     * If [optionalTypeItem] is `null` then no conversion is possible or if this is already of the
+     * correct type then no conversion is necessary. In either case this just returns itself.
+     * Otherwise, it will use [Value.createLiteralValue] to perform the conversion.
+     */
+    fun convertToType(optionalTypeItem: TypeItem?): ConstantValue
+}
 
 /**
  * A [Value] that encapsulates an [underlyingValue] that can be either a primitive or a String.
@@ -448,6 +467,15 @@ sealed interface LiteralValue<T : Any> : ConstantValue {
 
     /** This is a [LiteralValue]. */
     override fun asLiteralValue() = this
+
+    override fun convertToType(optionalTypeItem: TypeItem?): LiteralValue<*> {
+        optionalTypeItem ?: return this
+        if (optionalTypeItem.isString() && underlyingValue is String) return this
+        if (optionalTypeItem !is PrimitiveTypeItem)
+            error("Cannot convert $this to a $optionalTypeItem")
+        if (optionalTypeItem.kind.wrapperClass.isInstance(underlyingValue)) return this
+        return Value.createLiteralValue(optionalTypeItem, underlyingValue)
+    }
 
     /**
      * Default implementation just appends the underlying value's standard [String.toString] value.
@@ -472,6 +500,11 @@ sealed interface BooleanValue : PrimitiveValue<Boolean> {
         other is BooleanValue && underlyingValue == other.underlyingValue
 
     override fun hashCodeForValue() = underlyingValue.hashCode()
+
+    companion object {
+        val FALSE: BooleanValue = DefaultBooleanValue(false)
+        val TRUE: BooleanValue = DefaultBooleanValue(true)
+    }
 }
 
 /** A [Value] that encapsulates an integral value, i.e. a [Byte], [Int], [Long] or [Short]. */

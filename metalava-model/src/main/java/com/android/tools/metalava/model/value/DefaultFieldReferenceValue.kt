@@ -112,23 +112,7 @@ internal class LazyFieldReferenceValue(
         // used, just as it would if the field reference was replaced by its constant value. So,
         // an `int` constant field that is used where a `long` is expected will be represented
         // as a `LongValue` that was originally specified as an int.
-        val constantValue =
-            fieldItem.constantValue?.let { fieldConstantValue ->
-                fieldConstantValue
-                    // If an optional type item is provided then it needs to be applied to the
-                    // field's constant value.
-                    .takeIf { optionalTypeItem != null }
-                    // So, get the field's underlying value.
-                    ?.asAny()
-                    // Then, create a LiteralValue of the correct type.
-                    ?.let { underlyingValue ->
-                        Value.createLiteralValue(optionalTypeItem, underlyingValue)
-                    }
-                    // Otherwise, just use the field's constant value as is.
-                    ?: fieldConstantValue
-            }
-
-        return constantValue
+        return fieldItem.constantValue?.convertToType(optionalTypeItem)
     }
 
     /**

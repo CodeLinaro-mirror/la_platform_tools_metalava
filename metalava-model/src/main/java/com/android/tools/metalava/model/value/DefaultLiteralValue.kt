@@ -33,9 +33,7 @@ internal sealed interface ToValueStringDependsOnSourceForm<T : Any> : PrimitiveV
      */
     val wasOriginallySpecifiedAsInt: Boolean
 
-    @Deprecated("Do not call directly", replaceWith = ReplaceWith("toString()"))
-    override fun appendDebugStringTo(builder: StringBuilder) {
-        @Suppress("DEPRECATION") super.appendDebugStringTo(builder)
+    override fun appendLegacyStateTo(builder: StringBuilder) {
         if (wasOriginallySpecifiedAsInt) builder.append(",asInt")
     }
 }

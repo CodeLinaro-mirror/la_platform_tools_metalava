@@ -31,6 +31,10 @@ import org.junit.Test
  *
  * To generate a jar file from Kotlin source files, see [generateBase64gzipFromKotlin]. The output
  * can be used with [base64gzip] in tests.
+ *
+ * Most of the tests below do not have signature file cases because they are mainly supposed to test
+ * how Kotlin language features translate to target languages. Parsing of target languages is tested
+ * in the ApiFileTest in the metalava-model-text module.
  */
 class CommonTargetLanguageTest : BaseModelTest() {
     @Test
@@ -142,7 +146,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
     }
 
     @Test
-    fun `Test value class constructor`() {
+    fun `Test value class constructor and boxing methods`() {
         runCodebaseTest(
             inputSet(
                 kotlin(
@@ -201,9 +205,34 @@ class CommonTargetLanguageTest : BaseModelTest() {
             }
             assertThat(ctorImpl.targetLanguages).containsExactly(TargetLanguage.BYTECODE)
             assertThat(ctorImpl.modifiers.getVisibilityLevel()).isEqualTo(VisibilityLevel.PUBLIC)
+            assertThat(ctorImpl.modifiers.isStatic()).isTrue()
+
+            val boxImpl = intValue.assertMethod("box-impl", "int")
+            boxImpl.returnType().assertClassTypeItem {
+                assertThat(qualifiedName).isEqualTo("test.pkg.IntValue")
+            }
+            assertThat(boxImpl.targetLanguages).containsExactly(TargetLanguage.BYTECODE)
+            assertThat(boxImpl.modifiers.getVisibilityLevel()).isEqualTo(VisibilityLevel.PUBLIC)
+            assertThat(boxImpl.modifiers.isStatic()).isTrue()
+
+            val unboxImpl = intValue.assertMethod("unbox-impl", "")
+            unboxImpl.returnType().assertPrimitiveTypeItem {
+                assertThat(kind).isEqualTo(PrimitiveTypeItem.Primitive.INT)
+            }
+            assertThat(unboxImpl.targetLanguages).containsExactly(TargetLanguage.BYTECODE)
+            assertThat(unboxImpl.modifiers.getVisibilityLevel()).isEqualTo(VisibilityLevel.PUBLIC)
+            assertThat(unboxImpl.modifiers.isStatic()).isFalse()
 
             assertThat(intValue.methods().map { it.name() })
-                .containsExactly("constructor-impl", "getV", "toString", "hashCode", "equals")
+                .containsExactly(
+                    "constructor-impl",
+                    "box-impl",
+                    "unbox-impl",
+                    "getV",
+                    "toString",
+                    "hashCode",
+                    "equals"
+                )
 
             // TODO(b/407735992): constructor itself should be Kotlin only
             intValue.assertConstructor("int")
@@ -367,6 +396,8 @@ class CommonTargetLanguageTest : BaseModelTest() {
                     "toString",
                     "hashCode",
                     "equals",
+                    "box-impl",
+                    "unbox-impl",
                 )
         }
     }
@@ -959,6 +990,290 @@ class CommonTargetLanguageTest : BaseModelTest() {
             }
 
             assertThat(fooClass.methods()).hasSize(12)
+        }
+    }
+
+    @Test
+    fun `Test multi file class`() {
+        runCodebaseTest(
+            inputSet(
+                kotlin(
+                    "test/pkg/IntValue.kt",
+                    """
+                    package test.pkg
+                    @JvmInline value class IntValue(val v: Int)
+                    """
+                ),
+                kotlin(
+                    "test/pkg/FooA.kt",
+                    """
+                    @file:JvmName("Foo")
+                    @file:JvmMultifileClass
+                    package test.pkg
+                    fun fooA(iv: IntValue) = Unit
+                    """
+                ),
+                kotlin(
+                    "test/pkg/FooB.kt",
+                    """
+                    @file:JvmName("Foo")
+                    @file:JvmMultifileClass
+                    package test.pkg
+                    fun fooB(iv: IntValue) = Unit
+                    """
+                ),
+            ),
+            // Compiled from the source above with [generateBase64gzipFromKotlin]
+            compiledSourceJar =
+                base64gzip(
+                    "test.jar",
+                    // kotlinc version info: kotlinc-jvm 1.9.23 (JRE 17.0.6+10-b802.1)
+                    "" +
+                        "H4sIAAAAAAAA/+2WeTTUex/Hxz5Xg8HYlzBTyTBEkp0YZaaxDNkymEjIPkN2" +
+                        "KSl0SYXKkkRlD0OJLNli5iG7QZohBsmSKMp16Z7zPHieuuf+/3x/5/M753fO" +
+                        "7/v+/n6f1znf78sMzcIKAQCBQAAAIA3YPiAAVgAGaamvYGxipIjRNzE2QlpY" +
+                        "IjBGf7QDAEsYCvkkWgHRxYVWkOugdJZjlXpVaBP+CBRG3hjTFZBPwi6gFPzk" +
+                        "UBQK3GqhQ7GtjTI+MTbBDDBDcwBL+A+WqG8uoLZZZj9dnm+ziGcJREXf8+cU" +
+                        "jXx8EM6eeALhd1OyCbM+uJBecYlsEXaRR6u9QR42qhUV22bU23Tnpa8Uy3WX" +
+                        "wVbhQL0IctoijeOreYukUpchj0N+wfkX+aGjug7vAOn0Ow39Mv0dD3X9EMll" +
+                        "9cIoi1qaSf3DWIJmelxS5Y2cKo5cjcejymEeCuExvbHDn4Xzdd9eZtJnxE0q" +
+                        "iLm7+A/qpUhLC4EouOPEOmhEaHXL6adJaqMyKNBEZglRCsqwc9OZvHffwuH5" +
+                        "ie5lil4/QHZUDYZMRLvbxA8+x5xzeFLqJLviAvOepJtR5laVpHK7LaCSQWH7" +
+                        "MRv7+ucmk1IeLLjIG08ZJnXbowWa3aBRt6nICled42ieJwSKf/702h7/zgKG" +
+                        "wSsKyuWoDGmAZRDGrszYOJy64ezqBj6SZzV1r0jnJiIfUYmbdRpolvRAzAzO" +
+                        "Q3kb48y/sm61Prplv6YmEwAwzfSr1ovuar2j4+ZNH038CwHGFOPTowcOL188" +
+                        "7sEcoHsRpkcHHmt+NNbCJJCDEmSC6dW+N/O6mTs0VFowu/+98KIpba+vgbgZ" +
+                        "xPu7bFNhPPhquMrSKKWjxrGubgOwwPoF+M1KJM0ecq7NGHc/U1m8jiR9DXyf" +
+                        "fOUkyjZjn48Rw4PiGf9mtV7i6qr/2iGcIOt8xIrUAeBLKTOjQRFIhUJAcg3W" +
+                        "yiQn2dQ2HWFXkyDuqQ74IohYtLX3SM1Nx0jyZxZZ+5EckDKCmKm4EyRknViJ" +
+                        "dXhStzl4T0LR/XduL4fCfqupFPqWZipz/fvK5JI+ai4NqkPGGXt3jdLuNxSW" +
+                        "Vckz2jNIhz0nIj9EvwmOtLTJjDA3heBDs+DLIToSedRQdbm7VIleZ9tJ/0e4" +
+                        "9dTro31LVJsMN+vPox3wgsdyA0blIfanKpKtBpJjLYBBz0nvLideHFcoljwC" +
+                        "qisBMT8TuRyz4Hu1lHBQxrC6i0d0dhzRyqD4+F04bAhvTAZlgKz9FBqPjIE0" +
+                        "ByUugVae6ho6+b6lxei7+fbUq2n1q06tM20xFciCfbq+yRPE/I+ZHvt7pub/" +
+                        "Z/pfTNdq8j3gRcVw/sfgBV/3Oo69TK2n7bU9hSMcRVi9Vdi56HRuZwbW8Frg" +
+                        "w72HB1txCa3/mGla5MTy3zMV2s7U2JtohfcMOPsX0HDLtxZipyAbb9NK/uUa" +
+                        "lfYGW5a1YjAcnbi/2a4AkpNVEf/g1BPz9h6+wFfHymKpmEeJNdOOtMuKGmu0" +
+                        "PTwaFlGlKtxjaZG3xoPmXG8pSY+f9Nft0GZc6FjNIKzMR0ZusNTjPA/BtMnL" +
+                        "/svr/h2+Ndm27naHlNhLz1VS7JuJ7VWPh0Ot2uKlm8CI0w5J0rfbREGFyEgD" +
+                        "AxBKXNwvZCXQKxVP8mUiZOJfF3gFcQ0f7BzqC7lC9295LRjiMOSTcyHXsXKE" +
+                        "BNe0gsbwxkyxDJe+ROpGZ8fAsHKsRiJ8EqZ3+y9dIue4939IKW9USquamsge" +
+                        "r2+riYELp95xj2nT5820Tr8RdwvrN7Eh4Jga56MkK8EtjDjL7lJCFy1GvxUz" +
+                        "fESVZaiC8Db7An34oqofVVdjh0uZmRshksnSVANp7sIyF484+wCSKkWq4Ixo" +
+                        "uajyp6YkaG1hyT3XZq6sFmWjB3W0JSoD5NFDLX65UHG45vcnpFoyOC+42uqy" +
+                        "dEBX3B0fAzInD3OfLweBj7EeyIkUwNvqm+erFw+4pdTYQYHo6a8rUAq3G5zK" +
+                        "zAMbNGD/aI8KjjvkLKzM5lAHTVV/JTs7UBP38f2KXd+IR4HHUWJS0d1ZrULb" +
+                        "zCrnkP1tQRUC2SJ4/1gyW+/Hb7BIPFlMnabJ+r1nuiEgOZGQHN/DkhxhLytn" +
+                        "LUM64JbYrXNS07qj1kFUV/vOeHCl1s04zuKlsKnZVjeb3+Jf5yMgL1oZkAcz" +
+                        "dL+Uc4kba5Xr98BD+WADbJoLJZXr1hUwFMaPs8Xm9N/CWV6R6WpEWTZ11OLt" +
+                        "Y1DT4yO3R0a/XAunSoKgbGfoxuUvvFQz7w4LoFMqrJThyHI8OVRKfGiB0v3H" +
+                        "PVueuRmjIqqsbaJnsHGJmkRnsR1yuGJ6+cF4r1ZPeV62pZcJW8qoxScL/QO2" +
+                        "JGA2bDXdW91Y/mNSXqoZz3S9eY7qzB712gWuMDbYlGHfDRVe4Tq06CeFdc4z" +
+                        "S8KpWOfjb5ahNfvLjj8PiVaLXNT+otcdRE6MajPeo+fNziurfIl/ZOaZ+YsE" +
+                        "9wjmNLGMJ8v8IzqzKteIGRRizyzh5vyzafUHi0DPTGxgGfXztG5DnQGMeDSc" +
+                        "MyL6guDntvkJ1ZHJD2g7Z9pipNJIjDhU+i4b/nWPdjaK3XfvPButDIGFI1ju" +
+                        "6TSEKWZXBmtdO5EZRmiYILFNxkdVaQRcv5IX+y7rD42ngV7yFfG5a5h6IKEU" +
+                        "Pdl3Uaz4S/mrYQVo91cAOmpFYcywttkxymem1WauxFpLCdWuaBX5UgPXwk60" +
+                        "EoV/fapYF62zyHKGfp+Xe/l1ApiKZlShaA8vzrBKrq76ea7NdC6kr+A0wk9+" +
+                        "c1ZWrQQrP/Wg8bOwFXbxmoLylx+fdkLoNK4JGuHcEEfsm74HdCH7kU3I3uZw" +
+                        "R//Eyfbm9HgRIRGhgTD6jXj6xg8ts5zmFVZkBQCGOX6154ht1r+t0Avv7o04" +
+                        "70P0dPd29PJxCfA86+zk5OS6WaxnTNhlad0TY7LGm5YIf20iNBZI7kxM5OBL" +
+                        "GN0HTLh1IRbCD33Ip3KjqCmrGfBj/T7FsZItJTz+QwuZmCGA/3zBdmXc8tKd" +
+                        "42eWujtlu/3w7UiI/J+yuXv+9pNWdMf8NaZfGdPunO27+86cDpZfndK7c7YT" +
+                        "E9qRk83205Nhd8j2tovtCBHk/CVqMzQb+9Zr7JtXzubfpHBuPf0JTn2S0FAM" +
+                        "AAA="
+                )
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+
+            val mangledMethodA = fooClass.assertMethod("fooA-Vxmw0xk", "int")
+            assertThat(mangledMethodA.targetLanguages).containsExactly(TargetLanguage.BYTECODE)
+            mangledMethodA.returnType().assertPrimitiveTypeItem {
+                assertThat(kind).isEqualTo(PrimitiveTypeItem.Primitive.VOID)
+            }
+
+            val mangledMethodB = fooClass.assertMethod("fooB-Vxmw0xk", "int")
+            assertThat(mangledMethodB.targetLanguages).containsExactly(TargetLanguage.BYTECODE)
+            mangledMethodB.returnType().assertPrimitiveTypeItem {
+                assertThat(kind).isEqualTo(PrimitiveTypeItem.Primitive.VOID)
+            }
+
+            // TODO(b/407735992): non-mangled method should be kotlin only and have IntValue param
+            // type instead of int
+            fooClass.assertMethod("fooA", "int")
+            fooClass.assertMethod("fooB", "int")
+
+            assertThat(fooClass.methods()).hasSize(4)
+        }
+    }
+
+    @Test
+    fun `Test hidden deprecation level with value class type`() {
+        runCodebaseTest(
+            inputSet(
+                kotlin(
+                    """
+                    package test.pkg
+                    @JvmInline value class IntValue(val v: Int)
+                    class Foo {
+                        @Deprecated(level = DeprecationLevel.HIDDEN, message = "")
+                        fun foo(iv: IntValue) = Unit
+                    }
+                    """
+                )
+            ),
+            // Compiled from the source above with [generateBase64gzipFromKotlin]
+            compiledSourceJar =
+                base64gzip(
+                    "test.jar",
+                    // kotlinc version info: kotlinc-jvm 1.9.23 (JRE 17.0.6+10-b802.1)
+                    "" +
+                        "H4sIAAAAAAAA/31VezgTbBsf5pDzYXKuly3mtDm8kjNpK5uJkUwOjQgv5rAp" +
+                        "osWLq/hKkrN8bXmlkuMoWc7KGEL0zlTTSNMqEjnmVd91fZ+6vrqf6/fHc13P" +
+                        "/buv577u+/dzRQsBQQAxMTEAAKAJ2B4gABCAQXg4GDq5IOEYBxcnJMLdA4ZB" +
+                        "fukFABYwzD5ntCFsSAptqDfAHKzHGj015UzHwFAYAyfMEOk2DTuHMozWQzGZ" +
+                        "+p5zA3AGg8mdfjUtCHBFi4pVK+hWW2wVMN+C60/LK22BGBRLhEf9cRLuFEn0" +
+                        "xIeTgmCB4fjY2CSP5+5qR0Cbz4ur+4OTi59g664vObJTs7S7ve+Ayq43ZFKO" +
+                        "VLj1jsjHdeyvu8DClGfRef6cP+GWqxwJGUv35FpT6VfF5Bzu6ffBOUaaXOcY" +
+                        "uwGbmVMDK9dilz6QyZtCbb7hxhCbvsWYxY2YgSg6FRfqbWwkUnuykenTText" +
+                        "usk+48nI1OyShR3zy9a8ylCVrESQHR0lUerq0QlLcRH5eFqUQGwpvudOxGkp" +
+                        "tu7g+GhC2mTMo56dCX7jhLJTf/k3TtD0rTzB6XLpb4TYtQ8RdqnUdAhWD4hU" +
+                        "kdc4XDiWktJXFjr2Nq++06i46c00ldvGoKfrK+cXhKYzHORKj5ZczsjBRk9v" +
+                        "KvrnZxCMoBrSyrAgkRPVk6pV6OdqB8pZ0BkzSbzXnjiCfHJzeXMzll0rKNgJ" +
+                        "2pWryXLUlK6sOxGW4UOimTF/uxOgWq9q8rErG9xSWV0U3C11/ZEJktLKWWDN" +
+                        "SIaNsKoezjX8Tr9YQWvpk70V3+z5pyZpKKOA4NgnLiM4GiUaKz+zESeOUMTj" +
+                        "HNxuW1Q9C8mje4PF0LzlJTBTOkSfJSgD+dtR5J0PKj7DOFDZRNivFZxv0QHl" +
+                        "P6NnvJta8h6dCLsTto+YfbeQb12JK20KTNBmnG5QpKrgYy70CT99twYh4/vU" +
+                        "LDhWwPURXjspNys2N3NEKPesD1TvqBZNJyRr2NbZ6uhAi5+qnU0BN77R+kqG" +
+                        "eNVC4hv+4xCvHZk9t2GgB49nQJTZyei8k1mbq40bRbLjt2UdscUnmPlSOWmy" +
+                        "YIiCLw5bNpbj65GmNdSJ8ugaaMH7pKN43ImrEy8+n09i7ZIECwdMOtU/iDAr" +
+                        "LWQrovMaPE30EfX4vjO/qY/PMYe/FOFk3s8i77KguKzweKdqc43BKm8Eu4G3" +
+                        "SOE+tR6pv0X1iHARznvh/tHdQQdHE6NCVkoiLZwM3mXfyneV4bW5lZnNSli0" +
+                        "zEklCkPeHBi9bCqn3IpW/Wi4IR6woJyPDTz4ZBFM1647eD8h1Zw8b/PZfvh0" +
+                        "X1Yyw0nCPlJEDmqSojAxe8/twaXQs4LFatcqFhUmbPmm54nXmMQRfuyVD/d4" +
+                        "FpR5sfBSbFwd6xPPrr3VEULclyR+NvXUzk+MD9NmE6/for0DOfNko4l0dbBm" +
+                        "oTC+Z8SGihKJ2v1BmFMHw+rDhIps2xPh1MZ46/OHShNj26dpwq8zk5ssSf9K" +
+                        "u3Xh5fUvljVxEQYNmX+tYtrEYmvRr0fPqVV9ru9gG4KHlwHo5CXDVwdauv2T" +
+                        "CbOPvd5XH7U2QvXCPckPLX0fiRA9VfWXa+CtqbbzQgGT/5aTXuy5JMtCzzSh" +
+                        "ODfOzQJ3raxEh6/ODs6VLPlaJjmvBZqYNcqa1IRxFISEK4fkDkveXrx57DjM" +
+                        "tnN1J9I3BLbXp2udNIQYQ3QhnnYn+cdkve7tLslUUVJRepY4eTlzcvOb5njw" +
+                        "5JThQACALforzZHfrjlIAuE/cuPrhiGM2MsmNV+ym00dC71OE+g1hxzi/J6i" +
+                        "ILYD6nZxfzYAt9+miYFtjObrNe+wQa4rLIuW2Ku7giLXoV2VaAHSnsGW+IVg" +
+                        "+trSTDXhpcAEIodCTRuebD8O5081STyS5evkQJxzwuGJtc3whPG0bo715cKn" +
+                        "MiqVSNOqtnTuDWA+peylU3fN3xvkJ0npH9nWrRq7pV/ekxYtCzvQX0AZ05iy" +
+                        "zMXd15VGUvNDhnRuWYFQe86kCEjG6WlrBXlZ6ebGj5ntCYtqpPb332RL+rgo" +
+                        "e3W52njaKVnydCw1FXe7GDzQNsW3A4sG3hisuxZVIipa2+eC995dS8xdsy7A" +
+                        "JL1XaUsSkpqZH2XR+o/xa202p1yncTY1s/QjYVbJmOb66S/LvcHuennW5nOv" +
+                        "d99/y36xzk3ILNxNYxjHdPhsVDu4lXMhGhLcYeMW0ydTwzn0wzADUpB24+NO" +
+                        "X+OEa/zyLoNTC35XHjEOFa3L8DZNs/kJFgM09QwvPafRg7i8tx2mCWqbR2x3" +
+                        "LR44WC6oxvkUGRwduFc946iuxEULGvteS9uaz9VqN6L4cAcpIxcssJMj5KAY" +
+                        "FFBJXfGj6JAP7x1HcHvd5itq7c1Kyk/f6IkcvufM0sUa6hloylbIdw5By311" +
+                        "QRrYEkq8vlWNVsnFGlW8FClln9KkNYx/TreS+0p6Jyix6AYH6qNnj5ms24+j" +
+                        "fFT7Okz18RsrUoIAwJrgr4ZJbQv/9c8IfGgk7A8CMTw00j+CcIIUHhR4/Pjx" +
+                        "4C0AA1xEoK4BTwIA3wZ1UYv+UGErU/mbOQoIggD/Y99unF/d+fv4mVf/yLJ9" +
+                        "FZS+YyD/3HJ/JNneAvnvSBaA/2+Hfszf/k217/LtRX/ZNle0sMjXZ8CtAxIA" +
+                        "AEpEv97+AaE81ZDGCAAA"
+                )
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+
+            val mangledMethod = fooClass.assertMethod("foo-Vxmw0xk", "int")
+            assertThat(mangledMethod.targetLanguages).containsExactly(TargetLanguage.BYTECODE)
+            mangledMethod.returnType().assertPrimitiveTypeItem {
+                assertThat(kind).isEqualTo(PrimitiveTypeItem.Primitive.VOID)
+            }
+            assertThat(mangledMethod.modifiers.isDeprecated()).isTrue()
+
+            // TODO(b/407735992): non-mangled method should be kotlin only and have IntValue param
+            // type instead of int
+            fooClass.assertMethod("foo", "int")
+
+            assertThat(fooClass.methods()).hasSize(2)
+        }
+    }
+
+    @Test
+    fun `Test propagating PublishedApi from properties to accessors`() {
+        runCodebaseTest(
+            inputSet(
+                kotlin(
+                    """
+                    package test.pkg
+                    @JvmInline value class IntValue(val value: Int)
+                    class Foo {
+                        @PublishedApi internal var foo = IntValue(0)
+                    }
+                    """
+                )
+            ),
+            compiledSourceJar =
+                // Compiled from the source above with [generateBase64gzipFromKotlin]
+                base64gzip(
+                    "test.jar",
+                    // kotlinc version info: kotlinc-jvm 1.9.23 (JRE 17.0.6+10-b802.1)
+                    "" +
+                        "H4sIAAAAAAAA/31WeTgU6hofW0aNfZkxJabsMTOUY4uyz9gJyXIZY2lixjJj" +
+                        "jeyyX51cWyEnlLEdKhzrVCrLIMwgocmaPUuGujjqPs+96rn1fs/vv+/9vc/3" +
+                        "Pt/7+72WJmzsQgAgEAgAAGCAwyEEYAeYGdjoKKLNDRFmOuZoQ4NLNnAzw70u" +
+                        "AGDDjNptaqII7+c2UZTvpfY9skbSzjJmAuDGZgpos/5A8mPrj8aK/vLGVOoZ" +
+                        "u4+9iM5O6tTM5AwrwNKEE1gtKFetflBA9QCWPy0PPgDJg0hC+Hl7IdAEkh3G" +
+                        "J9ADjvXBEIkRNj3EtzZ8+y1ziCt2J97gBu25XvNeXQ6nEWRLMqSL0XK2flBU" +
+                        "Mowb/KJfzdjnjX3tg1djDASDwnGExykgShSlTErgmk9rS8KMyHQGvVxD3g9d" +
+                        "XW4df7eyF1S4t8f85wWWsRfZILlh0lg4tu33YXy9u42jJyhVZ/zsqGHrtZF/" +
+                        "/Xt0q+BKEBaohBIerMcAPYgaesXLJqaX+WKFOI3uwpZWHHieo9ZYt048z3B8" +
+                        "53cnyzm35lqa/POZioIzW3/sBLsHl7jU02rJmp5nEzAJH9i668Y4EGm/xwgN" +
+                        "KNukIkHBpzxaqLNSTtLe9/uRy2IJuUsvUOBYzuhZIaenOZQepCmoa735fQPy" +
+                        "Ll9C977vdiMyPLZh6SPFT04zioVj2M95ZEJCN82z5J4rEJ0LaUVLrkB7VwIi" +
+                        "XoFQoEthtHQb3vgQ5JmYSvRReo0dMu1uqhxVtiNZ0KgAhrlBVyabA1Ty6Cm7" +
+                        "PYXdWl4ZjltBu/FeJQy8fjzTGRrd2OT9m+gAuCUxVNyBFMr3MEYzR1ht9YtU" +
+                        "pnucAZgeMB405lm+NHRHx8Fapi4bQ6BcTVIKkaCcHDhfJ5pJ9BCW7auoSlEO" +
+                        "mUq39+R60OASXJ6V/857eP3Mch7htoThOfpf9irO2Fd+3ANrDpr6vglJUnAR" +
+                        "y8yIgbY/4/RZtnlY9klhfs6zWKfZhfloU/HLUrkm/KOCj41wFgO9JY+qwa/M" +
+                        "eT1DoxW5H9yXHw6Bkbaw5xTi6R3JpcaSr7ykbIeeYSsoBc2fh9rMHnYlk3m4" +
+                        "vAeULLIleW3FpPNH6SW0zTByiryVtIN9MrnmkS8EXGa9Y3PxD72J5YhsDQnD" +
+                        "uALLW/Yho2T8nR6vl0F0ocrK7LRrnVcddHky9Y5XWU24qECjFXxpjj21OyMC" +
+                        "up4tHk12PQpX0g3qefFNK9AqA+eSdOK12sQCkTaQRtJLAz4ps6TiZomsrY5p" +
+                        "3wzeecqaeqWVReda/BxDVEJHZiEhBBy90eQOW1FGFBFOTlmHbQLzguKGaWP8" +
+                        "VSff97g0d2hlgCbWA1wnn3BIqMaCJG895SJ8+oIap2wmsBYez694IjimvURM" +
+                        "JMWaBncvHbP+wJznKJIR2K6wCnQbeVzWRmnTkySpBR69ERc8+yRpNR6ytTNa" +
+                        "rHLk5D4nWjwgM3NapBhmzkyUv0WJaAZHpbQCyxtQVxfYiS2p4cyQjFtqoSvy" +
+                        "YATczwU4NtOJpVqk7/PsDEe3bNRMw7OWuFlOU+PhuZfZCA1DfUeZRoY9DDaF" +
+                        "I0P1iYL+4Eiu1jIxbFmbi7/CdXO5teGF1cteXSNRnV0Mfu2lckRR2n6U/bZX" +
+                        "nJ5W7Wn9rcnQKoGQE5b5FKN/RJzo09ro+9PgCzy/4HXV7cUuEV0N7SErWk3y" +
+                        "A1J7XrrFx3mRnNhAHx9Me/QkIzc2px6u1qGeqJao0bCKW+lvCkAuuo7qDD1V" +
+                        "sVCfltgR/6o+F9O9stXZAYBFzl+pj8Bh9TH09f2P8HhYv7MYtIRoMeveNhJS" +
+                        "CRSInhWfsDQ2dts1M/EhDKdMu3fFNAQ5bldU4Z09rjnt/7nwwyOEJDSJ1zPX" +
+                        "d8/qZfW4xOmt91/8P+cTLdreXoiM3GP1Ez8OQuOOXbmmymvS1CrOhkWmVwqW" +
+                        "TztMYOY9lkequiFCCR+yptTXlWJrax3MTsU85BFWStgsiZrvJM8ELUMmi62Z" +
+                        "WjDN8cZNTYMH9CBRmjCRbnoquphHTFDy0wRTFIK5jZxkoAYzzgew65GVVxb5" +
+                        "WW7WFZMbXCrxzd5L8dqmMS/4qgrqtDMt7jzXI4NqFMOsxqTbdsrbPbo3wnHo" +
+                        "m0tKVJu8VpJY9SbZkSjm764aNMqTn9VKYfrgVBRw/C8dZY7i0zhgJ9kzgjVu" +
+                        "FWroXC4l6xwL/NKCy59r6E27YTEHFf/N4dzwKn5d+TpUNDwpIHa1WtS4IJvO" +
+                        "uTtx+8bqMgO7wFRfZMoioR0Czn0PHdoZobYp0Bop28HUbYagxQd+/MfQIiqK" +
+                        "qKRGvM1hXiq/P84Wau5EWzRDN4XOqvokdCZPvUE0VuaNh2LpTrrKwm2Ev2zL" +
+                        "p9h3gbTCt8vpzvXF464571bDBnBvSoMngTcnVlOrrSKXgzUDrw9zhRDv9y9E" +
+                        "xo7c07R7/mKN0VVmXVYameQW3Yh/Nu+NtNpmqbx39/QnsdyzrGorVqYw+8e6" +
+                        "ksLoLm+a1E12U0xeAPRsR3q78dNdy3ShVtjGJ2tJaMwCRD0AXWBA0L+BGjyf" +
+                        "A6e61CB7e3lkDJfu5d33dduUmSuz083nAokHiZS6QYaNdDeKfORSy2UvVfGF" +
+                        "pYGcL0S5uT1t5xZUrUFJZZmOPVtnyaHgx9Qv6ro6MKou2rhauxpIIJCnM4Rz" +
+                        "hDu4IPvfrLRbX1M7jRUAmGP71Wc+foD/OjkegyPAvX1JPjiCC97XPdDHA+vq" +
+                        "6up5AHY38yOylm6v3QDfuD+dam4RPMiEfLNpFlYhwP/YD1v41z3h+/jZ1vAj" +
+                        "y+FRBH/HEPlz8/+R5HALBL4j2WX/fzP8Y/7hZx7/Lr+L85dtszThOPL1GvvB" +
+                        "EWIBAKS/8gH+BkSorclQCQAA"
+                )
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+            val property = fooClass.assertProperty("foo")
+            assertThat(property.modifiers.getVisibilityLevel()).isEqualTo(VisibilityLevel.INTERNAL)
+            assertThat(property.annotationNames()).contains("kotlin.PublishedApi")
+
+            val getter = fooClass.assertMethod("getFoo-RVb1_dM", "")
+            assertThat(getter.modifiers.getVisibilityLevel()).isEqualTo(VisibilityLevel.INTERNAL)
+            assertThat(getter.annotationNames()).contains("kotlin.PublishedApi")
+
+            val setter = fooClass.assertMethod("setFoo-Vxmw0xk", "int")
+            assertThat(setter.modifiers.getVisibilityLevel()).isEqualTo(VisibilityLevel.INTERNAL)
+            assertThat(setter.annotationNames()).contains("kotlin.PublishedApi")
         }
     }
 }

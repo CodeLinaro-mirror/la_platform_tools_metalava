@@ -28,7 +28,10 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierListWriter
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
+import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.StripJavaLangPrefix
+import com.android.tools.metalava.model.TargetLanguageSet
+import com.android.tools.metalava.model.TypeAliasItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeStringConfiguration
@@ -198,7 +201,18 @@ class SignatureWriter(
     }
 
     private fun writeModifiers(item: Item) {
+        (item as? SelectableItem)?.let { writeTargetLanguage(it) }
         modifierListWriter.write(item, normalizeFinal = fileFormat.normalizeFinalModifier)
+    }
+
+    private fun writeTargetLanguage(item: SelectableItem) {
+        // Properties and type aliases are always only for Kotlin use, so don't bother writing it.
+        if (item is PropertyItem || item is TypeAliasItem) return
+
+        val modifier =
+            TargetLanguageSet.targetLanguageSetToSignatureFileRepresentation[item.targetLanguages]
+                ?: return
+        write("$modifier ")
     }
 
     private fun writeSuperClassStatement(cls: ClassItem) {

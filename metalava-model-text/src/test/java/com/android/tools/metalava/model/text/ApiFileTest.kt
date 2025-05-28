@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.SelectableItem
+import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.testing.value.literalValue
@@ -770,6 +771,153 @@ class ApiFileTest : BaseTextCodebaseTest() {
                 .trimIndent(),
             current.joinToString("\n")
         )
+    }
+
+    @Test
+    fun `Test method target language`() {
+        runCodebaseTest(
+            signature(
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public class Foo {
+                    method public void noTargetsListed();
+                    method @BytecodeOnly public void bytecodeOnly();
+                    method @KotlinOnly public void kotlinOnly();
+                    method @InaccessibleFromJava public void inaccessibleFromJava();
+                    method @InaccessibleFromKotlin public void inaccessibleFromKotlin();
+                    method @OtherAnnotation public void noTargetsWithOtherAnnotation();
+                    method @BytecodeOnly @OtherAnnotation public void bytecodeOnlyWithOtherAnnotation();
+                  }
+                }
+                """
+            )
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+
+            val noTargetsListed = fooClass.assertMethod("noTargetsListed", "")
+            assertThat(noTargetsListed.targetLanguages).isEqualTo(TargetLanguageSet.ALL)
+            assertThat(noTargetsListed.annotationNames()).isEmpty()
+
+            val bytecodeOnly = fooClass.assertMethod("bytecodeOnly", "")
+            assertThat(bytecodeOnly.targetLanguages).isEqualTo(TargetLanguageSet.BYTECODE_ONLY)
+            assertThat(bytecodeOnly.annotationNames()).isEmpty()
+
+            val kotlinOnly = fooClass.assertMethod("kotlinOnly", "")
+            assertThat(kotlinOnly.targetLanguages).isEqualTo(TargetLanguageSet.KOTLIN_ONLY)
+            assertThat(kotlinOnly.annotationNames()).isEmpty()
+
+            val inaccessibleFromJava = fooClass.assertMethod("inaccessibleFromJava", "")
+            assertThat(inaccessibleFromJava.targetLanguages).isEqualTo(TargetLanguageSet.NOT_JAVA)
+            assertThat(inaccessibleFromJava.annotationNames()).isEmpty()
+
+            val inaccessibleFromKotlin = fooClass.assertMethod("inaccessibleFromKotlin", "")
+            assertThat(inaccessibleFromKotlin.targetLanguages)
+                .isEqualTo(TargetLanguageSet.NOT_KOTLIN)
+            assertThat(inaccessibleFromKotlin.annotationNames()).isEmpty()
+
+            val noTargetsWithOtherAnnotation =
+                fooClass.assertMethod("noTargetsWithOtherAnnotation", "")
+            assertThat(noTargetsWithOtherAnnotation.targetLanguages)
+                .isEqualTo(TargetLanguageSet.ALL)
+            assertThat(noTargetsWithOtherAnnotation.annotationNames())
+                .containsExactly("androidx.annotation.OtherAnnotation")
+
+            val bytecodeOnlyWithOtherAnnotation =
+                fooClass.assertMethod("bytecodeOnlyWithOtherAnnotation", "")
+            assertThat(bytecodeOnlyWithOtherAnnotation.targetLanguages)
+                .isEqualTo(TargetLanguageSet.BYTECODE_ONLY)
+            assertThat(bytecodeOnlyWithOtherAnnotation.annotationNames())
+                .containsExactly("androidx.annotation.OtherAnnotation")
+        }
+    }
+
+    @Test
+    fun `Test constructor target language`() {
+        runCodebaseTest(
+            signature(
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public class Foo {
+                    ctor @BytecodeOnly public Foo();
+                  }
+                }
+                """
+            )
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+
+            val bytecodeOnlyCtor = fooClass.assertConstructor("")
+            assertThat(bytecodeOnlyCtor.targetLanguages).isEqualTo(TargetLanguageSet.BYTECODE_ONLY)
+            assertThat(bytecodeOnlyCtor.annotationNames()).isEmpty()
+        }
+    }
+
+    @Test
+    fun `Test field target language from signature file`() {
+        runCodebaseTest(
+            signature(
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public class Foo {
+                    field @InaccessibleFromKotlin public int inaccessibleFromKotlin;
+                  }
+                }
+                """
+            )
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+
+            val inaccessibleFromKotlin = fooClass.assertField("inaccessibleFromKotlin")
+            assertThat(inaccessibleFromKotlin.targetLanguages)
+                .isEqualTo(TargetLanguageSet.NOT_KOTLIN)
+            assertThat(inaccessibleFromKotlin.annotationNames()).isEmpty()
+        }
+    }
+
+    @Test
+    fun `Test class target language`() {
+        runCodebaseTest(
+            signature(
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public class NoTargetsListed {
+                  }
+                  @KotlinOnly public class KotlinOnlyClass {
+                  }
+                  @OtherAnnotation public class NoTargetsWithOtherAnnotation {
+                  }
+                  @KotlinOnly @OtherAnnotation public class KotlinOnlyClassWithOtherAnnotation {
+                  }
+                }
+                """
+            )
+        ) {
+            val noTargetsListed = codebase.assertClass("test.pkg.NoTargetsListed")
+            assertThat(noTargetsListed.targetLanguages).isEqualTo(TargetLanguageSet.ALL)
+            assertThat(noTargetsListed.annotationNames()).isEmpty()
+
+            val kotlinOnlyClass = codebase.assertClass("test.pkg.KotlinOnlyClass")
+            assertThat(kotlinOnlyClass.targetLanguages).isEqualTo(TargetLanguageSet.KOTLIN_ONLY)
+            assertThat(kotlinOnlyClass.annotationNames()).isEmpty()
+
+            val noTargetsWithOtherAnnotation =
+                codebase.assertClass("test.pkg.NoTargetsWithOtherAnnotation")
+            assertThat(noTargetsWithOtherAnnotation.targetLanguages)
+                .isEqualTo(TargetLanguageSet.ALL)
+            assertThat(noTargetsWithOtherAnnotation.annotationNames())
+                .containsExactly("androidx.annotation.OtherAnnotation")
+
+            val kotlinOnlyClassWithOtherAnnotation =
+                codebase.assertClass("test.pkg.KotlinOnlyClassWithOtherAnnotation")
+            assertThat(kotlinOnlyClassWithOtherAnnotation.targetLanguages)
+                .isEqualTo(TargetLanguageSet.KOTLIN_ONLY)
+            assertThat(kotlinOnlyClassWithOtherAnnotation.annotationNames())
+                .containsExactly("androidx.annotation.OtherAnnotation")
+        }
     }
 
     class TestClassItem private constructor(delegate: ClassItem) : ClassItem by delegate {

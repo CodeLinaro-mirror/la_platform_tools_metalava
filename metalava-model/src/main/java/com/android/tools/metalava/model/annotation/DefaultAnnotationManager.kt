@@ -42,6 +42,7 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.JAVA_LANG_PREFIX
 import com.android.tools.metalava.model.JVM_STATIC
+import com.android.tools.metalava.model.KOTLIN_METADATA
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.NO_ANNOTATION_TARGETS
@@ -460,6 +461,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
             "kotlin.jvm.JvmOverloads",
             "kotlin.jvm.JvmField",
             JVM_STATIC,
+            KOTLIN_METADATA,
             "kotlin.jvm.JvmName" -> return NO_ANNOTATION_TARGETS
         }
 

@@ -246,7 +246,7 @@ class ValueParser(
     private fun parseConstant(optionalTypeItem: TypeItem?, text: String): ConstantValue? {
 
         knownSpecialValues[text]?.let { value ->
-            return createLiteralValue(optionalTypeItem, value)
+            return value.convertToType(optionalTypeItem)
         }
 
         val first = text.first()
@@ -543,7 +543,7 @@ class ValueParser(
          */
         private val specialFloats =
             mapOf(
-                Double.NaN to
+                DoubleValue.NaN to
                     listOf(
                         "(0.0/0.0)",
                         "0.0 / 0.0",
@@ -551,7 +551,7 @@ class ValueParser(
                         "java.lang.Double.NaN",
                         "kotlin.jvm.internal.DoubleCompanionObject.NaN",
                     ),
-                Double.NEGATIVE_INFINITY to
+                DoubleValue.NEGATIVE_INFINITY to
                     listOf(
                         "(-1.0/0.0)",
                         "-1.0 / 0.0",
@@ -559,7 +559,7 @@ class ValueParser(
                         "java.lang.Double.NEGATIVE_INFINITY",
                         "kotlin.jvm.internal.DoubleCompanionObject.NEGATIVE_INFINITY",
                     ),
-                Double.POSITIVE_INFINITY to
+                DoubleValue.POSITIVE_INFINITY to
                     listOf(
                         "(1.0/0.0)",
                         "1.0 / 0.0",
@@ -567,7 +567,7 @@ class ValueParser(
                         "java.lang.Double.POSITIVE_INFINITY",
                         "kotlin.jvm.internal.DoubleCompanionObject.POSITIVE_INFINITY",
                     ),
-                Float.NaN to
+                FloatValue.NaN to
                     listOf(
                         "(0.0f/0.0f)",
                         "0.0f / 0.0",
@@ -575,7 +575,7 @@ class ValueParser(
                         "java.lang.Float.NaN",
                         "kotlin.jvm.internal.FloatCompanionObject.NaN",
                     ),
-                Float.NEGATIVE_INFINITY to
+                FloatValue.NEGATIVE_INFINITY to
                     listOf(
                         "(-1.0f/0.0f)",
                         "-1.0f / 0.0",
@@ -584,7 +584,7 @@ class ValueParser(
                         "java.lang.Float.NEGATIVE_INFINITY",
                         "kotlin.jvm.internal.FloatCompanionObject.NEGATIVE_INFINITY",
                     ),
-                Float.POSITIVE_INFINITY to
+                FloatValue.POSITIVE_INFINITY to
                     listOf(
                         "(1.0f/0.0f)",
                         "1.0f / 0.0",
@@ -597,8 +597,8 @@ class ValueParser(
         /** A map of all the known special values. */
         private val knownSpecialValues =
             mapOf(
-                "false" to false,
-                "true" to true,
+                "false" to BooleanValue.FALSE,
+                "true" to BooleanValue.TRUE,
             ) + specialFloats.flatMap { (value, alternatives) -> alternatives.map { it to value } }
 
         /**
