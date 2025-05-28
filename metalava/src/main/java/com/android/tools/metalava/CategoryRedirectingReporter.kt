@@ -58,7 +58,11 @@ class CategoryRedirectingReporter(
             Category.API_LINT,
             Category.DOCUMENTATION ->
                 apiLintReporter.report(id, reportable, message, location, maximumSeverity)
-            Category.COMPATIBILITY ->
+            Category.COMPATIBILITY,
+            Category.BINARY_COMPATIBILITY_ONLY,
+            Category.SOURCE_COMPATIBILITY_ONLY,
+            Category.BINARY_AND_SOURCE_COMPATIBILITY,
+            Category.OTHER_COMPATIBILITY ->
                 compatibilityReporter.report(id, reportable, message, location, maximumSeverity)
             else -> defaultReporter.report(id, reportable, message, location, maximumSeverity)
         }

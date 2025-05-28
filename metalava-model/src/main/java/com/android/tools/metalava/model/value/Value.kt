@@ -243,6 +243,11 @@ fun Value.asString() = (asLiteralValue() as? StringValue)?.underlyingValue
  *   an [AnnotationItem].
  * @param classObjectValueFormat How to format a [ClassObjectValue].
  * @param nestedValueAppender The function to use to append nested [Value]s to a [StringBuilder].
+ * @param nonLiteralFloatSuffix The suffix to use for a [FloatValue] that was represented in the
+ *   source as an expression (including negative numbers which are represented as a unary minus
+ *   expression).
+ * @param nonLiteralIntFormat How to format an [IntValue] that was represented in the source as an
+ *   expression (including negative numbers which are represented as a unary minus expression).
  * @param singleArrayElementFormat How to treat an array that contains only a single element.
  * @param sortAnnotationAttributes Whether to sort the attributes by name or keep them in the order
  *   they were added.
@@ -257,6 +262,8 @@ data class ValueStringConfiguration(
     val classObjectValueFormat: ClassObjectValueFormat = ClassObjectValueFormat.JAVA,
     val nestedValueAppender: (Value, StringBuilder, ValueStringConfiguration) -> Unit =
         Value::appendValueStringTo,
+    val nonLiteralFloatSuffix: Char = 'f',
+    val nonLiteralIntFormat: IntFormat = IntFormat.DECIMAL,
     val singleArrayElementFormat: SingleArrayElementFormat = SingleArrayElementFormat.WRAP,
     val sortAnnotationAttributes: Boolean = true,
     val specialValues: Map<LiteralValue<*>, String> = defaultSpecialValues,
@@ -312,6 +319,15 @@ enum class ClassObjectValueFormat {
      * [JAVA].
      */
     SOURCE,
+}
+
+/** Possible ways to format an [IntValue]. */
+enum class IntFormat {
+    /** Format as a decimal number. */
+    DECIMAL,
+
+    /** Format as a hexadecimal number with a leader 0x. */
+    HEXADECIMAL,
 }
 
 /** Enumeration of how an array containing a single element should be formatted. */
@@ -554,18 +570,14 @@ sealed interface DoubleValue : FloatingPointValue<Double> {
 
     override fun hashCodeForValue() = underlyingValue.hashCode()
 
-    override fun appendValueStringTo(
-        builder: StringBuilder,
-        configuration: ValueStringConfiguration
-    ) {
-        configuration.specialValues[this]?.let { builder.append(it) }
-            ?: builder.append(underlyingValue)
-    }
-
     companion object {
-        val NaN: DoubleValue = DefaultDoubleValue(Double.NaN)
-        val NEGATIVE_INFINITY: DoubleValue = DefaultDoubleValue(Double.NEGATIVE_INFINITY)
-        val POSITIVE_INFINITY: DoubleValue = DefaultDoubleValue(Double.POSITIVE_INFINITY)
+        // These are all non-literals as there is no source literal for these. They all either
+        // require using a division-by-zero expression or a field that itself uses division-by-zero.
+        val NaN: DoubleValue = DefaultDoubleValue(Double.NaN, nonLiteralInSource = true)
+        val NEGATIVE_INFINITY: DoubleValue =
+            DefaultDoubleValue(Double.NEGATIVE_INFINITY, nonLiteralInSource = true)
+        val POSITIVE_INFINITY: DoubleValue =
+            DefaultDoubleValue(Double.POSITIVE_INFINITY, nonLiteralInSource = true)
     }
 }
 
@@ -581,18 +593,14 @@ sealed interface FloatValue : FloatingPointValue<Float> {
 
     override fun hashCodeForValue() = underlyingValue.hashCode()
 
-    override fun appendValueStringTo(
-        builder: StringBuilder,
-        configuration: ValueStringConfiguration
-    ) {
-        configuration.specialValues[this]?.let { builder.append(it) }
-            ?: builder.append(underlyingValue).append('f')
-    }
-
     companion object {
-        val NaN: FloatValue = DefaultFloatValue(Float.NaN)
-        val NEGATIVE_INFINITY: FloatValue = DefaultFloatValue(Float.NEGATIVE_INFINITY)
-        val POSITIVE_INFINITY: FloatValue = DefaultFloatValue(Float.POSITIVE_INFINITY)
+        // These are all non-literals as there is no source literal for these. They all either
+        // require using a division-by-zero expression or a field that itself uses division-by-zero.
+        val NaN: FloatValue = DefaultFloatValue(Float.NaN, nonLiteralInSource = true)
+        val NEGATIVE_INFINITY: FloatValue =
+            DefaultFloatValue(Float.NEGATIVE_INFINITY, nonLiteralInSource = true)
+        val POSITIVE_INFINITY: FloatValue =
+            DefaultFloatValue(Float.POSITIVE_INFINITY, nonLiteralInSource = true)
     }
 }
 
@@ -605,6 +613,16 @@ sealed interface IntValue : IntegralValue<Int> {
         other is IntValue && underlyingValue == other.underlyingValue
 
     override fun hashCodeForValue() = underlyingValue.hashCode()
+
+    companion object {
+        val MIN_VALUE: IntValue =
+            DefaultIntValue(
+                Int.MIN_VALUE,
+                // This is non-literal as it is a negative number and literals have no sign.
+                nonLiteralInSource = true,
+            )
+        val MAX_VALUE: IntValue = DefaultIntValue(Int.MAX_VALUE)
+    }
 }
 
 /** A [Value] that encapsulates a [Long]. */
@@ -616,13 +634,6 @@ sealed interface LongValue : IntegralValue<Long> {
         other is LongValue && underlyingValue == other.underlyingValue
 
     override fun hashCodeForValue() = underlyingValue.hashCode()
-
-    override fun appendValueStringTo(
-        builder: StringBuilder,
-        configuration: ValueStringConfiguration
-    ) {
-        builder.append(underlyingValue).append('L')
-    }
 }
 
 /** A [Value] that encapsulates a [Short]. */

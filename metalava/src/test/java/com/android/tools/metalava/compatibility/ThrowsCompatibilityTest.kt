@@ -31,11 +31,11 @@ class ThrowsCompatibilityTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                    src/test/pkg/MyClass.java:7: error: Method test.pkg.MyClass.method1 added thrown exception java.io.IOException [ChangedThrows]
-                    src/test/pkg/MyClass.java:8: error: Method test.pkg.MyClass.method2 no longer throws exception java.io.IOException [ChangedThrows]
-                    src/test/pkg/MyClass.java:9: error: Method test.pkg.MyClass.method3 added thrown exception java.lang.UnsupportedOperationException [ChangedThrows]
-                    src/test/pkg/MyClass.java:9: error: Method test.pkg.MyClass.method3 no longer throws exception java.io.IOException [ChangedThrows]
-                    src/test/pkg/MyClass.java:9: error: Method test.pkg.MyClass.method3 no longer throws exception java.lang.NumberFormatException [ChangedThrows]
+                    src/test/pkg/MyClass.java:7: error: Binary breaking change: Method test.pkg.MyClass.method1 added thrown exception java.io.IOException [ChangedThrows]
+                    src/test/pkg/MyClass.java:8: error: Binary breaking change: Method test.pkg.MyClass.method2 no longer throws exception java.io.IOException [ChangedThrows]
+                    src/test/pkg/MyClass.java:9: error: Binary breaking change: Method test.pkg.MyClass.method3 added thrown exception java.lang.UnsupportedOperationException [ChangedThrows]
+                    src/test/pkg/MyClass.java:9: error: Binary breaking change: Method test.pkg.MyClass.method3 no longer throws exception java.io.IOException [ChangedThrows]
+                    src/test/pkg/MyClass.java:9: error: Binary breaking change: Method test.pkg.MyClass.method3 no longer throws exception java.lang.NumberFormatException [ChangedThrows]
                 """,
             checkCompatibilityApiReleased =
                 """
@@ -74,10 +74,10 @@ class ThrowsCompatibilityTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                    src/test/pkg/MyClass.kt:4: error: Constructor test.pkg.MyClass added thrown exception test.pkg.MyException [ChangedThrows]
-                    src/test/pkg/MyClass.kt:9: error: Method test.pkg.MyClass.method1 added thrown exception test.pkg.MyException [ChangedThrows]
-                    src/test/pkg/MyClass.kt:12: error: Method test.pkg.MyClass.getProperty1 added thrown exception test.pkg.MyException [ChangedThrows]
-                    src/test/pkg/MyClass.kt:15: error: Method test.pkg.MyClass.getProperty2 added thrown exception test.pkg.MyException [ChangedThrows]
+                    src/test/pkg/MyClass.kt:4: error: Binary breaking change: Constructor test.pkg.MyClass added thrown exception test.pkg.MyException [ChangedThrows]
+                    src/test/pkg/MyClass.kt:9: error: Binary breaking change: Method test.pkg.MyClass.method1 added thrown exception test.pkg.MyException [ChangedThrows]
+                    src/test/pkg/MyClass.kt:12: error: Binary breaking change: Method test.pkg.MyClass.getProperty1 added thrown exception test.pkg.MyException [ChangedThrows]
+                    src/test/pkg/MyClass.kt:15: error: Binary breaking change: Method test.pkg.MyClass.getProperty2 added thrown exception test.pkg.MyException [ChangedThrows]
                 """,
             checkCompatibilityApiReleased =
                 """
@@ -125,11 +125,11 @@ class ThrowsCompatibilityTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                    src/test/pkg/MyClass.java:7: error: Method test.pkg.MyClass.method1 added thrown exception T (extends java.lang.Throwable)} [ChangedThrows]
-                    src/test/pkg/MyClass.java:8: error: Method test.pkg.MyClass.method2 no longer throws exception T (extends java.lang.Throwable)} [ChangedThrows]
-                    src/test/pkg/MyClass.java:9: error: Method test.pkg.MyClass.method3 added thrown exception X (extends java.io.FileNotFoundException)} [ChangedThrows]
-                    src/test/pkg/MyClass.java:10: error: Method test.pkg.MyClass.method4 added thrown exception X (extends java.io.IOException)} [ChangedThrows]
-                    src/test/pkg/MyClass.java:10: error: Method test.pkg.MyClass.method4 no longer throws exception X (extends java.io.FileNotFoundException)} [ChangedThrows]
+                    src/test/pkg/MyClass.java:7: error: Binary breaking change: Method test.pkg.MyClass.method1 added thrown exception T (extends java.lang.Throwable)} [ChangedThrows]
+                    src/test/pkg/MyClass.java:8: error: Binary breaking change: Method test.pkg.MyClass.method2 no longer throws exception T (extends java.lang.Throwable)} [ChangedThrows]
+                    src/test/pkg/MyClass.java:9: error: Binary breaking change: Method test.pkg.MyClass.method3 added thrown exception X (extends java.io.FileNotFoundException)} [ChangedThrows]
+                    src/test/pkg/MyClass.java:10: error: Binary breaking change: Method test.pkg.MyClass.method4 added thrown exception X (extends java.io.IOException)} [ChangedThrows]
+                    src/test/pkg/MyClass.java:10: error: Binary breaking change: Method test.pkg.MyClass.method4 no longer throws exception X (extends java.io.FileNotFoundException)} [ChangedThrows]
                 """,
             checkCompatibilityApiReleased =
                 """

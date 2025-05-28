@@ -33,8 +33,8 @@ class NullnessCompatibilityTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                    load-api.txt:5: error: Attempted to remove nullability from java.lang.String (was NONNULL) in parameter str in test.pkg.Foo.method1(int p, Integer int2, int p1, String str, java.lang.String... args) [InvalidNullConversion]
-                    load-api.txt:7: error: Attempted to change nullability of java.lang.String (from NULLABLE to NONNULL) in parameter str in test.pkg.Foo.method3(String str, int p, int int2) [InvalidNullConversion]
+                    load-api.txt:5: error: Source breaking change: Attempted to remove nullability from java.lang.String (was NONNULL) in parameter str in test.pkg.Foo.method1(int p, Integer int2, int p1, String str, java.lang.String... args) [InvalidNullConversion]
+                    load-api.txt:7: error: Source breaking change: Attempted to change nullability of java.lang.String (from NULLABLE to NONNULL) in parameter str in test.pkg.Foo.method3(String str, int p, int int2) [InvalidNullConversion]
                 """,
             format = FileFormat.V4,
             checkCompatibilityApiReleased =
@@ -72,7 +72,7 @@ class NullnessCompatibilityTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                    src/test/pkg/test.kt:2: error: Attempted to change nullability of java.lang.String (from NULLABLE to NONNULL) in parameter str1 in test.pkg.TestKt.fun1(String str1, String str2, java.util.List<java.lang.String> list) [InvalidNullConversion]
+                    src/test/pkg/test.kt:2: error: Source breaking change: Attempted to change nullability of java.lang.String (from NULLABLE to NONNULL) in parameter str1 in test.pkg.TestKt.fun1(String str1, String str2, java.util.List<java.lang.String> list) [InvalidNullConversion]
                 """,
             format = FileFormat.V4,
             checkCompatibilityApiReleased =
@@ -101,12 +101,12 @@ class NullnessCompatibilityTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                    load-api.txt:6: error: Attempted to remove nullability from java.lang.Double (was NULLABLE) in method test.pkg.MyTest.convert3(Float) [InvalidNullConversion]
-                    load-api.txt:6: error: Attempted to remove nullability from java.lang.Float (was NULLABLE) in parameter arg1 in test.pkg.MyTest.convert3(Float arg1) [InvalidNullConversion]
-                    load-api.txt:7: error: Attempted to remove nullability from java.lang.Double (was NONNULL) in method test.pkg.MyTest.convert4(Float) [InvalidNullConversion]
-                    load-api.txt:7: error: Attempted to remove nullability from java.lang.Float (was NONNULL) in parameter arg1 in test.pkg.MyTest.convert4(Float arg1) [InvalidNullConversion]
-                    load-api.txt:8: error: Attempted to change nullability of java.lang.Float (from NULLABLE to NONNULL) in parameter arg1 in test.pkg.MyTest.convert5(Float arg1) [InvalidNullConversion]
-                    load-api.txt:9: error: Attempted to change nullability of java.lang.Double (from NONNULL to NULLABLE) in method test.pkg.MyTest.convert6(Float) [InvalidNullConversion]
+                    load-api.txt:6: error: Source breaking change: Attempted to remove nullability from java.lang.Double (was NULLABLE) in method test.pkg.MyTest.convert3(Float) [InvalidNullConversion]
+                    load-api.txt:6: error: Source breaking change: Attempted to remove nullability from java.lang.Float (was NULLABLE) in parameter arg1 in test.pkg.MyTest.convert3(Float arg1) [InvalidNullConversion]
+                    load-api.txt:7: error: Source breaking change: Attempted to remove nullability from java.lang.Double (was NONNULL) in method test.pkg.MyTest.convert4(Float) [InvalidNullConversion]
+                    load-api.txt:7: error: Source breaking change: Attempted to remove nullability from java.lang.Float (was NONNULL) in parameter arg1 in test.pkg.MyTest.convert4(Float arg1) [InvalidNullConversion]
+                    load-api.txt:8: error: Source breaking change: Attempted to change nullability of java.lang.Float (from NULLABLE to NONNULL) in parameter arg1 in test.pkg.MyTest.convert5(Float arg1) [InvalidNullConversion]
+                    load-api.txt:9: error: Source breaking change: Attempted to change nullability of java.lang.Double (from NONNULL to NULLABLE) in method test.pkg.MyTest.convert6(Float) [InvalidNullConversion]
                 """,
             format = FileFormat.V2,
             checkCompatibilityApiReleased =
@@ -151,12 +151,12 @@ class NullnessCompatibilityTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                    src/test/pkg/Outer.kt:5: error: Attempted to change nullability of java.lang.String (from NONNULL to NULLABLE) in method test.pkg.Outer.method2(String,String) [InvalidNullConversion]
-                    src/test/pkg/Outer.kt:5: error: Attempted to change nullability of java.lang.String (from NULLABLE to NONNULL) in parameter string in test.pkg.Outer.method2(String string, String maybeString) [InvalidNullConversion]
-                    src/test/pkg/Outer.kt:6: error: Attempted to change nullability of java.lang.String (from NULLABLE to NONNULL) in parameter string in test.pkg.Outer.method3(String maybeString, String string) [InvalidNullConversion]
-                    src/test/pkg/Outer.kt:8: error: Attempted to change nullability of java.lang.String (from NONNULL to NULLABLE) in method test.pkg.Outer.Inner.method2(String,String) [InvalidNullConversion]
-                    src/test/pkg/Outer.kt:8: error: Attempted to change nullability of java.lang.String (from NULLABLE to NONNULL) in parameter string in test.pkg.Outer.Inner.method2(String string, String maybeString) [InvalidNullConversion]
-                    src/test/pkg/Outer.kt:9: error: Attempted to change nullability of java.lang.String (from NULLABLE to NONNULL) in parameter string in test.pkg.Outer.Inner.method3(String maybeString, String string) [InvalidNullConversion]
+                    src/test/pkg/Outer.kt:5: error: Source breaking change: Attempted to change nullability of java.lang.String (from NONNULL to NULLABLE) in method test.pkg.Outer.method2(String,String) [InvalidNullConversion]
+                    src/test/pkg/Outer.kt:5: error: Source breaking change: Attempted to change nullability of java.lang.String (from NULLABLE to NONNULL) in parameter string in test.pkg.Outer.method2(String string, String maybeString) [InvalidNullConversion]
+                    src/test/pkg/Outer.kt:6: error: Source breaking change: Attempted to change nullability of java.lang.String (from NULLABLE to NONNULL) in parameter string in test.pkg.Outer.method3(String maybeString, String string) [InvalidNullConversion]
+                    src/test/pkg/Outer.kt:8: error: Source breaking change: Attempted to change nullability of java.lang.String (from NONNULL to NULLABLE) in method test.pkg.Outer.Inner.method2(String,String) [InvalidNullConversion]
+                    src/test/pkg/Outer.kt:8: error: Source breaking change: Attempted to change nullability of java.lang.String (from NULLABLE to NONNULL) in parameter string in test.pkg.Outer.Inner.method2(String string, String maybeString) [InvalidNullConversion]
+                    src/test/pkg/Outer.kt:9: error: Source breaking change: Attempted to change nullability of java.lang.String (from NULLABLE to NONNULL) in parameter string in test.pkg.Outer.Inner.method3(String maybeString, String string) [InvalidNullConversion]
                 """,
             format = FileFormat.V4,
             checkCompatibilityApiReleased =
@@ -237,10 +237,10 @@ class NullnessCompatibilityTest : DriverTest() {
                 ),
             expectedIssues =
                 """
-                    src/test/pkg/Foo.java:5: error: Attempted to change nullability of java.lang.String (from NONNULL to NULLABLE) in field test.pkg.Foo.changeNonNullToNullable [InvalidNullConversion]
-                    src/test/pkg/Foo.java:6: error: Attempted to remove nullability from java.lang.String (was NONNULL) in field test.pkg.Foo.changeNonNullToPlatform [InvalidNullConversion]
-                    src/test/pkg/Foo.java:7: error: Attempted to change nullability of java.lang.String (from NULLABLE to NONNULL) in field test.pkg.Foo.changeNullableToNonNull [InvalidNullConversion]
-                    src/test/pkg/Foo.java:8: error: Attempted to remove nullability from java.lang.String (was NULLABLE) in field test.pkg.Foo.changeNullableToPlatform [InvalidNullConversion]
+                    src/test/pkg/Foo.java:5: error: Source breaking change: Attempted to change nullability of java.lang.String (from NONNULL to NULLABLE) in field test.pkg.Foo.changeNonNullToNullable [InvalidNullConversion]
+                    src/test/pkg/Foo.java:6: error: Source breaking change: Attempted to remove nullability from java.lang.String (was NONNULL) in field test.pkg.Foo.changeNonNullToPlatform [InvalidNullConversion]
+                    src/test/pkg/Foo.java:7: error: Source breaking change: Attempted to change nullability of java.lang.String (from NULLABLE to NONNULL) in field test.pkg.Foo.changeNullableToNonNull [InvalidNullConversion]
+                    src/test/pkg/Foo.java:8: error: Source breaking change: Attempted to remove nullability from java.lang.String (was NULLABLE) in field test.pkg.Foo.changeNullableToPlatform [InvalidNullConversion]
                 """,
         )
     }
@@ -298,7 +298,7 @@ class NullnessCompatibilityTest : DriverTest() {
                 ),
             expectedIssues =
                 """
-                    api.txt:10: warning: Attempted to change nullability of java.lang.String (from NULLABLE to NONNULL) in method test.pkg.NonFinalClass.nonFinalMethod() (ErrorWhenNew) [InvalidNullConversion]
+                    api.txt:10: warning: Source breaking change: Attempted to change nullability of java.lang.String (from NULLABLE to NONNULL) in method test.pkg.NonFinalClass.nonFinalMethod() (ErrorWhenNew) [InvalidNullConversion]
                 """
         )
     }
@@ -356,7 +356,7 @@ class NullnessCompatibilityTest : DriverTest() {
                 ),
             expectedIssues =
                 """
-                    api.txt:10: warning: Attempted to change nullability of java.lang.String (from NONNULL to NULLABLE) in parameter arg1 in test.pkg.NonFinalClass.nonFinalMethod(String arg1) (ErrorWhenNew) [InvalidNullConversion]
+                    api.txt:10: warning: Source breaking change: Attempted to change nullability of java.lang.String (from NONNULL to NULLABLE) in parameter arg1 in test.pkg.NonFinalClass.nonFinalMethod(String arg1) (ErrorWhenNew) [InvalidNullConversion]
                 """
         )
     }
@@ -390,10 +390,10 @@ class NullnessCompatibilityTest : DriverTest() {
                 ),
             expectedIssues =
                 """
-                    api.txt:5: error: Attempted to change nullability of java.lang.String (from NONNULL to NULLABLE) in method test.pkg.Foo.foo(String[],String[],String[][]) [InvalidNullConversion]
-                    api.txt:5: error: Attempted to change nullability of java.lang.String (from NULLABLE to NONNULL) in parameter arg2 in test.pkg.Foo.foo(String[] arg1, String[] arg2, String[][] arg3) [InvalidNullConversion]
-                    api.txt:5: error: Attempted to change nullability of java.lang.String[] (from NULLABLE to NONNULL) in parameter arg3 in test.pkg.Foo.foo(String[] arg1, String[] arg2, String[][] arg3) [InvalidNullConversion]
-                    api.txt:5: error: Attempted to remove nullability from java.lang.String (was NULLABLE) in parameter arg3 in test.pkg.Foo.foo(String[] arg1, String[] arg2, String[][] arg3) [InvalidNullConversion]
+                    api.txt:5: error: Source breaking change: Attempted to change nullability of java.lang.String (from NONNULL to NULLABLE) in method test.pkg.Foo.foo(String[],String[],String[][]) [InvalidNullConversion]
+                    api.txt:5: error: Source breaking change: Attempted to change nullability of java.lang.String (from NULLABLE to NONNULL) in parameter arg2 in test.pkg.Foo.foo(String[] arg1, String[] arg2, String[][] arg3) [InvalidNullConversion]
+                    api.txt:5: error: Source breaking change: Attempted to change nullability of java.lang.String[] (from NULLABLE to NONNULL) in parameter arg3 in test.pkg.Foo.foo(String[] arg1, String[] arg2, String[][] arg3) [InvalidNullConversion]
+                    api.txt:5: error: Source breaking change: Attempted to remove nullability from java.lang.String (was NULLABLE) in parameter arg3 in test.pkg.Foo.foo(String[] arg1, String[] arg2, String[][] arg3) [InvalidNullConversion]
                 """,
         )
     }
@@ -427,8 +427,8 @@ class NullnessCompatibilityTest : DriverTest() {
                 ),
             expectedIssues =
                 """
-                    api.txt:5: error: Attempted to change nullability of java.lang.String (from NONNULL to NULLABLE) in method test.pkg.Foo.foo() [InvalidNullConversion]
-                    api.txt:5: error: Attempted to remove nullability from java.lang.Number (was NULLABLE) in method test.pkg.Foo.foo() [InvalidNullConversion]
+                    api.txt:5: error: Source breaking change: Attempted to change nullability of java.lang.String (from NONNULL to NULLABLE) in method test.pkg.Foo.foo() [InvalidNullConversion]
+                    api.txt:5: error: Source breaking change: Attempted to remove nullability from java.lang.Number (was NULLABLE) in method test.pkg.Foo.foo() [InvalidNullConversion]
                 """,
         )
     }
@@ -462,7 +462,7 @@ class NullnessCompatibilityTest : DriverTest() {
                 ),
             expectedIssues =
                 """
-                    api.txt:5: error: Attempted to change nullability of java.lang.String (from NONNULL to NULLABLE) in method test.pkg.Foo.foo() [InvalidNullConversion]
+                    api.txt:5: error: Source breaking change: Attempted to change nullability of java.lang.String (from NONNULL to NULLABLE) in method test.pkg.Foo.foo() [InvalidNullConversion]
                 """,
         )
     }
@@ -496,8 +496,8 @@ class NullnessCompatibilityTest : DriverTest() {
                 ),
             expectedIssues =
                 """
-                    api.txt:5: warning: Attempted to change nullability of java.lang.Number (from NULLABLE to NONNULL) in method test.pkg.Foo.foo() (ErrorWhenNew) [InvalidNullConversion]
-                    api.txt:5: error: Attempted to remove nullability from java.lang.String (was NONNULL) in method test.pkg.Foo.foo() [InvalidNullConversion]
+                    api.txt:5: warning: Source breaking change: Attempted to change nullability of java.lang.Number (from NULLABLE to NONNULL) in method test.pkg.Foo.foo() (ErrorWhenNew) [InvalidNullConversion]
+                    api.txt:5: error: Source breaking change: Attempted to remove nullability from java.lang.String (was NONNULL) in method test.pkg.Foo.foo() [InvalidNullConversion]
                 """,
         )
     }

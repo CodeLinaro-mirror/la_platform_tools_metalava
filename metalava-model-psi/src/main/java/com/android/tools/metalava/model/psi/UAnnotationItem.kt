@@ -32,7 +32,6 @@ import com.intellij.psi.PsiExpression
 import com.intellij.psi.PsiField
 import com.intellij.psi.PsiLiteral
 import com.intellij.psi.impl.JavaConstantExpressionEvaluator
-import org.jetbrains.kotlin.asJava.elements.KtLightNullabilityAnnotation
 import org.jetbrains.uast.UAnnotation
 import org.jetbrains.uast.UCallExpression
 import org.jetbrains.uast.UClassLiteralExpression
@@ -71,14 +70,6 @@ private constructor(
     }
 
     override fun snapshot(targetCodebase: Codebase) = this
-
-    override fun isNonNull(): Boolean {
-        if (uAnnotation.javaPsi is KtLightNullabilityAnnotation<*> && originalName == "") {
-            // Hack/workaround: some UAST annotation nodes do not provide qualified name :=(
-            return true
-        }
-        return super.isNonNull()
-    }
 
     companion object {
         private fun getAnnotationAttributes(

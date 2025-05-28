@@ -303,7 +303,13 @@ class ValueParser(
                     } else {
                         text.toDouble()
                     }
-                return createLiteralValue(optionalTypeItem, number)
+                return createLiteralValue(
+                    optionalTypeItem,
+                    number,
+                    // Hexadecimal floating point numbers can only be present in the signature file
+                    // if they were present in the source.
+                    nonLiteralInSource = false,
+                )
             }
 
             // Remove the leading "0x"
@@ -316,11 +322,19 @@ class ValueParser(
             // larger than the largest positive int. They will become negative numbers. However,
             // that is what the original number was so it is ok.
             val int = withoutLeading0x.toLong(16).toInt()
-            return createLiteralValue(optionalTypeItem, int)
+            return createLiteralValue(
+                optionalTypeItem,
+                int,
+                // AnnotationItem.toSource() will use format ints obtained from literals as decimals
+                // and ints obtained from complex expressions as decimals so treat hexadecimals as
+                // if they are not literals. That should allow signature files to be read and then
+                // written out again without changing the formatting.
+                nonLiteralInSource = true
+            )
         }
 
         // Check the last character to see if it indicated the type of the number.
-        when (text.last()) {
+        when (val suffix = text.last()) {
             'L',
             'l' -> {
                 val long = text.substring(0, text.length - 1).toLong()
@@ -329,7 +343,10 @@ class ValueParser(
             'F',
             'f' -> {
                 val float = text.substring(0, text.length - 1).toFloat()
-                return createLiteralValue(optionalTypeItem, float)
+                // AnnotationItem.toSource() uses 'F' as the suffix for floats obtained from
+                // expressions and 'f' for those obtained from literals.
+                val nonLiteralInSource = suffix == 'F'
+                return createLiteralValue(optionalTypeItem, float, nonLiteralInSource)
             }
         }
 

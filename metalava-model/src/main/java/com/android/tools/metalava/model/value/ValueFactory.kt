@@ -81,8 +81,14 @@ interface ValueFactory {
      * @param optionalTypeItem the optional [TypeItem] for the context in which the value is used,
      *   e.g. [MethodItem.returnType] for [MethodItem.defaultValue]. It should be available unless
      *   the source is incomplete, e.g. missing annotation class definitions.
+     * @param nonLiteralInSource indicates whether the value was represented as a literal in the
+     *   source, or a more complex expression. This can affect legacy formatting.
      */
-    fun createLiteralValue(optionalTypeItem: TypeItem?, underlyingValue: Any): LiteralValue<*> {
+    fun createLiteralValue(
+        optionalTypeItem: TypeItem?,
+        underlyingValue: Any,
+        nonLiteralInSource: Boolean = false,
+    ): LiteralValue<*> {
         val literalValue =
             when (optionalTypeItem) {
                 is PrimitiveTypeItem -> {
@@ -91,7 +97,12 @@ interface ValueFactory {
                     val primitiveKind = optionalTypeItem.kind
                     val primitiveValue = normalizePrimitive(underlyingValue, primitiveKind)
 
-                    createPrimitiveValueForKind(primitiveKind, primitiveValue, underlyingValue)
+                    createPrimitiveValueForKind(
+                        primitiveKind,
+                        primitiveValue,
+                        underlyingValue,
+                        nonLiteralInSource,
+                    )
                 }
                 is ClassTypeItem -> {
                     // The only allowable class type is a String.
@@ -113,7 +124,8 @@ interface ValueFactory {
                                 createPrimitiveValueForKind(
                                     primitiveKind,
                                     underlyingValue,
-                                    underlyingValue
+                                    underlyingValue,
+                                    nonLiteralInSource,
                                 )
                             }
                             ?: error(
@@ -269,33 +281,119 @@ interface ValueFactory {
         val primitiveValueFactories =
             mapOf<Primitive, PrimitiveValueFactory<*>>(
                 Primitive.BOOLEAN to
-                    { underlyingValue, _ ->
+                    { underlyingValue, _, _ ->
                         DefaultBooleanValue(underlyingValue as Boolean)
                     },
                 Primitive.BYTE to
-                    { underlyingValue, _ ->
-                        DefaultByteValue(underlyingValue as Byte)
+                    { underlyingValue, originalValue, nonLiteralInSource ->
+                        val byteValue = underlyingValue as Byte
+                        val effectivelyNonLiteralInSource =
+                            nonLiteralInSource ||
+                                // Negative numbers are treated as if they were created from a unary
+                                // minus expression. That is true even when they are read from a jar
+                                // where they are stored as a negative number.
+                                byteValue < 0
+
+                        DefaultByteValue(
+                            byteValue,
+                            originalValue is Int,
+                            effectivelyNonLiteralInSource,
+                        )
                     },
                 Primitive.CHAR to
-                    { underlyingValue, _ ->
+                    { underlyingValue, _, _ ->
                         DefaultCharValue(underlyingValue as Char)
                     },
                 Primitive.DOUBLE to
-                    { underlyingValue, originalValue ->
-                        DefaultDoubleValue(underlyingValue as Double, originalValue is Int)
+                    { underlyingValue, originalValue, nonLiteralInSource ->
+                        val doubleValue = underlyingValue as Double
+                        val effectivelyNonLiteralInSource =
+                            nonLiteralInSource ||
+                                // Negative numbers are treated as if they were created from a unary
+                                // minus expression. That is true even when they are read from a jar
+                                // where they are stored as a negative number.
+                                doubleValue < 0 ||
+                                // Similarly, NaN, +Infinity, -Infinity are treated as if they were
+                                // an expression as there is no literal for them. That is true even
+                                // when they are read from a jar where they are stored as a special
+                                // set of bits.
+                                doubleValue.isNaN() ||
+                                doubleValue.isInfinite()
+
+                        DefaultDoubleValue(
+                            doubleValue,
+                            originalValue is Int,
+                            effectivelyNonLiteralInSource,
+                        )
                     },
                 Primitive.FLOAT to
-                    { underlyingValue, originalValue ->
-                        DefaultFloatValue(underlyingValue as Float, originalValue is Int)
+                    { underlyingValue, originalValue, nonLiteralInSource ->
+                        val floatValue = underlyingValue as Float
+                        val effectivelyNonLiteralInSource =
+                            nonLiteralInSource ||
+                                // Negative numbers are treated as if they were created from a unary
+                                // minus expression. That is true even when they are read from a jar
+                                // where they are stored as a negative number.
+                                floatValue < 0 ||
+                                // Similarly, NaN, +Infinity, -Infinity are treated as if they were
+                                // an expression as there is no literal for them. That is true even
+                                // when they are read from a jar where they are stored as a special
+                                // set of bits.
+                                floatValue.isNaN() ||
+                                floatValue.isInfinite()
+
+                        DefaultFloatValue(
+                            floatValue,
+                            originalValue is Int,
+                            effectivelyNonLiteralInSource,
+                        )
                     },
-                Primitive.INT to { underlyingValue, _ -> DefaultIntValue(underlyingValue as Int) },
+                Primitive.INT to
+                    { underlyingValue, originalValue, nonLiteralInSource ->
+                        val intValue = underlyingValue as Int
+                        val effectivelyNonLiteralInSource =
+                            nonLiteralInSource ||
+                                // Negative numbers are treated as if they were created from a unary
+                                // minus expression. That is true even when they are read from a jar
+                                // where they are stored as a negative number.
+                                intValue < 0
+                        DefaultIntValue(
+                            intValue,
+                            originalValue is Int,
+                            effectivelyNonLiteralInSource,
+                        )
+                    },
                 Primitive.LONG to
-                    { underlyingValue, originalValue ->
-                        DefaultLongValue(underlyingValue as Long, originalValue is Int)
+                    { underlyingValue, originalValue, nonLiteralInSource ->
+                        val longValue = underlyingValue as Long
+                        val effectivelyNonLiteralInSource =
+                            nonLiteralInSource ||
+                                // Negative numbers are treated as if they were created from a unary
+                                // minus expression. That is true even when they are read from a jar
+                                // where they are stored as a negative number.
+                                longValue < 0
+
+                        DefaultLongValue(
+                            longValue,
+                            originalValue is Int,
+                            effectivelyNonLiteralInSource,
+                        )
                     },
                 Primitive.SHORT to
-                    { underlyingValue, _ ->
-                        DefaultShortValue(underlyingValue as Short)
+                    { underlyingValue, originalValue, nonLiteralInSource ->
+                        val shortValue = underlyingValue as Short
+                        val effectivelyNonLiteralInSource =
+                            nonLiteralInSource ||
+                                // Negative numbers are treated as if they were created from a unary
+                                // minus expression. That is true even when they are read from a jar
+                                // where they are stored as a negative number.
+                                shortValue < 0
+
+                        DefaultShortValue(
+                            shortValue,
+                            originalValue is Int,
+                            effectivelyNonLiteralInSource,
+                        )
                     },
             )
 
@@ -353,10 +451,11 @@ interface ValueFactory {
         private fun createPrimitiveValueForKind(
             primitiveKind: Primitive,
             primitiveValue: Any,
-            originalValue: Any
+            originalValue: Any,
+            nonLiteralInSource: Boolean,
         ) =
             primitiveValueFactories[primitiveKind]?.let { factory ->
-                factory(primitiveValue, originalValue)
+                factory(primitiveValue, originalValue, nonLiteralInSource)
             } ?: error("Cannot create PrimitiveValue: unknown primitive kind: $primitiveKind")
 
         /** Normalize the [underlyingValue] to make it consistent with [primitiveKind]. */
@@ -526,4 +625,5 @@ interface ValueFactory {
 }
 
 /** Type of values in [primitiveValueFactories]. */
-internal typealias PrimitiveValueFactory<T> = (Any, Any) -> PrimitiveValue<T>
+internal typealias PrimitiveValueFactory<T> =
+    (underlyingValue: Any, originalValue: Any, nonLiteralInSource: Boolean) -> PrimitiveValue<T>

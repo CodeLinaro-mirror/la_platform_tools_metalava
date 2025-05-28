@@ -44,7 +44,7 @@ class IssuesCommand :
                         val dataColumnHeaders = formatDataColumns("Category", "Default Severity")
                         return """
 Available Issues                             $dataColumnHeaders
----------------------------------------------+--------------------------+--------------------
+---------------------------------------------+---------------------------------------+--------------------
                             """
                             .trimIndent()
                     }
@@ -138,7 +138,7 @@ internal fun formatDataColumns(
     severity: String,
     useNonBreakingSpace: Boolean = false
 ): String {
-    return "|  %-22s  |   %s".format(category, severity).let {
+    return "|  %-35s  |   %s".format(category, severity).let {
         if (useNonBreakingSpace) it.replace(" ", NON_BREAKING_SPACE) else it
     }
 }

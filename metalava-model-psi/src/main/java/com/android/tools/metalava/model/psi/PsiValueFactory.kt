@@ -37,6 +37,7 @@ import com.android.tools.metalava.model.value.CombinedValueProvider
 import com.android.tools.metalava.model.value.ConstantValue
 import com.android.tools.metalava.model.value.FieldReferenceValue
 import com.android.tools.metalava.model.value.ImplementationValueToModelFactory
+import com.android.tools.metalava.model.value.LiteralValue
 import com.android.tools.metalava.model.value.Value
 import com.android.tools.metalava.model.value.ValueFactory
 import com.android.tools.metalava.model.value.ValueProvider
@@ -64,10 +65,12 @@ import org.jetbrains.uast.UCallExpression
 import org.jetbrains.uast.UClassLiteralExpression
 import org.jetbrains.uast.UExpression
 import org.jetbrains.uast.ULiteralExpression
+import org.jetbrains.uast.UPrefixExpression
 import org.jetbrains.uast.UQualifiedReferenceExpression
 import org.jetbrains.uast.UResolvable
 import org.jetbrains.uast.USimpleNameReferenceExpression
 import org.jetbrains.uast.UastCallKind
+import org.jetbrains.uast.UastPrefixOperator
 import org.jetbrains.uast.UastQualifiedExpressionAccessType
 import org.jetbrains.uast.getParameterForArgument
 
@@ -459,51 +462,97 @@ internal class PsiValueFactory(
 
         if (uExpression is ULiteralExpression) {
             uExpression.value?.let { underlyingValue ->
-                // Check to see if the underlying value has been already been cast from the source
-                // literal type to a type appropriate for where it is being used. If it has then
-                // reverse the cast to preserve the information about the source literal type. That
-                // is needed to enable consistent processing with legacy value handling which often
-                // uses the source type directly, e.g. when parsing `longValue = 1` it may write it
-                // as `longValue = 1` instead of the more consistent `longValue = 1L`.
+                // Get the original source value, undoing any int -> long conversions done by K2.
                 val originalSourceValue =
-                    if (underlyingValue is Long) {
-                        uExpression.sourcePsi?.text?.let { text ->
-                            // If the text ends with `L` or `l` then it was a long literal so keep
-                            // it as such.
-                            if (text.endsWith("L") || text.endsWith("l")) underlyingValue
-                            else {
-                                // Otherwise, try and see if it can be cast to an int without loss.
-                                // If it can then use the int, otherwise keep the long.
-                                val asInt = underlyingValue.toInt()
-                                if (asInt.toLong() == underlyingValue) asInt else underlyingValue
-                            }
-                        } ?: underlyingValue
-                    } else underlyingValue
-
-                // Convert unsigned to signed values. It would be cleaner if these could just be
-                // treated like another Number class as then they could be handled as part of the
-                // normalization done by `createLiteralValue(...)` but unfortunately, the unsigned
-                // types are not Numbers.
-                val transformedValue =
-                    when (originalSourceValue) {
-                        is UByte -> originalSourceValue.toByte()
-                        is UInt -> originalSourceValue.toInt()
-                        is ULong -> originalSourceValue.toLong()
-                        is UShort -> originalSourceValue.toShort()
-                        else -> originalSourceValue
+                    when (underlyingValue) {
+                        // Byte and short always use an integer literal as there are no byte or
+                        // short literals in Kotlin. That is true whether they are signed or
+                        // unsigned.
+                        is Byte -> underlyingValue.toInt()
+                        is Short -> underlyingValue.toInt()
+                        is UByte -> underlyingValue.toInt()
+                        is UShort -> underlyingValue.toInt()
+                        is Long ->
+                            undoConversionOfSourceIntToLongIfNeeded(underlyingValue, uExpression)
+                        else -> underlyingValue
                     }
 
-                return createLiteralValue(optionalTypeItem, transformedValue)
+                return uLiteralValue(optionalTypeItem, originalSourceValue)
             }
         }
 
         // All others expressions are evaluated to a literal, if possible and returned.
         ConstantEvaluator.evaluate(null, uExpression)?.let { value ->
-            return createLiteralValue(optionalTypeItem, value)
+            // Get the original source value, undoing any int -> long conversions done by K2. This
+            // is only done for unary minus expressions, i.e. of the form `-<expr>`.
+            val originalSourceValue =
+                if (
+                    uExpression is UPrefixExpression &&
+                        uExpression.operator == UastPrefixOperator.UNARY_MINUS &&
+                        value is Long
+                ) {
+                    undoConversionOfSourceIntToLongIfNeeded(value, uExpression)
+                } else {
+                    value
+                }
+
+            return uLiteralValue(optionalTypeItem, originalSourceValue, nonLiteralInSource = true)
         }
 
         // An unknown expression was found so return null and the caller will handle as needed.
         return null
+    }
+
+    /**
+     * Checks to see if the underlying value has been already been converted from the source literal
+     * type to a type appropriate for where it is being used; if it has then it undo the conversion
+     * to preserve the information about the source literal type.
+     *
+     * That is needed to enable consistent processing with legacy value handling which often uses
+     * the source type directly, e.g. when parsing `longValue = 1` it may write it as `longValue =
+     * 1` instead of the more consistent `longValue = 1L`.
+     *
+     * This generally only affects K2 as K1 does not bother casting to the correct type.
+     */
+    private fun undoConversionOfSourceIntToLongIfNeeded(
+        underlyingValue: Long,
+        uExpression: UExpression
+    ) =
+        uExpression.sourcePsi?.text?.let { text ->
+            // If the text ends with `L` or `l` then it was a long literal so keep it as
+            // such.
+            if (text.endsWith("L") || text.endsWith("l")) underlyingValue
+            else {
+                // Otherwise, try and see if it can be cast to an int without loss. If it
+                // can then use the int, otherwise keep the long.
+                val asInt = underlyingValue.toInt()
+                if (asInt.toLong() == underlyingValue) asInt else underlyingValue
+            }
+        } ?: underlyingValue
+
+    /**
+     * Create a [LiteralValue] from a [value].
+     *
+     * Handles mapping Kotlin unsigned value to the equivalent Java signed value.
+     */
+    private fun uLiteralValue(
+        optionalTypeItem: TypeItem?,
+        value: Any,
+        nonLiteralInSource: Boolean = false,
+    ): LiteralValue<*> {
+        // Convert unsigned to signed values. It would be cleaner if these could just be treated
+        // like another Number class as then they could be handled as part of the normalization done
+        // by `createLiteralValue(...)` but unfortunately, the unsigned types are not Numbers.
+        val transformedValue =
+            when (value) {
+                is UByte -> value.toByte()
+                is UInt -> value.toInt()
+                is ULong -> value.toLong()
+                is UShort -> value.toShort()
+                else -> value
+            }
+
+        return createLiteralValue(optionalTypeItem, transformedValue, nonLiteralInSource)
     }
 
     /** Create a [Value] of [optionalTypeItem] from [psiValue]. */
@@ -635,14 +684,22 @@ internal class PsiValueFactory(
 
         // All others expressions are evaluated to a literal, if possible and returned.
         ConstantEvaluator.evaluate(null, psiValue)?.let { value ->
-            return createLiteralValue(optionalTypeItem, value)
+            return createLiteralValue(
+                optionalTypeItem,
+                value,
+                nonLiteralInSource = true,
+            )
         }
 
         // Temporarily fall through to use PsiConstantEvaluationHelper
         // TODO(b/408445860): Remove once ConstantEvaluator can handle the necessary cases.
         val javaPsiFacade = JavaPsiFacade.getInstance(codebase.project)
         javaPsiFacade.constantEvaluationHelper.computeConstantExpression(psiValue)?.let { value ->
-            return createLiteralValue(optionalTypeItem, value)
+            return createLiteralValue(
+                optionalTypeItem,
+                value,
+                nonLiteralInSource = true,
+            )
         }
 
         // An unknown expression was found so return null and the caller will handle as needed.

@@ -169,7 +169,7 @@ class IssueReportingOptionsTest :
         runTest(ARG_HIDE_CATEGORY, "compatibility") {
             assertEquals("", stdout)
             assertEquals(
-                "Option --hide-category is invalid: Unknown category: 'compatibility', expected one of Compatibility, Documentation, ApiLint, Unknown",
+                "Option --hide-category is invalid: Unknown category: 'compatibility', expected one of Documentation, ApiLint, Unknown, Compatibility, BinaryCompatibilityOnly, SourceCompatibilityOnly, BinaryAndSourceCompatibility, OtherCompatibility",
                 stderr
             )
         }
