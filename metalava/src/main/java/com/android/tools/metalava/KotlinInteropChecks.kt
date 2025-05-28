@@ -223,6 +223,12 @@ class KotlinInteropChecks(val reporter: Reporter) {
             return
         }
 
+        if (method.containingClass().modifiers.isData() && method.name() == "copy") {
+            // The generated copy method for a data class cannot be annotated. It is possible this
+            // also skips warning for a copy method defined in source for a data class.
+            return
+        }
+
         var haveDefault = false
         for (parameter in parameters) {
             if (parameter.hasDefaultValue()) {

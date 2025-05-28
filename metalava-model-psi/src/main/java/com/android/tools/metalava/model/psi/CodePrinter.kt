@@ -95,9 +95,9 @@ class CodePrinter {
                 is Int -> "0x${Integer.toHexString(constant)}"
                 is String -> "\"${javaEscapeString(constant)}\""
                 is Long -> "${constant}L"
-                is Boolean -> constant.toString()
-                is Byte -> Integer.toHexString(constant.toInt())
-                is Short -> Integer.toHexString(constant.toInt())
+                is Boolean,
+                is Byte,
+                is Short -> constant.toString()
                 is Float -> {
                     when {
                         constant == Float.POSITIVE_INFINITY -> "Float.POSITIVE_INFINITY"

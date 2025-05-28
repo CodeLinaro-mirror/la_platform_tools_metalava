@@ -229,6 +229,8 @@ fun Value.asString() = (asLiteralValue() as? StringValue)?.underlyingValue
  *
  * @param annotationAttributeNameValueSeparator The string to use to separate annotation attribute
  *   name and value.
+ * @param annotationQualifiedNameGetter The lambda to call to retrieve the qualified class name for
+ *   an [AnnotationItem].
  * @param classObjectValueFormat How to format a [ClassObjectValue].
  * @param nestedValueAppender The function to use to append nested [Value]s to a [StringBuilder].
  * @param singleArrayElementFormat How to treat an array that contains only a single element.
@@ -241,11 +243,13 @@ fun Value.asString() = (asLiteralValue() as? StringValue)?.underlyingValue
 data class ValueStringConfiguration(
     val annotationAttributeNameValueSeparator: AnnotationAttributeNameValueSeparator =
         AnnotationAttributeNameValueSeparator.WITH_SPACES,
+    val annotationQualifiedNameGetter: (AnnotationItem) -> String = { it.qualifiedName },
     val classObjectValueFormat: ClassObjectValueFormat = ClassObjectValueFormat.JAVA,
     val nestedValueAppender: (Value, StringBuilder, ValueStringConfiguration) -> Unit =
         Value::appendValueStringTo,
     val singleArrayElementFormat: SingleArrayElementFormat = SingleArrayElementFormat.WRAP,
     val sortAnnotationAttributes: Boolean = true,
+    val specialValues: Map<LiteralValue<*>, String> = defaultSpecialValues,
     val treatAsIntIfOriginallySpecifiedAsInt: Boolean = false,
     val valueLanguage: ValueLanguage = ValueLanguage.JAVA,
 ) {
@@ -255,6 +259,21 @@ data class ValueStringConfiguration(
     }
 
     companion object {
+        /**
+         * Default set of special values.
+         *
+         * Must be initialized before any [ValueStringConfiguration], e.g. [DEFAULT], is created.
+         */
+        private val defaultSpecialValues =
+            mapOf<LiteralValue<*>, String>(
+                DoubleValue.NaN to "(0.0/0.0)",
+                DoubleValue.NEGATIVE_INFINITY to "(-1.0/0.0)",
+                DoubleValue.POSITIVE_INFINITY to "(1.0/0.0)",
+                FloatValue.NaN to "(0.0f/0.0f)",
+                FloatValue.NEGATIVE_INFINITY to "(-1.0f/0.0f)",
+                FloatValue.POSITIVE_INFINITY to "(1.0f/0.0f)",
+            )
+
         /** Default configuration. */
         val DEFAULT = ValueStringConfiguration()
 
@@ -506,12 +525,8 @@ sealed interface DoubleValue : FloatingPointValue<Double> {
         builder: StringBuilder,
         configuration: ValueStringConfiguration
     ) {
-        when {
-            underlyingValue.isNaN() -> builder.append("(0.0/0.0)")
-            underlyingValue == Double.NEGATIVE_INFINITY -> builder.append("(-1.0/0.0)")
-            underlyingValue == Double.POSITIVE_INFINITY -> builder.append("(1.0/0.0)")
-            else -> builder.append(underlyingValue)
-        }
+        configuration.specialValues[this]?.let { builder.append(it) }
+            ?: builder.append(underlyingValue)
     }
 
     companion object {
@@ -537,12 +552,8 @@ sealed interface FloatValue : FloatingPointValue<Float> {
         builder: StringBuilder,
         configuration: ValueStringConfiguration
     ) {
-        when {
-            underlyingValue.isNaN() -> builder.append("(0.0f/0.0f)")
-            underlyingValue == Float.NEGATIVE_INFINITY -> builder.append("(-1.0f/0.0f)")
-            underlyingValue == Float.POSITIVE_INFINITY -> builder.append("(1.0f/0.0f)")
-            else -> builder.append(underlyingValue).append("f")
-        }
+        configuration.specialValues[this]?.let { builder.append(it) }
+            ?: builder.append(underlyingValue).append('f')
     }
 
     companion object {

@@ -24,9 +24,11 @@ import org.jetbrains.kotlin.analysis.api.symbols.KaFunctionSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaNamedFunctionSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaParameterSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaValueParameterSymbol
+import org.jetbrains.kotlin.psi.KtClass
 import org.jetbrains.kotlin.psi.KtConstantExpression
 import org.jetbrains.kotlin.psi.KtFunction
 import org.jetbrains.kotlin.psi.KtParameter
+import org.jetbrains.kotlin.psi.KtPrimaryConstructor
 import org.jetbrains.kotlin.psi.psiUtil.hasActualModifier
 import org.jetbrains.uast.UExpression
 import org.jetbrains.uast.UMethod
@@ -51,9 +53,20 @@ internal class PsiParameterDefaultValue(private val item: PsiParameterItem) :
     private fun PsiParameterItem.computeHasDefaultValue(): Boolean {
         if (psiParameter.isKotlin()) {
             val psiCallableItem = item.containingCallable() as PsiCallableItem
-            val ktFunction =
-                ((psiCallableItem.psi() as? UMethod)?.sourcePsi as? KtFunction) ?: return false
+            val sourcePsi = (psiCallableItem.psi() as? UMethod)?.sourcePsi
 
+            // The compiler-generated data class copy method has all optional parameters. The source
+            // psi in this case is the constructor for K2, the class for K1 (for a copy method
+            // defined in source, the psi would not be the source method).
+            if (
+                containingClass().modifiers.isData() &&
+                    psiCallableItem.name() == "copy" &&
+                    (sourcePsi is KtPrimaryConstructor || sourcePsi is KtClass)
+            ) {
+                return true
+            }
+
+            val ktFunction = (sourcePsi as? KtFunction) ?: return false
             analyze(ktFunction) {
                 val function =
                     if (ktFunction.hasActualModifier()) {

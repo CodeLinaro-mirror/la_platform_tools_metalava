@@ -19,6 +19,7 @@ com.android.tools.metalava.model.testsuite.typeitem.CommonTypeParameterItemTest
 com.android.tools.metalava.model.testsuite.value.CommonParameterizedAnnotationToSourceValueTest
   testLegacySource[source,annotation - array of annotations]
   testLegacySource[source,annotation]
+  testLegacySource[source,byte - cast]
   testLegacySource[source,char escaped]
   testLegacySource[source,char unicode]
   testLegacySource[source,char]
@@ -40,10 +41,20 @@ com.android.tools.metalava.model.testsuite.value.CommonParameterizedAnnotationTo
   testLegacySource[source,int negative]
   testLegacySource[source,int positive]
   testLegacySource[source,long with lower l]
+  testLegacySource[source,short - cast]
+
+com.android.tools.metalava.model.testsuite.value.CommonParameterizedAttributeDefaultValueTest
+  testLegacySource[source,byte - cast]
+  testLegacySource[source,short - cast]
+  testMethodDefaultValue[source,byte - cast]
+  testMethodDefaultValue[source,short - cast]
 
 com.android.tools.metalava.model.testsuite.value.CommonParameterizedAttributeValueTest
+  testAttributeValue[source,byte - cast]
+  testAttributeValue[source,short - cast]
   testLegacySource[source,String using constant]
   testLegacySource[source,annotation]
+  testLegacySource[source,byte - cast]
   testLegacySource[source,char escaped]
   testLegacySource[source,char unicode]
   testLegacySource[source,char]
@@ -54,10 +65,12 @@ com.android.tools.metalava.model.testsuite.value.CommonParameterizedAttributeVal
   testLegacySource[source,enum]
   testLegacySource[source,field - generic class constant]
   testLegacySource[source,field - long with int constant]
+  testLegacySource[source,short - cast]
   testLegacyValue[source,String using constant]
   testLegacyValue[source,annotation]
   testLegacyValue[source,array - empty]
   testLegacyValue[source,array - single]
+  testLegacyValue[source,byte - cast]
   testLegacyValue[source,byte]
   testLegacyValue[source,char escaped]
   testLegacyValue[source,char unicode]
@@ -89,4 +102,19 @@ com.android.tools.metalava.model.testsuite.value.CommonParameterizedAttributeVal
   testLegacyValue[source,int positive]
   testLegacyValue[source,int]
   testLegacyValue[source,long with int]
+  testLegacyValue[source,short - cast]
   testLegacyValue[source,short]
+
+com.android.tools.metalava.model.testsuite.value.CommonParameterizedFieldValueTest
+  testFieldValue[source,byte - cast]
+  testFieldValue[source,short - cast]
+
+com.android.tools.metalava.model.testsuite.value.CommonParameterizedFieldWriteWithSemicolonValueTest
+  testLegacySource[source,byte - cast]
+  testLegacySource[source,short - cast]
+
+com.android.tools.metalava.model.testsuite.value.ParameterizedValueParserTest
+  Test parse[byte - cast,annotation_to_source,kotlin,source]
+  Test parse[byte - cast,signatureExpression,jar]
+  Test parse[short - cast,annotation_to_source,kotlin,jar]
+  Test parse[short - cast,signatureExpression,jar]

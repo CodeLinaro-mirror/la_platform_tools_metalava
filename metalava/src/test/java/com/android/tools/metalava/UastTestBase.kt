@@ -21,6 +21,7 @@ import com.android.tools.metalava.model.testing.FilterAction.EXCLUDE
 import com.android.tools.metalava.model.testing.FilterByProvider
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.text.FileFormat
+import com.android.tools.metalava.model.text.stripBlankLines
 import com.android.tools.metalava.testing.createAndroidModuleDescription
 import com.android.tools.metalava.testing.createCommonModuleDescription
 import com.android.tools.metalava.testing.createModuleDescription
@@ -216,7 +217,7 @@ abstract class UastTestBase : DriverTest() {
                     ctor public Foo(@test.pkg.MyAnnotation int p1, String p2);
                     method public int component1();
                     method public String component2();
-                    method public test.pkg.Foo copy(@test.pkg.MyAnnotation int p1, String p2);
+                    method public test.pkg.Foo copy(optional @test.pkg.MyAnnotation int p1, optional String p2);
                     method public int getP1();
                     method public String getP2();
                     property @test.pkg.MyAnnotation public int p1;
@@ -1858,13 +1859,7 @@ abstract class UastTestBase : DriverTest() {
 
     @Test
     fun `default parameter value from common, with jvm platform set for common`() {
-        // b/322156458
-        val modifier =
-            if (isK2) {
-                ""
-            } else {
-                "optional "
-            }
+        // Verifies that expect/actual linking works when only the JVM platform is used.
         val commonSource =
             kotlin(
                 "commonMain/src/test/pkg/Foo.kt",
@@ -1903,7 +1898,7 @@ abstract class UastTestBase : DriverTest() {
                     package test.pkg {
                       public final class Foo {
                         ctor public Foo();
-                        method public int foo(${modifier}int i);
+                        method public int foo(optional int i);
                       }
                     }
                 """
@@ -1942,12 +1937,13 @@ abstract class UastTestBase : DriverTest() {
 
     @Test
     fun `Data class with value class type`() {
-        // b/388244267
-        val copySuffix =
+        // For K2, no UElement created for a method using a value class type (b/388244267).
+        // This will be resolved through b/406833486.
+        val copyEntry =
             if (isK2) {
                 ""
             } else {
-                "-Vxmw0xk"
+                "method public test.pkg.IntValueData copy-Vxmw0xk(int intValue);"
             }
         check(
             sourceFiles =
@@ -1958,7 +1954,7 @@ abstract class UastTestBase : DriverTest() {
                         @JvmInline
                         value class IntValue(val value: Int)
                         data class IntValueData(private val intValue: IntValue)
-                    """
+                        """
                     )
                 ),
             api =
@@ -1971,10 +1967,12 @@ abstract class UastTestBase : DriverTest() {
                   }
                   public final class IntValueData {
                     ctor public IntValueData(int intValue);
-                    method public test.pkg.IntValueData copy$copySuffix(int intValue);
+                    $copyEntry
                   }
                 }
-            """
+                """
+                    // The copyEntry might be blank, remove it if so.
+                    .stripBlankLines()
         )
     }
 
@@ -2049,6 +2047,37 @@ abstract class UastTestBase : DriverTest() {
                   @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public static @interface AnnotationCanRepeat.Entries {
                     method public abstract test.pkg.AnnotationCanRepeat[] value();
                     property public abstract test.pkg.AnnotationCanRepeat[] value;
+                  }
+                }
+                """
+        )
+    }
+
+    @Test
+    fun `Data class value with type argument`() {
+        // Added to test that the nullability of the type argument in the copy method is correct.
+        // A K2 update to the source psi for the copy method changed how the kotlin context for the
+        // method parameters is computed.
+        check(
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+                        data class Foo<T: Any>(val items: List<T>)
+                        """
+                    )
+                ),
+            api =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public final class Foo<T> {
+                    ctor public Foo(java.util.List<? extends T> items);
+                    method public java.util.List<T> component1();
+                    method public test.pkg.Foo<T> copy(optional java.util.List<? extends T> items);
+                    method public java.util.List<T> getItems();
+                    property public java.util.List<T> items;
                   }
                 }
                 """

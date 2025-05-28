@@ -196,19 +196,23 @@ class LegacyValueFormatter(
                         // Annotation attributes are not sorted in the default values.
                         sortAnnotationAttributes = false,
 
+                        // Some values are treated specially in [MethodItem.defaultValue].
+                        specialValues =
+                            mapOf(
+                                DoubleValue.NaN to "java.lang.Double.NaN",
+                                DoubleValue.NEGATIVE_INFINITY to
+                                    "java.lang.Double.NEGATIVE_INFINITY",
+                                DoubleValue.POSITIVE_INFINITY to
+                                    "java.lang.Double.POSITIVE_INFINITY",
+                                FloatValue.NaN to "java.lang.Float.NaN",
+                                FloatValue.NEGATIVE_INFINITY to "java.lang.Float.NEGATIVE_INFINITY",
+                                FloatValue.POSITIVE_INFINITY to "java.lang.Float.POSITIVE_INFINITY",
+                            ),
+
                         // In the source, values that were written as ints were formatted as ints
                         // even if they were `double`, `float`, or `long`.
                         treatAsIntIfOriginallySpecifiedAsInt = true,
                     ),
-                stringReplacement =
-                    mapOf(
-                        DoubleValue.NaN to "java.lang.Double.NaN",
-                        DoubleValue.NEGATIVE_INFINITY to "java.lang.Double.NEGATIVE_INFINITY",
-                        DoubleValue.POSITIVE_INFINITY to "java.lang.Double.POSITIVE_INFINITY",
-                        FloatValue.NaN to "java.lang.Float.NaN",
-                        FloatValue.NEGATIVE_INFINITY to "java.lang.Float.NEGATIVE_INFINITY",
-                        FloatValue.POSITIVE_INFINITY to "java.lang.Float.POSITIVE_INFINITY",
-                    )
             )
 
         /** Setting for formatting [MethodItem.defaultValue] from Kotlin sources. */
@@ -231,6 +235,22 @@ class LegacyValueFormatter(
                         // Annotation attributes are not sorted in the default values.
                         sortAnnotationAttributes = false,
 
+                        // Some values are treated differently in Kotlin in
+                        // [MethodItem.defaultValue].
+                        specialValues =
+                            mapOf(
+                                DoubleValue.NaN to "kotlin.jvm.internal.DoubleCompanionObject.NaN",
+                                DoubleValue.NEGATIVE_INFINITY to
+                                    "kotlin.jvm.internal.DoubleCompanionObject.NEGATIVE_INFINITY",
+                                DoubleValue.POSITIVE_INFINITY to
+                                    "kotlin.jvm.internal.DoubleCompanionObject.POSITIVE_INFINITY",
+                                FloatValue.NaN to "kotlin.jvm.internal.FloatCompanionObject.NaN",
+                                FloatValue.NEGATIVE_INFINITY to
+                                    "kotlin.jvm.internal.FloatCompanionObject.NEGATIVE_INFINITY",
+                                FloatValue.POSITIVE_INFINITY to
+                                    "kotlin.jvm.internal.FloatCompanionObject.POSITIVE_INFINITY",
+                            ),
+
                         // In the source, values that were written as ints were formatted as ints
                         // even if they were `double`, `float`, or `long`.
                         treatAsIntIfOriginallySpecifiedAsInt = true,
@@ -240,17 +260,6 @@ class LegacyValueFormatter(
                     ),
                 stringReplacement =
                     mapOf(
-                        DoubleValue.NaN to "kotlin.jvm.internal.DoubleCompanionObject.NaN",
-                        DoubleValue.NEGATIVE_INFINITY to
-                            "kotlin.jvm.internal.DoubleCompanionObject.NEGATIVE_INFINITY",
-                        DoubleValue.POSITIVE_INFINITY to
-                            "kotlin.jvm.internal.DoubleCompanionObject.POSITIVE_INFINITY",
-                        FloatValue.NaN to "kotlin.jvm.internal.FloatCompanionObject.NaN",
-                        FloatValue.NEGATIVE_INFINITY to
-                            "kotlin.jvm.internal.FloatCompanionObject.NEGATIVE_INFINITY",
-                        FloatValue.POSITIVE_INFINITY to
-                            "kotlin.jvm.internal.FloatCompanionObject.POSITIVE_INFINITY",
-
                         // Ignore an empty array as that is the legacy behavior for method default
                         // values created from Kotlin sources.
                         Value.createArrayValue(emptyList()) to "",
@@ -277,20 +286,22 @@ class LegacyValueFormatter(
                         // Annotation attributes are not sorted in the default values.
                         sortAnnotationAttributes = false,
 
+                        // In the jar file special values were always stored as their constant value
+                        // so they
+                        // were never formatted as their fields.
+                        specialValues =
+                            mapOf(
+                                DoubleValue.NaN to "(0.0/0.0)",
+                                DoubleValue.NEGATIVE_INFINITY to "(-1.0/0.0)",
+                                DoubleValue.POSITIVE_INFINITY to "(1.0/0.0)",
+                                FloatValue.NaN to "(0.0/0.0)",
+                                FloatValue.NEGATIVE_INFINITY to "(-1.0/0.0)",
+                                FloatValue.POSITIVE_INFINITY to "(1.0/0.0)",
+                            ),
+
                         // In the jar, values are always stored as their actual type so were never
                         // represented as an int.
                         treatAsIntIfOriginallySpecifiedAsInt = false,
-                    ),
-                // In the jar file special values were always stored as their constant value so they
-                // were never formatted as their fields.
-                stringReplacement =
-                    mapOf(
-                        DoubleValue.NaN to "(0.0/0.0)",
-                        DoubleValue.NEGATIVE_INFINITY to "(-1.0/0.0)",
-                        DoubleValue.POSITIVE_INFINITY to "(1.0/0.0)",
-                        FloatValue.NaN to "(0.0/0.0)",
-                        FloatValue.NEGATIVE_INFINITY to "(-1.0/0.0)",
-                        FloatValue.POSITIVE_INFINITY to "(1.0/0.0)",
                     ),
             )
 

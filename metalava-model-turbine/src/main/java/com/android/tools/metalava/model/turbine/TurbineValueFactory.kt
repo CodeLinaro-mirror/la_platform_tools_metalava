@@ -164,8 +164,7 @@ internal class TurbineValueFactory(globalContext: TurbineGlobalContext) :
 
                 return createClassObjectValue(
                     classLiteralTypeItem,
-                    // Java does not need the source expression.
-                    null,
+                    sourceExpression = expr?.toString(),
                 )
             }
             Const.Kind.ANNOTATION -> {

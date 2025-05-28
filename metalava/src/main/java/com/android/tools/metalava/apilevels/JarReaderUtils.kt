@@ -16,11 +16,14 @@
 package com.android.tools.metalava.apilevels
 
 import com.android.SdkConstants
+import com.android.tools.metalava.model.JAVA_ENUM_VALUES
+import com.android.tools.metalava.model.JAVA_ENUM_VALUE_OF
 import java.io.File
 import java.io.FileInputStream
 import java.util.zip.ZipInputStream
 import org.objectweb.asm.ClassReader
 import org.objectweb.asm.Opcodes
+import org.objectweb.asm.Type
 import org.objectweb.asm.tree.ClassNode
 import org.objectweb.asm.tree.FieldNode
 import org.objectweb.asm.tree.MethodNode
@@ -51,15 +54,19 @@ fun Api.readJar(
             val classNode = ClassNode(Opcodes.ASM5)
             reader.accept(classNode, 0)
 
-            val classDeprecated = isDeprecated(classNode.access)
+            val classAccess = classNode.access
+            val isEnum = (classAccess and Opcodes.ACC_ENUM) != 0
+
+            val classDeprecated = isDeprecated(classAccess)
             val theClass =
                 updateClass(
                     classNode.name,
                     updater,
                     classDeprecated,
+                    isEnum,
                 )
 
-            theClass.updateHidden((classNode.access and Opcodes.ACC_PUBLIC) == 0)
+            theClass.updateHidden((classAccess and Opcodes.ACC_PUBLIC) == 0)
 
             // super class
             if (classNode.superName != null) {
@@ -86,19 +93,53 @@ fun Api.readJar(
                 }
             }
 
+            // If this is an enum class then it will contain two methods added by the compiler, i.e.
+            //   public static E valueOf(String)
+            //   public static E[] values()
+            //
+            // Those methods are not recorded in signature files as there is no point in tracking
+            // their history separately from the class. So, they need to be ignored here.
+            //
+            // If needed, compute the description of the two enum methods to simplify comparison.
+            val (valueOfDesc, valuesDesc) =
+                if (isEnum) {
+                    val enumType = Type.getObjectType(classNode.name)
+                    "(Ljava/lang/String;)${enumType.descriptor}" to "()[$enumType"
+                } else null to null
+
             // methods
             for (method in classNode.methods) {
                 val methodNode = method as MethodNode
-                if ((methodNode.access and (Opcodes.ACC_PUBLIC or Opcodes.ACC_PROTECTED)) == 0) {
+                val methodAccess = methodNode.access
+
+                // The only methods of interest are public and protected methods.
+                if ((methodAccess and (Opcodes.ACC_PUBLIC or Opcodes.ACC_PROTECTED)) == 0) {
                     continue
                 }
-                if (methodNode.name != "<clinit>") {
-                    theClass.updateMethod(
-                        methodNode.name + methodNode.desc,
-                        updater,
-                        classDeprecated || isDeprecated(methodNode.access),
-                    )
+                val methodName = method.name
+
+                // The class initializer is an implementation detail.
+                if (methodName == "<clinit>") {
+                    continue
                 }
+
+                val methodDesc = methodNode.desc
+                // Ignore synthetic enum methods, i.e. valueOf(String) and values().
+                if (
+                    isEnum &&
+                        methodAccess and Opcodes.ACC_STATIC != 0 &&
+                        (methodName == JAVA_ENUM_VALUE_OF && methodDesc == valueOfDesc) ||
+                        (methodName == JAVA_ENUM_VALUES && methodDesc == valuesDesc)
+                ) {
+                    continue
+                }
+
+                // Add the method.
+                theClass.updateMethod(
+                    methodName + methodDesc,
+                    updater,
+                    classDeprecated || isDeprecated(methodAccess),
+                )
             }
         }
     }

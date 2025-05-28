@@ -4314,7 +4314,7 @@ class ApiFileTest : DriverTest() {
                   public final class MyDataClass {
                     ctor public MyDataClass(String constructorProperty, String internalConstructorProperty);
                     method public String component1();
-                    method public test.pkg.MyDataClass copy(String constructorProperty, String internalConstructorProperty);
+                    method public test.pkg.MyDataClass copy(optional String constructorProperty, optional String internalConstructorProperty);
                     method public String getConstructorProperty();
                     property public String constructorProperty;
                   }

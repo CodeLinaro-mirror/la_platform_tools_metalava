@@ -465,7 +465,7 @@ internal class PsiValueFactory(
                 // is needed to enable consistent processing with legacy value handling which often
                 // uses the source type directly, e.g. when parsing `longValue = 1` it may write it
                 // as `longValue = 1` instead of the more consistent `longValue = 1L`.
-                val transformedValue =
+                val originalSourceValue =
                     if (underlyingValue is Long) {
                         uExpression.sourcePsi?.text?.let { text ->
                             // If the text ends with `L` or `l` then it was a long literal so keep
@@ -479,6 +479,20 @@ internal class PsiValueFactory(
                             }
                         } ?: underlyingValue
                     } else underlyingValue
+
+                // Convert unsigned to signed values. It would be cleaner if these could just be
+                // treated like another Number class as then they could be handled as part of the
+                // normalization done by `createLiteralValue(...)` but unfortunately, the unsigned
+                // types are not Numbers.
+                val transformedValue =
+                    when (originalSourceValue) {
+                        is UByte -> originalSourceValue.toByte()
+                        is UInt -> originalSourceValue.toInt()
+                        is ULong -> originalSourceValue.toLong()
+                        is UShort -> originalSourceValue.toShort()
+                        else -> originalSourceValue
+                    }
+
                 return createLiteralValue(optionalTypeItem, transformedValue)
             }
         }
@@ -551,8 +565,7 @@ internal class PsiValueFactory(
 
                 return createClassObjectValue(
                     classLiteralTypeItem,
-                    // Java does not need the source expression.
-                    null,
+                    sourceExpression = psiValue.text,
                 )
             }
             // Field reference.

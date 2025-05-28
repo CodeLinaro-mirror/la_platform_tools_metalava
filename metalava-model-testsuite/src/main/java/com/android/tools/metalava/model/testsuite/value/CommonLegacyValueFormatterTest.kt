@@ -34,6 +34,7 @@ import com.android.tools.metalava.model.testing.value.literalValue
 import com.android.tools.metalava.model.testing.value.primitiveValueForKind
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.model.testsuite.ModelSuiteRunner
+import com.android.tools.metalava.model.value.DoubleValue
 import com.android.tools.metalava.model.value.LegacyValueFormatter
 import com.android.tools.metalava.model.value.LegacyValueFormatter.Settings
 import com.android.tools.metalava.model.value.Value
@@ -149,7 +150,7 @@ class CommonLegacyValueFormatterTest : BaseModelTest() {
         private val jarFile = jarFromSources("test.jar", javaFile).cacheIn(testFileCacheRule)
 
         /** Shared value for use in the tests. */
-        val DOUBLE_NAN = Value.createLiteralValue(null, Double.NaN)
+        val DOUBLE_NAN = DoubleValue.NaN
     }
 
     /** Provides access to the information needed when formatting. */
@@ -268,7 +269,7 @@ class CommonLegacyValueFormatterTest : BaseModelTest() {
                         )
                 )
             val formatter = LegacyValueFormatter(settings)
-            val actual = formatter.format(Value.createLiteralValue(null, 3.0), method)
+            val actual = formatter.format(literalValue(3.0), method)
             assertEquals("3.0", actual)
         }
     }

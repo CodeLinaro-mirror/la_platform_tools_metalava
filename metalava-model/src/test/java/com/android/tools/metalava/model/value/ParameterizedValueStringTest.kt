@@ -113,10 +113,39 @@ class ParameterizedValueStringTest {
                     )
                 )
 
+            val ANNOTATION_CLASS_RENAMER =
+                LabelledConfig(
+                    "annotation-class-renamer",
+                    ValueStringConfiguration(
+                        annotationQualifiedNameGetter = { annotationItem ->
+                            annotationItem.qualifiedName.replace(
+                                "android.annotation.",
+                                "androidx.annotation."
+                            )
+                        }
+                    )
+                )
+
             val CLASS_OBJECT_VALUE_SOURCE =
                 LabelledConfig(
                     "class-object-value-as-source",
                     ValueStringConfiguration(classObjectValueFormat = ClassObjectValueFormat.SOURCE)
+                )
+
+            val SPECIAL_VALUES =
+                LabelledConfig(
+                    "special-values",
+                    ValueStringConfiguration(
+                        specialValues =
+                            mapOf(
+                                DoubleValue.NaN to "DoubleValue.NaN",
+                                DoubleValue.NEGATIVE_INFINITY to "DoubleValue.NEGATIVE_INFINITY",
+                                DoubleValue.POSITIVE_INFINITY to "DoubleValue.POSITIVE_INFINITY",
+                                FloatValue.NaN to "FloatValue.NaN",
+                                FloatValue.NEGATIVE_INFINITY to "FloatValue.NEGATIVE_INFINITY",
+                                FloatValue.POSITIVE_INFINITY to "FloatValue.POSITIVE_INFINITY",
+                            )
+                    ),
                 )
 
             val TREAT_AS_INT =
@@ -272,6 +301,10 @@ class ParameterizedValueStringTest {
                     verifyConfigMatchesDefault(
                         LabelledConfig.ANNOTATION_ATTRIBUTE_NAME_VALUE_WITHOUT_SPACES
                     )
+
+                    // Renaming android.annotation. to androidx.annotation does not affect this
+                    // annotation.
+                    verifyConfigMatchesDefault(LabelledConfig.ANNOTATION_CLASS_RENAMER)
                 },
                 testCasesForValue(
                     value = annotationValueFromSource("@test.pkg.Anno(intValue = 1)"),
@@ -351,6 +384,22 @@ class ParameterizedValueStringTest {
                     verifyConfigChangesOutput(
                         LabelledConfig.VALUE_LANGUAGE_KOTLIN,
                         "test.pkg.Anno(nested = other.pkg.OtherAnno())"
+                    )
+                },
+                testCasesForValue(
+                    value =
+                        annotationValue(
+                            "android.annotation.Test",
+                            "nested" to annotationValue("android.annotation.Nested"),
+                        ),
+                    expectedDefaultValueString =
+                        "@android.annotation.Test(nested = @android.annotation.Nested)",
+                    expectedDefaultDebugString =
+                        "@android.annotation.Test(nested = AnnotationValue(@android.annotation.Nested))",
+                ) {
+                    verifyConfigChangesOutput(
+                        LabelledConfig.ANNOTATION_CLASS_RENAMER,
+                        "@androidx.annotation.Test(nested = @androidx.annotation.Nested)"
                     )
                 },
                 // ********************************* Arrays *********************************
@@ -499,6 +548,8 @@ class ParameterizedValueStringTest {
                     value = literalValue(0.0),
                     expectedDefaultValueString = "0.0",
                 ) {
+                    verifyConfigMatchesDefault(LabelledConfig.SPECIAL_VALUES)
+
                     verifyConfigMatchesDefault(LabelledConfig.TREAT_AS_INT)
                 },
                 testCasesForValue(
@@ -512,15 +563,27 @@ class ParameterizedValueStringTest {
                 testCasesForValue(
                     value = literalValue(Double.NaN),
                     expectedDefaultValueString = "(0.0/0.0)",
-                ),
+                ) {
+                    verifyConfigChangesOutput(LabelledConfig.SPECIAL_VALUES, "DoubleValue.NaN")
+                },
                 testCasesForValue(
                     value = literalValue(Double.NEGATIVE_INFINITY),
                     expectedDefaultValueString = "(-1.0/0.0)",
-                ),
+                ) {
+                    verifyConfigChangesOutput(
+                        LabelledConfig.SPECIAL_VALUES,
+                        "DoubleValue.NEGATIVE_INFINITY"
+                    )
+                },
                 testCasesForValue(
                     value = literalValue(Double.POSITIVE_INFINITY),
                     expectedDefaultValueString = "(1.0/0.0)",
-                ),
+                ) {
+                    verifyConfigChangesOutput(
+                        LabelledConfig.SPECIAL_VALUES,
+                        "DoubleValue.POSITIVE_INFINITY"
+                    )
+                },
                 testCasesForValue(
                     "double as int",
                     value = primitiveValueForKind(Primitive.DOUBLE, 3),
@@ -542,6 +605,8 @@ class ParameterizedValueStringTest {
                     value = literalValue(0.0f),
                     expectedDefaultValueString = "0.0f",
                 ) {
+                    verifyConfigMatchesDefault(LabelledConfig.SPECIAL_VALUES)
+
                     verifyConfigMatchesDefault(LabelledConfig.TREAT_AS_INT)
                 },
                 testCasesForValue(
@@ -555,15 +620,27 @@ class ParameterizedValueStringTest {
                 testCasesForValue(
                     value = literalValue(Float.NaN),
                     expectedDefaultValueString = "(0.0f/0.0f)",
-                ),
+                ) {
+                    verifyConfigChangesOutput(LabelledConfig.SPECIAL_VALUES, "FloatValue.NaN")
+                },
                 testCasesForValue(
                     value = literalValue(Float.NEGATIVE_INFINITY),
                     expectedDefaultValueString = "(-1.0f/0.0f)",
-                ),
+                ) {
+                    verifyConfigChangesOutput(
+                        LabelledConfig.SPECIAL_VALUES,
+                        "FloatValue.NEGATIVE_INFINITY"
+                    )
+                },
                 testCasesForValue(
                     value = literalValue(Float.POSITIVE_INFINITY),
                     expectedDefaultValueString = "(1.0f/0.0f)",
-                ),
+                ) {
+                    verifyConfigChangesOutput(
+                        LabelledConfig.SPECIAL_VALUES,
+                        "FloatValue.POSITIVE_INFINITY"
+                    )
+                },
                 testCasesForValue(
                     "float as int",
                     value = primitiveValueForKind(Primitive.FLOAT, 3),

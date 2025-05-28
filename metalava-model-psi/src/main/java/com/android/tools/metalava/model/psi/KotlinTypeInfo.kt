@@ -292,7 +292,11 @@ private constructor(
                             val returnKtType = sourcePsi.returnType
                             syntheticContinuationParameter(sourcePsi, returnKtType)
                         }
-                    } else null
+                    } else {
+                        // Find the KtParameter with the same index as the UParameter to use as the
+                        // source psi.
+                        fromKtElement(sourcePsi.valueParameters[parameterIndex], context)
+                    }
                 }
                 is KtPropertyAccessor ->
                     analyze(sourcePsi) {

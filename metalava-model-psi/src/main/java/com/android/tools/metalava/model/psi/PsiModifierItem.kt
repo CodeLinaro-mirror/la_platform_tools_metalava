@@ -83,8 +83,10 @@ import org.jetbrains.kotlin.psi.KtFunction
 import org.jetbrains.kotlin.psi.KtModifierList
 import org.jetbrains.kotlin.psi.KtModifierListOwner
 import org.jetbrains.kotlin.psi.KtNamedFunction
+import org.jetbrains.kotlin.psi.KtPrimaryConstructor
 import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
+import org.jetbrains.kotlin.psi.psiUtil.containingClass
 import org.jetbrains.kotlin.psi.psiUtil.containingClassOrObject
 import org.jetbrains.kotlin.psi.psiUtil.isTopLevelKtOrJavaMember
 import org.jetbrains.kotlin.psi.psiUtil.visibilityModifier
@@ -404,6 +406,22 @@ internal object PsiModifierItem {
                         visibilityFlags = INTERNAL
                     }
                 }
+            }
+
+            // With K2, the source psi of a data class copy method is the primary constructor, so
+            // that gets used to determine internal visibility above. That works if the data class
+            // is annotated with @ConsistentCopyVisibility (pre Kotlin 2.3), or is not annotated
+            // with @ExposedCopyVisibility (Kotlin 2.3 or later). Otherwise, the copy method should
+            // be public. If the copy method is supposed to be internal, it will get a mangled name
+            // (`copy$<module name>`), so if the name is just plain "copy", that means it should not
+            // be internal. Reset the visibility to public in that case.
+            if (
+                sourcePsi is KtPrimaryConstructor &&
+                    (element as? PsiMethod)?.name == "copy" &&
+                    sourcePsi.containingClass()?.hasModifier(KtTokens.DATA_KEYWORD) == true &&
+                    visibilityFlags == INTERNAL
+            ) {
+                visibilityFlags = PUBLIC
             }
         }
 

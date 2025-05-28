@@ -94,7 +94,12 @@ class ApiToExtensionsMapTest {
         val sdk1 = sdkVersion(1)
         val sdk2 = sdkVersion(2)
 
-        val clazz = ApiClass("com/foo/Bar").apply { update(sdk1, false) }
+        val clazz =
+            ApiClass(
+                    "com/foo/Bar",
+                    isEnum = false,
+                )
+                .apply { update(sdk1, deprecated = false) }
         val method = ApiElement("method(Ljava.lang.String;I)V").apply { update(sdk2, false) }
         assertEquals(map.getExtensions(clazz), listOf("A"))
         assertEquals(map.getExtensions(clazz, method), listOf("A"))
