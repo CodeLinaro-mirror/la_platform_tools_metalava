@@ -42,11 +42,15 @@ import kotlin.test.assertEquals
 import org.junit.AssumptionViolatedException
 
 /** Create a [LiteralValue] from the [underlyingValue]. */
-fun literalValue(underlyingValue: Any) = Value.createLiteralValue(null, underlyingValue)
+fun literalValue(underlyingValue: Any, nonLiteralInSource: Boolean = false) =
+    Value.createLiteralValue(null, underlyingValue, nonLiteralInSource)
 
 /** Create a [PrimitiveValue] of [kind] from the [underlyingValue]. */
-fun primitiveValueForKind(kind: Primitive, underlyingValue: Any) =
-    Value.createLiteralValue(primitiveTypeForKind(kind), underlyingValue)
+fun primitiveValueForKind(
+    kind: Primitive,
+    underlyingValue: Any,
+    nonLiteralInSource: Boolean = false,
+) = Value.createLiteralValue(primitiveTypeForKind(kind), underlyingValue, nonLiteralInSource)
 
 /** Create an [ArrayValue] containing [literals]. */
 fun arrayValueFromAny(vararg literals: Any) =

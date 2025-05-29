@@ -36,6 +36,8 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.SourceLanguage
+import com.android.tools.metalava.model.TargetLanguage
+import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.VariableTypeItem
@@ -1010,7 +1012,39 @@ class CompatibilityCheck(
             // treat all issues for all unchecked items as `Severity.IGNORE`.
             return
         }
-        if (reporter.report(issue, item, message, location, maximumSeverity = maximumSeverity)) {
+
+        val targetLanguages =
+            (item as? SelectableItem)?.targetLanguages ?: (item.parent())?.targetLanguages
+        val existsInBytecode = targetLanguages?.contains(TargetLanguage.BYTECODE) != false
+        // Add detail about the kind of compatibility issue this is, and skip the issue if it does
+        // not apply to the given target languages.
+        val newMessage =
+            when (issue.category) {
+                Issues.Category.BINARY_AND_SOURCE_COMPATIBILITY -> {
+                    // This issue matters for both binary and source compatibility. Binary compat is
+                    // more important, so if the item exists in bytecode, describe the issue as
+                    // binary breaking. If the item only exists in source, describe the issue as
+                    // source breaking.
+                    if (existsInBytecode) {
+                        "Binary breaking change: $message"
+                    } else {
+                        "Source breaking change: $message"
+                    }
+                }
+                Issues.Category.BINARY_COMPATIBILITY_ONLY -> {
+                    // The item doesn't exist in bytecode, don't report binary compatibility issues.
+                    if (!existsInBytecode) return
+                    "Binary breaking change: $message"
+                }
+                Issues.Category.SOURCE_COMPATIBILITY_ONLY -> {
+                    // The item can't be used from source, don't report source compatibility issues.
+                    if (targetLanguages == TargetLanguageSet.BYTECODE_ONLY) return
+                    "Source breaking change: $message"
+                }
+                else -> message
+            }
+
+        if (reporter.report(issue, item, newMessage, location, maximumSeverity = maximumSeverity)) {
             // If the issue was reported and was an error then remember that this found some
             // problems so that the process can be aborted after finishing the checks.
             val severity = minOf(maximumSeverity, issueConfiguration.getSeverity(issue))

@@ -60,16 +60,18 @@ class Api(val useInternalNames: Boolean) : ParentApiElement {
      * @param name the name of the class
      * @param updater the [ApiHistoryUpdater] that will update the element with information about
      *   the version to which it belongs.
-     * @param deprecated whether the class was deprecated in the API version
-     * @return the newly created or a previously existed class
+     * @param deprecated whether the class was deprecated in the API version.
+     * @param isEnum whether the class is an enum class.
+     * @return the newly created or an already existing class.
      */
     fun updateClass(
         name: String,
         updater: ApiHistoryUpdater,
         deprecated: Boolean,
+        isEnum: Boolean,
     ): ApiClass {
         val existing = mClasses[name]
-        val classElement = existing ?: ApiClass(name).apply { mClasses[name] = this }
+        val classElement = existing ?: ApiClass(name, isEnum).apply { mClasses[name] = this }
         updater.update(classElement, deprecated)
         return classElement
     }
@@ -84,6 +86,10 @@ class Api(val useInternalNames: Boolean) : ParentApiElement {
         removeImplicitInterfaces()
         removeOverridingMethods()
         prunePackagePrivateClasses()
+
+        // Add any class dependent members. This is done here, after creating the API, as they need
+        // to copy the containing class's state and that changes during creation.
+        addClassDependentMembersIfNeeded()
     }
 
     val classes: Collection<ApiClass>
@@ -176,6 +182,18 @@ class Api(val useInternalNames: Boolean) : ParentApiElement {
     private fun prunePackagePrivateClasses() {
         for (cls in mClasses.values) {
             cls.removeHiddenSuperClasses(mClasses)
+        }
+    }
+
+    /**
+     * Adds class dependent members, if needed.
+     *
+     * These are members whose history is identical to the containing class, e.g. compiler generated
+     * enum methods.
+     */
+    private fun addClassDependentMembersIfNeeded() {
+        for (cls in mClasses.values) {
+            cls.addClassDependentMembersIfNeeded()
         }
     }
 

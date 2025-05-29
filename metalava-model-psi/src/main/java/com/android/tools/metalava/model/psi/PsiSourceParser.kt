@@ -181,8 +181,8 @@ internal class PsiSourceParser(
 
     fun mergeFromJar(existingCodebase: PsiBasedCodebase, jarFile: File) {
         val bytecodeApis = KotlinBytecodeApis(existingCodebase)
-        bytecodeApis.listClassesInJar(jarFile)
-        val jarEnvironment = loadUastFromJars(listOf(jarFile))
+        val rewrittenJar = bytecodeApis.rewriteJar(jarFile)
+        val jarEnvironment = loadUastFromJars(listOf(rewrittenJar))
         bytecodeApis.loadPsiFromProject(jarEnvironment.ideaProject)
         (existingCodebase.assembler as PsiCodebaseAssembler).mergedJarEnvironment = jarEnvironment
     }

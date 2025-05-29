@@ -91,7 +91,11 @@ sealed interface AnnotationItem {
     ) {
         val language = configuration.valueLanguage
         builder.append(language.annotationClassPrefix)
-        builder.append(qualifiedName)
+
+        // Get the annotation class name.
+        val formatName = configuration.annotationQualifiedNameGetter(this)
+        builder.append(formatName)
+
         if (language.annotationAttributesListRequiresParentheses || attributes.isNotEmpty()) {
             builder.append("(")
 

@@ -17,8 +17,8 @@
 package com.android.tools.metalava.model.psi.kotlin
 
 import com.android.SdkConstants
+import com.android.tools.lint.helpers.readAllBytes
 import com.android.tools.metalava.model.AnnotationItem
-import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.KOTLIN_METADATA
@@ -28,6 +28,7 @@ import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.psi.PsiAnnotationItem
 import com.android.tools.metalava.model.psi.PsiBasedCodebase
+import com.android.tools.metalava.model.psi.PsiCallableItem
 import com.android.tools.metalava.model.psi.PsiConstructorItem
 import com.android.tools.metalava.model.psi.PsiMethodItem
 import com.android.tools.metalava.model.psi.psiParameters
@@ -40,39 +41,67 @@ import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiModifier
 import com.intellij.psi.search.GlobalSearchScope
 import java.io.File
+import java.util.zip.ZipEntry
 import java.util.zip.ZipFile
+import java.util.zip.ZipOutputStream
 import kotlin.metadata.KmClass
 import kotlin.metadata.KmDeclarationContainer
+import kotlin.metadata.KmProperty
 import kotlin.metadata.Visibility
+import kotlin.metadata.hasAnnotations
 import kotlin.metadata.jvm.JvmMethodSignature
 import kotlin.metadata.jvm.KotlinClassMetadata
 import kotlin.metadata.jvm.Metadata
 import kotlin.metadata.jvm.getterSignature
 import kotlin.metadata.jvm.setterSignature
 import kotlin.metadata.jvm.signature
+import kotlin.metadata.jvm.syntheticMethodForAnnotations
 import kotlin.metadata.visibility
+import org.objectweb.asm.ClassReader
+import org.objectweb.asm.ClassVisitor
+import org.objectweb.asm.ClassWriter
+import org.objectweb.asm.MethodVisitor
+import org.objectweb.asm.Opcodes
 
 /**
  * Functionality for loading APIs from jar files compiled from Kotlin source code.
  *
- * First, the jar file needs to be processed by [listClassesInJar] to track all the qualified names
- * of classes present in the jar. Then, [loadPsiFromProject] will search for the class names from
- * the jar in a psi project to add APIs to the [codebase].
+ * First, the jar file needs to be processed by [rewriteJar] to remove the `ACC_SYNTHETIC` modifier
+ * from methods to allow them to be read by psi, and to track all the qualified names of classes
+ * present in the jar. Then, [loadPsiFromProject] will search for the class names from the jar in a
+ * psi project to add APIs to the [codebase].
  */
 internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
-    /** Class names to process. Populated by [listClassesInJar] and used by [loadPsiFromProject]. */
+    /** Class names to process. Populated by [rewriteJar] and used by [loadPsiFromProject]. */
     private val qualifiedClassNames = mutableListOf<String>()
 
-    /** Processes the [jarFile] to save the qualified names of all classes in the jar. */
-    fun listClassesInJar(jarFile: File) {
-        ZipFile(jarFile).use { jar ->
+    /**
+     * A map from the fully qualified name of a multi-file class facade to the paths of the class
+     * files that make it up. Each class part corresponds to a source file, and metadata for the
+     * entries can only be found in the class part, not the multi-file class facade.
+     */
+    private val multiFileClassParts: MutableMap<String, List<String>> = mutableMapOf()
+
+    /**
+     * Processes the [originalJarFile] to remove the `ACC_SYNTHETIC` modifier from methods. This is
+     * done because psi does not process synthetic members, but they can be important for API
+     * tracking (e.g. methods annotated with [DeprecationLevel.HIDDEN]).
+     *
+     * Also saves the qualified names of all classes in the jar.
+     */
+    fun rewriteJar(originalJarFile: File): File {
+        val newJarFile = kotlin.io.path.createTempFile(suffix = ".jar").toFile()
+        val outputStream = ZipOutputStream(newJarFile.outputStream())
+        ZipFile(originalJarFile).use { jar ->
             for (entry in jar.entries().iterator()) {
                 val fileName = entry.name
                 if (
                     !fileName.endsWith(SdkConstants.DOT_CLASS) ||
                         fileName.endsWith("package-info.class")
                 ) {
-                    // skip entries that are not .class files.
+                    // for entries that are not .class files, just write them to the new jar
+                    outputStream.putNextEntry(entry)
+                    outputStream.write(jar.readAllBytes(entry))
                     continue
                 }
 
@@ -82,13 +111,57 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
                         .replace('/', '.')
                         .replace('$', '.')
                 qualifiedClassNames.add(qualifiedName)
+
+                // Create a reader for the old jar, and a writer for the new.
+                val classReader = ClassReader(jar.getInputStream(entry))
+                val classWriter = ClassWriter(/* flags= */ 0)
+                // Process the class with a visitor that defers to the writer in all cases except
+                // for methods.
+                classReader.accept(
+                    object : ClassVisitor(Opcodes.ASM9, classWriter) {
+                        override fun visitMethod(
+                            access: Int,
+                            name: String,
+                            descriptor: String?,
+                            signature: String?,
+                            exceptions: Array<String>?
+                        ): MethodVisitor {
+                            // Update the access flags of the method
+                            val newAccess =
+                                if (access and Opcodes.ACC_BRIDGE != 0) {
+                                    // If this is a bridge method, leave the accessors as-is, since
+                                    // we don't need to track these (these are generated by the java
+                                    // compiler to handle type erasure).
+                                    access
+                                } else {
+                                    // Otherwise, unset the synthetic flag so this method can be
+                                    // processed by psi
+                                    access and Opcodes.ACC_SYNTHETIC.inv()
+                                }
+                            // Visit the method with the class writer, using the new access flags
+                            return super.visitMethod(
+                                newAccess,
+                                name,
+                                descriptor,
+                                signature,
+                                exceptions
+                            )
+                        }
+                    },
+                    ClassReader.SKIP_CODE
+                )
+                outputStream.putNextEntry(ZipEntry(fileName))
+                outputStream.write(classWriter.toByteArray())
             }
         }
+        outputStream.flush()
+        outputStream.close()
+        return newJarFile
     }
 
     /**
-     * Uses the [project] to load the psi for all classes previously found by [listClassesInJar],
-     * and adds members to the [codebase].
+     * Uses the [project] to load the psi for all classes previously found by [rewriteJar], and adds
+     * members to the [codebase].
      *
      * This will not add any classes to the [codebase], but for any existing classes, it will add
      * any callables which are not already present in the class item in the codebase.
@@ -102,8 +175,25 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
             val classItem = codebase.findClass(qualifiedName) as? DefaultClassItem ?: continue
             // Find associated Kotlin metadata for the class. If there isn't any, this wasn't a
             // Kotlin source class and can be skipped.
-            val metadataContainer = psiClass.getMetadataContainer(codebase) ?: continue
+            val metadataContainer = psiClass.getMetadataContainer() ?: continue
             addMethodsToClass(psiClass, classItem, metadataContainer)
+        }
+
+        // Process all multi-file classes. Each multi-file class is made up of parts from classes
+        // generated from each file of the multi-file class. The class parts have the kotlin
+        // metadata for the class members, while the multi-file class does not.
+        for ((qualifiedName, classParts) in multiFileClassParts) {
+            // Find the multi-file class itself in the codebase.
+            val multiFileClassItem =
+                codebase.findClass(qualifiedName) as? DefaultClassItem ?: continue
+            for (classPartPath in classParts) {
+                // Find the psi and metadata corresponding to this part of the multi-file class.
+                val psiClassPart =
+                    facade.findClass(classPartPath.replace("/", "."), scope) ?: continue
+                val metadataContainer = psiClassPart.getMetadataContainer() ?: continue
+                // Use the class part and metadata to add entries to the multi-file class item.
+                addMethodsToClass(psiClassPart, multiFileClassItem, metadataContainer)
+            }
         }
     }
 
@@ -122,6 +212,17 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
             if (
                 !psiMethod.modifierList.hasModifierProperty(PsiModifier.PUBLIC) &&
                     !psiMethod.modifierList.hasModifierProperty(PsiModifier.PROTECTED)
+            )
+                continue
+
+            // Skip tracking constructors with the kotlin DefaultConstructorMarker. Every Kotlin
+            // source class gets a constructor like this generated from the default constructor.
+            // TODO(b/417740481): decide if it is ever worth tracking these
+            if (
+                psiMethod.isConstructor &&
+                    psiMethod.psiParameters.any {
+                        it.type.canonicalText == "kotlin.jvm.internal.DefaultConstructorMarker"
+                    }
             )
                 continue
 
@@ -183,7 +284,7 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
             }
 
             // Update the visibility of the item based on metadata, if needed.
-            if (callableItem.isInternal(metadataContainer)) {
+            if (callableItem.isInternal(metadataContainer, psiClass)) {
                 callableItem.mutateModifiers { setVisibilityLevel(VisibilityLevel.INTERNAL) }
             }
 
@@ -244,7 +345,7 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
      * Loads the Kotlin metadata for the class and returns the [KmDeclarationContainer] where
      * information about the class members is stored.
      */
-    private fun PsiClass.getMetadataContainer(codebase: PsiBasedCodebase): KmDeclarationContainer? {
+    private fun PsiClass.getMetadataContainer(): KmDeclarationContainer? {
         // Find a @Metadata annotation on the class, and convert to Kotlin metadata
         val metadataAnnotation =
             annotations.singleOrNull { it.qualifiedName == KOTLIN_METADATA } ?: return null
@@ -259,8 +360,15 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
             is KotlinClassMetadata.Class -> classMetadata.kmClass
             is KotlinClassMetadata.FileFacade -> classMetadata.kmPackage
             is KotlinClassMetadata.MultiFileClassPart -> classMetadata.kmPackage
+            is KotlinClassMetadata.MultiFileClassFacade -> {
+                // A multi-file class facade does not have the metadata for the class members. Each
+                // class part corresponding to a source file contains the metadata for the members
+                // from that file. Track what the parts of this multi-file class are, so they can be
+                // processed later.
+                qualifiedName?.let { multiFileClassParts[it] = classMetadata.partClassNames }
+                null
+            }
             is KotlinClassMetadata.SyntheticClass,
-            is KotlinClassMetadata.MultiFileClassFacade,
             is KotlinClassMetadata.Unknown -> null
         }
     }
@@ -301,7 +409,10 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
     }
 
     /** Checks if the item's true visibility is internal based on the metadata from [container]. */
-    private fun CallableItem.isInternal(container: KmDeclarationContainer?): Boolean {
+    private fun PsiCallableItem.isInternal(
+        container: KmDeclarationContainer?,
+        psiClass: PsiClass
+    ): Boolean {
         if (container == null) return false
         val expectedDescriptor = internalDesc(voidConstructorTypes = true)
         val visibility =
@@ -322,9 +433,15 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
                     // No matching function, check if this is a property accessor.
                     ?: container.properties.firstNotNullOfOrNull {
                         if (it.getterSignature.matches(name(), expectedDescriptor)) {
+                            // If this property was annotated with @PublishedApi, that won't have
+                            // been propagated to the getter, do so manually.
+                            propagatePublishedAnnotationIfNeeded(it, psiClass)
                             // A getter always has the same visibility as the property.
                             it.visibility
                         } else if (it.setterSignature.matches(name(), expectedDescriptor)) {
+                            // If this property was annotated with @PublishedApi, that won't have
+                            // been propagated to the setter, do so manually.
+                            propagatePublishedAnnotationIfNeeded(it, psiClass)
                             // A setter's visibility can be different from the property.
                             it.setter?.visibility
                         } else {
@@ -342,5 +459,30 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
         expectedDescriptor: String,
     ): Boolean {
         return this != null && expectedName == name && descriptor == expectedDescriptor
+    }
+
+    /**
+     * Checks if the [kmProperty] was annotated in source with the [PublishedApi] annotation, and if
+     * it was, adds the annotation to the callable item.
+     */
+    private fun PsiCallableItem.propagatePublishedAnnotationIfNeeded(
+        kmProperty: KmProperty,
+        psiClass: PsiClass,
+    ) {
+        if (kmProperty.visibility == Visibility.INTERNAL && kmProperty.hasAnnotations) {
+            // The annotations on a property in source end up in bytecode on a synthetic method
+            // generated to track the annotations. Find that method in the psi class.
+            val annotationMethodSignature = kmProperty.syntheticMethodForAnnotations ?: return
+            val annotationMethod =
+                psiClass.methods.singleOrNull { it.name == annotationMethodSignature.name }
+                    ?: return
+            // Check if the method is @PublishedApi, propagate it to the accessor method if so.
+            val publishedAnnotation =
+                annotationMethod.annotations.firstOrNull {
+                    it.qualifiedName == "kotlin.PublishedApi"
+                } ?: return
+            val annotationItem = PsiAnnotationItem.create(codebase, publishedAnnotation)
+            mutateModifiers { addAnnotation(annotationItem) }
+        }
     }
 }

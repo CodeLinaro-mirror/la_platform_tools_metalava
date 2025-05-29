@@ -848,6 +848,72 @@ class SignatureInputOutputTest : Assertions {
         runInputOutputTest(api, FileFormat.V5)
     }
 
+    @Test
+    fun `Test method target language`() {
+        val api =
+            """
+            // Signature format: 5.0
+            package test.pkg {
+              public class Foo {
+                method @BytecodeOnly public void bytecodeOnly();
+                method @BytecodeOnly @OtherAnnotation public void bytecodeOnlyWithOtherAnnotation();
+                method @InaccessibleFromJava public void inaccessibleFromJava();
+                method @InaccessibleFromKotlin public void inaccessibleFromKotlin();
+                method @KotlinOnly public void kotlinOnly();
+                method public void noTargetsListed();
+                method @OtherAnnotation public void noTargetsWithOtherAnnotation();
+              }
+            }
+            """
+        runInputOutputTest(api, FileFormat.V5)
+    }
+
+    @Test
+    fun `Test constructor target language`() {
+        val api =
+            """
+            // Signature format: 5.0
+            package test.pkg {
+              public class Foo {
+                ctor @BytecodeOnly public Foo();
+              }
+            }
+            """
+        runInputOutputTest(api, FileFormat.V5)
+    }
+
+    @Test
+    fun `Test field target language`() {
+        val api =
+            """
+            // Signature format: 5.0
+            package test.pkg {
+              public class Foo {
+                field @InaccessibleFromKotlin public int inaccessibleFromKotlin;
+              }
+            }
+            """
+        runInputOutputTest(api, FileFormat.V5)
+    }
+
+    @Test
+    fun `Test class target language`() {
+        val api =
+            """
+            package test.pkg {
+              @KotlinOnly public class KotlinOnlyClass {
+              }
+              @KotlinOnly @OtherAnnotation public class KotlinOnlyClassWithOtherAnnotation {
+              }
+              public class NoTargetsListed {
+              }
+              @OtherAnnotation public class NoTargetsWithOtherAnnotation {
+              }
+            }
+            """
+        runInputOutputTest(api, FileFormat.V5)
+    }
+
     companion object {
         private val kotlinStyleFormat =
             FileFormat.V5.copy(kotlinNameTypeOrder = true, formatDefaults = FileFormat.V5)

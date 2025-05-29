@@ -40,6 +40,8 @@ import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.SelectableItem
+import com.android.tools.metalava.model.TargetLanguage
+import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterItem
@@ -641,7 +643,7 @@ private constructor(
         var classKind = ClassKind.CLASS
         var superClassType: ClassTypeItem? = null
 
-        val modifiers = parseModifiers(tokenizer, token)
+        val (modifiers, targetLanguages) = parseModifiersAndTargetLanguages(tokenizer, token)
         // Remember this position as this seems like a good place to use to report issues with the
         // class item.
         val classPosition = tokenizer.fileLocation()
@@ -804,6 +806,7 @@ private constructor(
                 origin = ClassOrigin.COMMAND_LINE,
                 superClassType = superClassType,
                 interfaceTypes = interfaceTypes.toList(),
+                targetLanguages = targetLanguages,
             )
         cl.markForMainApiSurface()
 
@@ -1165,7 +1168,7 @@ private constructor(
         var token = startingToken
         val method: ConstructorItem
 
-        val modifiers = parseModifiers(tokenizer, token)
+        val (modifiers, targetLanguages) = parseModifiersAndTargetLanguages(tokenizer, token)
 
         // Get a TypeParameterList and accompanying TypeItemFactory
         val (typeParameterList, typeItemFactory) =
@@ -1205,6 +1208,7 @@ private constructor(
                 // the same as whether it was created by the compiler or in the source has no effect
                 // on the API surface.
                 implicitConstructor = false,
+                targetLanguages = targetLanguages,
             )
         method.markForMainApiSurface()
 
@@ -1222,7 +1226,7 @@ private constructor(
         var token = startingToken
         val method: MethodItem
 
-        val modifiers = parseModifiers(tokenizer, token)
+        val (modifiers, targetLanguages) = parseModifiersAndTargetLanguages(tokenizer, token)
 
         // Get a TypeParameterList and accompanying TypeParameterScope
         val (typeParameterList, typeItemFactory) =
@@ -1307,6 +1311,7 @@ private constructor(
                 },
                 throwsTypes = throwsList,
                 defaultValueProvider = defaultValueProvider,
+                targetLanguages = targetLanguages,
             )
 
         // Ignore enum synthetic methods. They are no longer included in signature files as they add
@@ -1334,7 +1339,7 @@ private constructor(
         isEnumConstant: Boolean,
     ) {
         var token = startingToken
-        val modifiers = parseModifiers(tokenizer, token)
+        val (modifiers, targetLanguages) = parseModifiersAndTargetLanguages(tokenizer, token)
         token = tokenizer.current
         tokenizer.assertIdent(token)
 
@@ -1403,9 +1408,32 @@ private constructor(
                 type = type,
                 isEnumConstant = isEnumConstant,
                 constantValueProvider = constantValueProvider,
+                targetLanguages = targetLanguages,
             )
         field.markForMainApiSurface()
         cl.addField(field)
+    }
+
+    /**
+     * Parses and creates an optional target language set and modifiers (see [parseModifiers]).
+     *
+     * When the method returns, the current token of [tokenizer] will be the first token after the
+     * modifiers.
+     */
+    private fun parseModifiersAndTargetLanguages(
+        tokenizer: Tokenizer,
+        startingToken: String,
+    ): Pair<MutableModifierList, Set<TargetLanguage>> {
+        var token = startingToken
+        // Check if there's a token describing the target languages of the item. If there is, get
+        // the next token, if not, use the set of all languages.
+        val targetLanguages =
+            TargetLanguageSet.signatureFileRepresentationToTargetLanguageSet[token]?.also {
+                token = tokenizer.requireToken()
+            } ?: TargetLanguageSet.ALL
+
+        val modifiers = parseModifiers(tokenizer, token)
+        return modifiers to targetLanguages
     }
 
     /**

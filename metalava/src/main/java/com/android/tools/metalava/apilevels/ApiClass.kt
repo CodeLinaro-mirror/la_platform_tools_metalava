@@ -21,7 +21,7 @@ import com.google.common.collect.Iterables
  * Represents a class or an interface and its methods/fields. This is used to write the simplified
  * XML file containing all the public API.
  */
-class ApiClass(name: String) : ApiElement(name) {
+class ApiClass(name: String, private val isEnum: Boolean) : ApiElement(name) {
 
     private val mSuperClasses = mutableMapOf<String, ApiElement>()
     private val mInterfaces = mutableMapOf<String, ApiElement>()
@@ -78,6 +78,29 @@ class ApiClass(name: String) : ApiElement(name) {
 
     val methods: Collection<ApiElement>
         get() = mMethods.values
+
+    /** The names of the compiler generated enum methods. */
+    private fun enumMethodNames(): List<String> {
+        return if (name.contains("/")) {
+            listOf("valueOf(Ljava/lang/String;)L$name;", "values()[L$name;")
+        } else {
+            listOf("valueOf(java.lang.String)", "values()")
+        }
+    }
+
+    /**
+     * Adds class dependent members, if needed.
+     *
+     * These are members whose history is identical to the containing class, e.g. compiler generated
+     * enum methods.
+     */
+    fun addClassDependentMembersIfNeeded() {
+        if (!isEnum) return
+
+        for (methodName in enumMethodNames()) {
+            mMethods[methodName] = ApiElement(methodName, this)
+        }
+    }
 
     /**
      * Updates an element for [superClassType], creating and adding one if necessary.

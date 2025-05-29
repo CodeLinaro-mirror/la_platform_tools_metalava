@@ -246,7 +246,7 @@ class ValueParser(
     private fun parseConstant(optionalTypeItem: TypeItem?, text: String): ConstantValue? {
 
         knownSpecialValues[text]?.let { value ->
-            return createLiteralValue(optionalTypeItem, value)
+            return value.convertToType(optionalTypeItem)
         }
 
         val first = text.first()
@@ -303,7 +303,13 @@ class ValueParser(
                     } else {
                         text.toDouble()
                     }
-                return createLiteralValue(optionalTypeItem, number)
+                return createLiteralValue(
+                    optionalTypeItem,
+                    number,
+                    // Hexadecimal floating point numbers can only be present in the signature file
+                    // if they were present in the source.
+                    nonLiteralInSource = false,
+                )
             }
 
             // Remove the leading "0x"
@@ -316,11 +322,19 @@ class ValueParser(
             // larger than the largest positive int. They will become negative numbers. However,
             // that is what the original number was so it is ok.
             val int = withoutLeading0x.toLong(16).toInt()
-            return createLiteralValue(optionalTypeItem, int)
+            return createLiteralValue(
+                optionalTypeItem,
+                int,
+                // AnnotationItem.toSource() will use format ints obtained from literals as decimals
+                // and ints obtained from complex expressions as decimals so treat hexadecimals as
+                // if they are not literals. That should allow signature files to be read and then
+                // written out again without changing the formatting.
+                nonLiteralInSource = true
+            )
         }
 
         // Check the last character to see if it indicated the type of the number.
-        when (text.last()) {
+        when (val suffix = text.last()) {
             'L',
             'l' -> {
                 val long = text.substring(0, text.length - 1).toLong()
@@ -329,7 +343,10 @@ class ValueParser(
             'F',
             'f' -> {
                 val float = text.substring(0, text.length - 1).toFloat()
-                return createLiteralValue(optionalTypeItem, float)
+                // AnnotationItem.toSource() uses 'F' as the suffix for floats obtained from
+                // expressions and 'f' for those obtained from literals.
+                val nonLiteralInSource = suffix == 'F'
+                return createLiteralValue(optionalTypeItem, float, nonLiteralInSource)
             }
         }
 
@@ -543,7 +560,7 @@ class ValueParser(
          */
         private val specialFloats =
             mapOf(
-                Double.NaN to
+                DoubleValue.NaN to
                     listOf(
                         "(0.0/0.0)",
                         "0.0 / 0.0",
@@ -551,7 +568,7 @@ class ValueParser(
                         "java.lang.Double.NaN",
                         "kotlin.jvm.internal.DoubleCompanionObject.NaN",
                     ),
-                Double.NEGATIVE_INFINITY to
+                DoubleValue.NEGATIVE_INFINITY to
                     listOf(
                         "(-1.0/0.0)",
                         "-1.0 / 0.0",
@@ -559,7 +576,7 @@ class ValueParser(
                         "java.lang.Double.NEGATIVE_INFINITY",
                         "kotlin.jvm.internal.DoubleCompanionObject.NEGATIVE_INFINITY",
                     ),
-                Double.POSITIVE_INFINITY to
+                DoubleValue.POSITIVE_INFINITY to
                     listOf(
                         "(1.0/0.0)",
                         "1.0 / 0.0",
@@ -567,7 +584,7 @@ class ValueParser(
                         "java.lang.Double.POSITIVE_INFINITY",
                         "kotlin.jvm.internal.DoubleCompanionObject.POSITIVE_INFINITY",
                     ),
-                Float.NaN to
+                FloatValue.NaN to
                     listOf(
                         "(0.0f/0.0f)",
                         "0.0f / 0.0",
@@ -575,7 +592,7 @@ class ValueParser(
                         "java.lang.Float.NaN",
                         "kotlin.jvm.internal.FloatCompanionObject.NaN",
                     ),
-                Float.NEGATIVE_INFINITY to
+                FloatValue.NEGATIVE_INFINITY to
                     listOf(
                         "(-1.0f/0.0f)",
                         "-1.0f / 0.0",
@@ -584,7 +601,7 @@ class ValueParser(
                         "java.lang.Float.NEGATIVE_INFINITY",
                         "kotlin.jvm.internal.FloatCompanionObject.NEGATIVE_INFINITY",
                     ),
-                Float.POSITIVE_INFINITY to
+                FloatValue.POSITIVE_INFINITY to
                     listOf(
                         "(1.0f/0.0f)",
                         "1.0f / 0.0",
@@ -597,8 +614,8 @@ class ValueParser(
         /** A map of all the known special values. */
         private val knownSpecialValues =
             mapOf(
-                "false" to false,
-                "true" to true,
+                "false" to BooleanValue.FALSE,
+                "true" to BooleanValue.TRUE,
             ) + specialFloats.flatMap { (value, alternatives) -> alternatives.map { it to value } }
 
         /**
