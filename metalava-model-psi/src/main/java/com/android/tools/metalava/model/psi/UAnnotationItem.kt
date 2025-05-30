@@ -16,26 +16,20 @@
 
 package com.android.tools.metalava.model.psi
 
-import com.android.tools.lint.detector.api.ConstantEvaluator
 import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
 import com.android.tools.metalava.model.AnnotationAttribute
-import com.android.tools.metalava.model.AnnotationAttributeValue
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.DefaultAnnotationArrayAttributeValue
 import com.android.tools.metalava.model.DefaultAnnotationAttribute
 import com.android.tools.metalava.model.DefaultAnnotationItem
-import com.android.tools.metalava.model.DefaultAnnotationSingleAttributeValue
+import com.android.tools.metalava.model.Item
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiExpression
 import com.intellij.psi.PsiField
-import com.intellij.psi.PsiLiteral
 import com.intellij.psi.impl.JavaConstantExpressionEvaluator
 import org.jetbrains.uast.UAnnotation
 import org.jetbrains.uast.UCallExpression
-import org.jetbrains.uast.UClassLiteralExpression
-import org.jetbrains.uast.UElement
 import org.jetbrains.uast.UExpression
 import org.jetbrains.uast.ULiteralExpression
 import org.jetbrains.uast.UQualifiedReferenceExpression
@@ -57,7 +51,7 @@ private constructor(
         attributesGetter = { getAnnotationAttributes(annotationContext, uAnnotation) },
     ) {
 
-    override fun toSource(target: AnnotationTarget): String {
+    override fun toSource(target: AnnotationTarget, context: Item?): String {
         val sb = StringBuilder(60)
         appendAnnotation(
             annotationContext,
@@ -87,7 +81,6 @@ private constructor(
                             name,
                             attribute.expression
                         ),
-                        createValue(attribute.expression)
                     )
                 }
                 .toList()
@@ -275,56 +268,4 @@ private constructor(
             return CodePrinter.constantToExpression(constant)
         }
     }
-}
-
-private fun createValue(value: UExpression): AnnotationAttributeValue {
-    return if (value.isArrayInitializer()) {
-        val uCallExpression = value as UCallExpression
-        DefaultAnnotationArrayAttributeValue(
-            { getText(uCallExpression) },
-            { uCallExpression.valueArguments.map { createValue(it) }.toList() }
-        )
-    } else {
-        UAnnotationSingleAttributeValue(value)
-    }
-}
-
-internal class UAnnotationSingleAttributeValue(private val psiValue: UExpression) :
-    DefaultAnnotationSingleAttributeValue({ getText(psiValue) }, { getValue(psiValue) }) {
-
-    companion object {
-        private fun getValue(psiValue: UExpression): Any? {
-            if (psiValue is ULiteralExpression) {
-                val value = psiValue.value
-                if (value != null) {
-                    return value
-                } else if (psiValue.isNull) {
-                    return null
-                }
-            }
-            if (psiValue is PsiLiteral) {
-                return psiValue.value ?: getText(psiValue).removeSurrounding("\"")
-            }
-
-            val value = ConstantEvaluator.evaluate(null, psiValue)
-            if (value != null) {
-                return value
-            }
-
-            if (psiValue is UClassLiteralExpression) {
-                // The value of a class literal expression like String.class or String::class
-                // is the fully qualified name, java.lang.String
-                val type = psiValue.type
-                if (type != null) {
-                    return type.canonicalText
-                }
-            }
-
-            return getText(psiValue).removeSurrounding("\"")
-        }
-    }
-}
-
-private fun getText(element: UElement): String {
-    return element.sourcePsi?.text ?: element.asSourceString()
 }

@@ -162,14 +162,14 @@ class KotlinInteropChecksTest : DriverTest() {
                     kotlin(
                         """
                     package test.pkg
-
+                    import java.math.BigInteger
                     @SuppressWarnings("all")
                     class Foo {
                         fun ok1() { }
                         companion object {
                             const val INTEGER_ONE = 1
-                            val BIG_INTEGER_ONE = BigInteger.ONE
-                            private val PRIVATE_BIG_INTEGER = BigInteger.ONE
+                            val BIG_INTEGER_ONE: BigInteger = BigInteger.ONE // type specified to define nullability
+                            private val PRIVATE_BIG_INTEGER: BigInteger = BigInteger.ONE
                             var wrongNeedsJvmStatic = 1
                             @JvmStatic var ok = 1.5
                             @JvmStatic val WRONG = 2

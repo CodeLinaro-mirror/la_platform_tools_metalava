@@ -24,7 +24,6 @@ import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.DefaultAnnotationAttribute
-import com.android.tools.metalava.model.DefaultAnnotationAttributeValue
 import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.MethodItem
@@ -63,26 +62,6 @@ class ValueParser(
         text: String,
         valueUseSite: ValueUseSite,
     ): CombinedValueProvider = CachingValueProvider(this, typeItem, text, valueUseSite)
-
-    /**
-     * Get a [CombinedValueProvider] that will create (and cache) a [Value] for attribute
-     * [attributeName] of [annotationItem] from [text].
-     *
-     * @param annotationItem the containing [AnnotationItem].
-     * @param attributeName the name of the attribute whose value it will provide.
-     * @param text the String value to be parsed.
-     */
-    fun providerForAnnotationValue(
-        annotationItem: AnnotationItem,
-        attributeName: String,
-        text: String
-    ): CombinedValueProvider =
-        CachingAnnotationValueProvider(
-            this,
-            annotationItem,
-            attributeName,
-            text,
-        )
 
     /**
      * Get a [CombinedValueProvider] that will create (and cache) a [Value] for attribute
@@ -427,11 +406,11 @@ class ValueParser(
                 else -> emptyList()
             }
 
-        return DefaultAnnotationItem.createAttributesLazily(
+        return DefaultAnnotationItem.createWithAttributes(
             annotationContext,
             FileLocation.UNKNOWN,
             annotationClassName,
-            { attributes }
+            attributes
         )
     }
 
@@ -442,7 +421,7 @@ class ValueParser(
      * On entry [tokenizer]'s [Tokenizer.current] must be `(`. On exit, it will be the matching `)`.
      */
     private fun parseAnnotationAttributes(
-        @Suppress("UNUSED_PARAMETER") annotationClassName: String,
+        annotationClassName: String,
         tokenizer: Tokenizer
     ): List<AnnotationAttribute> {
         require(tokenizer.current == "(") { "Expected '(' but found ${tokenizer.current}" }
@@ -535,8 +514,6 @@ class ValueParser(
                     DefaultAnnotationAttribute(
                         attributeName,
                         valueProvider,
-                        // Create legacy attribute value.
-                        DefaultAnnotationAttributeValue.create(valueText),
                     )
                 )
             } while (true)

@@ -4211,7 +4211,7 @@ class ApiFileTest : DriverTest() {
                     import androidx.annotation.IntRange;
 
                     public final class ApiClass {
-                        private int hiddenConstant = 1;
+                        private static final int hiddenConstant = 1;
                         public ApiClass(@IntRange(from=1) int x) {}
                         public void method(@IntRange(from = hiddenConstant) int x) {}
                     }
@@ -5307,7 +5307,7 @@ class ApiFileTest : DriverTest() {
                         package test.pkg
                         internal fun bar() {}
 
-                        private val baz
+                        private val baz = 0
 
                         class Toast {
                             val foo: Int = 0
@@ -5332,7 +5332,7 @@ class ApiFileTest : DriverTest() {
                         @PublishedApi
                         internal fun internalYetPublished() {}
 
-                        private val buzz
+                        private val buzz = 0
                     """
                     ),
                     kotlin(

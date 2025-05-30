@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.testing.value.arrayValue
+import com.android.tools.metalava.model.testing.value.fieldReferenceValue
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -23,7 +25,7 @@ import org.junit.Test
 class DefaultAnnotationItemTest : Assertions {
 
     private fun createDefaultAnnotationItem(source: String) =
-        DefaultAnnotationItem.createFromSource(AnnotationContext.DEFAULT, source)
+        DefaultAnnotationItem.createFromSource(AnnotationContext.DEFAULT_RESOLVE_NULL, source)
             ?: error("Could not create annotation from: '$source'")
 
     @Test
@@ -42,9 +44,9 @@ class DefaultAnnotationItemTest : Assertions {
         assertEquals("androidx.annotation.IntRange", annotation.qualifiedName)
         assertEquals(2, annotation.attributes.size)
         assertEquals("from", annotation.assertAttribute("from").name)
-        assertEquals("20", annotation.assertAttribute("from").legacyValue.toString())
+        assertEquals("20", annotation.assertAttribute("from").value.toValueString())
         assertEquals("to", annotation.assertAttribute("to").name)
-        assertEquals("40", annotation.assertAttribute("to").legacyValue.toString())
+        assertEquals("40", annotation.assertAttribute("to").value.toValueString())
     }
 
     @Test
@@ -63,14 +65,17 @@ class DefaultAnnotationItemTest : Assertions {
         assertEquals("value", attribute.name)
         assertEquals(
             "{STYLE_NORMAL, STYLE_NO_TITLE, STYLE_NO_FRAME, STYLE_NO_INPUT}",
-            attribute.legacyValue.toString()
+            attribute.value.toValueString()
         )
 
-        assertTrue(attribute.legacyValue is AnnotationArrayAttributeValue)
-        if (attribute is AnnotationArrayAttributeValue) {
-            val list = attribute.values
-            assertEquals(3, list.size)
-            assertEquals("STYLE_NO_TITLE", list[1].toSource())
-        }
+        assertEquals(
+            arrayValue(
+                fieldReferenceValue("", "STYLE_NORMAL"),
+                fieldReferenceValue("", "STYLE_NO_TITLE"),
+                fieldReferenceValue("", "STYLE_NO_FRAME"),
+                fieldReferenceValue("", "STYLE_NO_INPUT"),
+            ),
+            attribute.value
+        )
     }
 }

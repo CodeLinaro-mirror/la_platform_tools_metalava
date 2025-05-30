@@ -183,6 +183,9 @@ Available Issues                             |  Category                        
   RemovedField                               |  binary_and_source_compatibility      |   error
   RemovedFinal                               |  binary_compatibility_only            |   error
   RemovedFinalStrict                         |  other_compatibility                  |   error
+  RemovedFromBytecode                        |  binary_compatibility_only            |   error
+  RemovedFromJava                            |  source_compatibility_only            |   error
+  RemovedFromKotlin                          |  source_compatibility_only            |   error
   RemovedInterface                           |  binary_and_source_compatibility      |   error
   RemovedJvmDefaultWithCompatibility         |  binary_compatibility_only            |   error
   RemovedMethod                              |  binary_and_source_compatibility      |   error

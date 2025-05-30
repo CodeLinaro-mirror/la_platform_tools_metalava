@@ -220,6 +220,41 @@ class CompatibilityCheck(
         compareItemNullability(old, new)
     }
 
+    override fun compareSelectableItems(old: SelectableItem, new: SelectableItem) {
+        // Adding target languages is allowed, removing is not
+        val removedTargetLanguages = old.targetLanguages.minus(new.targetLanguages)
+        val item = Item.Companion.describe(new)
+        // Report issues on the old version of the item. If they were reported on the new version,
+        // they wouldn't end up reported, since removing from bytecode is only binary breaking and
+        // wouldn't be reported for the new item which only targets source (similarly for removing
+        // a source target language).
+        for (removedTargetLanguage in removedTargetLanguages) {
+            when (removedTargetLanguage) {
+                TargetLanguage.BYTECODE -> {
+                    report(
+                        Issues.REMOVED_FROM_BYTECODE,
+                        old,
+                        "$item has been removed from bytecode",
+                    )
+                }
+                TargetLanguage.KOTLIN -> {
+                    report(
+                        Issues.REMOVED_FROM_KOTLIN,
+                        old,
+                        "$item can no longer be resolved from Kotlin source",
+                    )
+                }
+                TargetLanguage.JAVA -> {
+                    report(
+                        Issues.REMOVED_FROM_JAVA,
+                        old,
+                        "$item can no longer be resolved from Java source",
+                    )
+                }
+            }
+        }
+    }
+
     override fun compareParameterItems(old: ParameterItem, new: ParameterItem) {
         val prevName = old.publicName()
         val newName = new.publicName()
