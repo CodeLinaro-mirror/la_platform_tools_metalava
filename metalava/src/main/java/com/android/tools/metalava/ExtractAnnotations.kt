@@ -40,7 +40,6 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
-import com.android.tools.metalava.model.asAnnotationAttributeValue
 import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.value.AnnotationValue
 import com.android.tools.metalava.model.value.FieldReferenceValue
@@ -460,7 +459,6 @@ class ExtractAnnotations(
                                 DefaultAnnotationAttribute(
                                     name,
                                     intValue.provider(),
-                                    intValue.asAnnotationAttributeValue()
                                 )
                             }
                         } else attribute
@@ -484,7 +482,6 @@ class ExtractAnnotations(
                                 DefaultAnnotationAttribute(
                                     name,
                                     floatValue.provider(),
-                                    floatValue.asAnnotationAttributeValue()
                                 )
                             }
                         } else attribute

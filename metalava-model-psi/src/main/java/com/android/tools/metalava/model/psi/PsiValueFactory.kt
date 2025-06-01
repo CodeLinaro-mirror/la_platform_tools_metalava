@@ -26,7 +26,6 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.VariableTypeItem
-import com.android.tools.metalava.model.asAnnotationAttributeValue
 import com.android.tools.metalava.model.type.ContextNullability
 import com.android.tools.metalava.model.value.AnnotationValue
 import com.android.tools.metalava.model.value.ArrayElementValue
@@ -410,7 +409,7 @@ internal class PsiValueFactory(
         val qualifiedClassName = psiClass?.qualifiedName ?: return null
 
         fun attributesProvider() =
-            // Iterate over the arguments as the order in which they are specified if important.
+            // Iterate over the arguments as the order in which they are specified is important.
             uExpression.valueArguments.mapNotNull { uArgument ->
 
                 // Get the parameter for this argument, if no parameter is provided then ignore the
@@ -432,7 +431,6 @@ internal class PsiValueFactory(
                 DefaultAnnotationAttribute(
                     name,
                     value.provider(),
-                    value.asAnnotationAttributeValue(),
                 )
             }
 
@@ -441,9 +439,8 @@ internal class PsiValueFactory(
                 codebase,
                 FileLocation.UNKNOWN,
                 qualifiedClassName,
-            ) {
-                attributesProvider()
-            }
+                ::attributesProvider,
+            )
 
         return createAnnotationValue(annotationItem!!)
     }

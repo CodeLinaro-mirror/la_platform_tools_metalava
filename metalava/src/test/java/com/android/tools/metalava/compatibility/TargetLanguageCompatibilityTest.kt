@@ -163,8 +163,165 @@ class TargetLanguageCompatibilityTest : DriverTest() {
                 }
                 """,
             // No issue for removing the parameter name because the method is now bytecode-only.
-            // The followup will add an issue for changing the target language set.
+            expectedIssues =
+                """
+                released-api.txt:4: error: Source breaking change: method test.pkg.Foo.fooMethod(int) can no longer be resolved from Java source [RemovedFromJava]
+                released-api.txt:4: error: Source breaking change: method test.pkg.Foo.fooMethod(int) can no longer be resolved from Kotlin source [RemovedFromKotlin]
+                """,
+        )
+    }
+
+    @Test
+    fun `Test switching items from all target languages to kotlin only`() {
+        check(
+            checkCompatibilityApiReleased =
+                """
+                package test.pkg {
+                  public class Foo {
+                    ctor public Foo();
+                    method public void fooMethod();
+                    field public int fooField;
+                  }
+                }
+                """,
+            signatureSource =
+                """
+                package test.pkg {
+                  @KotlinOnly public class Foo {
+                    ctor @KotlinOnly public Foo();
+                    method @KotlinOnly public void fooMethod();
+                    field @KotlinOnly public int fooField;
+                  }
+                }
+                """,
+            expectedIssues =
+                """
+                released-api.txt:3: error: Binary breaking change: class test.pkg.Foo has been removed from bytecode [RemovedFromBytecode]
+                released-api.txt:3: error: Source breaking change: class test.pkg.Foo can no longer be resolved from Java source [RemovedFromJava]
+                released-api.txt:4: error: Binary breaking change: constructor test.pkg.Foo() has been removed from bytecode [RemovedFromBytecode]
+                released-api.txt:4: error: Source breaking change: constructor test.pkg.Foo() can no longer be resolved from Java source [RemovedFromJava]
+                released-api.txt:5: error: Binary breaking change: method test.pkg.Foo.fooMethod() has been removed from bytecode [RemovedFromBytecode]
+                released-api.txt:5: error: Source breaking change: method test.pkg.Foo.fooMethod() can no longer be resolved from Java source [RemovedFromJava]
+                released-api.txt:6: error: Binary breaking change: field test.pkg.Foo.fooField has been removed from bytecode [RemovedFromBytecode]
+                released-api.txt:6: error: Source breaking change: field test.pkg.Foo.fooField can no longer be resolved from Java source [RemovedFromJava]
+                """,
+        )
+    }
+
+    @Test
+    fun `Test switching items from all target languages to bytecode only`() {
+        check(
+            checkCompatibilityApiReleased =
+                """
+                package test.pkg {
+                  public class Foo {
+                    ctor public Foo();
+                    method public void fooMethod();
+                    field public int fooField;
+                  }
+                }
+                """,
+            signatureSource =
+                """
+                package test.pkg {
+                  @BytecodeOnly public class Foo {
+                    ctor @BytecodeOnly public Foo();
+                    method @BytecodeOnly public void fooMethod();
+                    field @BytecodeOnly public int fooField;
+                  }
+                }
+                """,
+            expectedIssues =
+                """
+                released-api.txt:3: error: Source breaking change: class test.pkg.Foo can no longer be resolved from Java source [RemovedFromJava]
+                released-api.txt:3: error: Source breaking change: class test.pkg.Foo can no longer be resolved from Kotlin source [RemovedFromKotlin]
+                released-api.txt:4: error: Source breaking change: constructor test.pkg.Foo() can no longer be resolved from Java source [RemovedFromJava]
+                released-api.txt:4: error: Source breaking change: constructor test.pkg.Foo() can no longer be resolved from Kotlin source [RemovedFromKotlin]
+                released-api.txt:5: error: Source breaking change: method test.pkg.Foo.fooMethod() can no longer be resolved from Java source [RemovedFromJava]
+                released-api.txt:5: error: Source breaking change: method test.pkg.Foo.fooMethod() can no longer be resolved from Kotlin source [RemovedFromKotlin]
+                released-api.txt:6: error: Source breaking change: field test.pkg.Foo.fooField can no longer be resolved from Java source [RemovedFromJava]
+                released-api.txt:6: error: Source breaking change: field test.pkg.Foo.fooField can no longer be resolved from Kotlin source [RemovedFromKotlin]
+                """,
+        )
+    }
+
+    @Test
+    fun `Test switching items from inaccessible from one source language to bytecode only`() {
+        check(
+            checkCompatibilityApiReleased =
+                """
+                package test.pkg {
+                  public class Foo {
+                    ctor @InaccessibleFromJava public Foo();
+                    method @InaccessibleFromKotlin public void fooMethod();
+                  }
+                }
+                """,
+            signatureSource =
+                """
+                package test.pkg {
+                  public class Foo {
+                    ctor @BytecodeOnly public Foo();
+                    method @BytecodeOnly public void fooMethod();
+                  }
+                }
+                """,
+            expectedIssues =
+                """
+                released-api.txt:4: error: Source breaking change: constructor test.pkg.Foo() can no longer be resolved from Kotlin source [RemovedFromKotlin]
+                released-api.txt:5: error: Source breaking change: method test.pkg.Foo.fooMethod() can no longer be resolved from Java source [RemovedFromJava]
+                """,
+        )
+    }
+
+    @Test
+    fun `Test expanding number of target languages`() {
+        check(
+            checkCompatibilityApiReleased =
+                """
+                package test.pkg {
+                  public class Foo {
+                    ctor @BytecodeOnly public Foo();
+                    method @KotlinOnly public void fooMethod();
+                    field @InaccessibleFromJava public int fooField;
+                  }
+                }
+                """,
+            signatureSource =
+                """
+                package test.pkg {
+                  public class Foo {
+                    ctor @InaccessibleFromKotlin public Foo();
+                    method @InaccessibleFromJava public void fooMethod();
+                    field public int fooField;
+                  }
+                }
+                """,
             expectedIssues = "",
+        )
+    }
+
+    @Test
+    fun `Test both adding and removing target languages`() {
+        check(
+            checkCompatibilityApiReleased =
+                """
+                package test.pkg {
+                  @KotlinOnly public class Foo {
+                  }
+                }
+                """,
+            signatureSource =
+                """
+                package test.pkg {
+                  @InaccessibleFromKotlin public class Foo {
+                  }
+                }
+                """,
+            expectedIssues =
+                """
+                released-api.txt:3: error: Source breaking change: class test.pkg.Foo can no longer be resolved from Kotlin source [RemovedFromKotlin]
+                """,
         )
     }
 }

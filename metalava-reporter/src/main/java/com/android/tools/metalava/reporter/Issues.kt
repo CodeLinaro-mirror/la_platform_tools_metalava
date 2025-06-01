@@ -81,6 +81,9 @@ object Issues {
     val ADDED_REIFIED by Issue(Severity.ERROR, Category.BINARY_COMPATIBILITY_ONLY)
     val REMOVED_JVM_DEFAULT_WITH_COMPATIBILITY by
         Issue(Severity.ERROR, Category.BINARY_COMPATIBILITY_ONLY)
+    val REMOVED_FROM_BYTECODE by Issue(Severity.ERROR, Category.BINARY_COMPATIBILITY_ONLY)
+    val REMOVED_FROM_JAVA by Issue(Severity.ERROR, Category.SOURCE_COMPATIBILITY_ONLY)
+    val REMOVED_FROM_KOTLIN by Issue(Severity.ERROR, Category.SOURCE_COMPATIBILITY_ONLY)
 
     // Issues in javadoc generation
     val UNRESOLVED_LINK by Issue(Severity.ERROR, Category.DOCUMENTATION)

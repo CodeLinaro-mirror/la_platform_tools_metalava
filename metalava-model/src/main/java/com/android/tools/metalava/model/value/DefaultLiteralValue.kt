@@ -16,18 +16,51 @@
 
 package com.android.tools.metalava.model.value
 
+import com.android.tools.metalava.model.PrimitiveTypeItem
+import com.android.tools.metalava.model.TypeItem
+
 /** Base class for all [LiteralValue] implementations. */
-internal sealed class DefaultLiteralValue<U : Any> : DefaultValue(), LiteralValue<U>
+internal sealed class DefaultLiteralValue<U : Any> : DefaultValue(), LiteralValue<U> {
+    // Implement this in the class not the interface as it requires implementation details.
 
-internal sealed class DefaultPrimitiveValue<U : Any> : DefaultLiteralValue<U>(), PrimitiveValue<U>
+    override fun convertToType(
+        optionalTypeItem: TypeItem?,
+        forceNonLiteralInSource: Boolean,
+    ): LiteralValue<*> {
+        optionalTypeItem ?: return this
+        if (optionalTypeItem.isString() && underlyingValue is String) return this
+        if (optionalTypeItem !is PrimitiveTypeItem)
+            error("Cannot convert $this to a $optionalTypeItem")
 
-internal sealed class DefaultNumericValue<U : Number>(
+        // If the underlying value is already of the correct type and this is not being force to be
+        // non-literal, or if it is then it is already non-literal, then just return this.
+        // Otherwise, just drop through and perform the conversion.
+        if (
+            optionalTypeItem.kind.wrapperClass.isInstance(underlyingValue) &&
+                (!forceNonLiteralInSource || nonLiteralInSource)
+        )
+            return this
+
+        // Use the original value and original non-literal status.
+        return Value.createLiteralValue(
+            optionalTypeItem,
+            originalValue,
+            // Mark this as non-literal if it is being forced of this is already non-literal.
+            forceNonLiteralInSource || nonLiteralInSource
+        )
+    }
+
     /**
-     * True if the original value of this from the source, was specified as an integer, e.g. `3`
-     * instead of `3.0`, or `3.0f` or `3L`. This is used to tweak formatting to match legacy
-     * behavior.
+     * The original value of this from the source.
+     *
+     * This will differ from [underlyingValue] if this needed to be converted by
+     * [Value.createLiteralValue] to match the [TypeItem] for where this will be used. This is used
+     * to tweak formatting to match legacy behavior.
+     *
+     * This is [Any] instead of [Number] because the original value could be a [Char].
      */
-    private val wasOriginallySpecifiedAsInt: Boolean,
+    open val originalValue: Any
+        get() = underlyingValue
 
     /**
      * True if the source representation of this was a non-literal, i.e. not a literal expression
@@ -36,14 +69,20 @@ internal sealed class DefaultNumericValue<U : Number>(
      * generally false but may be true for some values that cannot be represented as a literal, e.g.
      * `Float.NaN`, etc.
      */
-    protected val nonLiteralInSource: Boolean,
-) : DefaultPrimitiveValue<U>() {
+    open val nonLiteralInSource: Boolean
+        get() = false
+}
 
+internal sealed class DefaultPrimitiveValue<U : Any> : DefaultLiteralValue<U>(), PrimitiveValue<U>
+
+internal sealed class DefaultNumericValue<U : Number>(
+    override val originalValue: Any,
+    override val nonLiteralInSource: Boolean,
+) : DefaultPrimitiveValue<U>() {
     /**
-     * If the [configuration] has [ValueStringConfiguration.treatAsIntIfOriginallySpecifiedAsInt]
-     * set to `true` and [wasOriginallySpecifiedAsInt] is also `true` then this will append
-     * [underlyingValue] as if it was an `int`, otherwise it will invoke [appendNumericValueTo] to
-     * append the value as normal.
+     * If the [configuration] has [ValueStringConfiguration.useOriginalValueForNumbers] set to
+     * `true` and [originalValue] is also `true` then this will append [underlyingValue] as if it
+     * was an `int`, otherwise it will invoke [appendNumericValueTo] to append the value as normal.
      */
     final override fun appendValueStringTo(
         builder: StringBuilder,
@@ -54,16 +93,27 @@ internal sealed class DefaultNumericValue<U : Number>(
             return
         }
 
-        if (configuration.treatAsIntIfOriginallySpecifiedAsInt && wasOriginallySpecifiedAsInt) {
-            val intValue = underlyingValue.toInt()
-            appendIntegerValueTo(builder, configuration, intValue)
-            return
+        if (configuration.useOriginalValueForNumbers) {
+            when (val originalValue = originalValue) {
+                is Int -> {
+                    appendIntegerValueTo(builder, configuration, originalValue)
+                    return
+                }
+                is Float -> {
+                    appendFloatValueTo(builder, configuration, originalValue)
+                    return
+                }
+            }
         }
 
         // Append the default numeric value to builder.
         appendNumericValueTo(builder, configuration)
     }
 
+    /**
+     * Append [intValue] to [builder] taking into account all relevant properties in
+     * [configuration].
+     */
     internal fun appendIntegerValueTo(
         builder: StringBuilder,
         configuration: ValueStringConfiguration,
@@ -81,6 +131,22 @@ internal sealed class DefaultNumericValue<U : Number>(
         }
     }
 
+    /**
+     * Append [floatValue] to [builder] taking into account all relevant properties in
+     * [configuration].
+     */
+    internal fun appendFloatValueTo(
+        builder: StringBuilder,
+        configuration: ValueStringConfiguration,
+        floatValue: Float,
+    ) {
+        // If it was not a literal then use the non-literal suffix. This is mutually
+        // exclusive with it being specified as an int so it does not matter which one is
+        // performed first.
+        val suffix = if (nonLiteralInSource) configuration.nonLiteralFloatSuffix else 'f'
+        builder.append(floatValue).append(suffix)
+    }
+
     internal open fun appendNumericValueTo(
         builder: StringBuilder,
         configuration: ValueStringConfiguration
@@ -89,11 +155,46 @@ internal sealed class DefaultNumericValue<U : Number>(
     }
 
     override fun appendLegacyStateTo(builder: StringBuilder) {
-        val expectToBeInt = javaClass === DefaultIntValue::class.java
-        if (wasOriginallySpecifiedAsInt != expectToBeInt) {
-            if (expectToBeInt) builder.append(",!asInt") else builder.append(",asInt")
+        // If the original value class does not match the underlying value class then that could
+        // affect the legacy behavior of this so make sure that information is included in the
+        // legacy state string representation.
+        val expectedOriginalValueClass = underlyingValue.javaClass
+        val actualOriginalValueClass = originalValue.javaClass
+        if (actualOriginalValueClass != expectedOriginalValueClass) {
+            when (actualOriginalValueClass) {
+                intWrapperClass -> builder.append(",asInt")
+                floatWrapperClass -> builder.append(",asFloat")
+                else ->
+                    // If the value expected an int, but it was not an int then include that in the
+                    // state.
+                    if (expectedOriginalValueClass == intWrapperClass) builder.append(",!asInt")
+                    // If the value expected a float, but it was not a float then include that in
+                    // the state.
+                    else if (
+                        expectedOriginalValueClass == floatWrapperClass &&
+                            !originalValue.isSpecialDouble()
+                    )
+                        builder.append(",!asFloat")
+            }
         }
         if (nonLiteralInSource) builder.append(",nonLiteral")
+    }
+
+    /**
+     * Checks to see whether this is a special [Double].
+     *
+     * This is needed as Psi has some special handling of floating point values which do not have a
+     * literal representation. It represents such values that are retrieved from a class constant
+     * pool similar to how they are represented in the source, i.e. as a division-by-zero
+     * expression. Unfortunately, it does not do that in exactly the same way, i.e. it uses
+     * `(0.0f/0.0)` to represent `Float.NaN`. Unfortunately, that actually evaluates to a `Double`.
+     * The source uses `(0.0f/0.0f)` which evaluates to a `Float`.
+     */
+    private fun Any.isSpecialDouble() = this is Double && (isInfinite() || isNaN())
+
+    companion object {
+        private val intWrapperClass = Int::class.javaObjectType
+        private val floatWrapperClass = Float::class.javaObjectType
     }
 }
 
@@ -102,42 +203,38 @@ internal class DefaultBooleanValue(override val underlyingValue: Boolean) :
 
 internal class DefaultByteValue(
     override val underlyingValue: Byte,
-    wasOriginallySpecifiedAsInt: Boolean = false,
+    originalValue: Any = underlyingValue,
     nonLiteralInSource: Boolean = false,
-) : DefaultNumericValue<Byte>(wasOriginallySpecifiedAsInt, nonLiteralInSource), ByteValue
+) : DefaultNumericValue<Byte>(originalValue, nonLiteralInSource), ByteValue
 
 internal class DefaultCharValue(override val underlyingValue: Char) :
     DefaultPrimitiveValue<Char>(), CharValue
 
 internal class DefaultDoubleValue(
     override val underlyingValue: Double,
-    wasOriginallySpecifiedAsInt: Boolean = false,
+    originalValue: Any = underlyingValue,
     nonLiteralInSource: Boolean = false,
-) : DefaultNumericValue<Double>(wasOriginallySpecifiedAsInt, nonLiteralInSource), DoubleValue
+) : DefaultNumericValue<Double>(originalValue, nonLiteralInSource), DoubleValue
 
 internal class DefaultFloatValue(
     override val underlyingValue: Float,
-    wasOriginallySpecifiedAsInt: Boolean = false,
+    originalValue: Any = underlyingValue,
     nonLiteralInSource: Boolean = false,
-) : DefaultNumericValue<Float>(wasOriginallySpecifiedAsInt, nonLiteralInSource), FloatValue {
+) : DefaultNumericValue<Float>(originalValue, nonLiteralInSource), FloatValue {
 
     override fun appendNumericValueTo(
         builder: StringBuilder,
         configuration: ValueStringConfiguration
     ) {
-        // If it was not a literal then use the non-literal suffix. This is mutually
-        // exclusive with it being specified as an int so it does not matter which one is
-        // performed first.
-        val suffix = if (nonLiteralInSource) configuration.nonLiteralFloatSuffix else 'f'
-        builder.append(underlyingValue).append(suffix)
+        appendFloatValueTo(builder, configuration, underlyingValue)
     }
 }
 
 internal class DefaultIntValue(
     override val underlyingValue: Int,
-    wasOriginallySpecifiedAsInt: Boolean = true,
+    originalValue: Any = underlyingValue,
     nonLiteralInSource: Boolean = false,
-) : DefaultNumericValue<Int>(wasOriginallySpecifiedAsInt, nonLiteralInSource), IntValue {
+) : DefaultNumericValue<Int>(originalValue, nonLiteralInSource), IntValue {
 
     override fun appendNumericValueTo(
         builder: StringBuilder,
@@ -149,9 +246,9 @@ internal class DefaultIntValue(
 
 internal class DefaultLongValue(
     override val underlyingValue: Long,
-    wasOriginallySpecifiedAsInt: Boolean = false,
+    originalValue: Any = underlyingValue,
     nonLiteralInSource: Boolean = false,
-) : DefaultNumericValue<Long>(wasOriginallySpecifiedAsInt, nonLiteralInSource), LongValue {
+) : DefaultNumericValue<Long>(originalValue, nonLiteralInSource), LongValue {
 
     override fun appendNumericValueTo(
         builder: StringBuilder,
@@ -163,9 +260,9 @@ internal class DefaultLongValue(
 
 internal class DefaultShortValue(
     override val underlyingValue: Short,
-    wasOriginallySpecifiedAsInt: Boolean = false,
+    originalValue: Any = underlyingValue,
     nonLiteralInSource: Boolean = false,
-) : DefaultNumericValue<Short>(wasOriginallySpecifiedAsInt, nonLiteralInSource), ShortValue
+) : DefaultNumericValue<Short>(originalValue, nonLiteralInSource), ShortValue
 
 internal class DefaultStringValue(override val underlyingValue: String) :
     DefaultLiteralValue<String>(), StringValue

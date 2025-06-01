@@ -251,8 +251,9 @@ fun Value.asString() = (asLiteralValue() as? StringValue)?.underlyingValue
  * @param singleArrayElementFormat How to treat an array that contains only a single element.
  * @param sortAnnotationAttributes Whether to sort the attributes by name or keep them in the order
  *   they were added.
- * @param treatAsIntIfOriginallySpecifiedAsInt Whether to treat a `double`, `float`, or `long` as an
- *   `int` if it was originally specified as an `int`.
+ * @param useOriginalValueForNumbers Whether to use the original value for a number value, i.e.
+ *   [ByteValue], [DoubleValue], [FloatValue], [IntValue], [LongValue], [ShortValue]. At the moment
+ *   this is limited to only using the original value if it was an `Int`.
  * @param valueLanguage The language whose representation of [Value] should be used.
  */
 data class ValueStringConfiguration(
@@ -267,7 +268,7 @@ data class ValueStringConfiguration(
     val singleArrayElementFormat: SingleArrayElementFormat = SingleArrayElementFormat.WRAP,
     val sortAnnotationAttributes: Boolean = true,
     val specialValues: Map<LiteralValue<*>, String> = defaultSpecialValues,
-    val treatAsIntIfOriginallySpecifiedAsInt: Boolean = false,
+    val useOriginalValueForNumbers: Boolean = false,
     val valueLanguage: ValueLanguage = ValueLanguage.JAVA,
 ) {
     /** Use the [nestedValueAppender] to append a string representation of [Value] to [builder]. */
@@ -460,11 +461,18 @@ sealed interface ConstantValue : ArrayElementValue {
     /**
      * Convert this [ConstantValue] to be of the [optionalTypeItem].
      *
-     * If [optionalTypeItem] is `null` then no conversion is possible or if this is already of the
-     * correct type then no conversion is necessary. In either case this just returns itself.
-     * Otherwise, it will use [Value.createLiteralValue] to perform the conversion.
+     * @param optionalTypeItem if `null` then no conversion is possible or if this [ConstantValue]
+     *   is already of the correct type then no conversion is necessary. In either case this just
+     *   returns itself. Otherwise, it will use [Value.createLiteralValue] to perform the
+     *   conversion.
+     * @param forceNonLiteralInSource if `true` then the returned value will, if possible, be marked
+     *   as non-literal which can affect the legacy formatting. If `false` then the returned value
+     *   will preserve the non-literal status of this.
      */
-    fun convertToType(optionalTypeItem: TypeItem?): ConstantValue
+    fun convertToType(
+        optionalTypeItem: TypeItem?,
+        forceNonLiteralInSource: Boolean = false,
+    ): ConstantValue
 }
 
 /**
@@ -483,15 +491,6 @@ sealed interface LiteralValue<T : Any> : ConstantValue {
 
     /** This is a [LiteralValue]. */
     override fun asLiteralValue() = this
-
-    override fun convertToType(optionalTypeItem: TypeItem?): LiteralValue<*> {
-        optionalTypeItem ?: return this
-        if (optionalTypeItem.isString() && underlyingValue is String) return this
-        if (optionalTypeItem !is PrimitiveTypeItem)
-            error("Cannot convert $this to a $optionalTypeItem")
-        if (optionalTypeItem.kind.wrapperClass.isInstance(underlyingValue)) return this
-        return Value.createLiteralValue(optionalTypeItem, underlyingValue)
-    }
 
     /**
      * Default implementation just appends the underlying value's standard [String.toString] value.
@@ -730,7 +729,12 @@ sealed interface AnnotationValue : ArrayElementValue {
     override fun appendValueStringTo(
         builder: StringBuilder,
         configuration: ValueStringConfiguration
-    ) = annotationItem.appendAnnotationStringTo(builder, configuration)
+    ) =
+        annotationItem.appendAnnotationStringTo(
+            builder,
+            configuration,
+            annotationIsValue = true,
+        )
 }
 
 /** A [Value] reference to a [Class] object. */

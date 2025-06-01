@@ -43,6 +43,8 @@ open class ComparisonVisitor {
 
     open fun removedItem(old: SelectableItem, from: SelectableItem?) {}
 
+    open fun compareSelectableItems(old: SelectableItem, new: SelectableItem) {}
+
     open fun comparePackageItems(old: PackageItem, new: PackageItem) {}
 
     open fun compareClassItems(old: ClassItem, new: ClassItem) {}
@@ -411,6 +413,7 @@ class CodebaseComparator {
         new: SelectableItem
     ) {
         visitor.compareItems(old, new)
+        visitor.compareSelectableItems(old, new)
 
         if (old is CallableItem) {
             visitor.compareCallableItems(old, new as CallableItem)

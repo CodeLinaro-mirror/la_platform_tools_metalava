@@ -41,6 +41,7 @@ import com.google.turbine.model.TurbineConstantTypeKind
 import com.google.turbine.tree.Tree
 import com.google.turbine.tree.Tree.ArrayInit
 import com.google.turbine.tree.Tree.ConstVarName
+import com.google.turbine.tree.Tree.Expression
 
 /**
  * Factory for creating [Value]s from [TurbineValue]s.
@@ -191,14 +192,11 @@ internal class TurbineValueFactory(globalContext: TurbineGlobalContext) :
             val fieldSymbol = fieldInfo?.sym()
             // If the field could be resolved then wrap it around the constant value.
             if (fieldSymbol != null) {
-                // Get the constant value first.
-                val constantValue = toConstant(optionalTypeItem)
-
-                return createFieldReferenceValue(
+                return createFieldReferenceValueWithDeferredConstantValue(
                     codebase,
                     fieldSymbol.owner().qualifiedName,
                     fieldSymbol.name(),
-                    constantValue,
+                    optionalTypeItem,
                 )
             }
         }
@@ -243,10 +241,12 @@ internal class TurbineValueFactory(globalContext: TurbineGlobalContext) :
                         is Float,
                         is Long,
                         is Short -> {
-                            when {
-                                expr is Tree.Literal &&
-                                    expr.tykind() == TurbineConstantTypeKind.INT -> {
+                            when (expr.getLiteralKind()) {
+                                TurbineConstantTypeKind.INT -> {
                                     (underlyingValue as Number).toInt()
+                                }
+                                TurbineConstantTypeKind.FLOAT -> {
+                                    (underlyingValue as Number).toFloat()
                                 }
                                 else -> underlyingValue
                             }
@@ -264,6 +264,20 @@ internal class TurbineValueFactory(globalContext: TurbineGlobalContext) :
             "Unknown value '$const' of ${const.javaClass} for type $optionalTypeItem"
         )
     }
+
+    /**
+     * Get the literal kind of this expression.
+     *
+     * If this is itself a [Tree.Literal] then return its [Tree.Literal.tykind]. Otherwise, if this
+     * is a [Tree.Unary], e.g. `-<expr>` of `+<expr>`, then it will call this on its
+     * [Tree.Unary.expr].
+     */
+    private fun Expression.getLiteralKind(): TurbineConstantTypeKind? =
+        when (this) {
+            is Tree.Literal -> this.tykind()
+            is Tree.Unary -> expr().getLiteralKind()
+            else -> null
+        }
 }
 
 /**

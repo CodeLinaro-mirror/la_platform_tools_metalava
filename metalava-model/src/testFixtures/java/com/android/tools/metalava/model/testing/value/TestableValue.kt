@@ -22,7 +22,6 @@ import com.android.tools.metalava.model.DefaultAnnotationAttribute
 import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.TypeItem
-import com.android.tools.metalava.model.asAnnotationAttributeValue
 import com.android.tools.metalava.model.testing.primitiveTypeForKind
 import com.android.tools.metalava.model.value.AnnotationValue
 import com.android.tools.metalava.model.value.ArrayElementValue
@@ -70,10 +69,10 @@ fun classObjectValue(typeItem: TypeItem, sourceExpression: String? = null) =
 fun fieldReferenceValue(
     qualifiedClassName: String,
     fieldName: String,
-    constantValue: ConstantValue? = null
+    constantValue: ConstantValue? = null,
 ) =
     Value.createFieldReferenceValue(
-        ClassResolver.THROWING,
+        ClassResolver.RETURN_NULL,
         qualifiedClassName,
         fieldName,
         constantValue,
@@ -92,17 +91,15 @@ fun annotationItem(qualifiedClassName: String, vararg attributes: Pair<String, V
     DefaultAnnotationItem.createAttributesLazily(
         AnnotationContext.DEFAULT_RESOLVE_NULL,
         FileLocation.UNKNOWN,
-        qualifiedClassName,
-        {
-            attributes.map { (name, value) ->
-                DefaultAnnotationAttribute(
-                    name,
-                    value.provider(),
-                    value.asAnnotationAttributeValue(),
-                )
-            }
+        qualifiedClassName
+    ) {
+        attributes.map { (name, value) ->
+            DefaultAnnotationAttribute(
+                name,
+                value.provider(),
+            )
         }
-    )!!
+    }!!
 
 /**
  * The set of [ValueKind]s that are fully supported across models and so will be tested rigorously,

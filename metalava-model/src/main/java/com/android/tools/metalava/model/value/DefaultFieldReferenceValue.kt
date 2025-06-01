@@ -112,7 +112,13 @@ internal class LazyFieldReferenceValue(
         // used, just as it would if the field reference was replaced by its constant value. So,
         // an `int` constant field that is used where a `long` is expected will be represented
         // as a `LongValue` that was originally specified as an int.
-        return fieldItem.constantValue?.convertToType(optionalTypeItem)
+        //
+        // A field reference is not a literal so a value retrieved from a field must always be
+        // marked as non-literal.
+        return fieldItem.constantValue?.convertToType(
+            optionalTypeItem,
+            forceNonLiteralInSource = true,
+        )
     }
 
     /**
