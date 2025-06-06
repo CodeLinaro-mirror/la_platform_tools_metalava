@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.ANNOTATION_IN_ALL_STUBS
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.annotation.AnnotationFilter
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
 import com.android.tools.metalava.model.getAttributeValue
@@ -31,6 +32,7 @@ import com.android.tools.metalava.model.testing.value.arrayValue
 import com.android.tools.metalava.model.testing.value.assertValuesAreStrictlyEqual
 import com.android.tools.metalava.model.testing.value.classObjectValue
 import com.android.tools.metalava.model.testing.value.fieldReferenceValue
+import com.android.tools.metalava.model.testing.value.primitiveValueForKind
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.model.value.FieldReferenceValue
 import com.android.tools.metalava.model.value.Value
@@ -40,6 +42,7 @@ import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertSame
 import org.junit.Test
 
@@ -1465,6 +1468,94 @@ class CommonAnnotationItemTest : BaseModelTest() {
             val toSource = """@test.pkg.Test.Anno(value=0xc, name="FirstNameLastName", id=0x6)"""
             assertEquals(toSource, anno.toSource())
         }
+    }
+
+    private fun checkGetVsSetParamAnnotation(
+        attributeType: String,
+        attributePrimitive: Primitive,
+        expectedAttributeString: String,
+    ) {
+        runCodebaseTest(
+            kotlin(
+                """
+                        package test.pkg
+
+                        annotation class Anno(val attr: $attributeType)
+
+                        class Test {
+                            @get:Anno(attr = 12) @setparam:Anno(attr = 12) var property = 0
+                        }
+                    """
+            )
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            val property = testClass.properties().single()
+
+            val expectedValue = primitiveValueForKind(attributePrimitive, 12)
+
+            // Test the annotation on the property (the @get:Anno).
+            property.modifiers.annotations().single().let { anno ->
+                assertEquals(
+                    "@test.pkg.Anno(attr=$expectedAttributeString)",
+                    anno.toSource(context = property),
+                    message = "@get:Anno"
+                )
+
+                assertValuesAreStrictlyEqual(
+                    expectedValue,
+                    anno.assertAttribute("attr").value,
+                    message = "@get:Anno"
+                )
+            }
+
+            // Test the annotation on the setter parameter (the @setparam:Anno).
+            val setter = property.setter
+            assertNotNull(setter, message = "setter method")
+            val parameter = setter.parameters().single()
+            parameter.modifiers.annotations().single().let { anno ->
+                assertEquals(
+                    "@test.pkg.Anno(attr=$expectedAttributeString)",
+                    anno.toSource(context = parameter),
+                    message = "@setparam:Anno"
+                )
+
+                assertValuesAreStrictlyEqual(
+                    expectedValue,
+                    anno.assertAttribute("attr").value,
+                    message = "@setparam:Anno"
+                )
+            }
+        }
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `annotation toSource() on @get and @setparam annotations - byte`() {
+        checkGetVsSetParamAnnotation(
+            attributeType = "Byte",
+            attributePrimitive = Primitive.BYTE,
+            expectedAttributeString = "12",
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `annotation toSource() on @get and @setparam annotations - short`() {
+        checkGetVsSetParamAnnotation(
+            attributeType = "Short",
+            attributePrimitive = Primitive.SHORT,
+            expectedAttributeString = "12",
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `annotation toSource() on @get and @setparam annotations - long`() {
+        checkGetVsSetParamAnnotation(
+            attributeType = "Long",
+            attributePrimitive = Primitive.LONG,
+            expectedAttributeString = "12L",
+        )
     }
 
     @Test

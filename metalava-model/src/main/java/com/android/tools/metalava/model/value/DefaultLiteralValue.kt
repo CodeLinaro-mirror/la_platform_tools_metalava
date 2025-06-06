@@ -28,7 +28,7 @@ internal sealed class DefaultLiteralValue<U : Any> : DefaultValue(), LiteralValu
         forceNonLiteralInSource: Boolean,
     ): LiteralValue<*> {
         optionalTypeItem ?: return this
-        if (optionalTypeItem.isString() && underlyingValue is String) return this
+        if (optionalTypeItem.isPossiblyUnresolvedString() && underlyingValue is String) return this
         if (optionalTypeItem !is PrimitiveTypeItem)
             error("Cannot convert $this to a $optionalTypeItem")
 

@@ -185,6 +185,16 @@ class ValueParser(
             val className = matchResult.groups[CLASS_NAME_GROUP_INDEX]?.value ?: ""
             val fieldName = matchResult.groups[FIELD_NAME_GROUP_INDEX]!!.value
 
+            // If there was an explicit conversion function call on the field reference then make
+            // sure to track that.
+            val explicitConversionTo =
+                matchResult.groups[OPTIONAL_CONVERSION_FUNCTION_NAME_GROUP_INDEX]?.value?.let {
+                    conversionFunctionName ->
+                    PrimitiveTypeItem.Primitive.forKotlinNumericConversionFunctionName(
+                        conversionFunctionName
+                    )
+                }
+
             // Parse the class name to a type.
             val classTypeItem =
                 typeItemParser.obtainTypeFromString(
@@ -199,6 +209,7 @@ class ValueParser(
                 qualifiedClassName,
                 fieldName,
                 optionalTypeItem,
+                explicitConversionTo = explicitConversionTo,
             )
         }
 
@@ -617,15 +628,22 @@ class ValueParser(
         /**
          * Pattern to match a field, including a class literal of the form `<class>.class` and an
          * unqualified field of the form `FIELD`.
+         *
+         * This also matches an optional call to a numeric conversion function, e.g. `Int.toLong()`.
          */
         internal val fieldReferencePattern =
-            Regex("""(?:([a-zA-Z0-9_]+(?:\.[a-zA-Z0-9_]+)*)\.)?([a-zA-Z0-9_]+)""")
+            Regex(
+                """(?:([a-zA-Z0-9_]+(?:\.[a-zA-Z0-9_]+)*)\.)?([a-zA-Z0-9_]+)(?:\.(to(?:Byte|Double|Float|Int|Long|Short))\(\))?"""
+            )
 
         /** Index of class name group in [fieldReferencePattern]. */
         private const val CLASS_NAME_GROUP_INDEX = 1
 
         /** Index of field name group in [fieldReferencePattern]. */
         private const val FIELD_NAME_GROUP_INDEX = 2
+
+        /** Index of optional conversion function name group in [fieldReferencePattern]. */
+        private const val OPTIONAL_CONVERSION_FUNCTION_NAME_GROUP_INDEX = 3
 
         /**
          * Pattern to match a Kotlin style annotation value which looks like a constructor call for

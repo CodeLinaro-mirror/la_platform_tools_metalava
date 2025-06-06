@@ -159,7 +159,6 @@ com.android.tools.metalava.model.testsuite.value.CommonParameterizedFieldValueTe
   testFieldValue[psi,kotlin,k2,source,unsigned int - expression]
   testFieldValue[text,source,byte - cast]
   testFieldValue[text,source,short - cast]
-  testFieldValue[turbine,source,field - long with int constant]
 
 com.android.tools.metalava.model.testsuite.value.CommonParameterizedFieldWriteWithSemicolonValueTest
   testLegacySource[psi,kotlin,k1,source,null - intermediate non-constant expression]
