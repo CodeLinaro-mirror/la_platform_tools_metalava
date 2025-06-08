@@ -203,12 +203,17 @@ interface ValueFactory {
      * @param fieldName the name of the field.
      * @param optionalTypeItem the optional [TypeItem] determined by the context within which the
      *   [FieldReferenceValue] will be used.
+     * @param kotlinCompanionClass the name of the companion class if the field is inside a Kotlin
+     *   `Companion` object, `null` if it is not. In either case [qualifiedClassName] is the name of
+     *   the main class, NOT the companion class.
      */
     fun createFieldReferenceValueWithDeferredConstantValue(
         classResolver: ClassResolver,
         qualifiedClassName: String,
         fieldName: String,
         optionalTypeItem: TypeItem?,
+        kotlinCompanionClass: String? = null,
+        explicitConversionTo: Primitive? = null,
     ): ArrayElementValue {
         // Create a field.
         val fieldReferenceValue =
@@ -217,6 +222,8 @@ interface ValueFactory {
                 qualifiedClassName,
                 fieldName,
                 optionalTypeItem,
+                kotlinCompanionClass,
+                explicitConversionTo,
             )
 
         // The field may need mapping to a constant value to eliminate differences between Kotlin
@@ -233,6 +240,8 @@ interface ValueFactory {
         qualifiedClassName: String,
         fieldName: String,
         constantValue: ConstantValue? = null,
+        kotlinCompanionClass: String? = null,
+        explicitConversionTo: Primitive? = null,
     ): ArrayElementValue {
         // Create a field.
         val fieldReferenceValue =
@@ -241,6 +250,8 @@ interface ValueFactory {
                 qualifiedClassName,
                 fieldName,
                 constantValue,
+                kotlinCompanionClass,
+                explicitConversionTo,
             )
 
         // The field may need mapping to a constant value to eliminate differences between Kotlin
@@ -258,17 +269,6 @@ interface ValueFactory {
     /** Create an [AnnotationValue] that wraps an [AnnotationItem]. */
     fun createAnnotationValue(annotationItem: AnnotationItem): AnnotationValue =
         DefaultAnnotationValue(annotationItem)
-
-    /**
-     * Check to see whether this [TypeItem] is `java.lang.String`.
-     *
-     * As the definition of `java.lang.String` may not have been provided to Metalava also check for
-     * `String` as that is most likely to be an unresolved reference to `java.lang.String`. If it
-     * was a custom class then presumably that would be defined somewhere in which case it would
-     * have been resolved to the class and so would not be an unqualified name.
-     */
-    fun TypeItem.isPossiblyUnresolvedString() =
-        isString() || (this is ClassTypeItem && qualifiedName == "String")
 
     /** Check if this [TypeItem] is a constant type, i.e. a [String] or a primitive type. */
     fun TypeItem.isConstantType() = isPossiblyUnresolvedString() || this is PrimitiveTypeItem
@@ -627,3 +627,14 @@ interface ValueFactory {
 /** Type of values in [primitiveValueFactories]. */
 internal typealias PrimitiveValueFactory<T> =
     (underlyingValue: Any, originalValue: Any, nonLiteralInSource: Boolean) -> PrimitiveValue<T>
+
+/**
+ * Check to see whether this [TypeItem] is `java.lang.String`.
+ *
+ * As the definition of `java.lang.String` may not have been provided to Metalava also check for
+ * `String` as that is most likely to be an unresolved reference to `java.lang.String`. If it was a
+ * custom class then presumably that would be defined somewhere in which case it would have been
+ * resolved to the class and so would not be an unqualified name.
+ */
+internal fun TypeItem.isPossiblyUnresolvedString() =
+    isString() || (this is ClassTypeItem && qualifiedName == "String")

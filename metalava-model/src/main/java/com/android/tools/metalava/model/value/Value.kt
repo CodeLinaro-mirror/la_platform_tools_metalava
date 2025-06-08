@@ -248,6 +248,10 @@ fun Value.asString() = (asLiteralValue() as? StringValue)?.underlyingValue
  *   expression).
  * @param nonLiteralIntFormat How to format an [IntValue] that was represented in the source as an
  *   expression (including negative numbers which are represented as a unary minus expression).
+ * @param showKotlinCompanionClass Whether to show that a field is in a Kotlin Companion object or
+ *   not.
+ * @param showKotlinConversionFunction Whether to show an explicit conversion function call, e.g.
+ *   `.toLong()` for a field reference that requires converting in Kotlin.
  * @param singleArrayElementFormat How to treat an array that contains only a single element.
  * @param sortAnnotationAttributes Whether to sort the attributes by name or keep them in the order
  *   they were added.
@@ -261,6 +265,8 @@ data class ValueStringConfiguration(
         AnnotationAttributeNameValueSeparator.WITH_SPACES,
     val annotationQualifiedNameGetter: (AnnotationItem) -> String = { it.qualifiedName },
     val classObjectValueFormat: ClassObjectValueFormat = ClassObjectValueFormat.JAVA,
+    val showKotlinCompanionClass: Boolean = false,
+    val showKotlinConversionFunction: Boolean = false,
     val nestedValueAppender: (Value, StringBuilder, ValueStringConfiguration) -> Unit =
         Value::appendValueStringTo,
     val nonLiteralFloatSuffix: Char = 'f',

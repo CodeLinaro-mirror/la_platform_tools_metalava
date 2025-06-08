@@ -191,7 +191,7 @@ constructor(
     val classSuffix = name.replace(' ', '_').replace('-', '_')
 
     /** True if this is supported to be a field constant. */
-    internal val isConstant
+    private val isConstant
         get() = javaType in constantTypeNames || kotlinType in unsignedConstantTypeNames
 
     companion object {
@@ -226,6 +226,9 @@ constructor(
         /** All except Signature. */
         private val notValidForSignature = EnumSet.complementOf(EnumSet.of(InputFormat.SIGNATURE))
 
+        /** All except Java. */
+        private val notValidForJava = EnumSet.complementOf(EnumSet.of(InputFormat.JAVA))
+
         /** Only Java. */
         private val onlyValidForJava = EnumSet.of(InputFormat.JAVA)
 
@@ -249,11 +252,7 @@ constructor(
                             annotationToSource = "@test.pkg.OtherAnnotation(intType=1)"
                         },
                     expectedKotlinLegacySource =
-                        expectations {
-                            common = "OtherAnnotation(intType = 1)"
-
-                            source { attributeDefaultValue = "test.pkg.OtherAnnotation(intType=1)" }
-                        },
+                        expectations { common = "test.pkg.OtherAnnotation(intType=1)" },
                     // Annotation literals cannot be used in fields.
                     suitableFor = allLegacyValueUseSitesExceptFields,
                     expectedValue =
@@ -303,8 +302,6 @@ constructor(
                     expectedKotlinLegacySource =
                         expectations {
                             common = "test.pkg.OtherAnnotation(stringType=\"one\", intType=3)"
-
-                            annotationToSource = "test.pkg.OtherAnnotation(\"one\", 3)"
                         },
                     // Annotation literals cannot be used in fields.
                     suitableFor = allLegacyValueUseSitesExceptFields,
@@ -355,11 +352,7 @@ constructor(
                     expectedKotlinLegacySource =
                         expectations {
                             common =
-                                "[test.pkg.OtherAnnotation(intType = 1), test.pkg.OtherAnnotation(intType = 2)]"
-                            attributeDefaultValue =
                                 "{test.pkg.OtherAnnotation(intType=1), test.pkg.OtherAnnotation(intType=2)}"
-                            annotationToSource =
-                                "{test.pkg.OtherAnnotation(1), test.pkg.OtherAnnotation(2)}"
                         },
                     // Annotation literals cannot be used in fields.
                     suitableFor = allLegacyValueUseSitesExceptFields,
@@ -430,8 +423,6 @@ constructor(
                     kotlinType = "Byte",
                     kotlinExpression = "116.toByte()",
                     expectedLegacySource = expectations { common = "116" },
-                    expectedKotlinLegacySource =
-                        expectations { source { annotationToSource = "116.toByte()" } },
                     expectedValue =
                         expectations {
                             common = literalValue(116.toByte(), nonLiteralInSource = true)
@@ -694,6 +685,7 @@ constructor(
                                 fieldWriteWithSemicolon = "3.0"
                             }
                         },
+                    expectedKotlinLegacySource = expectations { annotationToSource = "3.0" },
                     expectedValue =
                         expectations {
                             // Expect a double value created from an int.
@@ -717,6 +709,7 @@ constructor(
                                 annotationToSource = "0xfffffffe"
                             }
                         },
+                    expectedKotlinLegacySource = expectations { annotationToSource = "-2.0" },
                     expectedValue =
                         expectations {
                             // Expect a double value created from an int.
@@ -739,9 +732,10 @@ constructor(
                                 annotationToSource = "2.0f"
                             }
                         },
+                    expectedKotlinLegacySource = expectations { annotationToSource = "2.0" },
                     expectedValue =
                         expectations {
-                            // Expect a double value created from an int.
+                            // Expect a double value created from a float.
                             common = primitiveValueForKind(Primitive.DOUBLE, 2.0f)
                             jar { common = literalValue(2.0) }
                         },
@@ -762,6 +756,7 @@ constructor(
                                 annotationToSource = "-2.0F"
                             }
                         },
+                    expectedKotlinLegacySource = expectations { annotationToSource = "-2.0" },
                     expectedValue =
                         expectations {
                             // Expect a double value created from a float
@@ -958,7 +953,7 @@ constructor(
                             }
                         },
                 ),
-                // Check the behavior of using an int constant field with a long value.
+                // Check the behavior of using an int constant field converted to a long value.
                 ValueExample(
                     name = "field - long with int constant",
                     javaType = "long",
@@ -983,7 +978,7 @@ constructor(
                                     primitiveValueForKind(
                                         Primitive.LONG,
                                         37,
-                                        nonLiteralInSource = true
+                                        nonLiteralInSource = true,
                                     )
                                 )
                             jar {
@@ -991,6 +986,234 @@ constructor(
                                 // correct type.
                                 common = literalValue(37L)
                             }
+                        },
+                ),
+                // Check the behavior of using an int constant field converted to a byte value.
+                ValueExample(
+                    name = "field - converted to byte",
+                    javaType = "byte",
+                    kotlinType = "Byte",
+                    kotlinExpression = "test.pkg.Constants.INT_CONSTANT.toByte()",
+                    signatureExpression = "test.pkg.Constants.INT_CONSTANT.toByte()",
+                    // Only Kotlin needs to support explicit casting like this, Java will cast
+                    // implicitly. Signature files may contain these casts, so it needs to know how
+                    // to parse them.
+                    validForInputFormats = notValidForJava,
+                    expectedLegacySource =
+                        expectations {
+                            common = "test.pkg.Constants.INT_CONSTANT"
+
+                            fieldWriteWithSemicolon = "37"
+                        },
+                    expectedKotlinLegacySource =
+                        expectations {
+                            source {
+                                annotationToSource = "test.pkg.Constants.INT_CONSTANT.toByte()"
+                                attributeDefaultValue = "test.pkg.Constants.INT_CONSTANT"
+                            }
+                        },
+                    expectedValue =
+                        expectations {
+                            common =
+                                fieldReferenceValue(
+                                    "test.pkg.Constants",
+                                    "INT_CONSTANT",
+                                    primitiveValueForKind(
+                                        Primitive.BYTE,
+                                        37,
+                                        nonLiteralInSource = true,
+                                    ),
+                                )
+                        },
+                ),
+                // Check the behavior of using an int constant field converted to a double value.
+                ValueExample(
+                    name = "field - converted to double",
+                    javaType = "double",
+                    kotlinType = "Double",
+                    kotlinExpression = "test.pkg.Constants.INT_CONSTANT.toDouble()",
+                    signatureExpression = "test.pkg.Constants.INT_CONSTANT.toDouble()",
+                    // Only Kotlin needs to support explicit casting like this, Java will cast
+                    // implicitly. Signature files may contain these casts, so it needs to know how
+                    // to parse them.
+                    validForInputFormats = notValidForJava,
+                    expectedLegacySource =
+                        expectations {
+                            common = "test.pkg.Constants.INT_CONSTANT"
+
+                            fieldWriteWithSemicolon = "37.0"
+                        },
+                    expectedKotlinLegacySource =
+                        expectations {
+                            source {
+                                annotationToSource = "test.pkg.Constants.INT_CONSTANT.toDouble()"
+                                attributeDefaultValue = "test.pkg.Constants.INT_CONSTANT"
+                            }
+                        },
+                    expectedValue =
+                        expectations {
+                            common =
+                                fieldReferenceValue(
+                                    "test.pkg.Constants",
+                                    "INT_CONSTANT",
+                                    primitiveValueForKind(
+                                        Primitive.DOUBLE,
+                                        37,
+                                        nonLiteralInSource = true,
+                                    ),
+                                )
+                        },
+                ),
+                // Check the behavior of using an int constant field converted to a float value.
+                ValueExample(
+                    name = "field - converted to float",
+                    javaType = "float",
+                    kotlinType = "Float",
+                    kotlinExpression = "test.pkg.Constants.INT_CONSTANT.toFloat()",
+                    signatureExpression = "test.pkg.Constants.INT_CONSTANT.toFloat()",
+                    // Only Kotlin needs to support explicit casting like this, Java will cast
+                    // implicitly. Signature files may contain these casts, so it needs to know how
+                    // to parse them.
+                    validForInputFormats = notValidForJava,
+                    expectedLegacySource =
+                        expectations {
+                            common = "test.pkg.Constants.INT_CONSTANT"
+
+                            fieldWriteWithSemicolon = "37.0f"
+                        },
+                    expectedKotlinLegacySource =
+                        expectations {
+                            source {
+                                annotationToSource = "test.pkg.Constants.INT_CONSTANT.toFloat()"
+                                attributeDefaultValue = "test.pkg.Constants.INT_CONSTANT"
+                            }
+                        },
+                    expectedValue =
+                        expectations {
+                            common =
+                                fieldReferenceValue(
+                                    "test.pkg.Constants",
+                                    "INT_CONSTANT",
+                                    primitiveValueForKind(
+                                        Primitive.FLOAT,
+                                        37,
+                                        nonLiteralInSource = true,
+                                    ),
+                                )
+                        },
+                ),
+                // Check the behavior of using a long constant field converted to an int value.
+                ValueExample(
+                    name = "field - converted to int",
+                    javaType = "int",
+                    kotlinType = "Int",
+                    kotlinExpression = "test.pkg.Constants.LONG_CONSTANT.toInt()",
+                    signatureExpression = "test.pkg.Constants.LONG_CONSTANT.toInt()",
+                    // Only Kotlin needs to support explicit casting like this, Java will cast
+                    // implicitly. Signature files may contain these casts, so it needs to know how
+                    // to parse them.
+                    validForInputFormats = notValidForJava,
+                    expectedLegacySource =
+                        expectations {
+                            common = "test.pkg.Constants.LONG_CONSTANT"
+
+                            fieldWriteWithSemicolon = "9"
+                        },
+                    expectedKotlinLegacySource =
+                        expectations {
+                            source {
+                                annotationToSource = "test.pkg.Constants.LONG_CONSTANT.toInt()"
+                                attributeDefaultValue = "test.pkg.Constants.LONG_CONSTANT"
+                            }
+                        },
+                    expectedValue =
+                        expectations {
+                            common =
+                                fieldReferenceValue(
+                                    "test.pkg.Constants",
+                                    "LONG_CONSTANT",
+                                    primitiveValueForKind(
+                                        Primitive.INT,
+                                        9L,
+                                        nonLiteralInSource = true,
+                                    ),
+                                )
+                        },
+                ),
+                // Check the behavior of using an int constant field converted to a long value.
+                ValueExample(
+                    name = "field - converted to long",
+                    javaType = "long",
+                    kotlinType = "Long",
+                    kotlinExpression = "test.pkg.Constants.INT_CONSTANT.toLong()",
+                    signatureExpression = "test.pkg.Constants.INT_CONSTANT.toLong()",
+                    // Only Kotlin needs to support explicit casting like this, Java will cast
+                    // implicitly. Signature files may contain these casts, so it needs to know how
+                    // to parse them.
+                    validForInputFormats = notValidForJava,
+                    expectedLegacySource =
+                        expectations {
+                            common = "test.pkg.Constants.INT_CONSTANT"
+
+                            fieldWriteWithSemicolon = "37L"
+                        },
+                    expectedKotlinLegacySource =
+                        expectations {
+                            source {
+                                annotationToSource = "test.pkg.Constants.INT_CONSTANT.toLong()"
+                                attributeDefaultValue = "test.pkg.Constants.INT_CONSTANT"
+                            }
+                        },
+                    expectedValue =
+                        expectations {
+                            common =
+                                fieldReferenceValue(
+                                    "test.pkg.Constants",
+                                    "INT_CONSTANT",
+                                    primitiveValueForKind(
+                                        Primitive.LONG,
+                                        37,
+                                        nonLiteralInSource = true,
+                                    ),
+                                )
+                        },
+                ),
+                // Check the behavior of using an int constant field converted to a short value.
+                ValueExample(
+                    name = "field - converted to short",
+                    javaType = "short",
+                    kotlinType = "Short",
+                    kotlinExpression = "test.pkg.Constants.INT_CONSTANT.toShort()",
+                    signatureExpression = "test.pkg.Constants.INT_CONSTANT.toShort()",
+                    // Only Kotlin needs to support explicit casting like this, Java will cast
+                    // implicitly. Signature files may contain these casts, so it needs to know how
+                    // to parse them.
+                    validForInputFormats = notValidForJava,
+                    expectedLegacySource =
+                        expectations {
+                            common = "test.pkg.Constants.INT_CONSTANT"
+
+                            fieldWriteWithSemicolon = "37"
+                        },
+                    expectedKotlinLegacySource =
+                        expectations {
+                            source {
+                                annotationToSource = "test.pkg.Constants.INT_CONSTANT.toShort()"
+                                attributeDefaultValue = "test.pkg.Constants.INT_CONSTANT"
+                            }
+                        },
+                    expectedValue =
+                        expectations {
+                            common =
+                                fieldReferenceValue(
+                                    "test.pkg.Constants",
+                                    "INT_CONSTANT",
+                                    primitiveValueForKind(
+                                        Primitive.SHORT,
+                                        37,
+                                        nonLiteralInSource = true,
+                                    ),
+                                )
                         },
                 ),
                 // Check a negative float
@@ -1006,7 +1229,11 @@ constructor(
                             // TODO(b/354633349): Consistency is good.
                             annotationToSource = "-2.7F"
                         },
-                    expectedKotlinLegacySource = expectations { attributeDefaultValue = "-2.7" },
+                    expectedKotlinLegacySource =
+                        expectations {
+                            annotationToSource = "-2.7f"
+                            attributeDefaultValue = "-2.7"
+                        },
                     expectedValue =
                         expectations {
                             // Expect a float value created from an int.
@@ -1039,6 +1266,7 @@ constructor(
 
                             fieldWriteWithSemicolon = "3.0f"
                         },
+                    expectedKotlinLegacySource = expectations { annotationToSource = "3.0f" },
                     expectedValue =
                         expectations {
                             // Expect a float value created from an int.
@@ -1071,6 +1299,7 @@ constructor(
                                 annotationToSource = "-2.0F"
                             }
                         },
+                    expectedKotlinLegacySource = expectations { annotationToSource = "-2.0f" },
                     expectedValue =
                         expectations {
                             // Expect a float value created from an int.
@@ -1255,7 +1484,12 @@ constructor(
                             source { annotationToSource = "3.1875F" }
                         },
                     expectedKotlinLegacySource =
-                        expectations { source { attributeDefaultValue = "3.1875" } },
+                        expectations {
+                            source {
+                                annotationToSource = "3.1875f"
+                                attributeDefaultValue = "3.1875"
+                            }
+                        },
                     expectedValue =
                         expectations {
                             common = literalValue(3.1875f, nonLiteralInSource = true)
@@ -1454,8 +1688,6 @@ constructor(
                     kotlinType = "Short",
                     kotlinExpression = "32000.toShort()",
                     expectedLegacySource = expectations { common = "32000" },
-                    expectedKotlinLegacySource =
-                        expectations { annotationToSource = "32000.toShort()" },
                     expectedValue =
                         expectations {
                             common = literalValue(32000.toShort(), nonLiteralInSource = true)

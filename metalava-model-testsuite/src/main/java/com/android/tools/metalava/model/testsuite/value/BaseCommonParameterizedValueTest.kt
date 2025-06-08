@@ -606,6 +606,7 @@ object JavaTestClassCreator : TestClassCreator {
                 public interface Constants {
                     String STRING_CONSTANT = "constant";
                     int INT_CONSTANT = 37;
+                    long LONG_CONSTANT = 9L;
                 }
             """
         )
@@ -783,6 +784,7 @@ object KotlinTestClassCreator : TestClassCreator {
                 object Constants {
                     const val STRING_CONSTANT = "constant"
                     const val INT_CONSTANT = 37
+                    const val LONG_CONSTANT = 9L
                 }
             """
         )
@@ -969,6 +971,7 @@ object SignatureTestClassCreator : TestClassCreator {
                   public interface Constants {
                     field public static final String STRING_CONSTANT = "constant";
                     field public static final int INT_CONSTANT = 37;
+                    field public static final long LONG_CONSTANT = 9L;
                   }
                   public interface GenericClass<T> {
                     field public static final String STRING_CONSTANT = "constant";

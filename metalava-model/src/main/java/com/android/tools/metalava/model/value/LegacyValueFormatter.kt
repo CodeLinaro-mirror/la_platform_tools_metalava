@@ -27,6 +27,7 @@ import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.javaEscapeString
 import java.lang.StringBuilder
@@ -78,6 +79,30 @@ class LegacyValueFormatter(
      */
     private val jarSettings = jarSettings.bindTo(this)
 
+    /**
+     * Determines whether to inline a [FieldReferenceValue] with its [ConstantValue], if available.
+     *
+     * If the field does not have a [ConstantValue], e.g. because it is an enum, unresolvable, or
+     * not a constant field then just format it as a normal field reference. That is probably wrong
+     * but the formatter MUST always write something out.
+     */
+    enum class InlineFieldValue {
+        /** Always inline the [FieldReferenceValue], if possible. */
+        ALWAYS,
+
+        /**
+         * Only inline the [FieldReferenceValue], if it is hidden or removed (as determined by
+         * [SelectableItem.isHiddenOrRemoved]).
+         */
+        WHEN_HIDDEN_OR_REMOVED,
+
+        /**
+         * Only inline the [FieldReferenceValue], if it is inaccessible, i.e. hidden, removed or not
+         * public.
+         */
+        WHEN_INACCESSIBLE,
+    }
+
     /** Settings that affect the formatting of a [Value]. */
     data class Settings(
         /** The configuration that is used as the basis for [boundConfiguration]. */
@@ -98,12 +123,8 @@ class LegacyValueFormatter(
             value.appendValueStringTo(builder)
         },
 
-        /**
-         * If `true` then any [FieldReferenceValue]s are replaced with their [ConstantValue] if
-         * available. If `false`, or no [ConstantValue] is available then just format it as a normal
-         * field reference.
-         */
-        val alwaysInlineFields: Boolean = false,
+        /** Determines whether to inline a [FieldReferenceValue]. */
+        val inlineFields: InlineFieldValue = InlineFieldValue.WHEN_INACCESSIBLE,
 
         /**
          * If `true` then just use the [Number.toString] method for [LiteralValue.underlyingValue]s
@@ -190,12 +211,21 @@ class LegacyValueFormatter(
         // then use its value, if available. Otherwise, fall back to using it anyway as a value must
         // be formatted.
         val valueToAppend =
-            if (
-                value is FieldReferenceValue &&
-                    (settings.alwaysInlineFields || !value.resolve().isAccessible())
-            )
-                value.asLiteralValue() ?: value
-            else value
+            (value as? FieldReferenceValue)?.let { field ->
+                when (settings.inlineFields) {
+                    // The field should always be inlined, if possible.
+                    InlineFieldValue.ALWAYS -> field.asLiteralValue()
+
+                    // The field should be inlined only when it is inaccessible.
+                    InlineFieldValue.WHEN_INACCESSIBLE ->
+                        if (field.resolve().isAccessible()) field else field.asLiteralValue()
+
+                    // The field should be inlined only when it is hidden or removed.
+                    InlineFieldValue.WHEN_HIDDEN_OR_REMOVED ->
+                        if (field.resolve()?.isHiddenOrRemoved() != true) field
+                        else field.asLiteralValue()
+                }
+            } ?: value
 
         // Fallback to just using the default value representation according to the settings. This
         // passes in the [Settings.boundConfiguration] as that has a `nestedValueAppender` that
@@ -238,7 +268,8 @@ class LegacyValueFormatter(
                         )
                     },
                 ),
-            alwaysInlineFields = alwaysInlineFields,
+            inlineFields =
+                if (alwaysInlineFields) InlineFieldValue.ALWAYS else settings.inlineFields,
         )
 
     /** Format [annotationItem] to match the legacy behavior of [AnnotationItem.toSource]. */
@@ -420,6 +451,50 @@ class LegacyValueFormatter(
                     ),
             )
 
+        /** Setting for formatting [AnnotationItem.toSource] from Kotlin sources. */
+        private val ANNOTATION_SOURCE_KOTLIN_SETTINGS =
+            ATTRIBUTE_DEFAULT_KOTLIN_SETTINGS.copy(
+                valueStringConfiguration =
+                    ATTRIBUTE_DEFAULT_KOTLIN_SETTINGS.boundConfiguration.copy(
+                        // Legacy AnnotationItem.toSource() formats Kotlin annotations with spaces
+                        // around the `=` in `attr = value`.
+                        annotationAttributeNameValueSeparator =
+                            AnnotationAttributeNameValueSeparator.WITHOUT_SPACES,
+
+                        // Legacy AnnotationItem.toSource() formats ints as hexadecimals if they
+                        // were not specified as literals in the source.
+                        nonLiteralIntFormat = IntFormat.HEXADECIMAL,
+
+                        // Legacy AnnotationItem.toSource() includes the companion object's class
+                        // name in references to fields defined in a companion object.
+                        showKotlinCompanionClass = true,
+
+                        // Legacy AnnotationItem.toSource() includes a call to a numeric conversion
+                        // function, e.g. `INT_FIELD.toLong()`.
+                        showKotlinConversionFunction = true,
+
+                        // Legacy AnnotationItem.toSource() formats numbers based on the literal
+                        // they used in the source/constant type in class constant pool.
+                        useOriginalValueForNumbers = false,
+                    ),
+
+                // Override [ATTRIBUTE_DEFAULT_KOTLIN_SETTINGS] which does not handle empty arrays
+                // correctly while this does.
+                stringReplacement = emptyMap(),
+
+                // Legacy AnnotationItem.toSource() adds double quotes around chars from Kotlin
+                // sources.
+                useDoubleQuotesForChar = false,
+
+                // Legacy AnnotationItem.toSource() does not add long or float suffixes for values
+                // obtained from Kotlin sources.
+                dropLongAndFloatTypeSuffix = false,
+
+                // Legacy AnnotationItem.toSource() only inlined hidden or removed fields used in
+                // Kotlin sources. It would keep non-public fields.
+                inlineFields = InlineFieldValue.WHEN_HIDDEN_OR_REMOVED,
+            )
+
         /** Setting for formatting [AnnotationItem.toSource] from Jar classes. */
         private val ANNOTATION_SOURCE_JAR_SETTINGS =
             Settings(
@@ -466,6 +541,7 @@ class LegacyValueFormatter(
         val ANNOTATION_SOURCE_FORMATTER =
             LegacyValueFormatter(
                 javaSettings = ANNOTATION_SOURCE_JAVA_SETTINGS,
+                kotlinSettings = ANNOTATION_SOURCE_KOTLIN_SETTINGS,
                 jarSettings = ANNOTATION_SOURCE_JAR_SETTINGS,
             )
     }

@@ -70,12 +70,33 @@ fun fieldReferenceValue(
     qualifiedClassName: String,
     fieldName: String,
     constantValue: ConstantValue? = null,
+    kotlinCompanionClass: String? = null,
+    explicitConversionTo: Primitive? = null,
 ) =
     Value.createFieldReferenceValue(
         ClassResolver.RETURN_NULL,
         qualifiedClassName,
         fieldName,
         constantValue,
+        kotlinCompanionClass,
+        explicitConversionTo,
+    )
+
+/**
+ * Create a [FieldReferenceValue] called [fieldName] in [qualifiedClassName] whose [ConstantValue]
+ * is determined lazily.
+ */
+fun lazyFieldReferenceValue(
+    classResolver: ClassResolver,
+    qualifiedClassName: String,
+    fieldName: String,
+    optionalTypeItem: TypeItem? = null,
+) =
+    Value.createFieldReferenceValueWithDeferredConstantValue(
+        classResolver,
+        qualifiedClassName,
+        fieldName,
+        optionalTypeItem,
     )
 
 /** Create an [AnnotationValue] from [source]. */
