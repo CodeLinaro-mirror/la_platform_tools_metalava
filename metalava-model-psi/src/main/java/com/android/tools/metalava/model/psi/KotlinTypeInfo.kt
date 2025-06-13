@@ -55,6 +55,11 @@ private constructor(
      * encapsulated within [kaType].
      */
     val overrideTypeArguments: List<KotlinTypeInfo>? = null,
+    /**
+     * A [KaType] for a class contains information about the type parameters for all levels of outer
+     * class types. This represents which level to use (0 is the innermost class).
+     */
+    private val classLevelFromInnermost: Int = 0,
 ) {
     constructor(context: PsiElement) : this(null, null, context)
 
@@ -126,7 +131,15 @@ private constructor(
             analysisSession,
             analysisSession?.run {
                 when (kaType) {
-                    is KaClassType -> kaType.typeArguments.getOrNull(index)?.type
+                    is KaClassType -> {
+                        // Find which level of type qualifiers to use. The qualifiers are in order
+                        // from outermost to innermost class, and the [classLevelFromInnermost]
+                        // starts at 0 for the innermost class.
+                        val innermostClassIndex = kaType.qualifiers.lastIndex
+                        val thisClassIndex = innermostClassIndex - classLevelFromInnermost
+                        val thisClass = kaType.qualifiers.getOrNull(thisClassIndex)
+                        thisClass?.typeArguments?.getOrNull(index)?.type
+                    }
                     else -> null
                 }
             },
@@ -136,22 +149,22 @@ private constructor(
 
     /**
      * Creates [KotlinTypeInfo] for the outer class type of this [kaType], assuming it is a class.
+     *
+     * Uses the same [kaType], but increments the [classLevelFromInnermost].
      */
     fun forOuterClass(): KotlinTypeInfo {
         return KotlinTypeInfo(
             analysisSession,
-            analysisSession?.run {
-                (kaType as? KaClassType)?.classId?.outerClassId?.let { outerClassId ->
-                    buildClassType(outerClassId) {
-                        // Add the parameters of the class type with nullability information.
-                        kaType.qualifiers
-                            .firstOrNull { it.name == outerClassId.shortClassName }
-                            ?.typeArguments
-                            ?.forEach { argument(it) }
-                    }
-                }
+            // Only keep using the kaType if the outer class level exists.
+            kaType?.takeIf {
+                // If the kaType isn't a class, don't use it for an outer class.
+                val finalClassIndex =
+                    (kaType as? KaClassType)?.qualifiers?.lastIndex ?: return@takeIf false
+                // Don't take the kaType if class level is already at the last of the outer classes.
+                finalClassIndex > classLevelFromInnermost
             },
             context,
+            classLevelFromInnermost = classLevelFromInnermost + 1,
         )
     }
 

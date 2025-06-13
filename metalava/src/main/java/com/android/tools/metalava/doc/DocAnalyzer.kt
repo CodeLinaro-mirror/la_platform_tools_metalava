@@ -40,7 +40,6 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.SelectableItem
-import com.android.tools.metalava.model.getAttributeValue
 import com.android.tools.metalava.model.getCallableParameterDescriptorUsingDots
 import com.android.tools.metalava.model.psi.containsLinkTags
 import com.android.tools.metalava.model.value.FieldReferenceValue
@@ -266,7 +265,7 @@ class DocAnalyzer(
                     annotation.resolve()?.modifiers?.annotations()?.forEach { nested ->
                         if (depth == 20) { // Temp debugging
                             throw StackOverflowError(
-                                "Unbounded recursion, processing annotation ${annotation.toSource()} " +
+                                "Unbounded recursion, processing annotation $annotation " +
                                     "in $item at ${annotation.fileLocation} "
                             )
                         } else if (nested.qualifiedName !in visitedClasses) {
@@ -513,7 +512,8 @@ class DocAnalyzer(
                         }
 
                     val enforcement =
-                        annotation.getAttributeValue("enforcement") ?: DEFAULT_ENFORCEMENT
+                        annotation.findAttribute("enforcement")?.value?.asString()
+                            ?: DEFAULT_ENFORCEMENT
 
                     // Compute the link uri and text from the enforcement setting.
                     val regexp = """(?:.*\.)?([^.#]+)#(.*)""".toRegex()

@@ -771,12 +771,8 @@ class AnnotationsMerger(
                     val qualifiedName = annotation.qualifiedName
                     if (any { it.qualifiedName == qualifiedName }) continue
 
-                    val annotationToMerge =
-                        item.codebase.createAnnotation(
-                            annotation.toSource(),
-                            item,
-                        ) ?: continue
-
+                    // Take a snapshot of the annotation for use in this codebase.
+                    val annotationToMerge = annotation.snapshot(item.codebase)
                     add(annotationToMerge)
                 }
             }

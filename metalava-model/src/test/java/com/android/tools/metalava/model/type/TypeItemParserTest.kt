@@ -20,7 +20,6 @@ import com.android.tools.metalava.model.AnnotationContext
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassTypeItem
-import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterScope
@@ -148,7 +147,7 @@ class TypeItemParserTest {
         assertThat(type).isEqualTo(expectedType)
         val expectedAnnotationItems =
             expectedAnnotations.map {
-                DefaultAnnotationItem.createFromSource(typeParser.annotationContext, it)
+                AnnotationItem.createFromSource(typeParser.annotationContext, it)
             }
         assertThat(annotations).isEqualTo(expectedAnnotationItems)
     }
@@ -298,7 +297,7 @@ class TypeItemParserTest {
         assertThat(params).isEqualTo(expectedParams)
         val expectedAnnotationItems =
             expectedAnnotations.map {
-                DefaultAnnotationItem.createFromSource(typeParser.annotationContext, it)
+                AnnotationItem.createFromSource(typeParser.annotationContext, it)
             }
         assertThat(annotations).isEqualTo(expectedAnnotationItems)
     }

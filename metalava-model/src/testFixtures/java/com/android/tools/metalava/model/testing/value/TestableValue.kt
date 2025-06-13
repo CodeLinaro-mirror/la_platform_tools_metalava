@@ -16,10 +16,10 @@
 
 package com.android.tools.metalava.model.testing.value
 
+import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationContext
+import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ClassResolver
-import com.android.tools.metalava.model.DefaultAnnotationAttribute
-import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.testing.primitiveTypeForKind
@@ -102,20 +102,20 @@ fun lazyFieldReferenceValue(
 /** Create an [AnnotationValue] from [source]. */
 fun annotationValueFromSource(source: String) =
     Value.createAnnotationValue(
-        DefaultAnnotationItem.createFromSource(AnnotationContext.DEFAULT_RESOLVE_NULL, source)!!
+        AnnotationItem.createFromSource(AnnotationContext.DEFAULT_RESOLVE_NULL, source)!!
     )
 
 fun annotationValue(qualifiedClassName: String, vararg attributes: Pair<String, Value>) =
     Value.createAnnotationValue(annotationItem(qualifiedClassName, *attributes))
 
 fun annotationItem(qualifiedClassName: String, vararg attributes: Pair<String, Value>) =
-    DefaultAnnotationItem.createAttributesLazily(
+    AnnotationItem.createAttributesLazily(
         AnnotationContext.DEFAULT_RESOLVE_NULL,
         FileLocation.UNKNOWN,
         qualifiedClassName
     ) {
         attributes.map { (name, value) ->
-            DefaultAnnotationAttribute(
+            AnnotationAttribute.createLazyAttribute(
                 name,
                 value.provider(),
             )

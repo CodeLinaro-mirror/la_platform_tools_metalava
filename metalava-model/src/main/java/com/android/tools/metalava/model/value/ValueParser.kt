@@ -23,8 +23,6 @@ import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.ClassTypeItem
-import com.android.tools.metalava.model.DefaultAnnotationAttribute
-import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
@@ -417,7 +415,7 @@ class ValueParser(
                 else -> emptyList()
             }
 
-        return DefaultAnnotationItem.createWithAttributes(
+        return AnnotationItem.createWithAttributes(
             annotationContext,
             FileLocation.UNKNOWN,
             annotationClassName,
@@ -522,7 +520,7 @@ class ValueParser(
 
                 // Add the attribute to the list.
                 add(
-                    DefaultAnnotationAttribute(
+                    AnnotationAttribute.createLazyAttribute(
                         attributeName,
                         valueProvider,
                     )

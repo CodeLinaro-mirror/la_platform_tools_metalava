@@ -19,71 +19,49 @@ package com.android.tools.metalava.model.psi
 import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
 import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationItem
-import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.DefaultAnnotationAttribute
-import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.intellij.psi.PsiAnnotation
 
-internal class PsiAnnotationItem
-private constructor(
-    override val annotationContext: PsiBasedCodebase,
-    val psiAnnotation: PsiAnnotation,
-    originalName: String,
-    qualifiedName: String,
-) :
-    DefaultAnnotationItem(
-        annotationContext = annotationContext,
-        fileLocation = PsiFileLocation.fromPsiElement(psiAnnotation),
-        originalName = originalName,
-        qualifiedName = qualifiedName,
-        attributesGetter = { getAnnotationAttributes(annotationContext, psiAnnotation) },
-    ) {
+internal object PsiAnnotationItem {
 
-    override fun snapshot(targetCodebase: Codebase) = this
+    private fun getAnnotationAttributes(
+        codebase: PsiBasedCodebase,
+        psiAnnotation: PsiAnnotation,
+    ): List<AnnotationAttribute> {
+        val annotationPsiClass = psiAnnotation.resolveAnnotationType()
+        return psiAnnotation.parameterList.attributes
+            .mapNotNull { attribute ->
+                attribute.value?.let { value ->
+                    val name = attribute.name ?: ANNOTATION_ATTR_VALUE
 
-    companion object {
-        private fun getAnnotationAttributes(
-            codebase: PsiBasedCodebase,
-            psiAnnotation: PsiAnnotation
-        ): List<AnnotationAttribute> {
-            val annotationPsiClass = psiAnnotation.resolveAnnotationType()
-            return psiAnnotation.parameterList.attributes
-                .mapNotNull { attribute ->
-                    attribute.value?.let { value ->
-                        val name = attribute.name ?: ANNOTATION_ATTR_VALUE
-
-                        DefaultAnnotationAttribute(
+                    AnnotationAttribute.createLazyAttribute(
+                        name,
+                        codebase.valueFactory.providerForAnnotationValue(
+                            annotationPsiClass,
                             name,
-                            codebase.valueFactory.providerForAnnotationValue(
-                                annotationPsiClass,
-                                name,
-                                value,
-                            ),
-                        )
-                    }
+                            value,
+                        ),
+                    )
                 }
-                .toList()
-        }
+            }
+            .toList()
+    }
 
-        fun create(
-            codebase: PsiBasedCodebase,
-            psiAnnotation: PsiAnnotation,
-        ): AnnotationItem? {
-            // If the qualified name is a typealias, convert it to the aliased type because that is
-            // the version that will be present as a class in the codebase.
-            val originalName =
-                psiAnnotation.qualifiedName?.let {
-                    (codebase.findTypeAlias(it)?.aliasedType as? PsiClassTypeItem)?.qualifiedName
-                        ?: it
-                } ?: return null
-            val qualifiedName =
-                codebase.annotationManager.normalizeInputName(originalName) ?: return null
-            return PsiAnnotationItem(
-                annotationContext = codebase,
-                psiAnnotation = psiAnnotation,
-                originalName = originalName,
-                qualifiedName = qualifiedName,
-            )
+    fun create(
+        codebase: PsiBasedCodebase,
+        psiAnnotation: PsiAnnotation,
+    ): AnnotationItem? {
+        // If the qualified name is a typealias, convert it to the aliased type because that is
+        // the version that will be present as a class in the codebase.
+        val originalName =
+            psiAnnotation.qualifiedName?.let {
+                (codebase.findTypeAlias(it)?.aliasedType as? PsiClassTypeItem)?.qualifiedName ?: it
+            } ?: return null
+        return AnnotationItem.createAttributesLazily(
+            annotationContext = codebase,
+            fileLocation = PsiFileLocation.fromPsiElement(psiAnnotation),
+            originalName = originalName,
+        ) {
+            getAnnotationAttributes(codebase, psiAnnotation)
         }
     }
 }

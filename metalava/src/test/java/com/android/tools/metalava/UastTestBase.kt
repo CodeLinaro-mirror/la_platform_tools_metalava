@@ -2386,4 +2386,38 @@ abstract class UastTestBase : DriverTest() {
                 """
         )
     }
+
+    @Test
+    fun `Inner class with different number of type parameters than outer class`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+                        class Outer<T> {
+                            inner class Middle<K, V> {
+                                inner class Inner<A, B, C>
+                            }
+                        }
+                        """
+                    )
+                ),
+            api =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public final class Outer<T> {
+                    ctor public Outer();
+                  }
+                  public final class Outer.Middle<K, V> {
+                    ctor public Outer.Middle();
+                  }
+                  public final class Outer.Middle.Inner<A, B, C> {
+                    ctor public Outer.Middle.Inner();
+                  }
+                }
+                """
+        )
+    }
 }

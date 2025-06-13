@@ -1970,6 +1970,21 @@ constructor(
                             common = primitiveValueForKind(Primitive.SHORT, 103)
                         },
                 ),
+                ValueExample(
+                    name = "kotlin replace with",
+                    kotlinType = "kotlin.ReplaceWith",
+                    kotlinExpression = "ReplaceWith(\"something\")",
+                    suitableFor = allLegacyValueUseSites,
+                    validForInputFormats = onlyValidForKotlin,
+                    expectedLegacySource = expectations { common = "kotlin.ReplaceWith()" },
+                    expectedValue =
+                        expectations {
+                            common =
+                                annotationValue(
+                                    "kotlin.ReplaceWith",
+                                )
+                        }
+                ),
             )
 
         /**
