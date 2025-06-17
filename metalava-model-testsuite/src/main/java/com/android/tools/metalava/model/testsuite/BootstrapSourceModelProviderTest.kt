@@ -16,12 +16,14 @@
 
 package com.android.tools.metalava.model.testsuite
 
+import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
 import com.android.tools.metalava.model.AnnotationRetention
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.testing.classTypeItem
+import com.android.tools.metalava.model.testing.value.annotationItem
 import com.android.tools.metalava.model.testing.value.arrayValue
 import com.android.tools.metalava.model.testing.value.arrayValueFromAny
 import com.android.tools.metalava.model.testing.value.classObjectValue
@@ -486,15 +488,25 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             assertEquals(annoClassItem2, customAnno2.resolve())
             assertEquals(12, custAnno2Attr1.value.asInt())
 
-            assertEquals("@test.Nullable", nullAnno.toSource())
+            assertEquals(annotationItem("test.Nullable"), nullAnno)
 
             assertEquals(
-                "@java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME)",
-                retAnno.toSource()
+                annotationItem(
+                    "java.lang.annotation.Retention",
+                    ANNOTATION_ATTR_VALUE to
+                        fieldReferenceValue("java.lang.annotation.RetentionPolicy", "RUNTIME"),
+                ),
+                retAnno
             )
             assertEquals(
-                "@java.lang.annotation.Target(java.lang.annotation.ElementType.FIELD)",
-                tarAnno.toSource()
+                annotationItem(
+                    "java.lang.annotation.Target",
+                    ANNOTATION_ATTR_VALUE to
+                        arrayValue(
+                            fieldReferenceValue("java.lang.annotation.ElementType", "FIELD"),
+                        ),
+                ),
+                tarAnno
             )
             assertEquals(
                 arrayValue(

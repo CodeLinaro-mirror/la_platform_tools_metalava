@@ -447,6 +447,10 @@ internal class DefaultMutableModifierList(
         set(ACTUAL, actual)
     }
 
+    override fun setConst(const: Boolean) {
+        set(CONST, const)
+    }
+
     override fun mutateAnnotations(mutator: MutableList<AnnotationItem>.() -> Unit) {
         val mutable = annotations.toMutableList()
         mutable.mutator()

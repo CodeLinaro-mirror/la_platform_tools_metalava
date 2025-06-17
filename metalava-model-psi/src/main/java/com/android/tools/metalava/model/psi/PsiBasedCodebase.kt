@@ -72,12 +72,6 @@ internal class PsiBasedCodebase(
         get() = psiAssembler.project
 
     /**
-     * Printer which can convert PSI, UAST and constants into source code, with ability to filter
-     * out elements that are not part of a codebase etc
-     */
-    internal val printer = CodePrinter()
-
-    /**
      * Map from classes to the set of callables for each (but only for classes where we've called
      * [findCallableByPsiMethod]
      */

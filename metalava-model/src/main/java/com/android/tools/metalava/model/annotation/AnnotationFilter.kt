@@ -18,7 +18,6 @@ package com.android.tools.metalava.model.annotation
 
 import com.android.tools.metalava.model.AnnotationContext
 import com.android.tools.metalava.model.AnnotationItem
-import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.value.ArrayElementValue
 import com.android.tools.metalava.model.value.ArrayValue
 import com.android.tools.metalava.model.value.Value
@@ -162,7 +161,7 @@ private constructor(
 
         fun fromOption(text: String): AnnotationFilterEntry {
             val annotationItem =
-                DefaultAnnotationItem.createFromSource(
+                AnnotationItem.createFromSource(
                     // Use the NoOpAnnotationManager whose `normalizeInputName(...)` method will not
                     // reject any annotations so createFromSource(...) will never return null.
                     AnnotationContext.DEFAULT_RESOLVE_NULL,

@@ -17,10 +17,10 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.lint.detector.api.ConstantEvaluator
+import com.android.tools.metalava.model.AnnotationAttribute
+import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassTypeItem
-import com.android.tools.metalava.model.DefaultAnnotationAttribute
-import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
@@ -44,7 +44,6 @@ import com.android.tools.metalava.model.value.ValueFactory
 import com.android.tools.metalava.model.value.ValueProvider
 import com.android.tools.metalava.model.value.ValueProviderException
 import com.android.tools.metalava.model.value.ValueUseSite
-import com.android.tools.metalava.model.value.provider
 import com.android.tools.metalava.reporter.FileLocation
 import com.intellij.psi.JavaPsiFacade
 import com.intellij.psi.PsiAnnotation
@@ -426,11 +425,24 @@ internal class PsiValueFactory(
         if (uExpression.kind != UastCallKind.CONSTRUCTOR_CALL) return null
 
         // Resolve the call to the constructor, return null if it cannot be resolved.
-        val resolved = uExpression.resolve()
-        if (resolved !is PsiMethod || !resolved.isConstructor) return null
+        // The resolved element might be the constructor method or the class of the constructor.
+        // It will be the class when the annotation class is originally kotlin source but from the
+        // classpath, because annotation constructors are a kotlin feature only present in the
+        // kotlin metadata annotation for compiled code.
+        val resolved = uExpression.resolve() ?: uExpression.classReference?.resolve()
+        val psiClass =
+            when (resolved) {
+                is PsiMethod ->
+                    if (resolved.isConstructor) {
+                        resolved.containingClass
+                    } else {
+                        null
+                    }
+                is PsiClass -> resolved
+                else -> null
+            }
 
         // Get the qualified name of the constructor class, return null if it is not available.
-        val psiClass = resolved.containingClass
         val qualifiedClassName = psiClass?.qualifiedName ?: return null
 
         fun attributesProvider() =
@@ -453,14 +465,11 @@ internal class PsiValueFactory(
                 val value =
                     uExpressionToArrayElementValue(typeItem, uArgument)
                         ?: unknownExpression(typeItem, uArgument)
-                DefaultAnnotationAttribute(
-                    name,
-                    value.provider(),
-                )
+                AnnotationAttribute.createAttribute(name, value)
             }
 
         val annotationItem =
-            DefaultAnnotationItem.createAttributesLazily(
+            AnnotationItem.createAttributesLazily(
                 codebase,
                 FileLocation.UNKNOWN,
                 qualifiedClassName,
