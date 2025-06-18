@@ -61,7 +61,7 @@ class CommonModifierListTest : BaseModelTest() {
     @Test
     fun `test equals() of empty modifiers`() {
         runWithCodebase {
-            val annotation = codebase.createAnnotationFromAttributes(JAVA_LANG_DEPRECATED)!!
+            val annotation = AnnotationItem.createMarkerAnnotation(codebase, JAVA_LANG_DEPRECATED)!!
 
             // Create an empty set of modifiers
             val modifiers = createMutableModifiers(VisibilityLevel.PUBLIC)

@@ -17,7 +17,6 @@
 package com.android.tools.metalava.model.value
 
 import com.android.tools.metalava.model.ClassResolver
-import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.TypeItem
@@ -78,9 +77,9 @@ internal abstract class BaseFieldReferenceValue(
      * Implement this here rather than in [FieldReferenceValue] as it needs to access
      * [constantValue] which is an implementation detail.
      */
-    override fun snapshot(targetCodebase: Codebase) =
+    override fun snapshot(targetContext: ValueContext) =
         Value.createFieldReferenceValue(
-            targetCodebase,
+            targetContext,
             qualifiedClassName,
             fieldName,
             constantValue,

@@ -47,7 +47,6 @@ import com.android.tools.metalava.model.ANDROIDX_NONNULL
 import com.android.tools.metalava.model.ANDROIDX_NULLABLE
 import com.android.tools.metalava.model.ANDROIDX_STRING_DEF
 import com.android.tools.metalava.model.ANDROID_FLAGGED_API
-import com.android.tools.metalava.model.ANNOTATION_VALUE_TRUE
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
@@ -519,15 +518,6 @@ class AnnotationsMerger(
         mergeQualifierAnnotationsFromXmlElement(item, fieldItem)
     }
 
-    private fun getAnnotationName(element: Element): String {
-        val tagName = element.tagName
-        assert(tagName == "annotation") { tagName }
-
-        val qualifiedName = element.getAttribute(ATTR_NAME)
-        assert(qualifiedName.isNotEmpty())
-        return qualifiedName
-    }
-
     private fun mergeQualifierAnnotationsFromXmlElement(xmlElement: Element, item: Item) {
         val annotationsToMerge =
             getChildren(xmlElement).mapNotNull { annotationElement ->
@@ -595,7 +585,7 @@ class AnnotationsMerger(
                         }
 
                         // Attempt to sort in reflection order
-                        if (!found && reflectionFields != null) {
+                        if (reflectionFields != null) {
                             val filterEmit =
                                 ApiVisitor.defaultEmitFilter(
                                     @Suppress("DEPRECATION") options.apiPredicateConfig,
@@ -687,7 +677,7 @@ class AnnotationsMerger(
                 val valueElement = children[0]
                 val value = valueElement.getAttribute(ATTR_VAL)
                 val pure = valueElement.getAttribute(ATTR_PURE)
-                return if (pure != null && pure.isNotEmpty()) {
+                return if (pure.isNotEmpty()) {
                     codebase.createAnnotationFromAttributes(
                         name,
                         listOf(TYPE_DEF_VALUE_ATTRIBUTE to value, ATTR_PURE to pure),
@@ -699,12 +689,12 @@ class AnnotationsMerger(
                     )
                 }
             }
-            isNonNull(name) -> return codebase.createAnnotation("@$ANDROIDX_NONNULL")
-            isNullable(name) -> return codebase.createAnnotation("@$ANDROIDX_NULLABLE")
+            isNonNull(name) -> return createMarkerAnnotation(ANDROIDX_NONNULL)
+            isNullable(name) -> return createMarkerAnnotation(ANDROIDX_NULLABLE)
             else -> {
                 val children = getChildren(annotationElement)
                 if (children.isEmpty()) {
-                    return codebase.createAnnotation("@$name")
+                    return createMarkerAnnotation(name)
                 }
                 val attributes = buildList {
                     for (valueElement in children) {
@@ -717,6 +707,10 @@ class AnnotationsMerger(
             }
         }
     }
+
+    /** Create a marker [AnnotationItem], i.e. one without attributes. */
+    private fun createMarkerAnnotation(name: String) =
+        AnnotationItem.createMarkerAnnotation(codebase, name)
 
     private fun isNonNull(name: String): Boolean {
         return name == IDEA_NOTNULL ||
@@ -810,5 +804,9 @@ class AnnotationsMerger(
         workingString = workingString.replace(AMP_ENTITY, "&")
 
         return workingString
+    }
+
+    companion object {
+        private const val ANNOTATION_VALUE_TRUE = "true"
     }
 }

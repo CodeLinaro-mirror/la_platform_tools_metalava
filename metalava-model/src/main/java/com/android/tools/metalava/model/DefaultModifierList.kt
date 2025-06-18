@@ -508,19 +508,22 @@ fun MutableModifierList.addDefaultRetentionPolicyAnnotation(
 ) {
     // By policy, include explicit retention policy annotation if missing
     val defaultRetentionPolicy = AnnotationRetention.getDefault(isKotlin)
-    addAnnotation(
-        codebase.createAnnotation(
-            buildString {
-                append('@')
-                append(Retention::class.qualifiedName)
-                append('(')
-                append(RetentionPolicy::class.qualifiedName)
-                append('.')
-                append(defaultRetentionPolicy.name)
-                append(')')
-            },
+    // Create a reference to the default retention policy enum value.
+    val policyValue =
+        Value.createFieldReferenceValue(
+            codebase,
+            RetentionPolicy::class.qualifiedName!!,
+            defaultRetentionPolicy.name
         )
-    )
+    // Create a retention annotation.
+    val retentionAnnotation =
+        AnnotationItem.createSingleElementAnnotation(
+            codebase,
+            Retention::class.qualifiedName!!,
+            policyValue,
+        )
+    // Add the retention annotation.
+    addAnnotation(retentionAnnotation)
 }
 
 /**

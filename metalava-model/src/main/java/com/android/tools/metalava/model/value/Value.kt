@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.value
 import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
+import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem
@@ -104,11 +105,11 @@ sealed interface Value {
     fun asFlatList(): List<ArrayElementValue>
 
     /**
-     * Create a snapshot for this suitable for use in [targetCodebase].
+     * Create a snapshot for this suitable for use in [targetContext].
      *
-     * This is needed as some [Value]s will reference items in the [Codebase].
+     * This is needed as some [Value]s will reference items within the [ValueContext].
      */
-    fun snapshot(targetCodebase: Codebase) = this
+    fun snapshot(targetContext: ValueContext) = this
 
     /**
      * Transform this [Value].
@@ -212,6 +213,9 @@ sealed interface Value {
      */
     companion object : ValueFactory
 }
+
+/** Provides contextual information needed by [Value]s. */
+interface ValueContext : ClassResolver
 
 /** Get this [Value] as an [Any], or `null` if it cannot be represented as an [Any]. */
 fun Value.asAny() = asLiteralValue()?.underlyingValue
@@ -455,7 +459,7 @@ sealed interface ArrayElementValue : Value {
     override fun asFlatList() = listOf(this)
 
     /** Override to specialize the return type. */
-    override fun snapshot(targetCodebase: Codebase): ArrayElementValue = this
+    override fun snapshot(targetContext: ValueContext): ArrayElementValue = this
 
     /** Override to specialize the return type. */
     override fun transform(transformer: (ArrayElementValue) -> ArrayElementValue?) =
