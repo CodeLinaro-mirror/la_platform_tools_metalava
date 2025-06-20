@@ -16,15 +16,14 @@
 
 package com.android.tools.metalava.cli.compatibility
 
-import com.android.tools.metalava.SignatureFileCache
 import com.android.tools.metalava.cli.common.BaselineOptionsMixin
 import com.android.tools.metalava.cli.common.CommonBaselineOptions
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.cli.common.PreviouslyReleasedApi
 import com.android.tools.metalava.cli.common.allowStructuredOptionName
+import com.android.tools.metalava.cli.common.enumOption
 import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.map
-import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.api.surface.ApiVariantType
 import com.android.tools.metalava.model.visitors.ApiType
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
@@ -32,6 +31,8 @@ import com.github.ajalt.clikt.parameters.options.multiple
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.unique
 import java.io.File
+
+const val ARG_CHECK_COMPATIBILITY = "--check-compatibility"
 
 const val ARG_CHECK_COMPATIBILITY_API_RELEASED = "--check-compatibility:api:released"
 const val ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED = "--check-compatibility:removed:released"
@@ -58,6 +59,35 @@ class CompatibilityCheckOptions(
             """
                 .trimIndent(),
     ) {
+
+    private val checkCompatibility: CheckCompatibility by
+        enumOption(
+            ARG_CHECK_COMPATIBILITY,
+            help =
+                """
+                   Determines whether the $ARG_CHECK_COMPATIBILITY_API_RELEASED and
+                   $ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED cause a compatibility check to be
+                   performed. This must be set to `disabled` when those options are only provided to
+                   supply the previously released API to which flagged APIs are reverted.
+                """
+                    .trimIndent(),
+            enumValueHelpGetter = { it.help },
+            default = CheckCompatibility.ENABLED,
+        )
+
+    /**
+     * Determines whether [compatibilityChecks] returns a list of [checkReleasedApi] and
+     * [checkReleasedRemoved] or not.
+     */
+    private enum class CheckCompatibility(val help: String) {
+        ENABLED(
+            help = "Compatibility checks are performed.",
+        ),
+        @Suppress("unused") // Used implicitly by [checkCompatibility]
+        DISABLED(
+            help = "Compatibility checks are NOT performed.",
+        ),
+    }
 
     private val checkReleasedApi: CheckRequest? by
         option(
@@ -190,19 +220,29 @@ class CompatibilityCheckOptions(
     }
 
     /**
-     * The list of [CheckRequest] instances that need to be performed on the API being generated.
+     * The list of unfiltered [CheckRequest] instances that need to be performed on the API being
+     * generated.
      */
-    val compatibilityChecks by
+    private val unfilteredCompatibilityChecks by
         lazy(LazyThreadSafetyMode.NONE) { listOfNotNull(checkReleasedApi, checkReleasedRemoved) }
 
     /**
-     * The optional Codebase corresponding to [compatibilityChecks].
-     *
-     * This is used to provide the previously released API needed for `--revert-annotation`.
+     * The list of [CheckRequest] instances that need to be performed on the API being generated
+     * taking into account [checkCompatibility].
      */
-    fun previouslyReleasedCodebase(signatureFileCache: SignatureFileCache): Codebase? =
-        compatibilityChecks
-            .map { it.previouslyReleasedApi }
-            .reduceOrNull { p1, p2 -> p1.combine(p2) }
-            ?.load({ signatureFileCache.load(it) })
+    val compatibilityChecks by
+        lazy(LazyThreadSafetyMode.NONE) {
+            when (checkCompatibility) {
+                CheckCompatibility.ENABLED -> unfilteredCompatibilityChecks
+                else -> emptyList()
+            }
+        }
+
+    /** The optional [PreviouslyReleasedApi]. */
+    val previouslyReleasedApi by
+        lazy(LazyThreadSafetyMode.NONE) {
+            unfilteredCompatibilityChecks
+                .map { it.previouslyReleasedApi }
+                .reduceOrNull { p1, p2 -> p1.combine(p2) }
+        }
 }

@@ -28,6 +28,7 @@ open class DefaultClassTypeItem(
     final override val qualifiedName: String,
     final override val arguments: List<TypeArgumentTypeItem>,
     final override val outerClassType: ClassTypeItem?,
+    private val isValueClassType: Boolean = false,
 ) : ClassTypeItem, DefaultTypeItem(modifiers) {
     override val className: String = ClassTypeItem.computeClassName(qualifiedName)
 
@@ -35,6 +36,10 @@ open class DefaultClassTypeItem(
         lazy(LazyThreadSafetyMode.NONE) { classResolver.resolveClass(qualifiedName) }
 
     override fun asClass() = asClassCache
+
+    override fun isValueClassType(): Boolean {
+        return isValueClassType
+    }
 
     @Deprecated(
         "implementation detail of this class",

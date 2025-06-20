@@ -56,7 +56,8 @@ class ParameterizedSelectedApiVariantsTest : DriverTest() {
             checkCompatibilityApiReleasedList = previouslyReleasedApi,
             checkCompatibilityRemovedApiReleasedList = previouslyRemovedApi,
         ) {
-            val previouslyReleasedCodebase = options.previouslyReleasedCodebase!!
+            val previouslyReleasedCodebase =
+                options.previouslyReleasedApi!!.load { options.signatureFileCache.load(it) }
             previouslyReleasedCodebase.assertSelectedApiVariants(
                 testData.expectedSelectedApiVariants
             )
