@@ -37,7 +37,7 @@ import java.lang.StringBuilder
  *
  * Legacy string representations of values are extremely inconsistent and vary by:
  * * The legacy use site, e.g. [FieldItem.writeValueWithSemicolon], [MethodItem.legacyDefaultValue],
- *   [AnnotationItem.toSource].
+ *   what was `AnnotationItem.toSource(...)`.
  * * The [ClassItem.origin], i.e. sources or jars.
  * * The source language, i.e. Kotlin or Java. Signature files are not a factor because they
  *   preserve what was written into them from sources.
@@ -272,12 +272,12 @@ class LegacyValueFormatter(
                 if (alwaysInlineFields) InlineFieldValue.ALWAYS else settings.inlineFields,
         )
 
-    /** Format [annotationItem] to match the legacy behavior of [AnnotationItem.toSource]. */
-    fun annotationItemToSource(
+    fun appendFormatAnnotation(
+        builder: StringBuilder,
         annotationItem: AnnotationItem,
         target: AnnotationTarget,
         context: Item?
-    ): String {
+    ) {
         val settings = selectSettingsForContext(context)
 
         val alwaysInlineFields = annotationItem.qualifiedName == ANDROID_FLAGGED_API
@@ -285,16 +285,14 @@ class LegacyValueFormatter(
         val annotationSpecificSetting =
             annotationSpecificSetting(settings, target, alwaysInlineFields)
 
-        return buildString {
-            // Append the annotation item.  This passes in the [Settings.boundConfiguration] as that
-            // has a `nestedValueAppender` that will call back into [appendFormattedValue] for
-            // nested values, i.e. values in an array and attribute values of nested annotations.
-            annotationItem.appendAnnotationStringTo(
-                this,
-                annotationSpecificSetting.boundConfiguration,
-                annotationIsValue = false
-            )
-        }
+        // Append the annotation item.  This passes in the [Settings.boundConfiguration] as that
+        // has a `nestedValueAppender` that will call back into [appendFormattedValue] for
+        // nested values, i.e. values in an array and attribute values of nested annotations.
+        annotationItem.appendAnnotationStringTo(
+            builder,
+            annotationSpecificSetting.boundConfiguration,
+            annotationIsValue = false
+        )
     }
 
     companion object {
@@ -427,7 +425,7 @@ class LegacyValueFormatter(
                 jarSettings = ATTRIBUTE_DEFAULT_JAR_SETTINGS,
             )
 
-        /** Setting for formatting [AnnotationItem.toSource] from Java sources. */
+        /** Settings for [ANNOTATION_SOURCE_FORMATTER] for Java sources. */
         private val ANNOTATION_SOURCE_JAVA_SETTINGS =
             ATTRIBUTE_DEFAULT_JAVA_SETTINGS.copy(
                 valueStringConfiguration =
@@ -451,7 +449,7 @@ class LegacyValueFormatter(
                     ),
             )
 
-        /** Setting for formatting [AnnotationItem.toSource] from Kotlin sources. */
+        /** Settings for [ANNOTATION_SOURCE_FORMATTER] for Kotlin sources. */
         private val ANNOTATION_SOURCE_KOTLIN_SETTINGS =
             ATTRIBUTE_DEFAULT_KOTLIN_SETTINGS.copy(
                 valueStringConfiguration =
@@ -495,7 +493,7 @@ class LegacyValueFormatter(
                 inlineFields = InlineFieldValue.WHEN_HIDDEN_OR_REMOVED,
             )
 
-        /** Setting for formatting [AnnotationItem.toSource] from Jar classes. */
+        /** Settings for [ANNOTATION_SOURCE_FORMATTER] for Jar classes. */
         private val ANNOTATION_SOURCE_JAR_SETTINGS =
             Settings(
                 valueStringConfiguration =
@@ -537,8 +535,8 @@ class LegacyValueFormatter(
                     ),
             )
 
-        /** Used in [AnnotationItem.toSource]. */
-        val ANNOTATION_SOURCE_FORMATTER =
+        /** Legacy formatting of [AnnotationItem]s. */
+        internal val ANNOTATION_SOURCE_FORMATTER =
             LegacyValueFormatter(
                 javaSettings = ANNOTATION_SOURCE_JAVA_SETTINGS,
                 kotlinSettings = ANNOTATION_SOURCE_KOTLIN_SETTINGS,

@@ -20,8 +20,8 @@ import com.android.tools.metalava.model.annotation.AnnotationDefaults
 import com.android.tools.metalava.model.api.flags.ApiFlag
 import com.android.tools.metalava.model.api.flags.ApiFlags
 import com.android.tools.metalava.model.type.TypeItemParser
-import com.android.tools.metalava.model.value.LegacyValueFormatter.Companion.ANNOTATION_SOURCE_FORMATTER
 import com.android.tools.metalava.model.value.Value
+import com.android.tools.metalava.model.value.ValueContext
 import com.android.tools.metalava.model.value.ValueLanguage
 import com.android.tools.metalava.model.value.ValueParser
 import com.android.tools.metalava.model.value.ValueProvider
@@ -143,16 +143,6 @@ sealed interface AnnotationItem {
         }
     }
 
-    /**
-     * Generates source code for this annotation (using fully qualified names).
-     *
-     * @param target the [AnnotationTarget] for which this is being generated.
-     */
-    fun toSource(
-        target: AnnotationTarget = AnnotationTarget.SIGNATURE_FILE,
-        context: Item? = null,
-    ): String
-
     /** The applicable targets for this annotation */
     val targets: Set<AnnotationTarget>
 
@@ -264,8 +254,8 @@ sealed interface AnnotationItem {
             return AnnotationRetention.getDefault()
         }
 
-    /** Take a snapshot of this [AnnotationItem] suitable for use in [Codebase]. */
-    fun snapshot(targetCodebase: Codebase): AnnotationItem
+    /** Take a snapshot of this [AnnotationItem] suitable for use in [targetContext]. */
+    fun snapshot(targetContext: AnnotationContext): AnnotationItem
 
     companion object {
         /**
@@ -336,7 +326,7 @@ sealed interface AnnotationItem {
         }
 
         /**
-         * Create a [DefaultAnnotationItem] deferring the creation of the attributes until needed.
+         * Create an [AnnotationItem] deferring the creation of the attributes until needed.
          *
          * Maps the [originalName] to a [qualifiedName] by using the [annotationContext]'s
          * [AnnotationManager.normalizeInputName].
@@ -349,7 +339,7 @@ sealed interface AnnotationItem {
         ): AnnotationItem? {
             val qualifiedName =
                 annotationContext.annotationManager.normalizeInputName(originalName) ?: return null
-            return DefaultAnnotationItem(
+            return LazyAttributesAnnotationItem(
                 annotationContext = annotationContext,
                 fileLocation = fileLocation,
                 originalName = originalName,
@@ -359,21 +349,59 @@ sealed interface AnnotationItem {
         }
 
         /**
-         * Create a [DefaultAnnotationItem] with [attributes].
+         * Create an [AnnotationItem] with [attributes].
          *
          * Maps the [originalName] to a [qualifiedName] by using the [annotationContext]'s
          * [AnnotationManager.normalizeInputName].
          */
         fun createWithAttributes(
             annotationContext: AnnotationContext,
-            fileLocation: FileLocation,
+            fileLocation: FileLocation = FileLocation.UNKNOWN,
             originalName: String,
-            attributes: List<AnnotationAttribute>,
+            attributes: List<AnnotationAttribute> = emptyList(),
         ): AnnotationItem? {
-            return createAttributesLazily(annotationContext, fileLocation, originalName) {
-                attributes
-            }
+            val qualifiedName =
+                annotationContext.annotationManager.normalizeInputName(originalName) ?: return null
+            return DefaultAnnotationItem(
+                annotationContext,
+                fileLocation,
+                originalName,
+                qualifiedName,
+                attributes,
+            )
         }
+
+        /**
+         * Create a marker [AnnotationItem], i.e. one without [attributes].
+         *
+         * Maps the [originalName] to a [qualifiedName] by using the [annotationContext]'s
+         * [AnnotationManager.normalizeInputName].
+         */
+        fun createMarkerAnnotation(
+            annotationContext: AnnotationContext,
+            originalName: String,
+            fileLocation: FileLocation = FileLocation.UNKNOWN,
+        ) = createWithAttributes(annotationContext, fileLocation, originalName)
+
+        /**
+         * Create a single element [AnnotationItem], i.e. one with a single required attribute
+         * called [ANNOTATION_ATTR_VALUE], i.e. `value`.
+         *
+         * Maps the [originalName] to a [qualifiedName] by using the [annotationContext]'s
+         * [AnnotationManager.normalizeInputName].
+         */
+        fun createSingleElementAnnotation(
+            annotationContext: AnnotationContext,
+            originalName: String,
+            value: Value,
+            fileLocation: FileLocation = FileLocation.UNKNOWN,
+        ) =
+            createWithAttributes(
+                annotationContext,
+                fileLocation,
+                originalName,
+                listOf(AnnotationAttribute.createAttribute(ANNOTATION_ATTR_VALUE, value))
+            )
     }
 }
 
@@ -382,7 +410,7 @@ val List<AnnotationItem>.typeNullability
     get() = mapNotNull { it.typeNullability }.firstOrNull()
 
 /** Provides contextual information needed by [AnnotationItem]s. */
-interface AnnotationContext : ClassResolver {
+interface AnnotationContext : ClassResolver, ValueContext {
     /** The manager of annotations within this context. */
     val annotationManager: AnnotationManager
 
@@ -415,25 +443,19 @@ interface AnnotationContext : ClassResolver {
 }
 
 /** Default implementation of an annotation item */
-internal class DefaultAnnotationItem(
+internal abstract class BaseAnnotationItem(
     override val annotationContext: AnnotationContext,
     override val fileLocation: FileLocation,
 
     /** Fully qualified name of the annotation (prior to name mapping) */
-    private val originalName: String,
+    internal val originalName: String,
 
     /** Fully qualified name of the annotation (after name mapping) */
     override val qualifiedName: String,
-
-    /** Possibly empty list of attributes. */
-    attributesGetter: () -> List<AnnotationAttribute>,
 ) : AnnotationItem {
 
     override val targets
         get() = info.targets
-
-    override val attributes: List<AnnotationAttribute> by
-        lazy(LazyThreadSafetyMode.NONE, attributesGetter)
 
     /** Information that metalava has gathered about this annotation item. */
     internal val info: AnnotationInfo by lazy {
@@ -480,7 +502,7 @@ internal class DefaultAnnotationItem(
 
     override fun isShowabilityAnnotation(): Boolean = info.showability != Showability.NO_EFFECT
 
-    override fun snapshot(targetCodebase: Codebase): AnnotationItem {
+    override fun snapshot(targetContext: AnnotationContext): AnnotationItem {
         // Force the info property to be initialized which will cause the AnnotationInfo for
         // annotations of the same class as this to be created based off this AnnotationItem and
         // not the snapshot AnnotationItem. That is important because the AnnotationInfo
@@ -489,30 +511,11 @@ internal class DefaultAnnotationItem(
         // cached version of the AnnotationInfo from the AnnotationManager.
         info
 
-        return DefaultAnnotationItem(
-            targetCodebase,
-            fileLocation,
-            originalName,
-            qualifiedName,
-        ) {
-            attributes.map { attributeToSnapshot ->
-                // Defer retrieval of the value until it is needed as it could throw an exception.
-                // This makes it easier to incrementally expand the Value model without breaking
-                // existing snapshot tests.
-                // TODO(b/354633349): Stop deferring retrieval.
-                val valueProvider =
-                    object : ValueProvider {
-                        override val value: Value
-                            get() = attributeToSnapshot.value.snapshot(targetCodebase)
-                    }
-
-                AnnotationAttribute.createLazyAttribute(
-                    attributeToSnapshot.name,
-                    valueProvider,
-                )
-            }
-        }
+        return createSnapshotFor(targetContext)
     }
+
+    /** Create snapshot of this for [targetContext]. */
+    abstract fun createSnapshotFor(targetContext: AnnotationContext): AnnotationItem
 
     override fun equals(other: Any?): Boolean {
         if (other !is AnnotationItem) return false
@@ -525,10 +528,6 @@ internal class DefaultAnnotationItem(
         return result
     }
 
-    override fun toSource(target: AnnotationTarget, context: Item?): String {
-        return ANNOTATION_SOURCE_FORMATTER.annotationItemToSource(this, target, context)
-    }
-
     override fun toString() = buildString {
         appendAnnotationStringTo(
             this,
@@ -537,6 +536,51 @@ internal class DefaultAnnotationItem(
             annotationIsValue = false,
         )
     }
+}
+
+internal class DefaultAnnotationItem(
+    annotationContext: AnnotationContext,
+    fileLocation: FileLocation,
+    originalName: String,
+    qualifiedName: String,
+    override val attributes: List<AnnotationAttribute>,
+) :
+    BaseAnnotationItem(
+        annotationContext,
+        fileLocation,
+        originalName,
+        qualifiedName,
+    ) {
+    override fun createSnapshotFor(targetContext: AnnotationContext) =
+        DefaultAnnotationItem(
+            targetContext,
+            fileLocation,
+            originalName,
+            qualifiedName,
+            attributes.map { it.snapshot(targetContext) }
+        )
+}
+
+internal class LazyAttributesAnnotationItem(
+    annotationContext: AnnotationContext,
+    fileLocation: FileLocation,
+    originalName: String,
+    qualifiedName: String,
+    /** Possibly empty list of attributes. */
+    attributesGetter: () -> List<AnnotationAttribute>,
+) : BaseAnnotationItem(annotationContext, fileLocation, originalName, qualifiedName) {
+    override val attributes: List<AnnotationAttribute> by
+        lazy(LazyThreadSafetyMode.NONE, attributesGetter)
+
+    override fun createSnapshotFor(targetContext: AnnotationContext) =
+        LazyAttributesAnnotationItem(
+            targetContext,
+            fileLocation,
+            originalName,
+            qualifiedName,
+        ) {
+            attributes.map { it.snapshot(targetContext) }
+        }
 }
 
 /** The default annotation attribute name when no name is provided. */
@@ -556,6 +600,9 @@ sealed interface AnnotationAttribute {
      */
     val value: Value
 
+    /** Take a snapshot of this [AnnotationAttribute] suitable for use in [targetContext]. */
+    fun snapshot(targetContext: AnnotationContext): AnnotationAttribute
+
     companion object {
         /**
          * Create an [AnnotationAttribute] called [name] that will retrieve its [Value] from
@@ -570,8 +617,6 @@ sealed interface AnnotationAttribute {
     }
 }
 
-const val ANNOTATION_VALUE_TRUE = "true"
-
 internal class DefaultAnnotationAttribute(
     override val name: String,
     private val valueProvider: ValueProvider,
@@ -579,6 +624,20 @@ internal class DefaultAnnotationAttribute(
 
     override val value: Value
         get() = valueProvider.value
+
+    override fun snapshot(targetContext: AnnotationContext): DefaultAnnotationAttribute {
+        // Defer retrieval of the value until it is needed as it could throw an exception.
+        // This makes it easier to incrementally expand the Value model without breaking
+        // existing snapshot tests.
+        // TODO(b/354633349): Stop deferring retrieval.
+        val valueProvider =
+            object : ValueProvider {
+                override val value: Value
+                    get() = this@DefaultAnnotationAttribute.value.snapshot(targetContext)
+            }
+
+        return DefaultAnnotationAttribute(name, valueProvider)
+    }
 
     override fun toString(): String {
         return "$name=${value.toValueString()}"

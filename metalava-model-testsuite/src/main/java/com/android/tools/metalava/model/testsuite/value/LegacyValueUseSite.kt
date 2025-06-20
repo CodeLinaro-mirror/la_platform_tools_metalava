@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.testsuite.value
 
+import com.android.tools.metalava.model.AnnotationFormatter
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.Assertions.Companion.assertField
 import com.android.tools.metalava.model.Assertions.Companion.assertMethod
@@ -23,6 +24,7 @@ import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.testsuite.value.BaseCommonParameterizedValueTest.TestCaseContext
 import com.android.tools.metalava.model.testsuite.value.TestClassCreator.Companion.ATTRIBUTE_NAME
 import com.android.tools.metalava.model.testsuite.value.TestClassCreator.Companion.FIELD_NAME
+import com.android.tools.metalava.model.value.LegacyValueFormatter
 import com.android.tools.metalava.model.value.ValueUseSite
 import java.util.EnumSet
 
@@ -53,8 +55,8 @@ enum class LegacyValueUseSite(
     ),
 
     /**
-     * An annotation attribute value produced by [AnnotationItem.toSource] called on an annotation
-     * instance.
+     * An annotation attribute value produced by [LegacyValueFormatter.ANNOTATION_SOURCE_FORMATTER]
+     * called on an [AnnotationItem].
      */
     ANNOTATION_TO_SOURCE(
         ValueUseSite.ANNOTATION,
@@ -63,7 +65,12 @@ enum class LegacyValueUseSite(
             val annotation = testClassItem.modifiers.annotations().first()
 
             // Generate the whole annotation representation, not including default values.
-            val wholeAnnotation = annotation.toSource(context = testClassItem)
+            val annotationFormatter = AnnotationFormatter.legacyAnnotationFormatter()
+            val wholeAnnotation =
+                annotationFormatter.formatAnnotation(
+                    annotation,
+                    context = testClassItem,
+                )
 
             // Extract the value from the whole annotation.
             wholeAnnotation

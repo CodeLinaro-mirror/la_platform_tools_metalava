@@ -648,8 +648,9 @@ abstract class DefaultTypeItem(
             if (leadingSpace) {
                 append(' ')
             }
+            val annotationFormatter = configuration.annotationFormatter
             annotations.forEachIndexed { index, annotation ->
-                append(annotation.toSource())
+                annotationFormatter.appendFormatAnnotation(this, annotation)
                 if (index != annotations.size - 1) {
                     append(' ')
                 }
@@ -725,6 +726,7 @@ abstract class DefaultTypeItem(
  * Configuration options for how to represent a type as a string.
  *
  * @param annotations Whether to include annotations on the type.
+ * @param annotationFormatter Responsible for formatting type annotations.
  * @param eraseGenerics If `true` then type parameters are ignored and type variables are replaced
  *   with the upper bound of the type parameter.
  * @param kotlinStyleNulls Whether to represent nullability with Kotlin-style suffixes: `?` for
@@ -740,6 +742,7 @@ abstract class DefaultTypeItem(
  */
 data class TypeStringConfiguration(
     val annotations: Boolean = false,
+    val annotationFormatter: AnnotationFormatter = DEFAULT_ANNOTATION_FORMATTER,
     val eraseGenerics: Boolean = false,
     val kotlinStyleNulls: Boolean = false,
     val nestedClassSeparator: Char = '.',
@@ -756,6 +759,13 @@ data class TypeStringConfiguration(
     val isDefault by lazy(LazyThreadSafetyMode.NONE) { this == DEFAULT }
 
     companion object {
+        /**
+         * The default [AnnotationFormatter] used by [TypeStringConfiguration].
+         *
+         * Must be initialized before [DEFAULT] to avoid a [NullPointerException].
+         */
+        private val DEFAULT_ANNOTATION_FORMATTER = AnnotationFormatter.legacyAnnotationFormatter()
+
         /** The default[TypeStringConfiguration]. */
         val DEFAULT: TypeStringConfiguration = TypeStringConfiguration()
     }

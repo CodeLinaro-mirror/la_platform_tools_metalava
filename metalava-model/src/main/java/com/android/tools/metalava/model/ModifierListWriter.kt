@@ -26,8 +26,9 @@ private constructor(
      * [AnnotationTarget.DOC_STUBS_FILE].
      */
     private val target: AnnotationTarget,
-    private val runtimeAnnotationsOnly: Boolean = false,
-    private val skipNullnessAnnotations: Boolean = false,
+    private val annotationFormatter: AnnotationFormatter,
+    private val runtimeAnnotationsOnly: Boolean,
+    private val skipNullnessAnnotations: Boolean,
 ) {
     companion object {
         fun forSignature(
@@ -37,6 +38,8 @@ private constructor(
             ModifierListWriter(
                 writer = writer,
                 target = AnnotationTarget.SIGNATURE_FILE,
+                annotationFormatter = AnnotationFormatter.legacyAnnotationFormatter(),
+                runtimeAnnotationsOnly = false,
                 skipNullnessAnnotations = skipNullnessAnnotations,
             )
 
@@ -50,7 +53,9 @@ private constructor(
                 target =
                     if (docStubs) AnnotationTarget.DOC_STUBS_FILE
                     else AnnotationTarget.SDK_STUBS_FILE,
+                annotationFormatter = AnnotationFormatter.legacyAnnotationFormatter(),
                 runtimeAnnotationsOnly = runtimeAnnotationsOnly,
+                skipNullnessAnnotations = false,
             )
 
         /**
@@ -297,7 +302,7 @@ private constructor(
                     }
                 }
 
-                val source = printAnnotation.toSource(target, item)
+                val source = annotationFormatter.formatAnnotation(printAnnotation, target, item)
 
                 if (omitCommonPackages) {
                     writer.write(AnnotationItem.shortenAnnotation(source))
