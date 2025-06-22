@@ -369,15 +369,17 @@ class Options(
                 excludeAnnotations = excludeAnnotations,
                 typedefMode = typedefMode,
                 apiPredicate = ApiPredicate(config = apiPredicateConfig),
-                previouslyReleasedCodebaseProvider = { previouslyReleasedCodebase },
+                previouslyReleasedCodebaseProvider = {
+                    previouslyReleasedApi?.load { signatureFileCache.load(it) }
+                },
                 apiFlags = ApiFlagsCreator.createFromConfig(configFileOptions.config.apiFlags),
             )
         )
     }
 
     /** Make this available for testing purposes. */
-    internal val previouslyReleasedCodebase
-        get() = compatibilityCheckOptions.previouslyReleasedCodebase(signatureFileCache)
+    internal val previouslyReleasedApi
+        get() = compatibilityCheckOptions.previouslyReleasedApi
 
     internal val codebaseConfig by
         lazy(LazyThreadSafetyMode.NONE) {

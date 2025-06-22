@@ -50,7 +50,8 @@ import org.jetbrains.uast.sourcePsiElement
 
 /** A Psi specialization of [ItemDocumentation]. */
 internal class PsiItemDocumentation(
-    private val item: PsiItem,
+    private val item: Item,
+    private val codebase: PsiBasedCodebase,
     private val psi: PsiElement,
     private val extraDocs: String?,
 ) : AbstractItemDocumentation() {
@@ -71,7 +72,7 @@ internal class PsiItemDocumentation(
     }
 
     override fun duplicate(item: Item) =
-        if (item is PsiItem) PsiItemDocumentation(item, psi, extraDocs)
+        if (item is PsiItem) PsiItemDocumentation(item, codebase, psi, extraDocs)
         else text.toItemDocumentationFactory()(item)
 
     override fun snapshot(item: Item) = this
@@ -86,7 +87,7 @@ internal class PsiItemDocumentation(
 
         // We can't just use element.docComment here because we may have modified the comment and
         // then the comment snapshot in PSI isn't up-to-date with our latest changes
-        val docComment = item.codebase.psiAssembler.getComment(text)
+        val docComment = codebase.psiAssembler.getComment(text)
         val tagComment =
             if (value == null) {
                 docComment.findTagByName(tag)
@@ -122,7 +123,7 @@ internal class PsiItemDocumentation(
 
     override fun findMainDocumentation(): String {
         if (text == "") return text
-        val comment = item.codebase.psiAssembler.getComment(text)
+        val comment = codebase.psiAssembler.getComment(text)
         val end = findFirstTag(comment)?.textRange?.startOffset ?: text.length
         return comment.text.substring(0, end)
     }
@@ -132,7 +133,7 @@ internal class PsiItemDocumentation(
             return documentation
         }
 
-        val assembler = item.codebase.psiAssembler
+        val assembler = codebase.psiAssembler
         val comment = assembler.getComment(documentation, psi)
         return buildString(documentation.length) { expand(comment, this) }
     }
@@ -597,10 +598,7 @@ internal class PsiItemDocumentation(
         ) =
             if (codebase.allowReadingComments) {
                 // When reading comments provide full access to them.
-                { item ->
-                    val psiItem = item as PsiItem
-                    PsiItemDocumentation(psiItem, psi, extraDocs)
-                }
+                { item -> PsiItemDocumentation(item, codebase, psi, extraDocs) }
             } else {
                 // If extraDocs are provided then they most likely contain documentation for the
                 // package from a `package-info.java` or `package.html` file. Make sure that they

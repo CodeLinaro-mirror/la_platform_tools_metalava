@@ -32,6 +32,15 @@ Compatibility Checks:
 
   Options controlling which, if any, compatibility checks are performed against a previously released API.
 
+  --check-compatibility [enabled|disabled]   Determines whether the --check-compatibility:api:released and
+                                             --check-compatibility:removed:released cause a compatibility check to be
+                                             performed. This must be set to `disabled` when those options are only
+                                             provided to supply the previously released API to which flagged APIs are
+                                             reverted.
+
+                                             enabled (default) - Compatibility checks are performed.
+
+                                             disabled - Compatibility checks are NOT performed.
   --check-compatibility:api:released <file>  Check compatibility of the previously released API.
 
                                              When multiple files are provided any files that are a delta on another file
@@ -211,6 +220,25 @@ class CompatibilityCheckOptionsTest :
         ) {
             assertThat(options.apiCompatAnnotations)
                 .containsExactly("com.example.MyAnnotation", "com.example.MyOtherAnnotation")
+        }
+    }
+
+    @Test
+    fun `Test check-compatibility=disabled disables check but not previously released API`() {
+        val file =
+            signature("released.txt", "// Signature format: 2.0\n").createFile(temporaryFolder.root)
+        runTest(
+            ARG_CHECK_COMPATIBILITY_API_RELEASED,
+            file.path,
+            ARG_CHECK_COMPATIBILITY,
+            "disabled",
+        ) {
+            // Make sure that no compatibility checks are returned when they are disabled.
+            assertThat(options.compatibilityChecks).isEmpty()
+
+            // Make sure that the previously released API is returned even when the checks are
+            // disabled.
+            assertThat(options.previouslyReleasedApi).isNotNull()
         }
     }
 }
