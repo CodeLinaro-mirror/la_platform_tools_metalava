@@ -47,6 +47,18 @@ internal abstract class BaseFieldReferenceValue(
         builder: StringBuilder,
         configuration: ValueStringConfiguration
     ) {
+        // If an inline field reference checker has been provided then invoke it to see whether the
+        // field needs inlining. If it does, and it has a constant value that can be used instead
+        // then inline it, otherwise drop through and append the field reference as normal.
+        configuration.inlineFieldReferenceChecker?.let { inlineFieldReferenceValue ->
+            if (inlineFieldReferenceValue(this)) {
+                asLiteralValue()?.let { constantValue ->
+                    configuration.nestedValueAppender(constantValue, builder, configuration)
+                    return
+                }
+            }
+        }
+
         if (kotlinCompanionClass != null && configuration.showKotlinCompanionClass) {
             builder.append(kotlinCompanionClass).append('.').append(fieldName)
         } else {

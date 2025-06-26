@@ -40,10 +40,10 @@ import com.android.tools.metalava.reporter.FileLocation
 import com.intellij.psi.PsiAnnotationMethod
 import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiParameter
-import org.jetbrains.kotlin.psi.KtNamedFunction
 import org.jetbrains.kotlin.psi.KtParameter
 import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
+import org.jetbrains.kotlin.psi.psiUtil.isExtensionDeclaration
 import org.jetbrains.uast.UAnnotation
 import org.jetbrains.uast.UAnnotationMethod
 import org.jetbrains.uast.UMethod
@@ -65,7 +65,8 @@ internal class PsiMethodItem(
     typeParameterList: TypeParameterList,
     throwsTypes: List<ExceptionTypeItem>,
     val defaultValueProvider: OptionalValueProvider?,
-    targetLanguages: Set<TargetLanguage>
+    targetLanguages: Set<TargetLanguage>,
+    isExtensionMethod: Boolean,
 ) :
     DefaultMethodItem(
         codebase = codebase,
@@ -83,21 +84,11 @@ internal class PsiMethodItem(
         throwsTypes = throwsTypes,
         callableBodyFactory = { PsiCallableBody(it as PsiCallableItem) },
         defaultValueProvider = defaultValueProvider,
+        isExtensionMethod = isExtensionMethod,
     ),
     PsiCallableItem {
 
     override var property: PropertyItem? = null
-
-    override fun isExtensionMethod(): Boolean {
-        if (isKotlin()) {
-            val ktParameters =
-                ((psiMethod as? UMethod)?.sourcePsi as? KtNamedFunction)?.valueParameters
-                    ?: return false
-            return ktParameters.size < parameters().size
-        }
-
-        return false
-    }
 
     override fun isKotlinProperty(): Boolean {
         return psiMethod is UMethod &&
@@ -138,6 +129,7 @@ internal class PsiMethodItem(
                 throwsTypes(),
                 defaultValueProvider,
                 targetLanguages,
+                isExtensionMethod = isExtensionMethod(),
             )
             .also { duplicated ->
                 duplicated.inheritedFrom = containingClass()
@@ -236,6 +228,10 @@ internal class PsiMethodItem(
 
             val defaultValueProvider = psiMethod.defaultValueProvider(codebase, returnType)
 
+            // Use psi util which works for source kt elements to determine if this is an extension
+            val isExtensionMethod =
+                (psiMethod as? UMethod)?.sourcePsi?.isExtensionDeclaration() ?: false
+
             val method =
                 PsiMethodItem(
                     codebase = codebase,
@@ -258,6 +254,7 @@ internal class PsiMethodItem(
                     throwsTypes = throwsTypes(psiMethod, methodTypeItemFactory),
                     defaultValueProvider = defaultValueProvider,
                     targetLanguages = targetLanguages,
+                    isExtensionMethod = isExtensionMethod
                 )
 
             return method

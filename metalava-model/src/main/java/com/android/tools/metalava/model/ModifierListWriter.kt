@@ -34,29 +34,32 @@ private constructor(
         fun forSignature(
             writer: Writer,
             skipNullnessAnnotations: Boolean,
-        ) =
-            ModifierListWriter(
+        ): ModifierListWriter {
+            val target = AnnotationTarget.SIGNATURE_FILE
+            return ModifierListWriter(
                 writer = writer,
-                target = AnnotationTarget.SIGNATURE_FILE,
-                annotationFormatter = AnnotationFormatter.legacyAnnotationFormatter(),
+                target = target,
+                annotationFormatter = AnnotationFormatter.legacyAnnotationFormatter(target),
                 runtimeAnnotationsOnly = false,
                 skipNullnessAnnotations = skipNullnessAnnotations,
             )
+        }
 
         fun forStubs(
             writer: Writer,
             docStubs: Boolean,
             runtimeAnnotationsOnly: Boolean = false,
-        ) =
-            ModifierListWriter(
+        ): ModifierListWriter {
+            val target =
+                if (docStubs) AnnotationTarget.DOC_STUBS_FILE else AnnotationTarget.SDK_STUBS_FILE
+            return ModifierListWriter(
                 writer = writer,
-                target =
-                    if (docStubs) AnnotationTarget.DOC_STUBS_FILE
-                    else AnnotationTarget.SDK_STUBS_FILE,
-                annotationFormatter = AnnotationFormatter.legacyAnnotationFormatter(),
+                target = target,
+                annotationFormatter = AnnotationFormatter.stubFormatter(target),
                 runtimeAnnotationsOnly = runtimeAnnotationsOnly,
                 skipNullnessAnnotations = false,
             )
+        }
 
         /**
          * Checks whether the `abstract` modifier should be ignored on the method item when
@@ -302,7 +305,7 @@ private constructor(
                     }
                 }
 
-                val source = annotationFormatter.formatAnnotation(printAnnotation, target, item)
+                val source = annotationFormatter.formatAnnotation(printAnnotation, item)
 
                 if (omitCommonPackages) {
                     writer.write(AnnotationItem.shortenAnnotation(source))

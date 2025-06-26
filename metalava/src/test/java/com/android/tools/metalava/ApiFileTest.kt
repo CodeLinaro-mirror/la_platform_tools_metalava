@@ -5287,8 +5287,6 @@ class ApiFileTest : DriverTest() {
                   }
                   @kotlin.annotation.Repeatable public static @interface RequiresExtension.Container {
                     method public abstract test.pkg.RequiresExtension[] value();
-                    property @IntRange(from=1L) public abstract int extension;
-                    property @IntRange(from=1L) public abstract int version;
                   }
                 }
             """
@@ -6067,6 +6065,7 @@ class ApiFileTest : DriverTest() {
                     ctor public Delegated();
                     method @BytecodeOnly public void baseMethod();
                     method @BytecodeOnly public int getBaseVal();
+                    property public int baseVal;
                   }
                 }
                 """

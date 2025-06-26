@@ -855,7 +855,7 @@ class CommonPropertyItemTest : BaseModelTest() {
                         property public static int int.intProperty;
                         property public static int String.stringProperty;
                         property public static int String[].stringArrayProperty;
-                        property public static int java.util.List<? extends String>.stringListProperty;
+                        property public static int java.util.List<String>.stringListProperty;
                       }
                     }
                 """
@@ -870,7 +870,7 @@ class CommonPropertyItemTest : BaseModelTest() {
                         property public static int.intProperty: int;
                         property public static String.stringProperty: int;
                         property public static String[].stringArrayProperty: int;
-                        property public static java.util.List<? extends String>.stringListProperty: int;
+                        property public static java.util.List<String>.stringListProperty: int;
                       }
                     }
                 """
@@ -894,9 +894,7 @@ class CommonPropertyItemTest : BaseModelTest() {
 
             fooClass.assertProperty("stringListProperty").receiver.assertClassTypeItem {
                 assertEquals(qualifiedName, "java.util.List")
-                arguments.single().assertWildcardItem {
-                    extendsBound.assertClassTypeItem { assertTrue(isString()) }
-                }
+                arguments.single().assertClassTypeItem { assertTrue(isString()) }
             }
         }
     }
@@ -931,10 +929,10 @@ class CommonPropertyItemTest : BaseModelTest() {
                       public final class Foo {
                         property public static int String.noTypeParameterProperty;
                         property public static <T> int T.oneTypeParameterReceiver;
-                        property public static <T> int java.util.List<? extends T>.oneTypeParameterListReceiver;
+                        property public static <T> int java.util.List<T>.oneTypeParameterListReceiver;
                         property public static <T extends String> int T.oneTypeParameterWithBoundsReceiver;
-                        property public static <T1, T2> int java.util.Map<T1,? extends T2>.twoTypeParameterMapReceiver;
-                        property public static <T1 extends String, T2 extends java.util.List<? extends T1>> int java.util.Map<T1,? extends T2>.twoTypeParameterWithBoundsMapReceiver;
+                        property public static <T1, T2> int java.util.Map<T1,T2>.twoTypeParameterMapReceiver;
+                        property public static <T1 extends String, T2 extends java.util.List<T1>> int java.util.Map<T1,T2>.twoTypeParameterWithBoundsMapReceiver;
                       }
                     }
                 """
@@ -947,10 +945,10 @@ class CommonPropertyItemTest : BaseModelTest() {
                       public final class Foo {
                         property public static String.noTypeParameterProperty: int;
                         property public static <T> T.oneTypeParameterReceiver: int;
-                        property public static <T> java.util.List<? extends T>.oneTypeParameterListReceiver: int;
+                        property public static <T> java.util.List<T>.oneTypeParameterListReceiver: int;
                         property public static <T extends String> T.oneTypeParameterWithBoundsReceiver: int;
-                        property public static <T1, T2> java.util.Map<T1,? extends T2>.twoTypeParameterMapReceiver: int;
-                        property public static <T1 extends String, T2 extends java.util.List<? extends T1>> java.util.Map<T1,? extends T2>.twoTypeParameterWithBoundsMapReceiver: int;
+                        property public static <T1, T2> java.util.Map<T1,T2>.twoTypeParameterMapReceiver: int;
+                        property public static <T1 extends String, T2 extends java.util.List<T1>> java.util.Map<T1,T2>.twoTypeParameterWithBoundsMapReceiver: int;
                       }
                     }
                 """
@@ -981,10 +979,8 @@ class CommonPropertyItemTest : BaseModelTest() {
             assertThat(oneTypeParameterListReceiverT.isReified()).isFalse()
             oneTypeParameterListReceiver.receiver.assertClassTypeItem {
                 assertEquals(qualifiedName, "java.util.List")
-                arguments.single().assertWildcardItem {
-                    extendsBound.assertVariableTypeItem {
-                        assertEquals(asTypeParameter, oneTypeParameterListReceiverT)
-                    }
+                arguments.single().assertVariableTypeItem {
+                    assertEquals(asTypeParameter, oneTypeParameterListReceiverT)
                 }
             }
 
@@ -1017,10 +1013,8 @@ class CommonPropertyItemTest : BaseModelTest() {
                 arguments[0].assertVariableTypeItem {
                     assertEquals(asTypeParameter, twoTypeParameterMapReceiverT1)
                 }
-                arguments[1].assertWildcardItem {
-                    extendsBound.assertVariableTypeItem {
-                        assertEquals(asTypeParameter, twoTypeParameterMapReceiverT2)
-                    }
+                arguments[1].assertVariableTypeItem {
+                    assertEquals(asTypeParameter, twoTypeParameterMapReceiverT2)
                 }
             }
 
@@ -1038,10 +1032,8 @@ class CommonPropertyItemTest : BaseModelTest() {
             assertThat(twoTypeParameterWithBoundsMapReceiverT2.name()).isEqualTo("T2")
             twoTypeParameterWithBoundsMapReceiverT2.typeBounds().single().assertClassTypeItem {
                 assertEquals(qualifiedName, "java.util.List")
-                arguments.single().assertWildcardItem {
-                    extendsBound.assertVariableTypeItem {
-                        assertEquals(asTypeParameter, twoTypeParameterWithBoundsMapReceiverT1)
-                    }
+                arguments.single().assertVariableTypeItem {
+                    assertEquals(asTypeParameter, twoTypeParameterWithBoundsMapReceiverT1)
                 }
             }
             assertThat(twoTypeParameterWithBoundsMapReceiverT2.isReified()).isFalse()
@@ -1051,10 +1043,8 @@ class CommonPropertyItemTest : BaseModelTest() {
                 arguments[0].assertVariableTypeItem {
                     assertEquals(asTypeParameter, twoTypeParameterWithBoundsMapReceiverT1)
                 }
-                arguments[1].assertWildcardItem {
-                    extendsBound.assertVariableTypeItem {
-                        assertEquals(asTypeParameter, twoTypeParameterWithBoundsMapReceiverT2)
-                    }
+                arguments[1].assertVariableTypeItem {
+                    assertEquals(asTypeParameter, twoTypeParameterWithBoundsMapReceiverT2)
                 }
             }
         }
@@ -1104,6 +1094,30 @@ class CommonPropertyItemTest : BaseModelTest() {
             assertThat(typeParameterExtensionT.isReified()).isFalse()
             typeParameterExtension.type().assertVariableTypeItem {
                 assertEquals(asTypeParameter, typeParameterExtensionT)
+            }
+        }
+    }
+
+    @Test
+    fun `Test type of primitive property overriding type parameter type`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                    package test.pkg
+                    interface Parent<T> {
+                        val foo: T
+                    }
+                    class Child: Parent<Int> {
+                        override val foo: Int = 0
+                    }
+                """
+            )
+        ) {
+            val childClass = codebase.assertClass("test.pkg.Child")
+            val fooProperty = childClass.assertProperty("foo")
+            // Since foo overrides of a property with type T, the primitive type needs to be boxed.
+            fooProperty.type().assertClassTypeItem {
+                assertThat(qualifiedName).isEqualTo("java.lang.Integer")
             }
         }
     }

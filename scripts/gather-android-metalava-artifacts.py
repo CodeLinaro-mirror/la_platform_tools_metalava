@@ -95,6 +95,8 @@ def default_stub_files():
         + [
             # Use Metalava for host side API.
             "out/soong/.intermediates/tools/tradefederation/core/tradefed-doc-stubs/linux_glibc_common/everything/tradefed-doc-stubs-stubs.srcjar",
+            # Exportable test API surface created by java_sdk_library
+            "out/soong/.intermediates/frameworks/base/test-mock/android.test.mock.stubs.exportable.test.from-source/android_common/javac/android.test.mock.stubs.exportable.test.from-source.jar",
         ]
     )
 

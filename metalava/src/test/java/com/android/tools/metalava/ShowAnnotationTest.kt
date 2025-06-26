@@ -241,9 +241,9 @@ class ShowAnnotationTest : DriverTest() {
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class MyChild extends test.pkg1.MyParent {
                     public MyChild() { throw new RuntimeException("Stub!"); }
-                    public static final long CONSTANT1 = 12345L; // 0x3039L
-                    public static final long CONSTANT2 = 67890L; // 0x10932L
-                    public static final long CONSTANT3 = 42L; // 0x2aL
+                    public static final long CONSTANT1 = 12345L;
+                    public static final long CONSTANT2 = 67890L;
+                    public static final long CONSTANT3 = 42L;
                     }
                     """
                     ),
@@ -253,9 +253,9 @@ class ShowAnnotationTest : DriverTest() {
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class MyParent implements java.io.Closeable {
                     public MyParent() { throw new RuntimeException("Stub!"); }
-                    public static final long CONSTANT1 = 12345L; // 0x3039L
-                    public static final long CONSTANT2 = 67890L; // 0x10932L
-                    public static final long CONSTANT3 = 42L; // 0x2aL
+                    public static final long CONSTANT1 = 12345L;
+                    public static final long CONSTANT2 = 67890L;
+                    public static final long CONSTANT3 = 42L;
                     }
                     """
                     )

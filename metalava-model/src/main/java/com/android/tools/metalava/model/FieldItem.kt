@@ -133,14 +133,8 @@ interface FieldItem : MemberItem, InheritableItem {
      * the correct Java syntax for the initial value.
      *
      * @param writer the [PrintWriter] to which this will write the field value.
-     * @param nonConstantExpressionProvider optional provider of an expression that will initialize
-     *   the field but will not be considered to be a constant expression as defined in JLS 15.28.
-     * @return `true` if a value was written, false otherwise.
      */
-    fun writeValueWithSemicolon(
-        writer: PrintWriter,
-        nonConstantExpressionProvider: ((FieldItem) -> String?)? = null,
-    ): Boolean {
+    fun writeValueWithSemicolon(writer: PrintWriter) {
         // Use [constantValue] which is only non-null on static final fields.
         when (val value = constantValue?.asAny()) {
             is Int -> {
@@ -216,30 +210,9 @@ interface FieldItem : MemberItem, InheritableItem {
                 )
             }
             else -> {
-                // A non-constant expression initializer is only needed if the field is static and
-                // final. If it was just final and not static then it must be part of a normal class
-                // or an enum in which case they will use a separate initializer block to initialize
-                // the field.
-                if (modifiers.isFinal() && modifiers.isStatic()) {
-                    // Get the non-constant expression, if possible. If one is provided then write
-                    // it out.
-                    nonConstantExpressionProvider?.invoke(this)?.let { nonConstantExpression ->
-                        writer.print(" = ")
-                        writer.print(nonConstantExpression)
-                        writer.print("; // Not compile-time constant")
-                        // A value was written.
-                        return true
-                    }
-                }
-
                 writer.print(';')
-                // A value was not written.
-                return false
             }
         }
-
-        // A value was written.
-        return true
     }
 }
 
