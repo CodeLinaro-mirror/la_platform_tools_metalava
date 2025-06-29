@@ -499,6 +499,7 @@ internal class TurbineClassBuilder(
                     },
                     throwsTypes = getThrowsList(method.exceptions(), methodTypeItemFactory),
                     defaultValueProvider = defaultValueProvider,
+                    isExtensionMethod = false, // Java does not support extension methods
                 )
 
             // Ignore enum synthetic methods.

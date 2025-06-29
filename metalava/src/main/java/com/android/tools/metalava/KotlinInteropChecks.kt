@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.model.CallableBody
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
@@ -66,7 +67,7 @@ class KotlinInteropChecks(val reporter: Reporter) {
     }
 
     private fun ensureExceptionsDocumented(method: MethodItem) {
-        if (!method.isKotlin()) {
+        if (!method.isKotlin() || method.body == CallableBody.UNAVAILABLE) {
             return
         }
 
@@ -243,6 +244,8 @@ class KotlinInteropChecks(val reporter: Reporter) {
                 // Extension methods and inline functions aren't really useful from Java anyway
                 !method.isExtensionMethod() &&
                 !method.modifiers.isInline() &&
+                // Suspend methods are also difficult to use from Java
+                !method.modifiers.isSuspend() &&
                 // Methods marked @JvmSynthetic are hidden from java, overloads not useful
                 !method.modifiers.hasJvmSyntheticAnnotation()
         ) {

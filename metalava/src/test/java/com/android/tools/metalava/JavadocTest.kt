@@ -472,7 +472,7 @@ class JavadocTest : DriverTest() {
                  * attribute in the form
                  * "<code>?[<i>package</i>:]<i>type</i>/<i>name</i></code>".
                  */
-                public static final int resource = 16842789; // 0x1010025
+                public static final int resource = 16842789;
                 }
                 }
                 """

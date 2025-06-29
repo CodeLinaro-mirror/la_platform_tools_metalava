@@ -29,6 +29,10 @@ import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.source.SourceSet
 import com.intellij.pom.java.LanguageLevel
 import java.io.File
+import org.jetbrains.kotlin.analysis.api.platform.projectStructure.KotlinProjectStructureProvider
+import org.jetbrains.kotlin.analysis.api.projectStructure.KaModule
+import org.jetbrains.kotlin.analysis.api.projectStructure.KaSourceModule
+import org.jetbrains.kotlin.analysis.api.standalone.base.projectStructure.KotlinStaticProjectStructureProvider
 import org.jetbrains.kotlin.config.ApiVersion
 import org.jetbrains.kotlin.config.JVMConfigurationKeys
 import org.jetbrains.kotlin.config.LanguageVersion
@@ -146,11 +150,30 @@ internal class PsiSourceParser(
                     allowReadingComments = allowReadingComments,
                     assembler = it,
                     isMultiplatform = environment.isKMP,
+                    mainAnalysisModule = findMainAnalysisModule(environment),
                 )
             }
 
         assembler.initializeFromSources(sourceSet, apiPackages)
         return assembler.codebase
+    }
+
+    /**
+     * Attempts to locate the [KaModule] which should be used to create kotlin-only APIs through the
+     * analysis API. For a non-KMP codebase, this will be the only module in the project. For a KMP
+     * codebase, this will be either the androidMain or jvmMain module.
+     *
+     * In the future (b/407735063), all platforms will be analyzed for KMP projects, but for now,
+     * only the android or jvm target is analyzed.
+     */
+    private fun findMainAnalysisModule(environment: UastEnvironment): KaModule? {
+        val modules =
+            (KotlinProjectStructureProvider.getInstance(environment.ideaProject)
+                    as? KotlinStaticProjectStructureProvider)
+                ?.allModules
+        return modules?.singleOrNull()
+            ?: modules?.singleOrNull { (it as? KaSourceModule)?.name == "androidMain" }
+            ?: modules?.singleOrNull { (it as? KaSourceModule)?.name == "jvmMain" }
     }
 
     private fun isJdkModular(homePath: File): Boolean {

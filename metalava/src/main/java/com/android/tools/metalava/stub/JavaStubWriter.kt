@@ -345,11 +345,7 @@ internal class JavaStubWriter(
         writer.print(field.name())
 
         // Write the value, if any, falling back to the non-constant expression provider.
-        val valueWasWritten =
-            field.writeValueWithSemicolon(
-                writer,
-                JavaStubWriter::nonConstantExpressionProvider,
-            )
+        val valueWasWritten = field.writeFieldValue(writer)
         writer.print("\n")
 
         // An initializer block is needed if no value was written by the call to
@@ -365,6 +361,45 @@ internal class JavaStubWriter(
             }
             writer.print("{ ${field.name()} = ${field.type().defaultValueString()}; }\n")
         }
+    }
+
+    /**
+     * If this field has no initial value, it just writes ";", otherwise it writes " = value;" with
+     * the correct Java syntax for the initial value.
+     *
+     * @param writer the [PrintWriter] to which this will write the field value.
+     * @return `true` if a value was written, false otherwise.
+     */
+    private fun FieldItem.writeFieldValue(
+        writer: PrintWriter,
+    ): Boolean {
+        // Use [constantValue] which is only non-null on static final fields.
+        val constantValue = constantValue
+        if (constantValue != null) {
+            writer.print(" = ")
+            writer.print(constantValue.toValueString())
+            writer.print(";")
+            // A value was written.
+            return true
+        }
+
+        // A non-constant expression initializer is only needed if the field is static and final. If
+        // it was just final and not static then it must be part of a normal class or an enum in
+        // which case they will use a separate initializer block to initialize the field.
+        if (modifiers.isFinal() && modifiers.isStatic()) {
+            // Get the non-constant expression, if possible. If one is provided then write it out.
+            nonConstantExpressionProvider(this)?.let { nonConstantExpression ->
+                writer.print(" = ")
+                writer.print(nonConstantExpression)
+                writer.print(";")
+                // A value was written.
+                return true
+            }
+        }
+
+        writer.print(';')
+        // A value was not written.
+        return false
     }
 
     private fun writeThrowStub() {

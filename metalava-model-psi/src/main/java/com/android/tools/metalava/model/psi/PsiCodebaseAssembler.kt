@@ -43,10 +43,10 @@ import com.android.tools.metalava.model.item.MutablePackageDoc
 import com.android.tools.metalava.model.item.PackageDoc
 import com.android.tools.metalava.model.item.PackageDocs
 import com.android.tools.metalava.model.psi.PsiConstructorItem.Companion.isPrimaryConstructor
+import com.android.tools.metalava.model.psi.kotlin.KaCodebaseAssembler
 import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.model.source.utils.gatherPackageJavadoc
 import com.android.tools.metalava.reporter.Issues
-import com.android.utils.associateByNotNull
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.project.Project
 import com.intellij.psi.JavaPsiFacade
@@ -84,13 +84,12 @@ import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.JvmStandardClassIds
 import org.jetbrains.kotlin.psi.KtClassOrObject
 import org.jetbrains.kotlin.psi.KtDeclaration
+import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.KtFunction
 import org.jetbrains.kotlin.psi.KtParameter
-import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
 import org.jetbrains.kotlin.psi.KtTypeAlias
 import org.jetbrains.kotlin.psi.KtTypeReference
-import org.jetbrains.kotlin.psi.psiUtil.isPropertyParameter
 import org.jetbrains.uast.UClass
 import org.jetbrains.uast.UFile
 import org.jetbrains.uast.UMethod
@@ -383,70 +382,6 @@ internal class PsiCodebaseAssembler(
             }
         }
 
-        // Find all properties defined on the class
-        if (classItem.isKotlin()) {
-            // Collect all accessor methods, backing fields, and constructor parameters that could
-            // be associated with the class properties.
-            val accessors =
-                classItem.methods().filterIsInstance<PsiMethodItem>().groupBy {
-                    it.psiMethod.propertyForAccessor()
-                }
-            val backingFields =
-                classItem
-                    .fields()
-                    .map { it as PsiFieldItem }
-                    .associateByNotNull { it.psi().sourceElement as? KtDeclaration }
-
-            // Properties can either be declared directly as properties or as constructor params.
-            // First find all property declarations.
-            // For a file facade class containing top-level property definitions, the KtClass won't
-            // exist, so get top level definitions from the file(s).
-            val declarations = ktClass?.declarations ?: topLevelDeclarations(psiClass)
-            val ktProperties = declarations.filterIsInstance<KtProperty>()
-            for (ktProperty in ktProperties) {
-                val property =
-                    PsiPropertyItem.create(
-                        codebase = codebase,
-                        ktDeclaration = ktProperty,
-                        containingClass = classItem,
-                        containingTypeItemFactory = classTypeItemFactory,
-                        accessors = accessors[ktProperty] ?: emptyList(),
-                        constructorParameter = null,
-                        backingField = backingFields[ktProperty],
-                    ) ?: continue
-                classItem.addProperty(property)
-            }
-
-            // Find all properties declared as constructor params
-            if (ktClass != null) {
-                val constructorParameters =
-                    classItem.primaryConstructor
-                        ?.parameters()
-                        ?.map { it as PsiParameterItem }
-                        ?.filter { (it.sourcePsi as? KtParameter)?.isPropertyParameter() ?: false }
-                        ?.associateBy { it.name() }
-                        .orEmpty()
-
-                val ktParameters =
-                    ktClass.primaryConstructor
-                        ?.valueParameters
-                        ?.filter { it.isPropertyParameter() }
-                        .orEmpty()
-                for (ktParameter in ktParameters) {
-                    val property =
-                        PsiPropertyItem.create(
-                            codebase = codebase,
-                            ktDeclaration = ktParameter,
-                            containingClass = classItem,
-                            containingTypeItemFactory = classTypeItemFactory,
-                            accessors = accessors[ktParameter] ?: emptyList(),
-                            constructorParameter = constructorParameters[ktParameter.name],
-                            backingField = backingFields[ktParameter],
-                        ) ?: continue
-                    classItem.addProperty(property)
-                }
-            }
-        }
         // This actually gets all nested classes not just inner, i.e. non-static nested,
         // classes.
         val psiNestedClasses = psiClass.innerClasses
@@ -459,16 +394,6 @@ internal class PsiCodebaseAssembler(
             )
         }
         return classItem
-    }
-
-    /** Returns the property or parameter declaration associated with the method, if one exists. */
-    private fun PsiMethod.propertyForAccessor(): KtDeclaration? {
-        return when (val sourceElement = sourceElement) {
-            is KtProperty -> sourceElement
-            is KtPropertyAccessor -> sourceElement.property
-            is KtParameter -> sourceElement
-            else -> null
-        }
     }
 
     private fun hasExplicitRetention(
@@ -966,6 +891,9 @@ internal class PsiCodebaseAssembler(
                 ) ?: continue
             codebase.addTopLevelClassFromSource(classItem)
         }
+
+        // Add kotlin-only APIs.
+        KaCodebaseAssembler.assembleFromKotlin(psiFiles.filterIsInstance<KtFile>(), codebase)
     }
 
     /**

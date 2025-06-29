@@ -151,9 +151,9 @@ class ApiGeneratorTest : DriverTest() {
                              * @apiSince 31
                              * @sdkExtSince R Extensions 2
                              */
-                            public static final int FIELD_ADDED_IN_API_31_AND_EXT_2 = 1; // 0x1
+                            public static final int FIELD_ADDED_IN_API_31_AND_EXT_2 = 1;
                             /** @sdkExtSince R Extensions 3 */
-                            public static final int FIELD_ADDED_IN_EXT_3 = 2; // 0x2
+                            public static final int FIELD_ADDED_IN_EXT_3 = 2;
                             }
                         """
                     ),

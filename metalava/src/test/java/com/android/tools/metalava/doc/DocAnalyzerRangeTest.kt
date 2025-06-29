@@ -142,11 +142,11 @@ class DocAnalyzerRangeTest : DriverTest() {
                      * @param style Value is {@link test.pkg.TypedefTest#STYLE_NORMAL}, {@link test.pkg.TypedefTest#STYLE_NO_TITLE}, {@link test.pkg.TypedefTest#STYLE_NO_FRAME}, or {@link test.pkg.TypedefTest#STYLE_NO_INPUT}
                      */
                     public void setStyle(int style, int theme) { throw new RuntimeException("Stub!"); }
-                    public static final int STYLE_NORMAL = 0; // 0x0
-                    public static final int STYLE_NO_FRAME = 2; // 0x2
-                    public static final int STYLE_NO_INPUT = 3; // 0x3
-                    public static final int STYLE_NO_TITLE = 1; // 0x1
-                    public static final int STYLE_UNRELATED = 3; // 0x3
+                    public static final int STYLE_NORMAL = 0;
+                    public static final int STYLE_NO_FRAME = 2;
+                    public static final int STYLE_NO_INPUT = 3;
+                    public static final int STYLE_NO_TITLE = 1;
+                    public static final int STYLE_UNRELATED = 3;
                     }
                     """
                     )
@@ -203,9 +203,9 @@ class DocAnalyzerRangeTest : DriverTest() {
                      * Value is 20 or greater
                      */
                     public void setStyle(int style, int theme) { throw new RuntimeException("Stub!"); }
-                    public static final int STYLE_NORMAL = 0; // 0x0
-                    public static final int STYLE_NO_FRAME = 2; // 0x2
-                    public static final int STYLE_NO_TITLE = 1; // 0x1
+                    public static final int STYLE_NORMAL = 0;
+                    public static final int STYLE_NO_FRAME = 2;
+                    public static final int STYLE_NO_TITLE = 1;
                     }
                     """
                     )

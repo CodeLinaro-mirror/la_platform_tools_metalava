@@ -77,14 +77,14 @@ class StubsTest : AbstractStubsTest() {
                 public class Foo {
                 public Foo() { throw new RuntimeException("Stub!"); }
                 public static final java.lang.String GOOD_IRI_CHAR = "a-zA-Z0-9\u00a0-\ud7ff\uf900-\ufdcf\ufdf0-\uffef";
-                public static final char HEX_INPUT = 61184; // 0xef00 '\uef00'
+                public static final char HEX_INPUT = '\uef00';
                 protected int field00;
                 public static final boolean field01 = true;
-                public static final int field02 = 42; // 0x2a
-                public static final long field03 = 42L; // 0x2aL
-                public static final short field04 = 5; // 0x5
-                public static final byte field05 = 5; // 0x5
-                public static final char field06 = 99; // 0x0063 'c'
+                public static final int field02 = 42;
+                public static final long field03 = 42L;
+                public static final short field04 = 5;
+                public static final byte field05 = 5;
+                public static final char field06 = 'c';
                 public static final float field07 = 98.5f;
                 public static final double field08 = 98.5;
                 public static final java.lang.String field09 = "String with \"escapes\" and \u00a9...";

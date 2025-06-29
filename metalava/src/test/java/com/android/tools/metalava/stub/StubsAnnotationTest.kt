@@ -526,9 +526,9 @@ class StubsAnnotationTest : AbstractStubsTest() {
                 public byte small() default 1;
                 public int unit() default test.pkg.ExportedProperty.PX;
                 public test.pkg.ExportedProperty.InnerAnnotation value() default @test.pkg.ExportedProperty.InnerAnnotation;
-                public static final int DP = 0; // 0x0
-                public static final int PX = 1; // 0x1
-                public static final int SP = 2; // 0x2
+                public static final int DP = 0;
+                public static final int PX = 1;
+                public static final int SP = 2;
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.SOURCE)
                 public static @interface InnerAnnotation {
@@ -826,7 +826,7 @@ class StubsAnnotationTest : AbstractStubsTest() {
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public class ActionBar {
                 public ActionBar() { throw new RuntimeException("Stub!"); }
-                @test.pkg.ViewDebug.ExportedProperty(category="layout", mapping={@test.pkg.ViewDebug.IntToString(from=0xffffffff, to="NONE"), @test.pkg.ViewDebug.IntToString(from=android.view.Gravity.NO_GRAVITY, to="NONE"), @test.pkg.ViewDebug.IntToString(from=android.view.Gravity.TOP, to="TOP"), @test.pkg.ViewDebug.IntToString(from=android.view.Gravity.BOTTOM, to="BOTTOM")}) public int gravity;
+                @test.pkg.ViewDebug.ExportedProperty(category="layout", mapping={@test.pkg.ViewDebug.IntToString(from=-1, to="NONE"), @test.pkg.ViewDebug.IntToString(from=android.view.Gravity.NO_GRAVITY, to="NONE"), @test.pkg.ViewDebug.IntToString(from=android.view.Gravity.TOP, to="TOP"), @test.pkg.ViewDebug.IntToString(from=android.view.Gravity.BOTTOM, to="BOTTOM")}) public int gravity;
                 }
                 """
         )

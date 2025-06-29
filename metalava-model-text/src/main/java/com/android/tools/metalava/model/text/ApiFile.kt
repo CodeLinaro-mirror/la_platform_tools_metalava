@@ -1312,6 +1312,7 @@ private constructor(
                 throwsTypes = throwsList,
                 defaultValueProvider = defaultValueProvider,
                 targetLanguages = targetLanguages,
+                isExtensionMethod = false, // no way to tell if this is an extension method
             )
 
         // Ignore enum synthetic methods. They are no longer included in signature files as they add

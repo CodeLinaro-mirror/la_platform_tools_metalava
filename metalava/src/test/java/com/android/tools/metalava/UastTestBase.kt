@@ -106,7 +106,7 @@ abstract class UastTestBase : DriverTest() {
                 package androidx.annotation.experimental {
                   @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention.BINARY) @kotlin.annotation.Target(allowedTargets={kotlin.annotation.AnnotationTarget.CLASS, kotlin.annotation.AnnotationTarget.PROPERTY, kotlin.annotation.AnnotationTarget.LOCAL_VARIABLE, kotlin.annotation.AnnotationTarget.VALUE_PARAMETER, kotlin.annotation.AnnotationTarget.CONSTRUCTOR, kotlin.annotation.AnnotationTarget.FUNCTION, kotlin.annotation.AnnotationTarget.PROPERTY_GETTER, kotlin.annotation.AnnotationTarget.PROPERTY_SETTER, kotlin.annotation.AnnotationTarget.FILE, kotlin.annotation.AnnotationTarget.TYPEALIAS}) public @interface UseExperimental {
                     method public abstract $klass<? extends java.lang.annotation.Annotation>[] markerClass();
-                    property public abstract $klass<? extends java.lang.annotation.Annotation>[] markerClass;
+                    property public abstract kotlin.reflect.KClass<? extends java.lang.annotation.Annotation>[] markerClass;
                   }
                 }
                 package test.pkg {
@@ -206,7 +206,7 @@ abstract class UastTestBase : DriverTest() {
                         """
                         package test.pkg
                         annotation class MyAnnotation
-
+                        // No use-site target specified, so the annotation applies to the parameter.
                         data class Foo(@MyAnnotation val p1: Int, val p2: String)
                     """
                     )
@@ -1086,11 +1086,11 @@ abstract class UastTestBase : DriverTest() {
                         method @Deprecated @test.pkg.MyAnnotation public void setPOld_deprecatedOnSetter_myAnnoOnGetter(int);
                         method @Deprecated @test.pkg.MyAnnotation public void setPOld_deprecatedOnSetter_myAnnoOnSetter(int);
                         property @Deprecated public abstract int pOld_deprecatedOnGetter;
-                        property @Deprecated @test.pkg.MyAnnotation @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnGetter_myAnnoOnBoth;
+                        property @Deprecated @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnGetter_myAnnoOnBoth;
                         property @Deprecated @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnGetter_myAnnoOnGetter;
                         property @Deprecated @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnGetter_myAnnoOnSetter;
                         property @Deprecated public abstract int pOld_deprecatedOnProperty;
-                        property @Deprecated @test.pkg.MyAnnotation @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnProperty_myAnnoOnBoth;
+                        property @Deprecated @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnProperty_myAnnoOnBoth;
                         property @Deprecated @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnProperty_myAnnoOnGetter;
                         property @Deprecated @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnProperty_myAnnoOnSetter;
                         property public abstract int pOld_deprecatedOnSetter;
@@ -1183,11 +1183,11 @@ abstract class UastTestBase : DriverTest() {
                         method @Deprecated @test.pkg.MyAnnotation public void setPOld_deprecatedOnSetter_myAnnoOnGetter(int);
                         method @Deprecated @test.pkg.MyAnnotation public void setPOld_deprecatedOnSetter_myAnnoOnSetter(int);
                         property @Deprecated public abstract int pOld_deprecatedOnGetter;
-                        property @Deprecated @test.pkg.MyAnnotation @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnGetter_myAnnoOnBoth;
+                        property @Deprecated @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnGetter_myAnnoOnBoth;
                         property @Deprecated @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnGetter_myAnnoOnGetter;
                         property @Deprecated @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnGetter_myAnnoOnSetter;
                         property @Deprecated public abstract int pOld_deprecatedOnProperty;
-                        property @Deprecated @test.pkg.MyAnnotation @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnProperty_myAnnoOnBoth;
+                        property @Deprecated @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnProperty_myAnnoOnBoth;
                         property @Deprecated @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnProperty_myAnnoOnGetter;
                         property @Deprecated @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnProperty_myAnnoOnSetter;
                         property public abstract int pOld_deprecatedOnSetter;
@@ -2138,8 +2138,6 @@ abstract class UastTestBase : DriverTest() {
 
     @Test
     fun `Inherited internal constructor property-parameter`() {
-        // b/417477089 -- the internal property and accessor should not be present
-        val internalAccessorName = if (isK2) "getInternalCtorVal\$src" else "getInternalCtorVal"
         check(
             sourceFiles =
                 arrayOf(
@@ -2163,8 +2161,6 @@ abstract class UastTestBase : DriverTest() {
                 package test.pkg {
                   public final class ChildClass extends test.pkg.ParentClass {
                     ctor public ChildClass(int internalCtorVal);
-                    method public int ${internalAccessorName}();
-                    property public int internalCtorVal;
                   }
                   public class ParentClass {
                     ctor public ParentClass(int internalCtorVal);

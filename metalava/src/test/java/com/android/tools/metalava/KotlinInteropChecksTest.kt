@@ -580,4 +580,27 @@ class KotlinInteropChecksTest : DriverTest() {
                 )
         )
     }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Check no JvmOverloads warning for suspend function`() {
+        check(
+            apiLint = "", // Enabled
+            expectedIssues =
+                // Line 3 is where regularFun is defined
+                "src/test/pkg/Foo.kt:3: warning: A Kotlin method with default parameter values should be annotated with @JvmOverloads for better Java interoperability; see https://android.github.io/kotlin-guides/interop.html#function-overloads-for-defaults [MissingJvmstatic]",
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+                        class Foo {
+                            fun regularFun(p0: Int = 0, p1: Int = 0) = Unit
+                            suspend fun suspendFun(p0: Int = 0, p1: Int = 0) = Unit
+                        }
+                        """
+                    )
+                )
+        )
+    }
 }

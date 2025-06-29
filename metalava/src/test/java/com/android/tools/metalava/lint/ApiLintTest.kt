@@ -1176,12 +1176,11 @@ class ApiLintTest : DriverTest() {
     @Test
     fun `Check boolean constructor parameter accessor naming patterns in Kotlin -- K1`() {
         `Check boolean constructor parameter accessor naming patterns in Kotlin`(
-            // missing errors for `isVisibleSetterBad`,
+            // missing errors for `isVisibleSetterBad`, `transientStateBad`,
             // `hasTransientStateGetterBad`, `canRecordGetterBad`, `shouldFitWidthGetterBad`
             expectedIssues =
                 """
                 src/android/pkg/MyClass.kt:19: error: Invalid name for boolean property `visibleBad`. Should start with one of `has`, `can`, `should`, `is`. [GetterSetterNames]
-                src/android/pkg/MyClass.kt:25: error: Invalid name for boolean property `transientStateBad`. Should start with one of `has`, `can`, `should`, `is`. [GetterSetterNames]
                 src/android/pkg/MyClass.kt:27: error: Invalid prefix `isHas` for boolean property `isHasTransientStateAlsoBad`. [GetterSetterNames]
                 src/android/pkg/MyClass.kt:29: error: Invalid prefix `isCan` for boolean property `isCanRecordBad`. [GetterSetterNames]
                 src/android/pkg/MyClass.kt:31: error: Invalid prefix `isShould` for boolean property `isShouldFitWidthBad`. [GetterSetterNames]
@@ -1264,18 +1263,18 @@ class ApiLintTest : DriverTest() {
 
                     public class OverlappingFlags {
                         private OverlappingFlags() { }
-                        public static final int DRAG_FLAG_GLOBAL_PREFIX_URI_PERMISSION = 128; // 0x80
-                        public static final int DRAG_FLAG_GLOBAL_URI_READ = 1; // 0x1
-                        public static final int DRAG_FLAG_GLOBAL_URI_WRITE = 2; // 0x2
-                        public static final int DRAG_FLAG_OPAQUE = 512; // 0x200
-                        public static final int SYSTEM_UI_FLAG_FULLSCREEN = 4; // 0x4
-                        public static final int SYSTEM_UI_FLAG_HIDE_NAVIGATION = 2; // 0x2
-                        public static final int SYSTEM_UI_FLAG_IMMERSIVE = 2048; // 0x800
-                        public static final int SYSTEM_UI_FLAG_IMMERSIVE_STICKY = 4096; // 0x1000
-                        public static final int SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN = 1024; // 0x400
-                        public static final int SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION = 512; // 0x200
-                        public static final int SYSTEM_UI_FLAG_LAYOUT_STABLE = 256; // 0x100
-                        public static final int SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR = 16; // 0x10
+                        public static final int DRAG_FLAG_GLOBAL_PREFIX_URI_PERMISSION = 128;
+                        public static final int DRAG_FLAG_GLOBAL_URI_READ = 1;
+                        public static final int DRAG_FLAG_GLOBAL_URI_WRITE = 2;
+                        public static final int DRAG_FLAG_OPAQUE = 512;
+                        public static final int SYSTEM_UI_FLAG_FULLSCREEN = 4;
+                        public static final int SYSTEM_UI_FLAG_HIDE_NAVIGATION = 2;
+                        public static final int SYSTEM_UI_FLAG_IMMERSIVE = 2048;
+                        public static final int SYSTEM_UI_FLAG_IMMERSIVE_STICKY = 4096;
+                        public static final int SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN = 1024;
+                        public static final int SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION = 512;
+                        public static final int SYSTEM_UI_FLAG_LAYOUT_STABLE = 256;
+                        public static final int SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR = 16;
 
                         public static final int TEST1_FLAG_FIRST = 1;
                         public static final int TEST1_FLAG_SECOND = 3;
@@ -1497,6 +1496,35 @@ class ApiLintTest : DriverTest() {
                     """
                     ),
                     androidxNullableSource
+                )
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Check context first for suspend fun`() {
+        check(
+            apiLint = "", // enabled
+            expectedIssues =
+                """
+                src/android/pkg/test.kt:5: error: Context is distinct, so it must be the first argument (method `badCall`) [ContextFirst]
+                src/android/pkg/test.kt:8: error: Context is distinct, so it must be the first argument (method `badCallExtension`) [ContextFirst]
+                """,
+            expectedFail = DefaultLintErrorMessage,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                    package android.pkg
+                    import android.content.Context
+
+                    suspend fun okCall(context: Context, value: Int) {}
+                    suspend fun badCall(value: Int, context: Context) {}
+
+                    suspend fun String.okCallExtension(context: Context, value: Int) {}
+                    suspend fun String.badCallExtension(value: Int, context: Context) {}
+                    """
+                    ),
                 )
         )
     }
