@@ -2888,6 +2888,10 @@ private constructor(
             return
         }
 
+        // Arrays can be used for APIs that only target Kotlin
+        // (go/android-api-guidelines#exception-for-kotlin)
+        if (item.targetLanguages == TargetLanguageSet.KOTLIN_ONLY) return
+
         when (typeString) {
             "java.lang.String[]",
             "byte[]",

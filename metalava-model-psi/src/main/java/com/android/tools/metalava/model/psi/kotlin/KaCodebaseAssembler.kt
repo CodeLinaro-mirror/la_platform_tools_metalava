@@ -27,6 +27,7 @@ import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterListAndFactory
 import com.android.tools.metalava.model.item.DefaultClassItem
+import com.android.tools.metalava.model.item.DefaultParameterItem
 import com.android.tools.metalava.model.item.DefaultPropertyItem
 import com.android.tools.metalava.model.item.DefaultTypeParameterItem
 import com.android.tools.metalava.model.psi.PsiBasedCodebase
@@ -34,7 +35,6 @@ import com.android.tools.metalava.model.psi.PsiFieldItem
 import com.android.tools.metalava.model.psi.PsiFileLocation
 import com.android.tools.metalava.model.psi.PsiItemDocumentation
 import com.android.tools.metalava.model.psi.PsiMethodItem
-import com.android.tools.metalava.model.psi.PsiParameterItem
 import com.android.tools.metalava.model.psi.isKotlin
 import org.jetbrains.kotlin.analysis.api.KaExperimentalApi
 import org.jetbrains.kotlin.analysis.api.KaSession
@@ -270,7 +270,7 @@ internal class KaCodebaseAssembler(val codebase: PsiBasedCodebase, val kaModule:
                     .maxByOrNull { it.parameters().size }
                     ?.parameters()
                     ?.firstOrNull { it.name() == propertySymbol.name.identifier }
-                    as? PsiParameterItem
+                    as? DefaultParameterItem
             } else {
                 null
             }

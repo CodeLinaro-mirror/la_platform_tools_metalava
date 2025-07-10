@@ -18,9 +18,7 @@ package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.CallableItem
-import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.MutableModifierList
-import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterBindings
 import com.android.tools.metalava.model.VisibilityLevel
@@ -31,9 +29,6 @@ import com.android.tools.metalava.model.item.PublicNameProvider
 import com.android.tools.metalava.model.type.MethodFingerprint
 import com.intellij.psi.PsiEllipsisType
 import com.intellij.psi.PsiParameter
-import org.jetbrains.kotlin.analysis.api.analyze
-import org.jetbrains.kotlin.psi.KtParameter
-import org.jetbrains.uast.UParameter
 
 internal class PsiParameterItem
 internal constructor(
@@ -61,51 +56,11 @@ internal constructor(
     ),
     PsiItem {
 
-    override var property: PropertyItem? = null
-
     override fun psi() = psiParameter
 
     // Note receiver parameter used to be named $receiver in previous UAST versions, now it is
     // $this$functionName
     internal fun isReceiver(): Boolean = parameterIndex == 0 && name().startsWith("\$this\$")
-
-    override fun isSamCompatibleOrKotlinLambda(): Boolean {
-        // Method is defined in Java source
-        if (isJava()) {
-            // Check the parameter type to see if it is defined in Kotlin or not.
-            // Interfaces defined in Kotlin do not support SAM conversion, but `fun` interfaces do.
-            // This is a best-effort check, since external dependencies (bytecode) won't appear to
-            // be Kotlin, and won't have a `fun` modifier visible. To resolve this, we could parse
-            // the kotlin.metadata annotation on the bytecode declaration (and special case
-            // kotlin.jvm.functions.Function* since the actual Kotlin lambda type can always be used
-            // with trailing lambda syntax), but in reality the amount of Java methods with a Kotlin
-            // interface with a single abstract method from an external dependency should be
-            // minimal, so just checking source will make this easier to maintain in the future.
-            val cls = type().asClass()
-            if (cls != null && cls.isKotlin()) {
-                return cls.isInterface() && cls.modifiers.isFunctional()
-            }
-            // Note: this will return `true` if the interface is defined in Kotlin, hence why we
-            // need the prior check as well
-            return type().let { it is ClassTypeItem && it.isFunctionalType() }
-            // Method is defined in Kotlin source
-        } else {
-            // For Kotlin declarations we can re-use the existing utilities for calculating whether
-            // a type is SAM convertible or not, which should handle external dependencies better
-            // and avoid any divergence from the actual compiler behaviour, if there are changes.
-            val parameter = (psi() as? UParameter)?.sourcePsi as? KtParameter ?: return false
-            analyze(parameter) {
-                val ktType = parameter.symbol.returnType
-                val isSamType = ktType.isFunctionalInterface
-                val isFunctionalType =
-                    ktType.isFunctionType ||
-                        ktType.isSuspendFunctionType ||
-                        ktType.isKFunctionType ||
-                        ktType.isKSuspendFunctionType
-                return isSamType || isFunctionalType
-            }
-        }
-    }
 
     override fun duplicate(
         containingCallable: CallableItem,

@@ -73,12 +73,12 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
             stubFiles =
                 arrayOf(
                     java(
+                        // TODO(b/379940628): method() should not be removed.
                         """
                             package test.pkg;
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
                             public final class Test extends other.pkg.Other {
                             Test() { throw new RuntimeException("Stub!"); }
-                            public void method() { throw new RuntimeException("Stub!"); }
                             }
                         """
                     )
