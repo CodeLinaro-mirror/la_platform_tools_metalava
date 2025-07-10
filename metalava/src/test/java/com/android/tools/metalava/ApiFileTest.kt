@@ -4532,7 +4532,7 @@ class ApiFileTest : DriverTest() {
                 // Signature format: 4.0
                 package test.pkg {
                   public final inline class Dp implements java.lang.Comparable<test.pkg.Dp> {
-                    ctor public Dp();
+                    ctor @KotlinOnly public Dp(float value);
                     method public void doSomething();
                     method public float getValue();
                     method public inline operator float minus(float other);
@@ -4576,7 +4576,7 @@ class ApiFileTest : DriverTest() {
                 // Signature format: 4.0
                 package test.pkg {
                   @kotlin.jvm.JvmInline public final value class Dp implements java.lang.Comparable<test.pkg.Dp> {
-                    ctor public Dp(float value);
+                    ctor @KotlinOnly public Dp(float value);
                     method public int compareTo(float other);
                     method public void doSomething();
                     method public float getValue();
@@ -4612,6 +4612,7 @@ class ApiFileTest : DriverTest() {
                 // Signature format: 4.0
                 package test.pkg {
                   @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface Foo {
+                    ctor @KotlinOnly public Foo(optional long bar);
                     method public abstract long bar() default java.lang.Long.MIN_VALUE;
                     property public abstract long bar;
                   }
@@ -5003,6 +5004,7 @@ class ApiFileTest : DriverTest() {
                 // Signature format: 4.0
                 package test.pkg {
                   @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface Foo {
+                    ctor @KotlinOnly public Foo(String[] bar, java.lang.String... baz);
                     method public abstract String[] bar();
                     method public abstract String[] baz();
                     property public abstract String[] bar;
@@ -5090,6 +5092,7 @@ class ApiFileTest : DriverTest() {
                 """
                 package test.pkg {
                   @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface Dimension {
+                    ctor @KotlinOnly public Dimension(optional int unit);
                     method public abstract int unit() default test.pkg.Dimension.PX;
                     property public abstract int unit;
                     field public static final test.pkg.Dimension.Companion Companion;
@@ -5205,11 +5208,63 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
+            // Compiled from the Kotlin source file above with [generateBase64gzipFromKotlin]
+            compiledSourceJar =
+                base64gzip(
+                    "test.jar",
+                    // kotlinc version info: kotlinc-jvm 1.9.23 (JRE 17.0.6+10-b802.1)
+                    "" +
+                        "H4sIAAAAAAAA/42Vd1AT2BbGE3pdWmgSepEWgqKwiBCJEEhCCRBYKQoJkBA6" +
+                        "JLAqlqcIruCCCquAFBGINAkIuKLEFZBAJEuTuPQSQCGiAkFQNOThvpn30Jl1" +
+                        "3r1z/rgz935nzv1mvh8GLSwCAkhISAAAAF3AzgUCiADcnbGOEKQHAuru6IFE" +
+                        "OPtgLdwRW88AAJ47q8cNDbEYkEVDTHtZfY3elkNW0/OJFih3c6T7QFJ1k/cy" +
+                        "CpJgimKxzPyWe6FMJmt2njMvBMCgxSVoSiY02+0GNtuF+U57AIASTqZA46OI" +
+                        "UB8KjhJuERqNI5NjMO6e7YfkT4/BTXwbdExviWdPt+mthIDcW/OuhLjd0jUq" +
+                        "VAlCloI6Yi91banIbUnIUWcWsvd6DGRq3zihPTJywuqdNi0O4FHfd8UHbvoq" +
+                        "YW/iwwyzq8DQSuuJxvU86INZXsjc+A8MfGUvVBAgsx4HTQWl2ipWd/ExlqCa" +
+                        "ZsHmILvgteLLsZz8VfqTFoWMKXIn8zlVuojTUB6WIyRmrStgorFFw/w9h62y" +
+                        "Eq/7Ddb+eG+fnQk11iGXs9BvOdtNEK8tZTd7tL0wGyWBJyDB3j3EjspyVm6R" +
+                        "x1YE5vN633vSAbL/Xkv6h2dxdZ/LLuG7k+leT3x/3D3G7W3/iAlKcbiUuFsm" +
+                        "10bZ3vOkcHCQaNvlglZ/HdmC1H1+dv1HZfpPexlVtF3Y+pOC9TvSrjUjSu/2" +
+                        "zmZfnGwPkH4NidZxAd2EDHdvtBlIDXM7rhijotFLrkvPnAgOwC+2CDBzJF8g" +
+                        "ADAG/J4tBjttcSSfiA3F4IikWKITjoJzIhEI4Yn/sanIN9BTwwW0RZBdx8vk" +
+                        "zf/Q0n9IqV43fV/M4CEkcHdnlTAoCIUO3Dec6t862Zz8wu94FeYsSuCohTHV" +
+                        "Ms3tqhaUC0q5+c3AUAuvKKYVsff9TXJvIZ9XMgsDHGRYd2h6ukK9TOeUeKtP" +
+                        "eutWW0mvcsZnkeSff3qga5neMMJqXHOgLV/ofHMKH04MDqPnt/SYp0foQy8Y" +
+                        "pU/Xkm5OgjtyGtb8W5OyU/AvBz+OtwWM3P+YZUhg2KipaECIs/ksVlAZ32Rj" +
+                        "F1R48fysP7VomAZSopl2/pYRD7n4ysBRG2kX69AAbdW8cfO+W/xYcnfFojx9" +
+                        "6XhPeI/eXZUkJVhulh8quAj2fP1CFNns6j37Gwfz/NXhGoc9kz3DpPer1ozP" +
+                        "OztmyMgxLIj1WY11hXOSySKav6QPZHlIxWXa3Jl5pDbaUwEeyBy/l3z8/q2y" +
+                        "i7qWVLfzC9Jl6nzsNQbIpT+jTSVCLeNWDWqCsPDYlKiwNl3nrUaIWF13Y1oW" +
+                        "Pm4JNXY5eqO6NnEqqeBTuXGLHnoJvJieAUcVqxr8XoTraeC1a16f92YmIM+V" +
+                        "jigq49i+b4cKuNf89FYVglCGOdDrSH8/K6Xs29mloYHsyJQhTmcRWLsoY7oU" +
+                        "lZHu5CLvI7PRC40eVb6jo0gK5jUvf7DoO5mVIt+un/6CY5s6Q9usZi914/uY" +
+                        "kAQ7oqRtQXIhvIXibEKzYoFznwqU/A5PRtud8a/eDJ9YC5zZ4yA7q3QKYXIC" +
+                        "Tp+9HpM+2bBSc3OGfNAqIp5VuS5V5XbGse9lqmeAMmylpJh2L6JykiLCY3Mh" +
+                        "8kPOwjLYj8WIlKnCUl5TIBaymBbPIXWi/vXEqrmpMi2oXmhlKo/rJFs6T1Xf" +
+                        "crAFy0TxAz7MWdY6k7zsNPfTWxhvYbaXFzeZuNzOJpM3CnzVk2sO+oqyMlxE" +
+                        "Tqm9vW1h5ElBICbTGnp5gW4g8UJyQS1y6Lkq5+QCwV5fLUZ9iNr++MzrgA3R" +
+                        "iT83/tjMkgAj4X+5jtZocY9wnw1Nm3dg91JgaXLSWr/mJ1nFkWlLg4/At8WW" +
+                        "WbddR5R9CoYkeK9Sr1Lbb+foV2Q1kTLnExNcHqizzWUQo8zEqNRH1AN/5ZX9" +
+                        "+riXMSN6Z4an4Aj9g9CY4Ly2/NAnuZFTUVXoogruyinuQbPf3sijJpOoo2Ih" +
+                        "lfkud+IWy2cMrSPkBos6mjQipY6ZlQFdKfa0/GTu2X0zdgf4cGv3pqlsjatT" +
+                        "ODe1iSaPXfQmxiRORwXWfnf4qcLbp0bZywOBMIbRXfpclw6MHtEm/1HT6IL2" +
+                        "4a4Ng0xfe44WAluiWNFvVVKN982Fq1SWvuiTv9+/Jcx/JLT/QVIUFqhtqC96" +
+                        "KvW8sQtiPA8TMrsSyhJ6Z/mzQpi818Po3WmWCxogw+ox8ZHAZgdhks7b1PFV" +
+                        "T9gmGPHTYHwwB8gQYSzipdp4u84fhd8qPnb2NBe/cim09YGQi4hwRJnEm9y6" +
+                        "2Nuf4se69gS9T0gvE5j781WlPlWUXLd+Aw8QY9ucixAlAtjaKa8zbaIk096F" +
+                        "b3VE/r5wgI0Bfp57pw6TNTPgZ1jUN6UdkqoCHatY3j/oxEmS6jkyIpRzpNMm" +
+                        "8BfXy661yFr0U0MxQ4RhgOFDg2L0muv4b9jMkqiRs6hzRlXM3VFYxRyB0Jd8" +
+                        "jDwxrdsrsp2Pkt/LR43t+i81Y3CkWIuoOEo0KTY4Ji4sKTo8NCQkhLBdIngP" +
+                        "MWMMvh8P+BuJ7/Va6UrbL9X+RiJQCAT4n/pOXH5h8tfrnwj9rcrOdAd9pXD2" +
+                        "H0D7rcLO+Q2+UlAR+v+Y8K3izqk1vlK0Fv/uL2LQomJfrolsb/3tga6Jfzn9" +
+                        "Gy2z08bLCAAA"
+                ),
             api =
                 """
                 package test.pkg {
                   public final class AsyncPagingDataDiffer<T> {
-                    ctor @Deprecated public AsyncPagingDataDiffer(test.pkg.State<? extends T> state);
+                    ctor @BytecodeOnly @Deprecated public AsyncPagingDataDiffer(test.pkg.State!);
                     ctor public AsyncPagingDataDiffer(test.pkg.State<? extends T> initState, test.pkg.State<? extends T> nextState);
                     ctor public AsyncPagingDataDiffer(test.pkg.State<? extends T> initState, test.pkg.State<? extends T> nextState, Runnable updateCallback);
                   }
@@ -5280,6 +5335,7 @@ class ApiFileTest : DriverTest() {
                 """
                 package test.pkg {
                   @kotlin.annotation.Repeatable public @interface RequiresExtension {
+                    ctor @KotlinOnly public RequiresExtension(@IntRange(from=1L) int extension, @IntRange(from=1L) int version);
                     method public abstract int extension();
                     method public abstract int version();
                     property @IntRange(from=1L) public abstract int extension;

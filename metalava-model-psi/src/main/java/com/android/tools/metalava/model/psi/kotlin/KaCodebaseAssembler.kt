@@ -19,23 +19,34 @@ package com.android.tools.metalava.model.psi.kotlin
 import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ApiVariantSelectors
+import com.android.tools.metalava.model.CallableBody
+import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.DefaultTypeParameterList
+import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
+import com.android.tools.metalava.model.MutableModifierList
+import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.SourceLanguage
+import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterListAndFactory
 import com.android.tools.metalava.model.item.DefaultClassItem
+import com.android.tools.metalava.model.item.DefaultConstructorItem
 import com.android.tools.metalava.model.item.DefaultParameterItem
 import com.android.tools.metalava.model.item.DefaultPropertyItem
 import com.android.tools.metalava.model.item.DefaultTypeParameterItem
+import com.android.tools.metalava.model.item.ParameterDefaultValue
 import com.android.tools.metalava.model.psi.PsiBasedCodebase
 import com.android.tools.metalava.model.psi.PsiFieldItem
 import com.android.tools.metalava.model.psi.PsiFileLocation
 import com.android.tools.metalava.model.psi.PsiItemDocumentation
 import com.android.tools.metalava.model.psi.PsiMethodItem
 import com.android.tools.metalava.model.psi.isKotlin
+import com.android.tools.metalava.model.type.MethodFingerprint
+import com.android.tools.metalava.model.value.ArrayValue
+import com.android.tools.metalava.model.value.ClassObjectValue
 import org.jetbrains.kotlin.analysis.api.KaExperimentalApi
 import org.jetbrains.kotlin.analysis.api.KaSession
 import org.jetbrains.kotlin.analysis.api.analyze
@@ -46,6 +57,8 @@ import org.jetbrains.kotlin.analysis.api.projectStructure.KaModule
 import org.jetbrains.kotlin.analysis.api.symbols.KaAnonymousObjectSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaCallableSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaClassifierSymbol
+import org.jetbrains.kotlin.analysis.api.symbols.KaConstructorSymbol
+import org.jetbrains.kotlin.analysis.api.symbols.KaFunctionSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaNamedClassSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaPackageSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaPropertySymbol
@@ -54,9 +67,12 @@ import org.jetbrains.kotlin.analysis.api.symbols.KaSymbolOrigin
 import org.jetbrains.kotlin.analysis.api.symbols.KaSymbolVisibility
 import org.jetbrains.kotlin.analysis.api.symbols.KaTypeAliasSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaTypeParameterSymbol
-import org.jetbrains.kotlin.analysis.api.symbols.name
+import org.jetbrains.kotlin.analysis.api.symbols.KaValueParameterSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.receiverType
+import org.jetbrains.kotlin.analysis.api.types.KaType
+import org.jetbrains.kotlin.asJava.toLightElements
 import org.jetbrains.kotlin.psi.KtAnnotationEntry
+import org.jetbrains.kotlin.psi.KtElement
 import org.jetbrains.kotlin.psi.KtFile
 
 /**
@@ -119,6 +135,9 @@ internal class KaCodebaseAssembler(val codebase: PsiBasedCodebase, val kaModule:
 
                 // The combined declared member scope contains both static and non-static members.
                 val memberScope = classifierSymbol.combinedDeclaredMemberScope
+                for (constructorSymbol in memberScope.constructors) {
+                    processConstructor(constructorSymbol, classItem, classTypeItemFactory)
+                }
                 for (callableSymbol in memberScope.callables) {
                     // K1 includes delegate symbols in the combinedDeclaredMemberScope, K2 does not.
                     // Don't add delegate symbols here because they're processed from the
@@ -141,6 +160,79 @@ internal class KaCodebaseAssembler(val codebase: PsiBasedCodebase, val kaModule:
             is KaTypeParameterSymbol,
             is KaAnonymousObjectSymbol -> return
         }
+    }
+
+    /**
+     * Whether to create a constructor item in the [containingClass] based on the
+     * [constructorSymbol].
+     */
+    private fun KaSession.shouldGenerateConstructor(
+        constructorSymbol: KaConstructorSymbol,
+        containingClass: ClassItem,
+    ): Boolean {
+        // Value class primary constructors are always kotlin only.
+        if (constructorSymbol.isPrimary && containingClass.modifiers.isValue()) return true
+        // If a constructor has a corresponding UElement it generally shouldn't be created as kotlin
+        // only, but with K1 value class types weren't handled differently from other types so there
+        // might be a UElement for a constructor using a value class type even though it should be
+        // kotlin only.
+        if (constructorSymbol.existsAsUElement() && !hasValueClassTypeParameter(constructorSymbol))
+            return false
+        // Deprecation level hidden items can't be resolved from source.
+        if (constructorSymbol.isDeprecatedHidden()) return false
+        // Items are generated for actual constructors, and aren't needed for expects.
+        if (constructorSymbol.isExpect) return false
+        return true
+    }
+
+    /**
+     * Constructs a constructor from the [constructorSymbol] and adds it to the [containingClass].
+     */
+    private fun KaSession.processConstructor(
+        constructorSymbol: KaConstructorSymbol,
+        containingClass: DefaultClassItem,
+        enclosingTypeItemFactory: KaTypeItemFactory,
+    ) {
+        if (!shouldGenerateConstructor(constructorSymbol, containingClass)) return
+
+        val typeParameterListAndFactory =
+            typeParameterListAndFactory(
+                enclosingTypeItemFactory,
+                "for constructor ${containingClass.simpleName()}",
+                constructorSymbol.typeParameters
+            )
+
+        val modifiers = kaModifierFactory.createForDeclaration(constructorSymbol)
+        val constructorItem =
+            DefaultConstructorItem(
+                codebase = codebase,
+                fileLocation = PsiFileLocation.fromPsiElement(constructorSymbol.psi),
+                sourceLanguage = SourceLanguage.KOTLIN,
+                targetLanguages = TargetLanguageSet.KOTLIN_ONLY,
+                modifiers = modifiers,
+                documentationFactory = ItemDocumentation.NONE_FACTORY,
+                variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
+                name = containingClass.simpleName(),
+                containingClass = containingClass,
+                typeParameterList = typeParameterListAndFactory.typeParameterList,
+                returnType = containingClass.type(),
+                parameterItemsFactory = { callableItem ->
+                    parameterList(
+                        constructorSymbol.valueParameters,
+                        callableItem,
+                        typeParameterListAndFactory.factory,
+                        MethodFingerprint(
+                            containingClass.simpleName(),
+                            constructorSymbol.valueParameters.count()
+                        )
+                    )
+                },
+                throwsTypes = throwsTypesFromModifiers(modifiers),
+                callableBodyFactory = CallableBody.UNAVAILABLE_FACTORY,
+                implicitConstructor = false,
+                isPrimary = constructorSymbol.isPrimary,
+            )
+        containingClass.addConstructor(constructorItem)
     }
 
     /** Processes a [KaCallableSymbol], which could be a property or function. */
@@ -306,6 +398,66 @@ internal class KaCodebaseAssembler(val codebase: PsiBasedCodebase, val kaModule:
         containingClass.addProperty(propertyItem)
     }
 
+    /** Converts the [kaParameters] to [ParameterItem]s for the [containingCallable]. */
+    private fun parameterList(
+        kaParameters: List<KaValueParameterSymbol>,
+        containingCallable: CallableItem,
+        enclosingTypeItemFactory: KaTypeItemFactory,
+        fingerprint: MethodFingerprint,
+    ): List<ParameterItem> {
+        return kaParameters.mapIndexed { index, parameterSymbol ->
+            val type =
+                enclosingTypeItemFactory.getMethodParameterType(
+                    underlyingParameterType = parameterSymbol.returnType,
+                    itemAnnotations = containingCallable.modifiers.annotations(),
+                    fingerprint = fingerprint,
+                    parameterIndex = index,
+                    isVarArg = parameterSymbol.isVararg,
+                )
+
+            DefaultParameterItem(
+                codebase = codebase,
+                fileLocation = PsiFileLocation.fromPsiElement(parameterSymbol.psi),
+                sourceLanguage = SourceLanguage.KOTLIN,
+                modifiers = kaModifierFactory.createForParameter(parameterSymbol),
+                name = parameterSymbol.name.identifier,
+                publicNameProvider = { parameterSymbol.name.identifierOrNullIfSpecial },
+                containingCallable = containingCallable,
+                parameterIndex = index,
+                type = type,
+                defaultValueFactory = {
+                    if (parameterSymbol.hasDefaultValue) {
+                        ParameterDefaultValue.UNKNOWN
+                    } else {
+                        ParameterDefaultValue.NONE
+                    }
+                },
+            )
+        }
+    }
+
+    /** Finds any exception types listed with the @Throws annotation. */
+    private fun throwsTypesFromModifiers(modifiers: MutableModifierList): List<ExceptionTypeItem> {
+        return modifiers
+            .annotations()
+            .filter { annotationItem ->
+                annotationItem.qualifiedName == "kotlin.Throws" ||
+                    annotationItem.qualifiedName == "kotlin.jvm.Throws"
+            }
+            .flatMap { annotationItem ->
+                annotationItem.attributes
+                    .singleOrNull { annotationAttribute ->
+                        annotationAttribute.name == "exceptionClasses"
+                    }
+                    ?.value
+                    ?.let { exceptionClasses ->
+                        (exceptionClasses as? ArrayValue)?.elements?.mapNotNull { exceptionClass ->
+                            (exceptionClass as? ClassObjectValue)?.typeItem as? ExceptionTypeItem
+                        }
+                    } ?: emptyList()
+            }
+    }
+
     /** Checks whether an element is deprecated with [DeprecationLevel.HIDDEN]. */
     private fun KaAnnotated.isDeprecatedHidden(): Boolean {
         return annotations.any { kaAnnotation ->
@@ -421,6 +573,28 @@ internal class KaCodebaseAssembler(val codebase: PsiBasedCodebase, val kaModule:
             }
         )
     }
+
+    /**
+     * Checks if there are any UElements corresponding to the symbol. If there are, this symbol
+     * usually shouldn't have a kotlin-only item generated from it.
+     */
+    private fun KaSymbol.existsAsUElement() =
+        (psi as? KtElement)?.toLightElements()?.isNotEmpty() == true
+
+    /**
+     * Checks if the [kaType] represents a value class. Value classes generally cannot be used from
+     * java.
+     */
+    private fun KaSession.isValueClassType(kaType: KaType) =
+        (kaType.expandedSymbol as? KaNamedClassSymbol)?.isInline == true
+
+    /**
+     * Checks if any of the parameters of the [functionSymbol] are value class types. If they are,
+     * there should be a kotlin-only item generated from the function, since value class types can't
+     * generally be used from java.
+     */
+    private fun KaSession.hasValueClassTypeParameter(functionSymbol: KaFunctionSymbol) =
+        functionSymbol.valueParameters.any { isValueClassType(it.returnType) }
 
     companion object {
         /** Adds kotlin-only elements to the [codebase] by analyzing the [ktFiles]. */

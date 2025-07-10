@@ -59,33 +59,11 @@
     <issue
         id="UElementAsPsi"
         message="Do not use `UElement` as `PsiElement`"
-        errorLine1="                        psiMethod.parameters.isEmpty()"
-        errorLine2="                        ~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/android/tools/metalava/model/psi/PsiCodebaseAssembler.kt"
-            line="309"
-            column="25"/>
-    </issue>
-
-    <issue
-        id="UElementAsPsi"
-        message="Do not use `UElement` as `PsiElement`"
-        errorLine1="            val ktConstructor = ktClass?.primaryConstructor?.toUElement() as? PsiMethod"
-        errorLine2="                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/android/tools/metalava/model/psi/PsiCodebaseAssembler.kt"
-            line="352"
-            column="33"/>
-    </issue>
-
-    <issue
-        id="UElementAsPsi"
-        message="Do not use `UElement` as `PsiElement`"
         errorLine1="                psiParameter.isVarArgs &amp;&amp; // last `vararg`"
         errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/java/com/android/tools/metalava/model/psi/PsiCodebaseAssembler.kt"
-            line="748"
+            line="750"
             column="17"/>
     </issue>
 
@@ -109,6 +87,50 @@
             file="src/main/java/com/android/tools/metalava/model/psi/PsiModifierItem.kt"
             line="444"
             column="33"/>
+    </issue>
+
+    <issue
+        id="UastImplementation"
+        message="org.jetbrains.uast.kotlin.KotlinUMethodWithFakeLightDelegateBase is UAST implementation. Consider using one of its corresponding UAST interfaces: `UMethod`, `UDeclaration`, `UAnnotated`, `UAnchorOwner`"
+        errorLine1="import org.jetbrains.uast.kotlin.KotlinUMethodWithFakeLightDelegateBase"
+        errorLine2="~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/android/tools/metalava/model/psi/PsiCodebaseAssembler.kt"
+            line="97"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="UastImplementation"
+        message="org.jetbrains.uast.kotlin.psi.UastFakeSourceLightMethod is UAST implementation. Consider using one of its corresponding UAST interfaces."
+        errorLine1="import org.jetbrains.uast.kotlin.psi.UastFakeSourceLightMethod"
+        errorLine2="~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/android/tools/metalava/model/psi/PsiCodebaseAssembler.kt"
+            line="98"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="UastImplementation"
+        message="org.jetbrains.uast.kotlin.psi.UastFakeSourceLightMethod is UAST implementation. Consider using one of its corresponding UAST interfaces."
+        errorLine1="                    psiMethod is UastFakeSourceLightMethod ||"
+        errorLine2="                                 ~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/android/tools/metalava/model/psi/PsiCodebaseAssembler.kt"
+            line="306"
+            column="34"/>
+    </issue>
+
+    <issue
+        id="UastImplementation"
+        message="org.jetbrains.uast.kotlin.KotlinUMethodWithFakeLightDelegateBase is UAST implementation. Consider using one of its corresponding UAST interfaces: `UMethod`, `UDeclaration`, `UAnnotated`, `UAnchorOwner`"
+        errorLine1="                        psiMethod is KotlinUMethodWithFakeLightDelegateBase&lt;*>"
+        errorLine2="                                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/android/tools/metalava/model/psi/PsiCodebaseAssembler.kt"
+            line="307"
+            column="38"/>
     </issue>
 
     <issue
