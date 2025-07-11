@@ -64,7 +64,6 @@ import com.intellij.psi.PsiFile
 import com.intellij.psi.PsiImportStatement
 import com.intellij.psi.PsiJavaFile
 import com.intellij.psi.PsiManager
-import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiPackage
 import com.intellij.psi.PsiParameter
 import com.intellij.psi.PsiSubstitutor
@@ -82,7 +81,6 @@ import org.jetbrains.kotlin.analysis.api.types.KaTypeNullability
 import org.jetbrains.kotlin.asJava.classes.KtLightClassForFacade
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.JvmStandardClassIds
-import org.jetbrains.kotlin.psi.KtClassOrObject
 import org.jetbrains.kotlin.psi.KtDeclaration
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.KtFunction
@@ -96,7 +94,8 @@ import org.jetbrains.uast.UMethod
 import org.jetbrains.uast.UParameter
 import org.jetbrains.uast.UastFacade
 import org.jetbrains.uast.kotlin.BaseKotlinUastResolveProviderService
-import org.jetbrains.uast.toUElement
+import org.jetbrains.uast.kotlin.KotlinUMethodWithFakeLightDelegateBase
+import org.jetbrains.uast.kotlin.psi.UastFakeSourceLightMethod
 
 internal class PsiCodebaseAssembler(
     private val uastEnvironment: UastEnvironment,
@@ -298,17 +297,21 @@ internal class PsiCodebaseAssembler(
         // create methods
         for (psiMethod in psiMethods) {
             if (psiMethod.isConstructor) {
-                // Kotlin value class primary constructors must have exactly one parameter. If the
-                // parameter is optional, K1 generates an additional no-args constructor for Java.
-                // However, this constructor can't actually be called from Java, and the constructor
-                // with an optional arg is sufficient for Kotlin API tracking, so filter the no-args
-                // constructor out (this is consistent with K2).
+                // Skip fake UAST constructors, which can't be used from java source.
                 if (
-                    classItem.modifiers.isValue() &&
-                        (psiMethod as UMethod).isPrimaryConstructor &&
-                        psiMethod.parameters.isEmpty()
-                )
+                    psiMethod is UastFakeSourceLightMethod ||
+                        psiMethod is KotlinUMethodWithFakeLightDelegateBase<*>
+                ) {
                     continue
+                }
+
+                // Kotlin value class primary constructors cannot be called from Java, so they will
+                // be generated later by the KaCodebaseAssembler. For K1, these constructors aren't
+                // fake UAST elements, so they won't have already been filtered out.
+                // TODO(b/427783483): remove this workaround
+                if (classItem.modifiers.isValue() && (psiMethod as UMethod).isPrimaryConstructor) {
+                    continue
+                }
 
                 val constructor =
                     PsiConstructorItem.create(
@@ -317,6 +320,14 @@ internal class PsiCodebaseAssembler(
                         psiMethod,
                         classTypeItemFactory,
                     )
+
+                // Constructors with value class type parameters may or may not be fake UAST
+                // elements depending on whether K1 or K2 is used.
+                // TODO(b/427783483): remove this workaround
+                if (constructor.parameters().any { it.type().isValueClassType() }) {
+                    continue
+                }
+
                 addOverloadedKotlinCallablesIfNecessary(
                     classItem,
                     classTypeItemFactory,
@@ -327,6 +338,7 @@ internal class PsiCodebaseAssembler(
                 // With K1, value class property accessors are present as [PsiMethod]s and with K2
                 // they are not. These accessor methods can't actually be used from Java, so this
                 // forces the K2 behavior and filters them out for K1.
+                // TODO(b/427783483): remove this workaround
                 if (
                     classItem.modifiers.isValue() && psiMethod.sourceElement is KtPropertyAccessor
                 ) {
@@ -339,26 +351,6 @@ internal class PsiCodebaseAssembler(
                     addOverloadedKotlinCallablesIfNecessary(classItem, classTypeItemFactory, method)
                     classItem.addMethod(method)
                 }
-            }
-        }
-
-        // With K2, value class constructors are not present on the PsiClass (b/369846185#comment6)
-        // because they can't be used from Java code. They can still be found on the KtClass, and we
-        // track them for Kotlin source compatibility.
-        // Value classes must have a primary constructor, so if none of the constructors are primary
-        // this must be K2, and the primary constructor needs to be added.
-        val ktClass = (psiClass as? UClass)?.sourcePsi as? KtClassOrObject
-        if (classItem.modifiers.isValue() && classItem.constructors().none { it.isPrimary }) {
-            val ktConstructor = ktClass?.primaryConstructor?.toUElement() as? PsiMethod
-            if (ktConstructor != null) {
-                val primaryConstructor =
-                    PsiConstructorItem.create(
-                        codebase,
-                        classItem,
-                        ktConstructor,
-                        classTypeItemFactory
-                    )
-                classItem.addConstructor(primaryConstructor)
             }
         }
 
@@ -495,21 +487,13 @@ internal class PsiCodebaseAssembler(
         }
     }
 
+    /**
+     * Whether a no-args constructor should be generated for this class. For Kotlin source classes,
+     * the psi will include the implicit no-args constructor if it exists, so this is only needed
+     * for Java source classes.
+     */
     private fun hasImplicitDefaultConstructor(classItem: PsiClassItem): Boolean {
-        if (classItem.simpleName().startsWith("-")) {
-            // Deliberately hidden; see examples like
-            //     @file:JvmName("-ViewModelExtensions") // Hide from Java sources in the IDE.
-            return false
-        }
-
-        val psiClass = classItem.psiClass
-        if (psiClass is UClass && psiClass.sourcePsi == null) {
-            // Top level kt classes (FooKt for Foo.kt) do not have implicit default constructor
-            return false
-        }
-
-        val constructors = classItem.constructors()
-        return constructors.isEmpty() && classItem.isClass()
+        return classItem.isJava() && classItem.constructors().isEmpty() && classItem.isClass()
     }
 
     /**

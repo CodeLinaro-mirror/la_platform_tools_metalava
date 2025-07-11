@@ -262,6 +262,9 @@ interface Item : Reportable {
      */
     fun baselineElementId(): String
 
+    /** The languages from which this [Item] can be used. */
+    val targetLanguages: Set<TargetLanguage>
+
     companion object {
         fun describe(item: Item, capitalize: Boolean = false): String {
             return when (item) {

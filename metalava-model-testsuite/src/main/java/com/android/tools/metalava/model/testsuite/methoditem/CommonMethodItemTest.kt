@@ -31,6 +31,7 @@ import com.android.tools.metalava.testing.createCommonModuleDescription
 import com.android.tools.metalava.testing.createProjectDescription
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
+import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotEquals
@@ -339,6 +340,53 @@ class CommonMethodItemTest : BaseModelTest() {
             val throwsType = methodItem.throwsTypes().single()
             // Neither the class nor throwable class is available.
             assertNull(throwsType.erasedClass)
+        }
+    }
+
+    @Test
+    fun `Test throws type on kotlin only constructor`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                package test.pkg
+                annotation class SingleThrowsType
+                    @Throws(IllegalStateException::class)
+                    constructor(val v: Int)
+
+                annotation class MultipleThrowsTypes
+                    @Throws(IllegalStateException::class, IllegalArgumentException::class)
+                    constructor(val v: Int)
+
+                annotation class NoThrowsTypes
+                    @Throws
+                    constructor(val v: Int)
+                """
+            )
+        ) {
+            assertEquals(
+                codebase
+                    .assertClass("test.pkg.SingleThrowsType")
+                    .assertConstructor("int")
+                    .throwsTypes()
+                    .single()
+                    .toTypeString(),
+                "java.lang.IllegalStateException"
+            )
+            assertContentEquals(
+                codebase
+                    .assertClass("test.pkg.MultipleThrowsTypes")
+                    .assertConstructor("int")
+                    .throwsTypes()
+                    .map { it.toTypeString() },
+                listOf("java.lang.IllegalStateException", "java.lang.IllegalArgumentException")
+            )
+            assertTrue(
+                codebase
+                    .assertClass("test.pkg.NoThrowsTypes")
+                    .assertConstructor("int")
+                    .throwsTypes()
+                    .isEmpty()
+            )
         }
     }
 

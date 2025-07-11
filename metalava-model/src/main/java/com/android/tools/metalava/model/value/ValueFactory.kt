@@ -423,16 +423,27 @@ interface ValueFactory {
         /**
          * Map from [FieldReferenceValue] to a [ConstantValue] for some special fields which differ
          * between Java and Kotlin.
+         *
+         * This is initialized lazily to avoid an initialization cycle that roughly looks like this:
+         * 1. [ValueFactory.Companion.specialFieldsToReplacementValue]
+         * 2. [DoubleValue.NaN]
+         * 3. Via inheritance to [Value]
+         * 4. [Value.Companion]
+         * 5. Via inheritance to [ValueFactory]
+         * 6. [ValueFactory] initializes [ValueFactory.Companion]
          */
-        private val specialFieldsToReplacementValue = buildMap {
-            addFieldMappings("Double", "NaN", DoubleValue.NaN)
-            addFieldMappings("Double", "NEGATIVE_INFINITY", DoubleValue.NEGATIVE_INFINITY)
-            addFieldMappings("Double", "POSITIVE_INFINITY", DoubleValue.POSITIVE_INFINITY)
+        private val specialFieldsToReplacementValue by
+            lazy(LazyThreadSafetyMode.NONE) {
+                buildMap {
+                    addFieldMappings("Double", "NaN", DoubleValue.NaN)
+                    addFieldMappings("Double", "NEGATIVE_INFINITY", DoubleValue.NEGATIVE_INFINITY)
+                    addFieldMappings("Double", "POSITIVE_INFINITY", DoubleValue.POSITIVE_INFINITY)
 
-            addFieldMappings("Float", "NaN", FloatValue.NaN)
-            addFieldMappings("Float", "NEGATIVE_INFINITY", FloatValue.NEGATIVE_INFINITY)
-            addFieldMappings("Float", "POSITIVE_INFINITY", FloatValue.POSITIVE_INFINITY)
-        }
+                    addFieldMappings("Float", "NaN", FloatValue.NaN)
+                    addFieldMappings("Float", "NEGATIVE_INFINITY", FloatValue.NEGATIVE_INFINITY)
+                    addFieldMappings("Float", "POSITIVE_INFINITY", FloatValue.POSITIVE_INFINITY)
+                }
+            }
 
         /**
          * Create a [PrimitiveValue] for [primitiveKind] and [primitiveValue].

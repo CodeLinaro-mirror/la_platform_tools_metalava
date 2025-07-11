@@ -24,9 +24,11 @@ import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.createMutableModifiers
 import com.android.tools.metalava.model.hasAnnotation
 import org.jetbrains.kotlin.analysis.api.analyze
+import org.jetbrains.kotlin.analysis.api.symbols.KaCallableSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaDeclarationSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaKotlinPropertySymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaNamedClassSymbol
+import org.jetbrains.kotlin.analysis.api.symbols.KaParameterSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaPropertySymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaSymbolModality
 import org.jetbrains.kotlin.analysis.api.symbols.KaSymbolVisibility
@@ -41,7 +43,8 @@ internal class KaModifierFactory(private val assembler: KaCodebaseAssembler) {
         getter: MethodItem?,
         setter: MethodItem?
     ): MutableModifierList {
-        val modifiers = createForDeclaration(propertySymbol, containingClass)
+        val modifiers = createForDeclaration(propertySymbol)
+        modifiers.updateForCallable(propertySymbol, containingClass)
 
         // Maintaining legacy behavior: if an annotation was supposed to apply to a backing field or
         // constructor parameter but didn't specify a use-site target, metalava would apply it to
@@ -130,11 +133,40 @@ internal class KaModifierFactory(private val assembler: KaCodebaseAssembler) {
         return modifiers
     }
 
+    /** Sets modifiers applicable to callable symbols (properties and functions). */
+    private fun MutableModifierList.updateForCallable(
+        symbol: KaCallableSymbol,
+        containingClass: ClassItem,
+    ) {
+        // Top level functions correspond to static definitions in file facade classes
+        if (symbol.isTopLevel) {
+            setStatic(true)
+        }
+        when (symbol.modality) {
+            KaSymbolModality.FINAL -> setFinal(true)
+            KaSymbolModality.SEALED -> setSealed(true)
+            KaSymbolModality.OPEN -> setFinal(false)
+            KaSymbolModality.ABSTRACT -> setAbstract(true)
+        }
+
+        // Since properties and methods in final classes must be final, the modifiers aren't marked
+        // as final to avoid printing it redundantly
+        if (containingClass.modifiers.isFinal()) {
+            setFinal(false)
+        } else if (containingClass.isAnnotationType()) {
+            // Annotation class properties and functions are non-final and abstract
+            setFinal(false)
+            setAbstract(true)
+        }
+
+        // If a property or function in an interface isn't abstract, it has a default implementation
+        if (containingClass.isInterface() && !isAbstract()) {
+            setDefault(true)
+        }
+    }
+
     /** Create modifiers for any declaration. */
-    fun createForDeclaration(
-        symbol: KaDeclarationSymbol,
-        containingClass: ClassItem? = null
-    ): MutableModifierList {
+    fun createForDeclaration(symbol: KaDeclarationSymbol): MutableModifierList {
         val visibility =
             when (symbol.visibility) {
                 KaSymbolVisibility.PUBLIC -> VisibilityLevel.PUBLIC
@@ -161,36 +193,21 @@ internal class KaModifierFactory(private val assembler: KaCodebaseAssembler) {
         if (symbol.isExpect) {
             modifiers.setExpect(true)
         }
-        // Top level functions correspond to static definitions in file facade classes
-        if (symbol.isTopLevel) {
-            modifiers.setStatic(true)
-        }
-        when (symbol.modality) {
-            KaSymbolModality.FINAL -> modifiers.setFinal(true)
-            KaSymbolModality.SEALED -> modifiers.setSealed(true)
-            KaSymbolModality.OPEN -> modifiers.setFinal(false)
-            KaSymbolModality.ABSTRACT -> modifiers.setAbstract(true)
-        }
-
-        // Since properties and methods in final classes must be final, the modifiers aren't marked
-        // as final to avoid printing it redundantly
-        if (containingClass?.modifiers?.isFinal() == true) {
-            modifiers.setFinal(false)
-        } else if (containingClass?.isAnnotationType() == true) {
-            // Annotation class properties and functions are non-final and abstract
-            modifiers.setFinal(false)
-            modifiers.setAbstract(true)
-        }
-
-        // If a property or function in an interface isn't abstract, it has a default implementation
-        if (containingClass?.isInterface() == true && !modifiers.isAbstract()) {
-            modifiers.setDefault(true)
-        }
 
         if (annotations.any { it.qualifiedName == "kotlin.Deprecated" }) {
             modifiers.setDeprecated(true)
         }
 
+        return modifiers
+    }
+
+    /** Creates modifiers for a parameter (just visibility and annotations). */
+    fun createForParameter(symbol: KaParameterSymbol): MutableModifierList {
+        val annotations = symbol.annotations.mapNotNull { assembler.createAnnotation(it) }
+        val modifiers = createMutableModifiers(VisibilityLevel.PACKAGE_PRIVATE, annotations)
+        if (annotations.any { it.qualifiedName == "kotlin.Deprecated" }) {
+            modifiers.setDeprecated(true)
+        }
         return modifiers
     }
 }

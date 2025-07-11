@@ -105,6 +105,7 @@ abstract class UastTestBase : DriverTest() {
                 // Signature format: 4.0
                 package androidx.annotation.experimental {
                   @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention.BINARY) @kotlin.annotation.Target(allowedTargets={kotlin.annotation.AnnotationTarget.CLASS, kotlin.annotation.AnnotationTarget.PROPERTY, kotlin.annotation.AnnotationTarget.LOCAL_VARIABLE, kotlin.annotation.AnnotationTarget.VALUE_PARAMETER, kotlin.annotation.AnnotationTarget.CONSTRUCTOR, kotlin.annotation.AnnotationTarget.FUNCTION, kotlin.annotation.AnnotationTarget.PROPERTY_GETTER, kotlin.annotation.AnnotationTarget.PROPERTY_SETTER, kotlin.annotation.AnnotationTarget.FILE, kotlin.annotation.AnnotationTarget.TYPEALIAS}) public @interface UseExperimental {
+                    ctor @KotlinOnly public UseExperimental(kotlin.reflect.KClass<? extends java.lang.annotation.Annotation>... markerClass);
                     method public abstract $klass<? extends java.lang.annotation.Annotation>[] markerClass();
                     property public abstract kotlin.reflect.KClass<? extends java.lang.annotation.Annotation>[] markerClass;
                   }
@@ -290,7 +291,7 @@ abstract class UastTestBase : DriverTest() {
                 """
                 package test.pkg {
                   public final class Alignment {
-                    ctor public Alignment(int horizontal, int vertical);
+                    ctor @KotlinOnly public Alignment(test.pkg.Alignment.Horizontal horizontal, test.pkg.Alignment.Vertical vertical);
                     method public int getHorizontal();
                     method public int getVertical();
                     property public int horizontal;
@@ -339,7 +340,7 @@ abstract class UastTestBase : DriverTest() {
                     property public float Start;
                   }
                   public final class User {
-                    ctor public User(float p, float q);
+                    ctor @KotlinOnly public User(test.pkg.AnchorType p, test.pkg.AnchorType q);
                     method public kotlin.jvm.functions.Function0<test.pkg.AnchorType> bar();
                     method public float foo();
                     method public float getP();
@@ -1028,6 +1029,7 @@ abstract class UastTestBase : DriverTest() {
                 """
                 package test.pkg {
                   @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention.SOURCE) @kotlin.annotation.Target(allowedTargets=kotlin.annotation.AnnotationTarget.ANNOTATION_CLASS) public @interface MyIntDef {
+                    ctor @KotlinOnly public MyIntDef(optional int... value, optional boolean flag);
                     method public abstract boolean flag() default false;
                     method public abstract int[] value();
                     property public abstract boolean flag;
@@ -1518,7 +1520,7 @@ abstract class UastTestBase : DriverTest() {
                     property public int keyboardModifiers;
                   }
                   @kotlin.jvm.JvmInline public final value class PointerKeyboardModifiers {
-                    ctor public PointerKeyboardModifiers(int packedValue);
+                    ctor @KotlinOnly public PointerKeyboardModifiers(int packedValue);
                   }
                 }
                 """
@@ -1532,6 +1534,7 @@ abstract class UastTestBase : DriverTest() {
         // https://youtrack.jetbrains.com/issue/KT-55085
         // TODO: https://youtrack.jetbrains.com/issue/KTIJ-26853
         val typeAliasExpanded = if (isK2) "test.pkg.NativePointerKeyboardModifiers" else "int"
+        val targetLanguages = if (isK2) "" else "@KotlinOnly "
         val commonSource =
             kotlin(
                 "commonMain/src/test/pkg/PointerEvent.kt",
@@ -1577,7 +1580,7 @@ abstract class UastTestBase : DriverTest() {
                     property public int keyboardModifiers;
                   }
                   @kotlin.jvm.JvmInline public final value class PointerKeyboardModifiers {
-                    ctor public PointerKeyboardModifiers($typeAliasExpanded packedValue);
+                    ctor ${targetLanguages}public PointerKeyboardModifiers($typeAliasExpanded packedValue);
                   }
                 }
                 """
@@ -1808,7 +1811,7 @@ abstract class UastTestBase : DriverTest() {
                 """
             package test.pkg {
               @kotlin.jvm.JvmInline public final value class IntValue {
-                ctor public IntValue(int value);
+                ctor @KotlinOnly public IntValue(int value);
                 method public int getValue();
                 property public int value;
               }
@@ -1924,7 +1927,7 @@ abstract class UastTestBase : DriverTest() {
                 """
                 package test.pkg {
                   @kotlin.jvm.JvmInline public final value class IntValue {
-                    ctor public IntValue(int value);
+                    ctor @KotlinOnly public IntValue(int value);
                     method public int getValue();
                     property public int value;
                   }
@@ -1962,12 +1965,12 @@ abstract class UastTestBase : DriverTest() {
                 """
                 package test.pkg {
                   @kotlin.jvm.JvmInline public final value class IntValue {
-                    ctor public IntValue(int value);
+                    ctor @KotlinOnly public IntValue(int value);
                     method public int getValue();
                     property public int value;
                   }
                   public final class IntValueData {
-                    ctor public IntValueData(int intValue);
+                    ctor @KotlinOnly public IntValueData(test.pkg.IntValue intValue);
                     $copyEntry
                   }
                 }
@@ -2042,10 +2045,12 @@ abstract class UastTestBase : DriverTest() {
                 """
                 package test.pkg {
                   @java.lang.annotation.Repeatable(AnnotationCanRepeat.Entries::class) public @interface AnnotationCanRepeat {
+                    ctor @KotlinOnly public AnnotationCanRepeat(int value);
                     method public abstract int value();
                     property public abstract int value;
                   }
                   @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public static @interface AnnotationCanRepeat.Entries {
+                    ctor @KotlinOnly public AnnotationCanRepeat.Entries(test.pkg.AnnotationCanRepeat... value);
                     method public abstract test.pkg.AnnotationCanRepeat[] value();
                     property public abstract test.pkg.AnnotationCanRepeat[] value;
                   }
@@ -2118,7 +2123,7 @@ abstract class UastTestBase : DriverTest() {
                   @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface Anno {
                   }
                   @kotlin.jvm.JvmInline public final value class IntValue {
-                    ctor public IntValue(int value);
+                    ctor @KotlinOnly public IntValue(int value);
                     method public int getValue();
                     property public int value;
                     field public static final test.pkg.IntValue.Companion Companion;

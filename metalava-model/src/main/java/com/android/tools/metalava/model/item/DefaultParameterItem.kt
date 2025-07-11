@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultItem
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterBindings
@@ -73,6 +74,8 @@ open class DefaultParameterItem(
     }
 
     final override fun hasDefaultValue(): Boolean = defaultValue.hasDefaultValue()
+
+    override var property: PropertyItem? = null
 
     override fun duplicate(
         containingCallable: CallableItem,
