@@ -29,6 +29,7 @@ import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JAVA_PACKAGE_INFO
+import com.android.tools.metalava.model.JVM_NAME
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.PackageItem
@@ -296,15 +297,16 @@ internal class PsiCodebaseAssembler(
         val psiMethods = psiClass.methods
         // create methods
         for (psiMethod in psiMethods) {
-            if (psiMethod.isConstructor) {
-                // Skip fake UAST constructors, which can't be used from java source.
-                if (
-                    psiMethod is UastFakeSourceLightMethod ||
-                        psiMethod is KotlinUMethodWithFakeLightDelegateBase<*>
-                ) {
-                    continue
-                }
+            // Skip fake UAST constructors and accessors, which can't be used from java source.
+            if (
+                (psiMethod is UastFakeSourceLightMethod ||
+                    psiMethod is KotlinUMethodWithFakeLightDelegateBase<*>) &&
+                    (psiMethod.isConstructor || PsiMethodItem.isKotlinProperty(psiMethod))
+            ) {
+                continue
+            }
 
+            if (psiMethod.isConstructor) {
                 // Kotlin value class primary constructors cannot be called from Java, so they will
                 // be generated later by the KaCodebaseAssembler. For K1, these constructors aren't
                 // fake UAST elements, so they won't have already been filtered out.
@@ -347,6 +349,21 @@ internal class PsiCodebaseAssembler(
 
                 val method =
                     PsiMethodItem.create(codebase, classItem, psiMethod, classTypeItemFactory)
+
+                // With K2, any accessors of value class type properties which don't use JvmName
+                // will already have been filtered out because they are represented with fake UAST
+                // elements. With K1, value class types are not treated differently so the elements
+                // are not fake UAST. Filter those value class type property accessors here.
+                // TODO(b/427783483): remove this workaround
+                if (
+                    method.isKotlinProperty() &&
+                        (method.returnType().isValueClassType() ||
+                            method.parameters().any { it.type().isValueClassType() }) &&
+                        method.modifiers.annotations().none { it.qualifiedName == JVM_NAME }
+                ) {
+                    continue
+                }
+
                 if (!method.isEnumSyntheticMethod()) {
                     addOverloadedKotlinCallablesIfNecessary(classItem, classTypeItemFactory, method)
                     classItem.addMethod(method)

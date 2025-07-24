@@ -126,7 +126,7 @@ fun Project.setUpAggregateBuildInfoFileTask() {
     val buildInfoCollection = buildInfoConsumer.map {
         it.incoming.artifactView { it.lenient(true) }.files
     }
-    tasks.create(
+    tasks.register(
         CREATE_AGGREGATE_BUILD_INFO_FILES_TASK,
         CreateAggregateLibraryBuildInfoFileTask::class.java
     ) {

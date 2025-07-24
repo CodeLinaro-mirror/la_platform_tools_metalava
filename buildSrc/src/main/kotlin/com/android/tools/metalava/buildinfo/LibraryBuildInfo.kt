@@ -17,12 +17,12 @@
 package com.android.tools.metalava.buildinfo
 
 import com.android.tools.metalava.buildinfo.LibraryBuildInfoFile.Check
+import com.android.tools.metalava.metalavaMavenGroup
 import com.android.tools.metalava.version
 import com.google.gson.GsonBuilder
 import org.gradle.api.DefaultTask
 import org.gradle.api.Project
 import org.gradle.api.artifacts.Dependency
-import org.gradle.api.artifacts.ProjectDependency
 import org.gradle.api.internal.artifacts.ivyservice.projectmodule.ProjectComponentPublication
 import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.Property
@@ -97,7 +97,9 @@ internal fun configureBuildInfoTask(
             it.workingDir = project.projectDir
             it.commandLine("git", "rev-parse", "--verify", "HEAD")
         }.standardOutput.asText.get().trim() else "" })
-        it.dependencyList.set(dependencies.map { it.asBuildInfoDependencies() })
+        it.dependencyList.set(dependencies.zip(project.version()) { dependencies, version ->
+            dependencies.asBuildInfoDependencies(version)
+        })
         it.projectZipPath.set(archiveTaskProvider.flatMap { task -> task.archiveFileName })
         it.outputFile.set(
             project.provider {
@@ -117,18 +119,19 @@ internal fun configureBuildInfoTask(
 }
 private const val BUILD_INFO_PROVIDER_CONFIGURATION = "buildInfoProvider"
 
-fun List<Dependency>.asBuildInfoDependencies() =
-    filter { it.group?.startsWith("com.android.tools.metalava") ?: false }
-        .map {
-            LibraryBuildInfoFile.Dependency().apply {
-                this.artifactId = it.name.toString()
-                this.groupId = it.group.toString()
-                this.version = it.version.toString()
-                this.isTipOfTree = it is ProjectDependency
-            }
+fun List<Dependency>.asBuildInfoDependencies(version: String) =
+    map {
+        LibraryBuildInfoFile.Dependency().apply {
+            this.artifactId = it.name.toString()
+            // Making an assumption that all project() dependencies are using the same
+            // group/version.
+            this.groupId = metalavaMavenGroup
+            this.version = version
+            this.isTipOfTree = true
         }
-        .toHashSet()
-        .sortedWith(compareBy({ it.groupId }, { it.artifactId }, { it.version }))
+    }
+    .toHashSet()
+    .sortedWith(compareBy({ it.groupId }, { it.artifactId }, { it.version }))
 
 /**
  * Object outlining the format of a library's build info file. This object will be serialized to

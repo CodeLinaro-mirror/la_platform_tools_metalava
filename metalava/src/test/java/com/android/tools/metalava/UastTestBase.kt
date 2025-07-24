@@ -292,62 +292,46 @@ abstract class UastTestBase : DriverTest() {
                 package test.pkg {
                   public final class Alignment {
                     ctor @KotlinOnly public Alignment(test.pkg.Alignment.Horizontal horizontal, test.pkg.Alignment.Vertical vertical);
-                    method public int getHorizontal();
-                    method public int getVertical();
-                    property public int horizontal;
-                    property public int vertical;
+                    property public test.pkg.Alignment.Horizontal horizontal;
+                    property public test.pkg.Alignment.Vertical vertical;
                     field public static final test.pkg.Alignment.Companion Companion;
                   }
                   public static final class Alignment.Companion {
-                    method public int getStart();
-                    method public int getTop();
                     method public test.pkg.Alignment getTopStart();
-                    property public int Start;
-                    property public int Top;
+                    property public test.pkg.Alignment.Horizontal Start;
+                    property public test.pkg.Alignment.Vertical Top;
                     property public test.pkg.Alignment TopStart;
                   }
                   @kotlin.jvm.JvmInline public static final value class Alignment.Horizontal {
                     field public static final test.pkg.Alignment.Horizontal.Companion Companion;
                   }
                   public static final class Alignment.Horizontal.Companion {
-                    method public int getCenterHorizontally();
-                    method public int getEnd();
-                    method public int getStart();
-                    property public int CenterHorizontally;
-                    property public int End;
-                    property public int Start;
+                    property public test.pkg.Alignment.Horizontal CenterHorizontally;
+                    property public test.pkg.Alignment.Horizontal End;
+                    property public test.pkg.Alignment.Horizontal Start;
                   }
                   @kotlin.jvm.JvmInline public static final value class Alignment.Vertical {
                     field public static final test.pkg.Alignment.Vertical.Companion Companion;
                   }
                   public static final class Alignment.Vertical.Companion {
-                    method public int getBottom();
-                    method public int getCenterVertically();
-                    method public int getTop();
-                    property public int Bottom;
-                    property public int CenterVertically;
-                    property public int Top;
+                    property public test.pkg.Alignment.Vertical Bottom;
+                    property public test.pkg.Alignment.Vertical CenterVertically;
+                    property public test.pkg.Alignment.Vertical Top;
                   }
                   @kotlin.jvm.JvmInline public final value class AnchorType {
                     field public static final test.pkg.AnchorType.Companion Companion;
                   }
                   public static final class AnchorType.Companion {
-                    method public float getCenter();
-                    method public float getEnd();
-                    method public float getStart();
-                    property public float Center;
-                    property public float End;
-                    property public float Start;
+                    property public test.pkg.AnchorType Center;
+                    property public test.pkg.AnchorType End;
+                    property public test.pkg.AnchorType Start;
                   }
                   public final class User {
                     ctor @KotlinOnly public User(test.pkg.AnchorType p, test.pkg.AnchorType q);
                     method public kotlin.jvm.functions.Function0<test.pkg.AnchorType> bar();
                     method public float foo();
-                    method public float getP();
-                    method public float getQ();
-                    method public void setQ(float);
-                    property public float p;
-                    property public float q;
+                    property public test.pkg.AnchorType p;
+                    property public test.pkg.AnchorType q;
                   }
                 }
         """
@@ -1063,38 +1047,38 @@ abstract class UastTestBase : DriverTest() {
                       @kotlin.annotation.Target(allowedTargets={kotlin.annotation.AnnotationTarget.PROPERTY, kotlin.annotation.AnnotationTarget.PROPERTY_GETTER, kotlin.annotation.AnnotationTarget.PROPERTY_SETTER}) public @interface MyAnnotation {
                       }
                       public interface TestInterface {
-                        method @Deprecated public int getPOld_deprecatedOnGetter();
-                        method @Deprecated @test.pkg.MyAnnotation @test.pkg.MyAnnotation public int getPOld_deprecatedOnGetter_myAnnoOnBoth();
-                        method @Deprecated @test.pkg.MyAnnotation public int getPOld_deprecatedOnGetter_myAnnoOnGetter();
-                        method @Deprecated @test.pkg.MyAnnotation public int getPOld_deprecatedOnGetter_myAnnoOnSetter();
-                        method @Deprecated public int getPOld_deprecatedOnProperty();
-                        method @Deprecated @test.pkg.MyAnnotation @test.pkg.MyAnnotation public int getPOld_deprecatedOnProperty_myAnnoOnBoth();
-                        method @Deprecated @test.pkg.MyAnnotation public int getPOld_deprecatedOnProperty_myAnnoOnGetter();
-                        method @Deprecated @test.pkg.MyAnnotation public int getPOld_deprecatedOnProperty_myAnnoOnSetter();
+                        method @BytecodeOnly @Deprecated public int getPOld_deprecatedOnGetter();
+                        method @BytecodeOnly @Deprecated @test.pkg.MyAnnotation public int getPOld_deprecatedOnGetter_myAnnoOnBoth();
+                        method @BytecodeOnly @Deprecated @test.pkg.MyAnnotation public int getPOld_deprecatedOnGetter_myAnnoOnGetter();
+                        method @BytecodeOnly @Deprecated public int getPOld_deprecatedOnGetter_myAnnoOnSetter();
+                        method @BytecodeOnly @Deprecated public int getPOld_deprecatedOnProperty();
+                        method @BytecodeOnly @Deprecated @test.pkg.MyAnnotation public int getPOld_deprecatedOnProperty_myAnnoOnBoth();
+                        method @BytecodeOnly @Deprecated @test.pkg.MyAnnotation public int getPOld_deprecatedOnProperty_myAnnoOnGetter();
+                        method @BytecodeOnly @Deprecated public int getPOld_deprecatedOnProperty_myAnnoOnSetter();
                         method public int getPOld_deprecatedOnSetter();
                         method @test.pkg.MyAnnotation public int getPOld_deprecatedOnSetter_myAnnoOnBoth();
                         method @test.pkg.MyAnnotation public int getPOld_deprecatedOnSetter_myAnnoOnGetter();
                         method public int getPOld_deprecatedOnSetter_myAnnoOnSetter();
-                        method public void setPOld_deprecatedOnGetter(int);
-                        method @test.pkg.MyAnnotation public void setPOld_deprecatedOnGetter_myAnnoOnBoth(int);
-                        method public void setPOld_deprecatedOnGetter_myAnnoOnGetter(int);
-                        method @test.pkg.MyAnnotation public void setPOld_deprecatedOnGetter_myAnnoOnSetter(int);
-                        method @Deprecated public void setPOld_deprecatedOnProperty(int);
-                        method @Deprecated @test.pkg.MyAnnotation @test.pkg.MyAnnotation public void setPOld_deprecatedOnProperty_myAnnoOnBoth(int);
-                        method @Deprecated @test.pkg.MyAnnotation public void setPOld_deprecatedOnProperty_myAnnoOnGetter(int);
-                        method @Deprecated @test.pkg.MyAnnotation public void setPOld_deprecatedOnProperty_myAnnoOnSetter(int);
-                        method @Deprecated public void setPOld_deprecatedOnSetter(int);
-                        method @Deprecated @test.pkg.MyAnnotation @test.pkg.MyAnnotation public void setPOld_deprecatedOnSetter_myAnnoOnBoth(int);
-                        method @Deprecated @test.pkg.MyAnnotation public void setPOld_deprecatedOnSetter_myAnnoOnGetter(int);
-                        method @Deprecated @test.pkg.MyAnnotation public void setPOld_deprecatedOnSetter_myAnnoOnSetter(int);
+                        method @Deprecated public void setPOld_deprecatedOnGetter(int);
+                        method @Deprecated @test.pkg.MyAnnotation public void setPOld_deprecatedOnGetter_myAnnoOnBoth(int);
+                        method @Deprecated public void setPOld_deprecatedOnGetter_myAnnoOnGetter(int);
+                        method @Deprecated @test.pkg.MyAnnotation public void setPOld_deprecatedOnGetter_myAnnoOnSetter(int);
+                        method @BytecodeOnly @Deprecated public void setPOld_deprecatedOnProperty(int);
+                        method @BytecodeOnly @Deprecated @test.pkg.MyAnnotation public void setPOld_deprecatedOnProperty_myAnnoOnBoth(int);
+                        method @BytecodeOnly @Deprecated public void setPOld_deprecatedOnProperty_myAnnoOnGetter(int);
+                        method @BytecodeOnly @Deprecated @test.pkg.MyAnnotation public void setPOld_deprecatedOnProperty_myAnnoOnSetter(int);
+                        method @BytecodeOnly @Deprecated public void setPOld_deprecatedOnSetter(int);
+                        method @BytecodeOnly @Deprecated @test.pkg.MyAnnotation public void setPOld_deprecatedOnSetter_myAnnoOnBoth(int);
+                        method @BytecodeOnly @Deprecated public void setPOld_deprecatedOnSetter_myAnnoOnGetter(int);
+                        method @BytecodeOnly @Deprecated @test.pkg.MyAnnotation public void setPOld_deprecatedOnSetter_myAnnoOnSetter(int);
                         property @Deprecated public abstract int pOld_deprecatedOnGetter;
-                        property @Deprecated @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnGetter_myAnnoOnBoth;
-                        property @Deprecated @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnGetter_myAnnoOnGetter;
-                        property @Deprecated @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnGetter_myAnnoOnSetter;
+                        property @Deprecated public abstract int pOld_deprecatedOnGetter_myAnnoOnBoth;
+                        property @Deprecated public abstract int pOld_deprecatedOnGetter_myAnnoOnGetter;
+                        property @Deprecated public abstract int pOld_deprecatedOnGetter_myAnnoOnSetter;
                         property @Deprecated public abstract int pOld_deprecatedOnProperty;
-                        property @Deprecated @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnProperty_myAnnoOnBoth;
-                        property @Deprecated @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnProperty_myAnnoOnGetter;
-                        property @Deprecated @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnProperty_myAnnoOnSetter;
+                        property @Deprecated public abstract int pOld_deprecatedOnProperty_myAnnoOnBoth;
+                        property @Deprecated public abstract int pOld_deprecatedOnProperty_myAnnoOnGetter;
+                        property @Deprecated public abstract int pOld_deprecatedOnProperty_myAnnoOnSetter;
                         property public abstract int pOld_deprecatedOnSetter;
                         property @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnSetter_myAnnoOnBoth;
                         property @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnSetter_myAnnoOnGetter;
@@ -1103,13 +1087,13 @@ abstract class UastTestBase : DriverTest() {
                       public final class Test_accessors {
                         ctor public Test_accessors();
                         method public String? getPNew_accessors();
-                        method @Deprecated public String? getPOld_accessors_deprecatedOnGetter();
-                        method @Deprecated public String? getPOld_accessors_deprecatedOnProperty();
+                        method @BytecodeOnly @Deprecated public String! getPOld_accessors_deprecatedOnGetter();
+                        method @BytecodeOnly @Deprecated public String! getPOld_accessors_deprecatedOnProperty();
                         method public String? getPOld_accessors_deprecatedOnSetter();
                         method public void setPNew_accessors(String?);
-                        method public void setPOld_accessors_deprecatedOnGetter(String?);
-                        method @Deprecated public void setPOld_accessors_deprecatedOnProperty(String?);
-                        method @Deprecated public void setPOld_accessors_deprecatedOnSetter(String?);
+                        method @Deprecated public void setPOld_accessors_deprecatedOnGetter(String?);
+                        method @BytecodeOnly @Deprecated public void setPOld_accessors_deprecatedOnProperty(String!);
+                        method @BytecodeOnly @Deprecated public void setPOld_accessors_deprecatedOnSetter(String!);
                         property public String? pNew_accessors;
                         property @Deprecated public String? pOld_accessors_deprecatedOnGetter;
                         property @Deprecated public String? pOld_accessors_deprecatedOnProperty;
@@ -1118,13 +1102,13 @@ abstract class UastTestBase : DriverTest() {
                       public final class Test_getter {
                         ctor public Test_getter();
                         method public String? getPNew_getter();
-                        method @Deprecated public String? getPOld_getter_deprecatedOnGetter();
-                        method @Deprecated public String? getPOld_getter_deprecatedOnProperty();
+                        method @BytecodeOnly @Deprecated public String! getPOld_getter_deprecatedOnGetter();
+                        method @BytecodeOnly @Deprecated public String! getPOld_getter_deprecatedOnProperty();
                         method public String? getPOld_getter_deprecatedOnSetter();
                         method public void setPNew_getter(String?);
-                        method public void setPOld_getter_deprecatedOnGetter(String?);
-                        method @Deprecated public void setPOld_getter_deprecatedOnProperty(String?);
-                        method @Deprecated public void setPOld_getter_deprecatedOnSetter(String?);
+                        method @Deprecated public void setPOld_getter_deprecatedOnGetter(String?);
+                        method @BytecodeOnly @Deprecated public void setPOld_getter_deprecatedOnProperty(String!);
+                        method @BytecodeOnly @Deprecated public void setPOld_getter_deprecatedOnSetter(String!);
                         property public String? pNew_getter;
                         property @Deprecated public String? pOld_getter_deprecatedOnGetter;
                         property @Deprecated public String? pOld_getter_deprecatedOnProperty;
@@ -1133,13 +1117,13 @@ abstract class UastTestBase : DriverTest() {
                       public final class Test_noAccessor {
                         ctor public Test_noAccessor();
                         method public String getPNew_noAccessor();
-                        method @Deprecated public String getPOld_noAccessor_deprecatedOnGetter();
-                        method @Deprecated public String getPOld_noAccessor_deprecatedOnProperty();
+                        method @BytecodeOnly @Deprecated public String! getPOld_noAccessor_deprecatedOnGetter();
+                        method @BytecodeOnly @Deprecated public String! getPOld_noAccessor_deprecatedOnProperty();
                         method public String getPOld_noAccessor_deprecatedOnSetter();
                         method public void setPNew_noAccessor(String);
-                        method public void setPOld_noAccessor_deprecatedOnGetter(String);
-                        method @Deprecated public void setPOld_noAccessor_deprecatedOnProperty(String);
-                        method @Deprecated public void setPOld_noAccessor_deprecatedOnSetter(String);
+                        method @Deprecated public void setPOld_noAccessor_deprecatedOnGetter(String);
+                        method @BytecodeOnly @Deprecated public void setPOld_noAccessor_deprecatedOnProperty(String!);
+                        method @BytecodeOnly @Deprecated public void setPOld_noAccessor_deprecatedOnSetter(String!);
                         property public String pNew_noAccessor;
                         property @Deprecated public String pOld_noAccessor_deprecatedOnGetter;
                         property @Deprecated public String pOld_noAccessor_deprecatedOnProperty;
@@ -1148,13 +1132,13 @@ abstract class UastTestBase : DriverTest() {
                       public final class Test_setter {
                         ctor public Test_setter();
                         method public String? getPNew_setter();
-                        method @Deprecated public String? getPOld_setter_deprecatedOnGetter();
-                        method @Deprecated public String? getPOld_setter_deprecatedOnProperty();
+                        method @BytecodeOnly @Deprecated public String! getPOld_setter_deprecatedOnGetter();
+                        method @BytecodeOnly @Deprecated public String! getPOld_setter_deprecatedOnProperty();
                         method public String? getPOld_setter_deprecatedOnSetter();
                         method public void setPNew_setter(String?);
-                        method public void setPOld_setter_deprecatedOnGetter(String?);
-                        method @Deprecated public void setPOld_setter_deprecatedOnProperty(String?);
-                        method @Deprecated public void setPOld_setter_deprecatedOnSetter(String?);
+                        method @Deprecated public void setPOld_setter_deprecatedOnGetter(String?);
+                        method @BytecodeOnly @Deprecated public void setPOld_setter_deprecatedOnProperty(String!);
+                        method @BytecodeOnly @Deprecated public void setPOld_setter_deprecatedOnSetter(String!);
                         property public String? pNew_setter;
                         property @Deprecated public String? pOld_setter_deprecatedOnGetter;
                         property @Deprecated public String? pOld_setter_deprecatedOnProperty;
@@ -1168,30 +1152,38 @@ abstract class UastTestBase : DriverTest() {
                       @kotlin.annotation.Target(allowedTargets={kotlin.annotation.AnnotationTarget.PROPERTY, kotlin.annotation.AnnotationTarget.PROPERTY_GETTER, kotlin.annotation.AnnotationTarget.PROPERTY_SETTER}) public @interface MyAnnotation {
                       }
                       public interface TestInterface {
-                        method @Deprecated public int getPOld_deprecatedOnGetter();
-                        method @Deprecated @test.pkg.MyAnnotation @test.pkg.MyAnnotation public int getPOld_deprecatedOnGetter_myAnnoOnBoth();
-                        method @Deprecated @test.pkg.MyAnnotation public int getPOld_deprecatedOnGetter_myAnnoOnGetter();
-                        method @Deprecated @test.pkg.MyAnnotation public int getPOld_deprecatedOnGetter_myAnnoOnSetter();
-                        method @Deprecated public int getPOld_deprecatedOnProperty();
-                        method @Deprecated @test.pkg.MyAnnotation @test.pkg.MyAnnotation public int getPOld_deprecatedOnProperty_myAnnoOnBoth();
-                        method @Deprecated @test.pkg.MyAnnotation public int getPOld_deprecatedOnProperty_myAnnoOnGetter();
-                        method @Deprecated @test.pkg.MyAnnotation public int getPOld_deprecatedOnProperty_myAnnoOnSetter();
-                        method @Deprecated public void setPOld_deprecatedOnProperty(int);
-                        method @Deprecated @test.pkg.MyAnnotation @test.pkg.MyAnnotation public void setPOld_deprecatedOnProperty_myAnnoOnBoth(int);
-                        method @Deprecated @test.pkg.MyAnnotation public void setPOld_deprecatedOnProperty_myAnnoOnGetter(int);
-                        method @Deprecated @test.pkg.MyAnnotation public void setPOld_deprecatedOnProperty_myAnnoOnSetter(int);
-                        method @Deprecated public void setPOld_deprecatedOnSetter(int);
-                        method @Deprecated @test.pkg.MyAnnotation @test.pkg.MyAnnotation public void setPOld_deprecatedOnSetter_myAnnoOnBoth(int);
-                        method @Deprecated @test.pkg.MyAnnotation public void setPOld_deprecatedOnSetter_myAnnoOnGetter(int);
-                        method @Deprecated @test.pkg.MyAnnotation public void setPOld_deprecatedOnSetter_myAnnoOnSetter(int);
+                        method @BytecodeOnly @Deprecated public int getPOld_deprecatedOnGetter();
+                        method @BytecodeOnly @Deprecated @test.pkg.MyAnnotation public int getPOld_deprecatedOnGetter_myAnnoOnBoth();
+                        method @BytecodeOnly @Deprecated @test.pkg.MyAnnotation public int getPOld_deprecatedOnGetter_myAnnoOnGetter();
+                        method @BytecodeOnly @Deprecated public int getPOld_deprecatedOnGetter_myAnnoOnSetter();
+                        method @BytecodeOnly @Deprecated public int getPOld_deprecatedOnProperty();
+                        method @BytecodeOnly @Deprecated @test.pkg.MyAnnotation public int getPOld_deprecatedOnProperty_myAnnoOnBoth();
+                        method @BytecodeOnly @Deprecated @test.pkg.MyAnnotation public int getPOld_deprecatedOnProperty_myAnnoOnGetter();
+                        method @BytecodeOnly @Deprecated public int getPOld_deprecatedOnProperty_myAnnoOnSetter();
+                        method @BytecodeOnly public int getPOld_deprecatedOnSetter();
+                        method @BytecodeOnly @test.pkg.MyAnnotation public int getPOld_deprecatedOnSetter_myAnnoOnBoth();
+                        method @BytecodeOnly @test.pkg.MyAnnotation public int getPOld_deprecatedOnSetter_myAnnoOnGetter();
+                        method @BytecodeOnly public int getPOld_deprecatedOnSetter_myAnnoOnSetter();
+                        method @BytecodeOnly public void setPOld_deprecatedOnGetter(int);
+                        method @BytecodeOnly @test.pkg.MyAnnotation public void setPOld_deprecatedOnGetter_myAnnoOnBoth(int);
+                        method @BytecodeOnly public void setPOld_deprecatedOnGetter_myAnnoOnGetter(int);
+                        method @BytecodeOnly @test.pkg.MyAnnotation public void setPOld_deprecatedOnGetter_myAnnoOnSetter(int);
+                        method @BytecodeOnly @Deprecated public void setPOld_deprecatedOnProperty(int);
+                        method @BytecodeOnly @Deprecated @test.pkg.MyAnnotation public void setPOld_deprecatedOnProperty_myAnnoOnBoth(int);
+                        method @BytecodeOnly @Deprecated public void setPOld_deprecatedOnProperty_myAnnoOnGetter(int);
+                        method @BytecodeOnly @Deprecated @test.pkg.MyAnnotation public void setPOld_deprecatedOnProperty_myAnnoOnSetter(int);
+                        method @BytecodeOnly @Deprecated public void setPOld_deprecatedOnSetter(int);
+                        method @BytecodeOnly @Deprecated @test.pkg.MyAnnotation public void setPOld_deprecatedOnSetter_myAnnoOnBoth(int);
+                        method @BytecodeOnly @Deprecated public void setPOld_deprecatedOnSetter_myAnnoOnGetter(int);
+                        method @BytecodeOnly @Deprecated @test.pkg.MyAnnotation public void setPOld_deprecatedOnSetter_myAnnoOnSetter(int);
                         property @Deprecated public abstract int pOld_deprecatedOnGetter;
-                        property @Deprecated @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnGetter_myAnnoOnBoth;
-                        property @Deprecated @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnGetter_myAnnoOnGetter;
-                        property @Deprecated @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnGetter_myAnnoOnSetter;
+                        property @Deprecated public abstract int pOld_deprecatedOnGetter_myAnnoOnBoth;
+                        property @Deprecated public abstract int pOld_deprecatedOnGetter_myAnnoOnGetter;
+                        property @Deprecated public abstract int pOld_deprecatedOnGetter_myAnnoOnSetter;
                         property @Deprecated public abstract int pOld_deprecatedOnProperty;
-                        property @Deprecated @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnProperty_myAnnoOnBoth;
-                        property @Deprecated @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnProperty_myAnnoOnGetter;
-                        property @Deprecated @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnProperty_myAnnoOnSetter;
+                        property @Deprecated public abstract int pOld_deprecatedOnProperty_myAnnoOnBoth;
+                        property @Deprecated public abstract int pOld_deprecatedOnProperty_myAnnoOnGetter;
+                        property @Deprecated public abstract int pOld_deprecatedOnProperty_myAnnoOnSetter;
                         property public abstract int pOld_deprecatedOnSetter;
                         property public abstract int pOld_deprecatedOnSetter_myAnnoOnBoth;
                         property public abstract int pOld_deprecatedOnSetter_myAnnoOnGetter;
@@ -1200,11 +1192,13 @@ abstract class UastTestBase : DriverTest() {
                       public final class Test_accessors {
                         ctor public Test_accessors();
                         method public String? getPNew_accessors();
-                        method @Deprecated public String? getPOld_accessors_deprecatedOnGetter();
-                        method @Deprecated public String? getPOld_accessors_deprecatedOnProperty();
+                        method @BytecodeOnly @Deprecated public String! getPOld_accessors_deprecatedOnGetter();
+                        method @BytecodeOnly @Deprecated public String! getPOld_accessors_deprecatedOnProperty();
+                        method @BytecodeOnly public String? getPOld_accessors_deprecatedOnSetter();
                         method public void setPNew_accessors(String?);
-                        method @Deprecated public void setPOld_accessors_deprecatedOnProperty(String?);
-                        method @Deprecated public void setPOld_accessors_deprecatedOnSetter(String?);
+                        method @BytecodeOnly public void setPOld_accessors_deprecatedOnGetter(String?);
+                        method @BytecodeOnly @Deprecated public void setPOld_accessors_deprecatedOnProperty(String!);
+                        method @BytecodeOnly @Deprecated public void setPOld_accessors_deprecatedOnSetter(String!);
                         property public String? pNew_accessors;
                         property @Deprecated public String? pOld_accessors_deprecatedOnGetter;
                         property @Deprecated public String? pOld_accessors_deprecatedOnProperty;
@@ -1213,11 +1207,13 @@ abstract class UastTestBase : DriverTest() {
                       public final class Test_getter {
                         ctor public Test_getter();
                         method public String? getPNew_getter();
-                        method @Deprecated public String? getPOld_getter_deprecatedOnGetter();
-                        method @Deprecated public String? getPOld_getter_deprecatedOnProperty();
+                        method @BytecodeOnly @Deprecated public String! getPOld_getter_deprecatedOnGetter();
+                        method @BytecodeOnly @Deprecated public String! getPOld_getter_deprecatedOnProperty();
+                        method @BytecodeOnly public String? getPOld_getter_deprecatedOnSetter();
                         method public void setPNew_getter(String?);
-                        method @Deprecated public void setPOld_getter_deprecatedOnProperty(String?);
-                        method @Deprecated public void setPOld_getter_deprecatedOnSetter(String?);
+                        method @BytecodeOnly public void setPOld_getter_deprecatedOnGetter(String?);
+                        method @BytecodeOnly @Deprecated public void setPOld_getter_deprecatedOnProperty(String!);
+                        method @BytecodeOnly @Deprecated public void setPOld_getter_deprecatedOnSetter(String!);
                         property public String? pNew_getter;
                         property @Deprecated public String? pOld_getter_deprecatedOnGetter;
                         property @Deprecated public String? pOld_getter_deprecatedOnProperty;
@@ -1226,11 +1222,13 @@ abstract class UastTestBase : DriverTest() {
                       public final class Test_noAccessor {
                         ctor public Test_noAccessor();
                         method public String getPNew_noAccessor();
-                        method @Deprecated public String getPOld_noAccessor_deprecatedOnGetter();
-                        method @Deprecated public String getPOld_noAccessor_deprecatedOnProperty();
+                        method @BytecodeOnly @Deprecated public String! getPOld_noAccessor_deprecatedOnGetter();
+                        method @BytecodeOnly @Deprecated public String! getPOld_noAccessor_deprecatedOnProperty();
+                        method @BytecodeOnly public String getPOld_noAccessor_deprecatedOnSetter();
                         method public void setPNew_noAccessor(String);
-                        method @Deprecated public void setPOld_noAccessor_deprecatedOnProperty(String);
-                        method @Deprecated public void setPOld_noAccessor_deprecatedOnSetter(String);
+                        method @BytecodeOnly public void setPOld_noAccessor_deprecatedOnGetter(String);
+                        method @BytecodeOnly @Deprecated public void setPOld_noAccessor_deprecatedOnProperty(String!);
+                        method @BytecodeOnly @Deprecated public void setPOld_noAccessor_deprecatedOnSetter(String!);
                         property public String pNew_noAccessor;
                         property @Deprecated public String pOld_noAccessor_deprecatedOnGetter;
                         property @Deprecated public String pOld_noAccessor_deprecatedOnProperty;
@@ -1239,11 +1237,13 @@ abstract class UastTestBase : DriverTest() {
                       public final class Test_setter {
                         ctor public Test_setter();
                         method public String? getPNew_setter();
-                        method @Deprecated public String? getPOld_setter_deprecatedOnGetter();
-                        method @Deprecated public String? getPOld_setter_deprecatedOnProperty();
+                        method @BytecodeOnly @Deprecated public String! getPOld_setter_deprecatedOnGetter();
+                        method @BytecodeOnly @Deprecated public String! getPOld_setter_deprecatedOnProperty();
+                        method @BytecodeOnly public String? getPOld_setter_deprecatedOnSetter();
                         method public void setPNew_setter(String?);
-                        method @Deprecated public void setPOld_setter_deprecatedOnProperty(String?);
-                        method @Deprecated public void setPOld_setter_deprecatedOnSetter(String?);
+                        method @BytecodeOnly public void setPOld_setter_deprecatedOnGetter(String?);
+                        method @BytecodeOnly @Deprecated public void setPOld_setter_deprecatedOnProperty(String!);
+                        method @BytecodeOnly @Deprecated public void setPOld_setter_deprecatedOnSetter(String!);
                         property public String? pNew_setter;
                         property @Deprecated public String? pOld_setter_deprecatedOnGetter;
                         property @Deprecated public String? pOld_setter_deprecatedOnProperty;
@@ -1419,6 +1419,161 @@ abstract class UastTestBase : DriverTest() {
                         """
                     )
                 ),
+            compiledSourceJar =
+                // Compiled from the source above with [generateBase64gzipFromKotlin]
+                base64gzip(
+                    "test.jar",
+                    // kotlinc version info: kotlinc-jvm 1.9.23 (JRE 17.0.6+10-b802.1)
+                    "" +
+                        "H4sIAAAAAAAA/5WZBVDU0b7HYelGcukS6RQB6e6lW2ppWEIaJCSWlFZCUqSk" +
+                        "BaRLWpCQFnCpBZZmCQlBeHrvu++pb6533n/nzPx35r+fM/89Zz7ne85PWx0N" +
+                        "nQwFGxsbBQWFCeXXiwwFHQWkqC/Lo6qpxAeS1VRVUtTT5wUp3QyjoJyARj5q" +
+                        "qPPwThCo83COjYzX6/JP31/Z8ORVA3GrgiZ8yt/pItV4PDjVRka4DJFjfEND" +
+                        "I/CNtQ0AirY6FnYNKUfNwx8diPxo2v+2e/ofzdvOy5vvMcSBT//HjaWbu6yN" +
+                        "jZ2Xl7snr40L2MsrQf+RFo0yULK+ce7ZkZ3ryCixGs5dMzUK2smSSBIVlZhH" +
+                        "lMQK7CREE9ZJORiBcwsmjlcDelfS3/DipsszonGPPjMYfF3Es6JAa1xvCfLa" +
+                        "HHm4HCR+e3N+Lo1CgeTpDe2NLHxABFkQpw7ir5pRi8QDz3vwY36VkZ5taHWb" +
+                        "fTf6Hc3CYy2G/4N6lJPoR/yUoTLYXetk0hjmMUYeMnJvgXgRkd0Zimoig6V3" +
+                        "AYp+/j5TX+qq7jXlMlB5bnB9oxsUHlmwJoGp+MrKxYH3eNN9DkS/aDLDe2cC" +
+                        "V8RRJRC9gUDBUYKbYDyJWIunVUlMO0FC6PIFQY88Kajo55rrZ1JGr9enQYUK" +
+                        "jGKsW7ntLU+dM5g6Fcjq+dLJ4/njaU01YfwNEfAo+0zb2eld0yHviZ43MaJK" +
+                        "sW+OU4wIRbgd4G8sliddO7pxVHRNiZB8T2phKarxq2BAvnXOqlP0zaDP1Dta" +
+                        "mAD3c90FPULbanM5DvIjzP05SA7u2DslmvRR5eyMAxufkJFd/IjVqj5j34wY" +
+                        "mZBHpo8CO7r5PZI4u1yAk5SI6fD3fZJNHrVH4Pk6yAKq35lrrmBFQ/NUeB/v" +
+                        "Ep9Naa+eX4+nIvGHFiwzPivcOOHuPcWFTniixQxd7rpqAhxbEmXEtfULJv5e" +
+                        "8po08MAlUWkmIKprTPMYx0lGTWVnXlVO94ts1reR9/OqOlk2fDaIrg+pnK6U" +
+                        "0yqyWc86pW85QCnea3tFxAbW5RIUBmvldZKVvi0fx+dq0EjoX2WjwJ0n0T5w" +
+                        "HV+d5Jur5DG2vEnVZQWUSFoNoNmbW+kYGjRZ4ghsSlgllTdjxo00pOEFt2gR" +
+                        "0kX1GXwVwHdleJk4scJ68pl4ICS3ppHC5TTNoLh15AXBc3faB2ct3zXZ4q/8" +
+                        "Tcg7OisWo8SJwiNQ59xoSo6QDzMYVh4YWw+K1XFdJ+ggMksR7GqUJMV5S4rO" +
+                        "li0ZkQ++fbR1S3wyFAxwCpJMh5DudtxR12Y4sa9xalQGDlPRa9yi2ollXNA5" +
+                        "1Yw+cV2CXGlJlotMUziyEDN5CDDrvkrtkyri16j1MVX9Zgt8z/jKHkdaQRwW" +
+                        "IdT05U0S6DbqtCYDWsfgMk97InJVHWuduRUUR77DSiny/GpdS0NjPPnzFETD" +
+                        "8/00Ag645ye0VnuVY+6v8CFm8GX4rU2pBaL0G893L/SnGkLPAXqZm5ndDnft" +
+                        "068V3C6Gor6zN13i6EnjvElh7REPsu+VShMPTnekdeiOdCgrWoDJSVW2tiXs" +
+                        "pA8zXSlOAltANlKVtVc3bdgI+LaBFMVC3AHRM00YT1ZMHizt883bLX1EbBoy" +
+                        "Ya7z1Gya/dtD1QtrohSSvAykHY4lOCXKmHMVwn0YhtP+fpj+GBABqADUydSI" +
+                        "GBMDSfzvIWUYWfi5XuF440mQsGPj48VjP9kW4NO+ZvjpGST1d0xadBSUIZy/" +
+                        "eYb6/3jGwc7b2+5fjjFY1KQxIjN3CGJwuS9shS1EiENIyWaLD1p8p40NlakS" +
+                        "DV2LKVlDJThLEbcaN/bCXOg8mr5R7nqVYmqwIx/pHzudFNeKsOZttHEZQtR1" +
+                        "nIlB9oMJr8+P8p+iSvRT9L4djawSToLsPDKlnW529eICDLyidSrNMp2Lz2r1" +
+                        "8u/j8kVHjULWuW2d4cpb+brxJRL3CIbH8KPvM/h0J3P4sJhZZ76eOdDs2FEm" +
+                        "LG93OoqzP9lJrIW8BLnNdyXnzLdMzrTYLU4mULNqCbuPavht9qfICGLiROAz" +
+                        "wYssLBOYfXozseKtYk5jQ04TRnzp7zcNEpuUnF4alD9biB7PsQeWVM23OmkP" +
+                        "RakNlpjPEfjASdTSWQh4oYbwojl+NpqSfrbsDEE5n5DhXXy/Bb3Y2vVrBfTV" +
+                        "wzgaGr4mqoNz7XcbUcDUqvvOIYxXZXGBVB5fztWuQi8C9av787leGoIk184K" +
+                        "irejtGvIZWAlY47RPp3Tj5wvhe3sLOfjS10am+o827wmcEWpGy+1sKp08YVq" +
+                        "fD1GAve0sNkXQssMRSy8HlU4NyolFg04hS5Re0Vl3g8No9O7doDNkzsamFtd" +
+                        "PA4R5la3SeXmQDjUkflQqGZhDY6NUxQDHhGZX9Onk22DDHHisQaNmS5cTmD9" +
+                        "Napx9zZO6o+shIqgDOiFd1jVkjOJ5ltxUsw/oMiWpPk/2wi4gPW7Ezpmymxb" +
+                        "CRWooINaP8mGb6a9wDKP5xy206XxWogk4tAZHGP20iiBIdwzIWm45rZTTzxd" +
+                        "7n8wMsoBr43GgncJLIQ0fQqmMIzbbjjD+UY4zW+6U92Q+88HmJqWxDL6Arbs" +
+                        "FSsOndIP9r5bvXaBpMHnTKeWl49azlv5EQvjsBnuqu6ySBErz3mJWs4gvRov" +
+                        "bu3BiOlqxtFTkcgB8tI042L3zBGpIhPPPPQq9wH71r5NcWvBUSa/8xzfci9l" +
+                        "R8KNW6XTjuy6zQhUjF2hAUkU6xe4rJGocSpux2KjY+5H1/naIRehyPPtU4Z3" +
+                        "RCuRg0ec4auQIPm5izX6fIdEY+XkIxMjx/ScnOvCrldmTqkwx6wX/hJURBsn" +
+                        "ohU6c5WDwF6gIoDXBrAU3eHHVpNHw0vVkOQ4gHEPSTVobqs6LElCucUvOhPd" +
+                        "PaFF5SLtOilNwLHeSpPvLJLHBC+UTOgq8oFeumqCWyH5m9/eCkz0DzRwKbAO" +
+                        "P4+RKd1q8Z2A332ydubWkIGYMAig9/MpOFtlXlzE8KBszbBw9fPIMLO94uuA" +
+                        "gvyuZxsMCrcAd7gPWLT7EIoSPGt4QarqQQZ994M6iO4hCdLPBLgZ8bjxoBib" +
+                        "sH6bsGYZWUaWLWn8A5x1dBKADQANwAIoBNwHTAEub1F/uoOcuLbuFA0Fxfn/" +
+                        "6Q6vX91h+DOfkEnVWyxTLFYmyLcIda8a0rBVyme9wPRkKihIp5URlUvzl3km" +
+                        "6UlZ41eVW5vdfvTiJukmXMnZoIyIfFi9+MeXhHIH3znUWUqZY7PErpPcQ/H7" +
+                        "EdfjT5/eYKBY9nIBTDSp5hZGo84oKAfjPTVz2YkBO2VLMw/0mqgXloY4qo7Y" +
+                        "odgKwgQfV8axoceRvehQpteh+DoAwdsJK/R7XBHYItjcQuzLy/d3Q9abNRcJ" +
+                        "q7ZzZs8rgwfd9KK7lB9eym28dksTj5p5v252tTCi8dQCkJocF4EON86DFV1X" +
+                        "BUmrrybLNFdk06nJtIXFKsLqXKq9ehvfMpCmlYyCeicbpeUntN4pUk3RfHhj" +
+                        "6lttJy40d8PN7DLJ+wBHA0svpZa5Uy78w/nG/v6hL84XugLHQYI7Kl+dha7f" +
+                        "54L3TwVJHi/uLtKtM0w00d9a9/tSL3BssCW6GWu0TaO4NtlkfYtVFVFSr7Io" +
+                        "rdzheoR8wZNoaEgg5tAR+umt+lOxA4yBBco2dDKJM3L0OhR+mHiCyItdn9zd" +
+                        "LRVnH/mL5BjgmjUKoCj2yC/qc9pjg6cyK8sn9ZXMINW4orx8Dl0Nbl3RJK3c" +
+                        "/CpV1mPB6+2MmCI1rIAHEixaKantFHrySzv9uwxSwSqr5xwb1y5KiYrTW+20" +
+                        "z8qOIsgNcMLn/MKRApR5Mv6qoLNuFsBNfajDnbwUGw6DniIPEdX+ovasA9J3" +
+                        "Xg1yAxhabzzAvgkxFLZfMtznHzVQW3gtmrh6Aob70Rj5Az/VNk+8tquA8KPV" +
+                        "DM5uiLB01e1eCA1wRSn6iVeR7rSTG6m0e7SVZEe32sR0MGgYtlhAOicWb0IW" +
+                        "EFK079uBlW014k+eraFahnEYtMGntyC9RUiUw4j4aA54/K3m4yBmQmphJKls" +
+                        "vZ9Hel9E99eZzz2hxgV8JSu0vn7ZzVN9BD0P24+x+qRaObSC+RmvqRJxiFA8" +
+                        "NDAeENgAUwBDXWHfIIwBBdLzXuFkTh8uyLBE1UXZMPqXiR9x3BCWf7oTjjhQ" +
+                        "IeF1wO3DsAxn52ZxWNrIOxUMdqvNegx7YrCWrMjK1KRG0i59PJHbHtX5Xgtz" +
+                        "tSnZPrWbkl8RTG2vvcSdjv31YQ6eGDehF7DoZrJUabklbAwRhPCSz11WRlQY" +
+                        "VwhNXlJUF/ZJbwmNEEmUFb9KikYLMmsV+Jxsp0+3o9exXmFBXf7tTnlI/Mju" +
+                        "XL7RWwdL81Nu6U9KAo7wIUcaFW93q5NnnQlr2jTZjnAOQemugBNW/+3E5dZO" +
+                        "amBH0mvDJEZ9zCr8YsHOkwdmPb2CN7xPvNGh4NLOh+HcaJHdYhHYETh+OlbJ" +
+                        "DslWj5Nko7pdMevxPfFTNUIHgUVUNwuhAZgfb9F+yiNKB4/46w95OP1VHnT/" +
+                        "Rx7g/97eeP3LH//KHiKNVNniTjTYQlb/jB5Fqoxma7OocSyTL9S2rBha0OBU" +
+                        "kDGZRZG8hdstSrIyg2IpfXa+lG9s32PLA3m/uKBhBpxJLQbWdMyJIfCvT5Yt" +
+                        "n6L5xxhEMSmrKEMO5hqM1veQzgYqTvOCmAOvDo7kq6m+VEJ22wJf7/QRW8dI" +
+                        "zYJgAT3EWWPuxcSyQrH81vhgRKC5YPyLmvc5Ds2PKMcGWnXEiQ6mFaYoDA5i" +
+                        "FlpbwI9AYHFpgVMtxEcEjCuxKtunPN/RVy8HwgdiStAA4D6hYt4MA0sksATG" +
+                        "FuQD5RlAHG05nlatHXohz8RoPeEy/CM+yn6p2SUbj5WbNCZratrdH0a5Oas7" +
+                        "lPVJzDKiWLBpz7wboE7nGchy8FLA92DHN/qWrivH3WZ5R+ZU0cnJKSABfPyt" +
+                        "wDASjp3N5LVQQo8+UDOxxKcG/kJ5SejTYtE7xfvc7mM1JLBnvqHFTW0/nGSB" +
+                        "2pV0+UHfdcJ9o1ZgLUm86EaSaDA8Js2QyZb4Q2tvZSzD2C57WQBHck/88iZq" +
+                        "8cez071tpQ4ywhqPaFLlYg/ga8jQF+We4NCwfb1rZZg5+VDFqOB1oOd0vn5U" +
+                        "WtHrPFrWtOZd2w9nhPm0oxyKjcCAK4i+TtpoODUVAVG9tT9vdVTQ4cRwfZr7" +
+                        "0k1OQbzG8bqjEG1Sea34qr8ZSPtJHU9ww4OOQXUtnSc6ID+l237QYempmWie" +
+                        "Djnnztc4/RrlRvmJnQ36h3wdWqBmKCKTS34sMCVzVu7VSkRwNFNAiDTQzZU+" +
+                        "M3GJmPVEO0OMLivymRHn9ZfyidFtnt0SY3HHPdyrtMC3X0QiDTYGKJp8/OjQ" +
+                        "p8ijjc4tj+3f0uO8bRJj1Go8g60Iu2OLsWVMppLvvq+OI4cRZxbb3CkhIHhe" +
+                        "nEEimd+cnVB6GksyTzTEeQBivvV0KZd3KeFJv0tzZDjuWNxSGuNShGRbG7QY" +
+                        "kkvG557kSz4mTX6l+8bkVFvhKI5yqHW5GLdLPviEcGKu5Yv7O8LVlqQjA/zv" +
+                        "lMh0vpXiIIl82gJCK34Z2N2KZFDbm0Nivi9XaDtHVC7Y3Btg+5W8K4M+ZPin" +
+                        "ztO3WN+HURa/RkmgXvPi4E/dZapRp74hEj+LrzkiCfZ8ISXHX0jShMx7f3UR" +
+                        "OtAG4pFzLWJrZezwJd+edbORFbEVmNeJj5WJj+Xq/8wo0FnCmwbpN74nPRAO" +
+                        "T+6HJV69PAxf2CWc5qV9kFolIw9diFlHY77kim1nYl4m2fQTOXSuiD8fs2tf" +
+                        "Tnk5i1Gfu/vyjm8tnMIJ9f6+mn1O5j6JfdUVj+7bNcku5JtZDjH1OQ83mgIS" +
+                        "Kc5VMA4DnNTzyAknCTkvnNmHyFxW6lLQXatV0Lf+4GV/90C96G4cSQQJnKSJ" +
+                        "9XuBvKm18WtlaxlrtcmnouzXRD81UyEzMvNzf4OF+zfN0PyqGVCArJubuzfY" +
+                        "28nd7Z+SidSV1SKVBQYvz07qkuPGvGMMVxGtU2kOCG/euVflmj4DPZUpWVSt" +
+                        "925VF5tydu84ypfIHGCRHr5IUFvsvWfRGXzSeb4UdGl/+DT4FnUFPxoKYmnw" +
+                        "cA80b5KS0kqdxiYtVUVVYF+OSXmcptLqVhjMwqInk/hWxKFf45DX9AS6b8r3" +
+                        "gFOTgrUA6F0coG58R63Y0g7BV4ATTbUTsDJi5IKZUEIJNYLOYPl/78aT5zO2" +
+                        "5b0VuGoYUUVzsrW+w7apLEfAurolPWlfvuY4EiWHvNTbmpPscWu0E96T9V3W" +
+                        "qxt/uXphWOdYdhDJQHOIDSGieaPOItaD7Sb2XSfRMtbFpBEDfUfglqexlFQp" +
+                        "VwS6463L/ZC8dP2FX5z0Yc6wt+dOzqd+b2uMUmiV6SbpCQFtM73noZjqeKGK" +
+                        "cy5hYmCUdqtGdIRKZxL5YQk1fgBW8CXrrMejoYBQqTU8ZIx8+t7jeKKbaSP/" +
+                        "0WVhvws+udrInD5BtUaJxg2cPMEu5to4wVlul7C7s7VhDh9snhNI5V19PtaR" +
+                        "TWNqDN5bwagQ8j2qw1C20bK5Ffk50gP4otMFqCgog4C/jTTtnwuKqtuPLGoP" +
+                        "trH751CnZcB0Fw2JB29TE1zjUcHYwBOCgc/E/AWqz4WdADg4OrisEeIa9s1W" +
+                        "ZFcrYp8F4eQaXoP1p6+DIzX5xPAzgrOkZEsr0ABPP8iNhCoh9txvA8ecfQxv" +
+                        "EF1dN5hIoDQHsBHdpOU5XPfAoXMCpD6dFB+OLa/zKlhgLN6sn1+9BTZuqdCN" +
+                        "y/LKqv1uZVJb2hpYJ2dasfutgsfctXFNbkzrVwNZxuczVMxa7JkT9Ve46e1F" +
+                        "hBWWIhr1jRA3nGdGxVa2V/ZV4pO2VIYt9lIOdDWOrmI3rzfpFjIa5R2Cnbqq" +
+                        "Tbr4d9Uv40Ct22I01F+kqk3S6l4utgt46vYYyNq+gIZL1QubV830e28vFFQw" +
+                        "jykodjtWsJR6LQrXBm51dLZcpnPd3W4c4an5bkG1eHzQuqxZSQS7lvSm8+2O" +
+                        "PjAYoAx680SChu0V5IwWPhrBVOOKOEwZ+/GI+bi3r5X51MvzXE0jz/ccw3Rg" +
+                        "KsVewWbgzI5JqBZ3f6f3IiW7dmLAzVydpOlG2xqL4uX5mgS9Aamz/gzvWOF1" +
+                        "qXPKG2qTOFpW3rG5aQM7vrIyVZ8HyMrT7ePzzo/LcrW2/CTTrfYRKckUS+pO" +
+                        "sEYfniLF6jdflXg5W+g3U00rQcVGpldFal3RcfdaUDftG5rflc5N5fPevt0/" +
+                        "8ucXfEMg8FVGt1eDx5ll31nEW26yMFVTbbQWUq7jZaZLmpr1IksPlLV9b9RJ" +
+                        "dVzliaHz2INJUJuqqrPFgdh+7S7GkN3djK8rFKxNdwul9oA+Jrpcpp9DDiC4" +
+                        "JIsH5vFc0Xh260VT2+Qh3QYt1zvF4fpYJcXCU37gxOPcVyeYCY1hTeaC8BkN" +
+                        "3QEQ1t15n3PYa19HNq2gprJN/pdtaKJU/k+SlkIOGS8DMYba0J34cJXrO8jM" +
+                        "ksrOzPxEAw/Rc997HSjmLJApDzj1T1awkePCc8ON4fHhzQkMWQ0JcmHiIVWd" +
+                        "ni4cMUsheI9T9nOzDFs4zz7q35jdoUmIjdku4dhx58RMWQELWYpXUfa1eSpC" +
+                        "L/blPkm5pADXkjChF3bfrIgCyJSKwNOjwl+doQyXy/cKJyen+vqzhJ7Mbx7M" +
+                        "zOnUdBUmza6ROnxEGe/DiQCS+IeuMkr7nTVtK+BJjrDMehwBO85Uvk0yPL9y" +
+                        "tZhvPjQmrVqSEBk6bxzW/zhGs6a1zDmiMr55Ud8pgaiGF5lupc8I+4+09ald" +
+                        "nSihLErQ2HXxNLYjuA+RxpG8HTfrlxjVzSOoALE6MQof7lWmZWuTQVxPLG3s" +
+                        "Cn/vUFpwApJgtbbdGUoMhhIzSTAFqV/roZNCS6Ho4BfI+ItsfBvoIfYyaR5p" +
+                        "Kza4B6+HCColJ73KukpekP1J3pjNhdgaatED6bkLjkNG8WupkArj3Iea9Dzq" +
+                        "oWX6Kv1TKurZy9p4P5aPRwR/kwrHv5XKXQU7e7CPi7eq62OX/06suSkg9ykZ" +
+                        "4qjlhqksKNkkGe5qIbQx2rObMUz0MS4BAxe57kQ5JeHEbB6myK75x7bYrfG1" +
+                        "4TCG90ly8b1Gzzj1+1MdHCSu4pdfXp59/2iEovWW9+3q0GUzMGkt2LfoSJ++" +
+                        "DCp85V10b+Fj+yfecGJHuoqyuAbBQv/H/hqxScS4LgkfDgm9xTTK2Dl08ibD" +
+                        "5nlcZYul5/UHjGuC7BNIsZvoabEr9+Kr5l7GXj0NRQB0NMfK7hy5x+9vNha5" +
+                        "HVXEvA8v4XAKG+tin4OV6ZpZHSXsnVt2kvqfScv2XhcNpmJuPghwO63sfJYS" +
+                        "iEjW4lPofHsDN3G79JN3H6rQD+hPQL8UWofFDE9zoaEKVNPm+SI5KtqVARWI" +
+                        "Gh455VcBT/wA+zsDnz5bpCKTXS8f72E4LwpvOIncuIUhrkKsg9KnZDfr5EEd" +
+                        "U7rZk0DOpgbPRFGXvXnVl58qNEjpWWSqSOJMKxIxuJn7zBPTkSd38h0GF0aW" +
+                        "4E2jPIr45p5vCmWb4+9FqJ+EG21i1IxhCE5uaETcR3VbFRZrHvcIFb9vndDV" +
+                        "dDF2jAUlcY0lj4U089bG0ZCIPP1HLYZlm/919Y+VJRDtP2WI/ykFuYKd3Hgh" +
+                        "7t4uTm6Wru62Pi52NlZWVvY/Grq1Jia7tvUna5R/sL8yt3eQ/vgl8B91HlQA" +
+                        "Gcr/0n+tAf0sNP1+/buy05+UX0946X8jPP2P1aM/Wb+e+FD/xkKg/+2E+E/O" +
+                        "r5u/3zksOH87LfqT82u6o/uNY0XwHzaOf6J+jQ80v6EG7/w1HP4J+lUZtL+B" +
+                        "akn/nj3+JP067zh+I2EC/x/C+RP765T7/U3xqP86hbXVMTB/Pobz4/Pqx9/k" +
+                        "8I+h+y/TO8ltHR0AAA=="
+                ),
             api = api,
         )
     }
@@ -1516,8 +1671,7 @@ abstract class UastTestBase : DriverTest() {
                 package test.pkg {
                   public final class PointerEvent {
                     ctor public PointerEvent();
-                    method public int getKeyboardModifiers();
-                    property public int keyboardModifiers;
+                    property public test.pkg.PointerKeyboardModifiers keyboardModifiers;
                   }
                   @kotlin.jvm.JvmInline public final value class PointerKeyboardModifiers {
                     ctor @KotlinOnly public PointerKeyboardModifiers(int packedValue);
@@ -1576,8 +1730,7 @@ abstract class UastTestBase : DriverTest() {
                 package test.pkg {
                   public final class PointerEvent {
                     ctor public PointerEvent();
-                    method public int getKeyboardModifiers();
-                    property public int keyboardModifiers;
+                    property public test.pkg.PointerKeyboardModifiers keyboardModifiers;
                   }
                   @kotlin.jvm.JvmInline public final value class PointerKeyboardModifiers {
                     ctor ${targetLanguages}public PointerKeyboardModifiers($typeAliasExpanded packedValue);
@@ -2093,7 +2246,6 @@ abstract class UastTestBase : DriverTest() {
     @Test
     fun `Annotations on property of value class type`() {
         // b/417181888 -- the accessor representation depends on if the type is specified in source
-        val extraAnno = if (isK2) "@test.pkg.Anno " else ""
         check(
             sourceFiles =
                 arrayOf(
@@ -2130,11 +2282,9 @@ abstract class UastTestBase : DriverTest() {
                   }
                   public static final class IntValue.Companion {
                     method public int getWithNonValueClassTypeSpecified();
-                    method ${extraAnno}public int getWithValueClassTypeSpecified();
-                    method public int getWithValueClassTypeUnspecified();
                     property @test.pkg.Anno public int withNonValueClassTypeSpecified;
-                    property @test.pkg.Anno public int withValueClassTypeSpecified;
-                    property @test.pkg.Anno public int withValueClassTypeUnspecified;
+                    property @test.pkg.Anno public test.pkg.IntValue withValueClassTypeSpecified;
+                    property @test.pkg.Anno public test.pkg.IntValue withValueClassTypeUnspecified;
                   }
                 }
                 """

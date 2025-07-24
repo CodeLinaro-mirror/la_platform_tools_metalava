@@ -26,6 +26,7 @@ import com.android.tools.metalava.model.DefaultTypeParameterList
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
+import com.android.tools.metalava.model.KOTLIN_DEPRECATED
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.SourceLanguage
@@ -383,12 +384,12 @@ internal class KaCodebaseAssembler(val codebase: PsiBasedCodebase, val kaModule:
                     ),
                 name = propertySymbol.name.identifier,
                 containingClass = containingClass,
-                type = typeForAccessor,
+                type = type,
                 getter = getter,
                 setter = setter,
                 constructorParameter = constructorParameter,
                 backingField = backingField,
-                receiver = possiblyInlinedReceiverType,
+                receiver = receiverType,
                 typeParameterList = typeParameterListAndFactory.typeParameterList,
             )
         getter?.property = propertyItem
@@ -461,7 +462,7 @@ internal class KaCodebaseAssembler(val codebase: PsiBasedCodebase, val kaModule:
     /** Checks whether an element is deprecated with [DeprecationLevel.HIDDEN]. */
     private fun KaAnnotated.isDeprecatedHidden(): Boolean {
         return annotations.any { kaAnnotation ->
-            kaAnnotation.classId?.asFqNameString() == "kotlin.Deprecated" &&
+            kaAnnotation.classId?.asFqNameString() == KOTLIN_DEPRECATED &&
                 (kaAnnotation.arguments
                         .singleOrNull { it.name.identifierOrNullIfSpecial == "level" }
                         ?.expression as? KaAnnotationValue.EnumEntryValue)

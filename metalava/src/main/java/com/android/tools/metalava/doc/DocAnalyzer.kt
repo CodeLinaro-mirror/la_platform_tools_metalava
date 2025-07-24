@@ -35,6 +35,7 @@ import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JAVA_LANG_PREFIX
+import com.android.tools.metalava.model.KOTLIN_DEPRECATED
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
@@ -250,7 +251,7 @@ class DocAnalyzer(
                             // i.e. not ParameterItems, so ignore it on them.
                             if (item is SelectableItem) handleRequiresApi(annotation, item)
                         "android.provider.Column" -> handleColumn(annotation, item)
-                        "kotlin.Deprecated" -> handleKotlinDeprecation(annotation, item)
+                        KOTLIN_DEPRECATED -> handleKotlinDeprecation(annotation, item)
                         "androidx.annotation.RestrictedForEnvironment" ->
                             handleRestrictedForEnvironment(annotation, item)
                     }

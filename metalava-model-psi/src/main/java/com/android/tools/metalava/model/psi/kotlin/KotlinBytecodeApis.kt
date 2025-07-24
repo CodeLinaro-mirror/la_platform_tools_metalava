@@ -21,6 +21,7 @@ import com.android.tools.lint.helpers.readAllBytes
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ConstructorItem
+import com.android.tools.metalava.model.KOTLIN_DEPRECATED
 import com.android.tools.metalava.model.KOTLIN_METADATA
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
@@ -530,15 +531,13 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
                     // No matching function, check if this is a property accessor.
                     ?: container.properties.firstNotNullOfOrNull {
                         if (it.getterSignature.matches(name(), expectedDescriptor)) {
-                            // If this property was annotated with @PublishedApi, that won't have
-                            // been propagated to the getter, do so manually.
-                            propagatePublishedAnnotationIfNeeded(it, psiClass)
+                            // Propagate special annotations.
+                            propagateAnnotationsAsNeeded(it, psiClass)
                             // A getter always has the same visibility as the property.
                             it.visibility
                         } else if (it.setterSignature.matches(name(), expectedDescriptor)) {
-                            // If this property was annotated with @PublishedApi, that won't have
-                            // been propagated to the setter, do so manually.
-                            propagatePublishedAnnotationIfNeeded(it, psiClass)
+                            // Propagate special annotations.
+                            propagateAnnotationsAsNeeded(it, psiClass)
                             // A setter's visibility can be different from the property.
                             it.setter?.visibility
                         } else {
@@ -559,27 +558,60 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
     }
 
     /**
-     * Checks if the [kmProperty] was annotated in source with the [PublishedApi] annotation, and if
-     * it was, adds the annotation to the callable item.
+     * If the [kmProperty] was annotated in source, propagates some special annotations to the
+     * callable item.
+     *
+     * This includes [PublishedApi], annotations meta-annotated with [RequiresOptIn], and
+     * deprecation status.
      */
-    private fun PsiCallableItem.propagatePublishedAnnotationIfNeeded(
+    private fun PsiCallableItem.propagateAnnotationsAsNeeded(
         kmProperty: KmProperty,
         psiClass: PsiClass,
     ) {
-        if (kmProperty.visibility == Visibility.INTERNAL && kmProperty.hasAnnotations) {
-            // The annotations on a property in source end up in bytecode on a synthetic method
-            // generated to track the annotations. Find that method in the psi class.
-            val annotationMethodSignature = kmProperty.syntheticMethodForAnnotations ?: return
-            val annotationMethod =
-                psiClass.methods.singleOrNull { it.name == annotationMethodSignature.name }
-                    ?: return
+        if (!kmProperty.hasAnnotations) return
+
+        // The annotations on a property in source end up in bytecode on a synthetic method
+        // generated to track the annotations. Find that method in the psi class.
+        val annotationMethodSignature = kmProperty.syntheticMethodForAnnotations ?: return
+        // For an interface, the annotation method will be in a nested DefaultImpls class.
+        val classForAnnotationMethod =
+            if (psiClass.isInterface) {
+                psiClass.innerClasses.singleOrNull { it.name == "DefaultImpls" }
+            } else {
+                psiClass
+            } ?: return
+        val annotationMethod =
+            classForAnnotationMethod.methods.singleOrNull {
+                it.name == annotationMethodSignature.name
+            } ?: return
+
+        if (kmProperty.visibility == Visibility.INTERNAL) {
             // Check if the method is @PublishedApi, propagate it to the accessor method if so.
-            val publishedAnnotation =
-                annotationMethod.annotations.firstOrNull {
-                    it.qualifiedName == "kotlin.PublishedApi"
-                } ?: return
-            val annotationItem = PsiAnnotationItem.create(codebase, publishedAnnotation)
-            mutateModifiers { addAnnotation(annotationItem) }
+            annotationMethod.annotations
+                .firstOrNull { it.qualifiedName == "kotlin.PublishedApi" }
+                ?.let { publishedAnnotation ->
+                    val annotationItem = PsiAnnotationItem.create(codebase, publishedAnnotation)
+                    mutateModifiers { addAnnotation(annotationItem) }
+                }
+        }
+
+        // Propagate deprecation from properties to accessors.
+        if (
+            !modifiers.isDeprecated() &&
+                annotationMethod.annotations.any { it.hasQualifiedName(KOTLIN_DEPRECATED) }
+        ) {
+            mutateModifiers { setDeprecated(true) }
+        }
+
+        for (annotationEntry in annotationMethod.annotations) {
+            val annotationClass = annotationEntry.resolveAnnotationType() ?: continue
+            // Special case for RequiresOptIn-annotated annotations: when these are applied
+            // to a property, they are implicitly propagated to the getter and setter
+            // (if present) for Kotlin clients. Match Kotlin compiler behavior by propagating.
+            if (annotationClass.hasAnnotation("kotlin.RequiresOptIn")) {
+                val annotationItem = PsiAnnotationItem.create(codebase, annotationEntry)
+                mutateModifiers { addAnnotation(annotationItem) }
+            }
         }
     }
 }
