@@ -38,14 +38,15 @@ gradlePlugin {
             id = "metalava-build-plugin"
             implementationClass = "com.android.tools.metalava.MetalavaBuildPlugin"
         }
-    }
-}
-
-gradlePlugin {
-    plugins {
         create("metalava-model-provider-plugin") {
             id = "metalava-model-provider-plugin"
             implementationClass = "com.android.tools.metalava.MetalavaModelProviderPlugin"
         }
+    }
+}
+
+kotlin {
+    compilerOptions {
+        allWarningsAsErrors = true
     }
 }

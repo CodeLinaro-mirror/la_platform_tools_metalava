@@ -152,7 +152,6 @@ abstract class BaseCommonParameterizedValueTest(
                             InputFormat.JAVA -> JavaTestClassCreator
                             InputFormat.KOTLIN -> KotlinTestClassCreator
                             InputFormat.SIGNATURE -> SignatureTestClassCreator
-                            else -> error("Unknown input format: $inputFormat")
                         }
 
                     TestClasses(creator, valueExample)

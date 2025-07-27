@@ -91,11 +91,7 @@ internal class PsiMethodItem(
     override var property: PropertyItem? = null
 
     override fun isKotlinProperty(): Boolean {
-        return psiMethod is UMethod &&
-            (psiMethod.sourcePsi is KtProperty ||
-                psiMethod.sourcePsi is KtPropertyAccessor ||
-                psiMethod.sourcePsi is KtParameter &&
-                    (psiMethod.sourcePsi as KtParameter).hasValOrVar())
+        return isKotlinProperty(psiMethod)
     }
 
     override fun duplicate(targetContainingClass: ClassItem): PsiMethodItem {
@@ -258,6 +254,14 @@ internal class PsiMethodItem(
                 )
 
             return method
+        }
+
+        fun isKotlinProperty(psiMethod: PsiMethod): Boolean {
+            return psiMethod is UMethod &&
+                (psiMethod.sourcePsi is KtProperty ||
+                    psiMethod.sourcePsi is KtPropertyAccessor ||
+                    psiMethod.sourcePsi is KtParameter &&
+                        (psiMethod.sourcePsi as KtParameter).hasValOrVar())
         }
     }
 }

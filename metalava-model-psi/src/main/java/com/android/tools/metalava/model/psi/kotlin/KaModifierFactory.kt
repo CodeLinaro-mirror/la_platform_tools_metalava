@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.psi.kotlin
 
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.JVM_STATIC
+import com.android.tools.metalava.model.KOTLIN_DEPRECATED
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.VisibilityLevel
@@ -130,6 +131,19 @@ internal class KaModifierFactory(private val assembler: KaCodebaseAssembler) {
             modifiers.setInline(true)
         }
 
+        // Propagate deprecation from the getter if it hasn't already been propagated. This could
+        // happen in the getter has deprecation level hidden, because in that case there will be no
+        // method item for the getter.
+        if (
+            !modifiers.isDeprecated() &&
+                getter == null &&
+                propertySymbol.getter?.annotations?.any {
+                    it.classId?.asFqNameString() == KOTLIN_DEPRECATED
+                } == true
+        ) {
+            modifiers.setDeprecated(true)
+        }
+
         return modifiers
     }
 
@@ -194,7 +208,7 @@ internal class KaModifierFactory(private val assembler: KaCodebaseAssembler) {
             modifiers.setExpect(true)
         }
 
-        if (annotations.any { it.qualifiedName == "kotlin.Deprecated" }) {
+        if (annotations.any { it.qualifiedName == KOTLIN_DEPRECATED }) {
             modifiers.setDeprecated(true)
         }
 
@@ -205,7 +219,7 @@ internal class KaModifierFactory(private val assembler: KaCodebaseAssembler) {
     fun createForParameter(symbol: KaParameterSymbol): MutableModifierList {
         val annotations = symbol.annotations.mapNotNull { assembler.createAnnotation(it) }
         val modifiers = createMutableModifiers(VisibilityLevel.PACKAGE_PRIVATE, annotations)
-        if (annotations.any { it.qualifiedName == "kotlin.Deprecated" }) {
+        if (annotations.any { it.qualifiedName == KOTLIN_DEPRECATED }) {
             modifiers.setDeprecated(true)
         }
         return modifiers

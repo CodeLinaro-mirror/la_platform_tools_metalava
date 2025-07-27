@@ -39,8 +39,11 @@ import com.android.tools.metalava.model.BaseAnnotationManager
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FilterPredicate
+import com.android.tools.metalava.model.JAVA_LANG_DEPRECATED
 import com.android.tools.metalava.model.JAVA_LANG_PREFIX
+import com.android.tools.metalava.model.JVM_NAME
 import com.android.tools.metalava.model.JVM_STATIC
+import com.android.tools.metalava.model.KOTLIN_DEPRECATED
 import com.android.tools.metalava.model.KOTLIN_METADATA
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierList
@@ -430,9 +433,9 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
             "dalvik.annotation.optimization.ReachabilitySensitive" -> return NO_ANNOTATION_TARGETS
 
             // TODO(aurimas): consider using annotation directly instead of modifiers
-            "kotlin.Deprecated" ->
+            KOTLIN_DEPRECATED ->
                 return NO_ANNOTATION_TARGETS // tracked separately as a pseudo-modifier
-            "java.lang.Deprecated", // tracked separately as a pseudo-modifier
+            JAVA_LANG_DEPRECATED, // tracked separately as a pseudo-modifier
 
             // Below this when-statement we perform the correct lookup: check API predicate, and
             // check
@@ -461,7 +464,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
             "kotlin.jvm.JvmField",
             JVM_STATIC,
             KOTLIN_METADATA,
-            "kotlin.jvm.JvmName" -> return NO_ANNOTATION_TARGETS
+            JVM_NAME -> return NO_ANNOTATION_TARGETS
         }
 
         // @android.annotation.Nullable and NonNullable specially recognized annotations by the

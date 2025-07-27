@@ -39,6 +39,7 @@ const val JAVA_RETENTION = "java.lang.annotation.Retention"
 const val KT_RETENTION = "kotlin.annotation.Retention"
 
 const val JVM_STATIC = "kotlin.jvm.JvmStatic"
+const val JVM_NAME = "kotlin.jvm.JvmName"
 
 const val KOTLIN_METADATA = "kotlin.Metadata"
 
@@ -49,3 +50,4 @@ fun isRetention(qualifiedName: String?): Boolean =
 const val JAVA_PACKAGE_INFO = "package-info.java"
 
 const val KOTLIN_CONTINUATION = "kotlin.coroutines.Continuation"
+const val KOTLIN_DEPRECATED = "kotlin.Deprecated"

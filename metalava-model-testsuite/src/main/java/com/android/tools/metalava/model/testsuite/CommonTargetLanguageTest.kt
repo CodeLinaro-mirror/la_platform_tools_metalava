@@ -975,24 +975,238 @@ class CommonTargetLanguageTest : BaseModelTest() {
                 assertThat(kind).isEqualTo(PrimitiveTypeItem.Primitive.VOID)
             }
 
-            // TODO(b/407735992): non-mangled accessors should be kotlin only and use IntValue
-            // type instead of int
-            fooClass.assertMethod("getPublicValueClassProperty", "")
-            fooClass.assertMethod("setPublicValueClassProperty", "int")
-            fooClass.assertMethod("getProtectedValueClassProperty", "")
-            fooClass.assertMethod("setProtectedValueClassProperty", "int")
-            // TODO(b/407735992): name in psi is different between k1 and k2 (k2 has mangled suffix
-            // with $)
-            fooClass.methods().single {
-                it.name() == "getInternalValueClassProperty" ||
-                    it.name().startsWith("getInternalValueClassProperty\$")
-            }
-            fooClass.methods().single {
-                it.name() == "setInternalValueClassProperty" ||
-                    it.name().startsWith("setInternalValueClassProperty\$")
-            }
+            // Only the bytecode versions of the accessors are present, since in kotlin source the
+            // property reference is expected to be used.
+            assertThat(fooClass.methods()).hasSize(6)
+        }
+    }
 
-            assertThat(fooClass.methods()).hasSize(12)
+    @Test
+    fun `Test properties of value class types with JvmName`() {
+        runCodebaseTest(
+            inputSet(
+                kotlin(
+                    """
+                    package test.pkg
+                    @JvmInline
+                    value class IntValue(val intValue: Int)
+
+                    class Foo {
+                        var noJvmName = IntValue(0)
+                        @get:JvmName("getJvmNameOnGet")
+                        var jvmNameOnGet = IntValue(0)
+                        @set:JvmName("setJvmNameOnSet")
+                        var jvmNameOnSet = IntValue(0)
+                        @get:JvmName("getJvmNameOnBoth")
+                        @set:JvmName("setJvmNameOnBoth")
+                        var jvmNameOnBoth = IntValue(0)
+                    }
+                    """
+                )
+            ),
+            // Compiled from the Kotlin source file above with [generateBase64gzipFromKotlin]
+            compiledSourceJar =
+                base64gzip(
+                    "test.jar",
+                    // kotlinc version info: kotlinc-jvm 1.9.23 (JRE 17.0.6+10-b802.1)
+                    "" +
+                        "H4sIAAAAAAAA/31WCTQUahseRmNcO8NYqolhLsPMNMpWZF8aYSxDpZkyMrZB" +
+                        "MmRNlrrKdkd2oQWJ0WQ3U4hCJksSoUQhSbaSNVzd/5z/V+ev9zvPec93zvc+" +
+                        "7/nec97nPHgLIA8EAAaDAQCAHGB7QAA8AEsTewPUYStTjKWB1WFTEzt7tKXp" +
+                        "BgcA+GLZ/vSIBQrdLWiBQna2d1XY7n2xb2T8LBpnqXrYsjuguNJ2DofyQ+La" +
+                        "21Uc5joxbW3to+PvxrkBeAteMFNcmam91UBzC/hftodugebqT8Oc8XLDHPah" +
+                        "OThTA1zRLlRnf/9w+yE7WQJkcyib2UGJzH5mW3590ehVTBKi+XgJJB/vBTWy" +
+                        "KbK5grHo5+NvQ1A0j8CCexoe8p6kLTRCd9NMI8v2CT3X3ES0zr/uQDgbtmTm" +
+                        "rPnNrKx3shr8ZzbWZ2ER3LVxGOnk3PEQ1ipJ202L1M3YXyolFd2vvtRxopnG" +
+                        "YfWWEkvGmkXI5iko5nSLCOe0IKh5RirjhhxIUShRy6j/VRnx0tumi+AKASDJ" +
+                        "e8ir3yp48G6fikD6PtPqZwkDB+ANKnXVzYXEgWoZrADWGNafON2xlglRV6Db" +
+                        "yu1t/9vTjFN5NdvuTCaAUuej/UqgJzOuEd0iTO7wrI2yOZxDkZpN/xDcip3U" +
+                        "Qu9K3xieD5hcBvH1p0W9tS1MAsvcfcteqDPIyko4S3oEABHEVhCTtS7sgxZV" +
+                        "3irPsEcmbWySiZLJTUiLRoSS/SunR5ByJAJbKgd33KmNZH4l9DBquXrNW5QW" +
+                        "Ahupi9rRg7RqT0wYRtAXjuw+Jy2v7tvq+fcy1CY/LO64JBt259LBDLrObM1d" +
+                        "vL1o2kVIQdZoSAKlrUQ9qjIlkKr3iJo3k5wzp5+sm5/22u1ZJ1HFOpgiYESK" +
+                        "fjn7xPlS0B+h6kzyQdbQuqdPcIOnViWdmEWFMY7msrxDEANBAXrGSX+1yaF5" +
+                        "8Sm65Q33xhO557zlNyYXRtgcMxaneTISB4Ne4aSCO/iybu0Xft6eWsGEmloL" +
+                        "U4JyUUIFN6OmdGAH1rAyDk3y5Qz+i4vz0iZFIUEp4wNXHYerrcQNnSTJ+iFX" +
+                        "E1aqDQzBWGON7jJFE0/UgDNBSVyXYWzy6ZNsi2sxLZytfxP1Zlo3CbnHKca5" +
+                        "SB+p4+1Qw2jZ519Cbnveh6MUuGtQWcLxwKncY4NO2KlGEpGpLqs4VYbSnKwq" +
+                        "HB0glLjf18g5RLuW5RaiQUhFdt55ohaC21B3V+SHGqSomgyO59/bb4Y4Hx1i" +
+                        "zp/Y5RG/2iJSP8dVDxSrvOn55JzohWFF3+C083xlfvEWd+jwD6uiJPEB+And" +
+                        "puyGZfp9BY8H4xMPx7z4zX1A0kpq0eKvPzYr5TxcuMTdnhDYt8rnA1sEyOfs" +
+                        "scvxWuRpWyKzDT5c5skgsHOoGuGfMXOzIny7rHKjYG9ztMO/hbIEaxYGr2NB" +
+                        "uzd5o1EcUTUxVXOjuzN0e7XItSDMnvQAOskv89kYH+W+dNXI/B446/PbqKdQ" +
+                        "6MMJYO0Bv3jW5bLhGxuDNYEodNWjglXLh7H+9fD3vfqyd5eKm5xQ8OfLAP7I" +
+                        "JRQ5zW0+fUR2FSsZOiXRmiyM4zQ4+NYNEltWaQ4ySXPOXetiq/3CsRcjTLVe" +
+                        "SBw0JGOuvURGtka+4AsbG04aZc1uSGt4vLnRK54lGIX2lT894gLcAVQJwlkw" +
+                        "ZJZ58nyiWEcfrSIuEd3RuazYldEHcYy42LiiuLX68d11KtB96MITp0+c+JIA" +
+                        "RIM2gd/VR/pkzANtHgBggfd36iO2XX1MfX3/IzypBKK1rBlEt4L0auqrDHNl" +
+                        "f61cZDLP6wuC6zjxrMo7kEq6kYLtsdSgIskKef5Fn7FjdrttYKt6gxP1xp69" +
+                        "RcISN33XD4YzQxaB7/oLbWA6596/8e+6FupGWX+p17DJNQLXgezlNgNVpZvx" +
+                        "VrXW510U2Ss87XK/r7ouerCizui2xGm62BMqO1dWR8QcxdwvmE/vviGvgmcr" +
+                        "3Htw3aMm1EpSu7wyzBo0RFKZu1/iM+HqpE+sdlAFBksdoEF4zuZujtVWeJ/b" +
+                        "ydVoLkoR+gNnHyC1lhfsZHXqlLzQkUXe3L8iJ7X2wvG1Ajqfo6EgyuiTnTWC" +
+                        "pFrbU4zuk5PhkW3AP/vrRe6xe147bQZuetjnNV//JKxhfWC41zrxnVgW94Dl" +
+                        "JUdYuaxJss5kD6e9hQ6rJDJNDaoUHg/ZY5D+pvUJEUa6PV2P371RQnJq4FQf" +
+                        "PQ1GOlp7DElUCv7Is1i/qz/lBi3RTidEVIh1BuDUNZQqrnmiV/vVSejy2iea" +
+                        "rSPnyt0Mt9vsm8rzhippXVaaKeyglEObyrcyOJ1Zmbl2Hz+athy5uDjTB3Ua" +
+                        "vra5d3HCyy+QYyBCSTbOs6uKzyTaq3e0T6tmrkiFSbyIvb7DcDbDZf2bYwX0" +
+                        "FuSqchxFOYa0Y2fSBXHKzLdQRebtqi+wiamoAlRMgW/sPTnxhBsHO/rGMe+9" +
+                        "zHS4v6pE5E0co9bmVgxNfdIeYk7XaeiOCja41mQHvhR8ebmivOcLd83o0Tdl" +
+                        "KkR2/YKO3j1gepKxfsTMEhs1USZr6Cbu7g+ODSC5p97Of/659ExhjDW8vOdy" +
+                        "TgI1kTB3+ey3+BLJdVUBzZIGg5JCkssnx/g/A5Fl448dSCb7l7Q66YB8Gw9B" +
+                        "94yxknDhHard5/JE4YiCWRlvvi+1udSj/L6EDKf1HaN6J8Uo8m6FGO3wzDAg" +
+                        "/+HPujdTRRxL8e9L6AM9WPk2Ibc4Rrbj7lm7GDUFsic+RsPwMSIiOCRt+b5y" +
+                        "m31TaXdxIYjgMYsPCD3txYkuXqCXHisEux41DsbHbOTJg4qdEPOcJyQCiCDx" +
+                        "ZqhEopxg9pQhwFH9BsskNB1KAs+845rmGoLhm3OI+aqM40crlOo7lftQ1JFH" +
+                        "RHBbRHXSuRW+VvXL1gpqYnFiebh226LHAeU4VfPzathGl7RaRSzKL9uS/q2f" +
+                        "THrX0vB9VVP0cSNeQAAA/ttVld3Cf32Kt7OHD9rLl0b18Dnp7Xs6gOrqcurU" +
+                        "KcoWeMhWICU8+RkZ8K8J+Sr/oE58q1LqXxPCxQ0B/I99u0H57oJ+jF95op9Z" +
+                        "tgsN9AeGiF9bm59Jto9A7AeSdZ7/p1A/12//puwP9UXg344Nb7ED9P0Zz9aB" +
+                        "cG1lvu+3fwAeDUEmLgoAAA=="
+                )
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+
+            val noJvmNameGetter = fooClass.assertMethod("getNoJvmName-RVb1_dM", "")
+            assertThat(noJvmNameGetter.targetLanguages).containsExactly(TargetLanguage.BYTECODE)
+            val noJvmNameSetter = fooClass.assertMethod("setNoJvmName-Vxmw0xk", "int")
+            assertThat(noJvmNameSetter.targetLanguages).containsExactly(TargetLanguage.BYTECODE)
+
+            val jvmNameOnGetGetter = fooClass.assertMethod("getJvmNameOnGet", "")
+            assertThat(jvmNameOnGetGetter.targetLanguages)
+                .containsExactlyElementsIn(TargetLanguageSet.ALL)
+            val jvmNameOnGetSetter = fooClass.assertMethod("setJvmNameOnGet-Vxmw0xk", "int")
+            assertThat(jvmNameOnGetSetter.targetLanguages).containsExactly(TargetLanguage.BYTECODE)
+
+            val jvmNameOnSetGetter = fooClass.assertMethod("getJvmNameOnSet-RVb1_dM", "")
+            assertThat(jvmNameOnSetGetter.targetLanguages).containsExactly(TargetLanguage.BYTECODE)
+            val jvmNameOnSetSetter = fooClass.assertMethod("setJvmNameOnSet", "int")
+            assertThat(jvmNameOnSetSetter.targetLanguages)
+                .containsExactlyElementsIn(TargetLanguageSet.ALL)
+
+            val jvmNameOnBothGetter = fooClass.assertMethod("getJvmNameOnBoth", "")
+            assertThat(jvmNameOnBothGetter.targetLanguages)
+                .containsExactlyElementsIn(TargetLanguageSet.ALL)
+            val jvmNameOnBothSetter = fooClass.assertMethod("setJvmNameOnBoth", "int")
+            assertThat(jvmNameOnBothSetter.targetLanguages)
+                .containsExactlyElementsIn(TargetLanguageSet.ALL)
+        }
+    }
+
+    @Test
+    fun `Test extension properties of value class types with JvmName`() {
+        runCodebaseTest(
+            inputSet(
+                kotlin(
+                    """
+                    package test.pkg
+                    @JvmInline
+                    value class IntValue(val intValue: Int)
+
+                    class Foo {
+                        var IntValue.noJvmName
+                            get() = 0
+                            set(v) = Unit
+                        @get:JvmName("getJvmNameOnGet")
+                        var IntValue.jvmNameOnGet
+                            get() = 0
+                            set(v) = Unit
+                        @set:JvmName("setJvmNameOnSet")
+                        var IntValue.jvmNameOnSet
+                            get() = 0
+                            set(v) = Unit
+                        @get:JvmName("getJvmNameOnBoth")
+                        @set:JvmName("setJvmNameOnBoth")
+                        var IntValue.jvmNameOnBoth
+                            get() = 0
+                            set(v) = Unit
+                    }
+                    """
+                )
+            ),
+            // Compiled from the Kotlin source file above with [generateBase64gzipFromKotlin]
+            compiledSourceJar =
+                base64gzip(
+                    "test.jar",
+                    // kotlinc version info: kotlinc-jvm 1.9.23 (JRE 17.0.6+10-b802.1)
+                    "" +
+                        "H4sIAAAAAAAA/32WezjTfR/Hf7GGnBmzFCFL2JbzIaoRYU2b063YipjYWGWE" +
+                        "qJDduYUmzSmK5JFjJBo5P85zLDmTUKQcaol1W7d6rut51PXU53u9//t+3t/r" +
+                        "+7muz/t64TD8IAggKCgIAIASsLkgAAjAWjigEda2ligs2tba0sLeAYm15LUD" +
+                        "wEcsu+MoBoHsFcUg1LvY3Y/s9j3XeTlzHmmD1bTG9gbkldkt2SDOqduw2RpO" +
+                        "S12otjb21MyrGT4AhxEQLJbeW2y08YDBhnC/fB66IZqnPw11luyFsvajOblR" +
+                        "AjyRpylu/v5hDmP28o6Qr2NpxZ2k8LQeu9K7K+YjV+PhTSfyIdk4MtQcn4v/" +
+                        "C4UZFBJug5MMjioGP6utEzhJ49RDFWiW4SU6Yn0GX+Ety6OdcDez5pT0L+cW" +
+                        "1ta7WLX+C7z1RcXLfE9iULCEjJkQFpdo5GVI7C3QLZSTixzU+9zp2kRrZ/UX" +
+                        "EvKnmyTcrRIRxe+bJdo9RMFNC3LJmUpgVbE4Q/PBkRICfbIhSvCRCD/Rd4w8" +
+                        "aBs8XPRCQyRJx7K8J3bIWKVWo7q8KYcwVL5dS0TrsOJg3PvOLykQvd0MO6V9" +
+                        "7Bs+R9rLbqbZn00BSNV+RiMiz1Ji6pHN4u6dPk8i8NbpJLnFpNngFq05Q+TO" +
+                        "JN7EcsDcKlhokBkxaZcTL7i9aLKSU41OTY09T2wEwI5Sa/C5J6cr92Me+2r0" +
+                        "aB2dw+MTCLIJDeqYeriaw4hLI6RUHa5VqKTyxw4j9eJPjs8Knmzpt2pW4wTW" +
+                        "U1aMIodp5T6oUJQoVUW99wJMWY/a4nNjFYrPDo05IVup+IC+P5lhslhRhHOQ" +
+                        "ZEZB7qdOhcSS2vL1IsoSAykHGyl3FhLSlw4lmGYzR716uggax4JJIubEyIHF" +
+                        "Vjd60LaLesXu+1lj6z5+wbU+hmUMQipFscA5g+UbAh8KCjh4OP7PNiWkAC7R" +
+                        "tLT24Uwc35KvMm+O87Ky/QirvWku3EYR+lf7LcFOodR7uuJ97FuPiqGWx8RJ" +
+                        "QRkIsftZEfMmisZftLY7NSiXFghHrSzDLHJDghJnhm7+MVFuK23mIut+KORm" +
+                        "7Fo52kxQ67B+b4mqhQ9iyM1RTdq04LDFu3fyzZ55tLDKQ1mI8fem8eq7XK66" +
+                        "5R5SN/F1qiho1vHPd2/re2FDun9Gn8ISv84/n3F82EVrvp5IKNaTV50vQRjM" +
+                        "Pc6ZGnLMP1Oln36AdjvVK0Tf8ZZ614NW7RAbnt4ZVWEoOlHTYngm+6HuEfil" +
+                        "yBAr4bhu7+vcZomapS01/FJlWT6tFySvTKhSg5mXhErOXcc8YKjMciWJ0kMq" +
+                        "rqYNabWrjKrd3k9n3tRNk4Wt/MAwNe1I6dG3TWrpdRw6Hzs28AVXyE9xBVBO" +
+                        "32WfTl4BtX12r0TPRoOSHSvTKfphH1BLixJCO20zIhQn043C/r7IEq3gDN/V" +
+                        "Ait8FYhEtEtqS2lamRctMBy0w78EoXYlBTCI51J6poVIVbDHL5d3qbA+TEZ0" +
+                        "QKF1b/ifGJ+7zooumcjkDVcEIpCPG+9zsXXX/GtUXvcfki/6nNfgglDpWwWE" +
+                        "wz8j3Jley0kv5blashfnZVoSxG3aa52o1cOEZi7NaXv8klv3uhR3UPxa1GVL" +
+                        "w+cy+83cUbcH1MNbwp8LhU5PxE+xFnkwfe/xzH7pVNEIJFXZ4+Vp/q38GkE2" +
+                        "mILtq6A7fhEs50YunE44g8xgXVubehpTEHMtJjfmS82MQrUGVAeZ4+rh6vox" +
+                        "lh8J/sr/LX1gJ68+NQIBAEfgd+kjtTl9LKnU/wRPrKPLMWm0nKlONbXiPZPs" +
+                        "gpPEC29zkYiObhbefUNPRmpfrNAxYUo7M3BgH2aGsefyte6aVY9XkUomXJW/" +
+                        "9zZTy4U5ZuHw9PWVNP+u22uvSy/z1rmipyS7YQ7dUhm8tbt5xZV+ItfR+SlY" +
+                        "++I0W8eJwQfHq4giSvRZjZGS6gGRzFc0CwsQfqvbv+UaxmsQcn0zgZlJIuaO" +
+                        "HS4XJgzk50mNqYU7DGoS48QFibo5onR2YjbW6A0AthxS6u06nlegqU9WpVv1" +
+                        "7svRAHlLMTz46+iPSMGH1RWfEMcCOSceZQoQdC8NLnsKnODvN1a7l2U/fT63" +
+                        "N3AN8Za1bxxRphqlnSVt20+GOgdWh9HrkSSN/GiFUyuhcEXN7lEd05s59fKd" +
+                        "EoUyN7Fm+neNb+y8ROkwKGV/fg3jZWRAIBlT2wZsj0EUktCujEx2kz3r2c2t" +
+                        "RPcOxiMqvmi5M0t275JdED0pSxiP2D0FJVMHDqSHYaXNEFentBAHYHF7dKMe" +
+                        "tmk8zPd17m/JCaVUClQNZ6Ytl6TGdxLDfQd2LpVEpip7seqmR+0Jnjuejl6g" +
+                        "TzmyuQzX0Mf+1f1djpgy36ppI/LClZAGjQUFVR3PkZIX8dv3v5g84v8vZAV+" +
+                        "aExvXuZjD3MRfZ7ysXX5Hd3TEOsymBjyxrDIK6R8vicaVz56r5FA7mf2hAKF" +
+                        "HEBL3HaPNU9K96Cx8/O3nJyOWzleHq/3vDqo9lINL++rGg3ORd++YtatmXDJ" +
+                        "MiFptk11D6c6BvYxRaVw/Mree5C+53cswCfuLtN5vPF5BZMFzNEyY9Ru511b" +
+                        "TsKx1zXBrRK19bjS+Ey3k771R3qMzYniu5NVZ2PF+g+I/XlxR9x4lkfKATF/" +
+                        "dNsHj2snqVbzp9UGPHPJlcE2UD98Y+YBsZaiPLfwwy3UcpPRlg+Dn5gtez+x" +
+                        "k1LvoURw9zk7h+9dqJDUPttddzX8S3K2hLjI0clJ/eQ6FZNxJsXirpqETCu3" +
+                        "vqxOBCaLs3buSY/eUyYAsgRlbKtsZkCTZay2efC+L09nP5a5zgcA/eDfLY/8" +
+                        "hv5LDr5u3n5IMpVG8fY76Uv1CKB4nj516hRpQyB3W7Aazr3HHfiOBZ+Un1ZL" +
+                        "b3TKfceCLXwQ4H/um5HhG5f8WL+ilJ9dNq8+9AeHy7+GjZ9NNo9A6geTddD/" +
+                        "y4yf+zd/U/6HfmPB344Nh9kK/nYNtHEgWwCA+c0P+Af7Di5EwAkAAA=="
+                )
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+
+            val noJvmNameGetter = fooClass.assertMethod("getNoJvmName-Vxmw0xk", "int")
+            assertThat(noJvmNameGetter.targetLanguages).containsExactly(TargetLanguage.BYTECODE)
+            val noJvmNameSetter = fooClass.assertMethod("setNoJvmName-6VC4vj0", "int,int")
+            assertThat(noJvmNameSetter.targetLanguages).containsExactly(TargetLanguage.BYTECODE)
+
+            val jvmNameOnGetGetter = fooClass.assertMethod("getJvmNameOnGet", "int")
+            assertThat(jvmNameOnGetGetter.targetLanguages)
+                .containsExactlyElementsIn(TargetLanguageSet.ALL)
+            val jvmNameOnGetSetter = fooClass.assertMethod("setJvmNameOnGet-6VC4vj0", "int,int")
+            assertThat(jvmNameOnGetSetter.targetLanguages).containsExactly(TargetLanguage.BYTECODE)
+
+            val jvmNameOnSetGetter = fooClass.assertMethod("getJvmNameOnSet-Vxmw0xk", "int")
+            assertThat(jvmNameOnSetGetter.targetLanguages).containsExactly(TargetLanguage.BYTECODE)
+            val jvmNameOnSetSetter = fooClass.assertMethod("setJvmNameOnSet", "int,int")
+            assertThat(jvmNameOnSetSetter.targetLanguages)
+                .containsExactlyElementsIn(TargetLanguageSet.ALL)
+
+            val jvmNameOnBothGetter = fooClass.assertMethod("getJvmNameOnBoth", "int")
+            assertThat(jvmNameOnBothGetter.targetLanguages)
+                .containsExactlyElementsIn(TargetLanguageSet.ALL)
+            val jvmNameOnBothSetter = fooClass.assertMethod("setJvmNameOnBoth", "int,int")
+            assertThat(jvmNameOnBothSetter.targetLanguages)
+                .containsExactlyElementsIn(TargetLanguageSet.ALL)
         }
     }
 
@@ -1632,6 +1846,195 @@ class CommonTargetLanguageTest : BaseModelTest() {
 
             // Check that the source version of the constructor is not created since it is hidden.
             assertThat(fooClass.constructors()).hasSize(1)
+        }
+    }
+
+    @Test
+    fun `Test experimental value class property`() {
+        runCodebaseTest(
+            inputSet(
+                kotlin(
+                    """
+                    package test.pkg
+                    @JvmInline value class IntValue(val value: Int)
+                    @RequiresOptIn annotation class ExperimentalFoo
+                    class Foo {
+                        @ExperimentalFoo
+                        var foo = IntValue(0)
+                    }
+                    """
+                )
+            ),
+            compiledSourceJar =
+                // Compiled from the source above with [generateBase64gzipFromKotlin]
+                base64gzip(
+                    "test.jar",
+                    // kotlinc version info: kotlinc-jvm 1.9.23 (JRE 17.0.6+10-b802.1)
+                    "" +
+                        "H4sIAAAAAAAA/4VWeTQUahsf+5AtZJAw11IkM8hSrgpZhqwNjUGWsWTXYIzi" +
+                        "MjEaa2jKLttUZBt142abkn2sWeabi0a2YiwTl6TLp/udcz91vtv3vuf54z3n" +
+                        "fX7PeZ/f8/7Oz8aCg1MMAAQCAQAAGHBwiQE4AZbGcINTMCsTiKWBFczE+DJc" +
+                        "zdJktwcAWLek9l6yOKU2JGBxSqWfOvDUDjqiyZhDq5lbqsIsh8IrntmtmZ+6" +
+                        "rmJOpZ50WOuHdHdTZ+bezbEDbCx4gDWiyjVn9gvo7IfNP5YH7UeYV2gYJMTf" +
+                        "BwILCnNwDwj3UkMFuIeGRsP7Qn+HC+81L0AcHaT/5fsGwTsodG05aiToBCld" +
+                        "qQymbB8iZZYEFgC1D+maB/wLUfeoc4IBYVC4uAWd0bGSZhphCbwfUlsT3WnH" +
+                        "uzEdLGhp5Opyy+TblV3Mg93drTvn2Sbas/iVx8MmolCtmeOB9Z5wJ2/+FINJ" +
+                        "TbpJix/t3hf6ZqEjBgVUNzvypt4d6BV61qhs2eLSFeE4MR7TfDBzBSnYZsZi" +
+                        "35RuS3d6G5J33yWH7Jeq0jZXWXhys2Q7wjOC5Fo/Uleh562Z4J7wnqP3+QQX" +
+                        "JDXzltiwBjwFyh/xk1czdV7RWcm/dAi6fCwhh9luBorjwc2LOb/MpvRBL/H3" +
+                        "fGyaboDmCyf07gV/egGNimtgrlFClPVi2bjGQ1xoU3KGqd6kIjcgLEeiBaaw" +
+                        "ItW/go7u5Dfjv3xjJA0uhMdCT96qgvGNkh2gqfkpytQTXUmipoVg919GNSqs" +
+                        "AFq5o8l/9j3o1fdJd9rE/In3ITECL+K3XKRwLxr9tSWHQc2ESFlkWKTw41t6" +
+                        "2Ud0V3cUiZ7xxqBR9CRmwvsJcyzPAGl3/HmWexDlWqI6Vo4iM/zzc0liqNeR" +
+                        "EwOV1cka2Jk0hDfvowbXiCf3C976j388uZwbdFfO5PTobwgtF1RniMAwC6l3" +
+                        "MTghUVFN3IYYPdxaG3+R7ZMg217YjRCXeZTz/OIH3CXZK4o5Fofpos9Mfa2H" +
+                        "+0lPa0CdVkLekbhTAo9KVcax4LBN1GlV/GhX0kNzhU4fRfuxV6hKSmHT57FW" +
+                        "y8c9SRWCvP7D6tZZCkL2x5QK6KOkkY0bFckqtkpIRFIF+WmwBKjcbht+ocRo" +
+                        "ajk666ycSXyhTQYCS68IzOvz6cCMilVVZaX6dV9DGgoSjY5W2065aknhVINH" +
+                        "nPrqtmkiht7NXo0OfaqOacb1QoGNK1LVxi6ktFC/OkKheCv/2cQOY2FFy8Sy" +
+                        "Jrn7m12zwelCHyisM1W21t0s/AJDUs7g+GICFoRbb/QEr2hAioNkZuxubABz" +
+                        "MfHjIxOHq2Wm+1ybuvTT+ac+ot3e/colpxPHr5Dxkjfojx2zScpGAvuDowWV" +
+                        "v4pOnGOGEsLiLkX0Mg/Zvd/6wFV8XORTpW24B+1ZeSul1UghTDec75f4iPlf" +
+                        "E1fxEpvb9DItbpk9HpgsmkicFS8DW20RVDIo0U2g2OQW4JMGs2uLnKHNKVFb" +
+                        "2PQM3cgVFRBELcQVODHXjaJap+0Jbo/jmtfJs2r3mQJs8lS8Ws4VjqCGsQG+" +
+                        "LVOTPgaHKvdYPUH0OiiGt6X8GKq81fW66k0rZdb44uoVnx5abHcP4/A55hNI" +
+                        "cepeLOKTT7yRfp38xc13kdUiWGmbAorp1WjpAf31gVrjHbWCwsHqu0s94oZn" +
+                        "z43ZjpCTHoW9zk2zXvsgnh0XHhDg/hr3jpETl12vptt1hqBLONuw6rsy1IiG" +
+                        "LrnRDcZealmfmZXblv2qPhfSfLLOcAIASzw/Uh+Zg+pjjA3xQvsGegWFuQeY" +
+                        "BAf/R4TwNvrW7AbC0aFAngXQJ9zta89KNgZpvqW8CllFEnCpCi4dz2maURCY" +
+                        "PrT9QJWfvGEquSByzzC1j/l75Pp8H/X3nfVDsSimiLO8/IzAjkvNRyhRXiud" +
+                        "TiiSStAmpC8nJq6xFzdebZ68ewwlb0DL88GPFR82wdP1dhK0M+OjqmRzL/jW" +
+                        "gFc7/RRKPw9++hxf67pjP5WeUCV5HYb+6RZZgbir3MzHMRrpiZtsaG5iQVTi" +
+                        "J7KW8affWUm8rNTKVsC6JhkpCcrZPFgXUtm9Jzl5TITvqS+d7NxLrmvfWLo7" +
+                        "1//Q1CGn3+dNA4NQ67KzhAh4pQ+KDsxlzfJEG4VUt7Eeyz9RYVjypapb/5xu" +
+                        "eaQcI7dQnwRst+4fvysbkFhFpjRfZtHM3PJK8exJXwo1zDWzMkJqCYoK5AnD" +
+                        "V51Jd+xlHWclPPo6z2oji4B5XfVuxrQkhsdtvTJEIMdfHLnf88Ig2ACAw+w/" +
+                        "4kjkIEd/8+JlNxAsYiC2641xvI8fxj8n2lU9dwgki9GxUDoiRhtcnAs3unQD" +
+                        "eqgyvLfOIrsYrXD1i94Gk5TY0REHxq7f0WhxqR1uuK2zGq35dqslWrP1l5g9" +
+                        "Noa2OT+v7yHHAJ07STdbZLlQ0DtVok/eI6dsWZHLtOreE2LcgZ0s6cgHBo5O" +
+                        "NUrCOO8LxkRwuJrNpucouhEjpm5XvlOYXhDk8rng1hu/Rv5FZGRz/gVpXg7u" +
+                        "h2aLqaua0FcP3TsoGSVGH6vkJTLvwVy3gLp1il74OL/ApXDU+Q1bJUQKw6/m" +
+                        "j+oR/7RcuGSJ3jNbmmLrb8mv7XvXo3xht5lD863a1jcDG2eeBVgjVx57VQxv" +
+                        "kJaw7dFOSAELZDxrLNGwFGVA4GLb4Bi5v5VfVIL72CHexio677+mqtNw5v1R" +
+                        "54VSw/G6uF1tCNk0Y/p4at4XtzY4uqlsakjmWk2CbOb5AVqRNW4Ik9BlghyV" +
+                        "Vxoof+FtcgXuooNq2/o56OLGdCdJRL59rmhG+1AUFb7byIeW3ssL1lZMXSC/" +
+                        "rZV8eDLN5/zScz/MAsk+lBd25cuLOYeqNNER1CDWo14PM5mJiXOfLlqCSdmM" +
+                        "HhZcPpefX8p6tYpZ3CycodNKkuFtL9cYV5UvKz/iMVK3HlWbngVd3g4eXO+R" +
+                        "zHTNOKcYOyPerkBMLxEBG1yPq3hNiJWkDue+ktZAkT2gMUj5bYhZzDnQkKFN" +
+                        "npxpf/d6V1p3xIfTQv1zIAgi29PH5HgHU86pKMZjwzmUeLK4X8xEVk8gy1BC" +
+                        "p9MwuThAPWUJjARviEi+iAKSUkga1cTrR3qJHqQUf4Q+p2hD2tHbhENUvgmx" +
+                        "Qc6HXGOcaPZQdklcJK4ydpvn6wgrol7ejNsfXyrHj0b46H787bEC3X2D1PyD" +
+                        "wwJ8g1wDgz3DA7xQbm5u3vvB6WHFfcLGY9AD8JeB+uOnpmbR/UyJvwwUG7sY" +
+                        "4L/oB83VVwf37fonP/c9ykGRBH2DEPPPtux7kIO/WOYbkD85/5+6fo91sJ0i" +
+                        "32AVc/8vFfg+/2DLjn6T78n7QwpsLLi4v17j2t9u+4+h8H49/Ruo62aoNgsA" +
+                        "AA=="
+                )
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+            val fooProperty = fooClass.assertProperty("foo")
+            assertThat(fooProperty.annotationNames()).contains("test.pkg.ExperimentalFoo")
+            val fooGetter = fooClass.assertMethod("getFoo-RVb1_dM", "")
+            assertThat(fooGetter.annotationNames()).contains("test.pkg.ExperimentalFoo")
+            assertThat(fooGetter.targetLanguages).containsExactly(TargetLanguage.BYTECODE)
+            val fooSetter = fooClass.assertMethod("setFoo-Vxmw0xk", "int")
+            assertThat(fooSetter.annotationNames()).contains("test.pkg.ExperimentalFoo")
+            assertThat(fooSetter.targetLanguages).containsExactly(TargetLanguage.BYTECODE)
+        }
+    }
+
+    @Test
+    fun `Test experimental value class property in interface`() {
+        runCodebaseTest(
+            inputSet(
+                kotlin(
+                    """
+                package test.pkg
+                @JvmInline value class IntValue(val value: Int)
+                @RequiresOptIn annotation class ExperimentalFoo
+                interface Foo {
+                    @ExperimentalFoo
+                    var foo: IntValue
+                }
+                """
+                )
+            ),
+            compiledSourceJar =
+                // Compiled from the source above with [generateBase64gzipFromKotlin]
+                base64gzip(
+                    "test.jar",
+                    // kotlinc version info: kotlinc-jvm 1.9.23 (JRE 17.0.6+10-b802.1)
+                    "" +
+                        "H4sIAAAAAAAA/4WWeTiUax/Hxz4cOxlLGMcQkz3KcihkGYydJA7DMJaxxGAo" +
+                        "J4OZxmQtuxLZyhYSirFVlhhbtsYuy1v2yJITrzrXdV51vadz39fvj+e67t/3" +
+                        "vq/ncz/f52tuTEfPCwACgQAAQAxwfPAC6AFwPWttWZipvjxc2xSmr2dlLQfX" +
+                        "P3gNAGzCu7tMjGXl+tmMZaE93b1PLBUGz0zPB8gZwWVg8P6g4mrLdSPZq1Cj" +
+                        "7u7Ttus98p2d3e/mZ+dpAebGTMDHPNKP1Y42OHdU5v+4PeioMG6BGHl/b5Q8" +
+                        "zBdji0AHucm5ohGBgeHWlMAxa85D8qL8ZduTbz3f2DH3cXisXB/0lSpIlMyH" +
+                        "Sdv4CxqSxNhAr/pVjdBv7aqK2sen5aebGRjZHQIiBAyVMATm93FNMYjRU53B" +
+                        "bRsKeaFrK40TU6sHwfcPDnYSztOMv0pjlR7BjF93bbo94lOLtL7izhqrPXGG" +
+                        "qt/oNZryJ3U7+3KwK1DR8MSbWgTQLVBdN3/F2OQSZxQvk8FdseVVe/YXhhu0" +
+                        "2ydfJF6Z8s9Kdcyo9IqDvpgvzT69/WAvBBlS4FQ7WFWs4X6GgCD8h66rZpxB" +
+                        "Pu52JO+AknWsAmvIr27k7gUJB0nvvH6FFWFCxvIrQ1AUE26B16ElvZmiYML6" +
+                        "+mPDTJ3CXU5C16Hf7nOF61F1y+vN/tIaETQMI/6Oo5NgnTj3ghxnICyDvxEG" +
+                        "WRXsWQ0Ib2c1ZLUKG4y35sBjFU5HlsFYhiptFeLuxkp3S3WQeAyyxRB/DCkV" +
+                        "mwJUModufaHc79JEJV7ZDv6CRxVM+1zE7zgK4p7Xe58VGACRiaGi9phQzoeR" +
+                        "GuknVNf2JZKR0XqgoYCJ4HH3kuXhLG17y1M1aQjfZo8YRSy4WWTgtxqB5EC3" +
+                        "E1K9peW3lLDv4u3cmYvqnEJKUu9NeY98PL2S6XsHrK889MxOxdG13Z9tYMNe" +
+                        "46IfIUZCjs88OXygqSL6Is0uO80hJszfccHVYeHDe5yJ6CWJDGMuKk+1gafZ" +
+                        "QE/Bk8egdlMO91CcLFtRHnQEK4bZdlWWwQ91kAqNIO0oCZvhVtfS5uyGz8NN" +
+                        "8IevScXszN4DimZpEA4bYcl71KGCwa2w4ltQC0l7O1Jx5RM/ftAjyz3rCw90" +
+                        "J1fC09TB+tHZ5kl2WGqxTxYF1RY8xFtWlhbn1elhr8OerCtUbjHppCKIk/Eb" +
+                        "vEKp2hvl1nEnu9XbUmQux+vVcvjUrwqW6zkWxAd6VRGz+ZpY1WPa9Dgl4DH5" +
+                        "DeDU7Y45v0SO980bamUWZp0b+MVpAbD2qQ8ELAi3WY8UW1WSz/UVeWcZtgXM" +
+                        "DI4eGRznKheZoTg1dGgmsk5+DHCefcoAPhfFCklqYfb9tG840bxFoL0vdK/0" +
+                        "Kc+41nIgERNlEtK1/Ivlf3beM+Se4t4ttQhyGa1+1NTcpAvBqAax/BEdsvA0" +
+                        "Zg3Pv71HzVdhFDlkgokGJCfP8eWLme4QoUnN4Q2giFuNwJI6Q48P9IHk2Os7" +
+                        "2MQk1dBVKEhezt8JOD7f6dptFn/IvjeCI29WzsmlLrPRiHfj5TIu0fnWDfey" +
+                        "7BjoU6bpZBiHa4k8V0E3mBsfCbs+anK6KnPNVHpj5MPaJdTr0YjO19NcWssl" +
+                        "8rlxhxF2u6hoXc0q8Yvbs6Hl3NiT5veaDX4PP9mrudlbobcvdy+7r/zO0ms+" +
+                        "HXWtYYvBSlIR5mVmvNn6e770qCA0GvESNzudEZVeK6faoUZUJarXrXmu9tcH" +
+                        "KCw5U7WHW1TM1ObAe6Jf3edCPCpNjR4AWGL6mfuIHHcfPay/W4Cnj5svBoHW" +
+                        "9/P7y4Tw5ppmtNqc4YFApkXQLu6mR/WDrb5RzzxmSFoOv7VgMcM55Myorq8Y" +
+                        "tX/vvgxr5ZaBwCJ3ik4cZXksdHOB0j22v/lLhOsyt4O4+Du2fcfHHxWSxVUS" +
+                        "qcQcQcJZYuJKTMw6bW797+SJO8Ku4tqjWSj8cC6XPp6qsU84ezv6eplo5gXP" +
+                        "x2Jr7V6QvM99u5+jK5z2bSYTCWUCV2EBv0ZWQpIPpMksdEOhSNxEHblhQx4a" +
+                        "PZ62gleeNeVvKVVJh2CdSLqS7GDz+5sc0IMUgQlhbpYnntRKh67KqldbS3fm" +
+                        "ewoNbDN6UG/qpokVjvtLduhWTVC4T+bGHFO4rn/5i42H4iXQaThLnKLZb4nw" +
+                        "E4+CwYu1JOArs56RO6LomLLKZrLVxqihc1Yenpb0Z7aS0Zm0JP8KogSkclyn" +
+                        "tZ2UYCN6eY7fhdKuftY+B5jVUeusN0qadrmpkW/nQ/eNESLFLdiOBgDgov0Z" +
+                        "I+7jjP7mYmMO9+ax4NXcoSDdlYZU4SWSFiUplgN6Gm9mdfzzpPA4PrFWMNLi" +
+                        "98w0BQqycIs8KBN1mD+xJU/8hfnqYgL3mnU+l8jOZMjqyLPFkbW184CGVsmZ" +
+                        "bAtq9GIeAmvHK0fkvNtpLOCuJEoQvYb6MFhXAXyaq+RQOQYL2z/1xTVyaDJG" +
+                        "YPjGDFL9gBtuQF8vvAaJHsqzQFQpcySkJIV7zglF8jvZN6QaWcmyAV/KumSm" +
+                        "NhHzDrRmkFol+w/ErnN1o7SaxkYDG7RdtTQ4uYKoOI+YjjDyl+D9zdnC7U0h" +
+                        "CgrtcXVlcKkGxZSSuqKG2x/Ybsh5vgu1/ZNUW0clEhfRqd7s6Xv9H+dNEt7a" +
+                        "RT0Al064zY5DlLKkTGsPQM7GC6GIfNgthylSi8G5tFO+4eZ0ap0mv2n1Vt/i" +
+                        "MybHctoesE0JCZi2hZbLTaIsvV/BDq0Un6na3PQsxPqibmdhSm9bF5FNyPVj" +
+                        "y+uKFcbSYmgdBvbmSXw7Ec9WozX1Kbok+0HMoptw9gzDfvoGNGTX0U7xDoKx" +
+                        "LkHwJpZTvNkLlG/Rbg9qbHvephtnIJigIigIjyMR8ma8sDe+5QIwP//pmiPq" +
+                        "Zj+lLvoDdchFN3dEEBoD8/FHB/51BeAJvaatFzjbmnz6jRgYDl+08DBpekhs" +
+                        "LHRGQOBgyfSt2RYZDKSgq8azNnrk44cWpvXc2DeZ/MFPpnpMGt9+oez0LoIi" +
+                        "rmEY1AkB7wo2WoUkYH6Ga1XmbU4F0BAwvb3xs9Ts22Ezmr2pyufY0bjVSNYx" +
+                        "v8KW0kM+0zDLpZeGPBLqoIrH5XQ1sYeif1Dzk/VOD+hDV8M4PRLevXxoeI1H" +
+                        "SSlZP4BiX+ZD4C4YNMZFELsizleftRCYYFauCRWuflbFJlux5s1jaNPng6b3" +
+                        "ioJAaEIMPfUDPaXmkorwZ7t5LoYqW23VsU2tPy1E5yCzeYpWjS2RgYJ6pL6b" +
+                        "eEFoha2wxig+zqonc/fKbN7zHqjm4pMuHlWJ83J2jj0yJ2f4hSend/MDHAPC" +
+                        "EzQ/XRrVcrjPdIEOLsqkutX/meErBKucPKTqEYRSmp9BEDqqv7OhD8LTV87b" +
+                        "D4P29HXy8UMGod1cnZ2d3Y+K3sWUUcrcpc8F8A3wp18byDxHnfzfgh8NLS/g" +
+                        "f+rHQ+HX5Pn9+Kcc+qPKcXMHfadw45/j5I8ix91H5DuRL/T/9lf4Uev4neb+" +
+                        "TiuX8f+514/9x3GIftefBvzX7+BHsePvX+g7sZMsP+VpbszA+HUZ49EsOzoJ" +
+                        "luXr038BJPahNzsMAAA="
+                )
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+            val fooProperty = fooClass.assertProperty("foo")
+            assertThat(fooProperty.annotationNames()).contains("test.pkg.ExperimentalFoo")
+            val fooGetter = fooClass.assertMethod("getFoo-RVb1_dM", "")
+            assertThat(fooGetter.annotationNames()).contains("test.pkg.ExperimentalFoo")
+            assertThat(fooGetter.targetLanguages).containsExactly(TargetLanguage.BYTECODE)
+            val fooSetter = fooClass.assertMethod("setFoo-Vxmw0xk", "int")
+            assertThat(fooSetter.annotationNames()).contains("test.pkg.ExperimentalFoo")
+            assertThat(fooSetter.targetLanguages).containsExactly(TargetLanguage.BYTECODE)
         }
     }
 }

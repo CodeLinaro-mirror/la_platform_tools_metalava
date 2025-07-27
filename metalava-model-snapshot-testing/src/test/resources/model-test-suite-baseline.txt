@@ -73,9 +73,6 @@ com.android.tools.metalava.model.testsuite.packageitem.CommonPackageItemTest
   Test @hide in package info processed last[psi,java,k2]
   Test @hide in package info processed last[turbine]
 
-com.android.tools.metalava.model.testsuite.propertyitem.CommonPropertyItemTest
-  Value class extension properties[psi,kotlin,k1]
-
 com.android.tools.metalava.model.testsuite.typealiasitem.CommonTypeAliasItemTest
   accessing type alias from codebase[psi,kotlin,k1]
   accessing type alias from package[psi,kotlin,k1]
