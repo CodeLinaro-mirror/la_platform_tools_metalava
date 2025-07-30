@@ -40,14 +40,14 @@ options {
 }
 
 documentation
-    : EOF
-    | JAVADOC_START skipWhitespace* documentationContent JAVADOC_END EOF
-    | skipWhitespace* documentationContent EOF
+    : skipWhitespace* EOF
+    | skipWhitespace* JAVADOC_START skipWhitespace* documentationContent skipWhitespace* JAVADOC_END skipWhitespace* EOF
+    | skipWhitespace* documentationContent skipWhitespace* EOF
     ;
 
 documentationContent
-    : description skipWhitespace*
-    | skipWhitespace* tagSection
+    : description
+    | tagSection
     | description NEWLINE+ skipWhitespace* tagSection
     ;
 
@@ -61,12 +61,7 @@ description
     ;
 
 descriptionLine
-    : descriptionLineStart descriptionLineElement*
-    | inlineTag descriptionLineElement*
-    ;
-
-descriptionLineStart
-    : SPACE? descriptionLineNoSpaceNoAt+ (descriptionLineNoSpaceNoAt | SPACE | AT)*
+    : descriptionLineElement*
     ;
 
 descriptionLineNoSpaceNoAt
@@ -76,6 +71,7 @@ descriptionLineNoSpaceNoAt
     | SLASH
     | BRACE_OPEN
     | BRACE_CLOSE
+    | JAVADOC_START
     ;
 
 descriptionLineElement
@@ -124,7 +120,10 @@ blockTagTextElement
     ;
 
 inlineTag
-    : INLINE_TAG_START inlineTagName SPACE* inlineTagContent? BRACE_CLOSE
+    // Make BRACE_CLOSE optional to support inline tags without a closing brace.
+    // TODO(b/429965593): Fix broken javadoc and make BRACE_CLOSE required.
+    // TODO(b/429965593): Fix broken javadoc and remove SPACE* between INLINE_TAG_START and inlineTagName
+    : INLINE_TAG_START SPACE* inlineTagName SPACE* inlineTagContent? BRACE_CLOSE?
     ;
 
 inlineTagName
@@ -151,4 +150,6 @@ braceText
     | STAR
     | SLASH
     | NEWLINE
+    | AT
+    | inlineTag
     ;

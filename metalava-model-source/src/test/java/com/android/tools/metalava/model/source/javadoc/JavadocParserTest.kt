@@ -23,4 +23,105 @@ class JavadocParserTest {
     fun `Test simple comment`() {
         JavadocParser.parse("/** Simple text */")
     }
+
+    @Test
+    fun `Test simple comment - leading newline`() {
+        JavadocParser.parse("\n/** Simple text */")
+    }
+
+    @Test
+    fun `Test simple comment - trailing newline`() {
+        JavadocParser.parse("/** Simple text */\n")
+    }
+
+    @Test
+    fun `Test comment with nested javadoc start`() {
+        JavadocParser.parse("/** /** */\n")
+    }
+
+    @Test
+    fun `Test link - standalone`() {
+        JavadocParser.parse(
+            """
+                /**
+                 * {@link Class}
+                 */
+            """
+                .trimIndent()
+        )
+    }
+
+    @Test
+    fun `Test link - in text`() {
+        JavadocParser.parse(
+            """
+                /**
+                 * Text before link {@link Class} and some text after.
+                 */
+            """
+                .trimIndent()
+        )
+    }
+
+    @Test
+    fun `Test link - on new line`() {
+        JavadocParser.parse(
+            """
+                /**
+                 * Text before link
+                 * {@link Class}
+                 * and some text after.
+                 */
+            """
+                .trimIndent()
+        )
+    }
+
+    @Test
+    fun `Test @ inside inline tag`() {
+        JavadocParser.parse(
+            """
+                /**
+                 * {@code @Annotation}
+                 */
+            """
+                .trimIndent()
+        )
+    }
+
+    @Test
+    fun `Test nested inline tags`() {
+        JavadocParser.parse(
+            """
+                /**
+                 * {@code some {@code nested} inline tags}
+                 */
+            """
+                .trimIndent()
+        )
+    }
+
+    @Test
+    fun `Test unclosed inline tags`() {
+        JavadocParser.parse(
+            """
+                /**
+                 * {@code not closed
+                 */
+            """
+                .trimIndent()
+        )
+    }
+
+    @Test
+    fun `Test space between @ and inline tag name`() {
+        JavadocParser.parse(
+            """
+                /**
+                 * {@ code extra space}
+                 */
+            """
+                .trimIndent()
+        )
+    }
 }
