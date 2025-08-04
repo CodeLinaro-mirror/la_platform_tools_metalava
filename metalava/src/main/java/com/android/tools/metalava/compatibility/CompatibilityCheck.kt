@@ -980,44 +980,13 @@ class CompatibilityCheck(
     }
 
     override fun removedCallableItem(old: CallableItem, from: ClassItem) {
-        // See if there's a member from inherited class
-        val inherited =
-            if (old is MethodItem) {
-                // This can also return self, specially handled below
-                from
-                    .findMethod(
-                        old,
-                        includeSuperClasses = true,
-                        includeInterfaces = from.isInterface()
-                    )
-                    ?.let {
-                        // If it was inherited but should still be treated as if it was removed then
-                        // pretend that it was not inherited.
-                        if (it.treatAsRemoved(old)) null else it
-                    }
-            } else null
-
-        if (inherited == null) {
-            val error =
-                if (old.effectivelyDeprecated) Issues.REMOVED_DEPRECATED_METHOD
-                else Issues.REMOVED_METHOD
-            handleRemoved(error, old)
-        }
+        // At this point, ComparisonVisitor.dispatchToRemovedOrCompareIfItemWasMoved has already
+        // looked for an accessible super method matching the old one.
+        val error =
+            if (old.effectivelyDeprecated) Issues.REMOVED_DEPRECATED_METHOD
+            else Issues.REMOVED_METHOD
+        handleRemoved(error, old)
     }
-
-    /**
-     * Check the [Item] to see whether it should be treated as if it was removed.
-     *
-     * If an [Item] is an unstable API that will be reverted then it will not be treated as if it
-     * was removed. That is because reverting it will replace it with the old item against which it
-     * is being compared in this compatibility check. So, while this specific item will not appear
-     * in the API the old item will and so it has not been removed.
-     *
-     * Otherwise, an [Item] will be treated as it was removed it if it is hidden/removed or the
-     * [possibleMatch] does not match.
-     */
-    private fun MethodItem.treatAsRemoved(possibleMatch: MethodItem) =
-        !showability.revertUnstableApi() && (isHiddenOrRemoved() || this != possibleMatch)
 
     override fun removedFieldItem(old: FieldItem, from: ClassItem) {
         val inherited =

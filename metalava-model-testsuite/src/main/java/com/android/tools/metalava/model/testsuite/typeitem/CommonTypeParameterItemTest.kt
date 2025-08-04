@@ -334,7 +334,7 @@ class CommonTypeParameterItemTest : BaseModelTest() {
                     package test.pkg {
                       public final class Foo {
                         ctor public Foo();
-                        method public inline <reified T extends java.util.List<? extends java.lang.String>> T foo();
+                        method @KotlinOnly public inline <reified T extends java.util.List<java.lang.String>> T foo();
                       }
                     }
                 """
@@ -345,7 +345,7 @@ class CommonTypeParameterItemTest : BaseModelTest() {
             val typeParam = method.typeParameterList.single()
             assertThat(typeParam.isReified()).isTrue()
             assertThat(typeParam.toSource())
-                .isEqualTo("reified T extends java.util.List<? extends java.lang.String>")
+                .isEqualTo("reified T extends java.util.List<java.lang.String>")
         }
     }
 

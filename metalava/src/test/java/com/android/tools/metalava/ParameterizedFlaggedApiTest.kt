@@ -285,8 +285,8 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                     arrayOf(
                         ARG_GENERATE_API_LEVELS,
                         apiVersionsXmlFile.path,
-                        ARG_FIRST_VERSION,
-                        "30",
+                        ARG_API_VERSION_RANGE,
+                        "30:33",
                         ARG_CURRENT_VERSION,
                         "32",
                         ARG_CURRENT_CODENAME,

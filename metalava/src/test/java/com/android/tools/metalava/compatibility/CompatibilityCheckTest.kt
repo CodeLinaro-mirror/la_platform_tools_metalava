@@ -154,6 +154,44 @@ class CompatibilityCheckTest : DriverTest() {
     }
 
     @Test
+    fun `Switching method from public to private is seen as removal`() {
+        check(
+            expectedIssues =
+                "released-api.txt:5: error: Binary breaking change: Removed method com.example.Foo.foo() [RemovedMethod]",
+            checkCompatibilityApiReleased =
+                """
+                // Signature format: 5.0
+                package com.example {
+                  public class Foo {
+                    ctor public Foo();
+                    method public void foo();
+                  }
+                }
+                """,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                        package com.example;
+                        public class Foo {
+                          private void foo() {}
+                        }
+                        """
+                    )
+                ),
+            api =
+                """
+                // Signature format: 5.0
+                package com.example {
+                  public class Foo {
+                    ctor public Foo();
+                  }
+                }
+                """
+        )
+    }
+
+    @Test
     fun `Kotlin Coroutines`() {
         check(
             expectedIssues = "",
@@ -2426,8 +2464,8 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                src/test/pkg/test.kt:5: error: Binary breaking change: Method test.pkg.TestKt.add made type variable T reified: incompatible change [AddedReified]
-                src/test/pkg/test.kt:8: error: Binary breaking change: Method test.pkg.TestKt.two made type variable S reified: incompatible change [AddedReified]
+                released-api.txt:4: error: Binary breaking change: method test.pkg.TestKt.add(T) has been removed from bytecode [RemovedFromBytecode]
+                released-api.txt:4: error: Source breaking change: method test.pkg.TestKt.add(T) can no longer be resolved from Java source [RemovedFromJava]
                 """,
             checkCompatibilityApiReleased =
                 """
@@ -2435,9 +2473,9 @@ class CompatibilityCheckTest : DriverTest() {
                 package test.pkg {
                   public final class TestKt {
                     method public static inline <T> void add(T t);
-                    method public static inline <reified T> void remove(T t);
-                    method public static inline <reified T> void unchanged(T t);
-                    method public static inline <S, reified T> void two(S s, T t);
+                    method @KotlinOnly public static inline <reified T> void remove(T t);
+                    method @KotlinOnly public static inline <reified T> void unchanged(T t);
+                    method @KotlinOnly public static inline <S, reified T> void two(S s, T t);
                   }
                 }
                 """,
@@ -2529,9 +2567,9 @@ class CompatibilityCheckTest : DriverTest() {
                      */
                     @android.annotation.SystemApi
                     public class MmTelFeature {
-                        public static class Capabilities extends ParentCapabilities {
+                        public static class Capabilities extends Parent.ParentCapabilities {
                             @Override
-                            boolean isCapable(int argument) { return true; }
+                            public boolean isCapable(int argument) { return true; }
                         }
                     }
                     """
@@ -2786,7 +2824,7 @@ class CompatibilityCheckTest : DriverTest() {
 
                     public class LightsRequest {
                         public static final class Builder {
-                            void clearLight() { }
+                            public void clearLight() { }
                         }
                     }
                     """

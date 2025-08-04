@@ -19,6 +19,7 @@ package com.android.tools.metalava.apilevels
 import com.android.tools.lint.checks.infrastructure.TestFiles
 import com.android.tools.metalava.ARG_ANDROID_JAR_PATTERN
 import com.android.tools.metalava.ARG_API_SURFACE
+import com.android.tools.metalava.ARG_API_VERSION_FOR_SDK_EXTENSION
 import com.android.tools.metalava.ARG_API_VERSION_SIGNATURE_FILES
 import com.android.tools.metalava.ARG_API_VERSION_SIGNATURE_PATTERN
 import com.android.tools.metalava.ARG_CURRENT_CODENAME
@@ -1044,6 +1045,194 @@ class ApiGeneratorTest : DriverTest() {
                     <sdk id="39" shortname="J-ext" name="J Extensions" reference="VersionCode.J"/>
                     <sdk id="40" shortname="K-ext" name="K Extensions" reference="VersionCode.K"/>
                     <class name="test/pkg/Foo" module="module" since="39" sdks="39:102,0:39" deprecated="40">
+                    </class>
+                </api>
+            """
+        )
+    }
+
+    /**
+     * Generate an api-versions.xml file for some SDK extensions.
+     *
+     * @param includeCurrentSource true if the current source should be included, false otherwise.
+     * @param apiVersionForSdkExtension the API version that should be used for SDK extension APIs
+     *   that have been added since the last dessert release. If the SDK extension is being released
+     *   standalone then this will be some magic number, otherwise it will be the version of the
+     *   next dessert release.
+     */
+    private fun generateApiVersionsForSdkExtensions(
+        includeCurrentSource: Boolean,
+        apiVersionForSdkExtension: String
+    ): File {
+        val root = buildFileStructure {
+            dir("39") {
+                signature(
+                    "api.txt",
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          public class Foo {
+                          }
+                        }
+                    """
+                )
+            }
+            dir("extensions") {
+                dir("102") {
+                    signature(
+                        "module.txt",
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public class Foo {
+                                method public void addedInExtension102();
+                              }
+                            }
+                        """
+                    )
+                }
+            }
+        }
+
+        val sdkExtensionsInfoXml =
+            temporaryFolder.newFile("sdk-extensions-info.xml").apply {
+                writeText(
+                    """
+                        <?xml version="1.0" encoding="utf-8"?>
+                        <sdk-extensions-info>
+                        <sdk id="39" shortname="J-ext" name="J Extensions" reference="VersionCode.J"/>
+                        <symbol jar="module" pattern="*" sdks="J-ext" />
+                        </sdk-extensions-info>
+                    """
+                        .trimIndent()
+                )
+            }
+
+        val apiVersionsXml = temporaryFolder.newFile("api-versions.xml")
+
+        val currentVersion =
+            if (includeCurrentSource) {
+                // This will cause the sources to be included as it is greater than the most recent
+                // historical version (39).
+                "40"
+            } else {
+                // This will cause the sources to be excluded as it is NOT greater than the most
+                // recent
+                // historical version (39).
+                "39"
+            }
+
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            public class Foo {
+                                private Foo() {}
+                                public void addedInExtension102() {}
+                                public void addedInLatest() {}
+                            }
+                        """
+                    ),
+                ),
+            extraArguments =
+                arrayOf(
+                    ARG_GENERATE_API_LEVELS,
+                    apiVersionsXml.path,
+                    ARG_SDK_INFO_FILE,
+                    sdkExtensionsInfoXml.path,
+                    ARG_API_VERSION_SIGNATURE_PATTERN,
+                    "$root/{version:major.minor?}/api.txt",
+                    ARG_API_VERSION_SIGNATURE_PATTERN,
+                    "$root/extensions/{version:extension}/{module}.txt",
+                    // This will cause the sources to be included as it is greater than the most
+                    // recent historical version (39).
+                    ARG_CURRENT_VERSION,
+                    currentVersion,
+                    ARG_REMOVE_MISSING_CLASS_REFERENCES_IN_API_LEVELS,
+                    ARG_API_VERSION_FOR_SDK_EXTENSION,
+                    apiVersionForSdkExtension,
+                ),
+        )
+
+        return apiVersionsXml
+    }
+
+    @Test
+    fun `Test api-versions for new SDK version including corresponding SDK extension version`() {
+        // Scenario: Finalizing a new dessert release.
+        // * The SDK extension 102 has already been finalized and dropped into
+        //   `prebuilts/sdk/extensions`.
+        // * Dessert release 40 is being finalized and will include SDK extension 102.
+
+        val apiVersionsXml =
+            generateApiVersionsForSdkExtensions(
+                includeCurrentSource = true,
+                // The api-versions.xml is being produced for the next SDK version in which the
+                // SDK extension will appear so use that version.
+                apiVersionForSdkExtension = "40",
+            )
+
+        // TODO(b/424440294): The `addedInExtension102()` method should have `0:40` in its `sdks`
+        //  attribute as it was added in SDK version 40.
+        apiVersionsXml.checkApiVersionsXmlContent(
+            """
+                <?xml version="1.0" encoding="utf-8"?>
+                <api version="3" min="39">
+                    <sdk id="39" shortname="J-ext" name="J Extensions" reference="VersionCode.J"/>
+                    <class name="test/pkg/Foo" module="module" since="39" sdks="39:102,0:39">
+                        <method name="addedInExtension102()V" since="40" sdks="39:102"/>
+                        <method name="addedInLatest()V" since="40" sdks="0:40"/>
+                    </class>
+                </api>
+            """
+        )
+    }
+
+    @Test
+    fun `Test api-versions for standalone SDK extension version without current source`() {
+        // This tests the finalizing a new standalone SDK extension scenario version 103.
+
+        val apiVersionsXml =
+            generateApiVersionsForSdkExtensions(
+                includeCurrentSource = false,
+                // Use a special value for the API version in which APIs added in extension
+                // 102 will appear at some point in the future.
+                apiVersionForSdkExtension = "999999",
+            )
+
+        apiVersionsXml.checkApiVersionsXmlContent(
+            """
+                <?xml version="1.0" encoding="utf-8"?>
+                <api version="3" min="39">
+                    <sdk id="39" shortname="J-ext" name="J Extensions" reference="VersionCode.J"/>
+                    <class name="test/pkg/Foo" module="module" since="39" sdks="39:102,0:39">
+                        <method name="addedInExtension102()V" since="999999" sdks="39:102"/>
+                    </class>
+                </api>
+            """
+        )
+    }
+
+    @Test
+    fun `Test api-versions for standalone SDK extension version with current source`() {
+        val apiVersionsXml =
+            generateApiVersionsForSdkExtensions(
+                includeCurrentSource = true,
+                // Use a special value for the API version in which APIs added in extension
+                // 102 will appear at some point in the future.
+                apiVersionForSdkExtension = "999999",
+            )
+
+        apiVersionsXml.checkApiVersionsXmlContent(
+            """
+                <?xml version="1.0" encoding="utf-8"?>
+                <api version="3" min="39">
+                    <sdk id="39" shortname="J-ext" name="J Extensions" reference="VersionCode.J"/>
+                    <class name="test/pkg/Foo" module="module" since="39" sdks="39:102,0:39">
+                        <method name="addedInExtension102()V" since="40" sdks="39:102,0:40"/>
+                        <method name="addedInLatest()V" since="40"/>
                     </class>
                 </api>
             """

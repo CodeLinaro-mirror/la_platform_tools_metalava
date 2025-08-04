@@ -167,7 +167,9 @@ class KotlinInteropChecks(val reporter: Reporter) {
                     property,
                     "Companion object constants like ${property.name()} should be using @JvmField, not @JvmStatic; see https://developer.android.com/kotlin/interop#companion_constants"
                 )
-            } else if (property.modifiers.findAnnotation("kotlin.jvm.JvmField") == null) {
+            } else if (
+                property.backingField?.modifiers?.findAnnotation("kotlin.jvm.JvmField") == null
+            ) {
                 reporter.report(
                     Issues.MISSING_JVMSTATIC,
                     property,
