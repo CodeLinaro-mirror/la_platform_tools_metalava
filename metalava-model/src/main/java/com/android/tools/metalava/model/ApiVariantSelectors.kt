@@ -374,6 +374,11 @@ sealed class ApiVariantSelectors {
                 return
             }
 
+            // Propagate hidden status from fields to properties.
+            if (item is PropertyItem && item.backingField?.hidden == true) {
+                hidden = true
+            }
+
             // Inheritance is only done on a few Item types, ignore the rest.
             if (item !is ClassItem && item !is CallableItem && item !is FieldItem) return
 

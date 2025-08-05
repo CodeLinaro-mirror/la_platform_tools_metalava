@@ -222,7 +222,7 @@ abstract class UastTestBase : DriverTest() {
                     method public test.pkg.Foo copy(optional @test.pkg.MyAnnotation int p1, optional String p2);
                     method public int getP1();
                     method public String getP2();
-                    property @test.pkg.MyAnnotation public int p1;
+                    property public int p1;
                     property public String p2;
                   }
                   @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface MyAnnotation {
@@ -287,49 +287,317 @@ abstract class UastTestBase : DriverTest() {
                     """
                     )
                 ),
+            compiledSourceJar =
+                base64gzip(
+                    "test.jar",
+                    // kotlinc version info: kotlinc-jvm 1.9.23 (JRE 17.0.6+10-b802.1)
+                    "" +
+                        "H4sIAAAAAAAA/5V6ZVRc25Y1BLfg7u5QuENwd3d3d4dghbsEJ7iT4C7B3d3d" +
+                        "JbhDJ+91f33v7df3e33O2D9qjBrznKqx59xzzbUUpMHA0UCgoaFBQECIQf54" +
+                        "oYGAg8iKqgjSS8qJMcoKykmKiSqrMMiKvQ2DgFzLjo7ISNMzTCFI09OMj07U" +
+                        "KgFmWTb3nBikZOkkZadcy+qUfkrRO9JIjY7Sqv0cZxwaGt3Z2977AKIgDQX9" +
+                        "DZX6G9evB3D8Wgr/6+Oxfy0XU2cXRgdrc0ZBO2MLeycVTwdTBmMbQ2dnX9U1" +
+                        "ZVxVtPe1sfuaYPK6pMn5hoAG4kUKg3qtQ6iCaIQPlZ81RCqlaxCkE9Zc3FG1" +
+                        "Bcw8yif4OY0JfS8LdzTKuxaxoS7HOocced3dR5iJd2T2s70n3sYXLjK9r+87" +
+                        "O99BN1E6zA5rVUfG2cuST5P0tDhGCwcQ2D70E9lT0ZNrK99I3Y0vA7VqSKEB" +
+                        "Liv9ebZWXnuBavazWDFFcKS1/NOv7D8cKnQ51matTOeiiLqRsmddxjr6kSRi" +
+                        "6aTDBNGQRTGFv+UIL6vYjDXhiHJsJYsJz43AY06HGuN/vAhJj5sES/M+N+Wc" +
+                        "op4I6uL/yNsd8PgOdee8yQQ8pKXAiingcSAiDheM4RtHUhmViglAxxKS00WR" +
+                        "26rHAs9MQRLSKNCNMLhrMUMursX3Esp0+0Y777VOVU5wL1hWOji5E8owCx/y" +
+                        "lFR0qmdIbuKg1wstht8SiTJ+Wfs5El73uKdIqZbX/fWo28Z7glKM3wgp4yn9" +
+                        "clA4PjYw2LHth6+OUVhSlJcwk2oZnS6Vw7v9FnPsPbslvLcuGzZK6KuS8tqm" +
+                        "TzB3SHJcD1as4xi9i6ZIXGyYDrPLCHsG+QoA8eenUbFXMiiPRp74wdAzyHsp" +
+                        "j3mjuI+AuGuprxEh/Vj6/dSuhSpK9NZNecuRDUbLPYWQPzIrgz0bQ90PMR6/" +
+                        "t5WtlB1tdp/rdQfC6RTc+G7St59+/VAX//1UiL+Am0Ka7cIv81ShxyEbtcoa" +
+                        "SABayJ2SXYnDjm3CoXVb0b9zJEXvrez7ldXabZ3SWo6pnLX7PORZo5eG3zDs" +
+                        "jMeYcy6cSQDH0Z0w5xIPHWZm0BlD+sfJTQwAfgzHjLw1d9m6KO9ITW3KtWff" +
+                        "We7Zsyfbft5q9vItKG287lg066PPd29931Rl28KKRdijYC/aLt9r8n5M2J6y" +
+                        "Av+CS1Q2aSrlxAZ3DpY8AFFYYFsr9bR8HGkeEkLcKQk2GfbtuCNDvre8Hfyp" +
+                        "XfY5LqbTKexJxnn0uR1Fdw2AaveDt0Bw0NRXvHTspB6XmCjxvUMDh897i2ed" +
+                        "Hc6d/SaOYimth+Ui3PuHLXucR14SlBcnXnu9Qqu3Xvb2LBLcATUrz0AY7w1m" +
+                        "pasby7aSEruc00jVjK0HIeXG+hatWe30wsq5WeocmXRXv+LHaGYpKVtNJrYQ" +
+                        "JGkfYnnWlMLjzOmf43y1Ihc+tR1F6dliNMctVvvWEaaluzI6rOlmkvQWL9rT" +
+                        "ka0+VDT9JXOCJHwi8jhjIORrBcqpu2AJMG8p8Xi79z/i4bJ13EwQx7QHBRsP" +
+                        "XdJ8FNckOkRcTHGVSDpCRKzgxPfi6eFttnon5MoFilWdAjiPmgxf+G4zM3d6" +
+                        "PjGnP6KbuwFm7VD7AONXP7Zis8xZdpeClXg8XjUzBC0EJCAxuaGGGlYeBA8L" +
+                        "r2wwSrj5synF34N/ouV21U7pQmt7XKtZeUBd+EywCZ5LdJFqkSIZvX9Vd2i7" +
+                        "S0yga5d5OIelyMSjcJy7nuD5ociUPXP4sepZsnmfiZG6w3nUNEDAM/uRbUJn" +
+                        "1MaYhuUGd5zX3cnztB41qe1CevWenJu+6CBQ32diwTKWgPhWGZcpkAfJCYXD" +
+                        "cUQ4h3LiRfuUPDh5ln3d1l4TvhE/X+9tY3qdWc/WOynuiy6K6KgHpLKe7+Us" +
+                        "UvUrWvxmLDSkT4cwUgEu1FHEDl/sGaeZZ3jSzarfC6ocEdED3HnLlm8euFDH" +
+                        "BkzzLMyjIOVuu7BEeik6yYqoHE8ieIGekWuI7c4MpsbJsuAjxDmFijiDZEzT" +
+                        "vc+GfKZNS8kouCdewSXsJlyxb1S2d8C5HYo+t6ONj2iNVCvskGvNpBoylVF+" +
+                        "mBUy26wlXDs0WLQqAA7RsGo7LKQWgw6uONN1WWi9u6C204hY/CI4JMqZ13yr" +
+                        "LaSgFlETWrvpnfC3iBMsYen5QfySaNi/E3HSfy3iZML2tg6Gdpb2dv+U8+Qk" +
+                        "WXlUQayB99o1u5XCT9SMH2DD1CCSOj7bw/SDR5LJfkLp0uNMNcQ2tGxdOZXB" +
+                        "bUdG9IO2fwKV4ZTkxQrkEEi6TLOthowM/+L5+J6zwcLCM3Eam6PfCdoUKw6P" +
+                        "KiWRXK5+5zyS7bwJtWJ/QqJ8Y+163tyBCWYsgX9FMaHa3JizssiHFhNB3G3A" +
+                        "58inzmcaNjqakhjWXWNI0m9QBqbOLFP5ynKNsreGaSV9+WmsU0fThr08tken" +
+                        "HD5IdxDLC3t61TE4Kc0ZsDObeCg+LUaoBA9WgBlSLDI5xLkoqKU2CN+QSgzk" +
+                        "Z8729sYnmgOVQMz/Vpcnjg3LYo2ur6rL6L5YsaeTNbEztxrhMYarqnrDVxoI" +
+                        "zH8xyIJCR6YbS7HFesqHN8uMeSzDaIFfeh8Ro+SFmg/Z9tZxnI7SYhFqHHJJ" +
+                        "nETA0gi54ajK3rOsUzd4cPBiNcHNB9oWyMXakNrVUVxqvJz6mtzcWPwYrDWv" +
+                        "bnK8G2JW6t/XoGG22x27oDy9CcMRq5G1sFmNElfGWLocORWxWPmyxEd9cpo1" +
+                        "ZSy+Y05IeR3lBqh0b+q66aicx2eCdy8n4KbLvwqbbAeI9MAaSLwwUAPX5Wwa" +
+                        "hLI1b+7Bhd/TT8Ixo5eroBse7ZKTbtIvflqlQVVlN/aZDF2LKFQ4UUOgf2/f" +
+                        "4/ggXtGyjLti4zFcGV5Dqwurd8er7ygaKYV2CJR9XTpCwHrCn+SCZR058p48" +
+                        "XsXsjbU0MAjQokWTpVPKsIEgAs14Ar0JjgDW2i7y/ug6gLO5QZx/GStqre7B" +
+                        "1Cyn5ZmOxm8d7H8zO5oSZVo3OyjlWIbq8MKbz4UU0zLyZuJrAcJckdyAfbDE" +
+                        "Oc7/xgaE2gr05C3wC7qRjMhaFiwIPiGX+eIAxmEZJgPT6OANJbP90cwtLuk7" +
+                        "uRk5XThXeCuKZWmfN8o1CimKZni2/m8qwGpOH7d8AAG5Af87KqD+kQqqzqZO" +
+                        "/7n1VWzlccWR/O5enO4evyOiQnPSS3ZZRmtzglmmg0tJhdFxkbCOwdFsC7uy" +
+                        "hzo/+IjbL9jNyJcQPgksEyqwKeWrVCoRP1UK0AyfPhrxoN32Xa2Nj/Jfj46O" +
+                        "n77eHjcKgOj02QKRDZ0NCRrS943toGiwghwNXOln6tuKHjVfu+yg0ZmAu2U7" +
+                        "XEbRxIplagcN2EaFzbb4MCU42xJM34W9yrhZTaYVvibeJcfYyI8w9fahhrLs" +
+                        "sm9ENHV/5bB19H+7zNqzW2gnuFLz7p+AEsuSdj14a3yxvLXepgmhLik3ye4U" +
+                        "lTS98/UPy7ODgGcpbB5LYdQZYEFssXXu3GEL3vFerRBTCgnceFCfPCbacv12" +
+                        "2YtIwMdXpz4/6O42g5i+H0B/HLAXF7nn2fHd61y7Y/G4iSG3f72sUaIUHVNV" +
+                        "hmVXujgmzz37C6tOrynwyF9Ouo+uh/nWiNN3ANVtU7PKc2C9kbtqkQgT2QWn" +
+                        "G/FcU7CckLRUUX49fzUiGnR7xA3aUOPBPwk+3x7vfKl7uTZYlL1wLXoqjulR" +
+                        "agTTgkjL5L0/XiukoF0U+GVAHEI2TYW1j5N/+pBwuNSljiZxQFxaKmSNYIIS" +
+                        "ofCrilFd/57XlbESE4q7qzBjwdUlryYNqftAVMXq87V6/yEXP4kCbzLLLJQy" +
+                        "38EklbulcH5cqRBvcsFZGsEBJuWGeSixGLgk7rEMbyF2WuJFUlSKRNYLQNcw" +
+                        "ac1UsxclsTA6h4t8dpdDnIXXhSldrcULbFNIelLB/sG7oY0oxtzeddmVx8Nk" +
+                        "Tlfb6QFhZK3hg/hxPNPrpKVXyiE4mb7H5GXwTIO13sLWR9tviBTx53Jj16cG" +
+                        "PfWcjZJzBE9ZXw3V8YeY0T3t3scQI1lJHI+TAtvaZnKTENSTydKJy54oLHkK" +
+                        "hmL2hxnjGCb4BySaH/D6aycNQ9Yf48T8yJklhP1QWCsS9pQmEPKDP1ENAeiS" +
+                        "TIhC3PodGGCNhx9z2RTfIEgFbocSc5lQUY75PolwRlyyZEXPjD+ljaNyEnJt" +
+                        "kNWRTNU05bYA2ym9wvzoJWWA9VFGx52qcXws4R8YJoklD6zrgFt+A3343Edp" +
+                        "xmj+/H3xuNuTpDHyQqM8GpEKFx8gfXscyaWsgjxMvWevbC4h1v0x1pUllc/T" +
+                        "ntFLX89LFN0LVLrxkHsdaE8B+YxfXmS3ZwCnCBUzLdJ3zCEvBpjVOPwVhh1A" +
+                        "iFSyPKV8Jm0SkAHmqvPuzUFnn95cR52dQSedLawdzoH4LayD1E3OCcXNh9Qd" +
+                        "7oFZ69+UH5aLxa8BAwEZgfy3S5jflCczMnQiY/on8UOUdX+deWh8tfT0uhH0" +
+                        "ORgqChXLGIYjoYEY1tDLiwVWJJOY2UVnCkA786HzhgAOv0iBLos8Cx9Ar7h/" +
+                        "0qUcKKioTyqP+0X7wf66s5n/y8sTQhdvNjP8Q/d1ZZbYmtZ9cEaFAwcXKqSx" +
+                        "Bj0b3kbK8LIdB32pzxaNnTb5esWsx7mNXW1hWYdLkjl6TPup0pH7gqnqmtNq" +
+                        "fTt+/MgBltj7GmsUUc/iXnQPNFNwSkGCX3augCo3hy+DblFFJ3m7SQrxnTgz" +
+                        "LCofMlYYM7hynwtXhJ0O01QIFgRrhGGJCyg+qxvZUURZnO0Ws0582Rlr7+xT" +
+                        "bbPbip4JdME0BHDdeRAAxPZixz8ooIsAB8ro9EFHe8wGGAKSGWyv2Rttqo7n" +
+                        "T4YbSp5YD75WsTrsVHAX8wKZxid1Hd2KTZwHzCQKYI/gHmO2MShkVnttgR2o" +
+                        "fXqwOQtNE5bU+UsfJ1kMlkXqQMGsLSg/DemW8m1PlYwBogjPMyjwSQ1TxRqR" +
+                        "BVYJ2WpOQx5fbakkcnAUMgqjvzQ5zerNWHo+OttkY0dCk2phU1g8jswVIewD" +
+                        "5Gez84px+cPrt2fD2t8SlPfc0loT1G2qi6LVdGkuy+YqoO85UehpyFfRM7yz" +
+                        "icKNJ1Tn3HhLj0X6UpRJHdVNdR0795Sqm4/rVsuoJKLxPGeUOmwiam7I6rXU" +
+                        "hi89zcVMJHMYtiP9kj10BOjGcLLsRKhaPq3jqWK53JtQCORyoD5EPYR+7Is0" +
+                        "CY1VOhTu3M9qA+UmS5x/a/pRkSLcOOojcgEqthFvv4m8pEBJcOISQTCH5xrB" +
+                        "uINT9R4i0LWISbbxTihPy0dhrTR6OJr8KcYmLvsMjM71Jyjv0SpifLF3AM0F" +
+                        "0vE55AfRVVoSVRGcNBIKx84wahn7z57f49Y+TfZEhWoiBhEA/UB/b3j6FNX+" +
+                        "sl9nXODfnnFYf7J7Npbmdramdi7/3O9ZKra/S3a/cwriIbOAnzRb7RCwBUJf" +
+                        "GcNC1IhtydkmYVnp8+bJKwwNayO9OaKewi8pHxBvnAXQvvdVs3wM2nhRjDn4" +
+                        "5WKDZaBMu/nuM69XDzK9x5eeFzZ+V+sYKkAz8R05K/fiuHSWm0DNWRlK+H6k" +
+                        "DbX72aTc9JDZnWhbevl5EOG1CrvjcT7gpAQFS7oxdFTUPlowUgqySLDgeo3N" +
+                        "K9SIi0pQgCnaYJgosaBh2KllQ/6BqrBgkLmNCTS3Nre5xZiejDEwt/IrFxx6" +
+                        "d3XpaneQuDY2B00l/e7YY6bxzJJ9DlrRPpadktkS/giTC0t9u7rMUVH+UpFV" +
+                        "wbn1Rgl5j6Q2hfup0nr1qejc+tQp9gWkK7PpDUH1x/3yMExRzG7A2wYVtStb" +
+                        "zgInYQGeeuUaunh91o8XBuHnQYuzVrFhAASfBcbeUSHDS2QfOfSk2A/0b4Hq" +
+                        "pQGqEmxSg+Y4VwYLYX7s9g/tJx1Y/gBbdHdV5cZRgBg2hfibPMS3EYltX6BF" +
+                        "SFRuY79p+Q8ztChScuZMg8PSgAp2gShc+Hopd0jnmAc1NA7HDMOHhNDuh880" +
+                        "elXGnstoPmFq2DNNPZOqQaW8AYajSiVaMCnIB9OtmH26Pr0Al1JSw0kbDg9n" +
+                        "BQI3CMv4Zd7zyKvGSFC/QUBc/amQlbYzu40qh6cUm+yIIv72Zin5iCYNNmS0" +
+                        "tnJzT2R6vl1ZjBR7aRPmV/eAcHIajEmONuG7C5dcxdiCMUlgjtwdj0mpcELh" +
+                        "w1CHjED1fQhauEvm6f2AnQTqqRxR0exEI9tCX6GcJcknZglmlyfpLLRv2nIe" +
+                        "8wL+xpTPdQDmkV6sM3ix7kvoZl0H+ka82Mw3qr5dhd2bg3UYMaZvYaMW/FQb" +
+                        "He6x0Gs1B7p8JJ1tDvswkUn48LfOZtl6jXMX7vWX+KFAw2YTbi/FkVRv7gUO" +
+                        "eNsqLQuvxen5ov7J1DlZ21KV1clT1WTATbsZfd5IaQODy0aJiYxy7QxwuFks" +
+                        "dA+93OSgPrTlJ/kLZzOcIkASH1HJ/DgOiRBF991Z3ViDaImOQF+dvalGmZfu" +
+                        "AJC1Te64F0dL2ovl1H5SQJ9Awb2RyivGunSLczt0vhBGGCfZjckfDf2TvPKV" +
+                        "AE22oGct/OfoWjg42VXd17lijCFYfapH2mP9eTIV3s/yi8EN6aE7XzjxzLef" +
+                        "fyIWU8sr1jnUlD9j4UOdp0aSSk7oNH9qcgr47g9aLa1Q+eESvGXyDNWtFYvI" +
+                        "I6xDnWElzQR6SX/oGd5p0xRh14B+9ycEmatlMPNlnPyR1fbFnTbZwiJTfwzg" +
+                        "EWN6mbho3WAfibDzBxizv1MwvzxX9+cDnu6fgiEtAWUoPWw6fYAqVF8Q/WZy" +
+                        "mKlOkZ7kr40q3SwJM3WoT7rTOYmZxVmT+k2+Gj0Ldkrw2NzPFvgB8PxjRBm5" +
+                        "hlp59ATmP8FzKoMc6YxN8RHwxvDK8ZgHlBlm8cR5xOHEacWj8qONM3ewB679" +
+                        "/5EkjqvDeCr8UqQm6H+/CP0vVSKTsHey9LK3czG0+c8D+b8zRbMA2WUlaJUn" +
+                        "QWkQSxDt8sLZ6br6yAA1i2q0zhQT3BQbt5k1WRvf44e8Cf6HzcgYxg4XPGt0" +
+                        "LJ4doo5HDq5fOsUQLImVObTqfLG08fiU5Wz/9nZ//8uLdykDUav2m5q1CjMz" +
+                        "mG5qNOdk3H82mJ7kaBeV4zABID11bUu4hNlGmnnKT7Smool7J7e0IqsqM/aY" +
+                        "2rVYsGJMk7eEUI/8M4w418ta9RaiE8wGkIzD9KZk19qHkYY/MkpKfEJDFk8g" +
+                        "nhslXlGIbmHHF4famtOSZZGGN1660zjbClJQRmkhcp6gBr4FXa0i8nYHiHMB" +
+                        "/Dm/Z4DFsvS6pxlwpvN9BoNpH3SwIRTWqB/ZgZcxDPNwlcTqsoaB5qQmDiyR" +
+                        "aJ0Bd15wCTX86mDhHrYWwzanOaJNTn8olFpGulFqhhJxZGUq557CvCYqjfUj" +
+                        "LswwymuW9h/Z4jW85JmjLltml6G7GnXdnb/VA3GQBod6JSWBVDdZf9Mtrkry" +
+                        "XpUlu3DLWsTyQet+j1OcMsxO6qbf+h2cJgryfg8RJv2M45nXVP0pUeWDnQ1w" +
+                        "pi039LqX0jqCp0NslgOrwJdciYNEU3SLHKYepkNG6c6quoRr3EDTGVN3zg0q" +
+                        "ki3QUxum8RWIPAYmq5EtZOXGUnQ5WyvZeEKO5gPlrKI580O2dlcz2IJ0qwrR" +
+                        "M4emXYk1UJrZxSI5yLNcS1l2jdm4aQAQT69C90XG+STaSu5AM7UsvjWXT+kE" +
+                        "mGHPzF28jJ5u8f6GvHd/CSpsNIHd8/59JUqal3GHeMJbtLtOQIGQKZNaw42r" +
+                        "saq5vKEsQ07ulx6q6jI7OF2n8OhzPJC5X8i7NyiqynBb3BDXPxvKOc8lHJcV" +
+                        "oJZFI7UbRDHCdHzG0SZ+Rc3KKSkWCvd6nLmrncmbJA0LbHuVKcghGhAlJiBJ" +
+                        "I8MmXxqauMxi/HZrI8CTlo7Wv2Sa0pIdAXdUQmcSfDk5jjjlwEsnbsbilDRe" +
+                        "PdSENxHsvcjZ+rrA8bYQTDc+7JSQLznAmyWCUbMq2DLOp/uFjtHlSY/w1AeZ" +
+                        "IuuT5JlPX3DWN2xqz3lWHxXplqxLrDKXo/S6mbUcpkjrFN8LS1kefUfsJ4zj" +
+                        "onJ1tj6bw5gOKwsW2bwjoUvviYtCVZVo8rl5VaHVHTjPvCEGtf1ZLYdzGqTb" +
+                        "69vjMjMoHEkm2bFx3LIdi10ZnbpjN8XWwmv7dsHVwoaS1K8w0MrCJDfg0xYK" +
+                        "prFHaOSPMEOs/s8SZg/JVybEce58S6Jg2JeT7FkM8YwkUO3fkPTXg5POVz9x" +
+                        "1wYYX/2E9GKffK/lgPxYmYDYCzOBsHNhv7mLR4iWcBmv72gFZ65lu43Vq8mv" +
+                        "8iIIbzMOzh4/iqHnv26EtATHHFgdFLSrZZsueNgOZ3Ou4OrjwpLvL/SAET95" +
+                        "PWULjdsEyDp6jyHsWY0E+TKPFdwrcHij65aYoLxf/MMd87LoSxd5Gzrnge1m" +
+                        "Cbi8hQvclwzsx/1wItKO69+hYlrA41yXDt5Sb3J8x4bDccgXab5DcgeXHEbH" +
+                        "iS+Ht1+KQgQgA74lgnIIFSWj/8iBbP6y3Y76NTQM9Y3+ErbbyQyVpfJVarPF" +
+                        "PGnbX7DydXuu4X5kogrTc9WilDHt6Jmg+mcsdGi6iXjYqfVzs9S22SdXlEYP" +
+                        "36TLVu8fz+1Unx4wR5+qM+jwiXe9oYgPEIXWuaCbJ4EFllpkQN/dKA7hrlL1" +
+                        "ps5R9stNcn54262dL6kI3kb82+EhmN523ENkkoWFjpkSR7nKPa3pmSioGEfn" +
+                        "M3Zpu+YElGy8xKVT58oJNJe1LYFxgXmBCUJP4nWimj9wbtABUCclFURnmxVg" +
+                        "PT8+N8rxYDk5DK3ouwDkEEOCkKEO8G68hsOCSoL23v8h5T46JYteECAgpX+b" +
+                        "J9L//6T8fySLidLyaIJIA+9rzyYaBprrD10DZZ+76cIeulI3IwwRrPLMGPFk" +
+                        "WOoApzaIaefk2+EeP4U9Zmox5XEQgZtjiKYVBHHkvFF6Za1vqp3H6rcT+hsd" +
+                        "YKnd+EBaMaudqgW11aUufUXXUhlH/qgXjlxmEqqUnqcWBb8SZgP4R7Zq4tVP" +
+                        "Jej3R9PpNzKQMMAbXf3HfQJhI4+CdGFYSyhJE6wEs7kFeFK496Z++MrvJGPO" +
+                        "pCQs7LpZOd51WuHlCXzXCzjYdUxowQeSlZH+Umjtt3jccc6TMbyqRO0yqVHp" +
+                        "Ot+XdMxLwgllI61dz+aPzSyKC7jqV4OvZVNvOFvtOVpzDI08cjHSu9TPl8XW" +
+                        "bm1tyT/cB/iQ4wRQh0pllGylAbzo8tKjzMTKPja1d1XlLcB3VAwoAi/fy/sn" +
+                        "H6E86KI1MMTi+k9wYY5BzWQj2QwM2Kb1n+dpp2w8A7de79Qae56be65XtD9O" +
+                        "XOlSZgydt0nf2NvLXqG05gxdZcVaZh9MQF6FC+pJvT0MNzQOAhLwhViChmxo" +
+                        "cooc7gocpPHc5GAb92d47D3LE4fPfTi1jeqCrt1CE0fPWx1u2g+53tddXSBG" +
+                        "2THbMYRpzjFpXNCGukwd0vGER/w6mevGaOzZovRsqkYucdAlUnpMhyarN2kf" +
+                        "CxT1E6bgqtHilDSg+ZBVRHe1/eVHVZMSFLmQtKSfKMevvyN7XuXaG4NN4Aw/" +
+                        "uGre1ssP1UqFiGFpqRgHppNa6kd14DRuRFcZRPAu8OeqincSPadR4HEMFhlX" +
+                        "Q82YOLfCWAQIG1NqGfd173g7XNFyC+AbeSN+H/JtcMBbcU4940k544vB5xy9" +
+                        "IzQ9IiwGNA3ETA3ef/Q5dl7tnrl0ewwQXl6yzMzV+MAxRKtQh0/e0hfgwS65" +
+                        "U+mxddIku6M8zCs9OkmCgp5ZvukDgekQX0Sl5gDzBfMHa5WBBzIXgrixCGkl" +
+                        "U5mjav7XSg9ZY5l8dWOd/FuO35wBv2LXWPpVlNlC/B1niP81Z9RMnVwsjf/L" +
+                        "/Pj+xfyglISkpIBMgzSoSZeGzC4bfEWnStleQGkwHDLjWFvrvavcieR/noTS" +
+                        "d/H5Hw1V4dQ4QwrniXZz/4MT9/H2x4NOgTdwB2x5bC/8ObeaOSdqnnxr8vw8" +
+                        "nPHNCCsuLcUpUgP4qxQl9ZoWo6Qa94XG2TxUwc+5PUxf8KRZpIy1CstYMod3" +
+                        "Q+FkC+5tI7Zcyu0aio5wy9AFg4l9dFlYDyCFiVjaSIghFUXQHIFVYpBpLXkL" +
+                        "s0dU3NCVKuVl1T8AKVw4RxYOApNJwQyDq/aBud90U0IDKDl/kkHtx0C5OW9a" +
+                        "Ai2CoICJaezwEhLEY9Xt8IJ9NNEs33mFByuluzXbkIM++8EQB4suZ5Gm1pYu" +
+                        "wZvDDrgAU88WVU7HMptzn/ChlWx3uaZkiO05rcKVs3J5cS1gSLFQmKIUv9y1" +
+                        "BUe+0G2iCOv46ii7rLgvZg1hankLsL3ECVZgn+yjYpIbohivPtGXDbmwq0YS" +
+                        "e85GpB807wdNj5cGO8o4CFx4hVSEQV8JxkUWGfKoVR6mpuSo1SFn5OY0XnOm" +
+                        "PMjIOjZyhN9xB7mUfDoWoUqcuA4MPgbXp6DOVqIra+DTUMoyreXWqECRrIt3" +
+                        "GLBGQ/YpghlSBMxZiczktHg0q9LmbmJPsGRa4Eykxxir6SR+b/ziMAHmJ6Kq" +
+                        "x3j8ttfkIBMSxFWrpAo/xkqiYZY6iDZcJAxcqvQiL7/khRedWFcipGZbG2Jr" +
+                        "zlSvYJatcT8JO31+SCV224wyPOTUy1AM31Ll3eX6Jpl6B3mkDLyGmKExbVQx" +
+                        "X1Ni7RmnARpyRwhDurn9cMGw4s7ZPO8ZGp+j9Qz6SOMrwco/Wh5Tk8sJexQs" +
+                        "xffJHmNHOorxa0qK5LvIDuVx0XdB3RfPiyUuxUNkEcF1b4pp+bj8323UqET4" +
+                        "xNPdg8O3BQ7vu+xbSooQR7docjNURWLslJA6AMHiOxNeFOTepI7WxxkuZuzk" +
+                        "/CMDRFxz9ze/c9/ooe1MugGudJfROUkT4hH8ghPeSdehK6Pig9sfb+qC0zBJ" +
+                        "s28cMovvKfEJ5rLG4vVksVf4giGQuYLcaw/Y+U2WWiPy5ceFNcLy90ZjDnUR" +
+                        "6RzH6ZWVJ8cyiWYtYi8N1ysWCZcRRpawxCmPQtkpeIUa2eplb83ln3oZZ2lO" +
+                        "yvasC9oMS9Tk1G20yc23EzRrI45to/2lHx3VY0T6wG8FJM6gp2rFgwRd+YqU" +
+                        "U3cPyBJf2knT9heGkiH0151NMRGMB0W1XVqkOsJwCvRIW1rAqJeao028cIt3" +
+                        "t2xvbPIvMN2hbbTIEcNYqnD7N3Q2hkT5KcjySTsNDTAPtG3zsHoh+JVesG9s" +
+                        "x5/Zc28Y1n2mjJC4oX95nzvBmkr2MaKb4Ud291Ju/qajqU4in1CFzb5DgmBb" +
+                        "nWy5e9+JWMFz0c/C1uBCp/ouXgytkkPU19ObrbQeK7KbNOuXWdfsDipRlKwt" +
+                        "kdZjUbzXqTnIG837NV05UhsvQHuGmNPNJ4mLCyyPo32la28Y2PUbcoIHlLW3" +
+                        "6bqfxV33cxfOpAXamshtlnHKaBd8hHwimT/tqxeQ1GZ4Ui3P1OFrqxQD3y/r" +
+                        "7iLVvev09dyodx3KCzs8Wu6hRAIFiLEsEvBJauwJ9mli7n3LdprGTvKjBDih" +
+                        "1w/EQAM7jcYj10xKY+MIG4QZ6oTXbUN1eAN/WR8SIN9uFI9wV5f1qr4pj8dP" +
+                        "2Bxwt8sl2lEI3Wokp77tETCOLBMUyuPE2XQ0yEMV928Uxb2fJVue67TJHwtH" +
+                        "JNHlJcrqngMLhF4qvhHHiTPFRvMeEU5hFPKy51YGLC0KeSJI4mLaHLKPt5zU" +
+                        "RRPjqq+9ouPu3CgsYlU7TokNqwJtgm0r3hB/y7iWT0m2xy8JT/tb60P79zL+" +
+                        "P43PxO94eaCzlv6sBo0KIp7wSjryRWExMIyqH9xKJh2NScJryyDFlE66sdXV" +
+                        "XGpXjPdB/LfzkUP57XwEhh/MtEuoBfK+pN13XPiarY+2Pd4+PyOCwHl0Axia" +
+                        "48wKVVjVdYoPk5spZyAIJAYaVl3mGdXpJi7bObGEnSaWG2UWriL2n+4IGk3x" +
+                        "kIGLygPOuyzAwV0V4gCMXngRZPOwYV1xgMzuu2WoKTCG5EuGn6kZ9fu5qqMj" +
+                        "uQ7TAMADgVCcZ850iR2TRLdnxo08QI4M3oVIkrVUU8jDob8JKhofiGPhrNQk" +
+                        "526bRQBkkNK8LbwZQWhpFVwQInau7b9hGpXdl+5wwZ9YXWHMiNHaqNW55vK3" +
+                        "VtVNu+UjDiqjfzUYg5Xi1cimwZqcnXMtPhP7KcsVxTz6tmGlco39vb+w3lgy" +
+                        "krWyjTC30dzKQhUMSyP85j7mitnkbJTJh5vrlKmOf2wygTIUWGTNJh57UkxI" +
+                        "6ksZeq0FrOx3PbuRlpG2wn0dGvycEv7Ga0YZygpIQBDaAVNsJ8fO/+6n2sQG" +
+                        "j6sespJQPYOolTGVl+NHMA4oM5BR5ZxQWaterpxh0VswdrEQs02y8TM4ZrTC" +
+                        "BM6Ksn9MFBSQNrXgs1cG3qFPrN8GjQXB5tBLWl1XdPZgc1/HDOirjazwLtY1" +
+                        "6CopeeZsBqJzDn+LDM88uCQ60RJyeMLrt+7EWXwJyTd6xVWV5zbVcwgWHqLN" +
+                        "PpCWni764DyLqXircdPJejtweAO3m3Z8m8T9ivCEjI1DMI0F12dIN51aQv4V" +
+                        "HXJM1wIOHWJifuuQqaWDvZrUv3rKmd0V2zs/Db896aw96szebICh5iZcG6Bg" +
+                        "bm4xfwxFwAvbqg7azlbdkVZjZxhmhMxLwig69dHkEONZ2Dp7v9BhB8pD5prb" +
+                        "9CMqS02IxMd8rqg9B1z3QRHuUMfVtQ+oqV27GCgfgF1Jn2QMtDazP31T2PYN" +
+                        "wA5I6qr4tPKP8YNCIbTGlV/Wx+BvrQ/Jv+bMX6miMmGPK4r2Zna6mFGfWJHI" +
+                        "uiueoXSMURxXgSpFVYC2+kmVlKNyeVBoGFSWPai2ms/arR/ZoYbzpzuI+ccb" +
+                        "kT5Qza15AdhLt/YfxNUkjmkcF96/7rFxjueni9/GBxMRuwqnNHrFkn1VasS+" +
+                        "pEGlqAm/jkfoMWA4kIlTfFujiT4X53zmlfQojU4JPu2542oMDKhiWZg9gMXM" +
+                        "Pj3IXDCW+w07xfoL+rrRIFvBEgI3YxQ0Qo+OpSl4wLTdfOD3LQLJWkJYfUt1" +
+                        "KnQswxKgm/uH2hnbeirrJxKOSEkgbfd1wXwfS3uEHiUilCeuMhVA5qNQ+b3V" +
+                        "Bq+1jdr2tcrR5DtxfyZtajSnMxoZa1V9i6b/yyNmaJIA3yihmyYWAAN7Xrre" +
+                        "zECrwyk2ZqXqWxR8skVzztA30UbThiMAxakXBXRO2HfqnsrkFgQC37G0PA54" +
+                        "v7mYfHjr9284wltJP0VwHImiiKIaY5ULPmDQ70x9gJwne9EWuBqu49Ewfyjd" +
+                        "oF32yV5ZPbq3sbsMMC5E9T52PtkdmPXpbPwxcmo4v03ZadLUk8PIWSqqJ/d+" +
+                        "G3HrXQcItKVJ1pXRNpYDdmOEDIiH2MJiZuKFXAdruXWKbwazeF6BTSwZzw9N" +
+                        "jJiK+dqLONt9t3iqFpFZELe8cER62oAaDpNgjKqiE8UccbBVsdMF9t9vy1iX" +
+                        "TC1NweK/q8+pnE33a66afg/l75kmH6t9+Lyc4wWPir6HD7l17o7fPF/gOL3y" +
+                        "I8AktexR6txl5Zl5Ff2ZXqjIGhT5mOSGVAD0S7Z78uVKTVmM7xmqCjY/GdBH" +
+                        "lRrbrjF4PkHnWXQSge9xMDYVDqbWLyDUFcWSW+ljuz/BK9ghSsOgMym16GHW" +
+                        "hmF7AcKArxYLkwcc4Uw6IZkBHvvSB6fgn6ltKXEz3wCvK1znZyyrLt2+cSKU" +
+                        "29wsqbJATuWDaP2JOU9vkawP++KOX8adpTGbP1oiqqOe02hm470tjzxoigY3" +
+                        "g6ayRrqNNMlVo/ET28fTFfv3ed/MeOScUix5mwiQPVvydomXxL0mYNmj3PcT" +
+                        "KKm2qfaN0UQ0iWqvVk1XS3kb4NA21YZSI2jv4EdH9bfilONc49TiWONUiWka" +
+                        "AxkUjIVJi+PfoX6Tcruhrk0UDAQE7W+7ori/1v+bK7U1tLRjsLZ3sbG007e1" +
+                        "N3G1MTU2MDAw+7XAjeQgqRSMJo1A/pEP3JK0taP+Z4tJQRr0AxrIf6P/caD0" +
+                        "99Tqn6//bYb1ryh/nGjC/hOCP8jfjKL+FeaP0yCkf4IRgfy3hqH+CvjHXjPq" +
+                        "nwDlYf7lSMlfAf7Yu/vzDxNC+JsG9V9h/hi2Y/0JhgXpf2/7/RXljznPn/+e" +
+                        "IbR/K6b/K+Afi2D6PwEm4fwfw6K/Qv/RmP15Dw/i/xs19V/h/nhm0f4JLpb0" +
+                        "/+Tt/gr8R96R/Am4h+LfOQD/ivdHruH+CU+D5m+5qyANAfn7a/C/7rRfL1RH" +
+                        "8/vTfwDsaV/bYy4AAA=="
+                ),
             api =
                 """
                 package test.pkg {
                   public final class Alignment {
+                    ctor @BytecodeOnly public Alignment(int, int, kotlin.jvm.internal.DefaultConstructorMarker!);
                     ctor @KotlinOnly public Alignment(test.pkg.Alignment.Horizontal horizontal, test.pkg.Alignment.Vertical vertical);
+                    method @BytecodeOnly public int getHorizontal-6VHEJhI();
+                    method @BytecodeOnly public int getVertical-8LqPg6A();
                     property public test.pkg.Alignment.Horizontal horizontal;
                     property public test.pkg.Alignment.Vertical vertical;
                     field public static final test.pkg.Alignment.Companion Companion;
                   }
                   public static final class Alignment.Companion {
+                    method @BytecodeOnly public int getStart-6VHEJhI();
+                    method @BytecodeOnly public int getTop-8LqPg6A();
                     method public test.pkg.Alignment getTopStart();
                     property public test.pkg.Alignment.Horizontal Start;
                     property public test.pkg.Alignment.Vertical Top;
                     property public test.pkg.Alignment TopStart;
                   }
                   @kotlin.jvm.JvmInline public static final value class Alignment.Horizontal {
+                    method @BytecodeOnly public static test.pkg.Alignment.Horizontal! box-impl(int);
+                    method @BytecodeOnly public int unbox-impl();
                     field public static final test.pkg.Alignment.Horizontal.Companion Companion;
                   }
                   public static final class Alignment.Horizontal.Companion {
+                    method @BytecodeOnly public int getCenterHorizontally-6VHEJhI();
+                    method @BytecodeOnly public int getEnd-6VHEJhI();
+                    method @BytecodeOnly public int getStart-6VHEJhI();
                     property public test.pkg.Alignment.Horizontal CenterHorizontally;
                     property public test.pkg.Alignment.Horizontal End;
                     property public test.pkg.Alignment.Horizontal Start;
                   }
                   @kotlin.jvm.JvmInline public static final value class Alignment.Vertical {
+                    method @BytecodeOnly public static test.pkg.Alignment.Vertical! box-impl(int);
+                    method @BytecodeOnly public int unbox-impl();
                     field public static final test.pkg.Alignment.Vertical.Companion Companion;
                   }
                   public static final class Alignment.Vertical.Companion {
+                    method @BytecodeOnly public int getBottom-8LqPg6A();
+                    method @BytecodeOnly public int getCenterVertically-8LqPg6A();
+                    method @BytecodeOnly public int getTop-8LqPg6A();
                     property public test.pkg.Alignment.Vertical Bottom;
                     property public test.pkg.Alignment.Vertical CenterVertically;
                     property public test.pkg.Alignment.Vertical Top;
                   }
                   @kotlin.jvm.JvmInline public final value class AnchorType {
+                    method @BytecodeOnly public static test.pkg.AnchorType! box-impl(float);
+                    method @BytecodeOnly public float unbox-impl();
                     field public static final test.pkg.AnchorType.Companion Companion;
                   }
                   public static final class AnchorType.Companion {
+                    method @BytecodeOnly public float getCenter-UD3vvl8();
+                    method @BytecodeOnly public float getEnd-UD3vvl8();
+                    method @BytecodeOnly public float getStart-UD3vvl8();
                     property public test.pkg.AnchorType Center;
                     property public test.pkg.AnchorType End;
                     property public test.pkg.AnchorType Start;
                   }
                   public final class User {
+                    ctor @BytecodeOnly public User(float, float, kotlin.jvm.internal.DefaultConstructorMarker!);
                     ctor @KotlinOnly public User(test.pkg.AnchorType p, test.pkg.AnchorType q);
                     method public kotlin.jvm.functions.Function0<test.pkg.AnchorType> bar();
                     method public float foo();
+                    method @BytecodeOnly public float foo-UD3vvl8();
+                    method @BytecodeOnly public float getP-UD3vvl8();
+                    method @BytecodeOnly public float getQ-UD3vvl8();
+                    method @BytecodeOnly public void setQ-YPzsyFw(float);
                     property public test.pkg.AnchorType p;
                     property public test.pkg.AnchorType q;
                   }
@@ -753,15 +1021,80 @@ abstract class UastTestBase : DriverTest() {
                         fun NavGraphBuilder.after(
                           enterTransition: (@JvmSuppressWildcards
                               AnimatedContentTransitionScope<NavBackStackEntry>.() -> EnterTransition?)? = null,
-                        ) = TODO()
+                        ): Nothing = TODO()
 
                         @Deprecated("no more composable", level = DeprecationLevel.HIDDEN)
                         fun NavGraphBuilder.before(
                           enterTransition: (@JvmSuppressWildcards
                               AnimatedContentTransitionScope<NavBackStackEntry>.() -> EnterTransition?)? = null,
-                        ) = TODO()
+                        ): Nothing = TODO()
                         """
                     )
+                ),
+            compiledSourceJar =
+                base64gzip(
+                    "test.jar",
+                    // kotlinc version info: kotlinc-jvm 1.9.23 (JRE 17.0.6+10-b802.1)
+                    "" +
+                        "H4sIAAAAAAAA/5VWCTSUex8e+/4xlktZQtkZY5/sIxRjhjD2LMPYYjBjTcgl" +
+                        "SyJrYqTPvlxKxhIqWcqSJckSYxv7kqWoyPLp3nvuxffdOt//Pb/3nPec9zy/" +
+                        "931+z/k9jxGMgpIdQEtLCwAABABHDzuAEgDXMYVK6SF0peFQhJ6ujokpCK67" +
+                        "3wkAfIJ3vTaASYH6mGBS4j1dvQRj8Du5yVksSB8uqQfv8yutMl7Xl/IR1+/q" +
+                        "kjBb75Hu6OianiXNkgOMYDS0j9jEHp0/bKB0WEb/2J7vsHzROF9p76su0ggH" +
+                        "/4tYB29XLT83Dyc0FuTo4YDD+SHgsBZNlhBCX2G8nVs1yx6wUGpcdRFKZ0pF" +
+                        "JX3eE1+NScHo+7Opfg4ISszeu0zS9vpVbn2umzvQS71xXANgY38pJqsSZDsf" +
+                        "99VWsTbNptF2qL7ddDaCdspYURaUb9nKTCjIVDnDl6PRDTN3ZZsQE5FbnBGC" +
+                        "lp2+o1Zy05aB36hnB4+pBRI8DLgwSmOa2oIsAoR014aMGGB1G92Ux86EHM+L" +
+                        "0AiNpaBV2iYTS3OcXx6DDiSkLL5fYqusPJtjqfPeW70imKNKVjjv7t0XG8z/" +
+                        "8m7GdQ02EO+z25JrQJWgzGQmK0LDbVD6SkjrZXoHoNVmI9nv9EVfX/t0SA6U" +
+                        "7Ef0SR2lD4px83TwRTtd8ML4ojG+plgHDM7N180LY+Lo5Y3+g814ozpEiyZ7" +
+                        "1nwkzxy2mUNcP4E8OoaexViT3JKe30E7xZ1N2sHRxTNoCFjQGEdeN5fHsvwG" +
+                        "2vKL3Fp3wvjW9tY+2SQ7b/PzOf0GPYjPN+Oue3NNfpIK6TtiaGM6KdTinenI" +
+                        "IWhkBMOBBxiNm9M1QBCj+1LvbG3P2sVO7g4uFbNaRYAHkxJXeYck7TNPFSng" +
+                        "zbvkTbUIlCyi8jt4UcLD2F/Zmm2TRmsGHnu03DWZiU9HJJ1BcuusGvUuWRWU" +
+                        "X4Tw7OIE+jOui+Or197vKqI7lpHCuTeK2nKE5UNkkgxcxESGQ7MKHEPPCqas" +
+                        "qDsbx50K+0X/tuB4uuxgWVmpuzOl5NQ8sgL9Rvbps0n4iiQCUXzKMCTmVnRU" +
+                        "dCEN92vh1lvRyDImKP2yd1ejFiynvGKD6fsgGigTG0GHQ3j0w0Hwn9CxloPj" +
+                        "VRPfw5sOxhcb9D+VbPRywn6E1J1ClaaJrJgUKvKsHPR8C9dThHrtXeHLdwlL" +
+                        "hfQR/lTy8+ca6mQ2uYYQQmlVk/IVSubK7HbIfcsobse4AE7t9fTKu1DhbsHA" +
+                        "LGmkxxVI5Kp8t2ch3PtRmUF+mjnl41Je/wJqZaYbmmLLXvXvo7qSgTmNY1Vq" +
+                        "MizZ6xnPGGvwj7mMcTxsPUUHjS3AlWHHvYeJy0N6BQRtDs4SoUDCU3GU329y" +
+                        "h5IuvT1wKGmYWu+7apm6NLP5Qg8fev91c/K2xuEWul6g9Rq2VhAiQGT5wMIb" +
+                        "aPCYE3WGBljcKpAgGMMaGrvK/J1JxcnVzt1DnnR+yOSxjXDIHhr7t5D/5DGh" +
+                        "F9GsyfKq0TJVa8/cKHnpggX/OMQtt5DOPfcVzJDhio/b++TVmo12XBA4K0R0" +
+                        "2rS359zEdbmUXec/eLTXpL1fCbJyiVsYgSDV099afPB1UGURsOi00q2Tj1tw" +
+                        "qDHFzefoLMAJzbMj2gGdHabK5wVikGMoYYW3npSUnYH7D/GYdhAvkHoU3saZ" +
+                        "s67zYlWBiHmFutSNNYDg978wnrG3PbAdrC2wabyCVDZEBmWf//XA1HTWZmzB" +
+                        "Bog4IzG9qf/M9TeXunr5Qu9KsmHFiRf/2tea/Gr+DTKljNoEuahAJaI489jy" +
+                        "GB5IfUatTPOTWfKQRMMraCWvaXxnUa4tt3nnp4vhpB6P7lWY7x88FphOmFjr" +
+                        "sO9/Zk1mCb0JsxZ4qW/tEe7OxmKtEENON7tExdvf5BPofRcvZIMNc1rFyH6I" +
+                        "a2mcSpHbp9hxvuiSutGn0bmxAkfxaw7sVLj0rp4P7qkNfq4Wtrv96RHAzF5m" +
+                        "JjVRfKJ46GPD061zpPi8+MJlpM5miX64jNOdoLh5Nb53Hx/w8jBE+9NwUW/n" +
+                        "sAIj1Lzs/J67Dl2YrYPuP5mdZ8aH5xHBidvlCTWmNhXBOV+0aq2cvk4NtJR/" +
+                        "RjykedibVoyJCmcNv3Z6Q7N+pIQUyfT4GugldcASh04uT/FCkE/5MOFtQsy1" +
+                        "6A5/OlKDP9fAxzYtXm2ikKoqrdbL0WH/C9Wjm6ofM4MzOOvWKQwTrbFI3jqs" +
+                        "VDxjS7nckJ9C8o3goDjNt0FDSWK3wTYBCZEma/nbWReJnD7I1d7RPaRE9vuS" +
+                        "Bf5qUvM47StwdpNoZWsEQv2W8zaT4ddNbK5VQi5Yv+ndMPEF8ipjwXZcjuQ3" +
+                        "2Sohn3Z8dq7sJQ4FXg5dFdVSEzG/uatPspvOYcCMvYvWvX5caQ2ZZIzTpOtw" +
+                        "LueDWDRjns9MnTs3U8vQQQRh8GX0M81bQEbBjPBw6013GhL4NmWLkxJWT15w" +
+                        "yvUaa1WqdP6MQiUeCllOmS9j24k3ctd6I/1JGxbI2L8XTRdXDs+UGzUrMR1H" +
+                        "c7lpOCpNWVgv2gZTEjyNGBjZxrxVtDbEzbOauUKv3rAi70ddYgBX1Jsxyqrj" +
+                        "qs34y+tb18cWO551Leq9aq+8LYNuFYenx/enEPXvRl62j9Ntssg25H4fTuSV" +
+                        "cyzsjnRjT74JlXMTLrQQ0Dm78e2L3tn7CbNGq5cVP4nP15icnpPtVwI3KKm9" +
+                        "jr4ZNirWHjCH7ibxWH5roGr5QHDayZ81z2QqzU61Yx3g4UMKbROXdlIfAAF6" +
+                        "NA2XHqjfIbsXwhhiIUItotginhZI9Kd4PLrJLOqDBxfyKhNHp5N+G7rfnXPL" +
+                        "muGJu7sZcTf3lOgQp9kbbAFsbstWJFdxwGuvoSgLxx0/YR+tpEwnq4ZgM1eR" +
+                        "+QyKfVAS2d0OtH4oUqFtY+CanZQ1qBE1d8cVKTz27yBUH09oeKwdeJsDVvFg" +
+                        "fcQrM+7rPadkcXz+YDViJ75GrlCUFiUVjXeaiHlmMrzytcgN1MeloMxwjZNf" +
+                        "JfLUU0R9z+6TCFcP4Y3uWi6nz6QIzsDpNohRxgzAQrlHg3qPO0psVfTm6R7E" +
+                        "cqNO8AHdfjVufe1L08Qtc0PXe1X1cNuAc6soxCScePbdp8iRJ6e3SGnFIqJb" +
+                        "53KyF/LBFbyvqyEZ8A6+N0zjI203btZKqVYlXmzKdZeyDqSR+GbPukbqU48S" +
+                        "ohbigxnAZs6NpwTakShic1tLW6NZCWG/54vaLzkK2xQAgDPtj9YI92H9lQ49" +
+                        "HdwwoKtevh5uGDtPLyc/D7Sjvb2982FRohDUopPJsyRRvcO0KNGO4GTdhEni" +
+                        "pPUl273Fu7v09KQ+gi6j3qAAvyfDFXGHStm/kiEZOTvg7+ZHU+P3aHr8/FNQ" +
+                        "/S+UI+GJ7xhC2E/z5kmso/4vdQzrOdn/Gb5OQh81RP5j0Bcpfh4nTqIdNYbj" +
+                        "P51E+TNLPYl1VB3Hv2yI6ufGchLt6MC5j5s9/Q/1ZQSjov7+Gs3hxUcOAGTQ" +
+                        "f3/6D8pqH4XNDAAA"
                 ),
             api =
                 """
@@ -776,7 +1109,7 @@ abstract class UastTestBase : DriverTest() {
                   }
                   public final class NavGraphBuilderKt {
                     method public static Void after(test.pkg.NavGraphBuilder, optional kotlin.jvm.functions.Function1<test.pkg.AnimatedContentTransitionScope<test.pkg.NavBackStackEntry>,test.pkg.EnterTransition?>? enterTransition);
-                    method @Deprecated public static Void before(test.pkg.NavGraphBuilder, optional kotlin.jvm.functions.Function1<${wildcard1}test.pkg.AnimatedContentTransitionScope<test.pkg.NavBackStackEntry>,${wildcard2}test.pkg.EnterTransition?>? enterTransition);
+                    method @BytecodeOnly @Deprecated public static Void! before(test.pkg.NavGraphBuilder!, kotlin.jvm.functions.Function1!);
                   }
                 }
                 """
@@ -931,13 +1264,51 @@ abstract class UastTestBase : DriverTest() {
                         """
                     )
                 ),
+            compiledSourceJar =
+                base64gzip(
+                    "test.jar",
+                    // kotlinc version info: kotlinc-jvm 1.9.23 (JRE 17.0.6+10-b802.1)
+                    "" +
+                        "H4sIAAAAAAAA/wvwZmYRYeDg4GBgYFBkQAYiDCwMvq4hjrqefm76vo5+nm6u" +
+                        "wSF6vm7/TjEwfPY9c9rHW1fvIq+3rta5M+c3BxlcMX7wtEjPy1fH0/di6aot" +
+                        "QR+8dAu1vM6c0Q77cE7/5Mkzj58+esrEEODNzrFeWHO9JdACcyAOwGm9FBCX" +
+                        "pBaX6Bdkp+v7VnrmlaQWpSUmp+ol5yQWF+f2OfofchBovZ8z1SlUh4vtfwvr" +
+                        "o7OTxSerCQj77vmyZUqrjm70YT6XvD96/G2b7U9ZXO1mT59knn9PJf7Z59d/" +
+                        "mQ/oVrXoSZ8/mb3RQ233lY2R50vznAQU416t9fN6K3bycUlmEZ+ggNXjRY8u" +
+                        "7UpJijhv8tq6KSqX+WGg7toohwVOn8yj85kLNysuLL9hrnw1fGLX0bO/2/96" +
+                        "8K6w6+MIf/xfTnDHhlv1k2Y3cV4s3hr5/NnBaW0Ff7cU5oQ/O1plrXt2b7Fo" +
+                        "9rapn3kTH3PsX1rwc7H4i1MyXN8idk1U9BBclrEsQ1Goe7LIcovTDnK5c9ID" +
+                        "5Da6P5cGhVr2fanL74BhYsqIL9TkkEPNPbGkxDknMzWvJDg5vwAacnND4v2F" +
+                        "HQXm7912/ZvXQ42upQpdC5i6ys3U7KYILGTMDf7D/Mo7/o6c995vVe5537v2" +
+                        "mdYJ134wlpD3CY7vkT9lEf6bPUrLc/LumTdn3j/75l/Zs7r/P/8xM8gdtGXy" +
+                        "PLjjgt+q1LeaokrZM8+ItbcVHzrkwLFCNGr5LNe3m74tCkls43BucOiYFxQs" +
+                        "ULE3aoXVIaPctUHrM4/Py+W4vHHntusbv/iY51mse8x5OS3mtJWZlNxXxplb" +
+                        "DyU08jDWRd46m/enN7frzLXUUDNztg/iYbGaFnmRqw0Ci1Z2Xl2Ra930b/Wf" +
+                        "O5t1ojZJHJr2n724pd8l5FTqF43f83ZdEThjutOgt7co7/YnM4vGP1kL3X/9" +
+                        "Oz6ntyM5a8PHE1XmcZvs1Nl7qqfd0HmX05uU9u+KKau0Re++3z8ehJZNd0g8" +
+                        "wtZlnTx3uVneroXCvDG/Og77lif+9rmgrKXxa0mUbcNnxxrBr6wCCqFf6g3+" +
+                        "Tu27dtGZaf+s3lJXL6+uJWbSXHaTtLZOfd/lMTdg0ftJysdPpinrvlTZv8BL" +
+                        "05N/ifqVBK1JHGoXrjmfj4qfv2XfiUlaz8OvFByXv6qcGRkqIPv5sf3+iWnM" +
+                        "rI4JBkYLj33+fvVkXJecyFeRVy8+qK+yuvtL5WiBtbeXxqVfe1YI/7fJzLl1" +
+                        "aEU9Y1GTSIvXtGQF3k691L+W7s8LjgvPsKpX5VBWZ0nT35fIZCxuIjVtbfDp" +
+                        "ZBa18w3yIR+/C9uanDYTndd98Cczf/TCY0Vld5+o9b0qq9cr3Ma+WH+jS2/i" +
+                        "pmKDpxc+xjS/nSmWNud1zecyjfk9NY4X8rk5WArrFZwZ3j3wajK446qrHCl4" +
+                        "ZfWPY6oxLrd1W4Qech2p+tB5+mHhjDcHl7c9MG7c/KFvSsJa3fzDVlldcaLm" +
+                        "lrEtDnxCljNOHhTd0aV25tkDKZVuB4szjqs4OPk+y4hZtNz6ZNXuymfULi2T" +
+                        "t83WWyavMMDiiIVOccRDgecGP8VBWWLRwtUVx5kYGPzZ8GUJaSCGl2O5iZl5" +
+                        "etn5JTmZefG5+SmlOanJCQkJaUDMkuTHphGQdCGJAVxIfVXas1cYqFMCXEgx" +
+                        "MokwIExHLsBApSQqwFVmopuCnKGlUEyox1v0oZuDHApyKOZsZSRUGKCbhexr" +
+                        "aRSzTrDgDcUAb1Y2kDIWIFQGWqvCCuIBAECnUIpdBgAA"
+                ),
             api =
                 """
                 package test.pkg {
                   public interface GattClientScope {
                     method public suspend Object? await(kotlin.jvm.functions.Function0<kotlin.Unit> block, kotlin.coroutines.Continuation<? super kotlin.Unit>);
                     method public suspend Object? readCharacteristic(test.pkg.MyInterface p, kotlin.coroutines.Continuation<? super kotlin.Result<? extends byte[]>>);
+                    method @BytecodeOnly public Object? readCharacteristic-gIAlu-s(test.pkg.MyInterface, kotlin.coroutines.Continuation<? super kotlin.Result<byte[]!>!>);
                     method public suspend Object? writeCharacteristic(test.pkg.MyInterface p, byte[] value, kotlin.coroutines.Continuation<? super kotlin.Result<? extends kotlin.Unit>>);
+                    method @BytecodeOnly public Object? writeCharacteristic-0E7RQCE(test.pkg.MyInterface, byte[], kotlin.coroutines.Continuation<? super kotlin.Result<kotlin.Unit!>!>);
                   }
                   public interface MyInterface {
                   }
@@ -1075,10 +1446,6 @@ abstract class UastTestBase : DriverTest() {
                         property @Deprecated public abstract int pOld_deprecatedOnGetter_myAnnoOnBoth;
                         property @Deprecated public abstract int pOld_deprecatedOnGetter_myAnnoOnGetter;
                         property @Deprecated public abstract int pOld_deprecatedOnGetter_myAnnoOnSetter;
-                        property @Deprecated public abstract int pOld_deprecatedOnProperty;
-                        property @Deprecated public abstract int pOld_deprecatedOnProperty_myAnnoOnBoth;
-                        property @Deprecated public abstract int pOld_deprecatedOnProperty_myAnnoOnGetter;
-                        property @Deprecated public abstract int pOld_deprecatedOnProperty_myAnnoOnSetter;
                         property public abstract int pOld_deprecatedOnSetter;
                         property @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnSetter_myAnnoOnBoth;
                         property @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnSetter_myAnnoOnGetter;
@@ -1096,7 +1463,6 @@ abstract class UastTestBase : DriverTest() {
                         method @BytecodeOnly @Deprecated public void setPOld_accessors_deprecatedOnSetter(String!);
                         property public String? pNew_accessors;
                         property @Deprecated public String? pOld_accessors_deprecatedOnGetter;
-                        property @Deprecated public String? pOld_accessors_deprecatedOnProperty;
                         property public String? pOld_accessors_deprecatedOnSetter;
                       }
                       public final class Test_getter {
@@ -1111,7 +1477,6 @@ abstract class UastTestBase : DriverTest() {
                         method @BytecodeOnly @Deprecated public void setPOld_getter_deprecatedOnSetter(String!);
                         property public String? pNew_getter;
                         property @Deprecated public String? pOld_getter_deprecatedOnGetter;
-                        property @Deprecated public String? pOld_getter_deprecatedOnProperty;
                         property public String? pOld_getter_deprecatedOnSetter;
                       }
                       public final class Test_noAccessor {
@@ -1126,7 +1491,6 @@ abstract class UastTestBase : DriverTest() {
                         method @BytecodeOnly @Deprecated public void setPOld_noAccessor_deprecatedOnSetter(String!);
                         property public String pNew_noAccessor;
                         property @Deprecated public String pOld_noAccessor_deprecatedOnGetter;
-                        property @Deprecated public String pOld_noAccessor_deprecatedOnProperty;
                         property public String pOld_noAccessor_deprecatedOnSetter;
                       }
                       public final class Test_setter {
@@ -1141,7 +1505,6 @@ abstract class UastTestBase : DriverTest() {
                         method @BytecodeOnly @Deprecated public void setPOld_setter_deprecatedOnSetter(String!);
                         property public String? pNew_setter;
                         property @Deprecated public String? pOld_setter_deprecatedOnGetter;
-                        property @Deprecated public String? pOld_setter_deprecatedOnProperty;
                         property public String? pOld_setter_deprecatedOnSetter;
                       }
                     }
@@ -1180,10 +1543,6 @@ abstract class UastTestBase : DriverTest() {
                         property @Deprecated public abstract int pOld_deprecatedOnGetter_myAnnoOnBoth;
                         property @Deprecated public abstract int pOld_deprecatedOnGetter_myAnnoOnGetter;
                         property @Deprecated public abstract int pOld_deprecatedOnGetter_myAnnoOnSetter;
-                        property @Deprecated public abstract int pOld_deprecatedOnProperty;
-                        property @Deprecated public abstract int pOld_deprecatedOnProperty_myAnnoOnBoth;
-                        property @Deprecated public abstract int pOld_deprecatedOnProperty_myAnnoOnGetter;
-                        property @Deprecated public abstract int pOld_deprecatedOnProperty_myAnnoOnSetter;
                         property public abstract int pOld_deprecatedOnSetter;
                         property public abstract int pOld_deprecatedOnSetter_myAnnoOnBoth;
                         property public abstract int pOld_deprecatedOnSetter_myAnnoOnGetter;
@@ -1201,7 +1560,6 @@ abstract class UastTestBase : DriverTest() {
                         method @BytecodeOnly @Deprecated public void setPOld_accessors_deprecatedOnSetter(String!);
                         property public String? pNew_accessors;
                         property @Deprecated public String? pOld_accessors_deprecatedOnGetter;
-                        property @Deprecated public String? pOld_accessors_deprecatedOnProperty;
                         property public String? pOld_accessors_deprecatedOnSetter;
                       }
                       public final class Test_getter {
@@ -1216,7 +1574,6 @@ abstract class UastTestBase : DriverTest() {
                         method @BytecodeOnly @Deprecated public void setPOld_getter_deprecatedOnSetter(String!);
                         property public String? pNew_getter;
                         property @Deprecated public String? pOld_getter_deprecatedOnGetter;
-                        property @Deprecated public String? pOld_getter_deprecatedOnProperty;
                         property public String? pOld_getter_deprecatedOnSetter;
                       }
                       public final class Test_noAccessor {
@@ -1231,7 +1588,6 @@ abstract class UastTestBase : DriverTest() {
                         method @BytecodeOnly @Deprecated public void setPOld_noAccessor_deprecatedOnSetter(String!);
                         property public String pNew_noAccessor;
                         property @Deprecated public String pOld_noAccessor_deprecatedOnGetter;
-                        property @Deprecated public String pOld_noAccessor_deprecatedOnProperty;
                         property public String pOld_noAccessor_deprecatedOnSetter;
                       }
                       public final class Test_setter {
@@ -1246,7 +1602,6 @@ abstract class UastTestBase : DriverTest() {
                         method @BytecodeOnly @Deprecated public void setPOld_setter_deprecatedOnSetter(String!);
                         property public String? pNew_setter;
                         property @Deprecated public String? pOld_setter_deprecatedOnGetter;
-                        property @Deprecated public String? pOld_setter_deprecatedOnProperty;
                         property public String? pOld_setter_deprecatedOnSetter;
                       }
                     }
@@ -2076,16 +2431,72 @@ abstract class UastTestBase : DriverTest() {
                     """
                     )
                 ),
+            compiledSourceJar =
+                base64gzip(
+                    "test.jar",
+                    // kotlinc version info: kotlinc-jvm 1.9.23 (JRE 17.0.6+10-b802.1)
+                    "" +
+                        "H4sIAAAAAAAA/32VeTTU/xrHv5iQrFmGn/olSxljFiNFlm62DM1YU7lkMMId" +
+                        "xjKjZBlpmGTPliQyocjayJpShqgZkZ+QURnG70eE7DS6+t1z7q3Oredznj8+" +
+                        "53zO+zmf5zzP+2VnIwSSA0RFRQEA2At8G3IACMBYOB2FobGWCMxRLNrSwtEJ" +
+                        "jrHcfA4ACxjWi+M2MHivhA1Mq5v1kuGA/EP3PS8Ebo3RRmN6Q8tqHeasYcFa" +
+                        "1iwW1HmuG9HVxRrjcXmCgJ2NiGiVLKTKYKvAoa20+2l58FaSvUlkRBDBB4Em" +
+                        "kp09/EO94V7+HiRSlNNL0rCT9OZbhv+L++md2Bsd1hc3L77uTn0jUSz3KvZA" +
+                        "jMO2OzFFiq+C7Hcl32ZmJ2tEhLMkNgUlXXHvW4tFcmLUzXxypImfMeJtJug6" +
+                        "3ZTLSuyIwJUZSvPGjAmfPzsbDTQkIhQd8nnhax1HNQL1z3SV15XrK1LrAuvY" +
+                        "kf1krbWlm1H3pttlPNKgzrg26a4JcZqvYVpOoaqkgUAKiDo+MwRv850XXDZq" +
+                        "Szv5bjG3zvH6A0KyVhuv/Cp0mb7tPP58sXs95/69ZmfdFBnaoNBwTYvFkeT0" +
+                        "BLlXYgeSUElkVW8+SwHvuo/A6K3Oc6MNTbdbgamXYyZOuD5paGUjj0s+//Rw" +
+                        "NBaZJ0eDfglcLUNGJjdMz7UGQQwvCsgPBLkNvlUxZZ8tvuUp2iamE5lhxdEd" +
+                        "aclar5RP17QP/yPFSSourFrrUgVErL/GWYead8mPVdaZIHssf69f1BDqHlFU" +
+                        "L1svgc8ueGnsZefSjeU3BhZzMczYFbffYprqffSUXoFb4tcAF/IF6bsJhjmy" +
+                        "+rPCGplyVvREl8aPDWcYJ5an2EhYo+zwS+QhXC1T0UgaJ+X3+7D4VON9sUyf" +
+                        "10hzpYfBx7RJsY5GdyNODHfN1hPW+s+xg6yk1XKnXMtP5zcSwvdNhlXsLjzU" +
+                        "xkyX3qH5XGCyYNiUDkReuxhtZPywci64Mmhm0a4wlXD/KU9zBv3Gq1aqr5vH" +
+                        "qMrusJX6MywGllrk9dvAhb0hy2bH0zVgTWUEVNcVg9OOZL88+cGxx4+2EzNy" +
+                        "m8r8zJ7mklkDEhmXS5LTsB+mHFzC1fotsiCybuleLp+nCR0WZU4m8mnTaec3" +
+                        "Wm9LxssU7ndSV8iv/Zeh80Jpo+MDc8IHb4YL6kZdmhmvp8QnW+o1y1ITemPJ" +
+                        "meFvfD8ubcjXIN+NYV1H6Jsxe1YaUeLjeLJ0LC9Xm36nHUHF0oPtmVaOqhBE" +
+                        "fLHx4SVoJpj8fjXpdU5V5lzj7HtlFfT+KVoYuHBhGA/7iEIUBuwecwifFm2i" +
+                        "xJ6s5chU/j66VMDvNE4TfztHwnEfxKkcahPHX32ynbi00TnSukgzLVC+Wb4k" +
+                        "y6H0/ik9I3x9MnsIXNQz27fD1FZ98fSdKWb1ZF/0pehE3/H2RciqzFuXnv2P" +
+                        "Zelycw8sCLuM5qVoQp06Dun/zKHpj6iVmQuuzGNF4euq5TtVCydlWSsoMY6s" +
+                        "hyV3vJng+rChJ0qHfLIkpQapN6+c6S68DG91aDqVcASUhAQ3489INI6GH4Ea" +
+                        "KSrBqCvVci7vVLFMN67GajYlibdJ0ajmGhYz3e89dr8J8RLaB6WuzB91j0JH" +
+                        "cSOYxQUqFuH4Y1emixdcNeY1iw5fkeKv6+evTRR43lg2PmxcMqIy0B9gLh6J" +
+                        "v+WLk7D9Kz5UaM9YRgASrDzI6bi7o7/dERwc7Ua+SpIJlSEFvxvg3D7P8+xu" +
+                        "T0osTyQ8Culsn4v+6j7b6A7CBiAA+CDyK/dR+n/uY0P+j/8E2GMC+/4hHdWM" +
+                        "9h+AVWS8qgK2vTF1BOlXNPBAVlnaxxPfaF2zsrpBVj4Y7I8PVE2R/wLaFKhP" +
+                        "ECp7mrwnLidU0EIOQlk4t8yeHmenFrg/Fgij7aZZwHRnHs+e56u8xshI8KAB" +
+                        "VJ0wY52dFHVuZfTgxy5J7x3iDB/0p/F2j43yaAefU6UPnkKHarAnOAEgQwyN" +
+                        "jUQ3U2ynzmk55a2ppsjCaq3j96iv4xQtJKYO7iy1ag4UFZHcRVui0NXkN1p6" +
+                        "W0/WZPtpq+oq6nU77WeMorRD33Zho9+oI7LU8YOVcV9SOA0mI1iSJKlh1FNh" +
+                        "YXH2i+4RqiHKZLxC6VSrneQdUku2S54YzIopclvweqc4SxHw26AFNX2+Ja6W" +
+                        "uDoJbxt+sVAWceFjSKqt6fVHa3mVIdcMH64Pqm2vYrQkPLtHbA85FTeQuPRU" +
+                        "eDSfl/VX9zrlCfzls4IKuldE96pa/Ui67mbtGZ+JLGOa4Aztuo5CG8FG7+yX" +
+                        "CduN3MJVlEGW+I7CBN6ToJ7sySu+xzJLY9HHzDFXtUj5++pTaDXOQkpMtSyI" +
+                        "NX+ev9bv2dUwhs85N/4IpUfoy50o4iL2nntiz2Qy9DJxvRcysBIJeXT+XRQp" +
+                        "Jg7RcdxfxkX9AF2EeW3/Tv25TwoHn9/t4ZsxRLHM7r5dwwbEW5bB7wZNESP+" +
+                        "hdI4SGvIRfly4cVIvVYYhxjj3UBdUjiL4rCDENQMNf5zpY8+mt7VFIGvo2Zi" +
+                        "mNqoLggAh4V+NWrKW/lfzgZ4+BHhhECyvx/RPSAQH+rv7YXD4c5uJcgTK6z5" +
+                        "fucYVxO9xV1oJxbM/cSCbrdhQTBLcHvPHk/gb7j2lr8gQrcUkX/DVUBQDvhf" +
+                        "1W/B+5Xu38fPWP+jyrcLBP5OIfrnyP5R5NvWKH0nwgf9YvN+lPn2t8rfyfiK" +
+                        "/LKrdjbbhL8+A20dZQEA4Ih8vf0bs6I1lA0JAAA="
+                ),
             api =
                 """
                 package test.pkg {
                   @kotlin.jvm.JvmInline public final value class IntValue {
                     ctor @KotlinOnly public IntValue(int value);
+                    method @BytecodeOnly public static test.pkg.IntValue! box-impl(int);
+                    method @BytecodeOnly public static int constructor-impl(int);
                     method public int getValue();
+                    method @BytecodeOnly public int unbox-impl();
                     property public int value;
                   }
                   public final class IntValueKt {
                     method public static void foo(String[] varargParam, int valueParam);
+                    method @BytecodeOnly public static void foo-BObfkT0(String![], int);
                   }
                 }
             """
@@ -2098,7 +2509,7 @@ abstract class UastTestBase : DriverTest() {
         // This will be resolved through b/406833486.
         val copyEntry =
             if (isK2) {
-                ""
+                "method @BytecodeOnly public test.pkg.IntValueData copy-Vxmw0xk(int);"
             } else {
                 "method public test.pkg.IntValueData copy-Vxmw0xk(int intValue);"
             }
@@ -2114,22 +2525,90 @@ abstract class UastTestBase : DriverTest() {
                         """
                     )
                 ),
+            compiledSourceJar =
+                base64gzip(
+                    "test.jar",
+                    // kotlinc version info: kotlinc-jvm 1.9.23 (JRE 17.0.6+10-b802.1)
+                    "" +
+                        "H4sIAAAAAAAA/4WWeTgU6h7Hh4Nwh7GPQcmWnbGVXZoxZsiWJQ2DCYOxTUy2" +
+                        "zI0sByFbhjCKxk5CEUKKsZNmhiOEZDllO8mWk1vnPs+9dZ57zn3f5/fH+zzv" +
+                        "+/k97++Pz/O1tfyJTQjAyckJAACkAN8vIQAbwMrMwVQVZY1QtzK1RiHM7B3U" +
+                        "rBBfBgCAj1ZDg+ctVdVe8liqKo0MjTZegNK15t6FqFlYqaCsXl6tarqwaaF6" +
+                        "RcliaEjZaXNEvb9/6O27hXesAFvLY5wPBBUf6H1tcOZr2f5le/DXInqHEtUJ" +
+                        "/j7qqCCiEzbgqreaZwA2NJTkMBz62oHv6Omy+iUniV/8XjlzjYF816LpQQrU" +
+                        "jFP3UYqOBDFkihQPuOelrkXAL84N5bTpOfW5LnYOXteQGAhSk5jItZrWmYyd" +
+                        "lO8P692ClkZurHXMvFn/Elb85cvuLROW6R4yUHGCOB3t2Zk1Edjs5eCCA6aa" +
+                        "zmhNITrwk7cPp3Yol8I8OTWQwq+asZzeofqw+2uW5y/yxQkdMy+U+rCO5n2O" +
+                        "3GLdkXie4fKGUJCLyX+IT1N6/q6GorxTsh/uFU51b6Y3VBngtBKxiSs/DT6e" +
+                        "ZldPy7ohNK7pkAoFhkt7Px1aknM95V/6Erp2PDH/Qw8SHHcsdknI9Vle1zD0" +
+                        "PHDgt/b5FmghX+LgUfBeKzQ6ruXDZhdB0SCGhX2CgJmcPXkuDUe968GJyhft" +
+                        "QMmui42sh5BoQCTQPoqe7gBKiIAq36hFcTMeOkHTClMVhxT6UgTNKVLYfzI0" +
+                        "q6wBOncYN38fLh408slw2Qn7PcGHOhcIT9jFiMW2tvmfhoyDnyZFSqKJkXwV" +
+                        "NwzyhHU3PsvleMWbgRkhM2HTuOoPzAJT9AX5x2RsUJdvskbEya4T44aPITmh" +
+                        "3sIKozV1NzUj3qY747jKW9zDq3OL3vhP/Ka8dico+yRCm/HEWQfjSSPwjG+h" +
+                        "DeDBiclyaiK2OaTxzvp4OMseL8sRMYqAWfJ0Xfp1Nfa85EW5fEv+KcEmcz+b" +
+                        "8RFq4wMwzRqEi4xV5SkvVZqIkCLueGqrJDD6UsosZGk+co7Mbs+aLkr7AbPT" +
+                        "qmIgpYqXy39cw4YsC3I8fqpoikGlb0dV3VSyO4V2Tql62BgsCq68sO9wtgQ2" +
+                        "u0Yi659ExFNsM50jpqoCC4Z9esMYQrW15DR8vy/6HG8OTLzObtZdRyxWJZju" +
+                        "MtywPylwDvfUu81pWOVSulkzKLBtXazODENND8U3JFFEOoH6yb1mfHJWyffb" +
+                        "T+bu9C0GZ4BWu7b0au1sIN1gSpxPDFtRhfgChm1kI+tRy2B7fGtkquXqSxnf" +
+                        "KX43+1Dzlqj4M9e3pHfPakYMDsYmT4jETAM1M+Ac8i2MDZmrP70S544OIjYw" +
+                        "rQmf60elxnk0Z1Qb1ZH33pSD4ynIuUYEIxn7quwL6xFv5tg8XXGPfzZ/4lQH" +
+                        "+PLksn82UzTiUFKW1Gd3IcslI1F3RqYKzrq75QZQO5CuWZC+Vyk49Enzt5m3" +
+                        "poiFxSfVru0tXSQpAln+loaJ3heDRfdjOyO0rDbnhjNsqVBwq5cbT8s82kR5" +
+                        "WhKiEweqF3V+I+11BXydq6PyuGdlp/sVlWvWilsTv25c9BmYjOkfmOM3/lCt" +
+                        "fi/tKMZ5zyceZtQgA99ZiKwTiJCwLeoydyNJjBp9HK03+6xWRBmry34/IHJO" +
+                        "35hpR3+YUk58cSfdZnNVJC/uakAA9kXswlx+XF6zmm6fXpJukn7Lht/6y7YQ" +
+                        "6HuPKVPmMx0bvcWT+5Lf7NNxI3Jbjw0AeH/s7+wj/r/sA8cSsf820G3HGXtx" +
+                        "R6GjmeEJHFc9VzE7Gm3KeS8jppbJ6mhco8KBvtfLqtQoq6wi23YlPG5vAWq4" +
+                        "bUNAvNl+Jn9iCpKQXnSFb/ZQ/dBEghYaTgahsL2Qlt3pxuXDkY3o6QKTo/21" +
+                        "cEB4fffYou/jbLXgOqrw8/7KnpTTVH08W6rprG0znWinwxy/5XSmqV3QNEbK" +
+                        "sEq89WOMVJ7DQQgw1stdLZFPWuAGHwQ+Q8N6WAAF8CV8fDLXfDDNEHTDgzTd" +
+                        "7oy+AmqDn2+ilja02OU4WnGodZMbphKc2wnpCyR3jAQEazbZrVhiWxvKHuXO" +
+                        "jhU6WjJ4DGrFElcr0oOyDH30Q29fzqxJzLYIe0VMac2cnVSiJjfhIHgNIyqp" +
+                        "0illRPaSgZPcRh6zBh+IZyaRvbPh/dpa2hR5OmazULQsizx2IedDDz7dNfcc" +
+                        "kEt7UzfQwYrmSlCZcS7N6O8IFaXkCvg9qSioWOm5gTMjwM7JbyA/Rm4voq71" +
+                        "wqdLgqreNeCERDmyGHOMreiAksmEIN6jU7B2pZucURC8TR5ohRqSyZG2W6ME" +
+                        "B5KQKGTJEWvCKzGMGTbGXtRrBWntFpg3nwjTIM7pk2dLuuuqdw7uX7qrUWvE" +
+                        "TyqLrvcLedNrUDhppJS142imOmX48wTU9fJKB37Rd5bOKEHUpkTqBuUBYQqV" +
+                        "CiRLjdR5FtD2Cb/zPpjGlVMOP88/By/BNPrHxopMxEdvZxkUA+OOgimVV+R5" +
+                        "G++UirQPyuQ8Zt3WhnbA91lbe4lv4wOLipMe2Ype3ntPKHcRQLOjMkDhsgeh" +
+                        "3hoWy2JTT9yIjJCiiO3zAUbTEBHNgJLT/LkJp6UEdQ8UVfqe5eP0hmxe0dpi" +
+                        "35JTXx7N85K4U/gvFT5RM1+ViUwpmYu0kjQx8JHp19HiCUk1pvPeDMG41N/2" +
+                        "ntzeCo/Nr3C1Qed7IUIKF9nIywVGeeXmbabgRNqiLVyL2KRMR0ptrdDEIQjI" +
+                        "9EIyrxbln7BPOtRzKJ9bwlbA6zyieOsOUNC4C992WbVxtfiUK7Wp6pLNnsTm" +
+                        "+p3IR3n2qkXFJO/P0T2E7awyUZfW2mz8YUCiLxwsodOpV51Ler9+k3nL0VLV" +
+                        "j/7xqAX1D1zPgD/o6nro8G6/47xn0pLSyo7+M8mALPj4WFfmkr2+0d3ss205" +
+                        "+me1GV+U8e5jqC579BOevmuZTNwo99WK5VKYgPnbCs0FYydwscIUrNLdtm2Z" +
+                        "412dhs1qW+++INJjGpvXhZm8yCfy+hcWNKU4CiNC6JdncvbZNS3ckWyn2WjP" +
+                        "8h/uXEsq7PatIkmunVjUrGWBpp9VT5C8nho2UvtRWB8MImht9RpHtSxbTs+a" +
+                        "o9df0zaN1w07MyzKbX6VEEZvUJj3aA/iVkyfXnsoVLIxSpCUMb4tPLWv88Hq" +
+                        "01GqLeHBEYjT5KTQ5HuTeOhgbFCbx0bbwBzl9X3vZrXYpL0zYjJE42qXDb+Z" +
+                        "KI10Lu5PkH7+Ef8cbtreRtHoDkVSrxBv0kW/aV93xmhN0XYyGEA27oKFBxmH" +
+                        "+y1usq+xH+xIzVury9w9awctnZPxQr2ouaFniOZo3BKVVC99hniaFimelcYu" +
+                        "bnUaH2D4UOp10uu9F4jupdO7mIIr4uGYe3HM6yzfJGgqO+jU/lWCc5z/T4L/" +
+                        "SYCBWL8gNf9gYoBfkHtgsNfVAG9PDw8P3Ndiu2zNoWB7eewy4I9490m6/ang" +
+                        "15eif8Q7FlYhwH/p30e/b/nyx/VXafPPlO8VDv6BcP2vQ+OfId+PQPwHyO9s" +
+                        "f+v+P4O+/++PIFbuv52frSU7x7drbF/3cRYAwI372+lfMSXvwZELAAA="
+                ),
             api =
                 """
                 package test.pkg {
                   @kotlin.jvm.JvmInline public final value class IntValue {
                     ctor @KotlinOnly public IntValue(int value);
+                    method @BytecodeOnly public static test.pkg.IntValue! box-impl(int);
+                    method @BytecodeOnly public static int constructor-impl(int);
                     method public int getValue();
+                    method @BytecodeOnly public int unbox-impl();
                     property public int value;
                   }
                   public final class IntValueData {
+                    ctor @BytecodeOnly public IntValueData(int, kotlin.jvm.internal.DefaultConstructorMarker!);
                     ctor @KotlinOnly public IntValueData(test.pkg.IntValue intValue);
                     $copyEntry
                   }
                 }
                 """
-                    // The copyEntry might be blank, remove it if so.
-                    .stripBlankLines()
         )
     }
 

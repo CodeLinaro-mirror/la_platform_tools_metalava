@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.testsuite.typeitem
 
+import com.android.tools.lint.checks.infrastructure.TestFiles.base64gzip
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.BaseTypeTransformer
 import com.android.tools.metalava.model.ClassItem
@@ -1972,8 +1973,9 @@ class CommonTypeItemTest : BaseModelTest() {
     @Test
     fun `Non-last varargs param in deprecated method`() {
         runCodebaseTest(
-            kotlin(
-                """
+            inputSet(
+                kotlin(
+                    """
                     package test.pkg
                     class Foo {
                         fun notDeprecated(vararg str: String, i: Int) = Unit
@@ -1984,8 +1986,39 @@ class CommonTypeItemTest : BaseModelTest() {
                         @Deprecated(message = "message", level = DeprecationLevel.HIDDEN)
                         fun deprecatedHidden(vararg str: String, i: Int) = Unit
                     }
-                """
-            )
+                    """
+                )
+            ),
+            compiledSourceJar =
+                base64gzip(
+                    "test.jar",
+                    // kotlinc version info: kotlinc-jvm 1.9.23 (JRE 17.0.6+10-b802.1)
+                    "" +
+                        "H4sIAAAAAAAA/wvwZmYRYeDg4GBgYFBkQAYiDCwMvq4hjrqefm76vo5+nm6u" +
+                        "wSF6vm7/TjEwfPY9c9rHW1fvIq+3rta5M+c3BxlcMX7wtEjPy1fH0/di6aot" +
+                        "QR+8dAu1vM6c0Q77cE7/5Mkzj58+esrEEODNzrFeWHO9JdACcyAOwGm9EBCX" +
+                        "pBaX6Bdkp+u75efrJeckFhevDb6dd9lBwPa1StmrZSuFNfYWtDvlNzjvsBVR" +
+                        "ZNS9osEissDmS+bsNZdyZaQrtwv2/xX716AuwL/i0UT5h/oCm/0UAiZwCAXa" +
+                        "zJtrmX6uL/375+v88owxx3XbmsS8fq+3yv3vKGOdwHNP732h/ZPA2/Wb9mrP" +
+                        "uuXYdnCfrvLK9wYpYtPNuE8cLJvYenjCVesgQ5Fse/Go1BkdSXvV4lQXndya" +
+                        "Yeijn3e1ber8ly5ub68mZE5+WKPrd+vfugu3OadP/FTpErIu1afO9trXvQZL" +
+                        "qiSXTrbp4llutZEv9cn7b7v29WzxUJL75ZjCpXUzhM+mbeWzvowytifLbR7G" +
+                        "Ojq0tR699fBdWP39qZkbepT1vCxOFTzh/52WMGlew8Irvy4+9p7nMkXFLXfD" +
+                        "0cT/Rwp2OWneE+PZGfDF5YRBtYS77nWfUwvi7+Veaf7l3HZy4aGqSUeuuObt" +
+                        "vVhxaYEnr7H0pqtCgr2ZyhHR0esv79t3vU7HJL/w7MplV9+mZrw7M8Mw2cG2" +
+                        "RONf1KzQ1j3XQtv02X9/XmeavHNa+Yb3UZWPI9YV7hWyPbpv9nKfsmcJ+7NC" +
+                        "b+y9s9zcrFFOt3Km5epJa6ftvTMnetvnNTmhc7pq+3Kufvs0Rfp2QdAa7xsf" +
+                        "6w+IuR3TqxCuP/xt4rK7WsbyB5cpVy9d/NLgfn+0yYKTs3pcatfv1p30vMZ6" +
+                        "icdOMfPKHSeFM681P6hJ1r+0SbtphfrUJRf6J5eVV7RI3pm//uCbhs030/9w" +
+                        "1Yi9V/X96NDGFJ548a/RfpncCeukb3KtrTE2Fo6ta/8TXaTTpOQrvd9r2wX2" +
+                        "BB69vd4SyzumTrr+Mlft7Zop6veTX4Xv8tV0tr/czvPimPajiKhLB03SOgrP" +
+                        "zpHvdhLWXNASGXSib9EE6cCHVVL7Hf1nPioWsVxXIKPO4vfoyvtfy92vlv9r" +
+                        "/jfT+VccZ7qnvXHXvxv1F+zdV8/OjLV33aNwpPLXps/RJ1h2CDxIamDVmdS9" +
+                        "lOF0xE2m4B0tp6M1tHZwhYvktF5eGeyj+3d5cHSAxWqD1Qb/eEEZxcx4UeBL" +
+                        "JgYGFTZ8GUUaiOH5NDcxM08vO78kJzMvPjc/pTQnNTkhISENiFmS/Ng0ApIu" +
+                        "JDGAM+FXpT17hYE6JcCZkJFJhAFhOnIGBZUCqABXmYBuCrLrhVBMqMeatdH1" +
+                        "I7tQGkX/Cma8Pg7wZmUDKWMGwvNAmgXsAwDUrWD46QQAAA=="
+                )
         ) {
             val foo = codebase.assertClass("test.pkg.Foo")
             val notDeprecated = foo.methods().single { it.name() == "notDeprecated" }

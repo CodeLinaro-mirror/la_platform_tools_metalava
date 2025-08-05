@@ -2252,6 +2252,43 @@ class ApiLintTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Allow arrays for kotlin only APIs`() {
+        check(
+            apiLint = "",
+            expectedFail = DefaultLintErrorMessage,
+            expectedIssues =
+                """
+                src/test/pkg/ConstructorCanBeUsedFromJava.kt:2: warning: Method parameter should be Collection<Number> (or subclass) instead of raw array; was `java.lang.Number[]` [ArrayReturn]
+                src/test/pkg/IntValue.kt:2: error: Value classes should not be public in APIs targeting Java clients. [ValueClassDefinition]
+                """,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+                        @JvmInline value class IntValue(val value: Int)
+                        """
+                    ),
+                    kotlin(
+                        """
+                        package test.pkg
+                        class ConstructorCanBeUsedFromJava(i: Int, arr: Array<Number>)
+                        """
+                    ),
+                    kotlin(
+                        """
+                        package test.pkg
+                        // IntValue is a value class type, which can't be used from Java
+                        // Arrays can be used for Kotlin only APIs, so this usage is okay
+                        class ConstructorCannotBeUsedFromJava(iv: IntValue, arr: Array<Number>)
+                        """
+                    ),
+                )
+        )
+    }
+
     @Test
     fun `Check user handle names`() {
         check(

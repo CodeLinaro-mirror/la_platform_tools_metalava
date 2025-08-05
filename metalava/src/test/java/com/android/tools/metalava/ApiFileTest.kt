@@ -250,6 +250,36 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
+            compiledSourceJar =
+                base64gzip(
+                    "test.jar",
+                    // kotlinc version info: kotlinc-jvm 1.9.23 (JRE 17.0.6+10-b802.1)
+                    "" +
+                        "H4sIAAAAAAAA/wvwZmYRYeDg4GBgYFBkQAYiDCwMvq4hjrqefm76vo5+nm6u" +
+                        "wSF6vm7/TjEwfPY9c9rHW1fvIq+3rta5M+c3BxlcMX7wtEjPy1fH0/di6aot" +
+                        "QR+8dAu1vM6c0Q77cE7/5Mkzj58+esrEEODNzrFeWHO9JdACcyAOwGm9KBCX" +
+                        "pBaX6Bdkp+uHABneJXrJOYnFxa3Bsf7CjiK2m3XvBgle01p6RV+HdSFX9Mfb" +
+                        "SlkeHdLcQrc/HLq8haf01lu9mzPNPh2bbH8k/sFkQ7sZx9zrp3zMWxnhLXz5" +
+                        "zZm51t/n7Px+5/b8/ftq2T8w6Ess2xJwyy7r2lsuyfwtnMcSTCvab+t9f/Xt" +
+                        "dpbzlRPSiTNCjnt1h0WyyEYKf5cQm+6V/sL3/uVHzXp609s2urZN/Xpq8+d/" +
+                        "vYEfvFofJb/+tTdEuvCIZJ5J7Vuv83klUduWLDjweN3bCqsJ8yaZpiodNIit" +
+                        "1s86Kxv/fkts+XT2PaoaEx5+u/QznN3m6YQlcTH3Zh9g0VMrYJzMs0ao/egE" +
+                        "rhabKY8evJ3IsWPavu1nm9NOzIwqcgtWKbRcssNp1r+990t2LpIJXvKyYK3a" +
+                        "pSdruWPlpkxNTDR4KVc3ZYXwiQdZTJt3HCuwVC9u3/nwnUH7Qy89kU93Qj/t" +
+                        "+XD4bezv+urfW43PTP+zIM+8ZR3bnF1Jxec/l/qbpH6fHfQnfYXfRDUxt2f7" +
+                        "zKzyi+K1vrYnRmfUHTBVj1p8tfOCweYCSX7xgJdnLxi8+NTMs5Ypkj2kfGd1" +
+                        "kmpPhUriEt5bLzerGUeurp7keUbyZ8asvcvizcSWG0xLq1wsUPn3cfKf48tn" +
+                        "JLoaX752Y/4GpzUCv4ulg4KzjJfPXHtpxrp3u2LkfzmuLqpx+buk5kzA8avL" +
+                        "0jryfrE/ma3l6f9mS3SoYEjFVdFE7z9S5d8rFA4X37eMm1ba/7rMoexd7O3L" +
+                        "m1Rl1itPXfJ6s2X91/C8Npeb+eymG1Wd/+TIby7vkuA4YivR0ZZ1cEOaYZvE" +
+                        "3PkXVrZwRDpYzZf537XyRNU9n7hfXS9TtnTP1N/xz9LlgeZaQy0dv4vnT/hN" +
+                        "7P9ntqNx9hNVk2cF3d+S9G8tMTybtO//IbG3D7lPbhaf1O1y5+gjg/KSBuvG" +
+                        "27XvVKZV3Xn9ZeaV7CdVG57v/WpollHveS9VS2t/f0ezNd87q4iDq5ilWdu9" +
+                        "4m+zB+/oZ/9tIHpMRKe1nWu7SBJXZKv7fkZQ7kgpPG11m4mBQYkVX+6QBmJ4" +
+                        "5sxNzMzTy84vycnMi8/NTynNSU1OSEhIA2KWJD82jQdCjx5peAIzq/YJP/Ek" +
+                        "bsZNe7ynSGyRAOdF/aZ9YqpAs3TAeZGRSYQBYR9yPgUVBqgAV9GAbgqyf0RR" +
+                        "TKjHlcPRjUB2pDSKEXOZ8QZDgDcrG0gZMxBeAtLcYE8AACkmDZvzBAAA"
+                ),
             api =
                 """
                 package test.pkg {
@@ -258,7 +288,7 @@ class ApiFileTest : DriverTest() {
                     method public final <T> T! getSystemService(Class<T!>!);
                   }
                   public final class TestKt {
-                    method public static inline <reified T> T! systemService1(test.pkg.Context);
+                    method @KotlinOnly public static inline <reified T> T! systemService1(test.pkg.Context);
                     method public static inline String! systemService2(test.pkg.Context);
                   }
                 }
@@ -291,16 +321,51 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
+            compiledSourceJar =
+                base64gzip(
+                    "test.jar",
+                    // kotlinc version info: kotlinc-jvm 1.9.23 (JRE 17.0.6+10-b802.1)
+                    "" +
+                        "H4sIAAAAAAAA/wvwZmYRYeDg4GBgYFBkQAYiDCwMvq4hjrqefm76vo5+nm6u" +
+                        "wSF6vm7/TjEwfPY9c9rHW1fvIq+3rta5M+c3BxlcMX7wtEjPy1fH0/di6aot" +
+                        "QR+8dAu1vM6c0Q77cE7/5Mkzj58+esrEEODNzrFeWHO9JdACcyAOwGm9KBCX" +
+                        "pBaX6Bdkp+uHABneJXrJOYnFxb1hscG33UT2aktGi5UpnXHfUMBZ6GPgJ834" +
+                        "10NKJsp/2dyKR5f4Kio++qS37FXsTp15cd3ML70vnes96h1/X3vp3H4yuT5k" +
+                        "eXlrzgRV1Z70reHP5c7ZVpdvPbz//9+//Aw1jLxM5axPD1m9nh+RyxPXzSPA" +
+                        "dGxlbV5039t5EfZy8y/pLdIKmvnaYPo7fn6N6sMZ/QcWZ2XP2rlbspVjzbXb" +
+                        "5xf/iNt6997dI44JCw9p5WtNZFrS6SygcaTz2foXwp+S5sxWZlrKL3K85KHb" +
+                        "y85rh2YeP5frODtxx4vix8XdZ0SvFOemc5kz/73x5M/NFzcS72qW/FzlE5Ol" +
+                        "mfJld3nTrjm8sUzShqv73x//+6SORTeyc9sTt6VBrntSbQz/KkzJuF17Sjrv" +
+                        "fUPXxOef2p7f3C+wIsza8F6SAVM2Z571pdU1GQseM77mZw3b6nee/dqOq2GX" +
+                        "ReWcw2PnNf7e4Xh3+5bb9+W7/k58/Cel+luD0sfFc62nKKnfmC5j07CJL/uD" +
+                        "gH/dFueP2nP746+0/9t01ELuZ9GDLJUZyZ4Zf1JjmVni1EzSuyLre2pvdXNc" +
+                        "qZ1y4Je7eHHqyQ6pGdmsvf8buXanc0sbphase/TV6YmytnyDfGE8G5fafUPJ" +
+                        "3MQrt9WWlFYGXhLNdQvnYU2XORZjsN7zjo7kdPFln7qmBN962upYdqlNKT5+" +
+                        "73/f6v/VUYYhxVc9Zp665mP5Vnja4ilbIo2NloV5iArcvbSu01LF7wGnbfY6" +
+                        "6V8s83uXn/eymnZOdco+ielxpp84p8Sv1yz/I6qm52B6+tjdCV68lwVnKVbv" +
+                        "at6bJ3zzU8+em/O/FN4P0m+37fpe7h23bvFBw6+3vm10frrV6s2tcxPfGv6U" +
+                        "a7jpXPbo1o63Eq/bD0+8vvS+8UwNuZ6Yg2xfOgrbzrS95mvV/TD7+QZeriVP" +
+                        "/JrZXGc0mux7/+i28ZeFD+YEvd5q/4Sxwcrust2sNnEJ/USVeqkUQVe1Fwbd" +
+                        "n+edPyfhesLRLqBaasXKrL/nNTee4TWMyVRY1nbknYSaxHbBy05JxZxJrhp3" +
+                        "3HSkhWb7i0TvCL38JeCymPDsbSzfmbayGYXcv9Wdmb153w2pZUu3KnX9zGa4" +
+                        "LC49W6XxjdGpdQ6aE+5+5mV4sfXQq/iAzoirBfePhZnKvG4Mla3vVwuzdzzL" +
+                        "u+JelLH8pTV3L9TYXLxz5GOvvG17fuE/Scv5j2b+WcOcJTzP5GDWIbEc80R2" +
+                        "u/xH9o7xZQ0FP7jmlSX0HeZpT5cp4cvks+SLLz5RHPGxWaid116jwMBCpyDi" +
+                        "UcH7elAW/7OSq28BMwODLye+LC4NxPASJjcxM08vO78kJzMvPjc/pTQnNTkh" +
+                        "ISENiFmS/Ng0Hgg9eqThCSxxtE/4iSdxM27a4z1FYosEuEDRb9onpgo0Swdc" +
+                        "oDAyiTAg7EMubEAlGirAVb6hm4LsH1EUE+pxFVPoRiA7UhrFiCQWvMEQ4M3K" +
+                        "BlLGDISXgPQFsCcAHeKkPLgFAAA="
+                ),
             api =
                 """
                 package test.pkg {
                   public final class TestKt {
                     method public static inline <T> T inlineNoReified(T t);
-                    method public static inline <reified T> void inlineReified(T t);
-                    method public static inline <reified T> void inlineReifiedExtension(T, T t);
-                    method public static inline <reified T> T[] inlineReifiedTakesAndReturnsArray(T[] t);
-                    method public static inline <reified T> java.util.List<T> inlineReifiedTakesAndReturnsList(java.util.List<? extends T> t);
-                    method public static inline <reified T> T publicInlineReified(T t);
+                    method @KotlinOnly public static inline <reified T> void inlineReified(T t);
+                    method @KotlinOnly public static inline <reified T> void inlineReifiedExtension(T, T t);
+                    method @KotlinOnly public static inline <reified T> T[] inlineReifiedTakesAndReturnsArray(T[] t);
+                    method @KotlinOnly public static inline <reified T> java.util.List<T> inlineReifiedTakesAndReturnsList(java.util.List<T> t);
+                    method @KotlinOnly public static inline <reified T> T publicInlineReified(T t);
                   }
                 }
                 """
@@ -455,12 +520,104 @@ class ApiFileTest : DriverTest() {
                     ),
                     uiThreadSource,
                 ),
+            compiledSourceJar =
+                base64gzip(
+                    "test.jar",
+                    // kotlinc version info: kotlinc-jvm 1.9.23 (JRE 17.0.6+10-b802.1)
+                    "" +
+                        "H4sIAAAAAAAA/4WXB1BT27vFQ0cIFwWkSu9NqkiRZqRLD71ID0hCR4pwAaX3" +
+                        "DgGkCQQCUkK51Ig06UqRIr0qgkiNgkD+eH3zHvievnNmz5wzc+a3z+y117e/" +
+                        "paOBh08FICYmBgAArICLFxUAH6CpBFYUVNNSFtJU1FJTVtIH39RUPusHAPY1" +
+                        "BwfuawjeHCHTEOQbHnxTqyc8Lra45nFTXVNATXPEG1mnt6Mu6M6nPjjIb7gz" +
+                        "LNTXN7iytryGC9DRICKuouStkjqf4Pb50Pnt9NfPh5e9p5eQmzNECHz+oOF1" +
+                        "0xZq7emZBoZpUype/RtDYikVk7pnCt4pVldcIkGPRdukuRVQsYeG7jjxapj4" +
+                        "zyW3COrK7/Yt2J6wjXRdlT9+HltLxMOX6ds0A/d7hIHPTcO/Y07HaAA+IgNv" +
+                        "C5RK556ZvrPgsrecsQL2wdADFnnlyJZGtCBfaA8ttNsH8uRhr3C6IKNQthcE" +
+                        "z/IFafE+O3f7XoFz1MvAFIiviXDP+PjCX0cb2AI+AeZK1n5PgjbOzg3JZeDT" +
+                        "+nBMscc/PpuVYFP86O+VCC8WAx7+ArKIAgSKk6/eA5SRjcYmE7Xe7E2yljQ7" +
+                        "3q8+ouxNZi1bVzGkUM2fe+VnzlKpfxvC3vfWpkJSD9gWkpitBxXYjgx2ntYh" +
+                        "vVMKj2wz+XIAmPsoguNPJ40lsXqOjfVEU2TLwbJwp2hZMMi3MYoiV81jjnrb" +
+                        "Pu4nbkMPVhXZY1EB92hveDTuR/jiZrhNv1ICihZhSxMGda/ZcUHNrSMfrxWv" +
+                        "wT12CTq7R+GVXb5kkzNu1+EL2jXT4JEJkA9GdWC60cnFiK8MQVeCgmzVHLim" +
+                        "8xSYxEp+7OIBsbGLZcPzDgfuhGNiefMfGH918lY1cr/hqOiIfnWLexD5pac0" +
+                        "KJPu/SCgsIKuu7BvctRRalSCi5aJcYvz2VPZ15/+iScIxAP1PW0L8UVy2g+Z" +
+                        "SD0aikrJfvdG+YV5LDq9qerLcrhVcsGXwcpP0sXPSjXIJC3HwDHdPeH5fwmp" +
+                        "cfYPHTcTpx81a6six0vdgsKIRqdUrGaSK/gqs3E2rmjzXrsXRZ1KDykbAfLZ" +
+                        "GNK/PCgvGUXdNLTjcVqK1SNjfOcTecXYUTE1wY7+haQKhhJleKVe1ZJRs/7z" +
+                        "c3bDb7HDBjLv6hPQYH9mELPbCqCT2X2zTY01d/RjYuyYb9h7l/Ct+V6tFYke" +
+                        "nul7Ye6NHHlK/B+/htrURY/E+o36Mg3dXyHo4+3wrCuIutV1575/48rIwpfc" +
+                        "iO++i0usTC9CwlbTHoCcHefvRoIjX7POMv8wSeUnR55lXABAgOBPJmH+3ybh" +
+                        "cLF+pOgB8eQQ+WmXerCZK4MS1ZlD4FDPqmUWaV3JFauWjHpQUzdXtyZjDdKZ" +
+                        "74YJck+8IWKoZ3P6oZBhv/7fpC/zr1MkleJfSzjh6YIfZhlrdjDwfx6Eex6t" +
+                        "m8sNPQjCYmSCIxyFKwg6yGMz8AYkWZacqjmPSrdNzgw58Xp2WqXc8F6n9+w6" +
+                        "Ok6JXs1djR9Z7XTJM0LA5MNRNFOVB3GnxnyTWZRbsBV3nu/xpduGdBNVKoMs" +
+                        "fW6bL3XFVMWKnBvqnlqE3yuYslalHrThjhDwYuQdTGaTRAWGx63Xv9NlczKL" +
+                        "nw2xMualEkL0V097yQ5IUitOrkgUtxd74clpIdYIX7x1793EiDC7dy6Nit5/" +
+                        "fY3a5/0qBz237K7ekUP1vaitx7P0JHSrCY15GVTwD7nX+eLyukk64+7u4yIY" +
+                        "fRvqkCvJ85M1sdkrHELm6C9MMZY6Q9ZMpNLiFWJ2zrLcn6Kjs3T7ydWcGt4T" +
+                        "HU5YskfMZGaz2udau4s2QtgWA5nc+EAM8RRdV0rS6eqDQ8hSE1lWol4UTXIc" +
+                        "8gPX9sekTk/Ak4b1MbClEy8L/loZ/3Q7WFpanceyzOmbvDFTibLlBjoHZ/Pm" +
+                        "vXdvyQLp50YNZLWRG8IC2tOmK0lJ7mfPnBwU8uG+RcCvpPq6KeFGMRkFWScI" +
+                        "o/HmiG85HWmHr1iseCzUDhsY/GV373mByt0piDfGVHnTxiNlWHURY38bBlW+" +
+                        "pj0eI1YQqt+ndHrwMrtqlRvjPF2akeVvX+tRhWoDeYAQyltNgQVZq5jGsaXc" +
+                        "oZZ4SR3SwwInjRGSCIul7qw45rt0UyDr/qTPM0XIB25prBB13lbZiO/o/JUA" +
+                        "EObGJHf0yEnCrFzn/ZkGDvK7CfkH7t3fGzosmpAB/uLLm9IZN0FhPOls2283" +
+                        "Q251Sy1rJtsVcrwwkIYlET2XtVDPYf3KZWMaNzFrHPO1MFOpG7pXoUxuwIba" +
+                        "cK05sdnooTPE5qeEu7IF2cOf3X1rGzo31UwsMH4FJohe0BkskTU4vs5QtYAz" +
+                        "igjWE9GhZj7JPtHcM1zYMnMUGnbbpAk44NKz2+EhgdR00qPj+LDAB/lMFsnt" +
+                        "K45Yisd1WO2uV5Qd8wUC2zrH2RGqmVOiuzVR2jtlUbjRXOqNj4nXV5i2mdnW" +
+                        "VkLIO1Xgyh/0M8CT6zxn/Mcv408eneH8cOskZQjaGg8AECL8k1tpLrhVVEjr" +
+                        "p09/utQ+Xlu7Q+Fq9wI07e6p0T2KEwpqetfcxkxxRU3x3dExXOfaOiiZjDjT" +
+                        "kTkTECKf6o6cz1GbR9+uPbKXezkvDzC3Vf1Yu5vTmq6UNbvp0MwbQMzWxT/3" +
+                        "sWi0UpVpnb928WpIQG7aLaMJTp/wQ71aNGupNyVxrOlGPS5ummhQLYw+xkyL" +
+                        "uPO0kqEsKRossG1ft1D88P5nUU6gA7byKiq48KWXASoU4d9ikmlmRtextjJR" +
+                        "Y5EN2fzcKqr/4eEE1PmDDG43zt8a1jvPPzQm+rD1gja04llAmQXZBRGqAvGi" +
+                        "N1Y4iPxylgUi9iJljxd+LBcbB4vvp/PF4Mf503LRXlouZQ9rCMze5b+aAHvd" +
+                        "Fi1cRSpZn2AlI6p74B2D8jD+Li3bQi4OjtIoenokDpfkHYehYQWBI2pse39X" +
+                        "x1UN+X5fn/paKakEmdsfHNDoBXlAjlWGjld/86LTVBXBoSrmdX+jQKQObW8Z" +
+                        "UHn04OnMsIL3tOa1VjFYnQx3EYbcVMpu8UiVXUO1RQV2pXgd640Ifbcu7MUO" +
+                        "e+K8Zqct3ZdLq61v/sTGOBYHnx6FrbD1Hqww4twagqCF+jtoCBz2TfzkyqNs" +
+                        "mwcD0L6FLMtl9N2upwxSbZHHGMePjcMGU/qhAfoM3mJ0PuADFhn2R9FD1fwq" +
+                        "gnQbxlj4WaBkVDOy0la3KZsW8RpZ/GL9oCPzrRoCZKsbtuiMRfa8Fks3IYgi" +
+                        "FI1wNfa1Z9OxPqAY66S23fYBxOykBMi80tziwCoYLwtMKiND1ggN6Xuft1OV" +
+                        "k1HVTBCapFYPN4W51lgvnf7blxFTkiJ1zhXp+qMq1JdUuevtYge1/6mJhe6A" +
+                        "Fq4IlaygcG/k3g4BeuJTB86yli0bFxdHZBS9RAWJuDGtdDj1crLrLrk5vFG4" +
+                        "q5jZvpXRpOlck5lsz7EveQnaAIikVa+ZE3TnDv34k2PwVxCckN2Hx4GNOIwJ" +
+                        "32euYGtanAI4HzbabynKER8/Y1J0LgnbUGKddr8wVTY245kYVdbz3nB1on9G" +
+                        "o9HVT+7I5XKWAjwT3QGEEmxYJSkD1okq0Rs319FvNGY/+NnE+DmJVO2SlCPQ" +
+                        "lrK5H1yQPbNmLzkdjFJCpBhN+DwZDzlBlWV1UM3XFlJ+VHM6zf662qEwEV0t" +
+                        "IU0sa5aW/56ylC4672F5D+pFbOGB+mYvSTkbTIcAYZZhMLcRyqmnWBEy3idj" +
+                        "OB/plnqlbeq+bYbw99vBwBPJhRh3ou+7zMIVeumfWUbaTfE2yVYTuaPv4ilB" +
+                        "vdqBEjVKTSGu1bDFU9wfiuTaez7WOlej/Y+KMPxfZeW+tb/fT1megWe0KBVp" +
+                        "zxzM/I1jUpXwFaWISai9SHOvEkdlJYobcihEXjECyUwUz5jUis2UGsUlLLJ/" +
+                        "I7SkjaMpWRqNED0boy59wrrrcLb/ldkn6Oz4DK9dVkAM+LCg7nuJqYnXbd9T" +
+                        "d2NdpbMzC4rYJQzyWkZGDMLccCKaqHXYIm8g+rsNViH1gASEcbWgcA/vQnLL" +
+                        "tvVU3zGrIHz/tYgh2kgOPgfRDqwc7086zrf0fKCEKmpT4PNp61wzcvksunXG" +
+                        "7uuNsHjjx1JuoXknym6ahso2GBGtaOxOHjpP3qRyzbxfYf/RgXL+bbYFxIQo" +
+                        "as6XH0Ii0WlsJKf98Jr6dgtBGQh3V50vCjjUcGCaimRM1WTay2JRCYdPj61s" +
+                        "jkIZEkkMMl4pHUx/VEoPH+hUB1PquYYrSvFFCRNEsEo4t1I02j0negoEYWnd" +
+                        "CSXCR6uFB4Xd51vF3IRtclTolo/rEcBtOORuCp08RAj49QxyC3iqYv0mbN2+" +
+                        "UmqjwlRWOWJgMEWCnNY47cBVln0til9IOAAqwQV1nkJlx1HXoLq8vrEbxDC6" +
+                        "SHiUgWuT7KX4XQVNj6ZS1LhT4hKKchptBW8xHDFRUMJE8vq5yeU5K6D+m3r/" +
+                        "bK8tRTSOUDLRNdu2CJSglOgRcJLOdro8KrEhSRXNPGgnjzZZ5Kvtrrmyh+EH" +
+                        "DUZJ5ioFVrRz0UWYh4Usm7l7mMDdb6uFZcEIRXjOcXQuFYMu7EGoTE7A/eT8" +
+                        "rlMLJn/lbR4Etkdablle4fNnFhINmzkxESNpkRYEyjbEBRmBsRsJGZGlsICq" +
+                        "rTRqiCueIqKk10/iYZRBU45zXdzXnufRsPS6YOSkP5h/Cz/zgwTPzxqZDw8F" +
+                        "vkqbPaExP53FbVp4Esf+lAqFL666oRIZpHAcJYFfaT14g8q9RHxiuZlUbYl1" +
+                        "xHKzkWK/R7qHNt3UCychkrpXWu2Z5QKoIrgMt4S0MSS7y6Yk2GT2PZ5+r7UL" +
+                        "eUNHZkdrByxMpj8SRBL/pDzRSPWM8IdtjE0c5bbPe2fkH3vnH7b573wLs3Zy" +
+                        "uens6gV1cnkAc7XzhtrbWllZOZwPfBstQp5FiuVlHrXzvMvfq0VjQ4qDatVI" +
+                        "pa2j/bdsCj1BU3OeswT+jbM4uFSA/5nvYtT9kacvX79L179SLmaB65cIQb8L" +
+                        "yb8iLjYozJcQRXj/b4T4FXbx+Ka5BNMj+m2H8yvk4mlDewkSQvz7c/9XysUK" +
+                        "SX2JQkPyu3PqV8bF7cJwiVFG+sfK+ivo4k64DFr86497TUeDgPDHZ8Tn9+3z" +
+                        "P9Ei//H2H7sYnHGbEQAA"
+                ),
             api =
                 """
                 // Signature format: 4.0
                 package test.pkg {
                   public final class TestKt {
-                    method @UiThread public static inline <reified Args extends test.pkg2.NavArgs> test.pkg2.NavArgsLazy<Args> navArgs(test.pkg2.Fragment);
+                    method @KotlinOnly @UiThread public static inline <reified Args extends test.pkg2.NavArgs> test.pkg2.NavArgsLazy<Args> navArgs(test.pkg2.Fragment);
                   }
                 }
                 """,
@@ -4191,7 +4348,7 @@ class ApiFileTest : DriverTest() {
                     ctor public KotlinClass(@IntRange(from=2L) int differentParam);
                     method public int getParam();
                     method public void myMethod(@IntRange(from=3L) int methodParam);
-                    property @IntRange(from=1L) public int param;
+                    property public int param;
                   }
                 }
             """
@@ -4517,6 +4674,7 @@ class ApiFileTest : DriverTest() {
                     package test.pkg
 
                     inline class Dp(val value: Float) : Comparable<Dp> {
+                        override fun compareTo(other: Dp): Int = value.compareTo(other.value)
                         inline operator fun plus(other: Dp) = Dp(value = this.value + other.value)
                         inline operator fun minus(other: Dp) = Dp(value = this.value - other.value)
                         val someBits
@@ -4527,16 +4685,75 @@ class ApiFileTest : DriverTest() {
                 """
                     )
                 ),
+            compiledSourceJar =
+                base64gzip(
+                    "test.jar",
+                    // kotlinc version info: kotlinc-jvm 1.9.23 (JRE 17.0.6+10-b802.1)
+                    "" +
+                        "H4sIAAAAAAAA/32VeTzU+R/HvxjXDpbMMprKOJpcM9MauWI1rswMmpxRwjBs" +
+                        "QwwzVHL0S47YKHLkqBwzpVCZKRK7ibGOiVyVezKs3OMYJWG1f/x+tY/f7vvz" +
+                        "eD3ej8/j8Xm93u/PX08iQQwEAaSkpAAAUAO+LggAAhxsXLBInKMt2gHriLO1" +
+                        "cXZBOdhutgHAsgO33Z6ARHXJEpA6HdxOltP+XgxvIhyFd9DDOXRF3GM7CfDI" +
+                        "MB08l6vrJuhAt7Zy+RNjE6IAkSAp9UBR+4HJ9gCjbRH/cbzCtuhkGh1NDQpE" +
+                        "W1NRfsG+NFqM27AzzBWyNfzyTYCHT+aT68TbBj6w2wYiQccZcO8rCd3oQ+wK" +
+                        "t5yHzy1/zRtuuoeR48eb8s8Hlh/5NEa4U4LBqxzkw2OWQ8N7aUZGrTvUMf4L" +
+                        "5oGdC2c6zCeHWJ+FnQtxQE1yp0pecGMVf61C+NH+J6CZei7WGT21yL7plT56" +
+                        "st/AafUuAVPYPi68+GuGYWXHs6sl/BIZT/P9ALpx0ZYHfJZZqvVFz0wVN/Au" +
+                        "C/epRDOqmjJ0IAbialiyYADG5LyKfq5qpTXxUIXwtOjxQTDj3TOjy/Bs+9VO" +
+                        "ffbraESPSaGoNAYEOsQJuwTZ1Sg99ho8I/1iYla25BDpF56OweZJS8n4vCPK" +
+                        "FUWMsiuHl/t1L94S7XN6Wk5WTtE+6A7Vx6zRVfC+Z/gGSavE6JiAUc9RrFnJ" +
+                        "2zxMwOsK8MHICPwVJ1ZuO9SZeVpacoCSFqSl0h+R00kmsWmpkUXMn7AU99a2" +
+                        "BS2/fTMRzjaYegpEFOov8D7AYprPXyd5cORRWsbpxlZUhCptWh/hlzu7Ej3S" +
+                        "Uqkvw5FbN551q4G6LpqiwpuNoKYwzqRhHVf2AbVxqkR2dCyRrv80Q4RSfSye" +
+                        "dR/aaFwdc9zGQuJsAkI7FFb7+MfC4wesR8ZTykkSCiNqbwroxMP2NI8XEbXo" +
+                        "5pLim5UQBjLbLNrr0wJGizOLn3/kxyDtwaYxJWRVnzCvZ2ufe7fzWlluo2ya" +
+                        "N5HH/+GaLrcXYpY1f75BV5nfvHC0Ouvuf7zeIazFnM86xeZa2N6t6wtasdgs" +
+                        "XOcVbPqZLnx263DM7/8YoK14S5ccwNKEfjZ0OzlkEBzjWh3RjbuRkdQsw0+H" +
+                        "x10gDahv+GUSIGlsU+7bpZHVvTaUHAguyHX1ySlprYzZIlfmAbv7muOIT2Fi" +
+                        "HkUO4IqMui2h9frIavKu1URG00jkRYfHiRt5vWp7zdYtPtVXuS+/LOx2yRDT" +
+                        "iK14Gg/zGo1Trx8gnx9Ms0l9bfqm/NQKYrzFd+7tiaTIgnFFDX21ujm9rsiN" +
+                        "vkz9UVxFjGOPekE6ndsV8TN2KaztXaTJGr7MZKq3tqV0XSuzx7/4lPnKH/ZZ" +
+                        "JveEqEsGFh8i9+J2xiW5Zz+GT+nsu67tV+rCZm6E5rK3GBBi9NLm98PSzSyC" +
+                        "kFHQnp2r2VtfqWY5zLPfnacRjb9mnPnbQ3JmywIg23VOZ66CFMDR0lu88fKZ" +
+                        "UU53T3tUw3gV0RA9EEWZYd5UDqd2neicjnx06Dz5R3e90l9KW72tlVI8BrnQ" +
+                        "diY5Y8LfMJ8VMViKS/GdRqna4FXhl9be31k1TpT3B+H8MiGT9Vb3Q3nuBhZ3" +
+                        "rlxSN99I647fYd5XJeL5qg2WdiRMJDa1fG/I7rlhm0GWKfsNtjoLSe0O6zgz" +
+                        "x+Y7lq2Ld+bypJfgydO9R12wClKjWWXq761zbkclBbd9IOkNPKtKxUh2NvU0" +
+                        "lEW12BWzrbt07XQX++zWd2ZWHoALVeExc1LdrD6r5QEBS7x4NFGwoCw8LFcb" +
+                        "ripvrVBgZf9csjDoyG/e0xdSwC2g/S13WMBJpVgNdNjmCFjzhcbBGshwQ77n" +
+                        "llzlvM9YoOQxjctSO5qT6uEmugO2f/wwyHExt62MbKcLn9dnuaXOq6+Vy/Hu" +
+                        "m94oohvR9Y+nl5kUYVH7wcUuXvFxllHf3Zrs5+0p3T1UqzRXsmcjLahu4kTc" +
+                        "mL/bd5tXro5PP6ik9NXepVQXQud5lfcpfW67hzgk5F3bORzVYeyWnIiqMpXM" +
+                        "E8+WiIqzosWsmaFQjDaGcU5OIrB12I4qTF6x65qMuHytzd0rleelB56hNc2u" +
+                        "9BHsPhSjBbExrRdrJi9YfmZ5ele10X1kEZagD4uHAARnzbPgsgAisnBEEEVZ" +
+                        "W8U67RuaojRIqg8iP15VPZrfZBWt+R4BKjSF36sRq98srlFkuikyUwbOCd4+" +
+                        "+sBzDnwsUKkY7QlJeA0RZ38CbnpAWcfyOaaGP4NpSvlvizEedhrLQIySJ/KV" +
+                        "mWtBYHVCj1J4x2Z5QrKNtygIacZ+FYJlyVddPTNykyXPov7e3zNakABTCtCz" +
+                        "P37WP2wABRYHFyo174qPBYttiXxBiS3tyQ0ZCQCwkfk3lMC29V+SnfY9FYIK" +
+                        "CqUHnwrxPh3qHxFM9vPx8QnYFojkKKFFJL0iAX9hSqheV6+47YT+hSkRUQjw" +
+                        "v/SvEfaFk9/WP1Hz7ylfb6/wTULc/4Pf3+1fLwj7xt4m8a8fJhLEJb48E9s+" +
+                        "HdsdIfnl9iewH8XSCggAAA=="
+                ),
             api =
                 """
                 // Signature format: 4.0
                 package test.pkg {
                   public final inline class Dp implements java.lang.Comparable<test.pkg.Dp> {
                     ctor @KotlinOnly public Dp(float value);
+                    method @BytecodeOnly public static test.pkg.Dp! box-impl(float);
+                    method public int compareTo(float other);
+                    method @BytecodeOnly public int compareTo-fPRv1QM(float);
+                    method @BytecodeOnly public static int compareTo-fPRv1QM(float, float);
+                    method @BytecodeOnly public static float constructor-impl(float);
                     method public void doSomething();
+                    method @BytecodeOnly public static void doSomething-impl(float);
+                    method @BytecodeOnly public static int getSomeBits-impl(float);
                     method public float getValue();
                     method public inline operator float minus(float other);
+                    method @BytecodeOnly public static float minus-TBhqLn8(float, float);
                     method public inline operator float plus(float other);
+                    method @BytecodeOnly public static float plus-TBhqLn8(float, float);
+                    method @BytecodeOnly public float unbox-impl();
                     property public int someBits;
                     property public float value;
                   }
@@ -4571,22 +4788,93 @@ class ApiFileTest : DriverTest() {
                 """
                     )
                 ),
+            compiledSourceJar =
+                base64gzip(
+                    "test.jar",
+                    // kotlinc version info: kotlinc-jvm 1.9.23 (JRE 17.0.6+10-b802.1)
+                    "" +
+                        "H4sIAAAAAAAA/31WeTQUahufrBPJtVzrUCJMzJqGIdUwRkzEGEINmRFjGNuM" +
+                        "mOxkzU6SPakrTZcaqTu2uilNdklxhSxprFn6yKSu7nfO91Xn3vu85/fHe877" +
+                        "/J73fc7znt/PDi8sIg8AAoEAAEAD8G3IA0QANhZEDMTKFgezwdha4SwciFAb" +
+                        "3OdnAMCKTUf7MTwE2iuFh+zr6ujmEOD9+8emgqHWNvpWNr0h1XWE99aQoH3W" +
+                        "HR16Tu+7YDxex8TU+JQQwA4vDqyRA9egtwoYbsHuH8vLbIF5hsGEBfp6w7CB" +
+                        "UIqfB4MR6TR7HOQo/+X14MsO+IO5PkL+8kwcJJOgPlBvjXEjNeQ1A3rrXdVO" +
+                        "x8RGhizqO9nsWIovXG9K+ZAbtYR/Tq3Ie9W6e/PtqGc/wxsG19fbHr5oOl26" +
+                        "YtIdntjy+eOmNEBxCW1+0ZdxD9bS3Gd4OTMGcarUjYNiN9ddJPEbmmq9YFzz" +
+                        "Q11YaO49iQGzoWbj+ecgFWUyvP1nTSCyuKoShCnAkG6/ZumR6pSFSkhWiT24" +
+                        "FLKVsHG1gS5cKW6h+pFytfQgBb7M37NYouoeaVDSZMYt4VU+gCsyXBYUUi/4" +
+                        "/9oz67nsI/SuUlUY0c8/HxanMfSGqR8KGvAGy9ZJ6G2KXGScmBdy6TByaTna" +
+                        "4aBHKZRv9YNSMk2ga4OaBgywDvSpYC510at0DnYupXY6uKk91AsltjCS9znX" +
+                        "aR7DzeEXW6CPwbGVcbE7i3t7M17uqEvJjWNM/lJUFCIp7mSb87M7zzo077bD" +
+                        "VONSRa7bHUmZVfj5GmOXNrUla0RAuaIis9hyVzzq8uLqDJJNjplkR4x0QRGr" +
+                        "Z9XvBvWzDRCeYyGn5JMD4AaOy92wMBegm0ycXJtk814RMDIEJtzvX/Iz2RCe" +
+                        "JqMhqI+FMi80ptuPOEGajbNP3jkz0m869ECr0KKwhsU/qlzwU13c7KrbnKWF" +
+                        "XtOJmY2uyd7pvpAyDMxLMTjTFCz8vOc8yhF9llhIcI2TT7gp4nVawvD857SM" +
+                        "rKpkbtIxU20CP1qxIviW2bopjS91bu+hUMGZS9nh1lFH9OOJI5tun3YJwL00" +
+                        "t9VdDo3PZ9GG856CARQy0kH1MjEfWEROXiAN15F8ecGQcfDldEC6sraCjf7u" +
+                        "soGUL69k5H+7qi8FR7VwWFYnVORJCN8PJTZDe7gVYtQTPi+pJ7RIFoc1ymeY" +
+                        "VVdI9qEt6vRXgyAi5WFBXwtnsPuJL8XDwYe4IdxwODGe1rPDpgQlVaEZ78Hh" +
+                        "2gNJo5EVjUNeJkWl2HQXE0d6IVPuw7sCF8MX1NLdG5Pl1ioPxQbcozdf5MqO" +
+                        "gDkezwwmhDLDOiYOFKoMGs17CNIiru1S8kEWWVVOGWU7ySI6UVw0J7MY/od3" +
+                        "hZezc0OOlu19RFX1dVxjE9DxmRIihENbU70+F3UDu5rFFZjjD8sNXtsgdDlC" +
+                        "p+VCagK07Q3DOGlPcpQSsLZvYewGbKrhkVxqoXX4zQKXWkkG2evCQifElc+6" +
+                        "OQZ0Rd70JvkGbV6/eKkONcv2hNxzLuccKtJTUJiv1ISO73/MnvWcYyWZaKHz" +
+                        "O9+eag+hnqLEcPWwpX3iyU8M0qNomcbYK2aaGXhi2Tu1IfPXLRUbaDV5eR+p" +
+                        "8A4AinrAWqgKA5kPKhCxI0QlVeJtjIqp7q+e8B4BJOLUj6huB0+am9r22o5T" +
+                        "3x+U+cWoRFfEwEmM9CtAxVjk3IZSj7YB3i4bKGOhtUSX/xK1xNbvSYb1JIuk" +
+                        "XhW9RWhqC6esCq4ds/8ARt6oSjmeTIy4UJkQ+gYrQHXlF704OL+R09r8xYN/" +
+                        "WG4FM74DD7LJSyk3zozv87yxk3Alha9/BdpObHUf/9Sk+C5Tyv8NgSwZUEg6" +
+                        "eZ+b0FvW5LxzPBXfXaD0H9lJtp+q4zonfSlYzZFbnrIdFjK05gq5nT7JQSb0" +
+                        "NGdbzcSk4ghTxuI4aha+RHnQtNM02oyVajfm0r0zDzLMzX9XLhGhY/SQsHxo" +
+                        "KfUWNVqzev3Oy0b3ZC+JzfrpR2rDHw70RWmcq0eEjxGvTeZybyQfTyLuyp45" +
+                        "tybZEXLvS+LMcobEeu1qpP7r8MaKrNXR/FZaLt9etrtd9mpeKVe5raHgUt80" +
+                        "cNA375Ldwl63sc3lHJ/702CLx953Gz3Dn8c6FgPXlo7sS+Ot0xqjolOPvtcR" +
+                        "ERb/uBODwG3yqx+KI/84sG53nprxRuNQTuBV2a53+Y7DcY4jHz8PKQu27/ec" +
+                        "Fwqb44m8v3GPEYETrDFdyyOzQa7nYo5InJVoB7NPX8wIJDg/Mn7cmo17u83Y" +
+                        "iIamls6MqExUTTxlTWtneNm6C1FB0uhxEB3kbbQ8Qpe01GtTWzwW7QAyNNJG" +
+                        "axupBxkEY9ESIO22Wp2ex72bu76qCV3OyklaDACw2PFvaiL3vZrgmf/VE7q9" +
+                        "TYCsvbzp2kM4XNSEfkuI9qJ+n/MfsU/UEE9eZf30y12FR4kvAJSVZxEJrCyu" +
+                        "5me5TXEuPF3SPHA6EzmCUbwVtLTAWhtmLLabLk7XBIxuO2iRbmfnz2ZTw2hq" +
+                        "2Jq8nXsKvLtabx/UMbrrttY1fIgD/p0AOzgaGRqBvNGC1qrU66Ql8fCvjZlm" +
+                        "KHurw8thO/Bz+A84dbSS2B1n7jJOEMk+5W4ZmyXRllrrD0tF1mVYIu3oB4LV" +
+                        "yhouebwNlNI7f/cLkMmWWdXVaIxJIs5Fv6QSTVjsicTY2ftW5cnHc2vJ0uZT" +
+                        "vAfGzIv7A/Oe7wZG55CTdLf/phVz99Hknvth0FzVIh2xkN9XBvsNvBzMC8jb" +
+                        "LDyS2bqKnYN1+rS6MoQoZaZNtPP6yvHLTBSdtiJtZlg392kCl56DEDSamFjy" +
+                        "TBL0rsvUxVMDntZXuicKX6r1a39gqiIwDV0d4LM62EMeo0vGXUe1P7r3UZMm" +
+                        "7Efpz7TAJWnCeyPvaVJ4LxQxP+2z5MGT7ZOOqESj9DHmiUFJHLGVuNu1rNjG" +
+                        "TdGbJu72n4qVYnRAUjgp0cmP5mfR3QzVCyws68rgyda2WqWyoHmFmwGh2bQ3" +
+                        "tpKqkOHHTQoLFE4CxC8Ug1Af81C8rJRJJpLzyEQKFYFs2fZ1UrrSTq7wtwEA" +
+                        "t4T+bVJUt/A/20P38PGH+gYw/Xz83ekBniF+ZyinT5/22oII2VZMd0x2bFzX" +
+                        "assG6T21VSQHgd9D7ck9ZMBfLkex2CJ37xbXvr9czjYhecD/633rgL7arO/j" +
+                        "n0zXjyzfTr7MdwzRf+edfkz/th1y36V3iv3tZ/mR4NsXqn5HsAb81x7a4UXF" +
+                        "vh4T2VrSWzc4s/3r7k+Fg8CTigoAAA=="
+                ),
             api =
                 """
                 // Signature format: 4.0
                 package test.pkg {
                   @kotlin.jvm.JvmInline public final value class Dp implements java.lang.Comparable<test.pkg.Dp> {
                     ctor @KotlinOnly public Dp(float value);
+                    method @BytecodeOnly public static test.pkg.Dp! box-impl(float);
                     method public int compareTo(float other);
+                    method @BytecodeOnly public int compareTo-fPRv1QM(float);
+                    method @BytecodeOnly public static int compareTo-fPRv1QM(float, float);
+                    method @BytecodeOnly public static float constructor-impl(float);
                     method public void doSomething();
+                    method @BytecodeOnly public static void doSomething-impl(float);
+                    method @BytecodeOnly public static int getSomeBits-impl(float);
                     method public float getValue();
                     method public inline operator float minus(float other);
+                    method @BytecodeOnly public static float minus-TBhqLn8(float, float);
                     method public inline operator float plus(float other);
+                    method @BytecodeOnly public static float plus-TBhqLn8(float, float);
+                    method @BytecodeOnly public float unbox-impl();
                     property public int someBits;
                     property public float value;
                   }
                   public final class DpKt {
                     method public static void box(float p);
+                    method @BytecodeOnly public static void box-fPRv1QM(float);
                   }
                 }
             """
@@ -4858,12 +5146,38 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
+            compiledSourceJar =
+                base64gzip(
+                    "test.jar",
+                    // kotlinc version info: kotlinc-jvm 1.9.23 (JRE 17.0.6+10-b802.1)
+                    "" +
+                        "H4sIAAAAAAAA/wvwZmYRYeDg4GBgYFBkQAYiDCwMvq4hjrqefm76vo5+nm6u" +
+                        "wSF6vm7/TjEwfPY9c9rHW1fvIq+3rta5M+c3BxlcMX7wtEjPy1fH0/di6aot" +
+                        "QR+8dAu1vM6c0Q77cE7/5Mkzj58+esrEEODNzrFeWHO9JdACcyAOwGm9KBCX" +
+                        "pBaX6Bdkp+uHABneJXrJOYnFxVMDo/OFHEX+pU3fJKJ1gTvqQ9s174+OUclJ" +
+                        "SseWaF7NW5Jxa9mxDyatE/1u3sxNS+/c8zV+Zsai2m/ukucnKHXym+YYpe+3" +
+                        "nP5+Tv659ffv1zFU9KnzsConBdtLf3ndznJPkr9nYcWp9j1yHzbE19fXaO16" +
+                        "UipplLVF/YznleSC69nuPKfXOqYwSV6b/cinW8980fWED1M6ku+J8/xsXrFq" +
+                        "0jvP0O59Ym2JegLOggZT/utOCbyxSVHL//2vs8/8Zi8smnm5r2f9OaaFLh68" +
+                        "ZVv6trRnT/nh1XZpT1rGuu3LPstJ6B6uOzy/xEJ21a4lTrKfGm7VPvNM2LbY" +
+                        "wMzq5SyP94W2ArsCraMcGI/qfIpQ+Zn1JH6aD4v4lRfN05wnWXxcsyrQ+lIX" +
+                        "e/DHyRO+F2bvf7v9vpGO37EFAu8LD3suWNymt9duc9o9KYMNjax8rPs9us04" +
+                        "vppJxsXMSd9cMmfR5FKjPNXgPRbrLaRzpguWHDuh/OSf60rDotyfxmkzbXff" +
+                        "X85c9edK2ZXFS0WijETeushy157oZ/6Uspwrw/S3Z8YSIXejaSJ3uQ6f6Pku" +
+                        "HPzIccqLdRXKzI2+Fh43H07UmmbYbhJjs+S2VOLvp/uU/3cuvRGu81fGu8bF" +
+                        "zLc+W74/+NpLnZuCnVrCyXKRjTJiHXmVYrvu1L/QipjZuq7CVPaUxlmn8F2T" +
+                        "3lndzSr7XGFwrsJT0ryjZCvzdfeb7keP+975VChdXnPHdSuz2GO5d+UG4smW" +
+                        "x6JyHDWPnZIHpbKFp+3rlZkYGK4y40tl0kAMT+S5iZl5etn5JTmZefG5+Sml" +
+                        "OanJCQkJaUDMkuTHpvFA6NEjDU9gotc+4SeexM24aY/3FIktEuA0rd+0T0wV" +
+                        "aJYOOE0zMokwIOxDTu+gTIUKcGUxdFOQ/SOKYkI9rpyCbgSyI6VRjADmTHzB" +
+                        "EODNygZSxgyEl4B0MDOIBwDRacUzOwQAAA=="
+                ),
             api =
                 """
                 // Signature format: 4.0
                 package test.pkg {
                   public final class TestKt {
-                    method @Deprecated public static void myMethod();
+                    method @BytecodeOnly @Deprecated public static void myMethod();
                     method @Deprecated public static void myNormalDeprecatedMethod();
                   }
                 }
@@ -4906,13 +5220,41 @@ class ApiFileTest : DriverTest() {
                 ),
             // Access androidx.annotation.IntRange
             classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
+            compiledSourceJar =
+                base64gzip(
+                    "test.jar",
+                    // kotlinc version info: kotlinc-jvm 1.9.23 (JRE 17.0.6+10-b802.1)
+                    "" +
+                        "H4sIAAAAAAAA/wvwZmYRYeDg4GBgYFBkQAYiDCwMvq4hjrqefm76vo5+nm6u" +
+                        "wSF6vm7/TjEwfPY9c9rHW1fvIq+3rta5M+c3BxlcMX7wtEjPy1fH0/di6aot" +
+                        "QR+8dAu1vM6c0Q77cE7/5Mkzj58+esrEEODNzrFeWHO9JdACcyAOwGm9KBCX" +
+                        "pBaX6Bdkp+uHABneJXrJOYnFxb1Bsf7CjiK2m29fCtowhemT5rX31/jFJqgb" +
+                        "qrUlxeiaMjolVUjtco7cZX35zDmzD8f8P511EX56Uz51z25doYkS5tbl787s" +
+                        "/X7GtvjZ8fP69xnWJLYmnuk4YXHX7/ZN1ed7TzYaTumr7LdmnJ77/PDBjRkX" +
+                        "152dwO+/vcUySK45du1bQx8Tq1Ms+0peLVrt2i39cK3xEydB1z26El3Wq4SO" +
+                        "rV3cJZary+NsJmAraHAmTvfL1BwVRS35qtfXXs/2bTvKNn1e2L7yRwWaUz03" +
+                        "y4TPyn3lHZD2LGC1QffB4wbmDLlaj9vuOrQ4BbnPjtKee9hCcf+XpflxhldW" +
+                        "93o3Wbv93rT3XdyWkjvcsvO5tj5h/Fp+4vGBHA1JSdntPZeiY8pb4ta/7U1i" +
+                        "msw6xdDVpTN2TeqVkE2S7C4Fm6J+/+Zo08xaK3T07rpLVyJbT18OyNylkZ1r" +
+                        "2m/ZNtO+UEis7rT5Qc3DP1zrVRi/73jIkt5qa504b0bi7nrONZMtxFj9/xyJ" +
+                        "VjuvPHf+/Pmi3M/TWVenfF2eYjpdf+LGaTdvy+wUqyx7lforLmjXKaErMZ+8" +
+                        "plmpJKY5V175GHF4+iLJdnan95+aG8q4pvc3sNzrW/rReeNzdzvX+P/X9JNm" +
+                        "yB+JublbLepG4Ma8TvM6hQ1M3DNDYnabdOu0ZXxtCft+Ibz2ifYp+ci22mNn" +
+                        "32v+XJ7SnsH2qWLaMp2LGuosHFryiRKsjYI9hzxPZf5n631k3SP4zyQtYfmP" +
+                        "z5osc6Pm/S9h3V5h++4Nw/QEsX/saZ/uG2yJ8gs58tjkMWvqHaVz3b83xN4p" +
+                        "CywsZC+P3dXxW0/uwUO7iBb3Fe+UpVXrdQ+VZInXMYKSaehjl/UpTAwMr5nx" +
+                        "JVNpIIbnktzEzDy97PySnMy8+Nz8lNKc1OSEhIQ0IGZJ8mPTeCD06JGGJzDX" +
+                        "aJ/wE0/iZty0x3uKxBYJcKbQb9onpgo0SwecKRiZRBgQ9iFnGFCuRAW48ii6" +
+                        "Kcj+EUUxoR5XVkM3AtmR0ihGqDHjDYYAb1Y2kDJmILwEpKcwg3gAMjwVH3wE" +
+                        "AAA="
+                ),
             api =
                 """
                 package test.pkg {
                   public final class TestKt {
-                    method @Deprecated @IntRange(from=0L) public static void myMethod();
-                    method @Deprecated public static String returnsNonNull();
-                    method @Deprecated public static String returnsNonNullImplicitly();
+                    method @BytecodeOnly @Deprecated @IntRange(from=0L) public static void myMethod();
+                    method @BytecodeOnly @Deprecated public static String! returnsNonNull();
+                    method @BytecodeOnly @Deprecated public static String! returnsNonNullImplicitly();
                   }
                 }
             """
@@ -5116,8 +5458,6 @@ class ApiFileTest : DriverTest() {
     @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `APIs before and after @Deprecated(HIDDEN)`() {
-        val sameModifiersAndReturnType = "public static test.pkg.State<java.lang.String>"
-        val sameParameters = "(Integer? i, String? s, java.lang.Object... vs);"
         check(
             sourceFiles =
                 arrayOf(
@@ -5151,6 +5491,83 @@ class ApiFileTest : DriverTest() {
                     """
                     )
                 ),
+            compiledSourceJar =
+                base64gzip(
+                    "test.jar",
+                    // kotlinc version info: kotlinc-jvm 1.9.23 (JRE 17.0.6+10-b802.1)
+                    "" +
+                        "H4sIAAAAAAAA/4WXeTTUbf/Hx07GbRtUtjD2bSyPLST7YMZOZZ9h0GAYI1EU" +
+                        "Zd+yL1NZIxpb4bY0YxDZ1xBCtpIlRJYey0/Pc87vqZ777rmu8/nje8513p9z" +
+                        "vu/zuq7P28yYihoEoKenBwAAAoAfFwhADYDpWV2WhsL1ZWGX4VB9PUsrGZj+" +
+                        "cTcAsA3r7TExlpYZYjKWlujvHXhhAXmj8H4JK2MEk4LChgLKaiw2jaT9JIx6" +
+                        "eyVtNvtlu7p6F5bmlygBZsZ09JXs4pWqpw2UT8vsN+0BAJybP07WF+0ua4lz" +
+                        "wbnJIL1c/P29zWCmrVosIVPa4tbVFyTy6JLetwhuOYNgL7MeOJvkCYg85LSH" +
+                        "5oPafGJeH3MyH9MzF88tJ8nDh+L4M4P4JyaCFDb4KzEAeNXAA0ttiY9+8tjG" +
+                        "WMlkCuRTpekXu1my9Qvbzovv/uhAPO2XPbkG3MXI3gPdU2Ure31kBgE9qz35" +
+                        "Njyas8r2YSo1+wuR3MAaO+vf3jVSzPhovrrINZWSVkngpMvY6tHbIzkdhURs" +
+                        "hs0wQeW54kXxYh/NtPnlQchCJ4qOkD9aC28Zk5z05JmWdrLocW97WtSb9gh+" +
+                        "7GF2uDvw1VPN/6o8hLjfjak4LIxBdN4gmpOtVUSnVvpbD8zsb2nGYEWBacoc" +
+                        "GqbBVE72NC3xOS+vXmDKuadoc3HQATgYYi7ypOX+cR/OyuZKK98cDbHTImk0" +
+                        "aqb1GuOqtNcFAxBe+m3nXgv4zNuVtgdiRl7Ga4Zr3booTYrvtpyYLXpaUwAA" +
+                        "UxS/s4Xzv2wxxv3bmHIrOwy7AegYtU5QNmZTUiqKEX9Aq8OWR0gdZgygf0L9" +
+                        "Kpwh0yq5zNAQ6e6r7DigfxH5LOmQiW/KaVCZxdD6jUEoaL73rTA4UULCJch9" +
+                        "4OH2o57b7v2kkL1vGIDtloJOXsTwnE8Th49HRXuIA0Bo/Y+NLcjccw5Nr7Vo" +
+                        "EU9/oI+OurFCiy8mn8QcXcQpnTyqaeG9LJVRPmlz5Js1iThyJp3XKZ2BB7D1" +
+                        "+MLWUAXQbu9hTjVt8ZkCV+HsfpHSItCLsqYmPIra+SxU1xQMVIgiLliNJcQg" +
+                        "6gMLa2unVoFw06Cz7ioK5M87ai4mbu4posWhZTbtMGuyX2Rq36zuC+Ljla8+" +
+                        "Kerz5zboKeV7ZYG5qP3OODwyS3fI4C4bR2DWO6Pclm4LCtFSUvqVjuB0l7mR" +
+                        "fcWWZnJNkngvxIQH6EgWp+Xk1oxCJuvJgaJ02A6jZViJh9kaX0cGxj6lu1Ra" +
+                        "G+EqHqPKfQ2W9TtKGQUy5Ufr4iR4FMPM0k+0We8rs/mnF0ft172G4Jw25TBX" +
+                        "8Id7JHWWHIx/X1ffpx2sInOvVCGKYmtUKVynYxYpZA2ddETsIzcOCM177wKL" +
+                        "eWcZRAhnb5IWstfBGvpzqktocBoRQVq2eiRhtxtur3qprywoRZ+wKMVF9eca" +
+                        "l0MSa8czzg8eRx9Nxxn0e2rJJyekQMYQjOWyfMLmZtFQtbqkkyc68rAch+9Y" +
+                        "vamRgSBOeUavcekUNoh4pori1eP6QvN29kpSP39NrXjjZ+DVISGy2nfkA4n3" +
+                        "eSXdFTB+WxTO5Ju8xhtG4KkLzaqjqqo2NEqeNqq3CK871p/sy5mHP6SXark8" +
+                        "s8MI36QU8k1uY665ZXJtpGZ4af6V5MOb90qdZB2DY77wkQ577vol2GQu+8pF" +
+                        "8kMfr7f5nXf3qmfrT0m86snjlGzQt2K7LJ5C0jpv6gIikeVityj9QZJ3cF+C" +
+                        "8Lfnohctc7MOG79ejBoNc4+YUY7XMMBv75J2bZGdc6J2T3S4Zg5RYrCTkJHI" +
+                        "g5nHBfBlvYK1eU4sq4xePc8c2j6GpeA8a3WP3U4XWbm+MQJ5xv/MrMTtEt/J" +
+                        "CneOjnKtO7YuixrfeQO1IbelqAAAc9rf8cb/F7yBEW4oDNYNLPdv8BIs7UzZ" +
+                        "zVmO+3ef9zSmWWg1ROfl1dFc1XplTKFXAK11piw2vDmZgbzauJYybTkv1Ny6" +
+                        "vyY7qCu31cLCp7hlEONfB7vLyZ6KQvXjPuCzMag7JwfHVGTgY/kdBj56/8pr" +
+                        "cuP3hfeN5a7NYzRyk+ClzsAXEbzoWXnenvKsSqOLL6WwEdvn/N0Fx+5jmtLf" +
+                        "aScKTDwsEex+oJL7TLCfJfeFg50UpGjEPe9LxXuOzx+vDSnoRRqqWSrmXR5n" +
+                        "bROO7M/Q5VgH5myuQIHTn0wk08L+AAeAB7vyek3Qy4jodTt4gkKRzJmNliUl" +
+                        "sfpWFo6pG2SI2b7oHd1w+esKOAdI+qGkioEF8X4s+k1ARByCGJMc/tG2l1fG" +
+                        "iOTWFObZUGHg5pW0xmFKeMMjOq5uh4TRRi55ndGPfqw9yp64ntNjf8Uuo8qV" +
+                        "qumfrGqUInp4kLOz9ZfmF0voFEK5eGRE4T340bKWbTCHA1QEpxfnOjEUVrzH" +
+                        "x2uCLvUwyrYSmbgeKD9sOoZf2BtaSPJLkP9WeE3xXKrYiKIHO8wqt1sY32B5" +
+                        "uXpLLQwoe7zBp2TnPqCYqbD8doP1xRy6QMLD79k/bN82qW98ngpzwO7Pi9fW" +
+                        "TAtj4tQ8SvaxAROTt7zNqXUMWm4cGHn/+eooUtR6szvDsua2HYkbLrTR+M4J" +
+                        "S7jwnnpsq1f6oqMWke1oaoZTZyrHwU/aPNVyBe3YJ7v9sa53DY2z9vrEYFnT" +
+                        "fTZZP1fY4gsL9FKeXjvUSVQ6szg/wZG565sW5lNDxhGt0MW6LfZvAhbczc6E" +
+                        "pNT4ypLG5oI9/6y96EXqNHacYIG2ebKZHPgfRwhR6sl5Xu1ELJsLDZV5DfLB" +
+                        "Dg8xctV6KCo0yMKV6b3EV3D55ZWrAvjPKTVrw2nKBmoZR+Ezpq5iAr7quLqo" +
+                        "u/oaeRQ3Ue8XBSmmPeJvncFFD6EuLFDmnf0AXVm0bNX8Z5WWfGxTVvsC5FK4" +
+                        "aD4pSW94GxSU+tzHWzDl9br6cJDrA2F2ZFD8Qr/IFS2pHHw03fDDogSaZQYI" +
+                        "z4UDru88feIj0FGd8uRH8zue+P6KJxcUzg37VzhdM7bzocE8feqtx8lS2S5x" +
+                        "HlZGww7RaxvJ5+kZdstce6yk+UUyfuCYEvYSrJnVQQc7NF956M2e3/6qKNvO" +
+                        "nZR90L824OREorxCDokkgMJqds8HoGFY8ced4scWZ+5ch9Mh6x0n5qR9VN+V" +
+                        "25kqB+rCOCWjGDmZXQnQ2Rur7RbJAqN2JULdD9Ttnwn1szjVONhlnMU2UJm5" +
+                        "2cY2bsYdLR9I6IAzK0WcyYqsbXKROKf8xAVg5I6aHrCt4fYlK8p7htmGgn15" +
+                        "0r3cZxHRtfUjIGB24bABRA3AhASaN3jTAdnT7wwZ8HhYKrUNshqXNofr8ASo" +
+                        "LavAdMYjCDdQKk5bh421QovFA97KVfWrwW/adzsdtxaNRvxiic8CnMTDoLU5" +
+                        "kduv4E/moK9vlLsJHHBm2jNVTcUOMkCEadMAVGizw/Tyl1ef1304a7R+VDMx" +
+                        "o1xLQF0vLSo9l0yJ3uBG1REvYVwLznnb4N2etZV2Ul8daCYmht7iVn6KELyu" +
+                        "aykXIW8at1ule1TqUJapxpvGzXiAvHl4Z7xqqDmY9KdduMzReVbuYAWmLl9E" +
+                        "7SejW7Zp0xm8b/GJV771SBHXqTBxby/BD2o75GdvdYjfc6lCNCGeNDSJH/qA" +
+                        "LbeuvyvFztqEKmeJNVVs8quo01OHMWni0Ilcg4RXx3V/tkOqUOMOMnhNYTza" +
+                        "caQyxqCujGcDbr2OZ/DfSZGbj9c0cn1zLoUE3QCJhmTUBCtQUS1OC64yHUhg" +
+                        "GzfPxbQucc26hGp/aGcGj5VAO8YV2viTQ/jHpkVUqdaVh6OXB3HggIfmOaHV" +
+                        "s9STXBr3BEfBbX8URiOAJYayKcoTn2L9TJ7GCa5Sw4dNui1Uz0/gMopG0zLU" +
+                        "VIerW+lcZ5PzI8hbEBVOShE1BgcyFWNJBv2yfeB0s1YuZJRRMZjaDBhomAMa" +
+                        "aVV9bS54rt3a/vV0lWb4rXxSmPBwoNg2pbXDO62ieGO3xe7OQi0RmUy5BElu" +
+                        "Z4pqD+8LfGL+GY5SZMO7XYDSS99ZwteT4YBTlnx+yxL3af1/QvB28fSRQWNw" +
+                        "Xp4+Tt4Y1wAvN6SzszPqtKgRcFqx92wf5sWgp4lBshPOhWCWgUpBv8qYIwYR" +
+                        "gH9lgvYAywSxUznpf2UCCkoQ4D8tf8wL30PJz+vvIsqvKj+Ot6CfFO78TdL4" +
+                        "VeHHB5vz56GY8u+G4l81fryk+H/SiKT5nw/9r2I/usT3k9gY/f+65X7V+tEA" +
+                        "7p+0BIG/ddnMmIb2+zHa011x+m9Tgd+//g9J/9fpVw4AAA=="
+                ),
             api =
                 """
                 package test.pkg {
@@ -5159,8 +5576,8 @@ class ApiFileTest : DriverTest() {
                     property public abstract T value;
                   }
                   public final class StateKt {
-                    method $sameModifiersAndReturnType after$sameParameters
-                    method @Deprecated $sameModifiersAndReturnType before$sameParameters
+                    method public static test.pkg.State<java.lang.String> after(Integer? i, String? s, java.lang.Object... vs);
+                    method @BytecodeOnly @Deprecated public static test.pkg.State! before(Integer!, String!, java.lang.Object!...!);
                   }
                 }
             """
@@ -5338,8 +5755,8 @@ class ApiFileTest : DriverTest() {
                     ctor @KotlinOnly public RequiresExtension(@IntRange(from=1L) int extension, @IntRange(from=1L) int version);
                     method public abstract int extension();
                     method public abstract int version();
-                    property @IntRange(from=1L) public abstract int extension;
-                    property @IntRange(from=1L) public abstract int version;
+                    property public abstract int extension;
+                    property public abstract int version;
                   }
                   @kotlin.annotation.Repeatable public static @interface RequiresExtension.Container {
                     method public abstract test.pkg.RequiresExtension[] value();
@@ -5574,29 +5991,56 @@ class ApiFileTest : DriverTest() {
                           @JvmName("newNameForRenamed")
                           fun renamed() = Unit
 
-                          @Deprecated(level = DeprecationLevel.HIDDEN)
+                          @Deprecated("deprecated", level = DeprecationLevel.HIDDEN)
                           fun deprecatedHidden() = Unit
 
                           @JvmName("newNameForRenamedAndDeprecatedError")
-                          @Deprecated(level = DeprecationLevel.ERROR)
+                          @Deprecated("deprecated", level = DeprecationLevel.ERROR)
                           fun renamedAndDeprecatedError() = Unit
 
                           @JvmName("newNameForRenamedAndDeprecatedHidden")
-                          @Deprecated(level = DeprecationLevel.HIDDEN)
+                          @Deprecated("deprecated", level = DeprecationLevel.HIDDEN)
                           fun renamedAndDeprecatedHidden() = Unit
                         }
                     """
                     )
+                ),
+            compiledSourceJar =
+                base64gzip(
+                    "test.jar",
+                    // kotlinc version info: kotlinc-jvm 1.9.23 (JRE 17.0.6+10-b802.1)
+                    "" +
+                        "H4sIAAAAAAAA/wvwZmYRYeDg4GBgYFBkQAYiDCwMvq4hjrqefm76vo5+nm6u" +
+                        "wSF6vm7/TjEwfPY9c9rHW1fvIq+3rta5M+c3BxlcMX7wtEjPy1fH0/di6aot" +
+                        "QR+8dAu1vM6c0Q77cE7/5Mkzj58+esrEEODNzrFeWHO9JdACcyAOwGm9EBCX" +
+                        "pBaX6Bdkp+u75efrJeckFhdPDYr1F3YUsd2cW356Wv80/oULFjVxrchR3Jfp" +
+                        "c2FbpmfrEqm4CqldwjK7rL3Lpr1S3n+0/sHkTv62Hy/6je5FrjARNTSZebv6" +
+                        "vO3ze9bVz5+vz7/PaNN+3GAWx9yK43ed18u58kk4f+z4vkO8oPTFWzmZTr9H" +
+                        "CocT9k/xUlsvYaS9unrxiYNlE1sPT/C18zhrcE9K50vTwiVHjsvKdVWJbG9V" +
+                        "Op4+I690scqEU9avWu+V6ZtULkrznSX1+5GFmOw8jv2KtfEabSv3Lfil7lqj" +
+                        "LhL12XnSjulCbTEKVUoJGvzdKUui1FyDdl9cE5ZtzeNd37t96Z/Telst+pK0" +
+                        "IrO3l9/mOX198+/H037Nvd/V8tvm4ZWLXNWSv26cmSGYfODArpb6SWqrJjzP" +
+                        "N/iw+XLm9VmbY1ZXlL2Kqnx84eTt4vTls8Na9577+yNHeMtc/bRna722Pczp" +
+                        "Fy1+Pu/kk9yuuY0W/h9POLyZ5Tb7zJbyR/+cTn3c/96uPnRdffDsaXvu+WaU" +
+                        "5yvNFzO8OMnrzZwWdqW68/xMTmrRge3s1TbT1PYxiN9S15q4MGPVvCuTFugu" +
+                        "XaRyV2Cv4narDWc/sZa+13q0+4XKu45dPCxmCRedTfbLxPbeU70p2mXzeS7v" +
+                        "rm+iP/WfRESoZi9f0Gq6afFzlp4DS/8LcU3ZGvRxcolvSVvrTUbF3QJSRY1K" +
+                        "zX2ZIl2qPcK2xbWqz7u8/C9X2yw29rzB8rF71rNZIjMOmVgaLzkbF7+t4PCm" +
+                        "7W3H5y/8mP7/fvqjY4/5v85c+qUq6kuhVqagjftpjffKl4/UCHP73jkmW1S4" +
+                        "vdP1zm32yzv62X9rZOyQ8pbadqzilU42s92Sl6ZygW/vg9Lo9IQP21KYGBge" +
+                        "seBLo9JADM8iuYmZeXrZ+SU5mXnxufkppTmpyQkJCWlAzJLkx6YRkHQhiQGc" +
+                        "/r8q7dkrDNQpAU7/jEwiDAjTkfMGKAOiAlzZEd0UZNcLoZhQjzVXoetHdqE0" +
+                        "in5lZrw+DvBmZQMpYwbC8yDrmEE8AEJ8aHZkBAAA"
                 ),
             api =
                 """
                package test.pkg {
                  public final class Foo {
                    ctor public Foo();
-                   method @Deprecated public void deprecatedHidden();
+                   method @BytecodeOnly @Deprecated public void deprecatedHidden();
                    method public void newNameForRenamed();
                    method @Deprecated public void newNameForRenamedAndDeprecatedError();
-                   method @Deprecated public void newNameForRenamedAndDeprecatedHidden();
+                   method @BytecodeOnly @Deprecated public void newNameForRenamedAndDeprecatedHidden();
                  }
                }
             """

@@ -37,7 +37,7 @@ abstract class DefaultSelectableItem(
     modifiers: BaseModifierList,
     documentationFactory: ItemDocumentationFactory,
     variantSelectorsFactory: ApiVariantSelectorsFactory,
-    override val targetLanguages: Set<TargetLanguage>,
+    override var targetLanguages: Set<TargetLanguage>,
 ) :
     DefaultItem(
         codebase,
