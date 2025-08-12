@@ -89,14 +89,13 @@ internal constructor(
         ): PsiParameterItem {
             val name = psiParameter.name
             val modifiers = createParameterModifiers(codebase, psiParameter)
-            val psiType = codebase.psiAssembler.getPsiTypeForPsiParameter(psiParameter)
             val type =
                 enclosingMethodTypeItemFactory.getMethodParameterType(
-                    underlyingParameterType = PsiTypeInfo(psiType, psiParameter),
+                    underlyingParameterType = PsiTypeInfo(psiParameter.type, psiParameter),
                     itemAnnotations = modifiers.annotations(),
                     fingerprint = fingerprint,
                     parameterIndex = parameterIndex,
-                    isVarArg = psiType is PsiEllipsisType,
+                    isVarArg = psiParameter.type is PsiEllipsisType,
                 )
             val parameter =
                 PsiParameterItem(

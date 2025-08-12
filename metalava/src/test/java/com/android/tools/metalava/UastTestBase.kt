@@ -2806,8 +2806,8 @@ abstract class UastTestBase : DriverTest() {
 
     @Test
     fun `Annotation on generated no-args constructor`() {
-        // b/417687416 the annotation is dropped from the no-args constructor with K2
-        val noArgsAnnotation = if (isK2) "" else "@test.pkg.Anno "
+        // Regression test for b/417687416: the annotation was previously dropped from the no-args
+        // constructor with K2
         check(
             sourceFiles =
                 arrayOf(
@@ -2826,7 +2826,7 @@ abstract class UastTestBase : DriverTest() {
                   @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface Anno {
                   }
                   public final class Foo {
-                    ctor ${noArgsAnnotation}public Foo();
+                    ctor @test.pkg.Anno public Foo();
                     ctor @test.pkg.Anno public Foo(optional int i, optional String s);
                   }
                 }
