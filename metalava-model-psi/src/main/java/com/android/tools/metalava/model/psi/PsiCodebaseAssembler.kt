@@ -19,8 +19,6 @@ package com.android.tools.metalava.model.psi
 import com.android.SdkConstants
 import com.android.tools.lint.UastEnvironment
 import com.android.tools.lint.annotations.Extractor
-import com.android.tools.metalava.model.ANDROIDX_NONNULL
-import com.android.tools.metalava.model.ANDROIDX_NULLABLE
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.ClassItem
@@ -50,29 +48,24 @@ import com.android.tools.metalava.model.psi.kotlin.KaCodebaseAssembler
 import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.model.source.utils.gatherPackageJavadoc
 import com.android.tools.metalava.reporter.Issues
-import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.project.Project
 import com.intellij.psi.JavaPsiFacade
 import com.intellij.psi.JavaRecursiveElementVisitor
 import com.intellij.psi.PsiAnnotation
-import com.intellij.psi.PsiArrayType
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiClassOwner
 import com.intellij.psi.PsiClassType
 import com.intellij.psi.PsiCodeBlock
 import com.intellij.psi.PsiElement
-import com.intellij.psi.PsiEllipsisType
 import com.intellij.psi.PsiErrorElement
 import com.intellij.psi.PsiFile
 import com.intellij.psi.PsiImportStatement
 import com.intellij.psi.PsiJavaFile
 import com.intellij.psi.PsiManager
 import com.intellij.psi.PsiPackage
-import com.intellij.psi.PsiParameter
 import com.intellij.psi.PsiSubstitutor
 import com.intellij.psi.PsiType
 import com.intellij.psi.PsiTypeParameter
-import com.intellij.psi.TypeAnnotationProvider
 import com.intellij.psi.impl.file.PsiPackageImpl
 import com.intellij.psi.javadoc.PsiDocComment
 import com.intellij.psi.search.GlobalSearchScope
@@ -80,24 +73,20 @@ import com.intellij.psi.util.PsiTreeUtil
 import java.io.File
 import java.io.IOException
 import java.util.zip.ZipFile
-import org.jetbrains.kotlin.analysis.api.types.KaTypeNullability
 import org.jetbrains.kotlin.asJava.classes.KtLightClassForFacade
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.JvmStandardClassIds
 import org.jetbrains.kotlin.psi.KtDeclaration
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.KtFunction
-import org.jetbrains.kotlin.psi.KtParameter
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
 import org.jetbrains.kotlin.psi.KtTypeAlias
 import org.jetbrains.kotlin.psi.KtTypeReference
 import org.jetbrains.uast.UClass
 import org.jetbrains.uast.UFile
 import org.jetbrains.uast.UMethod
-import org.jetbrains.uast.UParameter
 import org.jetbrains.uast.UReferenceExpression
 import org.jetbrains.uast.UastFacade
-import org.jetbrains.uast.kotlin.BaseKotlinUastResolveProviderService
 import org.jetbrains.uast.kotlin.KotlinUMethodWithFakeLightDelegateBase
 import org.jetbrains.uast.kotlin.psi.UastFakeSourceLightMethod
 
@@ -755,68 +744,6 @@ internal class PsiCodebaseAssembler(
     ): AnnotationItem? {
         val psiAnnotation = createPsiAnnotation(source, (context as? PsiItem)?.psi())
         return PsiAnnotationItem.create(codebase, psiAnnotation)
-    }
-
-    fun getPsiTypeForPsiParameter(psiParameter: PsiParameter): PsiType {
-        // UAST workaround: nullity of element type in last `vararg` parameter's array type
-        val psiType = psiParameter.type
-        return if (
-            psiParameter is UParameter &&
-                psiParameter.sourcePsi is KtParameter &&
-                psiParameter.isVarArgs && // last `vararg`
-                psiType is PsiArrayType
-        ) {
-            val ktParameter = psiParameter.sourcePsi as KtParameter
-            val annotationProvider =
-                when (uastResolveService?.nullability(ktParameter)) {
-                    KaTypeNullability.NON_NULLABLE -> getNonNullAnnotationProvider()
-                    KaTypeNullability.NULLABLE -> getNullableAnnotationProvider()
-                    else -> null
-                }
-            val annotatedType =
-                if (annotationProvider != null) {
-                    psiType.componentType.annotate(annotationProvider)
-                } else {
-                    psiType.componentType
-                }
-            PsiEllipsisType(annotatedType, annotatedType.annotationProvider)
-        } else {
-            psiType
-        }
-    }
-
-    private val uastResolveService: BaseKotlinUastResolveProviderService? by lazy {
-        ApplicationManager.getApplication()
-            .getService(BaseKotlinUastResolveProviderService::class.java)
-    }
-
-    private var nonNullAnnotationProvider: TypeAnnotationProvider? = null
-    private var nullableAnnotationProvider: TypeAnnotationProvider? = null
-
-    /** Type annotation provider which provides androidx.annotation.NonNull */
-    private fun getNonNullAnnotationProvider(): TypeAnnotationProvider {
-        return nonNullAnnotationProvider
-            ?: run {
-                val provider =
-                    TypeAnnotationProvider.Static.create(
-                        arrayOf(createPsiAnnotation("@$ANDROIDX_NONNULL"))
-                    )
-                nonNullAnnotationProvider = provider
-                provider
-            }
-    }
-
-    /** Type annotation provider which provides androidx.annotation.Nullable */
-    private fun getNullableAnnotationProvider(): TypeAnnotationProvider {
-        return nullableAnnotationProvider
-            ?: run {
-                val provider =
-                    TypeAnnotationProvider.Static.create(
-                        arrayOf(createPsiAnnotation("@$ANDROIDX_NULLABLE"))
-                    )
-                nullableAnnotationProvider = provider
-                provider
-            }
     }
 
     internal fun initializeFromJar(jarFile: File) {

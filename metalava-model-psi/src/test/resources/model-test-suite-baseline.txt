@@ -30,8 +30,6 @@ com.android.tools.metalava.model.testsuite.typeitem.CommonTypeModifiersTest
   Test inner parameterized types with annotations[java,k2]
   Test nullability of outer classes[java,k1]
   Test nullability of outer classes[java,k2]
-  Test nullability of varargs[kotlin,k1]
-  Test nullability of varargs[kotlin,k2]
 
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeParameterItemTest
   Test type parameter with annotations[kotlin,k1]

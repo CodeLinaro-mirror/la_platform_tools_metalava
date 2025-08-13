@@ -42,6 +42,7 @@ import com.android.tools.metalava.model.type.DefaultTypeModifiers
 import com.android.tools.metalava.model.type.DefaultVariableTypeItem
 import com.android.tools.metalava.model.type.DefaultWildcardTypeItem
 import com.android.tools.metalava.model.type.MethodFingerprint
+import org.jetbrains.kotlin.analysis.api.KaSession
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.analysis.api.symbols.KaClassSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaNamedClassSymbol
@@ -53,7 +54,6 @@ import org.jetbrains.kotlin.analysis.api.types.KaFunctionType
 import org.jetbrains.kotlin.analysis.api.types.KaStarTypeProjection
 import org.jetbrains.kotlin.analysis.api.types.KaType
 import org.jetbrains.kotlin.analysis.api.types.KaTypeArgumentWithVariance
-import org.jetbrains.kotlin.analysis.api.types.KaTypeNullability
 import org.jetbrains.kotlin.analysis.api.types.KaTypeParameterType
 import org.jetbrains.kotlin.analysis.api.types.KaTypeProjection
 import org.jetbrains.kotlin.analysis.api.types.KaUsualClassType
@@ -145,12 +145,9 @@ internal class KaTypeItemFactory(
      * boxed when nullable.
      */
     private fun KaType.toTypeItem(mustBoxPrimitives: Boolean): TypeItem {
-        val typeItemNullability =
-            when (nullability) {
-                KaTypeNullability.NULLABLE -> TypeNullability.NULLABLE
-                KaTypeNullability.NON_NULLABLE -> TypeNullability.NONNULL
-                KaTypeNullability.UNKNOWN -> TypeNullability.UNDEFINED
-            }
+        val typeItemNullability = let { kaType ->
+            analyze(assembler.kaModule) { typeNullability(kaType) }
+        }
         val typeItemAnnotations = annotations.mapNotNull { assembler.createAnnotation(it) }
         val modifiers = DefaultTypeModifiers.create(typeItemAnnotations, typeItemNullability)
 
@@ -479,6 +476,23 @@ internal class KaTypeItemFactory(
     }
 
     companion object {
+        /** Determines the [TypeNullability] of a [KaType]. */
+        internal fun KaSession.typeNullability(type: KaType): TypeNullability {
+            return when {
+                // The type is explicitly marked nullable.
+                type.isMarkedNullable -> TypeNullability.NULLABLE
+                // Flexible nullability is platform nullability from java.
+                type.hasFlexibleNullability -> TypeNullability.PLATFORM
+                // This means the type could possibly be null, but isn't explicitly marked as
+                // such. This might be a type variable usage, where the bounds of the type
+                // parameter would allow a nullable type, but it is also possible for a non-null
+                // type to be used. In this case we call the nullability undefined.
+                type.isNullable -> TypeNullability.UNDEFINED
+                // The type cannot be null.
+                else -> TypeNullability.NONNULL
+            }
+        }
+
         /**
          * Converts the qualified name of a
          * [Kotlin mapped type](https://kotlinlang.org/docs/java-interop.html#mapped-types) to the

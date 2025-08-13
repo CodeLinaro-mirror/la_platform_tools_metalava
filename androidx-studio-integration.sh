@@ -3,7 +3,7 @@ set -e
 
 # Use this flag to temporarily disable the metalava studio integration target, if it is known that it will be failing
 # for some extended time.
-METALAVA_STUDIO_INTEGRATION_ENABLED=false
+METALAVA_STUDIO_INTEGRATION_ENABLED=true
 
 if $METALAVA_STUDIO_INTEGRATION_ENABLED
 then
