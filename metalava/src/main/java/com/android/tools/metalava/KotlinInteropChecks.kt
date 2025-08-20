@@ -303,7 +303,7 @@ class KotlinInteropChecks(val reporter: Reporter) {
             "java.lang.Iterable" -> return false
         }
 
-        return parameter.isSamCompatibleOrKotlinLambda()
+        return parameter.type().isSamCompatibleOrKotlinLambda()
     }
 
     private fun disallowValueClasses(cls: ClassItem) {

@@ -315,9 +315,8 @@ class CommonTargetLanguageTest : BaseModelTest() {
                 assertThat(kind).isEqualTo(PrimitiveTypeItem.Primitive.VOID)
             }
 
-            // TODO(b/407735992): non-mangled method should be kotlin only and have IntValue param
-            // type instead of int
-            fooClass.assertMethod("usesIntValue", "int")
+            val nonMangledMethod = fooClass.assertMethod("usesIntValue", "test.pkg.IntValue")
+            assertThat(nonMangledMethod.targetLanguages).containsExactly(TargetLanguage.KOTLIN)
 
             assertThat(fooClass.methods()).hasSize(2)
         }
@@ -386,8 +385,8 @@ class CommonTargetLanguageTest : BaseModelTest() {
                 assertThat(kind).isEqualTo(PrimitiveTypeItem.Primitive.VOID)
             }
 
-            // TODO(b/407735992): non-mangled method should be kotlin only
-            intValue.assertMethod("foo", "")
+            val nonMangledMethod = intValue.assertMethod("foo", "")
+            assertThat(nonMangledMethod.targetLanguages).containsExactly(TargetLanguage.KOTLIN)
 
             assertThat(intValue.methods().map { it.name() })
                 .containsExactly(
@@ -513,7 +512,18 @@ class CommonTargetLanguageTest : BaseModelTest() {
                 assertThat(kind).isEqualTo(PrimitiveTypeItem.Primitive.VOID)
             }
 
-            // TODO(b/407735992): non-mangled methods should have distinct signatures
+            val nonMangledMethodA = foo.assertMethod("foo", "test.pkg.IntValueA")
+            assertThat(nonMangledMethodA.targetLanguages).containsExactly(TargetLanguage.KOTLIN)
+            nonMangledMethodA.returnType().assertPrimitiveTypeItem {
+                assertThat(kind).isEqualTo(PrimitiveTypeItem.Primitive.VOID)
+            }
+
+            val nonMangledMethodB = foo.assertMethod("foo", "test.pkg.IntValueB")
+            assertThat(nonMangledMethodB.targetLanguages).containsExactly(TargetLanguage.KOTLIN)
+            nonMangledMethodB.returnType().assertPrimitiveTypeItem {
+                assertThat(kind).isEqualTo(PrimitiveTypeItem.Primitive.VOID)
+            }
+
             assertThat(foo.methods()).hasSize(4)
         }
     }
@@ -651,9 +661,12 @@ class CommonTargetLanguageTest : BaseModelTest() {
                 assertThat(kind).isEqualTo(PrimitiveTypeItem.Primitive.INT)
             }
 
-            // TODO(b/407735992): non-mangled method should be kotlin only and have IntValue return
-            // type instead of int
-            barClass.assertMethod("foobar", "")
+            val nonMangledMethod = barClass.assertMethod("foobar", "")
+            assertThat(nonMangledMethod.targetLanguages).containsExactly(TargetLanguage.KOTLIN)
+            nonMangledMethod.returnType().assertClassTypeItem {
+                assertThat(qualifiedName).isEqualTo("test.pkg.IntValue")
+                assertThat(modifiers.isNonNull).isTrue()
+            }
 
             assertThat(barClass.methods()).hasSize(2)
         }
@@ -765,12 +778,35 @@ class CommonTargetLanguageTest : BaseModelTest() {
 
             // There isn't a private mangled method since those don't need to be tracked.
 
-            // TODO(b/407735992): non-mangled methods should be kotlin only and have IntValue return
-            // type instead of int
-            fooClass.assertMethod("publicValueClassFunction", "")
-            fooClass.assertMethod("protectedValueClassFunction", "")
-            fooClass.assertMethod("internalValueClassFunction", "")
-            fooClass.assertMethod("privateValueClassFunction", "")
+            val publicNonMangledMethod = fooClass.assertMethod("publicValueClassFunction", "")
+            assertThat(publicNonMangledMethod.targetLanguages)
+                .containsExactly(TargetLanguage.KOTLIN)
+            assertThat(publicNonMangledMethod.modifiers.getVisibilityLevel())
+                .isEqualTo(VisibilityLevel.PUBLIC)
+            publicNonMangledMethod.returnType().assertClassTypeItem {
+                assertThat(qualifiedName).isEqualTo("test.pkg.IntValue")
+                assertThat(modifiers.isNonNull).isTrue()
+            }
+
+            val protectedNonMangledMethod = fooClass.assertMethod("protectedValueClassFunction", "")
+            assertThat(protectedNonMangledMethod.targetLanguages)
+                .containsExactly(TargetLanguage.KOTLIN)
+            assertThat(protectedNonMangledMethod.modifiers.getVisibilityLevel())
+                .isEqualTo(VisibilityLevel.PROTECTED)
+            protectedNonMangledMethod.returnType().assertClassTypeItem {
+                assertThat(qualifiedName).isEqualTo("test.pkg.IntValue")
+                assertThat(modifiers.isNonNull).isTrue()
+            }
+
+            val internalNonMangledMethod = fooClass.assertMethod("internalValueClassFunction", "")
+            assertThat(internalNonMangledMethod.targetLanguages)
+                .containsExactly(TargetLanguage.KOTLIN)
+            assertThat(internalNonMangledMethod.modifiers.getVisibilityLevel())
+                .isEqualTo(VisibilityLevel.INTERNAL)
+            internalNonMangledMethod.returnType().assertClassTypeItem {
+                assertThat(qualifiedName).isEqualTo("test.pkg.IntValue")
+                assertThat(modifiers.isNonNull).isTrue()
+            }
 
             assertThat(fooClass.methods()).hasSize(7)
         }
@@ -1315,10 +1351,17 @@ class CommonTargetLanguageTest : BaseModelTest() {
                 assertThat(kind).isEqualTo(PrimitiveTypeItem.Primitive.VOID)
             }
 
-            // TODO(b/407735992): non-mangled method should be kotlin only and have IntValue param
-            // type instead of int
-            fooClass.assertMethod("fooA", "int")
-            fooClass.assertMethod("fooB", "int")
+            val nonMangledMethodA = fooClass.assertMethod("fooA", "test.pkg.IntValue")
+            assertThat(nonMangledMethodA.targetLanguages).containsExactly(TargetLanguage.KOTLIN)
+            nonMangledMethodA.returnType().assertPrimitiveTypeItem {
+                assertThat(kind).isEqualTo(PrimitiveTypeItem.Primitive.VOID)
+            }
+
+            val nonMangledMethodB = fooClass.assertMethod("fooB", "test.pkg.IntValue")
+            assertThat(nonMangledMethodB.targetLanguages).containsExactly(TargetLanguage.KOTLIN)
+            nonMangledMethodB.returnType().assertPrimitiveTypeItem {
+                assertThat(kind).isEqualTo(PrimitiveTypeItem.Primitive.VOID)
+            }
 
             assertThat(fooClass.methods()).hasSize(4)
         }

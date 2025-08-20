@@ -3415,50 +3415,6 @@ class ApiFileTest : DriverTest() {
     }
 
     @Test
-    fun `Test KDoc suppress`() {
-        // Basic class; also checks that default constructor is made explicit
-        check(
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package test.pkg;
-                    public class Foo {
-                        private Foo() { }
-                        /** @suppress */
-                        public void hidden() {
-                        }
-                    }
-                    """
-                    ),
-                    java(
-                        """
-                    package test.pkg;
-                    /**
-                    * Some comment.
-                    * @suppress
-                    */
-                    public class Hidden {
-                        private Hidden() { }
-                        public void hidden() {
-                        }
-                        public class Inner {
-                        }
-                    }
-                    """
-                    )
-                ),
-            api =
-                """
-                    package test.pkg {
-                      public class Foo {
-                      }
-                    }
-                """
-        )
-    }
-
-    @Test
     fun `Check skipping implicit final or deprecated override`() {
         // Regression test for 122358225
         check(
@@ -4741,17 +4697,17 @@ class ApiFileTest : DriverTest() {
                   public final inline class Dp implements java.lang.Comparable<test.pkg.Dp> {
                     ctor @KotlinOnly public Dp(float value);
                     method @BytecodeOnly public static test.pkg.Dp! box-impl(float);
-                    method public int compareTo(float other);
+                    method @KotlinOnly public operator int compareTo(test.pkg.Dp other);
                     method @BytecodeOnly public int compareTo-fPRv1QM(float);
                     method @BytecodeOnly public static int compareTo-fPRv1QM(float, float);
                     method @BytecodeOnly public static float constructor-impl(float);
-                    method public void doSomething();
+                    method @KotlinOnly public void doSomething();
                     method @BytecodeOnly public static void doSomething-impl(float);
                     method @BytecodeOnly public static int getSomeBits-impl(float);
                     method public float getValue();
-                    method public inline operator float minus(float other);
+                    method @KotlinOnly public inline operator test.pkg.Dp minus(test.pkg.Dp other);
                     method @BytecodeOnly public static float minus-TBhqLn8(float, float);
-                    method public inline operator float plus(float other);
+                    method @KotlinOnly public inline operator test.pkg.Dp plus(test.pkg.Dp other);
                     method @BytecodeOnly public static float plus-TBhqLn8(float, float);
                     method @BytecodeOnly public float unbox-impl();
                     property public int someBits;
@@ -4765,6 +4721,14 @@ class ApiFileTest : DriverTest() {
     @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Value class`() {
+        // With K1, the value class functions which can't be used from Java source are not properly
+        // marked as kotlin only, because K1 psi does not handle value classes differently.
+        val doSomethingTargetLanguages =
+            if (isK2) {
+                "@KotlinOnly "
+            } else {
+                ""
+            }
         check(
             format = FileFormat.V4,
             sourceFiles =
@@ -4856,24 +4820,24 @@ class ApiFileTest : DriverTest() {
                   @kotlin.jvm.JvmInline public final value class Dp implements java.lang.Comparable<test.pkg.Dp> {
                     ctor @KotlinOnly public Dp(float value);
                     method @BytecodeOnly public static test.pkg.Dp! box-impl(float);
-                    method public int compareTo(float other);
+                    method @KotlinOnly public operator int compareTo(test.pkg.Dp other);
                     method @BytecodeOnly public int compareTo-fPRv1QM(float);
                     method @BytecodeOnly public static int compareTo-fPRv1QM(float, float);
                     method @BytecodeOnly public static float constructor-impl(float);
-                    method public void doSomething();
+                    method ${doSomethingTargetLanguages}public void doSomething();
                     method @BytecodeOnly public static void doSomething-impl(float);
                     method @BytecodeOnly public static int getSomeBits-impl(float);
                     method public float getValue();
-                    method public inline operator float minus(float other);
+                    method @KotlinOnly public inline operator test.pkg.Dp minus(test.pkg.Dp other);
                     method @BytecodeOnly public static float minus-TBhqLn8(float, float);
-                    method public inline operator float plus(float other);
+                    method @KotlinOnly public inline operator test.pkg.Dp plus(test.pkg.Dp other);
                     method @BytecodeOnly public static float plus-TBhqLn8(float, float);
                     method @BytecodeOnly public float unbox-impl();
                     property public int someBits;
                     property public float value;
                   }
                   public final class DpKt {
-                    method public static void box(float p);
+                    method @KotlinOnly public static void box(test.pkg.Dp p);
                     method @BytecodeOnly public static void box-fPRv1QM(float);
                   }
                 }
@@ -5798,7 +5762,7 @@ class ApiFileTest : DriverTest() {
                         package test.pkg
 
                         /**
-                         * @suppress
+                         * @hide
                          */
                         @PublishedApi
                         internal fun internalYetPublished() {}
@@ -6563,7 +6527,7 @@ class ApiFileTest : DriverTest() {
                 package test.pkg {
                   public final class Delegated {
                     ctor public Delegated();
-                    method @BytecodeOnly public void baseMethod();
+                    method @InaccessibleFromJava public void baseMethod();
                     method @BytecodeOnly public int getBaseVal();
                     property public int baseVal;
                   }

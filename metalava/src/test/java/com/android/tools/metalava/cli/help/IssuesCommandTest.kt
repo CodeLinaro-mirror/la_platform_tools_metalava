@@ -190,6 +190,7 @@ Available Issues                             |  Category                        
   RemovedJvmDefaultWithCompatibility         |  binary_compatibility_only            |   error
   RemovedMethod                              |  binary_and_source_compatibility      |   error
   RemovedPackage                             |  binary_and_source_compatibility      |   error
+  RemovedTypeAlias                           |  source_compatibility_only            |   error
   RequiresPermission                         |  documentation                        |   error
   ResourceFieldName                          |  api_lint                             |   error
   ResourceStyleFieldName                     |  api_lint                             |   error

@@ -28,7 +28,6 @@ import com.android.tools.metalava.model.psi.trimDocIndent
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.nonNullSource
 import com.android.tools.metalava.nullableSource
-import com.android.tools.metalava.requiresApiSource
 import com.android.tools.metalava.requiresPermissionSource
 import com.android.tools.metalava.systemApiSource
 import com.android.tools.metalava.testing.java
@@ -1501,40 +1500,6 @@ class DocAnalyzerTest : DriverTest() {
                     public class MyClass {
                     public MyClass() { throw new RuntimeException("Stub!"); }
                     public void test() { throw new RuntimeException("Stub!"); }
-                    }
-                    """
-                    )
-                )
-        )
-    }
-
-    @Test
-    fun `Check RequiresApi handling`() {
-        check(
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package test.pkg;
-                    import androidx.annotation.RequiresApi;
-                    @RequiresApi(value = 21)
-                    public class MyClass1 {
-                    }
-                    """
-                    ),
-                    requiresApiSource
-                ),
-            docStubs = true,
-            checkCompilation = false, // duplicate class: androidx.annotation.RequiresApi
-            stubFiles =
-                arrayOf(
-                    java(
-                        """
-                    package test.pkg;
-                    /** @apiSince 21 */
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
-                    public class MyClass1 {
-                    public MyClass1() { throw new RuntimeException("Stub!"); }
                     }
                     """
                     )

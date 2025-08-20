@@ -19,7 +19,7 @@ package com.android.tools.metalava.model.item
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.ItemDocumentation.Companion.toItemDocumentationFactory
+import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.createImmutableModifiers
@@ -78,7 +78,7 @@ abstract class DefaultCodebaseAssembler : CodebaseAssembler {
         packageDoc: PackageDoc,
         containingPackage: PackageItem?,
     ): DefaultPackageItem {
-        val documentationFactory = packageDoc.commentFactory ?: "".toItemDocumentationFactory()
+        val documentationFactory = packageDoc.commentFactory ?: emptyPackageDocumentationFactory()
         return itemFactory.createPackageItem(
             packageDoc.fileLocation,
             packageDoc.modifiers ?: createImmutableModifiers(VisibilityLevel.PUBLIC),
@@ -88,4 +88,11 @@ abstract class DefaultCodebaseAssembler : CodebaseAssembler {
             packageDoc.overview,
         )
     }
+
+    /**
+     * Get an [ItemDocumentationFactory] for empty package documentation.
+     *
+     * This will be called for packages that have no `package.html` or `package-info.java`.
+     */
+    protected abstract fun emptyPackageDocumentationFactory(): ItemDocumentationFactory
 }

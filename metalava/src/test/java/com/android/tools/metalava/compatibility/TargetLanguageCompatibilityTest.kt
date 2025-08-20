@@ -17,6 +17,7 @@
 package com.android.tools.metalava.compatibility
 
 import com.android.tools.metalava.DriverTest
+import com.android.tools.metalava.cli.common.ARG_HIDE
 import org.junit.Test
 
 class TargetLanguageCompatibilityTest : DriverTest() {
@@ -321,6 +322,211 @@ class TargetLanguageCompatibilityTest : DriverTest() {
             expectedIssues =
                 """
                 released-api.txt:3: error: Source breaking change: class test.pkg.Foo can no longer be resolved from Kotlin source [RemovedFromKotlin]
+                """,
+        )
+    }
+
+    @Test
+    fun `Test making a method deprecated level hidden impact on kotlin`() {
+        check(
+            // Impact on java source tested separately below.
+            extraArguments = arrayOf(ARG_HIDE, "RemovedFromJava"),
+            expectedIssues =
+                """
+                released-api.txt:5: error: Source breaking change: method test.pkg.Foo.incompatibleOverloadDoesNotTargetKotlin(String,int) can no longer be resolved from Kotlin source [RemovedFromKotlin]
+                released-api.txt:6: error: Source breaking change: method test.pkg.Foo.incompatibleOverloadHasFewerParameters(String,int) can no longer be resolved from Kotlin source [RemovedFromKotlin]
+                released-api.txt:7: error: Source breaking change: method test.pkg.Foo.incompatibleOverloadChangesParameterType(String,int) can no longer be resolved from Kotlin source [RemovedFromKotlin]
+                released-api.txt:8: error: Source breaking change: method test.pkg.Foo.incompatibleOverloadChangesParameterNullability(String,int) can no longer be resolved from Kotlin source [RemovedFromKotlin]
+                released-api.txt:11: error: Source breaking change: method test.pkg.Foo.incompatibleOverloadMakesParameterNonOptional(String,int) can no longer be resolved from Kotlin source [RemovedFromKotlin]
+                released-api.txt:12: error: Source breaking change: method test.pkg.Foo.incompatibleOverloadHasAdditionalNonOptionalParameter(String,int) can no longer be resolved from Kotlin source [RemovedFromKotlin]
+                released-api.txt:13: error: Source breaking change: method test.pkg.Foo.incompatibleOverloadChangesReturnType(String,int) can no longer be resolved from Kotlin source [RemovedFromKotlin]
+                released-api.txt:15: error: Source breaking change: method test.pkg.Foo.incompatibleOverloadChangesReturnNullability(String,int) can no longer be resolved from Kotlin source [RemovedFromKotlin]
+                released-api.txt:17: error: Source breaking change: method test.pkg.Foo.incompatibleOverloadLessVisible(String,int) can no longer be resolved from Kotlin source [RemovedFromKotlin]
+                """,
+            checkCompatibilityApiReleased =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public final class Foo {
+                    method public String compatibleBasicCase(String s, optional int i);
+                    method public String incompatibleOverloadDoesNotTargetKotlin(String s, optional int i);
+                    method public String incompatibleOverloadHasFewerParameters(String s, optional int i);
+                    method public String incompatibleOverloadChangesParameterType(String s, optional int i);
+                    method public String incompatibleOverloadChangesParameterNullability(String? s, optional int i);
+                    method public String compatibleOverloadChangesParameterNullability(String s, optional int i);
+                    method public String compatibleOverloadMakesParameterOptional(String s, optional int i);
+                    method public String incompatibleOverloadMakesParameterNonOptional(String s, optional int i);
+                    method public String incompatibleOverloadHasAdditionalNonOptionalParameter(String s, optional int i);
+                    method public String incompatibleOverloadChangesReturnType(String s, optional int i);
+                    method public String? compatibleOverloadChangesReturnNullability(String s, optional int i);
+                    method public String incompatibleOverloadChangesReturnNullability(String s, optional int i);
+                    method internal String compatibleOverloadMoreVisible(String s, optional int i);
+                    method public String incompatibleOverloadLessVisible(String s, optional int i);
+                  }
+                }
+                """,
+            signatureSource =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public final class Foo {
+                    method @BytecodeOnly @Deprecated public String compatibleBasicCase(String!, int);
+                    method public String compatibleBasicCase(String s, optional int i, optional String s2, optional int i2);
+                    method @BytecodeOnly @Deprecated public String incompatibleOverloadDoesNotTargetKotlin(String!, int);
+                    method @InaccessibleFromKotlin public String incompatibleOverloadDoesNotTargetKotlin(String s, optional int i, optional String s2, optional int i2);
+                    method @BytecodeOnly @Deprecated public String incompatibleOverloadHasFewerParameters(String!, int);
+                    method public String incompatibleOverloadHasFewerParameters(String s);
+                    method @BytecodeOnly @Deprecated public String incompatibleOverloadChangesParameterType(String!, int);
+                    method public String incompatibleOverloadChangesParameterType(String s, optional double i, optional String s2, optional int i2);
+                    method @BytecodeOnly @Deprecated public String incompatibleOverloadChangesParameterNullability(String!, int);
+                    method public String incompatibleOverloadChangesParameterNullability(String s, optional int i, optional String s2, optional int i2);
+                    method @BytecodeOnly @Deprecated public String compatibleOverloadChangesParameterNullability(String!, int);
+                    method public String compatibleOverloadChangesParameterNullability(String? s, optional int i, optional String s2, optional int i2);
+                    method @BytecodeOnly @Deprecated public String compatibleOverloadMakesParameterOptional(String!, int);
+                    method public String compatibleOverloadMakesParameterOptional(optional String s, optional int i, optional String s2, optional int i2);
+                    method @BytecodeOnly @Deprecated public String incompatibleOverloadMakesParameterNonOptional(String!, int);
+                    method public String incompatibleOverloadMakesParameterNonOptional(String s, int i, optional String s2, optional int i2);
+                    method @BytecodeOnly @Deprecated public String incompatibleOverloadHasAdditionalNonOptionalParameter(String!, int);
+                    method public String incompatibleOverloadHasAdditionalNonOptionalParameter(String s, optional int i, String s2, optional int i2);
+                    method @BytecodeOnly @Deprecated public String incompatibleOverloadChangesReturnType(String!, int);
+                    method public void incompatibleOverloadChangesReturnType(String s, optional int i, optional String s2, optional int i2);
+                    method @BytecodeOnly @Deprecated public String compatibleOverloadChangesReturnNullability(String!, int);
+                    method public String compatibleOverloadChangesReturnNullability(String s, optional int i, optional String s2, optional int i2);
+                    method @BytecodeOnly @Deprecated public String incompatibleOverloadChangesReturnNullability(String!, int);
+                    method public String? incompatibleOverloadChangesReturnNullability(String s, optional int i, optional String s2, optional int i2);
+                    method @BytecodeOnly @Deprecated internal String compatibleOverloadMoreVisible(String!, int);
+                    method public String compatibleOverloadMoreVisible(String s, optional int i, optional String s2, optional int i2);
+                    method @BytecodeOnly @Deprecated public String incompatibleOverloadLessVisible(String!, int);
+                    method internal String incompatibleOverloadLessVisible(String s, optional int i, optional String s2, optional int i2);
+                  }
+                }
+                """,
+        )
+    }
+
+    @Test
+    fun `Test making a method deprecated level hidden impact on java`() {
+        check(
+            // Even though the new overload works for kotlin callers, java callers can't use
+            // optional parameters so this is still a breaking change for them.
+            expectedIssues =
+                """
+                released-api.txt:4: error: Source breaking change: method test.pkg.Foo.foo(String,int) can no longer be resolved from Java source [RemovedFromJava]
+                """,
+            checkCompatibilityApiReleased =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public final class Foo {
+                    method public String foo(String s, optional int i);
+                  }
+                }
+                """,
+            signatureSource =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public final class Foo {
+                    method @BytecodeOnly @Deprecated public String foo(String!, int);
+                    method public String foo(String s, optional int i, optional String s2, optional int i2);
+                  }
+                }
+                """,
+        )
+    }
+
+    @Test
+    fun `Test making a constructor deprecated level hidden`() {
+        check(
+            // Even though the new overload works for kotlin callers, java callers can't use
+            // optional parameters so this is still a breaking change for them.
+            expectedIssues =
+                """
+                released-api.txt:4: error: Source breaking change: constructor test.pkg.Foo(String,int) can no longer be resolved from Java source [RemovedFromJava]
+                """,
+            checkCompatibilityApiReleased =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public final class Foo {
+                    ctor public Foo(String s, optional int i);
+                  }
+                }
+                """,
+            signatureSource =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public final class Foo {
+                    ctor @BytecodeOnly @Deprecated public Foo(String!, int);
+                    ctor public Foo(String s, optional int i, optional String s2, optional int i2);
+                  }
+                }
+                """,
+        )
+    }
+
+    @Test
+    fun `Test making a method deprecated level hidden with overload on superclass`() {
+        check(
+            // Even though the new overload works for kotlin callers, java callers can't use
+            // optional parameters so this is still a breaking change for them.
+            expectedIssues =
+                """
+                released-api.txt:6: error: Source breaking change: method test.pkg.Foo.foo(String,int) can no longer be resolved from Java source [RemovedFromJava]
+                """,
+            checkCompatibilityApiReleased =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public class Bar {
+                  }
+                  public final class Foo extends test.pkg.Bar {
+                    method public String foo(String s, optional int i);
+                  }
+                }
+                """,
+            signatureSource =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public class Bar {
+                    method public String foo(String s, optional int i, optional String s2, optional int i2);
+                  }
+                  public final class Foo extends test.pkg.Bar {
+                    method @BytecodeOnly @Deprecated public String foo(String!, int);
+                  }
+                }
+                """,
+        )
+    }
+
+    @Test
+    fun `Test adding optional parameter to a reified inline function`() {
+        check(
+            expectedIssues =
+                """
+                released-api.txt:5: error: Source breaking change: Removed method test.pkg.Foo.incompatibleOverloadNonOptionalParameter(T,String) [RemovedMethod]
+                """,
+            checkCompatibilityApiReleased =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public final class Foo {
+                    method @KotlinOnly public inline <reified T> void compatibleOverload(T t, optional String s);
+                    method @KotlinOnly public inline <reified T> void incompatibleOverloadNonOptionalParameter(T t, optional String s);
+                  }
+                }
+                """,
+            signatureSource =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public final class Foo {
+                    method @KotlinOnly public inline <reified T> void compatibleOverload(T t, optional String s, optional int i);
+                    method @KotlinOnly public inline <reified T> void incompatibleOverloadNonOptionalParameter(T t, optional String s, int i);
+                  }
+                }
                 """,
         )
     }

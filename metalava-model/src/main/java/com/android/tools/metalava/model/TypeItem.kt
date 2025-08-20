@@ -163,6 +163,25 @@ interface TypeItem {
     /** Whether this type was originally a value class type. Defaults to false if not overridden. */
     fun isValueClassType(): Boolean = false
 
+    /**
+     * Returns whether this type is SAM convertible or a Kotlin lambda.
+     *
+     * If a final parameter uses a SAM convertible or lambda type, it also means that it could be
+     * called in Kotlin using the trailing lambda syntax.
+     *
+     * Specifically this will attempt to handle the follow cases:
+     * - Java SAM interface = true
+     * - Kotlin SAM interface = false // Kotlin (non-fun) interfaces are not SAM convertible
+     * - Kotlin fun interface = true
+     * - Kotlin lambda = true
+     * - Variable type with Kotlin lambda bound = true
+     * - Any other type = false
+     */
+    fun isSamCompatibleOrKotlinLambda(): Boolean {
+        // Overrides are present on ClassTypeItem, LambdaTypeItem, and VariableTypeItem
+        return false
+    }
+
     companion object {
         /** [TypeStringConfiguration] for [toSimpleType] to pass to [toTypeString]. */
         private val SIMPLE_TYPE_CONFIGURATION =
@@ -1204,6 +1223,29 @@ interface ClassTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Exception
 
     override fun hashCodeForType(): Int = Objects.hash(qualifiedName, outerClassType, arguments)
 
+    override fun isSamCompatibleOrKotlinLambda(): Boolean {
+        // Check if this is a lambda type that was not created as a LambdaTypeItem (e.g. from the
+        // text model b/437086600)
+        if (classNamePrefix == "kotlin.jvm.functions." && className.startsWith("Function"))
+            return true
+
+        // Check the type to see if it is defined in Kotlin or not.
+        // Interfaces defined in Kotlin do not support SAM conversion, but `fun` interfaces do.
+        // This is a best-effort check, since external dependencies (bytecode) won't appear to
+        // be Kotlin for psi, and won't have a `fun` modifier visible. To resolve this, we could
+        // parse the kotlin.metadata annotation on the bytecode declaration, but in reality the
+        // amount of Java methods with a Kotlin interface with a single abstract method from an
+        // external dependency should be minimal. When using signature files, it also won't be clear
+        // whether a non-fun interface was defined in Java or Kotlin.
+        val cls = asClass() ?: return false
+        if (!cls.isInterface()) return false
+        // The functional modifier will only be present on Kotlin source interfaces
+        if (cls.modifiers.isFunctional()) return true
+        // For Java or unknown source language, check if there is a single abstract method
+        return cls.sourceLanguage != SourceLanguage.KOTLIN &&
+            cls.methods().singleOrNull { it.modifiers.isAbstract() } != null
+    }
+
     companion object {
         /** Computes the simple name of a class from a qualified class name. */
         fun computeClassName(qualifiedName: String): String {
@@ -1259,6 +1301,11 @@ interface LambdaTypeItem : ClassTypeItem {
 
     override fun transform(transformer: TypeTransformer): LambdaTypeItem {
         return transformer.transform(this)
+    }
+
+    override fun isSamCompatibleOrKotlinLambda(): Boolean {
+        // This is a Kotlin lambda type
+        return true
     }
 }
 
@@ -1333,6 +1380,19 @@ interface VariableTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Except
     }
 
     override fun hashCodeForType(): Int = name.hashCode()
+
+    override fun isSamCompatibleOrKotlinLambda(): Boolean {
+        // A variable type can be used with trailing lambda syntax if its bound is a Kotlin
+        // functional type, but not if the bound is a different SAM compatible type.
+        return asTypeParameter.asErasedType().let {
+            it is LambdaTypeItem ||
+                // Check if this is a lambda type that was not created as a LambdaTypeItem (e.g.
+                // from the text model b/437086600)
+                (it is ClassTypeItem) &&
+                    it.classNamePrefix == "kotlin.jvm.functions." &&
+                    it.className.startsWith("Function")
+        }
+    }
 }
 
 /**

@@ -17,8 +17,11 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.provider.Capability
+import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.testing.java
+import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
 
 /** Test settings of [Item.showability] */
@@ -129,6 +132,47 @@ class ShowabilityTest : DriverTest() {
                         method public void bar();
                       }
                     }
+                """,
+        )
+    }
+
+    @Test
+    @RequiresCapabilities(Capability.KOTLIN)
+    fun `Type alias with show annotation in hidden package`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        "test/pkg/package-info.java",
+                        """
+                        @RecursiveHide
+                        package test.pkg;
+                        import test.annotation.RecursiveHide;
+                        """,
+                    ),
+                    kotlin(
+                        """
+                        package test.pkg
+                        import test.annotation.NonRecursiveShow
+                        @NonRecursiveShow
+                        typealias Foo = String
+                        """
+                    ),
+                    nonRecursiveShow,
+                    recursiveHide,
+                ),
+            hideAnnotations = arrayOf("test.annotation.RecursiveHide"),
+            extraArguments =
+                arrayOf(
+                    ARG_SHOW_SINGLE_ANNOTATION,
+                    "test.annotation.NonRecursiveShow",
+                ),
+            api =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public typealias Foo = String;
+                }
                 """,
         )
     }

@@ -281,7 +281,7 @@ class DocAnalyzer(
                                 ?: annotation.findAttribute(ANNOTATION_ATTR_VALUE))
                             ?.value
                             ?.asString() ?: return
-                    if (text.isBlank() || item.documentation.contains(text)) {
+                    if (text.isBlank() || item.documentation.text.contains(text)) {
                         return
                     }
 
@@ -309,7 +309,7 @@ class DocAnalyzer(
                                         (documentation.findTagDocumentation("return") ?: "")
                                 }
                                 else -> {
-                                    documentation
+                                    documentation.text
                                 }
                             }
                         if (doc.contains("null") && mentionsNull.matcher(doc).find()) {
@@ -545,7 +545,7 @@ class DocAnalyzer(
                  * constructors, fields and/or properties, i.e. not parameters.
                  */
                 private fun handleRequiresApi(annotation: AnnotationItem, item: SelectableItem) {
-                    val level = run {
+                    val possibleFullVersionCode = run {
                         val api = annotation.findAttribute("api")?.value?.asInt()
                         if (api == null || api == 1) {
                             annotation.findAttribute("value")?.value?.asInt() ?: return
@@ -554,7 +554,8 @@ class DocAnalyzer(
                         }
                     }
 
-                    addApiVersionDocumentation(ApiVersion.fromLevel(level), item)
+                    val apiVersion = decodePossibleFullVersionCode(possibleFullVersionCode)
+                    addApiVersionDocumentation(apiVersion, item)
                 }
 
                 private fun handleRestrictedForEnvironment(
@@ -843,7 +844,7 @@ class DocAnalyzer(
             // TODO: Override it everywhere in case the existing doc is wrong (we know
             // better), and at least for OpenJDK sources we *should* since the since tags
             // are talking about language levels rather than API versions!
-            if (!item.documentation.contains("@apiSince")) {
+            if (!item.documentation.text.contains("@apiSince")) {
                 item.appendDocumentation(apiVersionLabel, "@apiSince")
             } else {
                 reporter.report(
@@ -865,7 +866,7 @@ class DocAnalyzer(
      *   [item].
      */
     private fun addApiExtensionsDocumentation(sdkExtSince: SdkAndVersion, item: SelectableItem) {
-        if (item.documentation.contains("@sdkExtSince")) {
+        if (item.documentation.text.contains("@sdkExtSince")) {
             reporter.report(
                 Issues.FORBIDDEN_TAG,
                 item,
@@ -891,7 +892,7 @@ class DocAnalyzer(
             }
             val apiVersionLabel = apiVersionLabelProvider(version)
 
-            if (!item.documentation.contains("@deprecatedSince")) {
+            if (!item.documentation.text.contains("@deprecatedSince")) {
                 item.appendDocumentation(apiVersionLabel, "@deprecatedSince")
             } else {
                 reporter.report(
@@ -902,6 +903,27 @@ class DocAnalyzer(
                 )
             }
         }
+    }
+
+    companion object {
+        /**
+         * Major value used in android.os.Build.VERSION_CODES_FULL to encode a major/minor version
+         * into a single int. That encoding is used in `@RequiresApi(api=....)`.
+         */
+        const val SDK_INT_MULTIPLIER = 100000
+
+        /**
+         * Decode a version number that could either be a major version on its own, or a full
+         * version code that encodes a major and minor number.
+         */
+        private fun decodePossibleFullVersionCode(possibleFullVersionCode: Int) =
+            if (possibleFullVersionCode > SDK_INT_MULTIPLIER) {
+                val major = possibleFullVersionCode / SDK_INT_MULTIPLIER
+                val minor = possibleFullVersionCode % SDK_INT_MULTIPLIER
+                ApiVersion.fromMajorMinor(major, minor)
+            } else {
+                ApiVersion.fromLevel(possibleFullVersionCode)
+            }
     }
 }
 

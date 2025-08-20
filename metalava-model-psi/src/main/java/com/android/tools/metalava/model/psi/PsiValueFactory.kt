@@ -385,7 +385,7 @@ internal class PsiValueFactory(
      * `Class<Integer>`. So, use clues from the source [receiver] to choose the correct one.
      */
     private fun unboxTypeItemIfNeeded(
-        receiverTypeItem: PsiTypeItem,
+        receiverTypeItem: TypeItem,
         receiver: UClassLiteralExpression
     ): TypeItem {
         if (receiverTypeItem !is ClassTypeItem) return receiverTypeItem

@@ -193,13 +193,16 @@ class AndroidApiChecks(val reporter: Reporter) {
     }
 
     private fun checkTodos(item: Item) {
-        if (item.documentation.contains("TODO:") || item.documentation.contains("TODO(")) {
+        if (
+            item.documentation.text.contains("TODO:") || item.documentation.text.contains("TODO(")
+        ) {
             reporter.report(Issues.TODO, item, "Documentation mentions 'TODO'")
         }
     }
 
     private fun checkRequiresPermission(callable: CallableItem) {
-        val text = callable.documentation
+        val documentation = callable.documentation
+        val text = documentation.text
 
         val annotation = callable.modifiers.findAnnotation("androidx.annotation.RequiresPermission")
         val requiresPermissionInfo = annotation?.getRequiresPermissionInfo()
@@ -253,7 +256,8 @@ class AndroidApiChecks(val reporter: Reporter) {
         val hasSdkConstant =
             field.modifiers.findAnnotation("android.annotation.SdkConstant") != null
 
-        val text = field.documentation
+        val documentation = field.documentation
+        val text = documentation.text
 
         if (
             text.contains("Broadcast Action:") ||

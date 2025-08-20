@@ -3275,7 +3275,7 @@ private constructor(
         val lastRequiredParameter = requiredParameters.last()
         val hasTrailingLambda =
             lastRequiredParameter.parameterIndex == parameters.lastIndex &&
-                lastRequiredParameter.isSamCompatibleOrKotlinLambda()
+                lastRequiredParameter.type().isSamCompatibleOrKotlinLambda()
         val lastRequiredParameterIndex =
             if (hasTrailingLambda) {
                     requiredParameters.dropLast(1).lastOrNull()

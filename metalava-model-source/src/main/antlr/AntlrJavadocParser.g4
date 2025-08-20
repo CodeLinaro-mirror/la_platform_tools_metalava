@@ -92,31 +92,11 @@ tagSection
     ;
 
 blockTag
-    : SPACE? AT blockTagName SPACE? blockTagContent*
+    : SPACE? AT blockTagName SPACE? description
     ;
 
 blockTagName
     : NAME
-    ;
-
-blockTagContent
-    : blockTagText
-    | inlineTag
-    | NEWLINE
-    ;
-
-blockTagText
-    : blockTagTextElement+
-    ;
-
-blockTagTextElement
-    : TEXT_CONTENT
-    | NAME
-    | SPACE
-    | STAR
-    | SLASH
-    | BRACE_OPEN
-    | BRACE_CLOSE
     ;
 
 inlineTag

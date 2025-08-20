@@ -25,7 +25,6 @@ import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DefaultTypeParameterList
 import com.android.tools.metalava.model.DelegatedVisitor
 import com.android.tools.metalava.model.FieldItem
-import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.ItemVisitor
 import com.android.tools.metalava.model.MethodItem
@@ -121,19 +120,58 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
     }
 
     /**
-     * Construct a [PackageDocs] that contains a [PackageDoc] that in turn contains information
-     * extracted from [packageItem] that can be used to create a new [PackageItem] that is a
-     * snapshot of [packageItem].
+     * Construct a [PackageDocs] that contains a [PackageDoc] for [packageItem] and each of its
+     * ancestor [PackageItem]s from the original [Codebase] that have not yet been included in the
+     * snapshot.
+     *
+     * Each [PackageDoc] contains information necessary for create [PackageItem]s that are snapshots
+     * of the original [PackageItem].
+     *
+     * It is necessary to include a [PackageDoc] for ancestor [PackageItem]s as while the
+     * [PackageItem]s are visited in order from the top-most down, they are ignored by the visitor
+     * if they do not contain any classes.
      */
-    private fun packageDocsForPackageItem(packageItem: PackageItem) =
-        MutablePackageDoc(
-                qualifiedName = packageItem.qualifiedName(),
-                fileLocation = packageItem.fileLocation,
-                modifiers = packageItem.modifiers.snapshot(),
-                commentFactory = packageItem.documentation::snapshot,
-                overview = packageItem.overviewDocumentation,
-            )
-            .let { PackageDocs(mapOf(it.qualifiedName to it)) }
+    private fun packageDocsForPackageItem(packageItem: PackageItem): PackageDocs {
+        return PackageDocs(
+            buildMap {
+                var pkgItem: PackageItem? = packageItem
+                while (pkgItem != null) {
+                    val qualifiedName = pkgItem.qualifiedName()
+                    if (snapshotCodebase.findPackage(qualifiedName) != null) {
+                        break
+                    }
+
+                    val packageDoc =
+                        MutablePackageDoc(
+                            qualifiedName = qualifiedName,
+                            fileLocation = pkgItem.fileLocation,
+                            modifiers = pkgItem.modifiers.snapshot(),
+                            commentFactory = pkgItem.documentation::snapshot,
+                            overview = pkgItem.overviewDocumentation,
+                        )
+                    put(qualifiedName, packageDoc)
+
+                    pkgItem = pkgItem.containingPackage()
+                }
+            }
+        )
+    }
+
+    /**
+     * Override to throw an error.
+     *
+     * This should never be called when taking a snapshot as:
+     * 1. This will only be called for package items that have a null [PackageDoc.commentFactory].
+     * 2. Every [PackageItem] that is created in the snapshot [Codebase] must have a matching
+     *    [PackageItem] in the original [Codebase].
+     * 3. [packageDocsForPackageItem] will ensure that the [PackageDoc.commentFactory] for every
+     *    [PackageItem] being snapshot is set to a non-null value.
+     */
+    override fun emptyPackageDocumentationFactory(): ItemDocumentationFactory {
+        error(
+            "Internal Error: PackageItems in the snapshot must always be created from PackageItems in the original codebase"
+        )
+    }
 
     /** Get the [PackageItem] corresponding to this [PackageItem] in the snapshot codebase. */
     private fun PackageItem.getSnapshotPackage(): PackageItem {
@@ -143,13 +181,10 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
             return it
         }
 
-        // Get a PackageDocs that contains a PackageDoc that contains information extracted from the
-        // PackageItem being visited. This is needed to ensure that the findOrCreatePackage(...)
-        // call below will use the correct information when creating the package. As only a single
-        // PackageDoc is provided for this package it means that if findOrCreatePackage(...) had to
-        // created a containing package that package would not have a PackageDocs and might be
-        // incorrect. However, that should not be a problem as the packages are visited in order
-        // such that a containing package is visited before any contained packages.
+        // Get a PackageDocs that contains a PackageDoc for the PackageItem being visited and each
+        // of its ancestor PackageItems that are not already been included in this snapshot. They
+        // are needed to ensure that the findOrCreatePackage(...) call below will use the correct
+        // information when creating the snapshots of the PackageItem.
         val packageDocs = packageDocsForPackageItem(this)
         val newPackageItem = snapshotCodebase.findOrCreatePackage(packageName, packageDocs)
         newPackageItem.copySelectedApiVariants(this)
@@ -168,8 +203,8 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
      * into the Javadoc.
      */
     private fun snapshotDocumentation(
-        itemToSnapshot: Item,
-        documentedItem: Item,
+        itemToSnapshot: SelectableItem,
+        documentedItem: SelectableItem,
     ): ItemDocumentationFactory {
         // The documentation does not need to be reverted if...
         if (
