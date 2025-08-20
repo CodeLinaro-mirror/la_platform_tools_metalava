@@ -34,7 +34,5 @@ com.android.tools.metalava.model.testsuite.value.CommonParameterizedFieldWriteWi
   testLegacySource[source,short - cast]
 
 com.android.tools.metalava.model.testsuite.value.ParameterizedValueParserTest
-  Test parse[byte - cast,annotation_to_source,kotlin,source]
   Test parse[byte - cast,signatureExpression,jar]
-  Test parse[short - cast,annotation_to_source,kotlin,jar]
   Test parse[short - cast,signatureExpression,jar]

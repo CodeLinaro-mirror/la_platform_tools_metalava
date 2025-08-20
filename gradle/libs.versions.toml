@@ -1,5 +1,5 @@
 [versions]
-kotlin = "2.1.0"
+kotlin = "2.2.0"
 androidLint = "31.13.0-alpha03"
 
 [libraries]
@@ -24,7 +24,8 @@ jacksonDataformatXml = { module = "com.fasterxml.jackson.dataformat:jackson-data
 jacksonModuleKotlin = { module = "com.fasterxml.jackson.module:jackson-module-kotlin", version = "2.15.0" }
 junit4 = { module = "junit:junit", version = "4.13.2" }
 kotlinGradlePlugin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin" }
-kotlinMetadataJvm = { module = "org.jetbrains.kotlin:kotlin-metadata-jvm", version.ref = "kotlin" }
+# TODO: move back to version.ref = "kotlin" when Android platform upgrades to kotlin-metadata-jvm 2.2.0
+kotlinMetadataJvm = { module = "org.jetbrains.kotlin:kotlin-metadata-jvm", version = "2.1.20" }
 kotlinStdlib = { module = "org.jetbrains.kotlin:kotlin-stdlib", version.ref = "kotlin" }
 kotlinTest = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
 truth = { module = "com.google.truth:truth", version = "1.1.3" }

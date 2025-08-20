@@ -238,8 +238,8 @@ class CommonTypeAliasItemTest : BaseModelTest() {
             functionType.assertLambdaTypeItem {
                 assertThat(parameterTypes).hasSize(1)
                 assertThat(parameterTypes.single().isString()).isTrue()
-                returnType.assertPrimitiveTypeItem {
-                    assertThat(kind).isEqualTo(PrimitiveTypeItem.Primitive.INT)
+                returnType.assertClassTypeItem {
+                    assertThat(qualifiedName).isEqualTo("java.lang.Integer")
                 }
             }
         }
@@ -265,9 +265,7 @@ class CommonTypeAliasItemTest : BaseModelTest() {
             bar.aliasedType.assertClassTypeItem {
                 assertThat(qualifiedName).isEqualTo("java.util.List")
                 assertThat(arguments).hasSize(1)
-                arguments.single().assertWildcardItem {
-                    assertThat(extendsBound!!.isString()).isTrue()
-                }
+                assertThat(arguments.single().isString()).isTrue()
             }
         }
     }
@@ -290,8 +288,8 @@ class CommonTypeAliasItemTest : BaseModelTest() {
                     // Signature format: 5.0
                     package test.pkg {
                       public typealias NoTypeParameter = String;
-                      public typealias OneTypeParameter<T> = java.util.List<? extends T>;
-                      public typealias TwoTypeParameter<K, V> = java.util.Map.Entry<? extends K,? extends V>;
+                      public typealias OneTypeParameter<T> = java.util.List<T>;
+                      public typealias TwoTypeParameter<K, V> = java.util.Map.Entry<K,V>;
                     }
                 """
             ),
@@ -307,11 +305,9 @@ class CommonTypeAliasItemTest : BaseModelTest() {
             listT.assertClassTypeItem {
                 assertThat(qualifiedName).isEqualTo("java.util.List")
                 assertThat(arguments).hasSize(1)
-                arguments.single().assertWildcardItem {
-                    extendsBound.assertVariableTypeItem {
-                        assertThat(asTypeParameter).isEqualTo(t)
-                        assertThat(t.type()).isEqualTo(this)
-                    }
+                arguments.single().assertVariableTypeItem {
+                    assertThat(asTypeParameter).isEqualTo(t)
+                    assertThat(t.type()).isEqualTo(this)
                 }
             }
 
@@ -325,17 +321,13 @@ class CommonTypeAliasItemTest : BaseModelTest() {
             mapEntryKV.assertClassTypeItem {
                 assertThat(qualifiedName).isEqualTo("java.util.Map.Entry")
                 assertThat(arguments).hasSize(2)
-                arguments[0].assertWildcardItem {
-                    extendsBound.assertVariableTypeItem {
-                        assertThat(asTypeParameter).isEqualTo(k)
-                        assertThat(k.type()).isEqualTo(this)
-                    }
+                arguments[0].assertVariableTypeItem {
+                    assertThat(asTypeParameter).isEqualTo(k)
+                    assertThat(k.type()).isEqualTo(this)
                 }
-                arguments[1].assertWildcardItem {
-                    extendsBound.assertVariableTypeItem {
-                        assertThat(asTypeParameter).isEqualTo(v)
-                        assertThat(v.type()).isEqualTo(this)
-                    }
+                arguments[1].assertVariableTypeItem {
+                    assertThat(asTypeParameter).isEqualTo(v)
+                    assertThat(v.type()).isEqualTo(this)
                 }
             }
         }

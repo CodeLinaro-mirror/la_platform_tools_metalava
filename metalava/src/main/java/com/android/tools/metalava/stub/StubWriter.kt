@@ -95,7 +95,7 @@ internal class StubWriter(
         val annotations = pkg.modifiers.annotations()
         val writeAnnotations = annotations.isNotEmpty() && generateAnnotations
         val writeDocumentation =
-            config.includeDocumentationInStubs && pkg.documentation.isNotBlank()
+            config.includeDocumentationInStubs && pkg.documentation.text.isNotBlank()
         if (writeAnnotations || writeDocumentation) {
             val sourceFile = File(getPackageDir(pkg), "package-info.java")
             val packageInfoWriter =

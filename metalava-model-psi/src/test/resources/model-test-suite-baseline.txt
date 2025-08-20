@@ -7,23 +7,10 @@ com.android.tools.metalava.model.testsuite.CommonModifierListWriterTest
   modifiers public explicitly final method in final class[java,k2]
 
 com.android.tools.metalava.model.testsuite.CommonTargetLanguageTest
-  Test type aliases can only be used from Kotlin[kotlin,k1]
+  Test function in value class[kotlin,k1]
 
 com.android.tools.metalava.model.testsuite.classitem.CommonDataClassTest
   Test data class copy method visibility with ConsistentCopyVisibility[kotlin,k1]
-
-com.android.tools.metalava.model.testsuite.typealiasitem.CommonTypeAliasItemTest
-  accessing type alias from codebase[kotlin,k1]
-  accessing type alias from package[kotlin,k1]
-  annotations on type alias[kotlin,k1]
-  basic type alias types[kotlin,k1]
-  expect actual typealias[kotlin,k1]
-  functional type alias type[kotlin,k1]
-  private type alias visibility[kotlin,k1]
-  type alias name[kotlin,k1]
-  type alias referencing other type alias[kotlin,k1]
-  type alias visibility[kotlin,k1]
-  type parameter lists on type aliases[kotlin,k1]
 
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeModifiersTest
   Test inner parameterized types with annotations[java,k1]

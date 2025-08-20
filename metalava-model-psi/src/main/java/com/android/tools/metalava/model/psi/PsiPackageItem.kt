@@ -19,7 +19,6 @@ package com.android.tools.metalava.model.psi
 import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.ItemDocumentation.Companion.toItemDocumentationFactory
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.TargetLanguageSet
@@ -27,6 +26,7 @@ import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.item.DefaultPackageItem
 import com.android.tools.metalava.model.item.PackageDoc
 import com.android.tools.metalava.model.item.ResourceFile
+import com.android.tools.metalava.model.source.toItemDocumentationFactory
 import com.android.tools.metalava.reporter.FileLocation
 import com.intellij.psi.PsiPackage
 

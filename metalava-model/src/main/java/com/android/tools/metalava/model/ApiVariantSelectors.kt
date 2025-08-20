@@ -380,7 +380,13 @@ sealed class ApiVariantSelectors {
             }
 
             // Inheritance is only done on a few Item types, ignore the rest.
-            if (item !is ClassItem && item !is CallableItem && item !is FieldItem) return
+            if (
+                item !is ClassItem &&
+                    item !is CallableItem &&
+                    item !is FieldItem &&
+                    item !is TypeAliasItem
+            )
+                return
 
             if (item is ClassItem) {
                 // Workaround: we're pulling in .aidl files from .jar files. These are
@@ -405,9 +411,10 @@ sealed class ApiVariantSelectors {
                 // always unhide this item.
                 hidden = false
 
-                if (item is ClassItem) {
+                if (item is ClassItem || item is TypeAliasItem) {
                     // Make containing package non-hidden if it contains a show-annotation class.
-                    val containingPackageSelectors = item.containingPackage().variantSelectors
+                    // Both ClassItem and TypeAliasItem have a non-null containingPackage return.
+                    val containingPackageSelectors = item.containingPackage()!!.variantSelectors
                     // Only unhide the package, do not affect anything that might inherit from that
                     // package.
                     (containingPackageSelectors as Mutable).hidden = false
@@ -436,10 +443,12 @@ sealed class ApiVariantSelectors {
                     } else if (containingClassSelectors.inheritableHidden) {
                         inheritableHidden = true
                     }
-                } else if (item is ClassItem) {
+                } else if (item is ClassItem || item is TypeAliasItem) {
                     // This will only be executed for top level classes, i.e. containing class is
-                    // null. They inherit their properties from the containing package.
-                    val containingPackageSelectors = item.containingPackage().variantSelectors
+                    // null, and type aliases which are always top-level. They inherit their
+                    // properties from the containing package.
+                    // Both ClassItem and TypeAliasItem have a non-null containingPackage return.
+                    val containingPackageSelectors = item.containingPackage()!!.variantSelectors
                     if (containingPackageSelectors.inheritableHidden) {
                         inheritableHidden = true
                     }

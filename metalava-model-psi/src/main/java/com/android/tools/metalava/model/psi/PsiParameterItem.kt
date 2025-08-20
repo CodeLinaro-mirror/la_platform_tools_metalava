@@ -106,9 +106,7 @@ internal constructor(
                     publicNameProvider = { (it as PsiParameterItem).getPublicName() },
                     containingCallable = containingCallable,
                     parameterIndex = parameterIndex,
-                    // Need to down cast as [isSamCompatibleOrKotlinLambda] needs access to the
-                    // underlying PsiType.
-                    type = type as PsiTypeItem,
+                    type = type,
                     defaultValueFactory = {
                         if (it.isKotlin()) PsiParameterDefaultValue(it as PsiParameterItem)
                         else ParameterDefaultValue.NONE

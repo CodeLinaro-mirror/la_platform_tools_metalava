@@ -115,6 +115,21 @@ class SignatureWriter(
         write("\n")
     }
 
+    override fun visitTypeAlias(typeAlias: TypeAliasItem) {
+        write("  ")
+
+        writeModifiers(typeAlias)
+
+        write("typealias ")
+
+        write(typeAlias.simpleName)
+        writeTypeParameterList(typeAlias.typeParameterList, addSpace = false)
+
+        write(" = ")
+        writeType(typeAlias.aliasedType)
+        write(";\n\n")
+    }
+
     override fun visitProperty(property: PropertyItem) {
         write("    property ")
         writeModifiers(property)

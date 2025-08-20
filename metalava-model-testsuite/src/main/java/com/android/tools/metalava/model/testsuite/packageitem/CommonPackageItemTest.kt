@@ -450,4 +450,39 @@ class CommonPackageItemTest : BaseModelTest() {
             )
         }
     }
+
+    @Test
+    fun `Test documentation on empty packages`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        /**
+                         * Some documentation.
+                         */
+                        package test;
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+
+                        public class Foo {
+                        }
+                    """
+                ),
+            ),
+        ) {
+            val packageItem = codebase.assertPackage("test")
+            assertEquals(
+                """
+                    /**
+                     * Some documentation.
+                     */
+                """
+                    .trimIndent(),
+                packageItem.documentation.text.trimIndent()
+            )
+        }
+    }
 }

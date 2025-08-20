@@ -85,4 +85,16 @@ abstract class DefaultSelectableItem(
 
     final override val showability: Showability
         get() = variantSelectors.showability
+
+    final override fun appendDocumentation(comment: String, tagSection: String?) {
+        if (comment.isBlank()) {
+            return
+        }
+
+        // TODO: Figure out if an annotation should go on the return value, or on the method.
+        // For example; threading: on the method, range: on the return value.
+        // TODO: Find a good way to add or append to a given tag (@param <something>, @return, etc)
+
+        documentation.appendDocumentation(comment, tagSection)
+    }
 }

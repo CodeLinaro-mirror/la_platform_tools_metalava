@@ -914,6 +914,23 @@ class SignatureInputOutputTest : Assertions {
         runInputOutputTest(api, FileFormat.V5)
     }
 
+    @Test
+    fun `Test type aliases`() {
+        val api =
+            """
+            // Signature format: 5.0
+            package test.pkg {
+              public typealias TypeAlias = String;
+              @test.pkg.AnnoA @test.pkg.AnnoB public typealias TypeAliasAnnotated = String;
+              public typealias TypeAliasPrimitive = int;
+              public typealias TypeAliasPrimitiveArray = int[];
+              public typealias TypeAliasTypeParameter<T> = java.util.List<T>;
+              public typealias TypeAliasTypeParameters<K, V> = java.util.Map.Entry<K,V>;
+            }
+            """
+        runInputOutputTest(api, FileFormat.V5)
+    }
+
     companion object {
         private val kotlinStyleFormat =
             FileFormat.V5.copy(kotlinNameTypeOrder = true, formatDefaults = FileFormat.V5)

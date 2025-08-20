@@ -93,7 +93,7 @@ internal class PsiTypeItemFactory(
         // The isVarArg is unused here as that information is encoded in the [PsiType] using the
         // [PsiEllipsisType] extension of [PsiArrayType].
         isVarArg: Boolean,
-    ): PsiTypeItem {
+    ): TypeItem {
         return getType(underlyingType.psiType, underlyingType.context, contextNullability)
     }
 
@@ -159,7 +159,7 @@ internal class PsiTypeItemFactory(
         psiType: PsiType,
         context: PsiElement? = null,
         contextNullability: ContextNullability = ContextNullability.none,
-    ): PsiTypeItem {
+    ): TypeItem {
         val kotlinTypeInfo =
             if (context != null && isKotlin(context)) {
                 KotlinTypeInfo.fromContext(context)
@@ -213,7 +213,7 @@ internal class PsiTypeItemFactory(
     @OptIn(KaExperimentalApi::class)
     internal fun getTypeForKtElement(
         ktElement: KtElement,
-    ): PsiTypeItem? {
+    ): TypeItem? {
         val kotlinTypeInfo = KotlinTypeInfo.fromContext(ktElement)
         val psiType =
             kotlinTypeInfo.analysisSession?.run {
@@ -267,7 +267,7 @@ internal class PsiTypeItemFactory(
         kotlinType: KotlinTypeInfo?,
         contextNullability: ContextNullability = ContextNullability.none,
         creatingClassTypeForClass: Boolean = false,
-    ): PsiTypeItem {
+    ): TypeItem {
         return when (psiType) {
             is PsiPrimitiveType ->
                 createPrimitiveTypeItem(
@@ -377,7 +377,7 @@ internal class PsiTypeItemFactory(
     private fun checkForTypeAliasSubstitution(
         classTypeItem: PsiClassTypeItem,
         contextNullability: ContextNullability
-    ): PsiTypeItem? {
+    ): TypeItem? {
         // Don't bother checking for type aliases in non-KMP codebases because the substitution will
         // already have happened in the UAST representation. Substitution won't have happened for
         // expect/actual type aliases used from a common source set because the type is platform
@@ -410,7 +410,7 @@ internal class PsiTypeItemFactory(
                     classTypeItem.modifiers.nullability
                 }
 
-        return convertedType.substitute(nullability) as PsiTypeItem
+        return convertedType.substitute(nullability)
     }
 
     /** Create a [PsiPrimitiveTypeItem]. */

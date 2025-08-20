@@ -28,13 +28,12 @@ import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JAVA_PACKAGE_INFO
 import com.android.tools.metalava.model.JVM_NAME
-import com.android.tools.metalava.model.JVM_SYNTHETIC
-import com.android.tools.metalava.model.KOTLIN_DEPRECATED
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.model.WildcardTypeItem
 import com.android.tools.metalava.model.addDefaultRetentionPolicyAnnotation
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.isRetention
@@ -76,16 +75,13 @@ import java.util.zip.ZipFile
 import org.jetbrains.kotlin.asJava.classes.KtLightClassForFacade
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.JvmStandardClassIds
-import org.jetbrains.kotlin.psi.KtDeclaration
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.KtFunction
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
-import org.jetbrains.kotlin.psi.KtTypeAlias
 import org.jetbrains.kotlin.psi.KtTypeReference
 import org.jetbrains.uast.UClass
 import org.jetbrains.uast.UFile
 import org.jetbrains.uast.UMethod
-import org.jetbrains.uast.UReferenceExpression
 import org.jetbrains.uast.UastFacade
 import org.jetbrains.uast.kotlin.KotlinUMethodWithFakeLightDelegateBase
 import org.jetbrains.uast.kotlin.psi.UastFakeSourceLightMethod
@@ -289,25 +285,12 @@ internal class PsiCodebaseAssembler(
         val psiMethods = psiClass.methods
         // create methods
         for (psiMethod in psiMethods) {
-            // Skip fake UAST constructors, accessors, reified inline methods, and JvmSynthetic
-            // methods, which can't be used from java source, and deprecated level hidden methods,
-            // which can't be used from java or kotlin source.
+            // Skip fake UAST constructors and methods, which can't be used from java source.
             // If this condition is updated, the one in KaCodebaseAssembler determining which
             // methods to create needs to be updated too.
             if (
                 (psiMethod is UastFakeSourceLightMethod ||
-                    psiMethod is KotlinUMethodWithFakeLightDelegateBase<*>) &&
-                    (psiMethod.isConstructor ||
-                        PsiMethodItem.isKotlinProperty(psiMethod) ||
-                        psiMethod.typeParameters.any { PsiTypeParameterItem.isReified(it) } ||
-                        (psiMethod as? UMethod)?.uAnnotations?.any {
-                            it.qualifiedName == JVM_SYNTHETIC
-                        } == true ||
-                        (psiMethod.isDeprecated &&
-                            (psiMethod as? UMethod)?.findAnnotation(KOTLIN_DEPRECATED)?.let {
-                                (it.findAttributeValue("level") as? UReferenceExpression)
-                                    ?.resolvedName == "HIDDEN"
-                            } == true))
+                    psiMethod is KotlinUMethodWithFakeLightDelegateBase<*>)
             ) {
                 continue
             }
@@ -356,15 +339,23 @@ internal class PsiCodebaseAssembler(
                 val method =
                     PsiMethodItem.create(codebase, classItem, psiMethod, classTypeItemFactory)
 
-                // With K2, any accessors of value class type properties which don't use JvmName
+                // With K2, any methods using value class types which don't use JvmName
                 // will already have been filtered out because they are represented with fake UAST
                 // elements. With K1, value class types are not treated differently so the elements
                 // are not fake UAST. Filter those value class type property accessors here.
                 // TODO(b/427783483): remove this workaround
                 if (
-                    method.isKotlinProperty() &&
-                        (method.returnType().isValueClassType() ||
-                            method.parameters().any { it.type().isValueClassType() }) &&
+                    (method.returnType().isValueClassType() ||
+                        method.parameters().any { it.type().isValueClassType() } ||
+                        // If a suspend function returns a value class type, the return is turned
+                        // into a final continuation parameter where the argument of the type is
+                        // a super bound of the value class type.
+                        (method.modifiers.isSuspend() &&
+                            ((method.parameters().lastOrNull()?.type() as? ClassTypeItem)
+                                    ?.arguments
+                                    ?.singleOrNull() as? WildcardTypeItem)
+                                ?.superBound
+                                ?.isValueClassType() == true)) &&
                         method.modifiers.annotations().none { it.qualifiedName == JVM_NAME }
                 ) {
                     continue
@@ -818,7 +809,13 @@ internal class PsiCodebaseAssembler(
         // Create the initial set of packages that were found in the source files.
         codebase.packageTracker.createInitialPackages(packageDocs)
 
-        findTypeAliases(psiClasses, codebase)
+        // Add type aliases.
+        val kaCodebaseAssembler =
+            psiFiles
+                .filterIsInstance<KtFile>()
+                .takeIf { it.isNotEmpty() }
+                ?.let { kotlinFiles -> KaCodebaseAssembler(kotlinFiles, codebase) }
+        kaCodebaseAssembler?.createTypeAliases()
 
         // Process the `PsiClass`es.
         for (psiClass in psiClasses) {
@@ -838,29 +835,7 @@ internal class PsiCodebaseAssembler(
         }
 
         // Add kotlin-only APIs.
-        KaCodebaseAssembler.assembleFromKotlin(psiFiles.filterIsInstance<KtFile>(), codebase)
-    }
-
-    /**
-     * Finds all type aliases declared in the [KtFile]s underlying any file facade classes in
-     * [psiClasses] and adds them to the codebase.
-     */
-    private fun findTypeAliases(psiClasses: List<PsiClass>, codebase: PsiBasedCodebase) {
-        val typeAliases =
-            psiClasses.flatMap { topLevelDeclarations(it) }.filterIsInstance<KtTypeAlias>()
-        for (typeAlias in typeAliases) {
-            PsiTypeAliasItem.create(typeAlias, codebase)
-        }
-    }
-
-    /**
-     * Returns a list of declarations from the [fileFacadeClass]. If [fileFacadeClass] is not
-     * actually a file facade class, returns an empty list.
-     */
-    private fun topLevelDeclarations(fileFacadeClass: PsiClass): List<KtDeclaration> {
-        return ((fileFacadeClass as? UClass)?.javaPsi as? KtLightClassForFacade)?.files?.flatMap {
-            it.declarations
-        } ?: emptyList()
+        kaCodebaseAssembler?.assemble()
     }
 
     /**
