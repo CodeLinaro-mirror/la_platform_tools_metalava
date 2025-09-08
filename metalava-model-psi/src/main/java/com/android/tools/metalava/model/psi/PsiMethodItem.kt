@@ -51,7 +51,7 @@ import org.jetbrains.uast.kotlin.KotlinUMethodWithFakeLightDelegateBase
 import org.jetbrains.uast.toUElement
 
 internal class PsiMethodItem(
-    override val codebase: PsiBasedCodebase,
+    override val psiCodebase: PsiBasedCodebase,
     override val psiMethod: PsiMethod,
     fileLocation: FileLocation = PsiFileLocation(psiMethod),
     // Takes ClassItem as this may be duplicated from a PsiBasedCodebase on the classpath into a
@@ -69,7 +69,7 @@ internal class PsiMethodItem(
     isExtensionMethod: Boolean,
 ) :
     DefaultMethodItem(
-        codebase = codebase,
+        codebase = psiCodebase,
         fileLocation = fileLocation,
         sourceLanguage = psiMethod.sourceLanguage,
         targetLanguages = targetLanguages,
@@ -108,7 +108,7 @@ internal class PsiMethodItem(
             else emptyMap()
 
         return PsiMethodItem(
-                codebase,
+                psiCodebase,
                 psiMethod,
                 fileLocation,
                 targetContainingClass,
@@ -230,7 +230,7 @@ internal class PsiMethodItem(
 
             val method =
                 PsiMethodItem(
-                    codebase = codebase,
+                    psiCodebase = codebase,
                     psiMethod = psiMethod,
                     containingClass = containingClass,
                     name = name,

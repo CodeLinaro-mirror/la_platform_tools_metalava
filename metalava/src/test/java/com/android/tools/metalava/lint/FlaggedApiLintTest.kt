@@ -261,7 +261,6 @@ class FlaggedApiLintTest : DriverTest() {
                             package android.foobar;
 
                             import android.annotation.SystemApi;
-
                             public class Existing {
                                 public class Inner {
                                     /** @hide */
