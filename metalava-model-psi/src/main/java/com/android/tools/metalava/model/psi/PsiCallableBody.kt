@@ -48,11 +48,11 @@ import org.jetbrains.uast.visitor.AbstractUastVisitor
 internal class PsiCallableBody(private val callable: PsiCallableItem) : CallableBody {
 
     /**
-     * Access [codebase] on demand as [callable] is not properly initialized during initialization
-     * of this class.
+     * Access [psiCodebase] on demand as [callable] is not properly initialized during
+     * initialization of this class.
      */
-    private val codebase
-        get() = callable.codebase
+    private val psiCodebase
+        get() = callable.psiCodebase
 
     /**
      * Access [psiMethod] on demand as [callable] is not properly initialized during initialization
@@ -88,7 +88,7 @@ internal class PsiCallableBody(private val callable: PsiCallableItem) : Callable
                     val type = node.thrownExpression.getExpressionType()
                     // TODO: after KTIJ-31242, go back to null check only
                     if (type != null && type != UastErrorType) {
-                        val typeItemFactory = codebase.globalTypeItemFactory.from(callable)
+                        val typeItemFactory = psiCodebase.globalTypeItemFactory.from(callable)
                         val exceptionClass = typeItemFactory.getType(type).asClass()
                         if (exceptionClass != null && !isCaught(exceptionClass, node)) {
                             exceptions.add(exceptionClass)
@@ -211,7 +211,7 @@ internal class PsiCallableBody(private val callable: PsiCallableItem) : Callable
                                     }
                             if (names.isNotEmpty() && !names.contains(name)) {
                                 val expected = names.joinToString { it }
-                                codebase.reporter.report(
+                                psiCodebase.reporter.report(
                                     Issues.RETURNING_UNEXPECTED_CONSTANT,
                                     value as PsiElement,
                                     "Returning unexpected constant $name; is @${typeDefClass.simpleName()} missing this constant? Expected one of $expected"

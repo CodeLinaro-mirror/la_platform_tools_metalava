@@ -268,7 +268,7 @@ internal class PsiCodebaseAssembler(
             computeSuperTypes(psiClass, classKind, classTypeItemFactory)
         val classItem =
             PsiClassItem(
-                codebase = codebase,
+                psiCodebase = codebase,
                 psiClass = psiClass,
                 modifiers = modifiers,
                 documentationFactory = PsiItemDocumentation.factory(psiClass, codebase),

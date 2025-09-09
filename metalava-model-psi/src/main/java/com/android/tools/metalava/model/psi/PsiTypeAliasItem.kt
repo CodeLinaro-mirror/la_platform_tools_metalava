@@ -28,7 +28,7 @@ import org.jetbrains.kotlin.psi.KtTypeAlias
 
 internal class PsiTypeAliasItem
 private constructor(
-    override val codebase: PsiBasedCodebase,
+    override val psiCodebase: PsiBasedCodebase,
     private val ktTypeAlias: KtTypeAlias,
     fileLocation: FileLocation,
     modifiers: BaseModifierList,
@@ -38,10 +38,10 @@ private constructor(
     containingPackage: DefaultPackageItem,
 ) :
     DefaultTypeAliasItem(
-        codebase,
+        psiCodebase,
         fileLocation,
         modifiers,
-        PsiItemDocumentation.factory(ktTypeAlias, codebase),
+        PsiItemDocumentation.factory(ktTypeAlias, psiCodebase),
         ApiVariantSelectors.MUTABLE_FACTORY,
         aliasedType,
         qualifiedName,
@@ -77,7 +77,7 @@ private constructor(
             val modifiers = PsiModifierItem.createForKtDeclaration(codebase, ktTypeAlias)
 
             return PsiTypeAliasItem(
-                codebase = codebase,
+                psiCodebase = codebase,
                 ktTypeAlias = ktTypeAlias,
                 fileLocation = PsiFileLocation.fromPsiElement(ktTypeAlias),
                 modifiers = modifiers,

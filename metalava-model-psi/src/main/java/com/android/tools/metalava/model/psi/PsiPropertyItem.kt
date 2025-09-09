@@ -35,7 +35,7 @@ import org.jetbrains.kotlin.psi.KtTypeParameterListOwner
 
 internal class PsiPropertyItem
 private constructor(
-    override val codebase: PsiBasedCodebase,
+    override val psiCodebase: PsiBasedCodebase,
     private val ktDeclaration: KtDeclaration,
     modifiers: BaseModifierList,
     // This needs to be passed in because the documentation may come from the property, or it may
@@ -52,7 +52,7 @@ private constructor(
     typeParameterList: TypeParameterList,
 ) :
     DefaultPropertyItem(
-        codebase = codebase,
+        codebase = psiCodebase,
         fileLocation = PsiFileLocation(ktDeclaration),
         sourceLanguage = ktDeclaration.sourceLanguage,
         modifiers = modifiers,
@@ -142,7 +142,7 @@ private constructor(
 
             val property =
                 PsiPropertyItem(
-                    codebase = codebase,
+                    psiCodebase = codebase,
                     ktDeclaration = ktDeclaration,
                     modifiers = modifiers,
                     documentationFactory = PsiItemDocumentation.factory(ktDeclaration, codebase),

@@ -24,7 +24,10 @@ import com.android.tools.metalava.reporter.Severity
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.flag
+import com.github.ajalt.clikt.parameters.options.multiple
 import com.github.ajalt.clikt.parameters.options.option
+import com.github.ajalt.clikt.parameters.options.validate
+import com.github.ajalt.clikt.parameters.types.choice
 import com.github.ajalt.clikt.parameters.types.int
 import com.github.ajalt.clikt.parameters.types.restrictTo
 
@@ -38,6 +41,7 @@ const val ARG_WARNING_CATEGORY = "--warning-category"
 const val ARG_HIDE_CATEGORY = "--hide-category"
 
 const val ARG_WARNINGS_AS_ERRORS = "--warnings-as-errors"
+const val ARG_TREAT_AS_ERROR = "--treat-as-error"
 
 const val ARG_REPORT_EVEN_IF_SUPPRESSED = "--report-even-if-suppressed"
 
@@ -108,16 +112,46 @@ class IssueReportingOptions(
         registerOption(issueOption)
     }
 
+    @Suppress("unused") // Present for the side effect.
     private val warningsAsErrors: Boolean by
         option(
                 ARG_WARNINGS_AS_ERRORS,
                 help =
                     """
-                        Promote all warnings to errors.
+                        Promote all warnings to errors. That includes both `warning` and
+                        `warning-error-when-new`.
                     """
                         .trimIndent()
             )
             .flag()
+            .validate { value ->
+                if (value) {
+                    issueConfiguration.severityMap =
+                        mapOf(
+                            Severity.WARNING to Severity.ERROR,
+                            Severity.WARNING_ERROR_WHEN_NEW to Severity.ERROR,
+                        )
+                }
+            }
+
+    @Suppress("unused") // Present for the side effect.
+    private val treatAsError by
+        option(
+                ARG_TREAT_AS_ERROR,
+                help =
+                    """
+                Treat all issues of the specified severity as if they were errors.
+            """
+                        .trimIndent()
+            )
+            .choice(Severity.entries.associateBy { it.name.lowercase() })
+            .multiple()
+            .validate { list ->
+                if (list.isNotEmpty()) {
+                    val severityToError = list.associateBy({ it }) { Severity.ERROR }
+                    issueConfiguration.severityMap = severityToError
+                }
+            }
 
     /** Writes a list of all errors, even if they were suppressed in baseline or via annotation. */
     private val reportEvenIfSuppressedFile by
@@ -148,7 +182,6 @@ class IssueReportingOptions(
             val reportEvenIfSuppressedWriter = reportEvenIfSuppressedFile?.printWriter()
 
             DefaultReporter.Config(
-                warningsAsErrors = warningsAsErrors,
                 outputReportFormatter = TerminalReportFormatter.forTerminal(commonOptions.terminal),
                 reportEvenIfSuppressedWriter = reportEvenIfSuppressedWriter,
             )
