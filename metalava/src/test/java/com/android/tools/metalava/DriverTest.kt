@@ -1718,7 +1718,8 @@ val uiThreadSource: TestFile =
      *            this UI element. This is typically the main thread of your app.
      * @classDoc Methods in this class must be called on the thread that originally created
      *            this UI element, unless otherwise noted. This is typically the
-     *            main thread of your app. * @hide
+     *            main thread of your app.
+     * @hide
      */
     @SuppressWarnings({"WeakerAccess", "JavaDoc"})
     @Retention(SOURCE)

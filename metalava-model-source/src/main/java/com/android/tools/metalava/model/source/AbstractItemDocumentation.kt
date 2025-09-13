@@ -19,6 +19,8 @@ package com.android.tools.metalava.model.source
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.source.doc.DocComment
+import com.android.tools.metalava.model.source.doc.DocumentationIssueReporter
+import com.android.tools.metalava.reporter.Issues
 import java.util.regex.Pattern
 
 /**
@@ -26,7 +28,7 @@ import java.util.regex.Pattern
  */
 abstract class AbstractItemDocumentation(
     protected val item: SelectableItem,
-) : ItemDocumentation {
+) : ItemDocumentation, DocumentationIssueReporter {
 
     /**
      * The mutable text contents of the documentation. This is abstract to allow the implementations
@@ -53,7 +55,7 @@ abstract class AbstractItemDocumentation(
         get() {
             val docComment = _docComment
             return if (docComment == null) {
-                val new = DocComment.createDocComment(text)
+                val new = DocComment.createDocComment(text, this)
                 _docComment = new
                 new
             } else {
@@ -181,6 +183,11 @@ abstract class AbstractItemDocumentation(
 
     override fun removeDeprecatedSection() {
         text = removeDeprecatedSection(text)
+    }
+
+    override fun report(issue: Issues.Issue, message: String, lineOffset: Int) {
+        val location = fileLocation.forLineOffset(lineOffset)
+        item.codebase.reporter.report(issue, null, message, location)
     }
 }
 

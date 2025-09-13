@@ -188,6 +188,12 @@ interface ClassItem : ClassContentItem, SelectableItem, TypeParameterListOwner {
      */
     fun isFileFacade() = false
 
+    /**
+     * Whether this class is a multi-file facade class, generated from Kotlin files annotated with
+     * [JvmMultifileClass]. This can only be true when [isFileFacade] is true.
+     */
+    fun isMultiFileClass() = false
+
     /** The containing class, for nested classes */
     @MetalavaApi override fun containingClass(): ClassItem?
 

@@ -16,14 +16,21 @@
 
 package com.android.tools.metalava.model.source.doc
 
+import com.android.tools.metalava.reporter.Issues
 import kotlin.test.assertEquals
 import org.junit.Test
 
 class DocCommentParserTest {
     /** Create a [DocComment] from [input], compare it against the [expectedString] */
-    private fun checkDocComment(input: String, expectedString: String) {
-        var docComment = DocCommentParser.parseText(input.trimIndent())
+    private fun checkDocComment(
+        input: String,
+        expectedString: String,
+        expectedIssues: String = "",
+    ) {
+        val reporter = CollatingDocumentationIssueReporter()
+        var docComment = DocCommentParser.parseText(input.trimIndent(), reporter)
         assertEquals(expectedString.trimIndent(), docComment.toString())
+        assertEquals(expectedIssues.trimIndent(), reporter.toString().trim())
     }
 
     @Test
@@ -186,6 +193,10 @@ class DocCommentParserTest {
                     description: <<\n * An invalid block tag at the end of the text. @hide>>
                     @hide <<>>
                 """,
+            expectedIssues =
+                """
+                    line 2: Invalid @hide syntax, must be a block tag [InvalidJavadoc]
+                """,
         )
     }
 
@@ -205,6 +216,10 @@ class DocCommentParserTest {
                     @deprecated <<for some reason. @hide>>
                     @hide <<>>
                 """,
+            expectedIssues =
+                """
+                    line 3: Invalid @hide syntax, must be a block tag [InvalidJavadoc]
+                """,
         )
     }
 
@@ -221,6 +236,10 @@ class DocCommentParserTest {
                 """
                     description: <<\n * An inline tag at the end of some text {@hide reason why hidden}>>
                     @hide <<>>
+                """,
+            expectedIssues =
+                """
+                    line 2: Invalid @hide syntax, must be a block tag [InvalidJavadoc]
                 """,
         )
     }
@@ -242,6 +261,24 @@ class DocCommentParserTest {
                     @see <<Something\n * {@hide}>>
                     @hide <<>>
                 """,
+            expectedIssues =
+                """
+                    line 4: Invalid @hide syntax, must be a block tag [InvalidJavadoc]
+                """,
         )
     }
+}
+
+/**
+ * A [DocumentationIssueReporter] that collates any issues reported and returns them from
+ * [toString].
+ */
+class CollatingDocumentationIssueReporter : DocumentationIssueReporter {
+    private val builder = StringBuilder()
+
+    override fun report(issue: Issues.Issue, message: String, lineOffset: Int) {
+        builder.append("line ${lineOffset + 1}: $message [${issue.name}]\n")
+    }
+
+    override fun toString() = builder.toString()
 }

@@ -43,6 +43,7 @@ com.android.tools.metalava.JavadocTest
   Rewrite relative documentation links in doc-stubs 4[turbine]
   Rewrite relative documentation links in doc-stubs but preserve custom link text[turbine]
   Rewrite relative documentation links in doc-stubs[turbine]
+  Test non-block @hide tag[turbine]
   Warn about unresolved[turbine]
 
 com.android.tools.metalava.KeepFileTest

@@ -385,7 +385,7 @@ private constructor(
         reporter.withContext(cls) {
             checkClass(cls, methods, constructors, allCallables, fields, superClass, interfaces)
         }
-        kotlinInterop.checkClass(cls)
+        kotlinInterop.checkClass(cls, allCallables + fields)
     }
 
     override fun visitCallable(callable: CallableItem) {
@@ -1839,7 +1839,11 @@ private constructor(
             // it makes sense for this check to treat it as if it was replaced with its lower bound.
             val throwableClass = throwableType.erasedClass ?: continue
             if (isUncheckedException(throwableClass)) {
-                report(BANNED_THROW, callable, "Methods must not throw unchecked exceptions")
+                report(
+                    BANNED_THROW,
+                    callable,
+                    "Unchecked exception ${throwableType.toTypeString()} does not need to be listed in the method throws clause (only in documentation)"
+                )
             } else if (throwableType is VariableTypeItem) {
                 // Preserve legacy behavior where the following check did nothing for type
                 // parameters as a type parameters qualifiedName(), which is just its name without

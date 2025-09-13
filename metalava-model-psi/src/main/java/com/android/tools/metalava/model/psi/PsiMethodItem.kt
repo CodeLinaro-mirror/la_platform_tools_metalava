@@ -44,11 +44,8 @@ import org.jetbrains.kotlin.psi.KtParameter
 import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
 import org.jetbrains.kotlin.psi.psiUtil.isExtensionDeclaration
-import org.jetbrains.uast.UAnnotation
 import org.jetbrains.uast.UAnnotationMethod
 import org.jetbrains.uast.UMethod
-import org.jetbrains.uast.kotlin.KotlinUMethodWithFakeLightDelegateBase
-import org.jetbrains.uast.toUElement
 
 internal class PsiMethodItem(
     override val psiCodebase: PsiBasedCodebase,
@@ -162,28 +159,7 @@ internal class PsiMethodItem(
             targetLanguages: Set<TargetLanguage> = containingClass.targetLanguages,
         ): PsiMethodItem {
             assert(!psiMethod.isConstructor)
-            // UAST workaround: @JvmName for UMethod with fake LC PSI
-            // TODO: https://youtrack.jetbrains.com/issue/KTIJ-25133
-            val name =
-                if (psiMethod is KotlinUMethodWithFakeLightDelegateBase<*>) {
-                    psiMethod.sourcePsi
-                        ?.annotationEntries
-                        ?.find { annoEntry ->
-                            val text = annoEntry.typeReference?.text ?: return@find false
-                            JvmName::class.qualifiedName?.contains(text) == true
-                        }
-                        ?.toUElement(UAnnotation::class.java)
-                        ?.takeIf {
-                            // Above `find` deliberately avoids resolution and uses verbatim text.
-                            // Below, we need annotation value anyway, but just double-check
-                            // if the converted annotation is indeed the resolved @JvmName
-                            it.qualifiedName == JvmName::class.qualifiedName
-                        }
-                        ?.findAttributeValue("name")
-                        ?.evaluate() as? String ?: psiMethod.name
-                } else {
-                    psiMethod.name
-                }
+            val name = psiMethod.name
             val modifiers = PsiModifierItem.create(codebase, psiMethod)
 
             if (containingClass.classKind == ClassKind.INTERFACE) {

@@ -1243,4 +1243,49 @@ class JavadocTest : DriverTest() {
                 )
         )
     }
+
+    @Test
+    fun `Test non-block @hide tag`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            public class Foo {
+                                private Foo() {}
+                                /**
+                                 * A method that does not use @hide correctly
+                                 */
+                                public void bar() {}
+                            }
+                        """
+                    ),
+                ),
+            expectedIssues =
+                """
+                    src/test/pkg/Foo.java:5: warning: Invalid @hide syntax, must be a block tag (ErrorWhenNew) [InvalidJavadoc]
+                """,
+            api =
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public class Foo {
+                      }
+                    }
+                """,
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Foo {
+                            Foo() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                )
+        )
+    }
 }

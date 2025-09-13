@@ -112,4 +112,8 @@ internal constructor(
             psiClass is UClass &&
             psiClass.javaPsi is KtLightClassForFacade
     }
+
+    override fun isMultiFileClass(): Boolean {
+        return ((psiClass as? UClass)?.javaPsi as? KtLightClassForFacade)?.multiFileClass ?: false
+    }
 }

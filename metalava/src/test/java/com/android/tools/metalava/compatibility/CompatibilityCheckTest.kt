@@ -898,46 +898,6 @@ class CompatibilityCheckTest : DriverTest() {
 
     @RequiresCapabilities(Capability.KOTLIN)
     @Test
-    fun `Remove default parameter`() {
-        check(
-            expectedIssues =
-                """
-                src/test/pkg/Foo.kt:3: error: Source breaking change: Attempted to remove default value from parameter s1 in test.pkg.Foo [DefaultValueChange]
-                src/test/pkg/Foo.kt:7: error: Source breaking change: Attempted to remove default value from parameter s1 in test.pkg.Foo.method4 [DefaultValueChange]
-                """,
-            checkCompatibilityApiReleased =
-                """
-                // Signature format: 4.0
-                package test.pkg {
-                  public final class Foo {
-                    ctor public Foo(optional String? s1);
-                    method public final void method1(boolean b, String? s1);
-                    method public final void method2(boolean b, String? s1);
-                    method public final void method3(boolean b, optional String? s1);
-                    method public final void method4(boolean b, optional String? s1);
-                  }
-                }
-                """,
-            sourceFiles =
-                arrayOf(
-                    kotlin(
-                        """
-                    package test.pkg
-
-                    class Foo(s1: String?) {
-                        fun method1(b: Boolean, s1: String?) { }         // No change
-                        fun method2(b: Boolean, s1: String? = null) { }  // Adding: OK
-                        fun method3(b: Boolean, s1: String? = null) { }  // No change
-                        fun method4(b: Boolean, s1: String?) { }         // Removed
-                    }
-                    """
-                    )
-                )
-        )
-    }
-
-    @RequiresCapabilities(Capability.KOTLIN)
-    @Test
     fun `Remove optional parameter`() {
         check(
             expectedIssues =
@@ -4691,6 +4651,66 @@ class CompatibilityCheckTest : DriverTest() {
                         ctor public RemoveNoArgsCtor(String str);
                       }
                     }
+                """
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Removal of default value when compatible overload exists`() {
+        // A default parameter value can be removed if there exists an overload which could replace
+        // all calls to the old function for kotlin clients.
+        check(
+            expectedIssues =
+                """
+                src/test/pkg/Foo.kt:7: error: Source breaking change: Attempted to remove default value from parameter p1 in test.pkg.Foo.noCompatibleOverloadNewParamNotOptional [DefaultValueChange]
+                src/test/pkg/Foo.kt:10: error: Source breaking change: Attempted to remove default value from parameter p1 in test.pkg.Foo.noCompatibleOverloadNoDefaultOnOverload [DefaultValueChange]
+                """,
+            checkCompatibilityApiReleased =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public final class Foo {
+                    ctor public Foo();
+                    method public void hasCompatibleOverload(int p0, optional boolean p1);
+                    method public void noCompatibleOverloadNewParamNotOptional(int p0, optional boolean p1);
+                    method public void noCompatibleOverloadNoDefaultOnOverload(int p0, optional boolean p1);
+                  }
+                }
+                """,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+                        class Foo {
+                            @Deprecated
+                            fun hasCompatibleOverload(p0: Int, p1: Boolean) = Unit
+                            fun hasCompatibleOverload(p0: Int, p1: Boolean = false, p2: String = "") = Unit
+                            @Deprecated
+                            fun noCompatibleOverloadNewParamNotOptional(p0: Int, p1: Boolean) = Unit
+                            fun noCompatibleOverloadNewParamNotOptional(p0: Int, p1: Boolean = false, p2: String) = Unit
+                            @Deprecated
+                            fun noCompatibleOverloadNoDefaultOnOverload(p0: Int, p1: Boolean) = Unit
+                            fun noCompatibleOverloadNoDefaultOnOverload(p0: Int, p1: Boolean, p2: String = "") = Unit
+                        }
+                        """
+                    )
+                ),
+            api =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public final class Foo {
+                    ctor public Foo();
+                    method @Deprecated public void hasCompatibleOverload(int p0, boolean p1);
+                    method public void hasCompatibleOverload(int p0, optional boolean p1, optional String p2);
+                    method @Deprecated public void noCompatibleOverloadNewParamNotOptional(int p0, boolean p1);
+                    method public void noCompatibleOverloadNewParamNotOptional(int p0, optional boolean p1, String p2);
+                    method @Deprecated public void noCompatibleOverloadNoDefaultOnOverload(int p0, boolean p1);
+                    method public void noCompatibleOverloadNoDefaultOnOverload(int p0, boolean p1, optional String p2);
+                  }
+                }
                 """
         )
     }

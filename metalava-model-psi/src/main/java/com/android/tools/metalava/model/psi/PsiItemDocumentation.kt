@@ -24,9 +24,11 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.source.AbstractItemDocumentation
 import com.android.tools.metalava.model.source.toItemDocumentationFactory
+import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.Issues
 import com.intellij.psi.JavaPsiFacade
 import com.intellij.psi.PsiClass
+import com.intellij.psi.PsiComment
 import com.intellij.psi.PsiCompiledElement
 import com.intellij.psi.PsiDocCommentOwner
 import com.intellij.psi.PsiElement
@@ -42,10 +44,8 @@ import com.intellij.psi.impl.source.tree.JavaDocElementType
 import com.intellij.psi.javadoc.PsiDocTag
 import com.intellij.psi.javadoc.PsiDocToken
 import com.intellij.psi.javadoc.PsiInlineDocTag
-import org.jetbrains.kotlin.kdoc.psi.api.KDoc
 import org.jetbrains.kotlin.psi.KtDeclaration
 import org.jetbrains.uast.UElement
-import org.jetbrains.uast.sourcePsiElement
 
 /** A Psi specialization of [ItemDocumentation]. */
 internal class PsiItemDocumentation(
@@ -59,16 +59,74 @@ internal class PsiItemDocumentation(
     private lateinit var _text: String
 
     override var text: String
-        get() = if (::_text.isInitialized) _text else initializeText()
+        get() {
+            if (!::_text.isInitialized) {
+                initializeFromPsiElement(psi)
+                if (extraDocs != null) _text = "$_text\n$extraDocs"
+            }
+            return _text
+        }
         set(value) {
             _text = value
             textChanged()
         }
 
-    /** Lazy initializer for [_text]. */
-    private fun initializeText(): String {
-        _text = javadoc(psi).let { if (extraDocs != null) it + "\n$extraDocs" else it }
-        return _text
+    private var psiComment: PsiComment? = null
+
+    override val fileLocation: FileLocation
+        get() {
+            // Make sure that the psiComment is initialized.
+            text
+            return PsiFileLocation.fromPsiElement(psiComment)
+        }
+
+    /**
+     * Lazy initializer for [_text] and [psiComment].
+     *
+     * Updates the [_text] field with the text of the document comment associated with [element] and
+     * [psiComment] with the [PsiComment] for the document comment.
+     */
+    private fun initializeFromPsiElement(element: PsiElement) {
+        when (element) {
+            is PsiCompiledElement -> {
+                // Drop through.
+            }
+            is KtDeclaration -> {
+                element.docComment?.let { comment ->
+                    _text = comment.text
+                    psiComment = comment
+                    return
+                }
+            }
+            is UElement -> {
+                val comments = element.comments
+                if (comments.isNotEmpty()) {
+                    for (comment in comments) {
+                        val text = comment.text
+                        if (text.startsWith("/**")) {
+                            psiComment = comment.sourcePsi
+                            _text = text
+                            return
+                        }
+                    }
+                }
+            }
+            is PsiDocCommentOwner -> {
+                val docComment = element.docComment
+                if (docComment != null) {
+                    val text = docComment.text
+                    // Make sure that the text is a doc comment, i.e. starts with /**.
+                    if (text.startsWith("/**")) {
+                        _text = text
+                        psiComment = docComment
+                        return
+                    }
+                }
+            }
+        }
+
+        _text = ""
+        psiComment = null
     }
 
     override fun duplicate(item: SelectableItem) =
@@ -607,47 +665,6 @@ internal class PsiItemDocumentation(
                     // Otherwise, there is no documentation to use.
                     ?: ItemDocumentation.NONE_FACTORY
             }
-
-        // Gets the javadoc of the current element
-        private fun javadoc(element: PsiElement): String {
-            if (element is PsiCompiledElement) {
-                return ""
-            }
-
-            if (element is KtDeclaration) {
-                return element.docComment?.text.orEmpty()
-            }
-
-            if (element is UElement) {
-                val comments = element.comments
-                if (comments.isNotEmpty()) {
-                    return comments.firstNotNullOfOrNull {
-                        val text = it.text
-                        if (text.startsWith("/**")) text else null
-                    } ?: ""
-                } else {
-                    // Temporary workaround: UAST seems to not return document nodes
-                    // https://youtrack.jetbrains.com/issue/KT-22135
-                    val first = element.sourcePsiElement?.firstChild
-                    if (first is KDoc) {
-                        return first.text
-                    }
-                }
-            }
-
-            if (element is PsiDocCommentOwner) {
-                val docComment = element.docComment
-                if (docComment != null && docComment !is PsiCompiledElement) {
-                    val text = docComment.text
-                    // Make sure that the text is a doc comment, i.e. starts with /**.
-                    if (text != null && text.startsWith("/**")) {
-                        return text
-                    }
-                }
-            }
-
-            return ""
-        }
     }
 }
 

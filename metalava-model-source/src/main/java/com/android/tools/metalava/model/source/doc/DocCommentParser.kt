@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.source.doc
 
+import com.android.tools.metalava.reporter.Issues
 import java.util.regex.Pattern
 import kotlin.text.isWhitespace
 
@@ -28,7 +29,7 @@ import kotlin.text.isWhitespace
  *     (@<block-tag-type> <description>)*
  * ```
  */
-object DocCommentParser {
+internal object DocCommentParser {
     /**
      * Pattern to match a block tag or the end of the content.
      *
@@ -41,7 +42,7 @@ object DocCommentParser {
     /** The index of the group in [BLOCK_TAG_TYPE_GROUP_INDEX] that contains the block tag type. */
     private const val BLOCK_TAG_TYPE_GROUP_INDEX = 2
 
-    fun parseText(text: String): DocComment {
+    fun parseText(text: String, reporter: DocumentationIssueReporter): DocComment {
         val length = text.length
 
         // Trim any whitespace from the start as well as the start token `/**` (if any).
@@ -142,8 +143,15 @@ object DocCommentParser {
             // Javadoc will end up in the system API doc stubs. Longer term that will not be an
             // issue as the intent is to remove the need to use `@hide` with `@SystemApi` (or
             // similar) altogether.
-            if (text.contains("@hide")) {
+            val hideIndex = text.indexOf("@hide")
+            if (hideIndex > 0) {
                 blockTagSections.add(DefaultBlockTagSection("hide", DocDescription.EMPTY))
+
+                reporter.report(
+                    Issues.INVALID_JAVADOC,
+                    "Invalid @hide syntax, must be a block tag",
+                    text.lineOffsetFor(hideIndex)
+                )
             }
         }
 
@@ -212,6 +220,15 @@ object DocCommentParser {
         }
         return index
     }
+}
+
+private fun String.lineOffsetFor(index: Int): Int {
+    var count = 0
+    for (i in 0 until index) {
+        val c = this[i]
+        if (c == '\n') count += 1
+    }
+    return count
 }
 
 /**

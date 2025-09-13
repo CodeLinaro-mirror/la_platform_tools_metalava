@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.reporter.FileLocation
+
 /** A factory that will create an [ItemDocumentation] for a specific [SelectableItem]. */
 typealias ItemDocumentationFactory = (SelectableItem) -> ItemDocumentation
 
@@ -26,6 +28,10 @@ typealias ItemDocumentationFactory = (SelectableItem) -> ItemDocumentation
  */
 interface ItemDocumentation {
     val text: String
+
+    /** The location of the start of the document comment. */
+    val fileLocation: FileLocation
+        get() = FileLocation.UNKNOWN
 
     /**
      * True if the documentation contains one of the following tags that indicates that it should

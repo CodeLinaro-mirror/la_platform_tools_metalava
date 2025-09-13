@@ -2830,7 +2830,10 @@ class ApiFileTest : DriverTest() {
                         public int removedField;
                         /** @removed */
                         public void removedMethod() { }
-                        /** @removed and @hide - should not be listed */
+                        /**
+                         * @removed
+                         * @hide - should not be listed
+                         */
                         public int hiddenField;
 
                         /** @removed */
@@ -6530,6 +6533,46 @@ class ApiFileTest : DriverTest() {
                     method @InaccessibleFromJava public void baseMethod();
                     method @BytecodeOnly public int getBaseVal();
                     property public int baseVal;
+                  }
+                }
+                """
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Test primary constructor with defaults and secondary constructor with JvmOverloads`() {
+        // TODO(b/436557035): there should only be one copy of the constructor, annotated @B
+        check(
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+                        // Annotations defined to make it clear which constructor the output is based on
+                        annotation class A
+                        annotation class B
+                        class Foo @A constructor(i: Int = 0) {
+                            @JvmOverloads @B
+                            constructor(s: String = "", i: Int = 0): this(i)
+                        }
+                        """
+                    )
+                ),
+            api =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface A {
+                  }
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface B {
+                  }
+                  public final class Foo {
+                    ctor @test.pkg.B public Foo();
+                    ctor @test.pkg.A public Foo();
+                    ctor @test.pkg.A public Foo(optional int i);
+                    ctor @test.pkg.B public Foo(optional String s);
+                    ctor @test.pkg.B public Foo(optional String s, optional int i);
                   }
                 }
                 """
