@@ -43,6 +43,15 @@ abstract class FileLocation {
         if (line > 0) builder.append(":").append(line)
     }
 
+    /**
+     * Return a [FileLocation] for the line in the [path] that is [lineOffset] from this line.
+     *
+     * If this is [FileLocation.UNKNOWN] or [lineOffset] is `0` then `this` is returned, otherwise a
+     * new [FileLocation] is created and returned.
+     */
+    fun forLineOffset(lineOffset: Int): FileLocation =
+        if (lineOffset == 0 || line < 1) this else FixedFileLocation(path, line + lineOffset)
+
     override fun toString() = if (line < 1) path.toString() else "$path:$line"
 
     /** A fixed location, known at construction time. */

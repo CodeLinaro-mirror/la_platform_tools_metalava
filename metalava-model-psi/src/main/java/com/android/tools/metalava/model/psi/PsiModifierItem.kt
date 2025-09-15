@@ -20,7 +20,6 @@ import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.JAVA_LANG_ANNOTATION_TARGET
 import com.android.tools.metalava.model.JAVA_LANG_TYPE_USE_TARGET
-import com.android.tools.metalava.model.JVM_STATIC
 import com.android.tools.metalava.model.ModifierFlags.Companion.ABSTRACT
 import com.android.tools.metalava.model.ModifierFlags.Companion.ACTUAL
 import com.android.tools.metalava.model.ModifierFlags.Companion.COMPANION
@@ -71,32 +70,23 @@ import org.jetbrains.annotations.Nullable
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.analysis.api.symbols.KaSymbolVisibility
 import org.jetbrains.kotlin.asJava.elements.KtLightElement
-import org.jetbrains.kotlin.descriptors.annotations.AnnotationUseSiteTarget
 import org.jetbrains.kotlin.lexer.KtModifierKeywordToken
 import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.KtAnnotated
-import org.jetbrains.kotlin.psi.KtClass
-import org.jetbrains.kotlin.psi.KtConstructor
 import org.jetbrains.kotlin.psi.KtDeclaration
 import org.jetbrains.kotlin.psi.KtElement
-import org.jetbrains.kotlin.psi.KtFunction
 import org.jetbrains.kotlin.psi.KtModifierList
 import org.jetbrains.kotlin.psi.KtModifierListOwner
 import org.jetbrains.kotlin.psi.KtNamedFunction
 import org.jetbrains.kotlin.psi.KtPrimaryConstructor
-import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
 import org.jetbrains.kotlin.psi.psiUtil.containingClass
-import org.jetbrains.kotlin.psi.psiUtil.containingClassOrObject
-import org.jetbrains.kotlin.psi.psiUtil.isTopLevelKtOrJavaMember
 import org.jetbrains.kotlin.psi.psiUtil.visibilityModifier
 import org.jetbrains.uast.UAnnotated
 import org.jetbrains.uast.UAnnotation
 import org.jetbrains.uast.UElement
 import org.jetbrains.uast.UMethod
 import org.jetbrains.uast.UVariable
-import org.jetbrains.uast.kotlin.KotlinUMethodWithFakeLightDelegateBase
-import org.jetbrains.uast.toUElement
 
 internal object PsiModifierItem {
     fun create(
@@ -121,151 +111,6 @@ internal object PsiModifierItem {
                 // Check for @Deprecated on sourcePsi
                 isDeprecatedFromSourcePsi(element)
         ) {
-            modifiers.setDeprecated(true)
-        }
-
-        return modifiers
-    }
-
-    /**
-     * Creates modifiers for the property represented by [ktDeclaration] using the [KtModifierList]
-     * and from the property. Uses annotations from the [getter] if it exists in addition to
-     * property annotations because property modifiers used to be created just from the getter and
-     * some places rely on the old behavior for annotations (@RestrictTo in AndroidX is only
-     * applicable to accessors, not properties themselves).
-     */
-    fun createForProperty(
-        codebase: PsiBasedCodebase,
-        ktDeclaration: KtDeclaration,
-        getter: PsiMethodItem?,
-        setter: PsiMethodItem?,
-    ): MutableModifierList {
-        val ktModifierList = ktDeclaration.modifierList
-        val visibilityFlags =
-            visibilityFlags(
-                psiModifierList = null,
-                ktModifierList = ktModifierList,
-                element = ktDeclaration,
-                sourcePsi = ktDeclaration
-            )
-        val kotlinFlags = kotlinFlags { token ->
-            ktModifierList?.hasModifier(token) ?: ktDeclaration.hasModifier(token)
-        }
-        val javaFlags = javaFlagsForKotlinElement(ktDeclaration)
-        val flags = visibilityFlags or kotlinFlags or javaFlags
-
-        // Use the flags computed from the property, and the getter annotations, if they exist.
-        val modifiers =
-            createMutableModifiers(
-                flags,
-                // Filter deprecated annotations: the property will pull effectivelyDeprecated
-                // status from its getter, but the originallyDeprecated value should reflect
-                // the property itself, to avoid propagating deprecation from getter to property to
-                // setter. The setter should only inherit deprecation from the property itself.
-                getter?.modifiers?.annotations()?.filter { !isDeprecatedAnnotation(it) }
-                    ?: emptyList()
-            )
-
-        // Correct visibility of accessors (work around K2 bugs with value class type properties)
-        // https://youtrack.jetbrains.com/issue/KT-74205
-        // The getter must have the same visibility as the property
-        val propertyVisibility = modifiers.getVisibilityLevel()
-        if (getter != null && getter.modifiers.getVisibilityLevel() != propertyVisibility) {
-            getter.mutateModifiers { setVisibilityLevel(modifiers.getVisibilityLevel()) }
-        }
-        // The setter cannot be more visible than the property
-        if (setter != null && setter.modifiers.getVisibilityLevel() > propertyVisibility) {
-            setter.mutateModifiers { setVisibilityLevel(modifiers.getVisibilityLevel()) }
-        }
-
-        // Annotations whose target is property won't be bound to anywhere in LC/UAST, if the
-        // property doesn't need a backing field. Same for unspecified use-site target.
-        // Add all annotations applied to the property by examining source PSI directly.
-        for (ktAnnotationEntry in ktDeclaration.annotationEntries) {
-            val useSiteTarget = ktAnnotationEntry.useSiteTarget?.getAnnotationUseSiteTarget()
-            if (useSiteTarget == null || useSiteTarget == AnnotationUseSiteTarget.PROPERTY) {
-                val uAnnotation = ktAnnotationEntry.toUElement() as? UAnnotation ?: continue
-                val annotationItem = UAnnotationItem.create(codebase, uAnnotation) ?: continue
-                if (annotationItem !in modifiers.annotations()) {
-                    modifiers.addAnnotation(annotationItem)
-                }
-
-                // Make sure static definitions are marked
-                if (annotationItem.qualifiedName == JVM_STATIC) {
-                    modifiers.setStatic(true)
-                }
-
-                // Special case for RequiresOptIn-annotated annotations: when these are applied
-                // to a property, they are implicitly propagated to the getter and setter
-                // (if present) for Kotlin clients. Match Kotlin compiler behavior by propagating.
-                // Note that the AndroidX experimental lint check will not recognize usages of the
-                // accessors by Java clients as experimental. Because of this AndroidX bans defining
-                // public experimental properties in projects that target Java clients.
-                if (uAnnotation.resolve()?.hasAnnotation("kotlin.RequiresOptIn") == true) {
-                    if (getter != null) {
-                        // Manually setting a RequiresOptIn annotation on a getter causes a
-                        // compiler warning, but this can be suppressed with
-                        // @Suppress("OPT_IN_MARKER_ON_WRONG_TARGET"). Safely handle
-                        // such cases by only adding the annotation if it wasn't explicitly added.
-                        if (annotationItem !in getter.modifiers.annotations()) {
-                            getter.mutateModifiers { addAnnotation(annotationItem) }
-                        }
-                    }
-                    if (setter != null) {
-                        // Explicit RequiresOptIn annotations on setters are supported by the
-                        // compiler, so we should only add this annotation implicitly if it is not
-                        // already explicitly provided.
-                        if (annotationItem !in setter.modifiers.annotations()) {
-                            setter.mutateModifiers { addAnnotation(annotationItem) }
-                        }
-                    }
-                }
-            }
-        }
-
-        if (hasDeprecatedAnnotation(modifiers)) {
-            modifiers.setDeprecated(true)
-        }
-
-        return modifiers
-    }
-
-    /**
-     * Creates modifiers for a [ktDeclaration] that does not have an equivalent psi element which
-     * can be used with [create]. If the [ktDeclaration] is a property, [createForProperty] should
-     * be used instead.
-     */
-    fun createForKtDeclaration(
-        codebase: PsiBasedCodebase,
-        ktDeclaration: KtDeclaration
-    ): MutableModifierList {
-        val ktModifierList = ktDeclaration.modifierList
-        val visibilityFlags =
-            visibilityFlags(
-                psiModifierList = null,
-                ktModifierList = ktModifierList,
-                element = ktDeclaration,
-                sourcePsi = ktDeclaration
-            )
-        val kotlinFlags = kotlinFlags { token ->
-            ktModifierList?.hasModifier(token) ?: ktDeclaration.hasModifier(token)
-        }
-        val flags = visibilityFlags or kotlinFlags
-
-        val annotations =
-            ktDeclaration.annotationEntries.mapNotNull { ktAnnotationEntry ->
-                (ktAnnotationEntry.toUElement() as? UAnnotation)?.let { uAnnotation ->
-                    UAnnotationItem.create(codebase, uAnnotation)
-                }
-            }
-
-        val modifiers =
-            createMutableModifiers(
-                flags,
-                annotations,
-            )
-
-        if (hasDeprecatedAnnotation(modifiers)) {
             modifiers.setDeprecated(true)
         }
 
@@ -322,24 +167,10 @@ internal object PsiModifierItem {
             }
         }
 
-        // Compute flags that exist in java.
+        // Compute flags that exist in java and merge in the visibility flags.
         var flags =
-            if (
-                element is KotlinUMethodWithFakeLightDelegateBase<*> && sourcePsi is KtDeclaration
-            ) {
-                // Fake elements from kotlin (e.g. methods that use value class types) may not have
-                // the correct modifiers (https://youtrack.jetbrains.com/issue/KTIJ-33047). Compute
-                // them directly from the source instead.
-                // Use the property element directly for accessors because some values aren't
-                // defined for accessors (e.g. containingClassOrObject is null).
-                javaFlagsForKotlinElement((sourcePsi as? KtPropertyAccessor)?.property ?: sourcePsi)
-            } else {
-                javaFlags(modifierList)
-            }
-
-        // Merge in the visibility flags.
-        val visibilityFlags = visibilityFlags(modifierList, ktModifierList, element, sourcePsi)
-        flags = flags or visibilityFlags
+            javaFlags(modifierList) or
+                visibilityFlags(modifierList, ktModifierList, element, sourcePsi)
 
         // Merge in kotlin flags
         if (ktModifierList != null) {
@@ -365,16 +196,6 @@ internal object PsiModifierItem {
                         ktModifierList.hasModifier(KtTokens.PRIVATE_KEYWORD) -> PRIVATE
                         ktModifierList.hasModifier(KtTokens.PROTECTED_KEYWORD) -> PROTECTED
                         ktModifierList.hasModifier(KtTokens.INTERNAL_KEYWORD) -> INTERNAL
-                        else -> PUBLIC
-                    }
-                // UAST workaround: fake light method for inline/hidden function may not have a
-                // concrete modifier list, but overrides `hasModifierProperty` to mimic
-                // modifiers.
-                element is KotlinUMethodWithFakeLightDelegateBase<*> ->
-                    when {
-                        element.hasModifierProperty(PsiModifier.PUBLIC) -> PUBLIC
-                        element.hasModifierProperty(PsiModifier.PROTECTED) -> PROTECTED
-                        element.hasModifierProperty(PsiModifier.PRIVATE) -> PRIVATE
                         else -> PUBLIC
                     }
                 sourcePsi is KtModifierListOwner ->
@@ -534,71 +355,6 @@ internal object PsiModifierItem {
             flags = flags or ACTUAL
         }
         return flags
-    }
-
-    /** Creates Java-equivalent flags for the Kotlin element. */
-    private fun javaFlagsForKotlinElement(ktDeclaration: KtDeclaration): Int {
-        return if (
-            // const values are static, and anything in a file-facade class (which top level
-            // [KtDeclaration]s are) is also static
-            ktDeclaration.hasModifier(KtTokens.CONST_KEYWORD) ||
-                ktDeclaration.isTopLevelKtOrJavaMember()
-        ) {
-            FINAL or STATIC
-        } else if (ktDeclaration.isAbstract()) {
-            ABSTRACT
-        } else if (ktDeclaration.isDefault()) {
-            DEFAULT
-        } else if (ktDeclaration.isFinal()) {
-            FINAL
-        } else {
-            0
-        }
-    }
-
-    private fun KtDeclaration.isFromInterface(): Boolean {
-        // Can't use containingClass() here -- don't count definitions in interface companions
-        return (containingClassOrObject as? KtClass)?.isInterface() == true
-    }
-
-    /**
-     * Checks if the [KtDeclaration] needs the abstract modifier:
-     * - if the definition used the abstract modifier
-     * - if the definition is an annotation property
-     * - if the definition is an interface property without a defined getter
-     * - if the definition is an interface function without a body
-     */
-    private fun KtDeclaration.isAbstract(): Boolean {
-        return hasModifier(KtTokens.ABSTRACT_KEYWORD) ||
-            (containingClassOrObject as? KtClass)?.isAnnotation() == true ||
-            (this is KtProperty && isFromInterface() && getter?.hasBody() != true) ||
-            (this is KtFunction && isFromInterface() && !hasBody())
-    }
-
-    /**
-     * Checks if the [KtDeclaration] needs the default modifier:
-     * - if the definition is an interface property with a defined getter (interface properties
-     *   cannot have backing fields, so this is the only way they can have a default implementation)
-     * - if the definition is an interface function with a body
-     */
-    private fun KtDeclaration.isDefault(): Boolean {
-        return isFromInterface() &&
-            ((this is KtProperty && getter?.hasBody() == true) || (this is KtFunction && hasBody()))
-    }
-
-    /**
-     * Checks if the [KtDeclaration] needs the final modifier. This should only be called if the
-     * definition does not need the abstract or default modifiers.
-     * - if the definition uses the final keyword
-     * - if the definition does not use the open keyword and does not use the override keyword
-     * - the definition is not a constructor -- the final modifier isn't needed for constructors as
-     *   constructors can never be overridden
-     */
-    private fun KtDeclaration.isFinal(): Boolean {
-        return hasModifier(KtTokens.FINAL_KEYWORD) ||
-            (!hasModifier(KtTokens.OPEN_KEYWORD) &&
-                !hasModifier(KtTokens.OVERRIDE_KEYWORD) &&
-                this !is KtConstructor<*>)
     }
 
     /**

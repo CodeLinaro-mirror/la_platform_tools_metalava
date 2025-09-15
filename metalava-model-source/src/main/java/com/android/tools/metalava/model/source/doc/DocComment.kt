@@ -33,8 +33,11 @@ interface DocComment {
 
     companion object {
         /** Create a [DocComment] from [text], reporting any issues to [reporter]. */
-        fun createDocComment(text: String): DocComment {
-            return DocCommentParser.parseText(text)
+        internal fun createDocComment(
+            text: String,
+            reporter: DocumentationIssueReporter
+        ): DocComment {
+            return DocCommentParser.parseText(text, reporter)
         }
     }
 }

@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.testsuite.documentation
 
+import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
@@ -280,6 +281,97 @@ class CommonItemDocumentationTest : BaseModelTest() {
 
             val methodDocumentation = testClass.methods().last().documentation
             assertEquals("", methodDocumentation.text.trim())
+        }
+    }
+
+    fun CodebaseContext.checkItemDocumentationLocation(
+        item: SelectableItem,
+        expectedLocation: String
+    ) {
+        val documentation = item.documentation
+        val location = documentation.fileLocation
+        assertEquals(expectedLocation, removeTestSpecificDirectories(location.toString()))
+    }
+
+    @Test
+    fun `Test javadoc locations`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    /** Single line comment. */
+                    public class Test {
+                        /**
+                         * Multi-line
+                         * comment.
+                         */
+                        public Test() {}
+
+                        /**
+                         * Comment with start comment token
+                         * /**.
+                         */
+                        public int field = 0;
+
+                        public void noComment() {}
+                    }
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            checkItemDocumentationLocation(testClass, "MAIN_SRC/src/test/pkg/Test.java:3")
+
+            val constructorItem = testClass.assertConstructor("")
+            checkItemDocumentationLocation(constructorItem, "MAIN_SRC/src/test/pkg/Test.java:5")
+
+            val fieldItem = testClass.assertField("field")
+            checkItemDocumentationLocation(fieldItem, "MAIN_SRC/src/test/pkg/Test.java:11")
+
+            // Check location of javadoc that is not specified.
+            val methodItem = testClass.assertMethod("noComment", "")
+            checkItemDocumentationLocation(methodItem, "null")
+        }
+    }
+
+    @Test
+    fun `Test kdoc locations`() {
+        runSourceCodebaseTest(
+            kotlin(
+                """
+                    package test.pkg
+
+                    /** Single line comment. */
+                    class Test {
+                        /**
+                         * Multi-line
+                         * comment.
+                         */
+                        constructor()
+
+                        /**
+                         * Comment with start comment token
+                         * /**. */
+                         */
+                        val property = 0
+
+                        fun noComment() {}
+                    }
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            checkItemDocumentationLocation(testClass, "MAIN_SRC/src/test/pkg/Test.kt:3")
+
+            val constructorItem = testClass.assertConstructor("")
+            checkItemDocumentationLocation(constructorItem, "MAIN_SRC/src/test/pkg/Test.kt:5")
+
+            val propertyItem = testClass.assertProperty("property")
+            checkItemDocumentationLocation(propertyItem, "MAIN_SRC/src/test/pkg/Test.kt:11")
+
+            // Check location of javadoc that is not specified.
+            val methodItem = testClass.assertMethod("noComment", "")
+            checkItemDocumentationLocation(methodItem, "null")
         }
     }
 }

@@ -95,7 +95,10 @@ class ApiAnalyzerTest : DriverTest() {
                         """
                             package test.pkg;
                             import android.annotation.SystemApi;
-                            /** This class is OK because it is all hidden @hide */
+                            /**
+                             * This class is OK because it is all hidden
+                             * @hide
+                             */
                             public abstract class HiddenClass {
                                 public abstract boolean goodAbstractHiddenMethod() { return true; }
                             }
