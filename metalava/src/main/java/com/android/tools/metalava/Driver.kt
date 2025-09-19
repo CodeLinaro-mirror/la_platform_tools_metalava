@@ -147,23 +147,9 @@ internal fun processFlags(
     progressTracker: ProgressTracker
 ) {
     val stopwatch = Stopwatch.createStarted()
-
     val reporter = options.reporter
-
     val codebaseConfig = options.codebaseConfig
-    val modelOptions =
-        // If the option was specified on the command line then use [ModelOptions] created from
-        // that.
-        options.useK2Uast?.let { useK2Uast ->
-            ModelOptions.build("from command line") { this[PsiModelOptions.useK2Uast] = useK2Uast }
-        }
-            // Otherwise, use the [ModelOptions] specified in the [TestEnvironment] if any.
-            ?: executionEnvironment.testEnvironment?.modelOptions?.apply {
-                // Make sure that the [options.useK2Uast] matches the test environment.
-                options.useK2Uast = this[PsiModelOptions.useK2Uast]
-            }
-            // Otherwise, use the default
-            ?: ModelOptions.empty
+    val modelOptions = createModelOptions(options, executionEnvironment)
     val sourceParser =
         environmentManager.createSourceParser(
             codebaseConfig = codebaseConfig,
@@ -477,6 +463,24 @@ internal fun processFlags(
     progressTracker.progress(
         "$PROGRAM_NAME finished handling $packageCount packages in ${stopwatch.elapsed(SECONDS)} seconds\n"
     )
+}
+
+/** Create [ModelOptions] object from option flags */
+private fun createModelOptions(
+    options: Options,
+    executionEnvironment: ExecutionEnvironment
+): ModelOptions {
+    // If the option was specified on the command line then use [ModelOptions] created from that
+    return options.useK2Uast?.let { useK2Uast ->
+        ModelOptions.build("from command line") { this[PsiModelOptions.useK2Uast] = useK2Uast }
+    }
+        // Otherwise, use the [ModelOptions] specified in the [TestEnvironment] if any.
+        ?: executionEnvironment.testEnvironment?.modelOptions?.apply {
+            // Make sure that the [options.useK2Uast] matches the test environment.
+            options.useK2Uast = this[PsiModelOptions.useK2Uast]
+        }
+        // Otherwise, use the default
+        ?: ModelOptions.empty
 }
 
 private fun ActionContext.subtractApi(

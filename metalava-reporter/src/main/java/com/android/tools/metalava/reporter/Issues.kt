@@ -157,6 +157,7 @@ object Issues {
     val COMPILE_TIME_CONSTANT by Issue(Severity.ERROR, Category.API_LINT)
     val SINGULAR_CALLBACK by Issue(Severity.ERROR, Category.API_LINT)
     val CALLBACK_NAME by Issue(Severity.WARNING, Category.API_LINT)
+    val TYPE_PARAMETER_NAME by Issue(Severity.WARNING_ERROR_WHEN_NEW, Category.API_LINT)
     // Obsolete per https://s.android.com/api-guidelines.
     val CALLBACK_INTERFACE by Issue(Severity.HIDDEN, Category.API_LINT)
     val CALLBACK_METHOD_NAME by Issue(Severity.ERROR, Category.API_LINT)

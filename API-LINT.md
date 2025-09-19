@@ -90,6 +90,20 @@ diff to make sure you're really only marking the issues you intended to include.
 
           baseline.txt
 
+## Updating Lint Rules
+
+As mentioned above, Metalava can check for code practices that are against Google and API Council
+guidelines via a lint mechanism. If you are adding a lint check to Metalava, you need to perform the
+following steps:
+
+1. Add your lint check in `ApiLint.kt` (metalava/src/main/java/com/android/tools/metalava/lint)
+2. Before submitting the CL, set the severity of your new issue to `Severity.HIDDEN`, which will make it possible for androidx_with_metalava to pass.
+   1. In your tests, you can pass an extra argument to upgrade the severity of the issue to `ERROR`.
+3. Once the CL is submitted, update the prebuilt version of metalava we use for androidx. In AndroidX `frameworks/support` directory, run `development/update_metalava.sh <version number> <build ID>`.
+   1. The current version number can be found in `version.properties`, and the build ID can be found here: https://android-build.corp.google.com/build_explorer/branch/aosp-metalava-main/?gridSize=20&selectionType=MOST_RECENT_N_BUILDS&numBuilds=20&buildType=default
+4. Add an argument in MetalavaRunner.kt to upgrade the severity of your issue to error. Then, run `./gradlew updateApiLintBaseline` using the new metalava prebuilts you added
+5. After that, you could optionally update the default severity level of your issue in metalava
+
 ## Copying File Manually
 
 In the near future the build system will not allow source files to be modified

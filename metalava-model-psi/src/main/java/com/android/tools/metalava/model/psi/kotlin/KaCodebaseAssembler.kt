@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.psi.kotlin
 
+import com.android.tools.metalava.model.ANDROIDX_COMPOSABLE
 import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ApiVariantSelectors
@@ -334,6 +335,11 @@ internal class KaCodebaseAssembler(
                 } ?: false
         )
             return false
+
+        // Composable APIs will have a different signature in bytecode than in source, so the source
+        // signature should be generated here as kotlin-only.
+        if (functionSymbol.annotations.any { it.classId?.asFqNameString() == ANDROIDX_COMPOSABLE })
+            return true
 
         // If a constructor has a corresponding UElement it generally shouldn't be created as kotlin
         // only, but with K1 value class types weren't handled differently from other types so there

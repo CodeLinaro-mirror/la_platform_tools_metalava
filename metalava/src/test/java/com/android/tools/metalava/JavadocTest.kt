@@ -1258,6 +1258,22 @@ class JavadocTest : DriverTest() {
                                  * A method that does not use @hide correctly
                                  */
                                 public void bar() {}
+
+                                /**
+                                 * Another method that does not use @hide correctly
+                                 */
+                                public void baz() {}
+
+                                /**
+                                 * {@hide}
+                                 */
+                                public void qux() {}
+
+                                /**
+                                 * Some text.
+                                 * {@hide}
+                                 */
+                                public void quux() {}
                             }
                         """
                     ),
@@ -1265,6 +1281,9 @@ class JavadocTest : DriverTest() {
             expectedIssues =
                 """
                     src/test/pkg/Foo.java:5: warning: Invalid @hide syntax, must be a block tag (ErrorWhenNew) [InvalidJavadoc]
+                    src/test/pkg/Foo.java:10: warning: Invalid @hide syntax, must be a block tag (ErrorWhenNew) [InvalidJavadoc]
+                    src/test/pkg/Foo.java:15: warning: Invalid @hide syntax, must be a block tag (ErrorWhenNew) [InvalidJavadoc]
+                    src/test/pkg/Foo.java:21: warning: Invalid @hide syntax, must be a block tag (ErrorWhenNew) [InvalidJavadoc]
                 """,
             api =
                 """
@@ -1285,7 +1304,82 @@ class JavadocTest : DriverTest() {
                             }
                         """
                     ),
-                )
+                ),
+        )
+    }
+
+    @Test
+    fun `Test multiple javadoc issues with baseline`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            public class Foo {
+                                private Foo() {}
+                                /**
+                                 * A method that does not use @hide correctly
+                                 */
+                                public void bar() {}
+
+                                /**
+                                 * Another method that does not use @hide correctly
+                                 */
+                                public void baz() {}
+
+                                /**
+                                 * {@hide}
+                                 */
+                                public void qux() {}
+
+                                /**
+                                 * Some text.
+                                 * {@hide}
+                                 */
+                                public void quux() {}
+                            }
+                        """
+                    ),
+                ),
+            baselineTestInfo =
+                BaselineTestInfo(
+                    inputContents = "",
+                    expectedOutputContents =
+                        """
+                            // Baseline format: 1.0
+                            InvalidJavadoc: test/pkg/Foo.java:
+                                Invalid @hide syntax, must be a block tag
+                        """,
+                    silentUpdate = false,
+                ),
+            expectedIssues =
+                """
+                    src/test/pkg/Foo.java:5: warning: Invalid @hide syntax, must be a block tag (ErrorWhenNew) [InvalidJavadoc]
+                    src/test/pkg/Foo.java:10: warning: Invalid @hide syntax, must be a block tag (ErrorWhenNew) [InvalidJavadoc]
+                    src/test/pkg/Foo.java:15: warning: Invalid @hide syntax, must be a block tag (ErrorWhenNew) [InvalidJavadoc]
+                    src/test/pkg/Foo.java:21: warning: Invalid @hide syntax, must be a block tag (ErrorWhenNew) [InvalidJavadoc]
+                """,
+            api =
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public class Foo {
+                      }
+                    }
+                """,
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Foo {
+                            Foo() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                ),
         )
     }
 }
