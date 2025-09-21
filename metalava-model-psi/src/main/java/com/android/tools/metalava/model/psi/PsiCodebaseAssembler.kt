@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.psi
 import com.android.SdkConstants
 import com.android.tools.lint.UastEnvironment
 import com.android.tools.lint.annotations.Extractor
+import com.android.tools.metalava.model.ANDROIDX_COMPOSABLE
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.ClassItem
@@ -31,6 +32,7 @@ import com.android.tools.metalava.model.JVM_NAME
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.WildcardTypeItem
@@ -295,6 +297,11 @@ internal class PsiCodebaseAssembler(
                 continue
             }
 
+            // Composable APIs will have a different signature in bytecode than in source. The
+            // source signature will be generated as kotlin-only by KaCodebaseAssembler and the
+            // bytecode signature will be generated as bytecode-only by KotlinBytecodeApis.
+            if (psiMethod.hasAnnotation(ANDROIDX_COMPOSABLE)) continue
+
             if (psiMethod.isConstructor) {
                 // Kotlin value class primary constructors cannot be called from Java, so they will
                 // be generated later by the KaCodebaseAssembler. For K1, these constructors aren't
@@ -336,8 +343,27 @@ internal class PsiCodebaseAssembler(
                     continue
                 }
 
+                // Property accessors can't be resolved from kotlin, direct access is used instead.
+                val targetLanguages =
+                    if (
+                        PsiMethodItem.isKotlinProperty(psiMethod) &&
+                            // Data class component methods are one kind of property accessor that
+                            // can be resolved from Kotlin source.
+                            !(classItem.modifiers.isData() &&
+                                psiMethod.name.startsWith("component"))
+                    ) {
+                        TargetLanguageSet.NOT_KOTLIN
+                    } else {
+                        TargetLanguageSet.ALL
+                    }
                 val method =
-                    PsiMethodItem.create(codebase, classItem, psiMethod, classTypeItemFactory)
+                    PsiMethodItem.create(
+                        codebase,
+                        classItem,
+                        psiMethod,
+                        classTypeItemFactory,
+                        targetLanguages = targetLanguages
+                    )
 
                 // With K2, any methods using value class types which don't use JvmName
                 // will already have been filtered out because they are represented with fake UAST

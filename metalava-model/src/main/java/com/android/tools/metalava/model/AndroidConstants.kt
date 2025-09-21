@@ -45,3 +45,5 @@ const val ANDROIDX_REQUIRES_PERMISSION_WRITE = "androidx.annotation.RequiresPerm
 
 const val ANDROIDX_INT_RANGE = "androidx.annotation.IntRange"
 const val ANDROIDX_FLOAT_RANGE = "androidx.annotation.FloatRange"
+
+const val ANDROIDX_COMPOSABLE = "androidx.compose.runtime.Composable"

@@ -86,8 +86,8 @@ class ThrowsCompatibilityTest : DriverTest() {
                       public final class MyClass {
                         ctor public MyClass(int);
                         method public final void method1();
-                        method public final String getProperty1();
-                        method public final String getProperty2();
+                        method @InaccessibleFromKotlin public final String getProperty1();
+                        method @InaccessibleFromKotlin public final String getProperty2();
                       }
                     }
                 """,

@@ -43,7 +43,7 @@ class ExtractPublicApiLevelsTest : ApiGeneratorIntegrationTestBase() {
                     ARG_ANDROID_JAR_PATTERN,
                     androidPublicJarsPattern,
                     ARG_ANDROID_JAR_PATTERN,
-                    "${extensionSdkJars.path}/{version:extension}/*/{module}.jar",
+                    "${extensionSdkJars.path}/{version:extension}/public/{module}.jar",
                     ARG_SDK_INFO_FILE,
                     createSdkExtensionInfoFile().path,
                     ARG_CURRENT_CODENAME,

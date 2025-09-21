@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.testsuite
 
 import com.android.tools.lint.checks.infrastructure.TestFiles.base64gzip
+import com.android.tools.metalava.model.ANDROIDX_COMPOSABLE
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TargetLanguageSet
@@ -1110,7 +1111,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
 
             val jvmNameOnGetGetter = fooClass.assertMethod("getJvmNameOnGet", "")
             assertThat(jvmNameOnGetGetter.targetLanguages)
-                .containsExactlyElementsIn(TargetLanguageSet.ALL)
+                .containsExactlyElementsIn(TargetLanguageSet.NOT_KOTLIN)
             val jvmNameOnGetSetter = fooClass.assertMethod("setJvmNameOnGet-Vxmw0xk", "int")
             assertThat(jvmNameOnGetSetter.targetLanguages).containsExactly(TargetLanguage.BYTECODE)
 
@@ -1118,14 +1119,14 @@ class CommonTargetLanguageTest : BaseModelTest() {
             assertThat(jvmNameOnSetGetter.targetLanguages).containsExactly(TargetLanguage.BYTECODE)
             val jvmNameOnSetSetter = fooClass.assertMethod("setJvmNameOnSet", "int")
             assertThat(jvmNameOnSetSetter.targetLanguages)
-                .containsExactlyElementsIn(TargetLanguageSet.ALL)
+                .containsExactlyElementsIn(TargetLanguageSet.NOT_KOTLIN)
 
             val jvmNameOnBothGetter = fooClass.assertMethod("getJvmNameOnBoth", "")
             assertThat(jvmNameOnBothGetter.targetLanguages)
-                .containsExactlyElementsIn(TargetLanguageSet.ALL)
+                .containsExactlyElementsIn(TargetLanguageSet.NOT_KOTLIN)
             val jvmNameOnBothSetter = fooClass.assertMethod("setJvmNameOnBoth", "int")
             assertThat(jvmNameOnBothSetter.targetLanguages)
-                .containsExactlyElementsIn(TargetLanguageSet.ALL)
+                .containsExactlyElementsIn(TargetLanguageSet.NOT_KOTLIN)
         }
     }
 
@@ -1227,7 +1228,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
 
             val jvmNameOnGetGetter = fooClass.assertMethod("getJvmNameOnGet", "int")
             assertThat(jvmNameOnGetGetter.targetLanguages)
-                .containsExactlyElementsIn(TargetLanguageSet.ALL)
+                .containsExactlyElementsIn(TargetLanguageSet.NOT_KOTLIN)
             val jvmNameOnGetSetter = fooClass.assertMethod("setJvmNameOnGet-6VC4vj0", "int,int")
             assertThat(jvmNameOnGetSetter.targetLanguages).containsExactly(TargetLanguage.BYTECODE)
 
@@ -1235,14 +1236,14 @@ class CommonTargetLanguageTest : BaseModelTest() {
             assertThat(jvmNameOnSetGetter.targetLanguages).containsExactly(TargetLanguage.BYTECODE)
             val jvmNameOnSetSetter = fooClass.assertMethod("setJvmNameOnSet", "int,int")
             assertThat(jvmNameOnSetSetter.targetLanguages)
-                .containsExactlyElementsIn(TargetLanguageSet.ALL)
+                .containsExactlyElementsIn(TargetLanguageSet.NOT_KOTLIN)
 
             val jvmNameOnBothGetter = fooClass.assertMethod("getJvmNameOnBoth", "int")
             assertThat(jvmNameOnBothGetter.targetLanguages)
-                .containsExactlyElementsIn(TargetLanguageSet.ALL)
+                .containsExactlyElementsIn(TargetLanguageSet.NOT_KOTLIN)
             val jvmNameOnBothSetter = fooClass.assertMethod("setJvmNameOnBoth", "int,int")
             assertThat(jvmNameOnBothSetter.targetLanguages)
-                .containsExactlyElementsIn(TargetLanguageSet.ALL)
+                .containsExactlyElementsIn(TargetLanguageSet.NOT_KOTLIN)
         }
     }
 
@@ -2654,6 +2655,144 @@ class CommonTargetLanguageTest : BaseModelTest() {
             assertThat(bytecodeMethod.targetLanguages)
                 .containsExactlyElementsIn(TargetLanguageSet.BYTECODE_ONLY)
             assertThat(fooClass.methods()).hasSize(2)
+        }
+    }
+
+    @Test
+    fun `Test target languages for data class property accessors`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                package test.pkg
+                data class Foo(val v1: Int, val v2: String)
+                """
+            )
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+
+            val v1Getter = fooClass.assertMethod("getV1", "")
+            assertThat(v1Getter.targetLanguages)
+                .containsExactlyElementsIn(TargetLanguageSet.NOT_KOTLIN)
+
+            val v1Component = fooClass.assertMethod("component1", "")
+            assertThat(v1Component.targetLanguages).containsExactlyElementsIn(TargetLanguageSet.ALL)
+
+            val v2Getter = fooClass.assertMethod("getV2", "")
+            assertThat(v2Getter.targetLanguages)
+                .containsExactlyElementsIn(TargetLanguageSet.NOT_KOTLIN)
+
+            val v2Component = fooClass.assertMethod("component2", "")
+            assertThat(v2Component.targetLanguages).containsExactlyElementsIn(TargetLanguageSet.ALL)
+        }
+    }
+
+    @Test
+    fun `Test target language for composable APIs`() {
+        runCodebaseTest(
+            inputSet(
+                kotlin(
+                    """
+                    package androidx.test.pkg
+                    import androidx.compose.runtime.Composable
+                    public class Foo {
+                        @Composable public fun FooFunction(i: Int): Unit = Unit
+                        @get:Composable
+                            public val fooVal: Int
+                                get() = 0
+                    }
+                    """
+                ),
+                kotlin(
+                    """
+                    package androidx.compose.runtime
+                    @MustBeDocumented
+                    @Retention(AnnotationRetention.BINARY)
+                    @Target(
+                        AnnotationTarget.FUNCTION,
+                        AnnotationTarget.TYPE,
+                        AnnotationTarget.TYPE_PARAMETER,
+                        AnnotationTarget.PROPERTY_GETTER,
+                    )
+                    annotation class Composable
+                    """
+                )
+            ),
+            compiledSourceJar =
+                // Generated from a gradle project using the AndroidXComposePlugin.
+                base64gzip(
+                    "test.jar",
+                    "" +
+                        "H4sIAAAAAAAA/42WeTQU7B7HpzEGhTDWxvrOqBQGr6XkZikmM0y2LC8yzAxh" +
+                        "mIkhGonLHSoUrxQilBFlG0rW9ArZxmuZFttYyzIMslXSTed2y73V6fuc5znn" +
+                        "Oefz/f3z++P7tULzgACfpcSvBAR8I4FP19LUzljNHGOGsPop5u6PDyB540N+" +
+                        "ggl/i1EIgZSfsGL/x5J9vf7L83/my4NJb2rBAMAJIQAA+l3ejERSxxHdAwPj" +
+                        "7dFUyHOZ8M5JH/MnjIgIIYzS3oTxF/JkS7RGLu9zmhLjiB8OCM/Feate1kmz" +
+                        "9jTbd9tveohbWT5YMrvbldLlmXhddXEe32WaWfQuqq/GC+6EM4pQmGmvDHv9" +
+                        "fogbMBRYt872uslz/bEbr/B0cGNQe6scS8/Aza+3YPqfY3BFEMP5LNpBbbCo" +
+                        "oLiYJEMwjIw1Wr/hnb4RGnks+2GKseCCeM4x/qMfLHsgB+zO3mtyitSWQGjP" +
+                        "Mkj6D4yys5bhbZjakRDatK4f+x502oXKYfo06kRey9x9p9gZLDSOTnA+USF4" +
+                        "fpBl2W8b1B8c5pr2pjeXTuD1SEzNR5QBm89Yr5RlABppBm5nPhBotJvooh4i" +
+                        "f5xE+WiPiMwcEXyQcxzHzwdK6JAwYUpd2+65oLqH7rNxId729+UKtvloaCTk" +
+                        "eOPSrkCyY05Amv/LvzlCzYV8wttvqBjw0G0QufvrfPtYTqkNorLm7tJI3pXQ" +
+                        "dExPQTtbs9WSLRIr4e/TmC5TE1Fsfjyhq3yqsKqq/BwrqKBoRHPiHqi1JhZi" +
+                        "gz6JZcw0J9/LV3nWm0zRFY/EackubXCW8j3EcMCoOjt9thbxvCntj2GycU95" +
+                        "85ha1l61eAiJ1F/j2oI1sR/T2M2b+cbHE8cSsJFUzY9FS2G6U9wdVjwpjPno" +
+                        "6KLkDNrpQuuuc7BJrdKetapeHcjRWqnuFZVUoci5dnGFjNZRKJDPRKnF+ey5" +
+                        "2pzXAiXiKMKaHVNLcfDvgg+tKUi6XWBYWznL1+DOUSq4mJ41zMHKGsDfKE2c" +
+                        "C4qe93lAsnNiUu97LqhFSlGL0oPb8mV8VObdu+aXhWo5h+YGQXUdUW5cS/71" +
+                        "PJHuoZfNcumYCa2MMsHLzS/ydaAjB4Iv3mc3saqFYKp1yBmIVP/umzV6N2oT" +
+                        "Xh0cZNhbsLEUxLDHdvZj2VvvXRk4ZyOsrvirmICH0JZCe9fBSZGcvOD802ko" +
+                        "KbIKklanasVJn4+Z0YrcLxhU5nAHnmxSIf4uNan5UXSj9smGpAiNtz0g8GJG" +
+                        "Kzl/TAaFUUxFkBZzNPYNuOiEPVtO8xeokb1owvbouagdqhi3hLpbd/u5ci7S" +
+                        "Lxx2bVWvaEccU4JpvTpulrW+DhM8azs8CXvy8E61TsMsufVuJ2iPHUEpKQxC" +
+                        "Mvd5W1dvp6dMnVKLK2wm5bWQDEWkp3jieuGIZK/Y0vZe/VYxngqODQdmUEKk" +
+                        "AOV6Y+xJjovdL0Se3kfjijLyeNHFSVW3atrKBXXd6VaN9mBvPNxJ48yUyCV4" +
+                        "PfRQvlrhvZOOael7uMFlrOzr4CH5CJ4U9D7uc+geUvWEJB8qk1fnCpdlZtAJ" +
+                        "vdt+STm0yIK2fUj0ggHC4eQwMO99zGP4jsoH/vnt41XeqRuuJ8NpM7skJM0L" +
+                        "sqtVIagQ0cxdh11pVWtwicTKIJTKcorLCTzPs9B42zMWB3+b2HfVFjiz8wHS" +
+                        "ptVdORevQMxLxkfLKStXv4THlOJH56NmvSduP7y+NkpaOGXTYlYk226GTP6z" +
+                        "dCpEl0kaZbhkry1aBRsldLqMHjgsZklnTCE25DuPoXtM+i5XtDkqwqZGHvg6" +
+                        "0uY0+U9nyg3FWXTcsB0JKcH3NdmU1fk/vDurMYHCOFU8ozxPHmOOHwbTXZx7" +
+                        "oRkLiRMrtqgyZ7qXzZwJV/PJte6Guw7VogOwlD8EhmR20NuZZK/OPtwSAaGf" +
+                        "wF3Q8i9PHWhQkbTW5l/SmBulchontd0uET/WJ+6zVfRqNjRddOPsXYM5VwrK" +
+                        "Prn5wrMPKG108ZaSU1osKP0jmmUTGvqbXogCn4QqZlx4Fkvx0H439w94joLS" +
+                        "LvfVwwlI8k4EZziX+nQcjLw60HYoRFlaeA47DRO0GOCDdK6U18efx31cS+zq" +
+                        "zNq2ulAFLKhUzzadl+8fOzZggZ38yDGDWIHet9OJMT2lUAGtU0+jXvPsbOrf" +
+                        "e0heBFGkJd7doJVSanKTQLoaKFrTWbcUrvBIYf6aMEqms3R/xiPa/YQ3uldb" +
+                        "75c6BOgFVASTq8eG4m+hMNwqqTwqpTd2PSrJb916b0xStQgubLlFUcF3pu9f" +
+                        "ByQBf4o0A7EoAPGKlXLJDGiNhtQQG4n4yxrKjg3Dk+G/VzepNq91JCikGuwa" +
+                        "HDKehfQa0laPMy/Uv7KgyoVfcUTlvBRAS6qt4B0Z24SnvCQNx13EzQdeFspf" +
+                        "MN0QSJV/xaPAODFPXU9lE9LeCljWUHeIChmySjrOr1s0XF4IFHpUjyAZh6xJ" +
+                        "hJ+7xHW9bbDedKT9yMAR/Uk3ob64GHa37U5f+XApkJJlLXd+FZY/hdCG76Bk" +
+                        "LrzfzRxZd9iaku/+0gcL/ydNYd/m85f4U9+MP7fNRz2YEBDoTfLXVNdQ11Bz" +
+                        "J5JPuWtobt8aovHL0Z1Sn37S/zvu85QAApHgHkhQ9yVRiN7+bn4kfBCRgMNi" +
+                        "sZ6fLsgDAwYHhSt2ZD3JagQArNDbgACeHzeEL5o1BmytFb9q27O1ZvzYJrzF" +
+                        "hvlO7fixV2yL9+wPasgX//eLyBfdjiz4eS3ZHCQN+PFuvyqL75c2/XXg97f7" +
+                        "VVy+X9q1FZoXvInzfTqsbQAAkn/z928UjmckMgoAAA=="
+                )
+        ) {
+            val fooClass = codebase.assertClass("androidx.test.pkg.Foo")
+
+            val sourceFooFunction = fooClass.assertMethod("FooFunction", "int")
+            assertThat(sourceFooFunction.targetLanguages).containsExactly(TargetLanguage.KOTLIN)
+            assertThat(sourceFooFunction.annotationNames()).contains(ANDROIDX_COMPOSABLE)
+
+            // Signature generated by the compose compiler.
+            val bytecodeFooFunction =
+                fooClass.assertMethod("FooFunction", "int,androidx.compose.runtime.Composer,int")
+            assertThat(bytecodeFooFunction.targetLanguages).containsExactly(TargetLanguage.BYTECODE)
+            assertThat(bytecodeFooFunction.annotationNames()).contains(ANDROIDX_COMPOSABLE)
+
+            val sourceFooVal = fooClass.assertProperty("fooVal")
+            assertThat(sourceFooVal.targetLanguages).containsExactly(TargetLanguage.KOTLIN)
+            // The annotation is applied to the getter, not the property.
+            assertThat(sourceFooVal.annotationNames()).doesNotContain(ANDROIDX_COMPOSABLE)
+
+            // Signature generated by the compose compiler.
+            val bytecodeFooVal =
+                fooClass.assertMethod("getFooVal", "androidx.compose.runtime.Composer,int")
+            assertThat(bytecodeFooVal.targetLanguages).containsExactly(TargetLanguage.BYTECODE)
+            assertThat(bytecodeFooVal.annotationNames()).contains(ANDROIDX_COMPOSABLE)
         }
     }
 }

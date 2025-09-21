@@ -190,10 +190,10 @@ class ApiFileTest : DriverTest() {
                 package test.pkg {
                   public final class Kotlin extends test.pkg.Parent {
                     ctor public Kotlin(optional String property1, int arg2);
-                    method public String getProperty1();
-                    method public String? getProperty2();
+                    method @InaccessibleFromKotlin public String getProperty1();
+                    method @InaccessibleFromKotlin public String? getProperty2();
                     method public void otherMethod(boolean ok, int times);
-                    method public void setProperty2(String?);
+                    method @InaccessibleFromKotlin public void setProperty2(String?);
                     property public String property1;
                     property public String? property2;
                     property public int someField2;
@@ -206,8 +206,8 @@ class ApiFileTest : DriverTest() {
                   }
                   public final class KotlinKt {
                     method public static inline operator String component1(String);
-                    method public static inline int getRed(int);
-                    method public static inline boolean isSrgb(long);
+                    method @InaccessibleFromKotlin public static inline int getRed(int);
+                    method @InaccessibleFromKotlin public static inline boolean isSrgb(long);
                     property public static inline boolean long.isSrgb;
                     property public static inline int int.red;
                   }
@@ -430,8 +430,8 @@ class ApiFileTest : DriverTest() {
                 package test.pkg {
                   public final class MyClass {
                     ctor public MyClass();
-                    method public boolean getReadOnlyVar();
-                    method public boolean getReadOnlyVarWithPublicModifier();
+                    method @InaccessibleFromKotlin public boolean getReadOnlyVar();
+                    method @InaccessibleFromKotlin public boolean getReadOnlyVarWithPublicModifier();
                     property public boolean readOnlyVar;
                     property public boolean readOnlyVarWithPublicModifier;
                   }
@@ -909,9 +909,9 @@ class ApiFileTest : DriverTest() {
                 package test.pkg {
                   public final class CircularArray<E> {
                     ctor public CircularArray();
-                    method public E getFirst();
-                    method public E getLast();
-                    method public void setLast(E);
+                    method @InaccessibleFromKotlin public E getFirst();
+                    method @InaccessibleFromKotlin public E getLast();
+                    method @InaccessibleFromKotlin public void setLast(E);
                     property public E first;
                     property public E last;
                   }
@@ -1019,8 +1019,8 @@ class ApiFileTest : DriverTest() {
                   }
                   public final class NonNullableKotlinPair<F, S> {
                     ctor public NonNullableKotlinPair(F first, S second);
-                    method public F getFirst();
-                    method public S getSecond();
+                    method @InaccessibleFromKotlin public F getFirst();
+                    method @InaccessibleFromKotlin public S getSecond();
                     property public F first;
                     property public S second;
                   }
@@ -1031,8 +1031,8 @@ class ApiFileTest : DriverTest() {
                   }
                   public final class NullableKotlinPair<F, S> {
                     ctor public NullableKotlinPair(F? first, S? second);
-                    method public F? getFirst();
-                    method public S? getSecond();
+                    method @InaccessibleFromKotlin public F? getFirst();
+                    method @InaccessibleFromKotlin public S? getSecond();
                     property public F? first;
                     property public S? second;
                   }
@@ -1328,8 +1328,8 @@ class ApiFileTest : DriverTest() {
                 package test.pkg {
                   public final class SimpleClass {
                     ctor public SimpleClass();
-                    method public int getNonJvmField();
-                    method public void setNonJvmField(int);
+                    method @InaccessibleFromKotlin public int getNonJvmField();
+                    method @InaccessibleFromKotlin public void setNonJvmField(int);
                     property public int jvmField;
                     property public int nonJvmField;
                     field public int jvmField;
@@ -1365,10 +1365,10 @@ class ApiFileTest : DriverTest() {
                 package test.pkg {
                   public final class SimpleClass {
                     ctor public SimpleClass();
-                    method public int getAnotherProperty();
-                    method public int myPropertyJvmGetter();
-                    method public void setAnotherProperty(int);
-                    method public void setMyProperty(int);
+                    method @InaccessibleFromKotlin public int getAnotherProperty();
+                    method @InaccessibleFromKotlin public int myPropertyJvmGetter();
+                    method @InaccessibleFromKotlin public void setAnotherProperty(int);
+                    method @InaccessibleFromKotlin public void setMyProperty(int);
                     property public int anotherProperty;
                     property public int myProperty;
                   }
@@ -1490,20 +1490,20 @@ class ApiFileTest : DriverTest() {
                 // Signature format: 5.0
                 package test.pkg {
                   public final class Bar {
-                    method @SuppressCompatibility @test.pkg.ExperimentalBar public test.pkg.FancyBar getExperimentalPropertyWithGetterInsideObject();
+                    method @InaccessibleFromKotlin @SuppressCompatibility @test.pkg.ExperimentalBar public test.pkg.FancyBar getExperimentalPropertyWithGetterInsideObject();
                     property @SuppressCompatibility @test.pkg.ExperimentalBar public test.pkg.FancyBar ExperimentalPropertyWithGetterInsideObject;
                     field public static final test.pkg.Bar INSTANCE;
                   }
                   @SuppressCompatibility @kotlin.RequiresOptIn @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention.BINARY) public @interface ExperimentalBar {
                   }
                   public final class ExperimentalBarKt {
-                    method @SuppressCompatibility @test.pkg.ExperimentalBar public static test.pkg.FancyBar? getExperimentalPropertyWithCustomGetterAndSetter();
-                    method @SuppressCompatibility @test.pkg.ExperimentalBar public static test.pkg.FancyBar? getExperimentalPropertyWithExplicitAnnotationsOnGetterAndSetter();
-                    method @SuppressCompatibility @test.pkg.ExperimentalBar public static test.pkg.FancyBar getExperimentalPropertyWithGetter();
-                    method @SuppressCompatibility @test.pkg.ExperimentalBar public static test.pkg.FancyBar? getExperimentalPropertyWithGetterAndSetter();
-                    method @SuppressCompatibility @test.pkg.ExperimentalBar public static void setExperimentalPropertyWithCustomGetterAndSetter(test.pkg.FancyBar?);
-                    method @SuppressCompatibility @test.pkg.ExperimentalBar public static void setExperimentalPropertyWithExplicitAnnotationsOnGetterAndSetter(test.pkg.FancyBar?);
-                    method @SuppressCompatibility @test.pkg.ExperimentalBar public static void setExperimentalPropertyWithGetterAndSetter(test.pkg.FancyBar?);
+                    method @InaccessibleFromKotlin @SuppressCompatibility @test.pkg.ExperimentalBar public static test.pkg.FancyBar? getExperimentalPropertyWithCustomGetterAndSetter();
+                    method @InaccessibleFromKotlin @SuppressCompatibility @test.pkg.ExperimentalBar public static test.pkg.FancyBar? getExperimentalPropertyWithExplicitAnnotationsOnGetterAndSetter();
+                    method @InaccessibleFromKotlin @SuppressCompatibility @test.pkg.ExperimentalBar public static test.pkg.FancyBar getExperimentalPropertyWithGetter();
+                    method @InaccessibleFromKotlin @SuppressCompatibility @test.pkg.ExperimentalBar public static test.pkg.FancyBar? getExperimentalPropertyWithGetterAndSetter();
+                    method @InaccessibleFromKotlin @SuppressCompatibility @test.pkg.ExperimentalBar public static void setExperimentalPropertyWithCustomGetterAndSetter(test.pkg.FancyBar?);
+                    method @InaccessibleFromKotlin @SuppressCompatibility @test.pkg.ExperimentalBar public static void setExperimentalPropertyWithExplicitAnnotationsOnGetterAndSetter(test.pkg.FancyBar?);
+                    method @InaccessibleFromKotlin @SuppressCompatibility @test.pkg.ExperimentalBar public static void setExperimentalPropertyWithGetterAndSetter(test.pkg.FancyBar?);
                     property @SuppressCompatibility @test.pkg.ExperimentalBar public static int ExperimentalConstField;
                     property @SuppressCompatibility @test.pkg.ExperimentalBar public static test.pkg.FancyBar ExperimentalJvmFieldProperty;
                     property @SuppressCompatibility @test.pkg.ExperimentalBar public static test.pkg.FancyBar ExperimentalPropertyWithGetter;
@@ -4305,7 +4305,7 @@ class ApiFileTest : DriverTest() {
                   public final class KotlinClass {
                     ctor public KotlinClass(@IntRange(from=1L) int param);
                     ctor public KotlinClass(@IntRange(from=2L) int differentParam);
-                    method public int getParam();
+                    method @InaccessibleFromKotlin public int getParam();
                     method public void myMethod(@IntRange(from=3L) int methodParam);
                     property public int param;
                   }
@@ -4377,8 +4377,8 @@ class ApiFileTest : DriverTest() {
                 package test.pkg {
                   public final class KotlinClass {
                     ctor public KotlinClass();
-                    method public boolean getPropertyWithGetter();
-                    method public boolean getPropertyWithNoGetter();
+                    method @InaccessibleFromKotlin public boolean getPropertyWithGetter();
+                    method @InaccessibleFromKotlin public boolean getPropertyWithNoGetter();
                     property public boolean propertyWithGetter;
                     property public boolean propertyWithNoGetter;
                   }
@@ -4420,9 +4420,9 @@ class ApiFileTest : DriverTest() {
                 // Signature format: 4.0
                 package test.pkg {
                   public abstract sealed class MyClass {
-                    method public final int getFirstConstructorProperty();
-                    method public final String getNonConstructorProperty();
-                    method public final boolean getSecondConstructorProperty();
+                    method @InaccessibleFromKotlin public final int getFirstConstructorProperty();
+                    method @InaccessibleFromKotlin public final String getNonConstructorProperty();
+                    method @InaccessibleFromKotlin public final boolean getSecondConstructorProperty();
                     property public final int firstConstructorProperty;
                     property public final String nonConstructorProperty;
                     property public final boolean secondConstructorProperty;
@@ -4431,7 +4431,7 @@ class ApiFileTest : DriverTest() {
                     ctor public MyDataClass(String constructorProperty, String internalConstructorProperty);
                     method public String component1();
                     method public test.pkg.MyDataClass copy(optional String constructorProperty, optional String internalConstructorProperty);
-                    method public String getConstructorProperty();
+                    method @InaccessibleFromKotlin public String getConstructorProperty();
                     property public String constructorProperty;
                   }
                 }
@@ -4707,7 +4707,7 @@ class ApiFileTest : DriverTest() {
                     method @KotlinOnly public void doSomething();
                     method @BytecodeOnly public static void doSomething-impl(float);
                     method @BytecodeOnly public static int getSomeBits-impl(float);
-                    method public float getValue();
+                    method @InaccessibleFromKotlin public float getValue();
                     method @KotlinOnly public inline operator test.pkg.Dp minus(test.pkg.Dp other);
                     method @BytecodeOnly public static float minus-TBhqLn8(float, float);
                     method @KotlinOnly public inline operator test.pkg.Dp plus(test.pkg.Dp other);
@@ -4830,7 +4830,7 @@ class ApiFileTest : DriverTest() {
                     method ${doSomethingTargetLanguages}public void doSomething();
                     method @BytecodeOnly public static void doSomething-impl(float);
                     method @BytecodeOnly public static int getSomeBits-impl(float);
-                    method public float getValue();
+                    method @InaccessibleFromKotlin public float getValue();
                     method @KotlinOnly public inline operator test.pkg.Dp minus(test.pkg.Dp other);
                     method @BytecodeOnly public static float minus-TBhqLn8(float, float);
                     method @KotlinOnly public inline operator test.pkg.Dp plus(test.pkg.Dp other);
@@ -4868,7 +4868,7 @@ class ApiFileTest : DriverTest() {
                 package test.pkg {
                   @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface Foo {
                     ctor @KotlinOnly public Foo(optional long bar);
-                    method public abstract long bar() default java.lang.Long.MIN_VALUE;
+                    method @InaccessibleFromKotlin public abstract long bar() default java.lang.Long.MIN_VALUE;
                     property public abstract long bar;
                   }
                 }
@@ -5314,8 +5314,8 @@ class ApiFileTest : DriverTest() {
                 package test.pkg {
                   @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface Foo {
                     ctor @KotlinOnly public Foo(String[] bar, java.lang.String... baz);
-                    method public abstract String[] bar();
-                    method public abstract String[] baz();
+                    method @InaccessibleFromKotlin public abstract String[] bar();
+                    method @InaccessibleFromKotlin public abstract String[] baz();
                     property public abstract String[] bar;
                     property public abstract String[] baz;
                   }
@@ -5342,8 +5342,8 @@ class ApiFileTest : DriverTest() {
                 package test.pkg {
                   public final class Foo {
                     ctor public Foo(int bar);
-                    method public int getBar();
-                    method public void setBar(int);
+                    method @InaccessibleFromKotlin public int getBar();
+                    method @InaccessibleFromKotlin public void setBar(int);
                     property public int bar;
                   }
                 }
@@ -5402,7 +5402,7 @@ class ApiFileTest : DriverTest() {
                 package test.pkg {
                   @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface Dimension {
                     ctor @KotlinOnly public Dimension(optional int unit);
-                    method public abstract int unit() default test.pkg.Dimension.PX;
+                    method @InaccessibleFromKotlin public abstract int unit() default test.pkg.Dimension.PX;
                     property public abstract int unit;
                     field public static final test.pkg.Dimension.Companion Companion;
                     field public static final int DP = 0; // 0x0
@@ -5539,7 +5539,7 @@ class ApiFileTest : DriverTest() {
                 """
                 package test.pkg {
                   public interface State<T> {
-                    method public T getValue();
+                    method @InaccessibleFromKotlin public T getValue();
                     property public abstract T value;
                   }
                   public final class StateKt {
@@ -5653,7 +5653,7 @@ class ApiFileTest : DriverTest() {
                     ctor public AsyncPagingDataDiffer(test.pkg.State<? extends T> initState, test.pkg.State<? extends T> nextState, Runnable updateCallback);
                   }
                   public interface State<T> {
-                    method public T getValue();
+                    method @InaccessibleFromKotlin public T getValue();
                     property public abstract T value;
                   }
                 }
@@ -5683,8 +5683,8 @@ class ApiFileTest : DriverTest() {
                 """
                 package test.pkg {
                   @Deprecated public sealed interface LazyInfo {
-                    method @Deprecated public int getIndex();
-                    method @Deprecated public int getKey();
+                    method @InaccessibleFromKotlin @Deprecated public int getIndex();
+                    method @InaccessibleFromKotlin @Deprecated public int getKey();
                     property @Deprecated public abstract int index;
                     property @Deprecated public abstract int key;
                   }
@@ -5720,8 +5720,8 @@ class ApiFileTest : DriverTest() {
                 package test.pkg {
                   @kotlin.annotation.Repeatable public @interface RequiresExtension {
                     ctor @KotlinOnly public RequiresExtension(@IntRange(from=1L) int extension, @IntRange(from=1L) int version);
-                    method public abstract int extension();
-                    method public abstract int version();
+                    method @InaccessibleFromKotlin public abstract int extension();
+                    method @InaccessibleFromKotlin public abstract int version();
                     property public abstract int extension;
                     property public abstract int version;
                   }
@@ -5869,7 +5869,7 @@ class ApiFileTest : DriverTest() {
                   }
                   public interface LazyLayoutItemProvider {
                     method public default int getIndex();
-                    method public int getItemCount();
+                    method @InaccessibleFromKotlin public int getItemCount();
                     property public abstract int itemCount;
                   }
                   public interface Path1 {
@@ -5886,7 +5886,7 @@ class ApiFileTest : DriverTest() {
                   }
                   public final class Toast {
                     ctor public Toast();
-                    method public int getFoo();
+                    method @InaccessibleFromKotlin public int getFoo();
                     property public int foo;
                   }
                 }
@@ -5935,7 +5935,7 @@ class ApiFileTest : DriverTest() {
                   public final class Foo {
                     method public static void bar(String);
                     method public static void baz(String);
-                    method public static int getNonConstVal();
+                    method @InaccessibleFromKotlin public static int getNonConstVal();
                     property public static int constVal;
                     property public static int nonConstVal;
                     field public static final int constVal = 4; // 0x4
@@ -6405,11 +6405,11 @@ class ApiFileTest : DriverTest() {
                 package test.pkg {
                   public final class SeekableTransitionState<S> extends test.pkg.TransitionState<S> {
                     ctor public SeekableTransitionState(S initialState);
-                    method public S getCurrentState();
+                    method @InaccessibleFromKotlin public S getCurrentState();
                     property public S currentState;
                   }
                   public abstract sealed class TransitionState<S> {
-                    method public abstract S getCurrentState();
+                    method @InaccessibleFromKotlin public abstract S getCurrentState();
                     property public abstract S currentState;
                   }
                 }

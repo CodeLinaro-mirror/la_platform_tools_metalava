@@ -76,6 +76,8 @@ import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
+import com.android.tools.metalava.model.TypeParameterItem
+import com.android.tools.metalava.model.TypeParameterListOwner
 import com.android.tools.metalava.model.TypeStringConfiguration
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.findAnnotation
@@ -179,6 +181,7 @@ import com.android.tools.metalava.reporter.Issues.STATIC_FINAL_BUILDER
 import com.android.tools.metalava.reporter.Issues.STATIC_UTILS
 import com.android.tools.metalava.reporter.Issues.STREAM_FILES
 import com.android.tools.metalava.reporter.Issues.TOP_LEVEL_BUILDER
+import com.android.tools.metalava.reporter.Issues.TYPE_PARAMETER_NAME
 import com.android.tools.metalava.reporter.Issues.UNFLAGGED_API
 import com.android.tools.metalava.reporter.Issues.UNIQUE_KOTLIN_OPERATOR
 import com.android.tools.metalava.reporter.Issues.USER_HANDLE
@@ -416,6 +419,7 @@ private constructor(
             checkClone(method)
             checkCallbackOrListenerMethod(method)
             checkMethodSuffixListenableFutureReturn(method)
+            checkTypeParameterNames(method)
             kotlinInterop.checkMethod(method)
         }
     }
@@ -446,6 +450,37 @@ private constructor(
         checkFutures(typeString, item)
     }
 
+    // Enforce type parameter naming rules:
+    // https://developer.android.com/kotlin/style-guide#type_variable_names
+    fun <T> checkTypeParameterNames(item: T) where T : Item, T : TypeParameterListOwner {
+        for (typeParameter: TypeParameterItem in item.typeParameterList) {
+            if (!isValidGenericTypeName(typeParameter.name())) {
+                report(
+                    TYPE_PARAMETER_NAME,
+                    item,
+                    "Invalid type parameter name \"${typeParameter.name()}\". Type parameter names must follow" +
+                        " the Google naming guidelines specified here:" +
+                        " https://developer.android.com/kotlin/style-guide#type_variable_names"
+                )
+            }
+        }
+    }
+
+    /*
+     * Generic parameter naming rules that this method is checking can be found here:
+     * https://developer.android.com/kotlin/style-guide#type_variable_names
+     */
+    private fun isValidGenericTypeName(name: String): Boolean {
+        if (name.isEmpty()) return false
+        if (name.length == 1) {
+            return name[0] >= 'A' && name[0] <= 'Z'
+        }
+        return name.endsWith("T") &&
+            name[0] >= 'A' &&
+            name[0] <= 'Z' &&
+            name.all { it.isLetterOrDigit() }
+    }
+
     private fun checkClass(
         cls: ClassItem,
         methods: Sequence<MethodItem>,
@@ -455,6 +490,7 @@ private constructor(
         superClass: ClassItem?,
         interfaces: Sequence<TypeItem>
     ) {
+        checkTypeParameterNames(cls)
         checkEquals(methods)
         checkEnums(cls)
         checkClassNames(cls)
