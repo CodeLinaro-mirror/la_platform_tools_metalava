@@ -22,7 +22,7 @@ import com.android.tools.metalava.cli.common.cliError
 import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.newFile
 import com.android.tools.metalava.cli.common.progressTracker
-import com.android.tools.metalava.createReportFile
+import com.android.tools.metalava.createOutputFileFromCodebase
 import com.android.tools.metalava.model.text.ApiFile
 import com.android.tools.metalava.model.text.ApiParseException
 import com.android.tools.metalava.model.text.SignatureFile
@@ -85,7 +85,12 @@ class MergeSignaturesCommand :
 
         try {
             val codebase = ApiFile.parseApi(SignatureFile.fromFiles(files))
-            createReportFile(progressTracker, codebase, out, description = "Merged file") {
+            createOutputFileFromCodebase(
+                progressTracker,
+                codebase,
+                out,
+                description = "Merged file"
+            ) {
                 val fileFormat = signatureFormat.fileFormat
                 val signatureWriter =
                     SignatureWriter(

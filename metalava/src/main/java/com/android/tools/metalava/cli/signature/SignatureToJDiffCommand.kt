@@ -25,7 +25,7 @@ import com.android.tools.metalava.cli.common.newFile
 import com.android.tools.metalava.cli.common.progressTracker
 import com.android.tools.metalava.cli.common.stderr
 import com.android.tools.metalava.createFilteringVisitorForJDiffWriter
-import com.android.tools.metalava.createReportFile
+import com.android.tools.metalava.createOutputFileFromCodebaseFragment
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.CodebaseFragment
 import com.android.tools.metalava.model.FilterPredicate
@@ -170,7 +170,12 @@ class SignatureToJDiffCommand :
 
         // See JDiff's XMLToAPI#nameAPI
         val apiName = xmlFile.nameWithoutExtension.replace(' ', '_')
-        createReportFile(progressTracker, outputFragment, xmlFile, "JDiff File") { printWriter ->
+        createOutputFileFromCodebaseFragment(
+            progressTracker,
+            outputFragment,
+            xmlFile,
+            "JDiff File"
+        ) { printWriter ->
             JDiffXmlWriter(
                 writer = printWriter,
                 apiName = apiName,
