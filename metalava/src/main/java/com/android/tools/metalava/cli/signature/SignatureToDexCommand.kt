@@ -22,7 +22,7 @@ import com.android.tools.metalava.cli.common.MetalavaSubCommand
 import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.newFile
 import com.android.tools.metalava.cli.common.progressTracker
-import com.android.tools.metalava.createReportFile
+import com.android.tools.metalava.createOutputFileFromCodebase
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.text.SignatureFile
 import com.android.tools.metalava.model.visitors.ApiPredicate
@@ -69,7 +69,8 @@ class SignatureToDexCommand :
         val apiType = ApiType.ALL
         val apiFilters = apiType.getApiFilters(apiPredicateConfig)
 
-        createReportFile(progressTracker, signatureApi, outFile, "DEX API") { printWriter ->
+        createOutputFileFromCodebase(progressTracker, signatureApi, outFile, "DEX API") {
+            printWriter ->
             DexApiWriter(
                     printWriter,
                 )
