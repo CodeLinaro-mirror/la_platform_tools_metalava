@@ -29,6 +29,7 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SelectableItem
+import com.android.tools.metalava.model.TypeAliasItem
 import com.android.tools.metalava.model.visitors.ApiFilters
 import com.android.tools.metalava.model.visitors.ApiVisitor
 
@@ -61,6 +62,8 @@ open class ComparisonVisitor {
 
     open fun compareParameterItems(old: ParameterItem, new: ParameterItem) {}
 
+    open fun compareTypeAliasItems(old: TypeAliasItem, new: TypeAliasItem) {}
+
     open fun addedPackageItem(new: PackageItem) {}
 
     open fun addedClassItem(new: ClassItem) {}
@@ -75,6 +78,8 @@ open class ComparisonVisitor {
 
     open fun addedPropertyItem(new: PropertyItem) {}
 
+    open fun addedTypeAliasItem(new: TypeAliasItem) {}
+
     open fun removedPackageItem(old: PackageItem, from: PackageItem?) {}
 
     open fun removedClassItem(old: ClassItem, from: SelectableItem) {}
@@ -88,6 +93,8 @@ open class ComparisonVisitor {
     open fun removedFieldItem(old: FieldItem, from: ClassItem) {}
 
     open fun removedPropertyItem(old: PropertyItem, from: ClassItem) {}
+
+    open fun removedTypeAliasItem(old: TypeAliasItem, from: PackageItem) {}
 }
 
 /** Simple stack type built on top of an [ArrayList]. */
@@ -320,6 +327,7 @@ class CodebaseComparator {
             is MethodItem -> visitor.addedMethodItem(item)
             is FieldItem -> visitor.addedFieldItem(item)
             is PropertyItem -> visitor.addedPropertyItem(item)
+            is TypeAliasItem -> visitor.addedTypeAliasItem(item)
             else -> error("unexpected addition of $item")
         }
     }
@@ -341,13 +349,17 @@ class CodebaseComparator {
         // declared on the subclass
         val inheritedMethod =
             if (old is MethodItem && newParent is ClassItem) {
-                val superMethod = newParent.findPredicateMethodWithSuper(old, filter)
+                // Use an updated filter when searching for a matching method: if an [Item] is an
+                // unstable API that will be reverted then it will not be treated as if it was
+                // removed. That is because reverting it will replace it with the old item against
+                // which it is being compared in this compatibility check. So, while this specific
+                // item will not appear in the API the old item will and so it has not been removed.
+                val methodFilter =
+                    filter?.or { method: SelectableItem -> method.showability.revertUnstableApi() }
 
-                if (superMethod != null && (filter == null || filter.test(superMethod))) {
-                    superMethod.duplicate(newParent)
-                } else {
-                    null
-                }
+                // Find an element which matches the methodFilter
+                val superMethod = newParent.findPredicateMethodWithSuper(old, methodFilter)
+                superMethod?.duplicate(newParent)
             } else {
                 null
             }
@@ -402,6 +414,7 @@ class CodebaseComparator {
             is MethodItem -> visitor.removedMethodItem(item, from as ClassItem)
             is FieldItem -> visitor.removedFieldItem(item, from as ClassItem)
             is PropertyItem -> visitor.removedPropertyItem(item, from as ClassItem)
+            is TypeAliasItem -> visitor.removedTypeAliasItem(item, from as PackageItem)
             else -> error("unexpected removal of $item")
         }
     }
@@ -426,6 +439,7 @@ class CodebaseComparator {
             is MethodItem -> visitor.compareMethodItems(old, new as MethodItem)
             is FieldItem -> visitor.compareFieldItems(old, new as FieldItem)
             is PropertyItem -> visitor.comparePropertyItems(old, new as PropertyItem)
+            is TypeAliasItem -> visitor.compareTypeAliasItems(old, new as TypeAliasItem)
             else -> error("unexpected comparison of $old and $new")
         }
 
@@ -448,6 +462,7 @@ class CodebaseComparator {
                 is FieldItem -> 3
                 is ClassItem -> 4
                 is PropertyItem -> 5
+                is TypeAliasItem -> 6
                 else -> error("Unexpected item $item of ${item.javaClass}")
             }
         }
@@ -542,6 +557,9 @@ class CodebaseComparator {
                         }
                         is PropertyItem -> {
                             item1.name().compareTo((item2 as PropertyItem).name())
+                        }
+                        is TypeAliasItem -> {
+                            item1.qualifiedName.compareTo((item2 as TypeAliasItem).qualifiedName)
                         }
                         else -> error("Unexpected item $item1 of ${item1.javaClass}")
                     }

@@ -19,8 +19,6 @@ package com.android.tools.metalava.model.psi
 import com.android.SdkConstants
 import com.android.tools.lint.UastEnvironment
 import com.android.tools.lint.annotations.Extractor
-import com.android.tools.metalava.model.ANDROIDX_NONNULL
-import com.android.tools.metalava.model.ANDROIDX_NULLABLE
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.ClassItem
@@ -29,11 +27,13 @@ import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JAVA_PACKAGE_INFO
+import com.android.tools.metalava.model.JVM_NAME
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.model.WildcardTypeItem
 import com.android.tools.metalava.model.addDefaultRetentionPolicyAnnotation
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.isRetention
@@ -47,29 +47,24 @@ import com.android.tools.metalava.model.psi.kotlin.KaCodebaseAssembler
 import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.model.source.utils.gatherPackageJavadoc
 import com.android.tools.metalava.reporter.Issues
-import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.project.Project
 import com.intellij.psi.JavaPsiFacade
 import com.intellij.psi.JavaRecursiveElementVisitor
 import com.intellij.psi.PsiAnnotation
-import com.intellij.psi.PsiArrayType
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiClassOwner
 import com.intellij.psi.PsiClassType
 import com.intellij.psi.PsiCodeBlock
 import com.intellij.psi.PsiElement
-import com.intellij.psi.PsiEllipsisType
 import com.intellij.psi.PsiErrorElement
 import com.intellij.psi.PsiFile
 import com.intellij.psi.PsiImportStatement
 import com.intellij.psi.PsiJavaFile
 import com.intellij.psi.PsiManager
 import com.intellij.psi.PsiPackage
-import com.intellij.psi.PsiParameter
 import com.intellij.psi.PsiSubstitutor
 import com.intellij.psi.PsiType
 import com.intellij.psi.PsiTypeParameter
-import com.intellij.psi.TypeAnnotationProvider
 import com.intellij.psi.impl.file.PsiPackageImpl
 import com.intellij.psi.javadoc.PsiDocComment
 import com.intellij.psi.search.GlobalSearchScope
@@ -77,23 +72,17 @@ import com.intellij.psi.util.PsiTreeUtil
 import java.io.File
 import java.io.IOException
 import java.util.zip.ZipFile
-import org.jetbrains.kotlin.analysis.api.types.KaTypeNullability
 import org.jetbrains.kotlin.asJava.classes.KtLightClassForFacade
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.JvmStandardClassIds
-import org.jetbrains.kotlin.psi.KtDeclaration
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.KtFunction
-import org.jetbrains.kotlin.psi.KtParameter
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
-import org.jetbrains.kotlin.psi.KtTypeAlias
 import org.jetbrains.kotlin.psi.KtTypeReference
 import org.jetbrains.uast.UClass
 import org.jetbrains.uast.UFile
 import org.jetbrains.uast.UMethod
-import org.jetbrains.uast.UParameter
 import org.jetbrains.uast.UastFacade
-import org.jetbrains.uast.kotlin.BaseKotlinUastResolveProviderService
 import org.jetbrains.uast.kotlin.KotlinUMethodWithFakeLightDelegateBase
 import org.jetbrains.uast.kotlin.psi.UastFakeSourceLightMethod
 
@@ -296,15 +285,17 @@ internal class PsiCodebaseAssembler(
         val psiMethods = psiClass.methods
         // create methods
         for (psiMethod in psiMethods) {
-            if (psiMethod.isConstructor) {
-                // Skip fake UAST constructors, which can't be used from java source.
-                if (
-                    psiMethod is UastFakeSourceLightMethod ||
-                        psiMethod is KotlinUMethodWithFakeLightDelegateBase<*>
-                ) {
-                    continue
-                }
+            // Skip fake UAST constructors and methods, which can't be used from java source.
+            // If this condition is updated, the one in KaCodebaseAssembler determining which
+            // methods to create needs to be updated too.
+            if (
+                (psiMethod is UastFakeSourceLightMethod ||
+                    psiMethod is KotlinUMethodWithFakeLightDelegateBase<*>)
+            ) {
+                continue
+            }
 
+            if (psiMethod.isConstructor) {
                 // Kotlin value class primary constructors cannot be called from Java, so they will
                 // be generated later by the KaCodebaseAssembler. For K1, these constructors aren't
                 // fake UAST elements, so they won't have already been filtered out.
@@ -347,6 +338,29 @@ internal class PsiCodebaseAssembler(
 
                 val method =
                     PsiMethodItem.create(codebase, classItem, psiMethod, classTypeItemFactory)
+
+                // With K2, any methods using value class types which don't use JvmName
+                // will already have been filtered out because they are represented with fake UAST
+                // elements. With K1, value class types are not treated differently so the elements
+                // are not fake UAST. Filter those value class type property accessors here.
+                // TODO(b/427783483): remove this workaround
+                if (
+                    (method.returnType().isValueClassType() ||
+                        method.parameters().any { it.type().isValueClassType() } ||
+                        // If a suspend function returns a value class type, the return is turned
+                        // into a final continuation parameter where the argument of the type is
+                        // a super bound of the value class type.
+                        (method.modifiers.isSuspend() &&
+                            ((method.parameters().lastOrNull()?.type() as? ClassTypeItem)
+                                    ?.arguments
+                                    ?.singleOrNull() as? WildcardTypeItem)
+                                ?.superBound
+                                ?.isValueClassType() == true)) &&
+                        method.modifiers.annotations().none { it.qualifiedName == JVM_NAME }
+                ) {
+                    continue
+                }
+
                 if (!method.isEnumSyntheticMethod()) {
                     addOverloadedKotlinCallablesIfNecessary(classItem, classTypeItemFactory, method)
                     classItem.addMethod(method)
@@ -723,68 +737,6 @@ internal class PsiCodebaseAssembler(
         return PsiAnnotationItem.create(codebase, psiAnnotation)
     }
 
-    fun getPsiTypeForPsiParameter(psiParameter: PsiParameter): PsiType {
-        // UAST workaround: nullity of element type in last `vararg` parameter's array type
-        val psiType = psiParameter.type
-        return if (
-            psiParameter is UParameter &&
-                psiParameter.sourcePsi is KtParameter &&
-                psiParameter.isVarArgs && // last `vararg`
-                psiType is PsiArrayType
-        ) {
-            val ktParameter = psiParameter.sourcePsi as KtParameter
-            val annotationProvider =
-                when (uastResolveService?.nullability(ktParameter)) {
-                    KaTypeNullability.NON_NULLABLE -> getNonNullAnnotationProvider()
-                    KaTypeNullability.NULLABLE -> getNullableAnnotationProvider()
-                    else -> null
-                }
-            val annotatedType =
-                if (annotationProvider != null) {
-                    psiType.componentType.annotate(annotationProvider)
-                } else {
-                    psiType.componentType
-                }
-            PsiEllipsisType(annotatedType, annotatedType.annotationProvider)
-        } else {
-            psiType
-        }
-    }
-
-    private val uastResolveService: BaseKotlinUastResolveProviderService? by lazy {
-        ApplicationManager.getApplication()
-            .getService(BaseKotlinUastResolveProviderService::class.java)
-    }
-
-    private var nonNullAnnotationProvider: TypeAnnotationProvider? = null
-    private var nullableAnnotationProvider: TypeAnnotationProvider? = null
-
-    /** Type annotation provider which provides androidx.annotation.NonNull */
-    private fun getNonNullAnnotationProvider(): TypeAnnotationProvider {
-        return nonNullAnnotationProvider
-            ?: run {
-                val provider =
-                    TypeAnnotationProvider.Static.create(
-                        arrayOf(createPsiAnnotation("@$ANDROIDX_NONNULL"))
-                    )
-                nonNullAnnotationProvider = provider
-                provider
-            }
-    }
-
-    /** Type annotation provider which provides androidx.annotation.Nullable */
-    private fun getNullableAnnotationProvider(): TypeAnnotationProvider {
-        return nullableAnnotationProvider
-            ?: run {
-                val provider =
-                    TypeAnnotationProvider.Static.create(
-                        arrayOf(createPsiAnnotation("@$ANDROIDX_NULLABLE"))
-                    )
-                nullableAnnotationProvider = provider
-                provider
-            }
-    }
-
     internal fun initializeFromJar(jarFile: File) {
         // Extract the list of class names from the jar file.
         val classNames = buildList {
@@ -857,7 +809,13 @@ internal class PsiCodebaseAssembler(
         // Create the initial set of packages that were found in the source files.
         codebase.packageTracker.createInitialPackages(packageDocs)
 
-        findTypeAliases(psiClasses, codebase)
+        // Add type aliases.
+        val kaCodebaseAssembler =
+            psiFiles
+                .filterIsInstance<KtFile>()
+                .takeIf { it.isNotEmpty() }
+                ?.let { kotlinFiles -> KaCodebaseAssembler(kotlinFiles, codebase) }
+        kaCodebaseAssembler?.createTypeAliases()
 
         // Process the `PsiClass`es.
         for (psiClass in psiClasses) {
@@ -877,29 +835,7 @@ internal class PsiCodebaseAssembler(
         }
 
         // Add kotlin-only APIs.
-        KaCodebaseAssembler.assembleFromKotlin(psiFiles.filterIsInstance<KtFile>(), codebase)
-    }
-
-    /**
-     * Finds all type aliases declared in the [KtFile]s underlying any file facade classes in
-     * [psiClasses] and adds them to the codebase.
-     */
-    private fun findTypeAliases(psiClasses: List<PsiClass>, codebase: PsiBasedCodebase) {
-        val typeAliases =
-            psiClasses.flatMap { topLevelDeclarations(it) }.filterIsInstance<KtTypeAlias>()
-        for (typeAlias in typeAliases) {
-            PsiTypeAliasItem.create(typeAlias, codebase)
-        }
-    }
-
-    /**
-     * Returns a list of declarations from the [fileFacadeClass]. If [fileFacadeClass] is not
-     * actually a file facade class, returns an empty list.
-     */
-    private fun topLevelDeclarations(fileFacadeClass: PsiClass): List<KtDeclaration> {
-        return ((fileFacadeClass as? UClass)?.javaPsi as? KtLightClassForFacade)?.files?.flatMap {
-            it.declarations
-        } ?: emptyList()
+        kaCodebaseAssembler?.assemble()
     }
 
     /**

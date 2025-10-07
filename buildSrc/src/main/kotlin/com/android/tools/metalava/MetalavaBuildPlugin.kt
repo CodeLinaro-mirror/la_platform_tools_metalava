@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava
 
-import org.gradle.api.tasks.bundling.Jar
 import com.android.build.api.dsl.Lint
 import com.android.tools.metalava.buildinfo.configureBuildInfoTask
 import org.gradle.api.JavaVersion
@@ -31,6 +30,7 @@ import org.gradle.api.publish.PublishingExtension
 import org.gradle.api.publish.maven.MavenPublication
 import org.gradle.api.publish.maven.plugins.MavenPublishPlugin
 import org.gradle.api.publish.tasks.GenerateModuleMetadata
+import org.gradle.api.tasks.ClasspathNormalizer
 import org.gradle.api.tasks.TaskProvider
 import org.gradle.api.tasks.bundling.Zip
 import org.gradle.api.tasks.testing.Test
@@ -94,6 +94,12 @@ class MetalavaBuildPlugin : Plugin<Project> {
     }
 
     private fun configureTestTasks(project: Project) {
+        // Create a configuration that depends on :stub-annotations project so tests can
+        // depend on the JAR produced by this project.
+        val stubAnnotations = project.configurations.detachedConfiguration(
+            project.dependencies.create(project.project(":stub-annotations"))
+        ).incoming.artifactView { }.files
+
         val testTask = project.tasks.named("test", Test::class.java)
 
         val zipTask: TaskProvider<Zip> =
@@ -113,27 +119,23 @@ class MetalavaBuildPlugin : Plugin<Project> {
                 "--add-opens=java.base/java.lang.reflect=ALL-UNNAMED",
             )
 
-            // Get the jar from the stub-annotations project.
-            val jarTask = project.findProject(":stub-annotations")!!.tasks.named("jar", Jar::class.java)
-
-            // Add a dependency from this test task to the jar task of stub-annotations to make sure
-            // it is built before this is run.
-            task.dependsOn(jarTask)
-
             // Clear the environment before adding any custom variables. Avoids problems with
             // inconsistent behavior when testing code that accesses environment variables, e.g.
             // command line tools that use environment variables to determine whether to use colors
             // in command line help.
             task.setEnvironment()
 
-            // Get the path to the stub-annotations jar and pass it to this in an environment
-            // variable.
-            val stubAnnotationsJar = jarTask.get().outputs.files.singleFile
-            task.environment.put(
-                "METALAVA_STUB_ANNOTATIONS_JAR", stubAnnotationsJar,
-            )
+            // Make test task depend on the stubAnnotations and normalize it as a classpath input.
+            task.inputs.files(stubAnnotations)
+                .withPropertyName("stubAnnotations")
+                .withNormalizer(ClasspathNormalizer::class.java)
 
             task.doFirst {
+                // Get the path to the stub-annotations jar and pass it to this in an environment
+                // variable.
+                task.environment["METALAVA_STUB_ANNOTATIONS_JAR"] =
+                    stubAnnotations.singleFile.absolutePath
+
                 // Before running the tests update the filter.
                 task.filter { testFilter ->
                     testFilter as DefaultTestFilter

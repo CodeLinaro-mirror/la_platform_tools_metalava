@@ -319,9 +319,9 @@ class PsiPropertyItemTest : BaseModelTest() {
             val body = properties.single { it.name() == "body" }
             val accessors = properties.single { it.name() == "accessors" }
 
-            assertContains(parameter.documentation, "parameter doc")
-            assertContains(body.documentation, "body doc")
-            assertContains(accessors.documentation, "accessors property doc")
+            assertContains(parameter.documentation.text, "parameter doc")
+            assertContains(body.documentation.text, "body doc")
+            assertContains(accessors.documentation.text, "accessors property doc")
             assertContains(accessors.getter?.documentation?.text.orEmpty(), "getter doc")
             assertContains(accessors.setter?.documentation?.text.orEmpty(), "setter doc")
         }

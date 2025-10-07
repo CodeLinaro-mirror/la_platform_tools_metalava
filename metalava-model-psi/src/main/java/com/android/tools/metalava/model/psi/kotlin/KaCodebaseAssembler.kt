@@ -26,16 +26,21 @@ import com.android.tools.metalava.model.DefaultTypeParameterList
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
+import com.android.tools.metalava.model.KOTLIN_DEPRECATED
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterListAndFactory
+import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.model.createImmutableModifiers
 import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.item.DefaultConstructorItem
+import com.android.tools.metalava.model.item.DefaultMethodItem
 import com.android.tools.metalava.model.item.DefaultParameterItem
 import com.android.tools.metalava.model.item.DefaultPropertyItem
+import com.android.tools.metalava.model.item.DefaultTypeAliasItem
 import com.android.tools.metalava.model.item.DefaultTypeParameterItem
 import com.android.tools.metalava.model.item.ParameterDefaultValue
 import com.android.tools.metalava.model.psi.PsiBasedCodebase
@@ -47,21 +52,21 @@ import com.android.tools.metalava.model.psi.isKotlin
 import com.android.tools.metalava.model.type.MethodFingerprint
 import com.android.tools.metalava.model.value.ArrayValue
 import com.android.tools.metalava.model.value.ClassObjectValue
+import com.android.tools.metalava.reporter.FileLocation
 import org.jetbrains.kotlin.analysis.api.KaExperimentalApi
 import org.jetbrains.kotlin.analysis.api.KaSession
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.analysis.api.annotations.KaAnnotated
 import org.jetbrains.kotlin.analysis.api.annotations.KaAnnotation
 import org.jetbrains.kotlin.analysis.api.annotations.KaAnnotationValue
-import org.jetbrains.kotlin.analysis.api.projectStructure.KaModule
-import org.jetbrains.kotlin.analysis.api.symbols.KaAnonymousObjectSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaCallableSymbol
-import org.jetbrains.kotlin.analysis.api.symbols.KaClassifierSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaConstructorSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaFunctionSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaNamedClassSymbol
+import org.jetbrains.kotlin.analysis.api.symbols.KaNamedFunctionSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaPackageSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaPropertySymbol
+import org.jetbrains.kotlin.analysis.api.symbols.KaReceiverParameterSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaSymbolOrigin
 import org.jetbrains.kotlin.analysis.api.symbols.KaSymbolVisibility
@@ -79,7 +84,18 @@ import org.jetbrains.kotlin.psi.KtFile
  * Adds items to the [codebase] by using the kotlin analysis API to process elements from the
  * [kaModule] which only have kotlin as a target language.
  */
-internal class KaCodebaseAssembler(val codebase: PsiBasedCodebase, val kaModule: KaModule) {
+internal class KaCodebaseAssembler(
+    ktFiles: List<KtFile>,
+    val codebase: PsiBasedCodebase,
+) {
+    // TODO(b/407735063): analyze all modules for KMP projects
+    val kaModule =
+        codebase.mainAnalysisModule
+            ?: error("No main analysis module found for project with Kotlin files")
+
+    /** All packages to analyze from the input files. */
+    private val packages = ktFiles.map { it.packageFqName }.toSet().sortedBy { it.asString() }
+
     private val kaTypeItemFactory =
         KaTypeItemFactory(
             codebase,
@@ -89,10 +105,27 @@ internal class KaCodebaseAssembler(val codebase: PsiBasedCodebase, val kaModule:
     private val kaValueFactory = KaValueFactory(codebase, this, kaTypeItemFactory)
     private val kaModifierFactory = KaModifierFactory(this)
 
-    /** Analyze the [ktFiles] to add items to the codebase for this [kaModule]. */
-    fun assemble(ktFiles: List<KtFile>) {
+    /** Analyze the [ktFiles] to add type aliases to the codebase for this [kaModule]. */
+    fun createTypeAliases() {
         analyze(kaModule) {
-            val packages = ktFiles.map { it.packageFqName }.toSet().sortedBy { it.asString() }
+            for (packageName in packages) {
+                findPackage(packageName)?.let { packageSymbol ->
+                    val packageScope = packageSymbol.packageScope
+                    for (typeAliasSymbol in
+                        packageScope.classifiers.filterIsInstance<KaTypeAliasSymbol>()) {
+                        processTypeAlias(typeAliasSymbol)
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Analyze the [ktFiles] to add items to the codebase for this [kaModule] (except type aliases,
+     * which are added by [createTypeAliases]).
+     */
+    fun assemble() {
+        analyze(kaModule) {
             for (packageName in packages) {
                 val packageSymbol = findPackage(packageName)
                 packageSymbol?.let { processPackage(it) }
@@ -103,8 +136,8 @@ internal class KaCodebaseAssembler(val codebase: PsiBasedCodebase, val kaModule:
     /** Analyze the classes of the package as well as any top-level callables. */
     private fun KaSession.processPackage(packageSymbol: KaPackageSymbol) {
         val packageScope = packageSymbol.packageScope
-        for (classifierSymbol in packageScope.classifiers) {
-            processClassifier(classifierSymbol)
+        for (classifierSymbol in packageScope.classifiers.filterIsInstance<KaNamedClassSymbol>()) {
+            processNamedClass(classifierSymbol)
         }
         for (callableSymbol in packageScope.callables) {
             // For top-level callables, find their containing class in the codebase.
@@ -118,48 +151,69 @@ internal class KaCodebaseAssembler(val codebase: PsiBasedCodebase, val kaModule:
     }
 
     /** Analyze the elements of the class. */
-    private fun KaSession.processClassifier(classifierSymbol: KaClassifierSymbol) {
+    private fun KaSession.processNamedClass(classifierSymbol: KaNamedClassSymbol) {
         // Skip Java classes, these won't be kotlin-only.
         if (classifierSymbol.psi?.isKotlin() == false) return
         // Skip classes loaded from the classpath.
         if (classifierSymbol.origin == KaSymbolOrigin.LIBRARY) return
         // Skip private classes since these aren't part of the API surface
         if (classifierSymbol.visibility == KaSymbolVisibility.PRIVATE) return
-        when (classifierSymbol) {
-            is KaNamedClassSymbol -> {
-                // Find the class in the codebase.
-                val className = classifierSymbol.classId?.asFqNameString() ?: return
-                val classItem = codebase.findClass(className) as? DefaultClassItem ?: return
-                val classTypeItemFactory =
-                    KaTypeItemFactory(codebase, this@KaCodebaseAssembler, classItem)
 
-                // The combined declared member scope contains both static and non-static members.
-                val memberScope = classifierSymbol.combinedDeclaredMemberScope
-                for (constructorSymbol in memberScope.constructors) {
-                    processConstructor(constructorSymbol, classItem, classTypeItemFactory)
-                }
-                for (callableSymbol in memberScope.callables) {
-                    // K1 includes delegate symbols in the combinedDeclaredMemberScope, K2 does not.
-                    // Don't add delegate symbols here because they're processed from the
-                    // delegatedMemberScope below, and they shouldn't be duplicated for K1.
-                    if (callableSymbol.origin != KaSymbolOrigin.DELEGATED) {
-                        processCallable(callableSymbol, classItem, classTypeItemFactory)
-                    }
-                }
-                for (nestedClassifierSymbol in memberScope.classifiers) {
-                    processClassifier(nestedClassifierSymbol)
-                }
+        // Find the class in the codebase.
+        val className = classifierSymbol.classId?.asFqNameString() ?: return
+        val classItem = codebase.findClass(className) as? DefaultClassItem ?: return
+        val classTypeItemFactory = KaTypeItemFactory(codebase, this@KaCodebaseAssembler, classItem)
 
-                // Process callables defined through a delegate
-                val delegateScope = classifierSymbol.delegatedMemberScope
-                for (callableSymbol in delegateScope.callables) {
-                    processCallable(callableSymbol, classItem, classTypeItemFactory)
-                }
-            }
-            is KaTypeAliasSymbol,
-            is KaTypeParameterSymbol,
-            is KaAnonymousObjectSymbol -> return
+        // The combined declared member scope contains both static and non-static members.
+        val memberScope = classifierSymbol.combinedDeclaredMemberScope
+        for (constructorSymbol in memberScope.constructors) {
+            processConstructor(constructorSymbol, classItem, classTypeItemFactory)
         }
+        for (callableSymbol in memberScope.callables) {
+            // K1 includes delegate symbols in the combinedDeclaredMemberScope, K2 does not.
+            // Don't add delegate symbols here because they're processed from the
+            // delegatedMemberScope below, and they shouldn't be duplicated for K1.
+            if (callableSymbol.origin != KaSymbolOrigin.DELEGATED) {
+                processCallable(callableSymbol, classItem, classTypeItemFactory)
+            }
+        }
+        for (nestedClassifierSymbol in
+            memberScope.classifiers.filterIsInstance<KaNamedClassSymbol>()) {
+            processNamedClass(nestedClassifierSymbol)
+        }
+
+        // Process callables defined through a delegate
+        val delegateScope = classifierSymbol.delegatedMemberScope
+        for (callableSymbol in delegateScope.callables) {
+            processCallable(callableSymbol, classItem, classTypeItemFactory)
+        }
+    }
+
+    /** Creates a [DefaultTypeAliasItem] from the [typeAlias]. */
+    private fun processTypeAlias(typeAlias: KaTypeAliasSymbol) {
+        val qualifiedName = typeAlias.classId?.asFqNameString() ?: return
+        val packageName = qualifiedName.substringBeforeLast(".")
+        val containingPackage = codebase.findOrCreatePackage(packageName)
+
+        val typeParameterListAndFactory =
+            typeParameterListAndFactory(
+                kaTypeItemFactory,
+                "for type alias $qualifiedName",
+                typeAlias.typeParameters,
+            )
+
+        DefaultTypeAliasItem(
+            codebase = codebase,
+            fileLocation = PsiFileLocation.fromPsiElement(typeAlias.psi),
+            modifiers = kaModifierFactory.createForDeclaration(typeAlias),
+            documentationFactory = ItemDocumentation.NONE_FACTORY,
+            variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
+            aliasedType =
+                typeParameterListAndFactory.factory.getGeneralType(typeAlias.expandedType),
+            qualifiedName = qualifiedName,
+            typeParameterList = typeParameterListAndFactory.typeParameterList,
+            containingPackage = containingPackage,
+        )
     }
 
     /**
@@ -221,6 +275,9 @@ internal class KaCodebaseAssembler(val codebase: PsiBasedCodebase, val kaModule:
                         constructorSymbol.valueParameters,
                         callableItem,
                         typeParameterListAndFactory.factory,
+                        kaReceiverParameter = null,
+                        isSuspend = false,
+                        returnType = containingClass.type(),
                         MethodFingerprint(
                             containingClass.simpleName(),
                             constructorSymbol.valueParameters.count()
@@ -249,9 +306,124 @@ internal class KaCodebaseAssembler(val codebase: PsiBasedCodebase, val kaModule:
         when (callableSymbol) {
             is KaPropertySymbol ->
                 processProperty(callableSymbol, containingClass, enclosingTypeItemFactory)
-            // TODO(b/421201575): process functions
+            is KaNamedFunctionSymbol ->
+                processFunction(callableSymbol, containingClass, enclosingTypeItemFactory)
             else -> return
         }
+    }
+
+    /**
+     * Whether to create a method item based on the [functionSymbol].
+     *
+     * If this condition is updated, the one in PsiCodebaseAssembler determining which methods not
+     * to create needs to be updated too.
+     */
+    private fun KaSession.shouldGenerateMethod(functionSymbol: KaNamedFunctionSymbol): Boolean {
+        // Don't generate hidden functions since they cannot be resolved from source.
+        if (functionSymbol.isDeprecatedHidden()) return false
+        // For an expect/actual function, there are separate KaNamedFunctionSymbols for the expect
+        // and actual. Only create a MethodItem based on the actual.
+        if (functionSymbol.isExpect) return false
+        // Generate delegate functions.
+        if (functionSymbol.origin == KaSymbolOrigin.DELEGATED) return true
+        // Skip generated equals and hashCode methods, when they aren't implemented in source.
+        if (
+            functionSymbol.origin == KaSymbolOrigin.SOURCE_MEMBER_GENERATED &&
+                functionSymbol.name.identifierOrNullIfSpecial?.let { name ->
+                    name == "equals" || name == "hashCode"
+                } ?: false
+        )
+            return false
+
+        // If a constructor has a corresponding UElement it generally shouldn't be created as kotlin
+        // only, but with K1 value class types weren't handled differently from other types so there
+        // might be a UElement for a constructor using a value class type even though it should be
+        // kotlin only.
+        if (
+            functionSymbol.existsAsUElement() &&
+                !hasValueClassTypeParameter(functionSymbol) &&
+                !isValueClassType(functionSymbol.returnType) &&
+                functionSymbol.receiverType?.let { isValueClassType(it) } != true
+        )
+            return false
+
+        return true
+    }
+
+    /** Constructs a method from the [functionSymbol] and adds it to the [containingClass]. */
+    private fun KaSession.processFunction(
+        functionSymbol: KaNamedFunctionSymbol,
+        containingClass: DefaultClassItem,
+        enclosingTypeItemFactory: KaTypeItemFactory
+    ) {
+        if (!shouldGenerateMethod(functionSymbol)) return
+
+        val name = functionSymbol.name.identifier
+        val typeParameterListAndFactory =
+            typeParameterListAndFactory(
+                enclosingTypeItemFactory,
+                "for method $name",
+                functionSymbol.typeParameters
+            )
+
+        // Create the jvm signature of the method: in addition to the regular parameters, if this is
+        // an extension function a parameter is added for the receiver, and if this is a suspend
+        // function a parameter is added for the continuation.
+        val parameterCount =
+            functionSymbol.valueParameters.size +
+                (if (functionSymbol.receiverParameter != null) 1 else 0) +
+                (if (functionSymbol.isSuspend) 1 else 0)
+        val fingerprint = MethodFingerprint(name, parameterCount)
+
+        val originalReturnType =
+            typeParameterListAndFactory.factory.getMethodReturnType(
+                functionSymbol.returnType,
+                emptyList(),
+                fingerprint,
+                containingClass.isAnnotationType()
+            )
+        // For suspend functions, the jvm signature will have a nullable object return type (the
+        // source return type is used for the generated continuation parameter).
+        val returnType =
+            if (functionSymbol.isSuspend) {
+                typeParameterListAndFactory.factory.createObjectTypeItem()
+            } else {
+                originalReturnType
+            }
+
+        val modifiers = kaModifierFactory.createForFunction(functionSymbol, containingClass)
+        val methodItem =
+            DefaultMethodItem(
+                codebase = codebase,
+                fileLocation = PsiFileLocation.fromPsiElement(functionSymbol.psi),
+                sourceLanguage = SourceLanguage.KOTLIN,
+                targetLanguages = TargetLanguageSet.KOTLIN_ONLY,
+                modifiers = modifiers,
+                documentationFactory = ItemDocumentation.NONE_FACTORY,
+                variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
+                name = name,
+                containingClass = containingClass,
+                typeParameterList = typeParameterListAndFactory.typeParameterList,
+                returnType = returnType,
+                parameterItemsFactory = { callableItem ->
+                    parameterList(
+                        functionSymbol.valueParameters,
+                        callableItem,
+                        typeParameterListAndFactory.factory,
+                        functionSymbol.receiverParameter,
+                        functionSymbol.isSuspend,
+                        originalReturnType,
+                        fingerprint,
+                    )
+                },
+                throwsTypes = throwsTypesFromModifiers(modifiers),
+                callableBodyFactory = CallableBody.UNAVAILABLE_FACTORY,
+                // The default value provider is only used for annotation value accessors, but those
+                // won't be generated here since they'll be usable from Java.
+                defaultValueProvider = null,
+                isExtensionMethod = functionSymbol.receiverParameter != null,
+            )
+        containingClass.addMethod(methodItem)
     }
 
     /** Constructs a property from the [propertySymbol] and adds it to the [containingClass]. */
@@ -267,6 +439,9 @@ internal class KaCodebaseAssembler(val codebase: PsiBasedCodebase, val kaModule:
                 propertySymbol.receiverType == null
         )
             return
+
+        // Don't generate deprecation level hidden properties, which can't be used from source.
+        if (propertySymbol.isDeprecatedHidden()) return
 
         val typeParameterListAndFactory =
             typeParameterListAndFactory(
@@ -344,9 +519,17 @@ internal class KaCodebaseAssembler(val codebase: PsiBasedCodebase, val kaModule:
                 )
             }
 
+        // If a property is defined in a companion object, the backing field will be found in the
+        // containing class of the companion, not the companion itself.
         val backingField =
             if (propertySymbol.hasBackingField) {
-                containingClass.findField(propertySymbol.name.identifier) as? PsiFieldItem
+                val classWithField =
+                    if (containingClass.modifiers.isCompanion()) {
+                        containingClass.containingClass()!!
+                    } else {
+                        containingClass
+                    }
+                classWithField.findField(propertySymbol.name.identifier) as? PsiFieldItem
             } else {
                 null
             }
@@ -383,12 +566,12 @@ internal class KaCodebaseAssembler(val codebase: PsiBasedCodebase, val kaModule:
                     ),
                 name = propertySymbol.name.identifier,
                 containingClass = containingClass,
-                type = typeForAccessor,
+                type = type,
                 getter = getter,
                 setter = setter,
                 constructorParameter = constructorParameter,
                 backingField = backingField,
-                receiver = possiblyInlinedReceiverType,
+                receiver = receiverType,
                 typeParameterList = typeParameterListAndFactory.typeParameterList,
             )
         getter?.property = propertyItem
@@ -403,37 +586,94 @@ internal class KaCodebaseAssembler(val codebase: PsiBasedCodebase, val kaModule:
         kaParameters: List<KaValueParameterSymbol>,
         containingCallable: CallableItem,
         enclosingTypeItemFactory: KaTypeItemFactory,
+        kaReceiverParameter: KaReceiverParameterSymbol?,
+        isSuspend: Boolean,
+        returnType: TypeItem,
         fingerprint: MethodFingerprint,
     ): List<ParameterItem> {
-        return kaParameters.mapIndexed { index, parameterSymbol ->
-            val type =
-                enclosingTypeItemFactory.getMethodParameterType(
-                    underlyingParameterType = parameterSymbol.returnType,
-                    itemAnnotations = containingCallable.modifiers.annotations(),
-                    fingerprint = fingerprint,
-                    parameterIndex = index,
-                    isVarArg = parameterSymbol.isVararg,
-                )
+        // If there is a receiver, convert it to a parameter item.
+        val receiverParameter =
+            kaReceiverParameter?.let {
+                val type =
+                    enclosingTypeItemFactory.getMethodParameterType(
+                        underlyingParameterType = it.returnType,
+                        itemAnnotations = containingCallable.modifiers.annotations(),
+                        fingerprint = fingerprint,
+                        parameterIndex = 0,
+                        isVarArg = false,
+                    )
 
-            DefaultParameterItem(
-                codebase = codebase,
-                fileLocation = PsiFileLocation.fromPsiElement(parameterSymbol.psi),
-                sourceLanguage = SourceLanguage.KOTLIN,
-                modifiers = kaModifierFactory.createForParameter(parameterSymbol),
-                name = parameterSymbol.name.identifier,
-                publicNameProvider = { parameterSymbol.name.identifierOrNullIfSpecial },
-                containingCallable = containingCallable,
-                parameterIndex = index,
-                type = type,
-                defaultValueFactory = {
-                    if (parameterSymbol.hasDefaultValue) {
-                        ParameterDefaultValue.UNKNOWN
-                    } else {
-                        ParameterDefaultValue.NONE
-                    }
-                },
-            )
-        }
+                DefaultParameterItem(
+                    codebase = codebase,
+                    fileLocation = PsiFileLocation.fromPsiElement(it.psi),
+                    sourceLanguage = SourceLanguage.KOTLIN,
+                    modifiers = kaModifierFactory.createForParameter(it),
+                    name = "receiver",
+                    publicNameProvider = { null },
+                    containingCallable = containingCallable,
+                    parameterIndex = 0,
+                    type = type,
+                    defaultValueFactory = { ParameterDefaultValue.NONE },
+                )
+            }
+        val regularParameters =
+            kaParameters.mapIndexed { sourceIndex, parameterSymbol ->
+                // If there is a receiver, it becomes the first parameter, so shift the index of all
+                // other parameters
+                val index = if (receiverParameter != null) 1 + sourceIndex else sourceIndex
+                val type =
+                    enclosingTypeItemFactory.getMethodParameterType(
+                        underlyingParameterType = parameterSymbol.returnType,
+                        itemAnnotations = containingCallable.modifiers.annotations(),
+                        fingerprint = fingerprint,
+                        parameterIndex = index,
+                        isVarArg = parameterSymbol.isVararg,
+                    )
+
+                DefaultParameterItem(
+                    codebase = codebase,
+                    fileLocation = PsiFileLocation.fromPsiElement(parameterSymbol.psi),
+                    sourceLanguage = SourceLanguage.KOTLIN,
+                    modifiers = kaModifierFactory.createForParameter(parameterSymbol),
+                    name = parameterSymbol.name.identifier,
+                    publicNameProvider = { parameterSymbol.name.identifierOrNullIfSpecial },
+                    containingCallable = containingCallable,
+                    parameterIndex = index,
+                    type = type,
+                    defaultValueFactory = {
+                        if (parameterSymbol.hasDefaultValue) {
+                            ParameterDefaultValue.UNKNOWN
+                        } else {
+                            ParameterDefaultValue.NONE
+                        }
+                    },
+                )
+            }
+
+        // If this is a suspend function, there is an extra continuation parameter added to the end.
+        val continuationParameter =
+            if (isSuspend) {
+                val index = regularParameters.size + (receiverParameter?.let { 1 } ?: 0)
+                DefaultParameterItem(
+                    codebase = codebase,
+                    fileLocation = FileLocation.UNKNOWN,
+                    sourceLanguage = SourceLanguage.KOTLIN,
+                    modifiers =
+                        createImmutableModifiers(VisibilityLevel.PACKAGE_PRIVATE, emptyList()),
+                    name = "\$completion",
+                    publicNameProvider = { null },
+                    containingCallable = containingCallable,
+                    parameterIndex = index,
+                    type = enclosingTypeItemFactory.createContinuationType(returnType),
+                    defaultValueFactory = { ParameterDefaultValue.NONE },
+                )
+            } else {
+                null
+            }
+
+        return listOfNotNull(receiverParameter) +
+            regularParameters +
+            listOfNotNull(continuationParameter)
     }
 
     /** Finds any exception types listed with the @Throws annotation. */
@@ -461,7 +701,7 @@ internal class KaCodebaseAssembler(val codebase: PsiBasedCodebase, val kaModule:
     /** Checks whether an element is deprecated with [DeprecationLevel.HIDDEN]. */
     private fun KaAnnotated.isDeprecatedHidden(): Boolean {
         return annotations.any { kaAnnotation ->
-            kaAnnotation.classId?.asFqNameString() == "kotlin.Deprecated" &&
+            kaAnnotation.classId?.asFqNameString() == KOTLIN_DEPRECATED &&
                 (kaAnnotation.arguments
                         .singleOrNull { it.name.identifierOrNullIfSpecial == "level" }
                         ?.expression as? KaAnnotationValue.EnumEntryValue)
@@ -595,17 +835,4 @@ internal class KaCodebaseAssembler(val codebase: PsiBasedCodebase, val kaModule:
      */
     private fun KaSession.hasValueClassTypeParameter(functionSymbol: KaFunctionSymbol) =
         functionSymbol.valueParameters.any { isValueClassType(it.returnType) }
-
-    companion object {
-        /** Adds kotlin-only elements to the [codebase] by analyzing the [ktFiles]. */
-        fun assembleFromKotlin(ktFiles: List<KtFile>, codebase: PsiBasedCodebase) {
-            if (ktFiles.isEmpty()) return
-            // TODO(b/407735063): analyze all modules for KMP projects
-            val analysisModule =
-                codebase.mainAnalysisModule
-                    ?: error("No main analysis module found for project with Kotlin files")
-            val assembler = KaCodebaseAssembler(codebase, analysisModule)
-            assembler.assemble(ktFiles)
-        }
-    }
 }

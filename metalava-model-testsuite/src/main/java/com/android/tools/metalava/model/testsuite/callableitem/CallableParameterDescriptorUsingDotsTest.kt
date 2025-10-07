@@ -32,7 +32,7 @@ class CallableParameterDescriptorUsingDotsTest : BaseModelTest() {
     @Parameterized.Parameter(0) lateinit var params: TestParams
 
     data class TestParams(
-        @Language("JAVA") val inputSource: String,
+        @param:Language("JAVA") val inputSource: String,
         val constructor: Boolean = false,
         val callableGetter: (Codebase) -> CallableItem = {
             val classItem = it.assertClass("test.pkg.Foo")

@@ -441,7 +441,7 @@ class KotlinInteropChecksTest : DriverTest() {
         check(
             apiLint = "",
             expectedIssues =
-                "src/test/pkg/IntValue.kt:8: warning: Companion object methods like getValueClassTypePropertyNoAnnotation should be marked @JvmStatic for Java interoperability; see https://developer.android.com/kotlin/interop#companion_functions [MissingJvmstatic]",
+                "src/test/pkg/IntValue.kt:13: warning: Companion object methods like getValueClassTypePropertyJvmNameNoStatic should be marked @JvmStatic for Java interoperability; see https://developer.android.com/kotlin/interop#companion_functions [MissingJvmstatic]",
             extraArguments = arrayOf(ARG_HIDE, "ValueClassDefinition"),
             sourceFiles =
                 arrayOf(
@@ -454,7 +454,12 @@ class KotlinInteropChecksTest : DriverTest() {
                                     @JvmStatic
                                     val valueClassTypePropertyJvmStatic = IntValue(0)
 
+                                    // No error for this property, because there is not an accessor
+                                    // that can be used from Java.
                                     val valueClassTypePropertyNoAnnotation = IntValue(0)
+
+                                    @get:JvmName("getValueClassTypePropertyJvmNameNoStatic")
+                                    val valueClassTypePropertyJvmNameNoStatic = IntValue(0)
                                 }
                             }
                         """

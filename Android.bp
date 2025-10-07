@@ -16,6 +16,14 @@ package {
     default_applicable_licenses: ["Android-Apache-2.0"],
 }
 
+java_binary_host {
+    name: "metalava-antlr4-tool",
+    manifest: "antlr/MANIFEST.MF",
+    static_libs: [
+        "metalava-tools-antlr4-tool",
+    ],
+}
+
 java_library_host {
     name: "metalava-signature-reader",
     static_libs: [

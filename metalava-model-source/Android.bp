@@ -16,16 +16,39 @@ package {
     default_applicable_licenses: ["Android-Apache-2.0"],
 }
 
+java_genrule_host {
+    name: "metalava-model-source-javadoc-parser",
+    tools: [
+        "metalava-antlr4-tool",
+        "soong_zip",
+    ],
+    srcs: [
+        "src/main/antlr/*.g4",
+    ],
+    out: [
+        "AntlrJavadocParser.srcjar",
+    ],
+    cmd: "rm -fr $(genDir)/antlr-output && " +
+        "$(location metalava-antlr4-tool) -visitor -Xexact-output-dir " +
+        "-o $(genDir)/antlr-output/com/android/tools/metalava/model/source/javadoc " +
+        "$(in) && " +
+        "$(location soong_zip) -o $(out) -srcjar -C $(genDir)/antlr-output -D $(genDir)/antlr-output -d",
+}
+
 java_library_host {
     name: "metalava-model-source",
     visibility: ["//tools/metalava:__subpackages__"],
     srcs: [
         "src/main/java/**/*.java",
         "src/main/java/**/*.kt",
+        ":metalava-model-source-javadoc-parser",
     ],
     kotlin_lang_version: "2",
     libs: [
         "metalava-model",
         "metalava-reporter",
+    ],
+    static_libs: [
+        "metalava-tools-antlr4-runtime",
     ],
 }

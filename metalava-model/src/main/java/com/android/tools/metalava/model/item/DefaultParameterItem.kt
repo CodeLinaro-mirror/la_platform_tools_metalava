@@ -77,6 +77,14 @@ open class DefaultParameterItem(
 
     override var property: PropertyItem? = null
 
+    final override fun appendDocumentation(comment: String, tagSection: String?) {
+        // For parameters, the documentation goes into the surrounding method's documentation!
+        // Find the right parameter location!
+        val parameterName = name()
+        val target = containingCallable()
+        target.appendDocumentation(comment, parameterName)
+    }
+
     override fun duplicate(
         containingCallable: CallableItem,
         typeVariableMap: TypeParameterBindings,

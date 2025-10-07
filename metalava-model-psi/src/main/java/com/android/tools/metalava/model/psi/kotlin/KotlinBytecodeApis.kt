@@ -19,8 +19,10 @@ package com.android.tools.metalava.model.psi.kotlin
 import com.android.SdkConstants
 import com.android.tools.lint.helpers.readAllBytes
 import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ConstructorItem
+import com.android.tools.metalava.model.KOTLIN_DEPRECATED
 import com.android.tools.metalava.model.KOTLIN_METADATA
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
@@ -49,9 +51,12 @@ import java.util.zip.ZipOutputStream
 import kotlin.metadata.KmClass
 import kotlin.metadata.KmConstructor
 import kotlin.metadata.KmDeclarationContainer
+import kotlin.metadata.KmFunction
 import kotlin.metadata.KmProperty
+import kotlin.metadata.KmPropertyAccessorAttributes
 import kotlin.metadata.Visibility
 import kotlin.metadata.hasAnnotations
+import kotlin.metadata.isReified
 import kotlin.metadata.jvm.JvmMethodSignature
 import kotlin.metadata.jvm.KotlinClassMetadata
 import kotlin.metadata.jvm.Metadata
@@ -271,7 +276,7 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
         // Don't re-add methods which are already present: find the items which might have
         // the same signature of this one, to compare by erased signature.
         val potentialMatches =
-            erasedSignaturesOfPotentialMatchingCallables(
+            potentialMatchingCallables(
                 psiMethod,
                 classItem,
                 hasDefaultConstructorMarker,
@@ -297,7 +302,7 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
         // false match here if a type variable that is in semiErasedSignature had the same
         // name as a primitive type used in one of the potential matches, but that shouldn't
         // be allowed).
-        if (potentialMatches.any { it == semiErasedSignature }) return
+        if (checkForSignatureMatch(semiErasedSignature, potentialMatches)) return
 
         // Create the item.
         val callableItem =
@@ -354,13 +359,23 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
                 parameterItemsForErasedSignature.joinToString { it.type().toErasedTypeString() }
             if (
                 erasedSignature != semiErasedSignature &&
-                    potentialMatches.any { it == erasedSignature }
+                    checkForSignatureMatch(erasedSignature, potentialMatches)
             )
                 return
         }
 
+        val metadataEntry = callableItem.findMetadataEntry(metadataContainer)
+        // Reified inline functions can't be called from java, and for kotlin clients their usages
+        // are all inlined in the binary (directly calling the binary version of the function will
+        // be an error). So, it does not make sense to track the bytecode version for compatibility
+        // since it will never be used.
+        if (metadataEntry?.isReified == true) return
+        // Propagate special property annotations to accessors.
+        if (metadataEntry is MetadataEntry.AccessorMetadataEntry) {
+            callableItem.propagateAnnotationsAsNeeded(metadataEntry.kmProperty, psiClass)
+        }
         // Update the visibility of the item based on metadata, if needed.
-        if (callableItem.isInternal(metadataContainer, psiClass)) {
+        if (metadataEntry?.visibility == Visibility.INTERNAL) {
             callableItem.mutateModifiers { setVisibilityLevel(VisibilityLevel.INTERNAL) }
         }
 
@@ -394,16 +409,17 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
 
     /**
      * Finds callables of the [classItem] that might have the same signature as the [psiMethod]
-     * (those that have the same name and parameter count), and return their erased signatures.
+     * (those that have the same name and parameter count), and returns them along with their erased
+     * signatures.
      *
      * If [hasDefaultConstructorMarker] is true, the parameter count of the potential matches will
      * be one less than the parameter count of the [psiMethod].
      */
-    private fun erasedSignaturesOfPotentialMatchingCallables(
+    private fun potentialMatchingCallables(
         psiMethod: PsiMethod,
         classItem: ClassItem,
         hasDefaultConstructorMarker: Boolean,
-    ): List<String> {
+    ): List<Pair<CallableItem, String>> {
         val callables =
             if (psiMethod.isConstructor) {
                 classItem.constructors()
@@ -422,8 +438,36 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
                 callable.name() == psiMethod.name && callable.parameters().size == parameterCount
             }
             .map { callable ->
-                callable.parameters().joinToString { it.type().toErasedTypeString() }
+                callable to callable.parameters().joinToString { it.type().toErasedTypeString() }
             }
+    }
+
+    /**
+     * Checks the [potentialMatches] (pairs of [CallableItem]s and their erased signatures) to see
+     * if one of the signatures is the same as [erasedSignature].
+     *
+     * If it is, and the matching item was created as Kotlin-only and not reified, updates it to
+     * include bytecode as a target language as well.
+     *
+     * Returns whether a match was found.
+     */
+    private fun checkForSignatureMatch(
+        erasedSignature: String,
+        potentialMatches: List<Pair<CallableItem, String>>,
+    ): Boolean {
+        val (callableItem, _) =
+            potentialMatches.firstOrNull { (_, signature) -> signature == erasedSignature }
+                ?: return false
+        // If the item was created as Kotlin only but does exist in bytecode, update the target
+        // language set. Exclude reified inline functions because even though these are present in
+        // bytecode, there's an error if they're actually used.
+        if (
+            callableItem.targetLanguages == TargetLanguageSet.KOTLIN_ONLY &&
+                callableItem.typeParameterList.none { it.isReified() }
+        ) {
+            callableItem.targetLanguages = TargetLanguageSet.NOT_JAVA
+        }
+        return true
     }
 
     /**
@@ -501,53 +545,46 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
      */
     private fun PsiCallableItem.findMatchingConstructor(
         container: KmDeclarationContainer?,
-    ): KmConstructor? {
+    ): MetadataEntry.ConstructorMetadataEntry? {
         val internalDescriptor = internalDesc(voidConstructorTypes = true)
-        return (container as? KmClass)?.constructors?.firstOrNull {
-            it.signature?.descriptor == internalDescriptor
-        }
+        return (container as? KmClass)
+            ?.constructors
+            ?.firstOrNull { it.signature?.descriptor == internalDescriptor }
+            ?.let { MetadataEntry.ConstructorMetadataEntry(it) }
     }
 
-    /** Checks if the item's true visibility is internal based on the metadata from [container]. */
-    private fun PsiCallableItem.isInternal(
+    /**
+     * Finds the metadata for the callable in the [container]. The metadata might be from a
+     * constructor, function, or property accessor.
+     */
+    private fun PsiCallableItem.findMetadataEntry(
         container: KmDeclarationContainer?,
-        psiClass: PsiClass,
-    ): Boolean {
-        if (container == null) return false
-        val visibility =
-            // For constructors and functions generated from constructor definitions, check if there
-            // is a constructor with the right signature.
-            if (isConstructor() || name() == "constructor-impl") {
-                findMatchingConstructor(container)?.visibility
-            } else {
-                val expectedDescriptor = internalDesc(voidConstructorTypes = true)
-                // Cut off the mangled part of the name, if there is one.
-                // val simpleName = name().substringBefore('-')
-                // Check for a function with the right signature.
-                container.functions
-                    .firstOrNull { it.signature.matches(name(), expectedDescriptor) }
-                    ?.visibility
-                    // No matching function, check if this is a property accessor.
-                    ?: container.properties.firstNotNullOfOrNull {
-                        if (it.getterSignature.matches(name(), expectedDescriptor)) {
-                            // If this property was annotated with @PublishedApi, that won't have
-                            // been propagated to the getter, do so manually.
-                            propagatePublishedAnnotationIfNeeded(it, psiClass)
-                            // A getter always has the same visibility as the property.
-                            it.visibility
-                        } else if (it.setterSignature.matches(name(), expectedDescriptor)) {
-                            // If this property was annotated with @PublishedApi, that won't have
-                            // been propagated to the setter, do so manually.
-                            propagatePublishedAnnotationIfNeeded(it, psiClass)
-                            // A setter's visibility can be different from the property.
-                            it.setter?.visibility
-                        } else {
-                            null
-                        }
-                    }
-            }
+    ): MetadataEntry? {
+        if (container == null) return null
 
-        return visibility == Visibility.INTERNAL
+        // For constructors and functions generated from constructor definitions, check if there
+        // is a constructor with the right signature.
+        return if (isConstructor() || name() == "constructor-impl") {
+            findMatchingConstructor(container)
+        } else {
+            val expectedDescriptor = internalDesc(voidConstructorTypes = true)
+            // Cut off the mangled part of the name, if there is one.
+            // val simpleName = name().substringBefore('-')
+            // Check for a function with the right signature.
+            container.functions
+                .firstOrNull { it.signature.matches(name(), expectedDescriptor) }
+                ?.let { MetadataEntry.FunctionMetadataEntry(it) }
+                // No matching function, check if this is a property accessor.
+                ?: container.properties.firstNotNullOfOrNull {
+                    if (it.getterSignature.matches(name(), expectedDescriptor)) {
+                        MetadataEntry.AccessorMetadataEntry(it.getter, it)
+                    } else if (it.setterSignature.matches(name(), expectedDescriptor)) {
+                        MetadataEntry.AccessorMetadataEntry(it.setter!!, it)
+                    } else {
+                        null
+                    }
+                }
+        }
     }
 
     /** Whether the signature exists and has the [expectedName] and [expectedDescriptor]. */
@@ -559,27 +596,101 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
     }
 
     /**
-     * Checks if the [kmProperty] was annotated in source with the [PublishedApi] annotation, and if
-     * it was, adds the annotation to the callable item.
+     * If the [kmProperty] was annotated in source, propagates some special annotations to the
+     * callable item.
+     *
+     * This includes [PublishedApi], annotations meta-annotated with [RequiresOptIn], and
+     * deprecation status.
      */
-    private fun PsiCallableItem.propagatePublishedAnnotationIfNeeded(
+    private fun PsiCallableItem.propagateAnnotationsAsNeeded(
         kmProperty: KmProperty,
         psiClass: PsiClass,
     ) {
-        if (kmProperty.visibility == Visibility.INTERNAL && kmProperty.hasAnnotations) {
-            // The annotations on a property in source end up in bytecode on a synthetic method
-            // generated to track the annotations. Find that method in the psi class.
-            val annotationMethodSignature = kmProperty.syntheticMethodForAnnotations ?: return
-            val annotationMethod =
-                psiClass.methods.singleOrNull { it.name == annotationMethodSignature.name }
-                    ?: return
+        if (!kmProperty.hasAnnotations) return
+
+        // The annotations on a property in source end up in bytecode on a synthetic method
+        // generated to track the annotations. Find that method in the psi class.
+        val annotationMethodSignature = kmProperty.syntheticMethodForAnnotations ?: return
+        // For an interface, the annotation method will be in a nested DefaultImpls class.
+        val classForAnnotationMethod =
+            if (psiClass.isInterface) {
+                psiClass.innerClasses.singleOrNull { it.name == "DefaultImpls" }
+            } else {
+                psiClass
+            } ?: return
+        val annotationMethod =
+            classForAnnotationMethod.methods.singleOrNull {
+                it.name == annotationMethodSignature.name
+            } ?: return
+
+        if (kmProperty.visibility == Visibility.INTERNAL) {
             // Check if the method is @PublishedApi, propagate it to the accessor method if so.
-            val publishedAnnotation =
-                annotationMethod.annotations.firstOrNull {
-                    it.qualifiedName == "kotlin.PublishedApi"
-                } ?: return
-            val annotationItem = PsiAnnotationItem.create(codebase, publishedAnnotation)
-            mutateModifiers { addAnnotation(annotationItem) }
+            annotationMethod.annotations
+                .firstOrNull { it.qualifiedName == "kotlin.PublishedApi" }
+                ?.let { publishedAnnotation ->
+                    val annotationItem = PsiAnnotationItem.create(codebase, publishedAnnotation)
+                    mutateModifiers { addAnnotation(annotationItem) }
+                }
+        }
+
+        // Propagate deprecation from properties to accessors.
+        if (
+            !modifiers.isDeprecated() &&
+                annotationMethod.annotations.any { it.hasQualifiedName(KOTLIN_DEPRECATED) }
+        ) {
+            mutateModifiers { setDeprecated(true) }
+        }
+
+        for (annotationEntry in annotationMethod.annotations) {
+            val annotationClass = annotationEntry.resolveAnnotationType() ?: continue
+            // Special case for RequiresOptIn-annotated annotations: when these are applied
+            // to a property, they are implicitly propagated to the getter and setter
+            // (if present) for Kotlin clients. Match Kotlin compiler behavior by propagating.
+            if (annotationClass.hasAnnotation("kotlin.RequiresOptIn")) {
+                val annotationItem = PsiAnnotationItem.create(codebase, annotationEntry)
+                mutateModifiers { addAnnotation(annotationItem) }
+            }
+        }
+    }
+
+    /**
+     * Wrapper for function, constructor, or property kotlin metadata, because the Km type do not
+     * have a shared parent class.
+     */
+    private sealed interface MetadataEntry {
+        /** Source visibility of the declaration. */
+        val visibility: Visibility
+
+        /** Whether the definition has a reified type parameter. */
+        val isReified: Boolean
+
+        /** Wrapper for aa [KmFunction]. */
+        class FunctionMetadataEntry(private val kmFunction: KmFunction) : MetadataEntry {
+            override val visibility: Visibility
+                get() = kmFunction.visibility
+
+            override val isReified: Boolean
+                get() = kmFunction.typeParameters.any { it.isReified }
+        }
+
+        /** Wrapper for aa [KmConstructor]. */
+        class ConstructorMetadataEntry(private val kmConstructor: KmConstructor) : MetadataEntry {
+            override val visibility: Visibility
+                get() = kmConstructor.visibility
+
+            override val isReified = false
+        }
+
+        /** Wrapper for a [KmPropertyAccessorAttributes] from a [KmProperty]. */
+        class AccessorMetadataEntry(
+            private val kmAccessor: KmPropertyAccessorAttributes,
+            val kmProperty: KmProperty
+        ) : MetadataEntry {
+            override val visibility: Visibility
+                get() = kmAccessor.visibility
+
+            override val isReified: Boolean
+                get() = kmProperty.typeParameters.any { it.isReified }
         }
     }
 }

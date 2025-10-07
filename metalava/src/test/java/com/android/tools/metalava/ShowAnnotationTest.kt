@@ -686,8 +686,8 @@ class ShowAnnotationTest : DriverTest() {
                         """
                     package test.pkg
                     /**
-                    * @suppress
-                    */
+                     * @hide
+                     */
                     @PublishedApi
                     internal class WeAreSoCool()
                     """

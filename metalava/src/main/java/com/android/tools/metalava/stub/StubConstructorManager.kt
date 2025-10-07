@@ -207,11 +207,11 @@ class StubConstructorManager(codebase: Codebase) {
          * the same.
          */
         private val bestStubConstructorComparator: Comparator<ConstructorItem> =
-            Comparator.comparingInt<ConstructorItem?>({ it.throwsTypes().size })
-                .thenComparingInt({ it.parameters().size })
-                .thenComparingInt({
+            Comparator.comparingInt<ConstructorItem> { it.throwsTypes().size }
+                .thenComparingInt { it.parameters().size }
+                .thenComparingInt {
                     it.parameters().sumOf { it.type().toErasedTypeString().length }
-                })
+                }
                 .thenComparing(CallableItem.comparator)
     }
 

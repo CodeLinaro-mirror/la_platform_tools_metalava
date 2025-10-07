@@ -22,6 +22,7 @@ import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.bestGuessAtFullName
 import com.android.tools.metalava.model.item.DefaultClassItem
@@ -82,6 +83,18 @@ internal class TextCodebaseAssembler(
         // that the stubs should be is no longer needed.
         requiredStubKindForClass.remove(classItem.qualifiedName())
     }
+
+    /**
+     * Override to return an [ItemDocumentation.NONE_FACTORY].
+     *
+     * This will be called for every package loaded from a signature file as none of them have any
+     * documentation. The returned [ItemDocumentation.NONE_FACTORY] will create
+     * [ItemDocumentation.NONE] instances which will throw an exception if any attempt is made to
+     * modify the documentation. That should not be a problem as they will only be modified when
+     * creating stubs containing enhanced documentation which cannot be created from signature
+     * files.
+     */
+    override fun emptyPackageDocumentationFactory() = ItemDocumentation.NONE_FACTORY
 
     /**
      * Register that the class type requires a specific stub kind.

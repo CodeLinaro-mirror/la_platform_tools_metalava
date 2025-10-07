@@ -1,0 +1,135 @@
+/*
+ [The "BSD licence"]
+ Copyright (c) 2016 Pascal Gruen
+ All rights reserved.
+
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions
+ are met:
+ 1. Redistributions of source code must retain the above copyright
+    notice, this list of conditions and the following disclaimer.
+ 2. Redistributions in binary form must reproduce the above copyright
+    notice, this list of conditions and the following disclaimer in the
+    documentation and/or other materials provided with the distribution.
+ 3. The name of the author may not be used to endorse or promote products
+    derived from this software without specific prior written permission.
+
+ THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+ IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+ IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+ INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+ NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+*/
+
+// $antlr-format alignTrailingComments true, columnLimit 150, minEmptyLines 1, maxEmptyLinesToKeep 1, reflowComments false, useTab false
+// $antlr-format allowShortRulesOnASingleLine false, allowShortBlocksOnASingleLine true, alignSemicolons hanging, alignColons hanging
+
+parser grammar AntlrJavadocParser;
+
+@header {
+package com.android.tools.metalava.model.source.javadoc;
+}
+
+options {
+    tokenVocab = AntlrJavadocLexer;
+}
+
+documentation
+    : skipWhitespace* EOF
+    | skipWhitespace* JAVADOC_START skipWhitespace* documentationContent skipWhitespace* JAVADOC_END skipWhitespace* EOF
+    | skipWhitespace* documentationContent skipWhitespace* EOF
+    ;
+
+documentationContent
+    : description
+    | tagSection
+    | description NEWLINE+ skipWhitespace* tagSection
+    ;
+
+skipWhitespace
+    : SPACE
+    | NEWLINE
+    ;
+
+description
+    : descriptionLine (descriptionNewline+ descriptionLine)*
+    ;
+
+descriptionLine
+    : descriptionLineElement*
+    ;
+
+descriptionLineNoSpaceNoAt
+    : TEXT_CONTENT
+    | NAME
+    | STAR
+    | SLASH
+    | BRACE_OPEN
+    | BRACE_CLOSE
+    | JAVADOC_START
+    ;
+
+descriptionLineElement
+    : inlineTag
+    | descriptionLineText
+    ;
+
+descriptionLineText
+    : (descriptionLineNoSpaceNoAt | SPACE | AT)+
+    ;
+
+descriptionNewline
+    : NEWLINE
+    ;
+
+tagSection
+    : blockTag+
+    ;
+
+blockTag
+    : SPACE? AT blockTagName SPACE? description
+    ;
+
+blockTagName
+    : NAME
+    ;
+
+inlineTag
+    // Make BRACE_CLOSE optional to support inline tags without a closing brace.
+    // TODO(b/429965593): Fix broken javadoc and make BRACE_CLOSE required.
+    // TODO(b/429965593): Fix broken javadoc and remove SPACE* between INLINE_TAG_START and inlineTagName
+    : INLINE_TAG_START SPACE* inlineTagName SPACE* inlineTagContent? BRACE_CLOSE?
+    ;
+
+inlineTagName
+    : NAME
+    ;
+
+inlineTagContent
+    : braceContent+
+    ;
+
+braceExpression
+    : BRACE_OPEN braceContent* BRACE_CLOSE
+    ;
+
+braceContent
+    : braceExpression
+    | braceText (NEWLINE* braceText)*
+    ;
+
+braceText
+    : TEXT_CONTENT
+    | NAME
+    | SPACE
+    | STAR
+    | SLASH
+    | NEWLINE
+    | AT
+    | inlineTag
+    ;

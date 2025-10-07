@@ -110,4 +110,6 @@ interface SelectableItem : Item {
         superMethods: Boolean,
         duplicate: Boolean,
     ): SelectableItem?
+
+    override var targetLanguages: Set<TargetLanguage>
 }

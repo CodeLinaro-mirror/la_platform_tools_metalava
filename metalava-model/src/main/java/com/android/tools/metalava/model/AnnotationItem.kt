@@ -49,7 +49,7 @@ fun isNonNullAnnotation(qualifiedName: String): Boolean {
 }
 
 fun isJvmSyntheticAnnotation(qualifiedName: String): Boolean {
-    return qualifiedName == "kotlin.jvm.JvmSynthetic"
+    return qualifiedName == JVM_SYNTHETIC
 }
 
 sealed interface AnnotationItem {

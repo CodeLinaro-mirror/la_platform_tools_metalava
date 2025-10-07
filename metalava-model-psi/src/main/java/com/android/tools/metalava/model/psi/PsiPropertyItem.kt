@@ -169,7 +169,7 @@ private constructor(
          */
         private fun findGetter(
             allAccessors: List<PsiMethodItem>,
-            propertyReceiverType: PsiTypeItem?
+            propertyReceiverType: TypeItem?
         ): PsiMethodItem? {
             return if (propertyReceiverType == null) {
                 // No receiver, so the getter has no parameter. Make sure not to find a data class
@@ -197,7 +197,7 @@ private constructor(
         /** Like [findGetter], but finds the property setter instead. */
         private fun findSetter(
             allAccessors: List<PsiMethodItem>,
-            propertyReceiverType: PsiTypeItem?
+            propertyReceiverType: TypeItem?
         ): PsiMethodItem? {
             return if (propertyReceiverType == null) {
                 // No receiver, the setter has one parameter.

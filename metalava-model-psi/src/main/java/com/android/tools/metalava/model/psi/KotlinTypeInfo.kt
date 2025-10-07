@@ -17,14 +17,14 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.TypeNullability
+import com.android.tools.metalava.model.psi.kotlin.KaTypeItemFactory
+import com.android.tools.metalava.model.psi.kotlin.KaTypeItemFactory.Companion.typeNullability
 import com.intellij.psi.PsiElement
 import org.jetbrains.kotlin.analysis.api.KaSession
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.analysis.api.symbols.KaNamedClassSymbol
 import org.jetbrains.kotlin.analysis.api.types.KaClassType
 import org.jetbrains.kotlin.analysis.api.types.KaType
-import org.jetbrains.kotlin.analysis.api.types.KaTypeNullability
-import org.jetbrains.kotlin.analysis.api.types.KaTypeParameterType
 import org.jetbrains.kotlin.psi.KtCallableDeclaration
 import org.jetbrains.kotlin.psi.KtClass
 import org.jetbrains.kotlin.psi.KtElement
@@ -86,18 +86,7 @@ private constructor(
      */
     fun nullability(): TypeNullability? {
         return if (analysisSession != null && kaType != null) {
-            analysisSession.run {
-                if (useSiteSession.isInheritedGenericType(kaType)) {
-                    TypeNullability.UNDEFINED
-                } else if (kaType.nullability == KaTypeNullability.NULLABLE) {
-                    TypeNullability.NULLABLE
-                } else if (kaType.nullability == KaTypeNullability.NON_NULLABLE) {
-                    TypeNullability.NONNULL
-                } else {
-                    // No nullability information, possibly a propagated platform type.
-                    null
-                }
-            }
+            KaTypeItemFactory.run { analysisSession.run { typeNullability(kaType) } }
         } else {
             null
         }
@@ -372,15 +361,6 @@ private constructor(
                 }
                 else -> null
             }
-
-        // Mimic `hasInheritedGenericType` in `...uast.kotlin.FirKotlinUastResolveProviderService`
-        fun KaSession.isInheritedGenericType(ktType: KaType): Boolean {
-            return ktType is KaTypeParameterType &&
-                // explicitly nullable, e.g., T?
-                !ktType.isMarkedNullable &&
-                // non-null upper bound, e.g., T : Any
-                ktType.canBeNull
-        }
 
         // Mimic `typeForValueClass` in
         // `org.jetbrains.kotlin.light.classes.symbol.classes.symbolLightClassUtils.kt`

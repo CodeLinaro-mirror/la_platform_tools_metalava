@@ -89,14 +89,13 @@ internal constructor(
         ): PsiParameterItem {
             val name = psiParameter.name
             val modifiers = createParameterModifiers(codebase, psiParameter)
-            val psiType = codebase.psiAssembler.getPsiTypeForPsiParameter(psiParameter)
             val type =
                 enclosingMethodTypeItemFactory.getMethodParameterType(
-                    underlyingParameterType = PsiTypeInfo(psiType, psiParameter),
+                    underlyingParameterType = PsiTypeInfo(psiParameter.type, psiParameter),
                     itemAnnotations = modifiers.annotations(),
                     fingerprint = fingerprint,
                     parameterIndex = parameterIndex,
-                    isVarArg = psiType is PsiEllipsisType,
+                    isVarArg = psiParameter.type is PsiEllipsisType,
                 )
             val parameter =
                 PsiParameterItem(
@@ -107,9 +106,7 @@ internal constructor(
                     publicNameProvider = { (it as PsiParameterItem).getPublicName() },
                     containingCallable = containingCallable,
                     parameterIndex = parameterIndex,
-                    // Need to down cast as [isSamCompatibleOrKotlinLambda] needs access to the
-                    // underlying PsiType.
-                    type = type as PsiTypeItem,
+                    type = type,
                     defaultValueFactory = {
                         if (it.isKotlin()) PsiParameterDefaultValue(it as PsiParameterItem)
                         else ParameterDefaultValue.NONE
