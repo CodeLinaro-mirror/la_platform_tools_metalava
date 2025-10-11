@@ -374,9 +374,9 @@ interface ClassItem : ClassContentItem, SelectableItem, TypeParameterListOwner {
      *
      * It will look for [MethodItem]s whose [MethodItem.name] is equal to [methodName].
      *
-     * Out of those matching items it will select the first [MethodItem] whose parameters match the
-     * supplied parameters string. Parameters are matched against a candidate [MethodItem] as
-     * follows:
+     * Out of those matching items it will select the first [MethodItem] which has bytecode as a
+     * target language whose parameters match the supplied parameters string. Parameters are matched
+     * against a candidate [MethodItem] as follows:
      * * The [parameters] string is split on `,` and trimmed and then each item in the list is
      *   matched with the corresponding [ParameterItem] in `candidate.parameters()` as follows:
      * * Everything after `<` is removed.
@@ -389,15 +389,19 @@ interface ClassItem : ClassContentItem, SelectableItem, TypeParameterListOwner {
      * @param methodName the name of the method or [simpleName] if looking for constructors.
      * @param parameters the comma separated erased types of the parameters.
      */
-    fun findMethod(methodName: String, parameters: String) =
-        methods().firstOrNull { it.name() == methodName && parametersMatch(it, parameters) }
+    fun findBytecodeMethod(methodName: String, parameters: String) =
+        methods().firstOrNull {
+            it.name() == methodName &&
+                TargetLanguage.BYTECODE in it.targetLanguages &&
+                parametersMatch(it, parameters)
+        }
 
     /**
      * Find the [ConstructorItem] in this.
      *
-     * Out of those matching items it will select the first [ConstructorItem] whose parameters match
-     * the supplied parameters string. Parameters are matched against a candidate [ConstructorItem]
-     * as follows:
+     * Out of those matching items it will select the first [ConstructorItem] which has bytecode as
+     * a target language whose parameters match the supplied parameters string. Parameters are
+     * matched against a candidate [ConstructorItem] as follows:
      * * The [parameters] string is split on `,` and trimmed and then each item in the list is
      *   matched with the corresponding [ParameterItem] in `candidate.parameters()` as follows:
      * * Everything after `<` is removed.
@@ -409,16 +413,10 @@ interface ClassItem : ClassContentItem, SelectableItem, TypeParameterListOwner {
      *
      * @param parameters the comma separated erased types of the parameters.
      */
-    fun findConstructor(parameters: String) =
-        constructors().firstOrNull { parametersMatch(it, parameters) }
-
-    /**
-     * Find the [CallableItem] in this.
-     *
-     * If [name] is [simpleName] then call [findConstructor] else call [findMethod].
-     */
-    fun findCallable(name: String, parameters: String) =
-        if (name == simpleName()) findConstructor(parameters) else findMethod(name, parameters)
+    fun findBytecodeConstructor(parameters: String) =
+        constructors().firstOrNull {
+            TargetLanguage.BYTECODE in it.targetLanguages && parametersMatch(it, parameters)
+        }
 
     private fun parametersMatch(callable: CallableItem, description: String): Boolean {
         val parameterStrings =

@@ -29,6 +29,7 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SelectableItem
+import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TypeAliasItem
 import com.android.tools.metalava.model.visitors.ApiFilters
 import com.android.tools.metalava.model.visitors.ApiVisitor
@@ -545,6 +546,31 @@ class CodebaseComparator {
                                                     break
                                                 }
                                             }
+                                        }
+                                    }
+                                    if (delta == 0) {
+                                        // Also compare the target languages. As long as there is a
+                                        // common target language, it makes sense to compare the
+                                        // items, but if there are no common target language, treat
+                                        // these items as not the same.
+                                        if (
+                                            item1.targetLanguages
+                                                .intersect(item2.targetLanguages)
+                                                .isEmpty()
+                                        ) {
+                                            // If there is no intersection between the target
+                                            // language sets, exactly one of them must contain
+                                            // Kotlin (because Java implies bytecode, and the
+                                            // possible non-overlapping sets are bytecode|kotlin or
+                                            // bytecode,java|kotlin).
+                                            delta =
+                                                if (
+                                                    TargetLanguage.KOTLIN in item1.targetLanguages
+                                                ) {
+                                                    1
+                                                } else {
+                                                    -1
+                                                }
                                         }
                                     }
                                 }

@@ -40,7 +40,8 @@ abstract class AbstractStubsTest : DriverTest() {
         sourceFiles: Array<TestFile> = emptyArray(),
         signatureSources: Array<String> = emptyArray(),
         checkCompilation: Boolean = true,
-        checkTextStubEquivalence: Boolean = false
+        checkTextStubEquivalence: Boolean = false,
+        filterBlankLinesFromStubFiles: Boolean = true,
     ) {
         val stubFilesArr = if (source.isNotEmpty()) arrayOf(java(source)) else stubFiles
         check(
@@ -54,7 +55,8 @@ abstract class AbstractStubsTest : DriverTest() {
             extraArguments = extraArguments,
             docStubs = docStubs,
             skipEmitPackages = skipEmitPackages,
-            format = format
+            format = format,
+            filterBlankLinesFromStubFiles = filterBlankLinesFromStubFiles,
         )
         if (checkTextStubEquivalence) {
             if (stubFilesArr.isEmpty()) {
@@ -72,7 +74,7 @@ abstract class AbstractStubsTest : DriverTest() {
                 return
             }
             check(
-                signatureSources = arrayOf(readFile(getApiFile())),
+                signatureSources = arrayOf(readFileFilterBlankLines(getApiFile())),
                 showAnnotations = showAnnotations,
                 stubFiles = stubFilesArr,
                 expectedIssues = warnings,

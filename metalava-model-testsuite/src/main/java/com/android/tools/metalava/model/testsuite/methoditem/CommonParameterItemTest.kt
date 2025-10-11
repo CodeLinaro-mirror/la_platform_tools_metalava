@@ -195,7 +195,7 @@ class CommonParameterItemTest : BaseModelTest() {
             val parameterItem =
                 codebase
                     .assertResolvedClass("java.lang.Object")
-                    .assertMethod("equals", "java.lang.Object")
+                    .assertMethod("equals", listOf("java.lang.Object"))
                     .parameters()
                     .single()
             // The parameter name of the Object.equals(Object obj) method is stored in the Object
@@ -223,7 +223,7 @@ class CommonParameterItemTest : BaseModelTest() {
             val parameterItems =
                 codebase
                     .assertResolvedClass("android.view.ViewGroup")
-                    .assertMethod("onLayout", "boolean, int, int, int, int")
+                    .assertMethod("onLayout", listOf("boolean", "int", "int", "int", "int"))
                     .parameters()
             // For some reason ViewGroup.onLayout(boolean, int, int, int, int) does not provide the
             // actual parameter name. Probably, because it was compiled with an older version of

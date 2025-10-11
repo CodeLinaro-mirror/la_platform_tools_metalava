@@ -181,14 +181,21 @@ class CommonSuspendMethodTest : BaseModelTest() {
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
 
-            val regularFun = fooClass.assertMethod("regularFun", "kotlin.coroutines.Continuation")
+            val regularFun =
+                fooClass.assertMethod(
+                    "regularFun",
+                    listOf("kotlin.coroutines.Continuation<? super java.lang.String>")
+                )
             assertThat(regularFun.modifiers.isSuspend()).isTrue()
             assertThat(regularFun.isExtensionMethod()).isFalse()
 
             val extensionFun =
                 fooClass.assertMethod(
                     "extensionFun",
-                    "java.lang.String,kotlin.coroutines.Continuation"
+                    listOf(
+                        "java.lang.String",
+                        "kotlin.coroutines.Continuation<? super java.lang.String>"
+                    )
                 )
             assertThat(extensionFun.modifiers.isSuspend()).isTrue()
             assertThat(extensionFun.isExtensionMethod()).isTrue()

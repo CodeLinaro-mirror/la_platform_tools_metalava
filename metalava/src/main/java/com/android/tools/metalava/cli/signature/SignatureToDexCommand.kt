@@ -22,8 +22,9 @@ import com.android.tools.metalava.cli.common.MetalavaSubCommand
 import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.newFile
 import com.android.tools.metalava.cli.common.progressTracker
-import com.android.tools.metalava.createOutputFileFromCodebase
+import com.android.tools.metalava.createOutputFileFromCodebaseFragment
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.CodebaseFragment
 import com.android.tools.metalava.model.text.SignatureFile
 import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiType
@@ -69,19 +70,23 @@ class SignatureToDexCommand :
         val apiType = ApiType.ALL
         val apiFilters = apiType.getApiFilters(apiPredicateConfig)
 
-        createOutputFileFromCodebase(progressTracker, signatureApi, outFile, "DEX API") {
-            printWriter ->
-            DexApiWriter(
-                    printWriter,
+        val codebaseFragment =
+            CodebaseFragment.create(signatureApi) { delegatedVisitor ->
+                FilteringApiVisitor(
+                    delegatedVisitor,
+                    inlineInheritedFields = true,
+                    apiFilters = apiFilters,
+                    preFiltered = signatureApi.preFiltered,
                 )
-                .let { dexApiWriter ->
-                    FilteringApiVisitor(
-                        dexApiWriter,
-                        inlineInheritedFields = true,
-                        apiFilters = apiFilters,
-                        preFiltered = signatureApi.preFiltered,
-                    )
-                }
+            }
+
+        createOutputFileFromCodebaseFragment(
+            progressTracker,
+            codebaseFragment,
+            outFile,
+            "DEX API"
+        ) { printWriter ->
+            DexApiWriter(printWriter)
         }
     }
 }

@@ -32,6 +32,7 @@ import com.android.tools.metalava.model.JVM_NAME
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.VisibilityLevel
@@ -59,10 +60,12 @@ import com.intellij.psi.PsiClassType
 import com.intellij.psi.PsiCodeBlock
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiErrorElement
+import com.intellij.psi.PsiField
 import com.intellij.psi.PsiFile
 import com.intellij.psi.PsiImportStatement
 import com.intellij.psi.PsiJavaFile
 import com.intellij.psi.PsiManager
+import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiPackage
 import com.intellij.psi.PsiSubstitutor
 import com.intellij.psi.PsiType
@@ -74,6 +77,7 @@ import com.intellij.psi.util.PsiTreeUtil
 import java.io.File
 import java.io.IOException
 import java.util.zip.ZipFile
+import kotlin.collections.set
 import org.jetbrains.kotlin.asJava.classes.KtLightClassForFacade
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.JvmStandardClassIds
@@ -283,8 +287,39 @@ internal class PsiCodebaseAssembler(
                 superClassType = superClassType,
                 interfaceTypes = interfaceTypes,
             )
-        // Construct the children
-        val psiMethods = psiClass.methods
+
+        // Add methods, constructors, fields.
+        addMembersToClassItem(
+            classItem = classItem,
+            psiMethods = psiClass.methods.toList(),
+            psiFields = psiClass.fields.toList(),
+            classTypeItemFactory = classTypeItemFactory,
+        )
+
+        // This actually gets all nested classes not just inner, i.e. non-static nested,
+        // classes.
+        val psiNestedClasses = psiClass.innerClasses
+        for (psiNestedClass in psiNestedClasses) {
+            createClass(
+                psiClass = psiNestedClass,
+                containingClassItem = classItem,
+                enclosingClassTypeItemFactory = classTypeItemFactory,
+                origin = origin,
+            )
+        }
+        return classItem
+    }
+
+    /**
+     * Adds the methods and constructors from [psiMethods] and fields from [psiFields] to the
+     * [classItem].
+     */
+    fun addMembersToClassItem(
+        classItem: PsiClassItem,
+        psiMethods: List<PsiMethod>,
+        psiFields: List<PsiField>,
+        classTypeItemFactory: PsiTypeItemFactory,
+    ) {
         // create methods
         for (psiMethod in psiMethods) {
             // Skip fake UAST constructors and methods, which can't be used from java source.
@@ -365,6 +400,15 @@ internal class PsiCodebaseAssembler(
                         targetLanguages = targetLanguages
                     )
 
+                val hasJvmName = method.modifiers.annotations().any { it.qualifiedName == JVM_NAME }
+                // If a method is annotated with JvmName, then mark it as not usable from Kotlin. It
+                // is possible that JvmName is used even though the method signature will be
+                // identical between Java and Kotlin. If that happens, in the KaCodebaseAssembler
+                // step, the method will be updated again to include Kotlin as a target language.
+                if (hasJvmName) {
+                    method.targetLanguages -= TargetLanguage.KOTLIN
+                }
+
                 // With K2, any methods using value class types which don't use JvmName
                 // will already have been filtered out because they are represented with fake UAST
                 // elements. With K1, value class types are not treated differently so the elements
@@ -381,8 +425,7 @@ internal class PsiCodebaseAssembler(
                                     ?.arguments
                                     ?.singleOrNull() as? WildcardTypeItem)
                                 ?.superBound
-                                ?.isValueClassType() == true)) &&
-                        method.modifiers.annotations().none { it.qualifiedName == JVM_NAME }
+                                ?.isValueClassType() == true)) && !hasJvmName
                 ) {
                     continue
                 }
@@ -405,7 +448,6 @@ internal class PsiCodebaseAssembler(
             assert(constructors.isEmpty())
             classItem.addConstructor(classItem.createDefaultConstructor())
         }
-        val psiFields = psiClass.fields
         if (psiFields.isNotEmpty()) {
             for (psiField in psiFields) {
                 val fieldItem =
@@ -413,19 +455,6 @@ internal class PsiCodebaseAssembler(
                 classItem.addField(fieldItem)
             }
         }
-
-        // This actually gets all nested classes not just inner, i.e. non-static nested,
-        // classes.
-        val psiNestedClasses = psiClass.innerClasses
-        for (psiNestedClass in psiNestedClasses) {
-            createClass(
-                psiClass = psiNestedClass,
-                containingClassItem = classItem,
-                enclosingClassTypeItemFactory = classTypeItemFactory,
-                origin = origin,
-            )
-        }
-        return classItem
     }
 
     private fun hasExplicitRetention(
@@ -843,25 +872,81 @@ internal class PsiCodebaseAssembler(
                 ?.let { kotlinFiles -> KaCodebaseAssembler(kotlinFiles, codebase) }
         kaCodebaseAssembler?.createTypeAliases()
 
+        // Tracker for which source files of `@JvmMultifileClass`es have already been processed.
+        val multiFileClasses = HashMap<FqName, Set<PsiFile>>()
         // Process the `PsiClass`es.
         for (psiClass in psiClasses) {
-            // If a package filter is supplied then ignore any classes that do not match it.
-            if (apiPackages != null) {
-                val packageName = getPackageName(psiClass)
-                if (!apiPackages.matches(packageName)) continue
-            }
-
-            val classItem =
-                createPossibleApiClass(
-                    psiClass,
-                    // Sources always come from the command line.
-                    ClassOrigin.COMMAND_LINE,
-                ) ?: continue
-            codebase.addTopLevelClassFromSource(classItem)
+            initializeClassFromSources(psiClass, multiFileClasses, apiPackages)
         }
 
         // Add kotlin-only APIs.
         kaCodebaseAssembler?.assemble()
+    }
+
+    /**
+     * Adds a class to the codebase based on the [psiClass].
+     *
+     * For handling of [JvmMultifileClass]es, [multiFileClasses] is a map from qualified class name
+     * to the set of source files which have already been processed for a class. If [psiClass] is a
+     * multi-file class present in the map, only the class members which come from files which have
+     * not already been processed will be added to the existing class definition.
+     *
+     * [apiPackages] is a filter for which packages should not be added to the codebase.
+     */
+    private fun initializeClassFromSources(
+        psiClass: PsiClass,
+        multiFileClasses: HashMap<FqName, Set<PsiFile>>,
+        apiPackages: PackageFilter?
+    ) {
+        // Multi file classes appear from each file they're defined in. When the class parts are
+        // defined in the same source set, the PsiClass from each file is identical, but if the
+        // class parts are in different source sets, the members of each PsiClass will contain
+        // a subset of all class members based on the structure of source set dependencies.
+        val multiFileClassName = getOptionalMultiFileClassName(psiClass)
+        if (multiFileClassName != null) {
+            // Find which source files of this multi file class have already been processed.
+            val previouslyProcessedFiles = multiFileClasses[multiFileClassName] ?: emptySet()
+            // Assemble the set of source files which were used to create this PsiClass.
+            val filesForCurrentPsiClass =
+                (psiClass.methods.map { it.containingFile } +
+                        psiClass.fields.map { it.containingFile })
+                    .toSet()
+            // Update the tracking with the new set of source files.
+            multiFileClasses[multiFileClassName] =
+                previouslyProcessedFiles + filesForCurrentPsiClass
+
+            // If this class was already processed, there is already a PsiClassItem defined.
+            if (previouslyProcessedFiles.isNotEmpty()) {
+                val existingClassItem =
+                    codebase.findClass(multiFileClassName.toString()) as PsiClassItem
+                // Only add the methods and fields which defined in files which have not been
+                // previously processed.
+                addMembersToClassItem(
+                    classItem = existingClassItem,
+                    psiMethods =
+                        psiClass.methods.filter { it.containingFile !in previouslyProcessedFiles },
+                    psiFields =
+                        psiClass.fields.filter { it.containingFile !in previouslyProcessedFiles },
+                    classTypeItemFactory = globalTypeItemFactory.from(existingClassItem),
+                )
+                // Skip the step below of adding a new PsiClassItem as one already exists.
+                return
+            }
+        }
+
+        // If a package filter is supplied then ignore any classes that do not match it.
+        if (apiPackages != null) {
+            val packageName = getPackageName(psiClass)
+            if (!apiPackages.matches(packageName)) return
+        }
+
+        val classItem =
+            createPossibleApiClass(
+                psiClass,
+                // Sources always come from the command line.
+                ClassOrigin.COMMAND_LINE,
+            ) ?: return
+        codebase.addTopLevelClassFromSource(classItem)
     }
 
     /**
@@ -873,9 +958,6 @@ internal class PsiCodebaseAssembler(
     private fun splitPsiFilesIntoClassesAndPackageInfoFiles(
         psiFiles: List<PsiFile>
     ): Pair<List<PsiJavaFile>, List<PsiClass>> {
-        // A set to track `@JvmMultifileClass`es that have already been added to psiClasses.
-        val multiFileClassNames = HashSet<FqName>()
-
         val psiClasses = mutableListOf<PsiClass>()
         val packageInfoFiles = mutableListOf<PsiJavaFile>()
 
@@ -893,18 +975,6 @@ internal class PsiCodebaseAssembler(
                 else -> {
                     for (psiClass in classes) {
                         checkForSyntaxErrors(psiClass)
-
-                        // Multi file classes appear identically from each file they're defined in,
-                        // don't add duplicates
-                        val multiFileClassName = getOptionalMultiFileClassName(psiClass)
-                        if (multiFileClassName != null) {
-                            if (multiFileClassName in multiFileClassNames) {
-                                continue
-                            } else {
-                                multiFileClassNames.add(multiFileClassName)
-                            }
-                        }
-
                         psiClasses.add(psiClass)
                     }
                 }

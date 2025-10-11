@@ -20,6 +20,8 @@ import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
+import java.io.PrintWriter
+import java.io.StringWriter
 import kotlin.test.assertEquals
 import org.junit.Test
 
@@ -322,14 +324,14 @@ class CommonItemDocumentationTest : BaseModelTest() {
             val testClass = codebase.assertClass("test.pkg.Test")
             checkItemDocumentationLocation(testClass, "MAIN_SRC/src/test/pkg/Test.java:3")
 
-            val constructorItem = testClass.assertConstructor("")
+            val constructorItem = testClass.assertConstructor(emptyList())
             checkItemDocumentationLocation(constructorItem, "MAIN_SRC/src/test/pkg/Test.java:5")
 
             val fieldItem = testClass.assertField("field")
             checkItemDocumentationLocation(fieldItem, "MAIN_SRC/src/test/pkg/Test.java:11")
 
             // Check location of javadoc that is not specified.
-            val methodItem = testClass.assertMethod("noComment", "")
+            val methodItem = testClass.assertMethod("noComment", emptyList())
             checkItemDocumentationLocation(methodItem, "null")
         }
     }
@@ -363,15 +365,257 @@ class CommonItemDocumentationTest : BaseModelTest() {
             val testClass = codebase.assertClass("test.pkg.Test")
             checkItemDocumentationLocation(testClass, "MAIN_SRC/src/test/pkg/Test.kt:3")
 
-            val constructorItem = testClass.assertConstructor("")
+            val constructorItem = testClass.assertConstructor(emptyList())
             checkItemDocumentationLocation(constructorItem, "MAIN_SRC/src/test/pkg/Test.kt:5")
 
             val propertyItem = testClass.assertProperty("property")
             checkItemDocumentationLocation(propertyItem, "MAIN_SRC/src/test/pkg/Test.kt:11")
 
             // Check location of javadoc that is not specified.
-            val methodItem = testClass.assertMethod("noComment", "")
+            val methodItem = testClass.assertMethod("noComment", emptyList())
             checkItemDocumentationLocation(methodItem, "null")
+        }
+    }
+
+    private fun checkItemDocumentationPrint(item: SelectableItem, expectedOutput: String) {
+        val documentation = item.documentation
+        val stringWriter = StringWriter()
+        PrintWriter(stringWriter).use { documentation.print(it) }
+        val actualOutput = stringWriter.toString()
+        assertEquals(expectedOutput.trimIndent(), actualOutput)
+    }
+
+    @Test
+    fun `Test ItemDocumentation print`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    /** Single line comment. */
+                    public class Test {
+                        /**
+                         * Multi-line
+                         * comment.
+                         */
+                        public Test() {}
+
+                        /**
+                         * Comment with start comment token
+                         * /**.
+                         */
+                        public int field = 0;
+
+                        public void noComment() {}
+                    }
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            checkItemDocumentationPrint(
+                testClass,
+                expectedOutput =
+                    """
+                        /** Single line comment. */
+
+                    """,
+            )
+
+            val constructorItem = testClass.assertConstructor(emptyList())
+            checkItemDocumentationPrint(
+                constructorItem,
+                expectedOutput =
+                    """
+                        /**
+                         * Multi-line
+                         * comment.
+                         */
+
+                     """,
+            )
+
+            val fieldItem = testClass.assertField("field")
+            checkItemDocumentationPrint(
+                fieldItem,
+                expectedOutput =
+                    """
+                        /**
+                         * Comment with start comment token
+                         * /**.
+                         */
+
+                     """,
+            )
+
+            val methodItem = testClass.assertMethod("noComment", emptyList())
+            checkItemDocumentationPrint(
+                methodItem,
+                expectedOutput = "",
+            )
+        }
+    }
+
+    private fun checkItemDocumentationAppend(item: SelectableItem, expectedOutput: String) {
+        val documentation = item.documentation
+        documentation.appendDocumentation("Appended.", null)
+        val stringWriter = StringWriter()
+        PrintWriter(stringWriter).use { documentation.print(it) }
+        val actualOutput = stringWriter.toString()
+        assertEquals(expectedOutput.trimIndent(), actualOutput)
+    }
+
+    @Test
+    fun `Test ItemDocumentation appendDocumentation`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    /** Single line comment. */
+                    public class Test {
+                        /**
+                         * Multi-line
+                         * comment.
+                         */
+                        public Test() {}
+
+                        /**
+                         * Comment with start comment token
+                         * /**.
+                         */
+                        public int field = 0;
+
+                        public void noComment() {}
+                    }
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            checkItemDocumentationAppend(
+                testClass,
+                expectedOutput =
+                    """
+                        /**
+                         * Single line comment.
+                         * <br>
+                         * Appended.
+                         */
+
+                    """,
+            )
+
+            val constructorItem = testClass.assertConstructor(emptyList())
+            checkItemDocumentationAppend(
+                constructorItem,
+                expectedOutput =
+                    """
+                        /**
+                         * Multi-line
+                         * comment.
+                         *
+                         * <br>
+                         * Appended.
+                         */
+
+                     """,
+            )
+
+            val fieldItem = testClass.assertField("field")
+            checkItemDocumentationAppend(
+                fieldItem,
+                expectedOutput =
+                    """
+                        /**
+                         * Comment with start comment token
+                         * /**.
+                         *
+                         * <br>
+                         * Appended.
+                         */
+
+                     """,
+            )
+
+            val methodItem = testClass.assertMethod("noComment", emptyList())
+            checkItemDocumentationAppend(
+                methodItem,
+                expectedOutput =
+                    """
+                        /**
+                         * Appended.
+                         */
+
+                    """,
+            )
+        }
+    }
+
+    @Test
+    fun `Test mixture of indentation`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    /**
+                     * Summary line.
+                    No leading asterisks
+                        No leading asterisks but leading whitespace
+                    ****** Multiple leading asterisks
+                         **  **  ** Mixture of leading asterisks and whitespace
+                    // Leading forwards slash
+                     // Leading whitespace then forwards slash
+                     */
+                    public class Test {
+                        /**
+                         * Summary line.
+                        No leading asterisks
+                            No leading asterisks but leading whitespace
+                        ****** Multiple leading asterisks
+                             **  **  ** Mixture of leading asterisks and whitespace
+                        // Leading forwards slash
+                         // Leading whitespace then forwards slash
+                         */
+                        public void method() {}
+                    }
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            checkItemDocumentationPrint(
+                testClass,
+                expectedOutput =
+                    """
+                        /**
+                         * Summary line.
+                         *No leading asterisks
+                         *    No leading asterisks but leading whitespace
+                         * Multiple leading asterisks
+                         *  **  ** Mixture of leading asterisks and whitespace
+                        // Leading forwards slash
+                         * // Leading whitespace then forwards slash
+                         */
+
+                    """,
+            )
+
+            val testMethod = testClass.methods().single()
+            checkItemDocumentationPrint(
+                testMethod,
+                expectedOutput =
+                    """
+                        /**
+                         * Summary line.
+                         *    No leading asterisks
+                         *        No leading asterisks but leading whitespace
+                         * Multiple leading asterisks
+                         *  **  ** Mixture of leading asterisks and whitespace
+                         *    // Leading forwards slash
+                         *     // Leading whitespace then forwards slash
+                         */
+
+                    """,
+            )
         }
     }
 }

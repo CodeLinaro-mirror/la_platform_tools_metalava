@@ -416,7 +416,7 @@ class CommonTypeParameterItemTest : BaseModelTest() {
                     .trimIndent()
             )
         ) {
-            val method = codebase.assertClass("test.pkg.Foo").assertMethod("foo", "")
+            val method = codebase.assertClass("test.pkg.Foo").assertMethod("foo", emptyList())
             val typeParameter = method.typeParameterList.single()
             val typeVariable = method.returnType()
 

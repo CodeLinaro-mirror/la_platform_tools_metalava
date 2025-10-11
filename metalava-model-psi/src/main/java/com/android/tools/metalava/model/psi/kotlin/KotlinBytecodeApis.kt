@@ -28,6 +28,7 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.psi.PsiAnnotationItem
 import com.android.tools.metalava.model.psi.PsiBasedCodebase
@@ -298,11 +299,12 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
             psiParametersForErasedSignature.joinToString {
                 it.type.canonicalText.dropTypeArguments()
             }
+        val semiErasedReturn = psiMethod.returnType?.canonicalText?.dropTypeArguments() ?: ""
         // Check if there's a signature match (technically, it would be possible to find a
         // false match here if a type variable that is in semiErasedSignature had the same
         // name as a primitive type used in one of the potential matches, but that shouldn't
         // be allowed).
-        if (checkForSignatureMatch(semiErasedSignature, potentialMatches)) return
+        if (checkForSignatureMatch(semiErasedSignature, semiErasedReturn, potentialMatches)) return
 
         // Create the item.
         val callableItem =
@@ -357,9 +359,10 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
                 }
             val erasedSignature =
                 parameterItemsForErasedSignature.joinToString { it.type().toErasedTypeString() }
+            val erasedReturn = callableItem.returnType().toErasedTypeString()
             if (
                 erasedSignature != semiErasedSignature &&
-                    checkForSignatureMatch(erasedSignature, potentialMatches)
+                    checkForSignatureMatch(erasedSignature, erasedReturn, potentialMatches)
             )
                 return
         }
@@ -446,26 +449,37 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
      * Checks the [potentialMatches] (pairs of [CallableItem]s and their erased signatures) to see
      * if one of the signatures is the same as [erasedSignature].
      *
-     * If it is, and the matching item was created as Kotlin-only and not reified, updates it to
-     * include bytecode as a target language as well.
+     * If it is, and the matching item was created as Kotlin-only, is not reified, and has the same
+     * [erasedReturn] type, updates it to include bytecode as a target language as well. If the
+     * matching item is Kotlin-only and does not have the same return type or is reified, it is not
+     * considered a match.
      *
      * Returns whether a match was found.
      */
     private fun checkForSignatureMatch(
         erasedSignature: String,
+        erasedReturn: String,
         potentialMatches: List<Pair<CallableItem, String>>,
     ): Boolean {
         val (callableItem, _) =
             potentialMatches.firstOrNull { (_, signature) -> signature == erasedSignature }
                 ?: return false
-        // If the item was created as Kotlin only but does exist in bytecode, update the target
-        // language set. Exclude reified inline functions because even though these are present in
-        // bytecode, there's an error if they're actually used.
-        if (
-            callableItem.targetLanguages == TargetLanguageSet.KOTLIN_ONLY &&
-                callableItem.typeParameterList.none { it.isReified() }
-        ) {
-            callableItem.targetLanguages = TargetLanguageSet.NOT_JAVA
+        // If the item was created as Kotlin only but does exist in bytecode with the same return
+        // type, update the target language set. Exclude reified inline functions because even
+        // though these are present in bytecode, there's an error if they're actually used.
+        if (callableItem.targetLanguages == TargetLanguageSet.KOTLIN_ONLY) {
+            val jvmName = (callableItem as? MethodItem)?.findJvmNameFromAnnotation()
+            if (
+                callableItem is ConstructorItem ||
+                    callableItem.returnType().toErasedTypeString() == erasedReturn &&
+                        callableItem.typeParameterList.none { it.isReified() } &&
+                        // Make sure not to merge separate method definitions which use JvmName.
+                        (jvmName == null || jvmName == callableItem.name())
+            ) {
+                callableItem.targetLanguages = TargetLanguageSet.NOT_JAVA
+            } else {
+                return false
+            }
         }
         return true
     }

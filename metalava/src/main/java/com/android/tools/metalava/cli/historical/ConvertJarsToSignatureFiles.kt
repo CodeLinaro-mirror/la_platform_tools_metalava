@@ -368,7 +368,7 @@ private fun Codebase.findMethod(
             ""
         }
     val methodName = if (node.name == "<init>") cls.simpleName() else node.name
-    val method = cls.findMethod(methodName, parameters)
+    val method = cls.findBytecodeMethod(methodName, parameters)
     return if (method != null && apiFilter.test(method)) {
         method
     } else {

@@ -47,7 +47,7 @@ class CommonParameterizedAttributeDefaultValueTest :
     @Test
     fun testMethodDefaultValue() {
         checkExpectedValue {
-            val annotationMethod = testClassItem.assertMethod(ATTRIBUTE_NAME, "")
+            val annotationMethod = testClassItem.assertMethod(ATTRIBUTE_NAME, emptyList())
 
             annotationMethod.defaultValue
         }

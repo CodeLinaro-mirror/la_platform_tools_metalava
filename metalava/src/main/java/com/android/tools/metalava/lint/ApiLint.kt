@@ -50,7 +50,6 @@ import com.android.tools.metalava.lint.ResourceType.TRANSITION
 import com.android.tools.metalava.lint.ResourceType.XML
 import com.android.tools.metalava.manifest.Manifest
 import com.android.tools.metalava.manifest.SetMinSdkVersion
-import com.android.tools.metalava.model.ANDROID_FLAGGED_API
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.CallableItem
@@ -62,17 +61,14 @@ import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.InheritableItem
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.JAVA_LANG_DEPRECATED
 import com.android.tools.metalava.model.JAVA_LANG_THROWABLE
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
-import com.android.tools.metalava.model.ModifierListWriter
 import com.android.tools.metalava.model.MultipleTypeVisitor
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.PropertyItem
-import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
@@ -82,7 +78,6 @@ import com.android.tools.metalava.model.TypeStringConfiguration
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.hasAnnotation
-import com.android.tools.metalava.model.value.ValueKind
 import com.android.tools.metalava.model.value.asInt
 import com.android.tools.metalava.model.value.asString
 import com.android.tools.metalava.model.visitors.ApiPredicate
@@ -117,7 +112,6 @@ import com.android.tools.metalava.reporter.Issues.EQUALS_AND_HASH_CODE
 import com.android.tools.metalava.reporter.Issues.EXCEPTION_NAME
 import com.android.tools.metalava.reporter.Issues.EXECUTOR_REGISTRATION
 import com.android.tools.metalava.reporter.Issues.EXTENDS_ERROR
-import com.android.tools.metalava.reporter.Issues.FLAGGED_API_LITERAL
 import com.android.tools.metalava.reporter.Issues.FORBIDDEN_SUPER_CLASS
 import com.android.tools.metalava.reporter.Issues.FRACTION_FLOAT
 import com.android.tools.metalava.reporter.Issues.GENERIC_CALLBACKS
@@ -182,19 +176,15 @@ import com.android.tools.metalava.reporter.Issues.STATIC_UTILS
 import com.android.tools.metalava.reporter.Issues.STREAM_FILES
 import com.android.tools.metalava.reporter.Issues.TOP_LEVEL_BUILDER
 import com.android.tools.metalava.reporter.Issues.TYPE_PARAMETER_NAME
-import com.android.tools.metalava.reporter.Issues.UNFLAGGED_API
 import com.android.tools.metalava.reporter.Issues.UNIQUE_KOTLIN_OPERATOR
 import com.android.tools.metalava.reporter.Issues.USER_HANDLE
 import com.android.tools.metalava.reporter.Issues.USER_HANDLE_NAME
 import com.android.tools.metalava.reporter.Issues.USE_ICU
 import com.android.tools.metalava.reporter.Issues.USE_PARCEL_FILE_DESCRIPTOR
 import com.android.tools.metalava.reporter.Issues.VISIBLY_SYNCHRONIZED
-import com.android.tools.metalava.reporter.Reportable
 import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.reporter.Severity
-import java.io.StringWriter
 import java.util.Locale
-import org.jetbrains.kotlin.util.capitalizeDecapitalize.toUpperCaseAsciiOnly
 
 /**
  * The [ApiLint] analyzer checks the API against a known set of preferred API practices by the
@@ -203,164 +193,19 @@ import org.jetbrains.kotlin.util.capitalizeDecapitalize.toUpperCaseAsciiOnly
 class ApiLint
 private constructor(
     private val codebase: Codebase,
-    private val oldCodebase: Codebase?,
+    oldCodebase: Codebase?,
     reporter: Reporter,
     private val manifest: Manifest,
     apiPredicateConfig: ApiPredicate.Config,
     private val allowedAcronyms: List<String>,
 ) :
     ApiVisitor(
-        // ApiLint does not visit ParameterItems.
         visitParameterItems = false,
-        // We don't use ApiType's eliding emitFilter here, because lint checks should run
-        // even when the signatures match that of a super method exactly (notably the ones checking
-        // that nullability overrides are consistent).
         apiFilters = ApiType.PUBLIC_API.getNonElidingApiFilters(apiPredicateConfig),
-        // API lint checks are only relevant to the API surface as used from source, not APIs that
-        // only exist in bytecode.
         targetLanguages = TargetLanguageSet.SOURCE,
     ) {
 
-    /** Predicate that checks if the item appears in the signature file. */
-    private val elidingFilterEmit = ApiType.PUBLIC_API.getEmitFilter(apiPredicateConfig)
-
-    /** [Reporter] that filters out items that are not relevant for the current API surface. */
-    inner class FilteringReporter(private val delegate: Reporter) : Reporter by delegate {
-        override fun report(
-            id: Issue,
-            reportable: Reportable?,
-            message: String,
-            location: FileLocation,
-            maximumSeverity: Severity,
-        ): Boolean {
-            // The [Severity] used may be limited by the [Item] on which it is reported.
-            var actualMaximumSeverity = maximumSeverity
-
-            val item = reportable as? Item
-            if (item != null) {
-                val previousItem = findPreviouslyReleased(item)
-
-                // Issues on previously released APIs have reduced [Severity].
-                val computedMaximumSeverity = computeMaximumSeverity(item, previousItem, id)
-                if (computedMaximumSeverity == Severity.HIDDEN) {
-                    return false
-                }
-
-                // Use the minimum of the [Item] specific maximum [Severity] and the one
-                // provided by the caller.
-                actualMaximumSeverity = minOf(actualMaximumSeverity, computedMaximumSeverity)
-
-                // Don't flag api warnings on previously deprecated APIs; these are obviously
-                // already known to be problematic.
-                if (item.effectivelyDeprecated && previousItem?.effectivelyDeprecated != false) {
-                    return false
-                }
-
-                // Get the Item to check if it is part of the API. If it is not then there is no
-                // point in reporting the issue.
-                val testItem =
-                    when (item) {
-                        is ParameterItem ->
-                            // The parameter will only be included in the API if and only if its
-                            // containing callable is so check that.
-                            item.containingCallable()
-                        is SelectableItem -> item
-                        else ->
-                            // This should not happen as all Items are either a SelectableItem or a
-                            // ParameterItem
-                            error("Unknown item $item")
-                    }
-
-                // With show annotations we might be flagging API that is filtered out: hide these
-                // here by checking to see if the item is part of the API.
-                if (!filterEmit.test(testItem)) {
-                    return false
-                }
-            }
-
-            return delegate.report(id, reportable, message, location, actualMaximumSeverity)
-        }
-
-        /** Compute the maximum [Severity] of issues on [item]. */
-        private fun computeMaximumSeverity(item: Item?, previousItem: Item?, issue: Issue) =
-            when {
-                issue == Issues.UNFLAGGED_API -> Severity.ERROR
-                // If the issue is being reported on the context Item then use its maximum.
-                item === contextItem -> maximumSeverityForItem
-                // If its containing item was previously released (so issues are hidden) but the
-                // item itself is new then generate a warning for existing code and an error in new
-                // code. That at least gives developers some indication that there is a problem with
-                // the existing code and prevents issues being added in new code.
-                maximumSeverityForItem == Severity.HIDDEN && previousItem == null ->
-                    Severity.WARNING_ERROR_WHEN_NEW
-                // Otherwise, the use maximum for the context Item's contents.
-                else -> maximumSeverityForItemContents
-            }
-
-        /** The context [Item], i.e. the [Item] whose `visit<item-type>` method is being called. */
-        private var contextItem: Item? = null
-
-        /** The maximum [Severity] that an issue can have if it is reported on the [contextItem]. */
-        private var maximumSeverityForItem: Severity = Severity.UNLIMITED
-
-        /**
-         * The maximum [Severity] that an issue can have if it is reported on an [Item] other than
-         * the [contextItem], i.e. on an [Item] that belongs to the [contextItem]. e.g. If
-         * [contextItem] is a [ClassItem] then this will be the maximum [Severity] of issues
-         * reported on members of that [ClassItem]. Similarly, if [contextItem] is a [MethodItem]
-         * then this will be the maximum [Severity] of issues reported on its [ParameterItem]s.
-         */
-        private var maximumSeverityForItemContents: Severity = Severity.UNLIMITED
-
-        /**
-         * Run checks within the specific [contextItem].
-         *
-         * This allows the maximum [Severity] of checks to be dependent on whether the [Item] or its
-         * containing [Item] was previously released or not.
-         */
-        internal fun withContext(contextItem: Item, checker: () -> Unit) {
-            val oldContextItem = this.contextItem
-            val oldMaximumSeverityForItem = this.maximumSeverityForItem
-            val oldMaximumSeverityForItemContents = this.maximumSeverityForItemContents
-            try {
-                this.contextItem = contextItem
-                val previouslyReleased = oldCodebase != null && wasPreviouslyReleased(contextItem)
-                this.maximumSeverityForItem =
-                    if (previouslyReleased) Severity.HIDDEN else Severity.UNLIMITED
-                // Hide issues on a previously released Item's contents to replicate the behavior of
-                // the legacy CodebaseComparator based ApiLint.
-                this.maximumSeverityForItemContents = maximumSeverityForItem
-
-                checker()
-            } finally {
-                this.contextItem = oldContextItem
-                this.maximumSeverityForItem = oldMaximumSeverityForItem
-                this.maximumSeverityForItemContents = oldMaximumSeverityForItemContents
-            }
-        }
-    }
-
-    /** Find the corresponding item in the previously released API if available. */
-    private fun findPreviouslyReleased(item: Item?): Item? {
-        return oldCodebase?.let {
-            item?.findCorrespondingItemIn(
-                oldCodebase,
-                // Search in super classes and interfaces for a matching method definition· This is
-                // needed as overriding methods are elided from the API signature files.
-                superMethods = true,
-                // Make sure that if a super method was found that it is copied into the
-                // corresponding class item as the meaning of certain modifiers is affected by the
-                // containing class. e.g. the `default` modifier on an interface method must be
-                // discarded when copying that method into a concrete class.
-                duplicate = true,
-            )
-        }
-    }
-
-    /** Check to see if [item] was previously released. */
-    private fun wasPreviouslyReleased(item: Item?) = findPreviouslyReleased(item) != null
-
-    private val reporter = FilteringReporter(reporter)
+    private val filteredReporter = FilteringReporter(reporter, oldCodebase, filterEmit)
 
     private fun report(
         id: Issue,
@@ -369,14 +214,14 @@ private constructor(
         location: FileLocation = FileLocation.UNKNOWN,
         maximumSeverity: Severity = Severity.UNLIMITED,
     ) {
-        reporter.report(id, item, message, location, maximumSeverity)
+        filteredReporter.report(id, item, message, location, maximumSeverity)
     }
 
     private fun check() {
         codebase.accept(this)
     }
 
-    private val kotlinInterop: KotlinInteropChecks = KotlinInteropChecks(this.reporter)
+    private val kotlinInterop: KotlinInteropChecks = KotlinInteropChecks(this.filteredReporter)
 
     override fun visitClass(cls: ClassItem) {
         val methods = cls.filteredMethods(filterReference).asSequence()
@@ -385,19 +230,17 @@ private constructor(
         val superClass = cls.filteredSuperclass(filterReference)
         val interfaces = cls.filteredInterfaceTypes(filterReference).asSequence()
         val allCallables = methods.asSequence() + constructors.asSequence()
-        reporter.withContext(cls) {
+        filteredReporter.withContext(cls) {
             checkClass(cls, methods, constructors, allCallables, fields, superClass, interfaces)
         }
         kotlinInterop.checkClass(cls, allCallables + fields)
     }
 
     override fun visitCallable(callable: CallableItem) {
-        reporter.withContext(callable) {
+        filteredReporter.withContext(callable) {
             checkExceptions(callable, filterReference)
             checkContextFirst(callable)
             checkListenerLast(callable)
-            checkHasFlaggedApi(callable)
-            checkFlaggedApiLiteral(callable)
             val returnType = callable.returnType()
             checkType(returnType, callable)
             checkNullableCollections(returnType, callable)
@@ -409,7 +252,7 @@ private constructor(
     }
 
     override fun visitMethod(method: MethodItem) {
-        reporter.withContext(method) {
+        filteredReporter.withContext(method) {
             checkMethodNames(method)
             checkProtected(method)
             checkSynchronized(method)
@@ -425,7 +268,7 @@ private constructor(
     }
 
     override fun visitField(field: FieldItem) {
-        reporter.withContext(field) {
+        filteredReporter.withContext(field) {
             checkField(field)
             checkType(field.type(), field)
             kotlinInterop.checkField(field)
@@ -433,7 +276,7 @@ private constructor(
     }
 
     override fun visitProperty(property: PropertyItem) {
-        reporter.withContext(property) { kotlinInterop.checkProperty(property) }
+        filteredReporter.withContext(property) { kotlinInterop.checkProperty(property) }
     }
 
     private fun checkType(type: TypeItem, item: Item) {
@@ -522,8 +365,6 @@ private constructor(
         checkSingleton(cls, methods, constructors)
         checkExtends(cls)
         checkTypedef(cls)
-        checkHasFlaggedApi(cls)
-        checkFlaggedApiLiteral(cls)
         checkAccessorNullabilityMatches(methods)
         checkDataClass(cls)
     }
@@ -540,51 +381,6 @@ private constructor(
         checkFieldName(field)
         checkSettingKeys(field)
         checkNullableCollections(field.type(), field)
-        checkHasFlaggedApi(field)
-        checkFlaggedApiLiteral(field)
-    }
-
-    private fun checkFlaggedApiLiteral(item: Item) {
-        if (item.codebase.preFiltered) {
-            // Flag constants aren't ever API, so prefiltered codebases would always only contain
-            // literals.
-            return
-        }
-
-        val annotation =
-            item.modifiers.findAnnotation { it.qualifiedName == ANDROID_FLAGGED_API } ?: return
-        val attr = annotation.attributes.find { attr -> attr.name == "value" } ?: return
-
-        // Get the flag value, should be a reference to a constant field.
-        val flagValue = attr.value
-        if (flagValue.kind != ValueKind.FIELD) {
-            // It is not a reference to a field so get the string value and try and see if the field
-            // could be found.
-            val value = flagValue.asString()
-
-            // Reverse engineer the string value to a field reference and resolve it to a FieldItem,
-            // if possible.
-            val field = value?.let { aconfigFlagLiteralToFieldOrNull(item.codebase, it) }
-
-            // Generate some helpful text so the developer knows what to do to fix it.
-            val replacement =
-                if (field != null) {
-                    val (fieldSource, fieldItem) = field
-                    if (fieldItem != null) {
-                        fieldSource
-                    } else {
-                        "$fieldSource, however this flag doesn't seem to exist"
-                    }
-                } else {
-                    "furthermore, the current flag literal seems to be malformed"
-                }
-
-            report(
-                FLAGGED_API_LITERAL,
-                item,
-                "@FlaggedApi contains a string literal, but should reference the field generated by aconfig ($replacement).",
-            )
-        }
     }
 
     private fun checkEnums(cls: ClassItem) {
@@ -1206,12 +1002,19 @@ private constructor(
                 }
         }
 
-        fun ensureContextNameSuffix(cls: ClassItem, suffix: String) {
-            if (!cls.simpleName().endsWith(suffix)) {
+        fun ensureContextNameSuffixes(cls: ClassItem, suffixes: List<String>) {
+            // Check if the class name ends with any of the provided suffixes
+            val hasMatchingSuffix = suffixes.any { suffix -> cls.simpleName().endsWith(suffix) }
+
+            if (!hasMatchingSuffix) {
+                // Build a user-friendly string of expected suffixes
+                val expectedSuffixesString =
+                    suffixes.joinToString(separator = "`, `", prefix = "`", postfix = "`")
+
                 report(
                     CONTEXT_NAME_SUFFIX,
                     cls,
-                    "Inconsistent class name; should be `<Foo>$suffix`, was `${cls.simpleName()}`"
+                    "Inconsistent class name; should end with one of [${expectedSuffixesString}], but was `${cls.simpleName()}`"
                 )
             }
         }
@@ -1221,21 +1024,21 @@ private constructor(
         when {
             cls.extends("android.app.Service") -> {
                 testMethods = true
-                ensureContextNameSuffix(cls, "Service")
+                ensureContextNameSuffixes(cls, arrayListOf("Service", "ServiceCompat"))
                 ensureFieldValue(fields, "SERVICE_INTERFACE", cls.qualifiedName())
             }
             cls.extends("android.content.ContentProvider") -> {
                 testMethods = true
-                ensureContextNameSuffix(cls, "Provider")
+                ensureContextNameSuffixes(cls, arrayListOf("Provider", "ProviderCompat"))
                 ensureFieldValue(fields, "PROVIDER_INTERFACE", cls.qualifiedName())
             }
             cls.extends("android.content.BroadcastReceiver") -> {
                 testMethods = true
-                ensureContextNameSuffix(cls, "Receiver")
+                ensureContextNameSuffixes(cls, arrayListOf("Receiver", "ReceiverCompat"))
             }
             cls.extends("android.app.Activity") -> {
                 testMethods = true
-                ensureContextNameSuffix(cls, "Activity")
+                ensureContextNameSuffixes(cls, arrayListOf("Activity", "ActivityCompat"))
             }
         }
 
@@ -1980,134 +1783,6 @@ private constructor(
                     "Managers must always be obtained from Context (`${method.name()}`)"
                 )
             }
-        }
-    }
-
-    private fun checkHasFlaggedApi(item: SelectableItem) {
-        // Cannot flag an implicit constructor.
-        if (item is ConstructorItem && item.isImplicitConstructor()) return
-
-        fun itemOrAnyContainingClasses(predicate: FilterPredicate): Boolean {
-            var it: SelectableItem? = item
-            while (it != null) {
-                if (predicate.test(it)) {
-                    return true
-                }
-                it = it.containingClass()
-            }
-            return false
-        }
-        if (
-            !itemOrAnyContainingClasses {
-                it.modifiers.hasAnnotation { it.qualifiedName == ANDROID_FLAGGED_API }
-            }
-        ) {
-            val previouslyReleasedItem = findPreviouslyReleased(item)
-            if (previouslyReleasedItem == null) {
-                checkFlaggedApiOnNewApi(item)
-            } else {
-                checkFlaggedApiOnPreviouslyReleasedApi(previouslyReleasedItem, item)
-            }
-        }
-    }
-
-    /**
-     * Check whether an `@FlaggedApi` annotation is required on a new [Item], i.e. one that has not
-     * previously been released.
-     */
-    private fun checkFlaggedApiOnNewApi(item: SelectableItem) {
-        val elidedField =
-            if (item is FieldItem) {
-                val inheritedFrom = item.inheritedFrom
-                // The field gets elided if we're able to reference the original class, but not emit
-                // it; this happens e.g. when inheriting from a public API interface into an
-                // @SystemApi class.
-                // The only edge-case we don't handle well here is if the inheritance itself is new,
-                // because that can't be flagged.
-                // TODO(b/299659989): adjust comment once flagging inheritance is possible.
-                inheritedFrom != null && filterReference.test(inheritedFrom)
-            } else {
-                false
-            }
-        if (!elidingFilterEmit.test(item) || elidedField) {
-            // This API wouldn't appear in the signature file, so we don't know here if the API is
-            // pre-existing.
-            // Since the base API is either new and subject to flagging rules, or preexisting and
-            // therefore stable, the elided API is not required to be flagged.
-            // The only edge-case we don't handle well here is if the inheritance itself is new,
-            // because that can't be flagged.
-            // TODO(b/299659989): adjust comment once flagging inheritance is possible.
-            return
-        }
-        report(UNFLAGGED_API, item, "New API must be flagged with @FlaggedApi: ${item.describe()}")
-    }
-
-    /**
-     * Check to see whether a `FlaggedApi` annotation is required due to changes on an existing API.
-     */
-    private fun checkFlaggedApiOnPreviouslyReleasedApi(previousItem: Item, currentItem: Item) {
-        // Check the deprecated status, if it has changed
-        val previousDeprecated = previousItem.effectivelyDeprecated
-        val currentDeprecated = currentItem.effectivelyDeprecated
-        if (
-            currentDeprecated != previousDeprecated &&
-                currentItem.originallyDeprecated != previousItem.originallyDeprecated
-        ) {
-            val location =
-                if (currentItem.originallyDeprecated)
-                    currentItem.modifiers.findAnnotation(JAVA_LANG_DEPRECATED)?.fileLocation
-                else null
-            fun deprecatedStatus(b: Boolean): String {
-                return if (b) "deprecated" else "not deprecated"
-            }
-            val current = deprecatedStatus(currentDeprecated)
-            val previous = deprecatedStatus(previousDeprecated)
-            report(
-                UNFLAGGED_API,
-                currentItem,
-                "Changes from $previous to $current must be flagged with @FlaggedApi: ${currentItem.describe()}",
-                location = location ?: FileLocation.UNKNOWN,
-                maximumSeverity = Severity.WARNING_ERROR_WHEN_NEW,
-            )
-            // Reporting the same issue on the same Item is pointless as the first report will
-            // update the baseline and so suppress the second report so return immediately.
-            return
-        }
-
-        // Generate the modifiers from the previous API.
-        val previousModifiers = normalizeModifiers(previousItem)
-        // Generate the modifiers from the current API.
-        val currentModifiers = normalizeModifiers(currentItem)
-
-        if (currentModifiers != previousModifiers) {
-            report(
-                UNFLAGGED_API,
-                currentItem,
-                "Changes to modifiers, from '$previousModifiers' to '$currentModifiers' must be flagged with @FlaggedApi: ${currentItem.describe()}",
-                maximumSeverity = Severity.WARNING_ERROR_WHEN_NEW
-            )
-            // Reporting the same issue on the same Item is pointless as the first report will
-            // update the baseline and so suppress the second report so return immediately.
-            return
-        }
-    }
-
-    /**
-     * Normalize the modifiers for the [Item].
-     *
-     * This uses the [ModifierListWriter] for signature files as that already has a lot of logic for
-     * handling signature files and ultimately it is changes to the signature files that need to be
-     * flagged.
-     */
-    private fun normalizeModifiers(item: Item): String {
-        return StringWriter().use { writer ->
-            val modifierListWriter =
-                ModifierListWriter.forSignature(
-                    writer,
-                    skipNullnessAnnotations = true,
-                )
-            modifierListWriter.writeKeywords(item, normalizeFinal = true)
-            writer.toString().trim()
         }
     }
 
@@ -3625,38 +3300,6 @@ private constructor(
                 val decapitalized = acronym[0] + acronym.substring(1).lowercase(Locale.US)
                 s = s.replace(acronym, decapitalized)
             }
-        }
-
-        /**
-         * Heuristically converts the given string [literal] into a reference to the equivalent
-         * `aconfig`-generated `Flags.java` field.
-         *
-         * @return a pair of the field reference as Java / Kotlin source, and the referenced field
-         *   item (if found in [codebase]); or `null` if the literal cannot be converted.
-         */
-        private fun aconfigFlagLiteralToFieldOrNull(
-            codebase: Codebase,
-            literal: String
-        ): Pair<String, FieldItem?>? {
-            if (literal.contains('/')) {
-                return null
-            }
-            val parts = literal.split('.')
-
-            val flag = parts.lastOrNull() ?: return null
-            val flagField = "FLAG_" + flag.toUpperCaseAsciiOnly()
-            val pkg = parts.dropLast(1).joinToString(separator = ".")
-            val className = "$pkg.Flags"
-            val fieldSource = "$className.$flagField"
-
-            val clazzOrNull = codebase.findClass(className)
-            val fieldOrNull =
-                clazzOrNull?.findField(
-                    flagField,
-                    includeSuperClasses = true,
-                    includeInterfaces = true
-                )
-            return fieldSource to fieldOrNull
         }
     }
 }

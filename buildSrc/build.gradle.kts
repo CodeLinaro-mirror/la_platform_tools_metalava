@@ -20,8 +20,7 @@ plugins {
 }
 
 repositories {
-    mavenCentral()
-    google()
+    maven("../../../prebuilts/androidx/external")
 }
 
 dependencies {

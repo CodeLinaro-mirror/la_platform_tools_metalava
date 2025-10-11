@@ -54,12 +54,10 @@ STAR: '*';
 
 SLASH: '/';
 
-JAVADOC_START: '/**' STAR*;
-
-JAVADOC_END: SPACE? STAR* '*/';
-
 INLINE_TAG_START: '{@';
 
 BRACE_OPEN: '{';
 
 BRACE_CLOSE: '}';
+
+COMMENT_END: '*/';

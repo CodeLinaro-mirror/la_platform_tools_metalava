@@ -100,9 +100,9 @@ class CommonConstructorItemTest : BaseModelTest() {
             )
         ) {
             val classItem = codebase.assertClass("test.pkg.Foo")
-            val primaryCtor = classItem.assertConstructor("int,java.lang.String")
+            val primaryCtor = classItem.assertConstructor(listOf("int", "java.lang.String"))
             assertTrue(primaryCtor.isPrimary, "primary constructor")
-            val secondaryCtor = classItem.assertConstructor("int")
+            val secondaryCtor = classItem.assertConstructor(listOf("int"))
             assertFalse(secondaryCtor.isPrimary, "secondary constructor")
         }
     }

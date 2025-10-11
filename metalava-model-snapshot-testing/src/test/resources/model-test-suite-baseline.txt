@@ -53,6 +53,7 @@ com.android.tools.metalava.model.testsuite.codebase.CommonCodebaseTest
   Test getTopLevelClassesFromSource[turbine]
 
 com.android.tools.metalava.model.testsuite.documentation.CommonItemDocumentationTest
+  Test ItemDocumentation appendDocumentation[turbine]
   Test javadoc locations[turbine]
 
 com.android.tools.metalava.model.testsuite.documentation.CommonParameterizedDocumentationTest
