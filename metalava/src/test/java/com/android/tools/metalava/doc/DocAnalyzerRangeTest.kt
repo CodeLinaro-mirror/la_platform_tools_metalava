@@ -200,6 +200,7 @@ class DocAnalyzerRangeTest : DriverTest() {
                     public TypedefTest() { throw new RuntimeException("Stub!"); }
                     /**
                      * @param style Value is {@link test.pkg.TypedefTest#STYLE_NORMAL}, {@link test.pkg.TypedefTest#STYLE_NO_TITLE}, {@link test.pkg.TypedefTest#STYLE_NO_FRAME}, or STYLE_NO_INPUT
+                     *
                      * Value is 20 or greater
                      */
                     public void setStyle(int style, int theme) { throw new RuntimeException("Stub!"); }
@@ -461,6 +462,7 @@ class DocAnalyzerRangeTest : DriverTest() {
                     /**
                      * This is the existing documentation.
                      * @return return value documented here
+                     *
                      * Value is 10 or greater
                      */
                     public int test1(int parameter1, int parameter2, int parameter3) { throw new RuntimeException("Stub!"); }
@@ -622,10 +624,15 @@ class DocAnalyzerRangeTest : DriverTest() {
                             public RangeTest() { throw new RuntimeException("Stub!"); }
                             /**
                              * Blah.
+                             *
                              * @param i1 Value is {@link java.lang.Integer#MIN_VALUE} or greater
+                             *
                              * @param i2 Value is 2147483646 or greater
+                             *
                              * @param i3 Value is 1099511627776L or greater
+                             *
                              * @param f1 Value is 10.5f or greater
+                             *
                              * @param f2 Value is 1.0E113 or greater
                              */
                             public int test1(int i1, int i2, int i3, int f1, int f2) { throw new RuntimeException("Stub!"); }

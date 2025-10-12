@@ -120,4 +120,16 @@ Sub-commands:
             stdout.toString()
         )
     }
+
+    @Test
+    fun `Test K1 and K2`() {
+        val args = listOf(ARG_USE_K1_UAST, ARG_USE_K2_UAST)
+
+        val (stdout, stderr) = runTest(args)
+        assertEquals("", stdout.toString())
+        assertEquals(
+            "Aborting: Cannot specify both --Xuse-k1-uast and --Xuse-k2-uast",
+            stderr.toString().trim()
+        )
+    }
 }

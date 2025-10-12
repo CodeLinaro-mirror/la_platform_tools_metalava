@@ -162,7 +162,8 @@ class ProjectDescriptionTest : DriverTest() {
                   public final class Foo {
                     ctor public Foo();
                     method public static String foo(String x);
-                    method public void renamed();
+                    method @InaccessibleFromKotlin public void renamed();
+                    method @KotlinOnly public void wrongName();
                     field public static final some.pkg.Foo.Companion Companion;
                   }
                   public static final class Foo.Companion {

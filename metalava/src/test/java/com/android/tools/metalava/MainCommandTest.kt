@@ -147,6 +147,10 @@ API sources:
                                              Sets the source level for Java source files; default is ${DEFAULT_JAVA_LANGUAGE_LEVEL}.
 --kotlin-source <level>
                                              Sets the source level for Kotlin source files; default is ${DEFAULT_KOTLIN_LANGUAGE_LEVEL}.
+--Xuse-k1-uast
+                                             Specifies that the K1 compiler should be used (K1 is the default).
+--Xuse-k2-uast
+                                             Specifies that the K2 compiler should be used (K1 is the default).
 --sdk-home <dir>
                                              If set, locate the `android.jar` file from the given Android SDK
 --compile-sdk-version <api>

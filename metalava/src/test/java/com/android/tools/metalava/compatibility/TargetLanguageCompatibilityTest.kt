@@ -530,4 +530,187 @@ class TargetLanguageCompatibilityTest : DriverTest() {
                 """,
         )
     }
+
+    @Test
+    fun `Test comparing by super methods for different target languages`() {
+        check(
+            // When it is no longer listed for Foo, differentTargetLanguagesDisjoint appears removed
+            // because the ParentClass version has a disjoint target language set.
+            // For differentTargetLanguagesWithOverlap, the old Foo version is compared to the
+            // ParentClass version, and seen as removing a target language because the ParentClass
+            // version has an overlapping but not identical target language set.
+            expectedIssues =
+                """
+                released-api.txt:7: error: Binary breaking change: Removed method test.pkg.Foo.differentTargetLanguagesDisjoint() [RemovedMethod]
+                released-api.txt:8: error: Source breaking change: method test.pkg.Foo.differentTargetLanguagesWithOverlap() can no longer be resolved from Java source [RemovedFromJava]
+                """,
+            checkCompatibilityApiReleased =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public class Foo extends test.pkg.ParentClass {
+                    method public void sameAllTargetLanguages();
+                    method @BytecodeOnly public void sameJustBytecode();
+                    method @KotlinOnly public void sameJustKotlin();
+                    method @BytecodeOnly public void differentTargetLanguagesDisjoint();
+                    method public void differentTargetLanguagesWithOverlap();
+                  }
+                  public class ParentClass {
+                    method public void sameAllTargetLanguages();
+                    method @BytecodeOnly public void sameJustBytecode();
+                    method @KotlinOnly public void sameJustKotlin();
+                    method @KotlinOnly public void differentTargetLanguagesDisjoint();
+                    method @InaccessibleFromJava public void differentTargetLanguagesWithOverlap();
+                  }
+                }
+                """,
+            signatureSource =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public class Foo extends test.pkg.ParentClass {
+                  }
+                  public class ParentClass {
+                    method public void sameAllTargetLanguages();
+                    method @BytecodeOnly public void sameJustBytecode();
+                    method @KotlinOnly public void sameJustKotlin();
+                    method @KotlinOnly public void differentTargetLanguagesDisjoint();
+                    method @InaccessibleFromJava public void differentTargetLanguagesWithOverlap();
+                  }
+                }
+                """
+        )
+    }
+
+    @Test
+    fun `Split method into separate bytecode and kotlin entries`() {
+        check(
+            expectedIssues =
+                """
+                load-api.txt:7: error: Binary breaking change: Method test.pkg.Foo.incompatibleSplitReturnTypeChange has changed return type from void to int [ChangedType]
+                """,
+            checkCompatibilityApiReleased =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public final class Foo {
+                    method public void compatibleSplit();
+                    method public void incompatibleSplitReturnTypeChange();
+                  }
+                }
+                """,
+            signatureSource =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public final class Foo {
+                    method @KotlinOnly public void compatibleSplit();
+                    method @InaccessibleFromKotlin public void compatibleSplit();
+                    method @KotlinOnly public void incompatibleSplitReturnTypeChange();
+                    method @InaccessibleFromKotlin public int incompatibleSplitReturnTypeChange();
+                  }
+                }
+                """,
+        )
+    }
+
+    @Test
+    fun `Remove one language for method with separate bytecode and kotlin entries`() {
+        check(
+            expectedIssues =
+                """
+                released-api.txt:4: error: Source breaking change: Removed method test.pkg.Foo.removeKotlin() [RemovedMethod]
+                released-api.txt:7: error: Binary breaking change: Removed method test.pkg.Foo.removeBytecode() [RemovedMethod]
+                """,
+            checkCompatibilityApiReleased =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public final class Foo {
+                    method @KotlinOnly public int removeKotlin();
+                    method @BytecodeOnly public int removeKotlin();
+                    method @KotlinOnly public int removeBytecode();
+                    method @BytecodeOnly public int removeBytecode();
+                  }
+                }
+                """,
+            signatureSource =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public final class Foo {
+                    method @BytecodeOnly public int removeKotlin();
+                    method @KotlinOnly public int removeBytecode();
+                  }
+                }
+                """
+        )
+    }
+
+    @Test
+    fun `Merge method which had separate bytecode and kotlin entries`() {
+        check(
+            expectedIssues =
+                """
+                load-api.txt:5: error: Binary breaking change: Method test.pkg.Foo.incompatibleMergeChangeReturnType has changed return type from void to int [ChangedType]
+                """,
+            checkCompatibilityApiReleased =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public final class Foo {
+                    method @KotlinOnly public int compatibleMerge();
+                    method @BytecodeOnly public int compatibleMerge();
+                    method @KotlinOnly public int incompatibleMergeChangeReturnType();
+                    method @BytecodeOnly public void incompatibleMergeChangeReturnType();
+                  }
+                }
+                """,
+            signatureSource =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public final class Foo {
+                    method public int compatibleMerge();
+                    method public int incompatibleMergeChangeReturnType();
+                  }
+                }
+                """
+        )
+    }
+
+    @Test
+    fun `Changes to one copy of a method with separate bytecode and kotlin entries`() {
+        check(
+            expectedIssues =
+                """
+                load-api.txt:5: error: Binary breaking change: Method test.pkg.Foo.changeToBytecodeVersion has changed return type from int to void [ChangedType]
+                load-api.txt:6: error: Source breaking change: Method test.pkg.Foo.changeToKotlinVersion has changed return type from int to void [ChangedType]
+                """,
+            checkCompatibilityApiReleased =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public final class Foo {
+                    method @KotlinOnly public int changeToBytecodeVersion();
+                    method @BytecodeOnly public int changeToBytecodeVersion();
+                    method @KotlinOnly public int changeToKotlinVersion();
+                    method @BytecodeOnly public int changeToKotlinVersion();
+                  }
+                }
+                """,
+            signatureSource =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public final class Foo {
+                    method @KotlinOnly public int changeToBytecodeVersion();
+                    method @BytecodeOnly public void changeToBytecodeVersion();
+                    method @KotlinOnly public void changeToKotlinVersion();
+                    method @BytecodeOnly public int changeToKotlinVersion();
+                  }
+                }
+                """,
+        )
+    }
 }

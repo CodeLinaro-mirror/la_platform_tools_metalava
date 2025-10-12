@@ -66,10 +66,10 @@ class PsiMethodItemTest : BaseModelTest() {
             """
             )
         runCodebaseTest(sourceFile) {
-            val ctorItem = codebase.assertClass("Foo").assertConstructor("")
+            val ctorItem = codebase.assertClass("Foo").assertConstructor(emptyList())
             val ctorReturnType = ctorItem.returnType()
 
-            val methodItem = codebase.assertClass("Foo").assertMethod("bar", "")
+            val methodItem = codebase.assertClass("Foo").assertMethod("bar", emptyList())
             val methodReturnType = methodItem.returnType()
 
             assertNotNull(ctorReturnType)
@@ -104,7 +104,8 @@ class PsiMethodItemTest : BaseModelTest() {
             )
 
         runCodebaseTest(sourceFile) {
-            val childMethodItem = codebase.assertClass("ChildClass").assertMethod("bar", "")
+            val childMethodItem =
+                codebase.assertClass("ChildClass").assertMethod("bar", emptyList())
             assertEquals(false, childMethodItem.isRequiredOverridingMethodForTextStub())
         }
     }
@@ -132,7 +133,8 @@ class PsiMethodItemTest : BaseModelTest() {
             )
 
         runCodebaseTest(sourceFile) {
-            val childMethodItem = codebase.assertClass("ChildClass").assertMethod("bar", "")
+            val childMethodItem =
+                codebase.assertClass("ChildClass").assertMethod("bar", emptyList())
             assertEquals(false, childMethodItem.isRequiredOverridingMethodForTextStub())
         }
     }
@@ -161,7 +163,8 @@ class PsiMethodItemTest : BaseModelTest() {
             )
 
         runCodebaseTest(sourceFile) {
-            val childMethodItem = codebase.assertClass("ChildClass").assertMethod("bar", "")
+            val childMethodItem =
+                codebase.assertClass("ChildClass").assertMethod("bar", emptyList())
             assertEquals(false, childMethodItem.isRequiredOverridingMethodForTextStub())
         }
     }
@@ -178,7 +181,8 @@ class PsiMethodItemTest : BaseModelTest() {
             )
 
         runCodebaseTest(sourceFile) {
-            val childMethodItem = codebase.assertClass("ChildClass").assertMethod("clone", "")
+            val childMethodItem =
+                codebase.assertClass("ChildClass").assertMethod("clone", emptyList())
             assertEquals(true, childMethodItem.isRequiredOverridingMethodForTextStub())
         }
     }
@@ -195,7 +199,8 @@ class PsiMethodItemTest : BaseModelTest() {
             )
 
         runCodebaseTest(sourceFile) {
-            val childMethodItem = codebase.assertClass("ChildClass").assertMethod("clone", "")
+            val childMethodItem =
+                codebase.assertClass("ChildClass").assertMethod("clone", emptyList())
             assertEquals(true, childMethodItem.isRequiredOverridingMethodForTextStub())
         }
     }
@@ -215,7 +220,8 @@ class PsiMethodItemTest : BaseModelTest() {
             )
 
         runCodebaseTest(sourceFile) {
-            val childMethodItem = codebase.assertClass("ChildClass").assertMethod("clone", "")
+            val childMethodItem =
+                codebase.assertClass("ChildClass").assertMethod("clone", emptyList())
             assertEquals(false, childMethodItem.isRequiredOverridingMethodForTextStub())
         }
     }
@@ -232,7 +238,8 @@ class PsiMethodItemTest : BaseModelTest() {
             )
 
         runCodebaseTest(sourceFile) {
-            val childMethodItem = codebase.assertClass("ChildClass").assertMethod("toString", "")
+            val childMethodItem =
+                codebase.assertClass("ChildClass").assertMethod("toString", emptyList())
             assertEquals(false, childMethodItem.isRequiredOverridingMethodForTextStub())
         }
     }
@@ -257,7 +264,8 @@ class PsiMethodItemTest : BaseModelTest() {
             )
 
         runCodebaseTest(sourceFile) {
-            val childMethodItem = codebase.assertClass("ChildClass").assertMethod("bar", "")
+            val childMethodItem =
+                codebase.assertClass("ChildClass").assertMethod("bar", emptyList())
             assertEquals(true, childMethodItem.isRequiredOverridingMethodForTextStub())
         }
     }
@@ -287,7 +295,8 @@ class PsiMethodItemTest : BaseModelTest() {
             )
 
         runCodebaseTest(sourceFile) {
-            val childMethodItem = codebase.assertClass("ChildClass").assertMethod("bar", "")
+            val childMethodItem =
+                codebase.assertClass("ChildClass").assertMethod("bar", emptyList())
             assertEquals(true, childMethodItem.isRequiredOverridingMethodForTextStub())
         }
     }
@@ -315,7 +324,7 @@ class PsiMethodItemTest : BaseModelTest() {
             ),
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
-            val toString = fooClass.assertMethod("toString", "")
+            val toString = fooClass.assertMethod("toString", emptyList())
             assertEquals(TypeNullability.NONNULL, toString.returnType().modifiers.nullability)
 
             val barClass = codebase.assertClass("test.pkg.Bar")

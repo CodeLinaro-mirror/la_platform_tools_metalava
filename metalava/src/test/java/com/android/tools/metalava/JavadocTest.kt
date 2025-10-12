@@ -1280,16 +1280,20 @@ class JavadocTest : DriverTest() {
                 ),
             expectedIssues =
                 """
-                    src/test/pkg/Foo.java:5: warning: Invalid @hide syntax, must be a block tag (ErrorWhenNew) [InvalidJavadoc]
-                    src/test/pkg/Foo.java:10: warning: Invalid @hide syntax, must be a block tag (ErrorWhenNew) [InvalidJavadoc]
-                    src/test/pkg/Foo.java:15: warning: Invalid @hide syntax, must be a block tag (ErrorWhenNew) [InvalidJavadoc]
-                    src/test/pkg/Foo.java:21: warning: Invalid @hide syntax, must be a block tag (ErrorWhenNew) [InvalidJavadoc]
+                    src/test/pkg/Foo.java:5: warning: Invalid @hide syntax, it is ignored as it must be a block tag (ErrorWhenNew) [InvalidHideDocTag]
+                    src/test/pkg/Foo.java:10: warning: Invalid @hide syntax, it is ignored as it must be a block tag (ErrorWhenNew) [InvalidHideDocTag]
+                    src/test/pkg/Foo.java:15: warning: Invalid @hide syntax, it is ignored as it must be a block tag (ErrorWhenNew) [InvalidHideDocTag]
+                    src/test/pkg/Foo.java:21: warning: Invalid @hide syntax, it is ignored as it must be a block tag (ErrorWhenNew) [InvalidHideDocTag]
                 """,
             api =
                 """
                     // Signature format: 5.0
                     package test.pkg {
                       public class Foo {
+                        method public void bar();
+                        method public void baz();
+                        method public void quux();
+                        method public void qux();
                       }
                     }
                 """,
@@ -1301,6 +1305,23 @@ class JavadocTest : DriverTest() {
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
                             public class Foo {
                             Foo() { throw new RuntimeException("Stub!"); }
+                            /**
+                             * A method that does not use @hide correctly
+                             */
+                            public void bar() { throw new RuntimeException("Stub!"); }
+                            /**
+                             * Another method that does not use @hide correctly
+                             */
+                            public void baz() { throw new RuntimeException("Stub!"); }
+                            /**
+                             * Some text.
+                             * {@hide}
+                             */
+                            public void quux() { throw new RuntimeException("Stub!"); }
+                            /**
+                             * {@hide}
+                             */
+                            public void qux() { throw new RuntimeException("Stub!"); }
                             }
                         """
                     ),
@@ -1348,23 +1369,27 @@ class JavadocTest : DriverTest() {
                     expectedOutputContents =
                         """
                             // Baseline format: 1.0
-                            InvalidJavadoc: test/pkg/Foo.java:
-                                Invalid @hide syntax, must be a block tag
+                            InvalidHideDocTag: test/pkg/Foo.java:
+                                Invalid @hide syntax, it is ignored as it must be a block tag
                         """,
                     silentUpdate = false,
                 ),
             expectedIssues =
                 """
-                    src/test/pkg/Foo.java:5: warning: Invalid @hide syntax, must be a block tag (ErrorWhenNew) [InvalidJavadoc]
-                    src/test/pkg/Foo.java:10: warning: Invalid @hide syntax, must be a block tag (ErrorWhenNew) [InvalidJavadoc]
-                    src/test/pkg/Foo.java:15: warning: Invalid @hide syntax, must be a block tag (ErrorWhenNew) [InvalidJavadoc]
-                    src/test/pkg/Foo.java:21: warning: Invalid @hide syntax, must be a block tag (ErrorWhenNew) [InvalidJavadoc]
+                    src/test/pkg/Foo.java:5: warning: Invalid @hide syntax, it is ignored as it must be a block tag (ErrorWhenNew) [InvalidHideDocTag]
+                    src/test/pkg/Foo.java:10: warning: Invalid @hide syntax, it is ignored as it must be a block tag (ErrorWhenNew) [InvalidHideDocTag]
+                    src/test/pkg/Foo.java:15: warning: Invalid @hide syntax, it is ignored as it must be a block tag (ErrorWhenNew) [InvalidHideDocTag]
+                    src/test/pkg/Foo.java:21: warning: Invalid @hide syntax, it is ignored as it must be a block tag (ErrorWhenNew) [InvalidHideDocTag]
                 """,
             api =
                 """
                     // Signature format: 5.0
                     package test.pkg {
                       public class Foo {
+                        method public void bar();
+                        method public void baz();
+                        method public void quux();
+                        method public void qux();
                       }
                     }
                 """,
@@ -1376,6 +1401,23 @@ class JavadocTest : DriverTest() {
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
                             public class Foo {
                             Foo() { throw new RuntimeException("Stub!"); }
+                            /**
+                             * A method that does not use @hide correctly
+                             */
+                            public void bar() { throw new RuntimeException("Stub!"); }
+                            /**
+                             * Another method that does not use @hide correctly
+                             */
+                            public void baz() { throw new RuntimeException("Stub!"); }
+                            /**
+                             * Some text.
+                             * {@hide}
+                             */
+                            public void quux() { throw new RuntimeException("Stub!"); }
+                            /**
+                             * {@hide}
+                             */
+                            public void qux() { throw new RuntimeException("Stub!"); }
                             }
                         """
                     ),

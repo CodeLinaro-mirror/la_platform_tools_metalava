@@ -102,11 +102,12 @@ class CommonTypeAliasTest : BaseModelTest() {
                     createCommonModuleDescription(arrayOf(commonSource)),
                 ),
         ) {
-            val commonMethod = codebase.assertClass("test.pkg.FooKt").assertMethod("common", "")
+            val commonMethod =
+                codebase.assertClass("test.pkg.FooKt").assertMethod("common", emptyList())
             assertion(commonMethod.returnType())
 
             val androidMethod =
-                codebase.assertClass("test.pkg.Foo_androidKt").assertMethod("android", "")
+                codebase.assertClass("test.pkg.Foo_androidKt").assertMethod("android", emptyList())
             assertion(androidMethod.returnType())
         }
     }

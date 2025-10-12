@@ -1,8 +1,6 @@
 pluginManagement {
     repositories {
-        // Prefer mavenCentral as that has signed artifacts
-        mavenCentral()
-        gradlePluginPortal()
+        maven("../../prebuilts/androidx/external")
     }
 }
 

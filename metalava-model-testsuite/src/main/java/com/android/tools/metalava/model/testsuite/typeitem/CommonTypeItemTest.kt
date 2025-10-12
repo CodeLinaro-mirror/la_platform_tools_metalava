@@ -1324,31 +1324,31 @@ class CommonTypeItemTest : BaseModelTest() {
             val x = childTypeParams[0]
             val y = childTypeParams[1]
 
-            val mVar = parent.assertMethod("getM", "").returnType()
+            val mVar = parent.assertMethod("getM", emptyList()).returnType()
             val xVar = mVar.convertType(child, parent)
             assertThat(xVar.toTypeString()).isEqualTo("X")
             xVar.assertReferencesTypeParameter(x)
 
-            val nArray = parent.assertMethod("getNArray", "").returnType()
+            val nArray = parent.assertMethod("getNArray", emptyList()).returnType()
             val yArray = nArray.convertType(child, parent)
             assertThat(yArray.toTypeString()).isEqualTo("Y[]")
             assertThat((yArray as ArrayTypeItem).isVarargs).isFalse()
             yArray.componentType.assertReferencesTypeParameter(y)
 
-            val mList = parent.assertMethod("getMList", "").returnType()
+            val mList = parent.assertMethod("getMList", emptyList()).returnType()
             val xList = mList.convertType(child, parent)
             assertThat(xList.toTypeString()).isEqualTo("java.util.List<X>")
             assertThat((xList as ClassTypeItem).qualifiedName).isEqualTo("java.util.List")
             xList.arguments.single().assertReferencesTypeParameter(x)
 
-            val mToNMap = parent.assertMethod("getMap", "").returnType()
+            val mToNMap = parent.assertMethod("getMap", emptyList()).returnType()
             val xToYMap = mToNMap.convertType(child, parent)
             assertThat(xToYMap.toTypeString()).isEqualTo("java.util.Map<X,Y>")
             assertThat((xToYMap as ClassTypeItem).qualifiedName).isEqualTo("java.util.Map")
             xToYMap.arguments[0].assertReferencesTypeParameter(x)
             xToYMap.arguments[1].assertReferencesTypeParameter(y)
 
-            val wildcards = parent.assertMethod("getWildcards", "").returnType()
+            val wildcards = parent.assertMethod("getWildcards", emptyList()).returnType()
             val convertedWildcards = wildcards.convertType(child, parent)
             assertThat(convertedWildcards.toTypeString())
                 .isEqualTo("test.pkg.Parent<? extends X,? super Y>")

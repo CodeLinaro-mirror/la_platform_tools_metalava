@@ -2841,8 +2841,7 @@ abstract class UastTestBase : DriverTest() {
 
     @Test
     fun `JvmMultifileClass with files in common and android`() {
-        // b/417699607 the android method is dropped from K2 tracking
-        val androidMethod = if (isK2) "" else "method public static void fooAndroid();"
+        // b/417699607 the android method was dropped from K2 tracking
         val commonSource =
             kotlin(
                 "commonMain/src/test/pkg/Foo.kt",
@@ -2883,7 +2882,7 @@ abstract class UastTestBase : DriverTest() {
                 // Signature format: 5.0
                 package test.pkg {
                   public final class Foo {
-                    $androidMethod
+                    method public static void fooAndroid();
                     method public static void fooCommon();
                   }
                 }

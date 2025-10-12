@@ -5,6 +5,7 @@ com.android.tools.metalava.model.testsuite.classitem.CommonDuplicateClassItemTes
   Test duplicate classes
 
 com.android.tools.metalava.model.testsuite.documentation.CommonItemDocumentationTest
+  Test ItemDocumentation appendDocumentation
   Test javadoc locations
 
 com.android.tools.metalava.model.testsuite.documentation.CommonParameterizedDocumentationTest

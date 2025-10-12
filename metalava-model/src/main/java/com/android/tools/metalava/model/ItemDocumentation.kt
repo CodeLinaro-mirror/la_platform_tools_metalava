@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model
 
 import com.android.tools.metalava.reporter.FileLocation
+import java.io.PrintWriter
 
 /** A factory that will create an [ItemDocumentation] for a specific [SelectableItem]. */
 typealias ItemDocumentationFactory = (SelectableItem) -> ItemDocumentation
@@ -93,6 +94,14 @@ interface ItemDocumentation {
     fun hasBlockTagOfType(blockTagType: String): Boolean
 
     /**
+     * Print the documentation to [writer].
+     *
+     * The printed documentation will be suitable for use in a stub source file, i.e. references
+     * will, where possible, be fully qualified.
+     */
+    fun print(writer: PrintWriter)
+
+    /**
      * Looks up docs for the first instance of a specific javadoc tag having the (optionally)
      * provided value (e.g. parameter name).
      */
@@ -155,6 +164,9 @@ interface ItemDocumentation {
 
         // Empty documentation never has any tag sections.
         override fun hasBlockTagOfType(blockTagType: String) = false
+
+        // Empty documentation has nothing to print.
+        override fun print(writer: PrintWriter) {}
 
         override fun findTagDocumentation(tag: String, value: String?): String? = null
 

@@ -21,6 +21,7 @@ import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.source.doc.DocComment
 import com.android.tools.metalava.model.source.doc.DocumentationIssueReporter
 import com.android.tools.metalava.reporter.Issues
+import java.io.PrintWriter
 import java.util.regex.Pattern
 
 /**
@@ -74,6 +75,14 @@ abstract class AbstractItemDocumentation(
 
     override fun hasBlockTagOfType(blockTagType: String) =
         docComment.hasBlockTagOfType(blockTagType)
+
+    override fun print(writer: PrintWriter) {
+        val text = fullyQualifiedDocumentation()
+        if (text.isNotBlank()) {
+            val trimmed = trimDocIndent(text)
+            writer.println(trimmed)
+        }
+    }
 
     override fun workAroundJavaDocSummaryTruncationIssue() {
         // Work around javadoc cutting off the summary line after the first ". ".
@@ -188,6 +197,72 @@ abstract class AbstractItemDocumentation(
     override fun report(issue: Issues.Issue, message: String, lineOffset: Int) {
         val location = fileLocation.forLineOffset(lineOffset)
         item.codebase.reporter.report(issue, null, message, location)
+    }
+}
+
+/**
+ * Matches a comment line, allowing significant content to be extracted.
+ *
+ * Significant content excludes trailing whitespace and leading asterisks
+ * https://docs.oracle.com/en/java/javase/11/docs/specs/doc-comment-spec.html#leading-asterisks
+ */
+private val COMMENT_LINE = Pattern.compile("""^(\h*\*+)?(.*?)\h*$""", Pattern.MULTILINE)
+
+/** The group in [COMMENT_LINE] that contains the optional leading asterisks. */
+private const val LEADING_ASTERISKS_GROUP = 1
+
+/** The group in [COMMENT_LINE] that contains the significant content. */
+private const val SIGNIFICANT_TEXT_GROUP = 2
+
+/**
+ * Trim indentation from the [existingDoc] comment.
+ *
+ * Removes indentation whitespace after the first newline, making sure that there is at least one
+ * white space of indentation.
+ */
+fun trimDocIndent(existingDoc: String): String {
+    // Trim leading/trailing whitespace from the existing documentation
+    val trimmed = existingDoc.trim()
+
+    val index = trimmed.indexOf('\n')
+    if (index == -1) {
+        return trimmed
+    }
+
+    // Transform the comment normalizing the indentation.
+    return buildString {
+        var separator = ""
+        val matcher = COMMENT_LINE.matcher(trimmed)
+
+        // Match each comment line to determine if it has any leading asterisks and what the
+        // significant content is.
+        while (matcher.find()) {
+            append(separator)
+            separator = "\n"
+
+            // Get the bounds of the significant text from the comment line.
+            val start = matcher.start(SIGNIFICANT_TEXT_GROUP)
+            val end = matcher.end(SIGNIFICANT_TEXT_GROUP)
+
+            if (matcher.start(LEADING_ASTERISKS_GROUP) != -1 || start == end) {
+                // It either has leading asterisks in which case they need to be replaced with " *"
+                // or it is blank in which case it should be represented with " *".
+                append(" *")
+            } else {
+                val c = trimmed[start]
+                // Add a leading " *" to every line except lines that start with a "/" as that would
+                // produce a "*/" token which would prematurely end the comment and cause
+                // compilation errors.
+                if (c != '/') {
+                    append(" *")
+                }
+            }
+
+            // Add the significant text from the comment line.
+            if (start != end) {
+                append(trimmed, start, end)
+            }
+        }
     }
 }
 

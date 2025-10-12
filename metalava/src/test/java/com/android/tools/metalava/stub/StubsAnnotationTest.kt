@@ -534,7 +534,8 @@ class StubsAnnotationTest : AbstractStubsTest() {
                 public static @interface InnerAnnotation {
                 }
                 }
-                """
+                """,
+            filterBlankLinesFromStubFiles = false,
         )
     }
 

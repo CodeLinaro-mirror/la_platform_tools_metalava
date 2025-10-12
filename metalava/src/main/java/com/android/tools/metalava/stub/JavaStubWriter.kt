@@ -47,7 +47,6 @@ internal class JavaStubWriter(
             val qualifiedName = cls.containingPackage().qualifiedName()
             if (qualifiedName.isNotBlank()) {
                 writer.println("package $qualifiedName;")
-                writer.println()
             }
             if (config.includeDocumentationInStubs) {
                 // All the classes referenced in the stubs are fully qualified, so no imports are
@@ -61,7 +60,6 @@ internal class JavaStubWriter(
                             writer.println("import ${item.pattern};")
                         }
                     }
-                    writer.println()
                 }
             }
         }
@@ -86,7 +84,7 @@ internal class JavaStubWriter(
         generateTypeParameterList(typeList = cls.typeParameterList, addSpace = false)
         generateSuperClassDeclaration(cls)
         generateInterfaceList(cls)
-        writer.print(" {\n")
+        writer.println(" {")
 
         // Enum constants must be written out first.
         if (cls.isEnum()) {
@@ -118,7 +116,7 @@ internal class JavaStubWriter(
     }
 
     override fun afterVisitClass(cls: ClassItem) {
-        writer.print("}\n\n")
+        writer.println("}")
     }
 
     private fun appendModifiers(item: Item) {
@@ -172,7 +170,6 @@ internal class JavaStubWriter(
     }
 
     override fun visitConstructor(constructor: ConstructorItem) {
-        writer.println()
         appendDocumentation(constructor, writer, config)
         appendModifiers(constructor)
         generateTypeParameterList(typeList = constructor.typeParameterList, addSpace = true)
@@ -300,7 +297,6 @@ internal class JavaStubWriter(
     }
 
     private fun writeMethod(containingClass: ClassItem, method: MethodItem) {
-        writer.println()
         appendDocumentation(method, writer, config)
 
         appendModifiers(method)
@@ -335,8 +331,6 @@ internal class JavaStubWriter(
         if (field.isEnumConstant()) {
             return
         }
-
-        writer.println()
 
         appendDocumentation(field, writer, config)
         appendModifiers(field)

@@ -78,15 +78,19 @@ import org.jetbrains.kotlin.psi.KtElement
 import org.jetbrains.kotlin.psi.KtModifierList
 import org.jetbrains.kotlin.psi.KtModifierListOwner
 import org.jetbrains.kotlin.psi.KtNamedFunction
+import org.jetbrains.kotlin.psi.KtObjectDeclaration
 import org.jetbrains.kotlin.psi.KtPrimaryConstructor
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
 import org.jetbrains.kotlin.psi.psiUtil.containingClass
 import org.jetbrains.kotlin.psi.psiUtil.visibilityModifier
 import org.jetbrains.uast.UAnnotated
 import org.jetbrains.uast.UAnnotation
+import org.jetbrains.uast.UClass
 import org.jetbrains.uast.UElement
+import org.jetbrains.uast.UField
 import org.jetbrains.uast.UMethod
 import org.jetbrains.uast.UVariable
+import org.jetbrains.uast.toUElement
 
 internal object PsiModifierItem {
     fun create(
@@ -448,13 +452,43 @@ internal object PsiModifierItem {
     ): MutableModifierList {
         val modifierList =
             element.modifierList ?: return createMutableModifiers(VisibilityLevel.PACKAGE_PRIVATE)
-        val uAnnotations = annotated.uAnnotations
+        val uAnnotations = annotated.uAnnotations.toMutableList()
         val psiAnnotations =
             modifierList.annotations.takeIf { it.isNotEmpty() }
                 ?: (annotated.javaPsi as? PsiModifierListOwner)?.annotations
                 ?: PsiAnnotation.EMPTY_ARRAY
 
         var flags = computeFlag(element, modifierList)
+
+        // The below code remedies a problem where companion objects as fields don't have
+        // annotations in signature files (b/401235591). This code takes the annotations
+        // from the companion class and applies them to the field.
+        if (element is UField) {
+            val companionObjectClass = (element.sourcePsi.toUElement())
+
+            // The following checks if the field is indeed a companion object. Companion objects
+            // are the only case where there is a field that has sourcePsi being a UClass, and
+            // that UClass's sourcePsi is a KtObjectDeclaration. Other field types (e.g.
+            // primitives, lambdas, etc) don't have this property.
+            if (
+                companionObjectClass is UClass &&
+                    companionObjectClass.sourcePsi is KtObjectDeclaration &&
+                    (companionObjectClass.sourcePsi as KtObjectDeclaration).hasModifier(
+                        KtTokens.COMPANION_KEYWORD
+                    )
+            ) {
+                companionObjectClass.uAnnotations.forEach { newAnnotation ->
+                    // prevent duplicate annotations from being copied over
+                    if (
+                        uAnnotations.none { existingAnnotation ->
+                            existingAnnotation.qualifiedName.equals(newAnnotation.qualifiedName)
+                        }
+                    ) {
+                        uAnnotations.add(newAnnotation)
+                    }
+                }
+            }
+        }
 
         return if (uAnnotations.isEmpty()) {
             if (psiAnnotations.isNotEmpty()) {

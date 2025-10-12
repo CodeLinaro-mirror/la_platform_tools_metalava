@@ -947,14 +947,15 @@ class CommonTypeModifiersTest : BaseModelTest() {
 
             // Platform nullability isn't possible from Kotlin
             if (inputFormat != InputFormat.KOTLIN) {
-                val platformString = fooClass.assertMethod("platformString", "").returnType()
+                val platformString =
+                    fooClass.assertMethod("platformString", emptyList()).returnType()
                 assertThat(platformString.modifiers.nullability).isEqualTo(PLATFORM)
             }
 
-            val nullableString = fooClass.assertMethod("nullableString", "").returnType()
+            val nullableString = fooClass.assertMethod("nullableString", emptyList()).returnType()
             nullableString.assertHasNullableNullability(nullabilityFromAnnotations)
 
-            val nonNullString = fooClass.assertMethod("nonNullString", "").returnType()
+            val nonNullString = fooClass.assertMethod("nonNullString", emptyList()).returnType()
             nonNullString.assertHasNonNullNullability(nullabilityFromAnnotations)
         }
     }
@@ -1028,7 +1029,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
             // Platform nullability isn't possible from Kotlin
             if (inputFormat != InputFormat.KOTLIN) {
                 val platformStringPlatformArray =
-                    fooClass.assertMethod("platformStringPlatformArray", "").returnType()
+                    fooClass.assertMethod("platformStringPlatformArray", emptyList()).returnType()
                 platformStringPlatformArray.assertArrayTypeItem {
                     assertHasPlatformNullability()
                     componentType.assertHasPlatformNullability()
@@ -1038,7 +1039,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
             // Platform nullability isn't possible from Kotlin
             if (inputFormat != InputFormat.KOTLIN) {
                 val platformStringNullableArray =
-                    fooClass.assertMethod("platformStringNullableArray", "").returnType()
+                    fooClass.assertMethod("platformStringNullableArray", emptyList()).returnType()
                 platformStringNullableArray.assertArrayTypeItem {
                     assertHasNullableNullability(nullabilityFromAnnotations)
                     componentType.assertHasPlatformNullability()
@@ -1048,7 +1049,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
             // Platform nullability isn't possible from Kotlin
             if (inputFormat != InputFormat.KOTLIN) {
                 val nonNullStringPlatformArray =
-                    fooClass.assertMethod("nonNullStringPlatformArray", "").returnType()
+                    fooClass.assertMethod("nonNullStringPlatformArray", emptyList()).returnType()
                 nonNullStringPlatformArray.assertArrayTypeItem {
                     assertHasPlatformNullability()
                     componentType.assertHasNonNullNullability(nullabilityFromAnnotations)
@@ -1056,14 +1057,14 @@ class CommonTypeModifiersTest : BaseModelTest() {
             }
 
             val nullableStringNonNullArray =
-                fooClass.assertMethod("nullableStringNonNullArray", "").returnType()
+                fooClass.assertMethod("nullableStringNonNullArray", emptyList()).returnType()
             nullableStringNonNullArray.assertArrayTypeItem {
                 assertHasNonNullNullability(nullabilityFromAnnotations)
                 componentType.assertHasNullableNullability(nullabilityFromAnnotations)
             }
 
             val nullableStringNullableArray =
-                fooClass.assertMethod("nullableStringNullableArray", "").returnType()
+                fooClass.assertMethod("nullableStringNullableArray", emptyList()).returnType()
             nullableStringNullableArray.assertArrayTypeItem {
                 assertHasNullableNullability(nullabilityFromAnnotations)
                 componentType.assertHasNullableNullability(nullabilityFromAnnotations)
@@ -1212,7 +1213,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
             if (inputFormat != InputFormat.KOTLIN) {
                 val platformStringPlatformVararg =
                     fooClass
-                        .assertMethod("platformStringPlatformVararg", "java.lang.String[]")
+                        .assertMethod("platformStringPlatformVararg", listOf("java.lang.String..."))
                         .parameters()
                         .single()
                         .type()
@@ -1225,7 +1226,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
             if (inputFormat != InputFormat.KOTLIN) {
                 val nullableStringPlatformVararg =
                     fooClass
-                        .assertMethod("nullableStringPlatformVararg", "java.lang.String[]")
+                        .assertMethod("nullableStringPlatformVararg", listOf("java.lang.String..."))
                         .parameters()
                         .single()
                         .type()
@@ -1238,7 +1239,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
             if (inputFormat != InputFormat.KOTLIN) {
                 val platformStringNullableVararg =
                     fooClass
-                        .assertMethod("platformStringNullableVararg", "java.lang.String[]")
+                        .assertMethod("platformStringNullableVararg", listOf("java.lang.String..."))
                         .parameters()
                         .single()
                         .type()
@@ -1251,7 +1252,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
             if (inputFormat != InputFormat.KOTLIN) {
                 val nullableStringNullableVararg =
                     fooClass
-                        .assertMethod("nullableStringNullableVararg", "java.lang.String[]")
+                        .assertMethod("nullableStringNullableVararg", listOf("java.lang.String..."))
                         .parameters()
                         .single()
                         .type()
@@ -1264,7 +1265,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
             // The only version that exists for Kotlin
             val nullableStringNonNullVararg =
                 fooClass
-                    .assertMethod("nullableStringNonNullVararg", "java.lang.String[]")
+                    .assertMethod("nullableStringNonNullVararg", listOf("java.lang.String..."))
                     .parameters()
                     .single()
                     .type()
@@ -1340,7 +1341,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
             // Platform type doesn't exist in Kotlin
             if (inputFormat != InputFormat.KOTLIN) {
                 val nullableListPlatformString =
-                    fooClass.assertMethod("nullableListPlatformString", "").returnType()
+                    fooClass.assertMethod("nullableListPlatformString", emptyList()).returnType()
                 nullableListPlatformString.assertClassTypeItem {
                     assertHasNullableNullability(nullabilityFromAnnotations)
                     arguments.single().assertHasPlatformNullability()
@@ -1348,13 +1349,13 @@ class CommonTypeModifiersTest : BaseModelTest() {
             }
 
             val nonNullListNullableString =
-                fooClass.assertMethod("nonNullListNullableString", "").returnType()
+                fooClass.assertMethod("nonNullListNullableString", emptyList()).returnType()
             nonNullListNullableString.assertClassTypeItem {
                 assertHasNonNullNullability(nullabilityFromAnnotations)
                 arguments.single().assertHasNullableNullability(nullabilityFromAnnotations)
             }
 
-            val nullableMap = fooClass.assertMethod("nullableMap", "").returnType()
+            val nullableMap = fooClass.assertMethod("nullableMap", emptyList()).returnType()
             nullableMap.assertClassTypeItem {
                 assertHasNullableNullability(nullabilityFromAnnotations)
                 // Non-null Integer
@@ -1498,7 +1499,8 @@ class CommonTypeModifiersTest : BaseModelTest() {
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
 
-            val extendsBoundReturnType = fooClass.assertMethod("extendsBound", "").returnType()
+            val extendsBoundReturnType =
+                fooClass.assertMethod("extendsBound", emptyList()).returnType()
             extendsBoundReturnType.assertClassTypeItem {
                 assertHasNonNullNullability(nullabilityFromAnnotations)
 
@@ -1511,7 +1513,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
                 }
             }
 
-            val superBoundReturnType = fooClass.assertMethod("superBound", "").returnType()
+            val superBoundReturnType = fooClass.assertMethod("superBound", emptyList()).returnType()
             superBoundReturnType.assertClassTypeItem {
                 assertHasNonNullNullability(nullabilityFromAnnotations)
 
@@ -1524,7 +1526,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
                 }
             }
 
-            val unboundedReturnType = fooClass.assertMethod("unbounded", "").returnType()
+            val unboundedReturnType = fooClass.assertMethod("unbounded", emptyList()).returnType()
             unboundedReturnType.assertClassTypeItem {
                 assertHasNonNullNullability(nullabilityFromAnnotations)
 
@@ -1899,7 +1901,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
             // () -> String
-            val noParamToString = fooClass.assertMethod("noParamToString", "").returnType()
+            val noParamToString = fooClass.assertMethod("noParamToString", emptyList()).returnType()
             noParamToString.assertClassTypeItem {
                 assertHasNonNullNullability(expectAnnotation = false)
                 assertThat(arguments).hasSize(1)
@@ -1907,7 +1909,8 @@ class CommonTypeModifiersTest : BaseModelTest() {
             }
 
             // (String?) -> String
-            val oneParamToString = fooClass.assertMethod("oneParamToString", "").returnType()
+            val oneParamToString =
+                fooClass.assertMethod("oneParamToString", emptyList()).returnType()
             oneParamToString.assertClassTypeItem {
                 assertHasNonNullNullability(expectAnnotation = false)
                 assertThat(arguments).hasSize(2)
@@ -1916,7 +1919,8 @@ class CommonTypeModifiersTest : BaseModelTest() {
             }
 
             // (String, Int?) -> String?
-            val twoParamToString = fooClass.assertMethod("twoParamToString", "").returnType()
+            val twoParamToString =
+                fooClass.assertMethod("twoParamToString", emptyList()).returnType()
             twoParamToString.assertClassTypeItem {
                 assertHasNonNullNullability(expectAnnotation = false)
                 assertThat(arguments).hasSize(3)
@@ -1926,7 +1930,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
             }
 
             // (String) -> Unit
-            val oneParamToUnit = fooClass.assertMethod("oneParamToUnit", "").returnType()
+            val oneParamToUnit = fooClass.assertMethod("oneParamToUnit", emptyList()).returnType()
             oneParamToUnit.assertClassTypeItem {
                 assertHasNonNullNullability(expectAnnotation = false)
                 assertThat(arguments).hasSize(2)

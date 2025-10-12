@@ -69,7 +69,8 @@ class CommonCopyMethodItemTest : CommonCopyMemberItemTest<MethodItem>() {
         return (inputFormat in copyMethod.supportedInputFormats)
     }
 
-    override fun getMember(sourceClassItem: ClassItem) = sourceClassItem.assertMethod("method", "")
+    override fun getMember(sourceClassItem: ClassItem) =
+        sourceClassItem.assertMethod("method", emptyList())
 
     override fun copyMember(sourceMemberItem: MethodItem, targetClassItem: ClassItem) =
         copyMethod.copy(sourceMemberItem, targetClassItem)

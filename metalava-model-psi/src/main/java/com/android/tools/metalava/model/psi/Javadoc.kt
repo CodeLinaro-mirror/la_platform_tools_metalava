@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.psi
 
+import com.android.tools.metalava.model.source.trimDocIndent
 import com.intellij.psi.JavaDocTokenType
 import com.intellij.psi.JavaPsiFacade
 import com.intellij.psi.PsiElement
@@ -190,22 +191,6 @@ internal fun findTagEnd(tag: PsiDocTag): Int {
     }
 
     return tag.textRange.endOffset
-}
-
-fun trimDocIndent(existingDoc: String): String {
-    val index = existingDoc.indexOf('\n')
-    if (index == -1) {
-        return existingDoc
-    }
-
-    return existingDoc.substring(0, index + 1) +
-        existingDoc.substring(index + 1).trimIndent().split('\n').joinToString(separator = "\n") {
-            if (!it.startsWith(" ")) {
-                " ${it.trimEnd()}"
-            } else {
-                it.trimEnd()
-            }
-        }
 }
 
 internal fun insertInto(existingDoc: String, newText: String, initialOffset: Int): String {

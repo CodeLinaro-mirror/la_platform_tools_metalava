@@ -190,4 +190,21 @@ interface Codebase : ClassResolver, AnnotationContext {
                 )
         }
     }
+
+    companion object {
+        /** Find the corresponding item in the previously released API if available. */
+        fun findPreviouslyReleased(oldCodebase: Codebase?, item: Item?): Item? {
+            return oldCodebase?.let {
+                item?.findCorrespondingItemIn(
+                    oldCodebase,
+                    superMethods = true,
+                    duplicate = true,
+                )
+            }
+        }
+
+        /** Check to see if [item] was previously released. */
+        fun wasPreviouslyReleased(oldCodebase: Codebase?, item: Item?) =
+            findPreviouslyReleased(oldCodebase, item) != null
+    }
 }

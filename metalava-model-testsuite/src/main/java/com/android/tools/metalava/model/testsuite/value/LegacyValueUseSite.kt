@@ -43,7 +43,7 @@ enum class LegacyValueUseSite(
     ATTRIBUTE_DEFAULT_VALUE(
         ValueUseSite.ANNOTATION,
         legacySourceGetter = {
-            val annotationMethod = testClassItem.assertMethod(ATTRIBUTE_NAME, "")
+            val annotationMethod = testClassItem.assertMethod(ATTRIBUTE_NAME, emptyList())
 
             annotationMethod.legacyDefaultValue()
         },

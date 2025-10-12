@@ -54,7 +54,9 @@ class CommonSamCompatibleTest : BaseModelTest() {
             )
         ) {
             val fooMethod =
-                codebase.assertClass("test.pkg.Foo").assertMethod("foo", "int,boolean,float")
+                codebase
+                    .assertClass("test.pkg.Foo")
+                    .assertMethod("foo", listOf("int", "boolean", "float"))
             for (parameter in fooMethod.parameters()) {
                 assertThat(parameter.type().isSamCompatibleOrKotlinLambda()).isFalse()
             }
@@ -90,7 +92,11 @@ class CommonSamCompatibleTest : BaseModelTest() {
                     .assertClass("test.pkg.Foo")
                     .assertMethod(
                         "foo",
-                        "kotlin.jvm.functions.Function0,kotlin.jvm.functions.Function1,kotlin.jvm.functions.Function2"
+                        listOf(
+                            "kotlin.jvm.functions.Function0<kotlin.Unit>",
+                            "kotlin.jvm.functions.Function1<? super java.lang.Integer,java.lang.Integer>",
+                            "kotlin.jvm.functions.Function2<? super java.lang.Integer,? super java.lang.String,java.lang.String>"
+                        )
                     )
             for (parameter in fooMethod.parameters()) {
                 assertThat(parameter.type().isSamCompatibleOrKotlinLambda()).isTrue()
@@ -126,7 +132,11 @@ class CommonSamCompatibleTest : BaseModelTest() {
                     .assertClass("test.pkg.Foo")
                     .assertMethod(
                         "foo",
-                        "kotlin.jvm.functions.Function1,kotlin.jvm.functions.Function2,kotlin.jvm.functions.Function3"
+                        listOf(
+                            "kotlin.jvm.functions.Function1<? super kotlin.coroutines.Continuation<? super kotlin.Unit>,?>",
+                            "kotlin.jvm.functions.Function2<? super java.lang.Integer,? super kotlin.coroutines.Continuation<? super java.lang.Integer>,?>",
+                            "kotlin.jvm.functions.Function3<? super java.lang.Integer,? super java.lang.String,? super kotlin.coroutines.Continuation<? super java.lang.String>,?>"
+                        )
                     )
             for (parameter in fooMethod.parameters()) {
                 assertThat(parameter.type().isSamCompatibleOrKotlinLambda()).isTrue()
@@ -187,7 +197,7 @@ class CommonSamCompatibleTest : BaseModelTest() {
             val fooParameter =
                 codebase
                     .assertClass("test.pkg.Foo")
-                    .assertMethod("foo", "test.pkg.SamInterface")
+                    .assertMethod("foo", listOf("test.pkg.SamInterface"))
                     .parameters()
                     .single()
             assertThat(fooParameter.type().isSamCompatibleOrKotlinLambda()).isTrue()
@@ -234,7 +244,7 @@ class CommonSamCompatibleTest : BaseModelTest() {
             val fooParameter =
                 codebase
                     .assertClass("test.pkg.Foo")
-                    .assertMethod("foo", "test.pkg.SamInterface")
+                    .assertMethod("foo", listOf("test.pkg.SamInterface"))
                     .parameters()
                     .single()
             assertThat(fooParameter.type().isSamCompatibleOrKotlinLambda()).isFalse()
@@ -294,7 +304,7 @@ class CommonSamCompatibleTest : BaseModelTest() {
             val fooParameter =
                 codebase
                     .assertClass("test.pkg.Foo")
-                    .assertMethod("foo", "test.pkg.FunInterface")
+                    .assertMethod("foo", listOf("test.pkg.FunInterface"))
                     .parameters()
                     .single()
             assertThat(fooParameter.type().isSamCompatibleOrKotlinLambda()).isTrue()
@@ -327,7 +337,7 @@ class CommonSamCompatibleTest : BaseModelTest() {
             val fooParameter =
                 codebase
                     .assertClass("test.pkg.Foo")
-                    .assertMethod("foo", "kotlin.jvm.functions.Function0")
+                    .assertMethod("foo", listOf("T"))
                     .parameters()
                     .single()
             assertThat(fooParameter.type().isSamCompatibleOrKotlinLambda()).isTrue()
@@ -399,9 +409,7 @@ class CommonSamCompatibleTest : BaseModelTest() {
             )
         ) {
             val fooMethod =
-                codebase
-                    .assertClass("test.pkg.Foo")
-                    .assertMethod("foo", "test.pkg.FunInterface,test.pkg.SamInterface")
+                codebase.assertClass("test.pkg.Foo").assertMethod("foo", listOf("T1", "T2"))
             for (parameter in fooMethod.parameters()) {
                 assertThat(parameter.type().isSamCompatibleOrKotlinLambda()).isFalse()
             }

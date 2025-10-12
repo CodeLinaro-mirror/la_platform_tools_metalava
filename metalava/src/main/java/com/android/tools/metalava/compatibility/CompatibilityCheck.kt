@@ -227,7 +227,7 @@ class CompatibilityCheck(
     override fun compareSelectableItems(old: SelectableItem, new: SelectableItem) {
         // Adding target languages is allowed, removing is not
         val removedTargetLanguages = old.targetLanguages.minus(new.targetLanguages)
-        val item = Item.Companion.describe(new)
+        val item = describe(new)
         // Report issues on the old version of the item. If they were reported on the new version,
         // they wouldn't end up reported, since removing from bytecode is only binary breaking and
         // wouldn't be reported for the new item which only targets source (similarly for removing
@@ -235,6 +235,12 @@ class CompatibilityCheck(
         for (removedTargetLanguage in removedTargetLanguages) {
             when (removedTargetLanguage) {
                 TargetLanguage.BYTECODE -> {
+                    // Check if there's still a version of this method with the same erased
+                    // signature which can be used from bytecode.
+                    if (old is MethodItem) {
+                        if (findCompatibleBytecodeOverload(old, new.containingClass()) != null)
+                            continue
+                    }
                     report(
                         Issues.REMOVED_FROM_BYTECODE,
                         old,
@@ -257,6 +263,17 @@ class CompatibilityCheck(
                     )
                 }
                 TargetLanguage.JAVA -> {
+                    // Check if there's still a version of this method with the same erased
+                    // signature which can be used from Java.
+                    if (old is MethodItem) {
+                        val newCompatibleOverload =
+                            findCompatibleBytecodeOverload(old, new.containingClass())
+                        if (
+                            newCompatibleOverload != null &&
+                                newCompatibleOverload.targetLanguages.contains(TargetLanguage.JAVA)
+                        )
+                            continue
+                    }
                     report(
                         Issues.REMOVED_FROM_JAVA,
                         old,
@@ -265,6 +282,18 @@ class CompatibilityCheck(
                 }
             }
         }
+    }
+
+    /**
+     * Checks if there is an erased-signature match for the [original] in the [newContainingClass].
+     */
+    private fun findCompatibleBytecodeOverload(
+        original: MethodItem,
+        newContainingClass: ClassItem?,
+    ): MethodItem? {
+        val erasedSignature =
+            original.parameters().joinToString(",") { it.type().toErasedTypeString() }
+        return newContainingClass?.findBytecodeMethod(original.name(), erasedSignature)
     }
 
     /**
@@ -323,7 +352,7 @@ class CompatibilityCheck(
             return false
         // All parameters from the original need to be present on the candidate, initial check to
         // make sure there are at least as many parameters (check for if they match is below).
-        if (candidate.parameters().size <= original.parameters().size) return false
+        if (candidate.parameters().size < original.parameters().size) return false
         // All new parameters on the candidate need to be optional for calls to the original to
         // still work since they won't be providing these new parameters.
         val additionalParameters =
