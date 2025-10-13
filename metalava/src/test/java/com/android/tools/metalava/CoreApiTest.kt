@@ -96,18 +96,14 @@ class CoreApiTest : DriverTest() {
                 arrayOf(
                     java(
                         """
-                    /**
-                     * Hide everything in this package:
-                     */
+                    /** Hide everything in this package: */
                     package test.pkg;
                     """
                     ),
                     java(
                         """
                     package test.pkg;
-                    /**
-                     * Included because it is annotated with a --show-single-annotation
-                     */
+                    /** Included because it is annotated with a --show-single-annotation */
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Exposed {
                     Exposed() { throw new RuntimeException("Stub!"); }

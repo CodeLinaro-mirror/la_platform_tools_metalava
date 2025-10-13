@@ -140,10 +140,13 @@ internal object DocCommentParser {
             // If a `@hide` was found then report it as an error.
             val hideIndex = text.indexOf("@hide")
             if (hideIndex > 0) {
+                val lineOffset = text.lineOffsetFor(hideIndex)
+                val charOffset = text.characterOffsetFor(hideIndex)
                 reporter.report(
                     Issues.INVALID_HIDE_DOC_TAG,
                     "Invalid @hide syntax, it is ignored as it must be a block tag",
-                    text.lineOffsetFor(hideIndex)
+                    lineOffset,
+                    charOffset,
                 )
             }
         }
@@ -223,9 +226,11 @@ internal object DocCommentParser {
  * line. If [index] was `100` and it was on line number `10` then the line number offset would be
  * `9`.
  */
-internal fun String.lineOffsetFor(index: Int): Int {
+fun String.lineOffsetFor(index: Int): Int {
     var count = 0
-    for (i in 0 until index) {
+    // Handle the case when index is out of bounds by finding the offset for the final index.
+    val target = index.coerceAtMost(length)
+    for (i in 0 until target) {
         val c = this[i]
         if (c == '\n') count += 1
     }
@@ -239,7 +244,7 @@ internal fun String.lineOffsetFor(index: Int): Int {
  * character on the first line. If [index] was `100` and it was on line number `10` and character
  * position `7` then the character offset would be `6`.
  */
-internal fun String.characterOffsetFor(index: Int): Int {
+fun String.characterOffsetFor(index: Int): Int {
     var count = 0
     for (i in index - 1 downTo 0) {
         val c = this[i]

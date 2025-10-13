@@ -89,6 +89,7 @@ object Issues {
     // Issues in javadoc generation
     val INVALID_JAVADOC by Issue(Severity.WARNING_ERROR_WHEN_NEW, Category.DOCUMENTATION)
     val INVALID_HIDE_DOC_TAG by Issue(Severity.WARNING_ERROR_WHEN_NEW, Category.DOCUMENTATION)
+    val UNCLOSED_INLINE_TAG by Issue(Severity.WARNING_ERROR_WHEN_NEW, Category.DOCUMENTATION)
     val UNRESOLVED_LINK by Issue(Severity.ERROR, Category.DOCUMENTATION)
     val UNAVAILABLE_SYMBOL by Issue(Severity.WARNING, Category.DOCUMENTATION)
     val HIDDEN_SUPERCLASS by Issue(Severity.WARNING, Category.DOCUMENTATION)

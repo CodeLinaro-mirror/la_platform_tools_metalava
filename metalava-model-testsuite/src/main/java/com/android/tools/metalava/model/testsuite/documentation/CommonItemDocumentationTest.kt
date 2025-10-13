@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.testsuite.documentation
 
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.testsuite.BaseModelTest
+import com.android.tools.metalava.reporter.RecordingReporter
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import java.io.PrintWriter
@@ -322,13 +323,13 @@ class CommonItemDocumentationTest : BaseModelTest() {
             ),
         ) {
             val testClass = codebase.assertClass("test.pkg.Test")
-            checkItemDocumentationLocation(testClass, "MAIN_SRC/src/test/pkg/Test.java:3")
+            checkItemDocumentationLocation(testClass, "MAIN_SRC/src/test/pkg/Test.java:3:1")
 
             val constructorItem = testClass.assertConstructor(emptyList())
-            checkItemDocumentationLocation(constructorItem, "MAIN_SRC/src/test/pkg/Test.java:5")
+            checkItemDocumentationLocation(constructorItem, "MAIN_SRC/src/test/pkg/Test.java:5:5")
 
             val fieldItem = testClass.assertField("field")
-            checkItemDocumentationLocation(fieldItem, "MAIN_SRC/src/test/pkg/Test.java:11")
+            checkItemDocumentationLocation(fieldItem, "MAIN_SRC/src/test/pkg/Test.java:11:5")
 
             // Check location of javadoc that is not specified.
             val methodItem = testClass.assertMethod("noComment", emptyList())
@@ -363,17 +364,109 @@ class CommonItemDocumentationTest : BaseModelTest() {
             ),
         ) {
             val testClass = codebase.assertClass("test.pkg.Test")
-            checkItemDocumentationLocation(testClass, "MAIN_SRC/src/test/pkg/Test.kt:3")
+            checkItemDocumentationLocation(testClass, "MAIN_SRC/src/test/pkg/Test.kt:3:1")
 
             val constructorItem = testClass.assertConstructor(emptyList())
-            checkItemDocumentationLocation(constructorItem, "MAIN_SRC/src/test/pkg/Test.kt:5")
+            checkItemDocumentationLocation(constructorItem, "MAIN_SRC/src/test/pkg/Test.kt:5:5")
 
             val propertyItem = testClass.assertProperty("property")
-            checkItemDocumentationLocation(propertyItem, "MAIN_SRC/src/test/pkg/Test.kt:11")
+            checkItemDocumentationLocation(propertyItem, "MAIN_SRC/src/test/pkg/Test.kt:11:5")
 
             // Check location of javadoc that is not specified.
             val methodItem = testClass.assertMethod("noComment", emptyList())
             checkItemDocumentationLocation(methodItem, "null")
+        }
+    }
+
+    @Test
+    fun `Test javadoc error locations`() {
+        val reporter = RecordingReporter()
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    /** {@code unterminated tag on class */
+                    public class Test {
+                        /** {@code unterminated tag on constructor */
+                        public Test() {}
+
+                        /**
+                         * Multi-line comment containing
+                         * {@code unterminated tag on field
+                         */
+                        public int field = 0;
+
+                        /**
+                         * Blah first; {@code unterminated tag on method
+                         */
+                        fun commented() {}
+                    }
+                """
+            ),
+            testFixture =
+                TestFixture(
+                    reporter = reporter,
+                ),
+        ) {
+            // Make sure that no issues are found before parsing the Javadoc description blocks.
+            // This ensures that no parsing is done unless required.
+            val issuesBeforeParsing = removeTestSpecificDirectories(reporter.issues)
+            assertEquals("", issuesBeforeParsing)
+
+            // Then, check the printed form of the comment. That is needed to ensure that the
+            // comment is parsed and any issues found.
+            val testClass = codebase.assertClass("test.pkg.Test")
+            checkItemDocumentationPrint(
+                testClass,
+                """
+                    /** {@code unterminated tag on class} */
+
+                """,
+            )
+
+            val constructorItem = testClass.assertConstructor(emptyList())
+            checkItemDocumentationPrint(
+                constructorItem,
+                """
+                    /** {@code unterminated tag on constructor} */
+
+                """,
+            )
+
+            val fieldItem = testClass.assertField("field")
+            checkItemDocumentationPrint(
+                fieldItem,
+                """
+                    /**
+                     * Multi-line comment containing
+                     * {@code unterminated tag on field}
+                     */
+
+                """,
+            )
+
+            val methodItem = testClass.assertMethod("commented", emptyList())
+            checkItemDocumentationPrint(
+                methodItem,
+                """
+                    /** Blah first; {@code unterminated tag on method} */
+
+                """,
+            )
+
+            // Finally, check to see what issues have been reported.
+            val issuesAfterParsing = removeTestSpecificDirectories(reporter.issues)
+            assertEquals(
+                """
+                    MAIN_SRC/src/test/pkg/Test.java:3:5: warning: unclosed inline '@code' tag (ErrorWhenNew) [UnclosedInlineTag]
+                    MAIN_SRC/src/test/pkg/Test.java:5:9: warning: unclosed inline '@code' tag (ErrorWhenNew) [UnclosedInlineTag]
+                    MAIN_SRC/src/test/pkg/Test.java:10:8: warning: unclosed inline '@code' tag (ErrorWhenNew) [UnclosedInlineTag]
+                    MAIN_SRC/src/test/pkg/Test.java:15:20: warning: unclosed inline '@code' tag (ErrorWhenNew) [UnclosedInlineTag]
+                """
+                    .trimIndent(),
+                issuesAfterParsing
+            )
         }
     }
 
@@ -541,9 +634,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
                 methodItem,
                 expectedOutput =
                     """
-                        /**
-                         * Appended.
-                         */
+                        /** Appended. */
 
                     """,
             )

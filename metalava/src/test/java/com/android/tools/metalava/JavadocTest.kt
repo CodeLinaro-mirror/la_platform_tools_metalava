@@ -165,9 +165,9 @@ class JavadocTest : DriverTest() {
                      *  Here's an already fully qualified reference: {@link test.pkg2.OtherClass}.
                      *  And here's one in the same package: {@link test.pkg1.LocalClass LocalClass}.
                      *
-                     *  @deprecated For some reason
-                     *  @see test.pkg2.OtherClass
-                     *  @see test.pkg2.OtherClass#bar(int, boolean)
+                     * @deprecated For some reason
+                     * @see test.pkg2.OtherClass
+                     * @see test.pkg2.OtherClass#bar(int, boolean)
                      */
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     @Deprecated
@@ -176,6 +176,7 @@ class JavadocTest : DriverTest() {
                     public SomeClass() { throw new RuntimeException("Stub!"); }
                     /**
                      * My method.
+                     *
                      * @param focus The focus to find. One of {@link test.pkg2.OtherClass#FOCUS_INPUT OtherClass.FOCUS_INPUT} or
                      *         {@link test.pkg2.OtherClass#FOCUS_ACCESSIBILITY OtherClass.FOCUS_ACCESSIBILITY}.
                      * @throws java.io.IOException when blah blah blah
@@ -374,9 +375,9 @@ class JavadocTest : DriverTest() {
                  *  Here's an already fully qualified reference: {@link test.pkg2.OtherClass}.
                  *  And here's one in the same package: {@link test.pkg1.LocalClass LocalClass}.
                  *
-                 *  @deprecated For some reason
-                 *  @see test.pkg2.OtherClass
-                 *  @see test.pkg2.OtherClass#bar(int, boolean)
+                 * @deprecated For some reason
+                 * @see test.pkg2.OtherClass
+                 * @see test.pkg2.OtherClass#bar(int, boolean)
                  */
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 @Deprecated
@@ -385,6 +386,7 @@ class JavadocTest : DriverTest() {
                 public SomeClass() { throw new RuntimeException("Stub!"); }
                 /**
                  * My method.
+                 *
                  * @param focus The focus to find. One of {@link test.pkg2.OtherClass#FOCUS_INPUT OtherClass.FOCUS_INPUT} or
                  *         {@link test.pkg2.OtherClass#FOCUS_ACCESSIBILITY OtherClass.FOCUS_ACCESSIBILITY}.
                  * @throws java.io.IOException when blah blah blah
@@ -716,7 +718,6 @@ class JavadocTest : DriverTest() {
                  * Sends the result of the load to the registered listener. Should only be called by subclasses.
                  *
                  * Must be called from the process's main thread.
-                 *
                  * @param data the result of the load
                  */
                 public void deliverResult(java.lang.Object data) { throw new RuntimeException("Stub!"); }
@@ -735,9 +736,7 @@ class JavadocTest : DriverTest() {
                  * result object, if any.
                  *
                  * @return The result of the load operation.
-                 *
                  * @throws android.os.OperationCanceledException if the load is canceled during execution.
-                 *
                  * @see #onCanceled
                  */
                 public abstract java.lang.Object loadInBackground();
@@ -883,7 +882,6 @@ class JavadocTest : DriverTest() {
                  * Inner class reference:
                  * {@link test.pkg1.Test.TestInner#CONSTANT3 Test.TestInner.CONSTANT3}, again
                  * {@link test.pkg1.Test.TestInner#CONSTANT3 TestInner.CONSTANT3}
-                 *
                  * @see test.pkg2.MyChild#myMethod
                  */
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
@@ -949,15 +947,11 @@ class JavadocTest : DriverTest() {
                 """
                 package test.pkg1;
                 import test.pkg2.OtherClass2;
-                /**
-                 * Reference to {@link test.pkg2.OtherClass1#myMethod(test.pkg2.OtherClass2,int name,test.pkg2.OtherClass2[]) OtherClass1.myMethod(OtherClass2, int name, OtherClass2[])},
-                 */
+                /** Reference to {@link test.pkg2.OtherClass1#myMethod(test.pkg2.OtherClass2,int name,test.pkg2.OtherClass2[]) OtherClass1.myMethod(OtherClass2, int name, OtherClass2[])}, */
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public class Test<E extends test.pkg2.OtherClass2> {
                 public Test() { throw new RuntimeException("Stub!"); }
-                /**
-                 * Reference to {@link test.pkg2.OtherClass1#myMethod(E,int,test.pkg2.OtherClass2[]) OtherClass1.myMethod(E, int, OtherClass2 [])},
-                 */
+                /** Reference to {@link test.pkg2.OtherClass1#myMethod(E,int,test.pkg2.OtherClass2[]) OtherClass1.myMethod(E, int, OtherClass2 [])}, */
                 public void test() { throw new RuntimeException("Stub!"); }
                 }
                 """
@@ -1057,7 +1051,6 @@ class JavadocTest : DriverTest() {
                 /**
                  * Reference to {@link SomethingMissing} and
                  * {@link java.lang.String#randomMethod String.randomMethod}.
-                 *
                  * @see OtherMissing
                  */
                 public void test() { throw new RuntimeException("Stub!"); }
@@ -1209,9 +1202,7 @@ class JavadocTest : DriverTest() {
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Foo {
                     public Foo() { throw new RuntimeException("Stub!"); }
-                    /**
-                     * @see test.pkg.bar.Bar
-                     */
+                    /** @see test.pkg.bar.Bar */
                     public void bar() { throw new RuntimeException("Stub!"); }
                     }
                     """
@@ -1305,22 +1296,16 @@ class JavadocTest : DriverTest() {
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
                             public class Foo {
                             Foo() { throw new RuntimeException("Stub!"); }
-                            /**
-                             * A method that does not use @hide correctly
-                             */
+                            /** A method that does not use @hide correctly */
                             public void bar() { throw new RuntimeException("Stub!"); }
-                            /**
-                             * Another method that does not use @hide correctly
-                             */
+                            /** Another method that does not use @hide correctly */
                             public void baz() { throw new RuntimeException("Stub!"); }
                             /**
                              * Some text.
                              * {@hide}
                              */
                             public void quux() { throw new RuntimeException("Stub!"); }
-                            /**
-                             * {@hide}
-                             */
+                            /** {@hide} */
                             public void qux() { throw new RuntimeException("Stub!"); }
                             }
                         """
@@ -1401,22 +1386,16 @@ class JavadocTest : DriverTest() {
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
                             public class Foo {
                             Foo() { throw new RuntimeException("Stub!"); }
-                            /**
-                             * A method that does not use @hide correctly
-                             */
+                            /** A method that does not use @hide correctly */
                             public void bar() { throw new RuntimeException("Stub!"); }
-                            /**
-                             * Another method that does not use @hide correctly
-                             */
+                            /** Another method that does not use @hide correctly */
                             public void baz() { throw new RuntimeException("Stub!"); }
                             /**
                              * Some text.
                              * {@hide}
                              */
                             public void quux() { throw new RuntimeException("Stub!"); }
-                            /**
-                             * {@hide}
-                             */
+                            /** {@hide} */
                             public void qux() { throw new RuntimeException("Stub!"); }
                             }
                         """

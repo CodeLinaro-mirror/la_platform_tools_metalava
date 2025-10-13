@@ -870,13 +870,9 @@ class ShowAnnotationTest : DriverTest() {
                   @SuppressWarnings({"unchecked", "deprecation", "all"})
                   public class Foo {
                   public Foo() { throw new RuntimeException("Stub!"); }
-                  /**
-                   * @hide
-                   */
+                  /** @hide */
                   public void method1() { throw new RuntimeException("Stub!"); }
-                  /**
-                   * @hide
-                   */
+                  /** @hide */
                   public void method2() { throw new RuntimeException("Stub!"); }
                   }
               """

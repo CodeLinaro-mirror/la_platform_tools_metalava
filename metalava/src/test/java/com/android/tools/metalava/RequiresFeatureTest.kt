@@ -75,9 +75,7 @@ class RequiresFeatureTest : DriverTest() {
                         """
                         package test.pkg;
                         $import
-                        /**
-                         * $expectedText
-                         */
+                        /** $expectedText */
                         @SuppressWarnings({"unchecked", "deprecation", "all"})
                         public class FeatureUser {
                         public FeatureUser() { throw new RuntimeException("Stub!"); }

@@ -95,6 +95,10 @@ constructor(
         return getVisibilityLevel() == VisibilityLevel.PROTECTED
     }
 
+    override fun isInternal(): Boolean {
+        return getVisibilityLevel() == VisibilityLevel.INTERNAL
+    }
+
     override fun isPrivate(): Boolean {
         return getVisibilityLevel() == VisibilityLevel.PRIVATE
     }

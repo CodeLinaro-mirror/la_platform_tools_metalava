@@ -450,7 +450,7 @@ abstract class DefaultItem(
         get() = modifiers.isProtected()
 
     final override val isInternal: Boolean
-        get() = modifiers.getVisibilityLevel() == VisibilityLevel.INTERNAL
+        get() = modifiers.isInternal()
 
     final override val isPackagePrivate: Boolean
         get() = modifiers.isPackagePrivate()
