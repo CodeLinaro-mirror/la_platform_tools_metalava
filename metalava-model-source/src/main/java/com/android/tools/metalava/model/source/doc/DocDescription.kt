@@ -22,6 +22,7 @@ import com.android.tools.metalava.model.source.javadoc.JavadocContentVisitor
 import com.android.tools.metalava.model.source.javadoc.JavadocInlineTag
 import com.android.tools.metalava.model.source.javadoc.JavadocParser
 import com.android.tools.metalava.model.source.javadoc.JavadocText
+import com.android.tools.metalava.reporter.Issues
 import java.io.PrintWriter
 
 /**
@@ -69,20 +70,29 @@ internal class DefaultDocDescription(
     private val startInclusive: Int,
     private val endExclusive: Int,
     private val reporter: DocumentationIssueReporter,
-) : DocDescription {
+) : DocDescription, DocumentationIssueReporter {
 
     private lateinit var _content: JavadocContent
 
     val content: JavadocContent
         get() {
             if (!::_content.isInitialized) {
+                // Trim whitespace from the end of the description.
+                val trimmedEnd = text.skipBackwardsOverTrailingWhitespace(endExclusive - 1) + 1
                 _content =
-                    JavadocParser.parse(
-                        text,
-                        startInclusive,
-                        endExclusive,
-                        reporter,
-                    )
+                    if (trimmedEnd <= startInclusive) {
+                        JavadocContent.EMPTY
+                    } else {
+                        JavadocParser.parse(
+                            text,
+                            startInclusive,
+                            trimmedEnd,
+                            // Pass this as the reporter so that this can apply corrections to the
+                            // line and char offset based on the [startInclusive] position within
+                            // [text].
+                            this,
+                        )
+                    }
             }
             return _content
         }
@@ -142,5 +152,25 @@ internal class DefaultDocDescription(
             if (c == '\n') append("\\n") else append(c)
         }
         append(">>")
+    }
+
+    /**
+     * Provide an implementation of [DocumentationIssueReporter] that corrects the line and char
+     * offsets based on the [startInclusive] position within [text].
+     */
+    override fun report(issue: Issues.Issue, message: String, lineOffset: Int, charOffset: Int) {
+        val lineOffsetCorrection = text.lineOffsetFor(startInclusive)
+
+        // If this issue is being reported on the first line then make sure to compensate for any
+        // possible indentation of that first line before [startInclusive].
+        val charOffsetCorrection =
+            if (lineOffset == 0) text.characterOffsetFor(startInclusive) else 0
+
+        reporter.report(
+            issue,
+            message,
+            lineOffset + lineOffsetCorrection,
+            charOffset + charOffsetCorrection
+        )
     }
 }

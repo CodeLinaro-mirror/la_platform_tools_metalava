@@ -25,6 +25,8 @@ interface BaseModifierList {
 
     fun isProtected(): Boolean
 
+    fun isInternal(): Boolean
+
     fun isPrivate(): Boolean
 
     @MetalavaApi fun isStatic(): Boolean

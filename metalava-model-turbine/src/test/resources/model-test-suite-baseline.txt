@@ -6,6 +6,7 @@ com.android.tools.metalava.model.testsuite.classitem.CommonDuplicateClassItemTes
 
 com.android.tools.metalava.model.testsuite.documentation.CommonItemDocumentationTest
   Test ItemDocumentation appendDocumentation
+  Test javadoc error locations
   Test javadoc locations
 
 com.android.tools.metalava.model.testsuite.documentation.CommonParameterizedDocumentationTest

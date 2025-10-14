@@ -220,18 +220,25 @@ class JavadocParserTest {
     }
 
     @Test
-    fun `Test unclosed inline tags`() {
+    fun `Test unclosed inline tags in main description`() {
         checkParse(
+            // This purposely indents the second and third lines so they no longer align with the
+            // first so that there is some extra indentation on the last line with the */ token to
+            // test the handling of that newline.
             """
                 /**
-                 * {@code not closed
-                 */
+                   * {@code unclosed
+                    */
             """,
             expectedStructure =
                 """
                     text: ' '
                     inlineTag: code
-                      text: 'not closed\n '
+                      text: 'unclosed'
+                """,
+            expectedJavadocIssues =
+                """
+                    2:6: unclosed inline '@code' tag [UnclosedInlineTag]
                 """,
         )
     }
@@ -301,7 +308,7 @@ class JavadocParserTest {
                 """,
             expectedJavadocIssues =
                 """
-                    line 2: 18:extraneous input '*/' expecting {<EOF>, NEWLINE} [InvalidJavadoc]
+                    2:19: extraneous input '*/' expecting {<EOF>, NEWLINE} [InvalidJavadoc]
                 """,
         )
     }
@@ -323,7 +330,7 @@ class JavadocParserTest {
                 """,
             expectedJavadocIssues =
                 """
-                    line 3: 29:mismatched input '*/' expecting {<EOF>, NEWLINE}
+                    3:30: mismatched input '*/' expecting {<EOF>, NEWLINE}
                       Expected:
                         EOF
                         NEWLINE

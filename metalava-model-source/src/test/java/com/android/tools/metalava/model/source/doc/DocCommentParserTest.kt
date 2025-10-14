@@ -264,7 +264,7 @@ class DocCommentParserTest {
                 """,
             expectedIssues =
                 """
-                    line 2: Invalid @hide syntax, it is ignored as it must be a block tag [InvalidHideDocTag]
+                    2:49: Invalid @hide syntax, it is ignored as it must be a block tag [InvalidHideDocTag]
                 """,
         )
     }
@@ -293,7 +293,7 @@ class DocCommentParserTest {
                 """,
             expectedIssues =
                 """
-                    line 3: Invalid @hide syntax, it is ignored as it must be a block tag [InvalidHideDocTag]
+                    3:33: Invalid @hide syntax, it is ignored as it must be a block tag [InvalidHideDocTag]
                 """,
         )
     }
@@ -317,7 +317,7 @@ class DocCommentParserTest {
                 """,
             expectedIssues =
                 """
-                    line 2: Invalid @hide syntax, it is ignored as it must be a block tag [InvalidHideDocTag]
+                    2:43: Invalid @hide syntax, it is ignored as it must be a block tag [InvalidHideDocTag]
                 """,
         )
     }
@@ -349,7 +349,7 @@ class DocCommentParserTest {
                 """,
             expectedIssues =
                 """
-                    line 4: Invalid @hide syntax, it is ignored as it must be a block tag [InvalidHideDocTag]
+                    4:5: Invalid @hide syntax, it is ignored as it must be a block tag [InvalidHideDocTag]
                 """,
         )
     }
@@ -447,6 +447,42 @@ class DocCommentParserTest {
                 """,
         )
     }
+
+    @Test
+    fun `Test unclosed inline tag`() {
+        checkDocComment(
+            // This purposely indents the second and third lines so they no longer align with the
+            // first so that there is some extra indentation on the last line with the */ token to
+            // test the handling of that newline.
+            input =
+                """
+                    /**
+                       * {@code unclosed
+                        */
+                """,
+            expectedString =
+                """
+                    description: <<\n   * {@code unclosed>>
+                """,
+            expectedPrintOutput =
+                """
+                    /** {@code unclosed} */
+                """,
+        )
+    }
+
+    @Test
+    fun `Test lineOffsetFor with out of bounds index`() {
+        val str =
+            """
+            multi
+            line
+            string
+            """
+                .trimIndent()
+        val length = str.length
+        assertEquals(str.lineOffsetFor(length + 1), 2)
+    }
 }
 
 /**
@@ -456,8 +492,8 @@ class DocCommentParserTest {
 class CollatingDocumentationIssueReporter : DocumentationIssueReporter {
     private val builder = StringBuilder()
 
-    override fun report(issue: Issues.Issue, message: String, lineOffset: Int) {
-        builder.append("line ${lineOffset + 1}: $message [${issue.name}]\n")
+    override fun report(issue: Issues.Issue, message: String, lineOffset: Int, charOffset: Int) {
+        builder.append("${lineOffset + 1}:${charOffset + 1}: $message [${issue.name}]\n")
     }
 
     override fun toString() = builder.toString()

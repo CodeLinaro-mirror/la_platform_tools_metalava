@@ -20,6 +20,8 @@ import com.android.tools.metalava.cli.common.ARG_ERROR
 import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.lint.DefaultLintErrorMessage
 import com.android.tools.metalava.model.provider.Capability
+import com.android.tools.metalava.model.testing.FilterAction.EXCLUDE
+import com.android.tools.metalava.model.testing.FilterByProvider
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
@@ -600,6 +602,62 @@ class KotlinInteropChecksTest : DriverTest() {
                   }
                 }
                 """,
+        )
+    }
+
+    // K1 is disabled because which file is used for all the parameters in the multifile class is
+    // different between K1 and K2.
+    @FilterByProvider("psi", "k1", action = EXCLUDE)
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Test file location for error on parameter within multifile class`() {
+        check(
+            apiLint = "", // Enabled
+            expectedFail = DefaultLintErrorMessage,
+            // TODO b(450539561): all [KotlinDefaultParameterOrder] issues have file location
+            //  `test/pkg/Foo1.kt:4`, but two of them are from `test/pkg/Foo2.kt`.
+            expectedIssues =
+                """
+                test/pkg/Foo1.kt:4: warning: A Kotlin method with default parameter values should be annotated with @JvmOverloads for better Java interoperability; see https://android.github.io/kotlin-guides/interop.html#function-overloads-for-defaults [MissingJvmstatic]
+                test/pkg/Foo1.kt:4: error: Parameter `i1` has a default value and should come after all parameters without default values (except for a trailing lambda parameter) [KotlinDefaultParameterOrder]
+                test/pkg/Foo1.kt:4: error: Parameter `i2` has a default value and should come after all parameters without default values (except for a trailing lambda parameter) [KotlinDefaultParameterOrder]
+                test/pkg/Foo1.kt:4: error: Parameter `i3` has a default value and should come after all parameters without default values (except for a trailing lambda parameter) [KotlinDefaultParameterOrder]
+                test/pkg/Foo2.kt:4: warning: A Kotlin method with default parameter values should be annotated with @JvmOverloads for better Java interoperability; see https://android.github.io/kotlin-guides/interop.html#function-overloads-for-defaults [MissingJvmstatic]
+                test/pkg/Foo2.kt:5: warning: A Kotlin method with default parameter values should be annotated with @JvmOverloads for better Java interoperability; see https://android.github.io/kotlin-guides/interop.html#function-overloads-for-defaults [MissingJvmstatic]
+                """,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        "test/pkg/Foo1.kt",
+                        """
+                        @file:JvmName("Foo")
+                        @file:JvmMultifileClass
+                        package test.pkg
+                        fun foo1(i1: Int = 0, s1: String)
+                        """
+                    ),
+                    kotlin(
+                        "test/pkg/Foo2.kt",
+                        """
+                        @file:JvmName("Foo")
+                        @file:JvmMultifileClass
+                        package test.pkg
+                        fun foo2(i2: Int = 0, s2: String)
+                        fun foo3(i3: Int = 0, s3: String)
+                        """
+                    ),
+                ),
+            api =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public final class Foo {
+                    method public static void foo1(optional int i1, String s1);
+                    method public static void foo2(optional int i2, String s2);
+                    method public static void foo3(optional int i3, String s3);
+                  }
+                }
+                """
         )
     }
 }

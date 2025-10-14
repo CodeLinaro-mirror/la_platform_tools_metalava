@@ -853,19 +853,13 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                                 java(
                                     """
                                     package test.pkg;
-                                    /**
-                                     * @hide
-                                     */
+                                    /** @hide */
                                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                                     @android.annotation.FlaggedApi("test.pkg.flags.foo_bar")
                                     public final class Foo {
-                                    /**
-                                     * @hide
-                                     */
+                                    /** @hide */
                                     public Foo() { throw new RuntimeException("Stub!"); }
-                                    /**
-                                     * @hide
-                                     */
+                                    /** @hide */
                                     public void method() { throw new RuntimeException("Stub!"); }
                                     }
                                 """
@@ -1605,23 +1599,14 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                 java(
                     """
                         package test.pkg;
-                        /**
-                         * A Bar class.
-                         *
-                         */
+                        /** A Bar class. */
                         @SuppressWarnings({"unchecked", "deprecation", "all"})
                         public class Bar {
-                        /**
-                         * A Bar constructor.
-                         */
+                        /** A Bar constructor. */
                         public Bar() { throw new RuntimeException("Stub!"); }
-                        /**
-                         * A method.
-                         */
+                        /** A method. */
                         public void method() { throw new RuntimeException("Stub!"); }
-                        /**
-                         * A field.
-                         */
+                        /** A field. */
                         public static int field;
                         }
                     """
