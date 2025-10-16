@@ -16,13 +16,10 @@
 
 package com.android.tools.metalava.model.source.doc
 
-import com.android.tools.metalava.reporter.Issues
-import java.io.PrintWriter
-import java.io.StringWriter
 import kotlin.test.assertEquals
 import org.junit.Test
 
-class DocCommentParserTest {
+class DocCommentParserTest : BaseDocCommentTest() {
     /** Create a [DocComment] from [input], compare it against the [expectedString] */
     private fun checkDocComment(
         input: String,
@@ -30,14 +27,10 @@ class DocCommentParserTest {
         expectedPrintOutput: String,
         expectedIssues: String = "",
     ) {
-        val reporter = CollatingDocumentationIssueReporter()
-        var docComment = DocCommentParser.parseText(input.trimIndent(), reporter)
+        var docComment = createTestDocComment(input, expectedIssues)
         assertEquals(expectedString.trimIndent(), docComment.toString())
-        assertEquals(expectedIssues.trimIndent(), reporter.toString().trim())
 
-        val writer = StringWriter()
-        PrintWriter(writer).use { printWriter -> docComment.printAsJavadocComment(printWriter) }
-        assertEquals(expectedPrintOutput.trimIndent(), writer.toString().trim())
+        checkPrintOutput(docComment, expectedPrintOutput)
     }
 
     @Test
@@ -483,18 +476,4 @@ class DocCommentParserTest {
         val length = str.length
         assertEquals(str.lineOffsetFor(length + 1), 2)
     }
-}
-
-/**
- * A [DocumentationIssueReporter] that collates any issues reported and returns them from
- * [toString].
- */
-class CollatingDocumentationIssueReporter : DocumentationIssueReporter {
-    private val builder = StringBuilder()
-
-    override fun report(issue: Issues.Issue, message: String, lineOffset: Int, charOffset: Int) {
-        builder.append("${lineOffset + 1}:${charOffset + 1}: $message [${issue.name}]\n")
-    }
-
-    override fun toString() = builder.toString()
 }

@@ -67,7 +67,6 @@ internal fun mergeDocumentation(
     psiElement: PsiElement,
     newText: String,
     tagSection: String?,
-    append: Boolean
 ): String {
     if (existingDoc.isBlank()) {
         // There's no existing comment: Create a new one. This is easy.
@@ -118,10 +117,9 @@ internal fun mergeDocumentation(
             return insertInto(doc, "@return $newText", offset)
         } else {
             // Add text to the existing @return tag
-            val offset =
-                if (append) findTagEnd(returnTag)
-                else returnTag.textRange.startOffset + returnTag.name.length + 1
-            return insertInto(doc, newText, offset)
+            val offset = findTagEnd(returnTag)
+            // Insert a <br> before the appended docs
+            return insertInto(doc, "<br>\n$newText", offset)
         }
     } else if (tagSection != null) {
         val parameter =
@@ -149,20 +147,17 @@ internal fun mergeDocumentation(
             return insertInto(doc, "$tagName $newText", offset)
         } else {
             // Add to existing tag/parameter
-            val offset =
-                if (append) findTagEnd(parameter)
-                else parameter.textRange.startOffset + parameter.name.length + 1
-            return insertInto(doc, newText, offset)
+            val offset = findTagEnd(parameter)
+            // Insert a <br> before the appended docs
+            return insertInto(doc, "<br>\n$newText", offset)
         }
     } else {
         // Add to the main text section of the comment.
         val firstTag = findFirstTag(docComment)
-        val startOffset =
-            if (!append) {
-                4 // "/** ".length
-            } else firstTag?.textRange?.startOffset ?: doc.length - 2
+        val startOffset = firstTag?.textRange?.startOffset ?: (doc.length - 2)
         // Insert a <br> before the appended docs, unless it's the beginning of a doc section
-        return insertInto(doc, if (startOffset > 4) "<br>\n$newText" else newText, startOffset)
+        var textToInsert = if (startOffset > 4) "<br>\n$newText" else newText
+        return insertInto(doc, textToInsert, startOffset)
     }
 }
 
