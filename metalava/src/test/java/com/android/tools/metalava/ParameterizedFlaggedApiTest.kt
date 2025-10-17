@@ -1618,6 +1618,7 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                         public class Foo {
                         Foo() { throw new RuntimeException("Stub!"); }
                         public void method(@android.annotation.Nullable java.lang.String p) { throw new RuntimeException("Stub!"); }
+                        /** */
                         public static int field;
                         }
                     """
@@ -1685,8 +1686,8 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                     }
                 """
             ),
+            @Suppress("DeprecatedIsStillUsed")
             java(
-                @Suppress("DeprecatedIsStillUsed")
                 """
                     package test.pkg;
 

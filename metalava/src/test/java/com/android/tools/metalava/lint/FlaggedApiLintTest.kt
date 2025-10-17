@@ -20,6 +20,7 @@ import com.android.tools.metalava.ARG_PASS_THROUGH_ANNOTATION
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.cli.common.ARG_WARNING
+import com.android.tools.metalava.requiresPermissionSource
 import com.android.tools.metalava.systemApiSource
 import com.android.tools.metalava.testing.KnownJarFiles
 import com.android.tools.metalava.testing.java
@@ -693,23 +694,26 @@ class FlaggedApiLintTest : DriverTest() {
                 """
                     // Signature format: 2.0
                     package test.pkg {
-                      @RequiresPermission("Permission-value") public class Foo {
-                      }
-                      public class Permissions {
-                        field public static final String Permission = "Permission-value";
-                      }
+                    @RequiresPermission("android.permission.MY_PERMISSION_STRING") public class Foo {
                     }
+                    public class Manifest {
+                    }
+                    public static final class Manifest.permission {
+                      field public static final String MY_PERMISSION = "android.permission.MY_PERMISSION_STRING";
+                    }
+                  }
                 """,
             api =
                 """
-                    // Signature format: 5.0
-                    package test.pkg {
-                      @RequiresPermission(Permissions.permission) public class Foo {
-                      }
-                      public class Permissions {
-                        field public static final String Permission = "Permission-value";
-                      }
+                  package test.pkg {
+                    @RequiresPermission(test.pkg.Manifest.permission.MY_PERMISSION) public class Foo {
                     }
+                    public class Manifest {
+                    }
+                    public static final class Manifest.permission {
+                      field public static final String MY_PERMISSION = "android.permission.MY_PERMISSION_STRING";
+                    }
+                  }
             """,
             sourceFiles =
                 arrayOf(
@@ -717,11 +721,13 @@ class FlaggedApiLintTest : DriverTest() {
                         """
                             package test.pkg;
 
-                            public class Permissions {
-                                Permissions() {}
+                            public class Manifest {
+                                Manifest() {}
 
-                                public static final String Permission
-                                   = "Permission-value";
+                                public static final class permission {
+                                    permission() {}
+                                    public static final String MY_PERMISSION = "android.permission.MY_PERMISSION_STRING";
+                                }
                             }
                         """
                     ),
@@ -729,16 +735,16 @@ class FlaggedApiLintTest : DriverTest() {
                         """
                             package test.pkg;
 
-                            import androidx.annotation.RequiresPermission;
-                            import test.pkg.Permissions;
+                            import android.annotation.RequiresPermission;
 
-                            @RequiresPermission(Permissions.permission)
+                            @RequiresPermission(Manifest.permission.MY_PERMISSION)
                             public class Foo {
                                 Foo() {}
                             }
                         """
                     ),
                     flagsFile,
+                    requiresPermissionSource
                 ),
             // Access android.annotation.FlaggedApi
             classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),

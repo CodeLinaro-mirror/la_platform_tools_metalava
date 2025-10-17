@@ -459,10 +459,10 @@ class CommonItemDocumentationTest : BaseModelTest() {
             val issuesAfterParsing = removeTestSpecificDirectories(reporter.issues)
             assertEquals(
                 """
-                    MAIN_SRC/src/test/pkg/Test.java:3:5: warning: unclosed inline '@code' tag (ErrorWhenNew) [UnclosedInlineTag]
-                    MAIN_SRC/src/test/pkg/Test.java:5:9: warning: unclosed inline '@code' tag (ErrorWhenNew) [UnclosedInlineTag]
-                    MAIN_SRC/src/test/pkg/Test.java:10:8: warning: unclosed inline '@code' tag (ErrorWhenNew) [UnclosedInlineTag]
-                    MAIN_SRC/src/test/pkg/Test.java:15:20: warning: unclosed inline '@code' tag (ErrorWhenNew) [UnclosedInlineTag]
+                    MAIN_SRC/src/test/pkg/Test.java:3:5: error: unclosed inline '@code' tag [UnclosedInlineTag]
+                    MAIN_SRC/src/test/pkg/Test.java:5:9: error: unclosed inline '@code' tag [UnclosedInlineTag]
+                    MAIN_SRC/src/test/pkg/Test.java:10:8: error: unclosed inline '@code' tag [UnclosedInlineTag]
+                    MAIN_SRC/src/test/pkg/Test.java:15:20: error: unclosed inline '@code' tag [UnclosedInlineTag]
                 """
                     .trimIndent(),
                 issuesAfterParsing

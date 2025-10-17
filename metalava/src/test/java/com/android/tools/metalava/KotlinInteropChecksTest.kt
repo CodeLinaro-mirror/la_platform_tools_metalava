@@ -352,12 +352,10 @@ class KotlinInteropChecksTest : DriverTest() {
 
     @RequiresCapabilities(Capability.KOTLIN)
     @Test
-    fun `Check methods and properties in a named companion object should be annotated JvmStatic`() {
+    fun `Check methods and properties in a named companion object aren't required to be annotated JvmStatic`() {
         check(
             apiLint = "",
-            // TODO: this is inconsistent between methods and properties
-            expectedIssues =
-                "src/test/pkg/Foo.kt:9: warning: Companion object constants like missingJvmField should be marked @JvmField for Java interoperability; see https://developer.android.com/kotlin/interop#companion_constants [MissingJvmstatic]",
+            expectedIssues = "",
             extraArguments = arrayOf(ARG_HIDE, "StaticUtils"),
             sourceFiles =
                 arrayOf(

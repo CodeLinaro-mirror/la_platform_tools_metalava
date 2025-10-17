@@ -145,7 +145,6 @@ com.android.tools.metalava.lint.CheckBuilderTest
   Check builders[turbine]
 
 com.android.tools.metalava.lint.FlaggedApiLintTest
-  Do not require @FlaggedApi on RequiresPermission[turbine]
   Require @FlaggedApi on API that modify annotations[turbine]
 
 com.android.tools.metalava.stub.StubsAnnotationTest

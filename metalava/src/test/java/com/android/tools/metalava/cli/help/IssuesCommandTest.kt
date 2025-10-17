@@ -220,7 +220,7 @@ Available Issues                             |  Category                        
   TypeParameterName                          |  api_lint                             |   warning_error_when_new
   TypeParseError                             |  unknown                              |   error
   UnavailableSymbol                          |  documentation                        |   warning
-  UnclosedInlineTag                          |  documentation                        |   warning_error_when_new
+  UnclosedInlineTag                          |  documentation                        |   error
   UnflaggedApi                               |  api_lint                             |   hidden
   UnhiddenSystemApi                          |  api_lint                             |   error
   UniqueKotlinOperator                       |  api_lint                             |   error

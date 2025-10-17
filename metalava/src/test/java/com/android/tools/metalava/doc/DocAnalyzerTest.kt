@@ -1545,6 +1545,7 @@ class DocAnalyzerTest : DriverTest() {
                      *
                      * @deprecated Existing deprecation message.
                      *
+                     * <br>
                      * Blah blah blah 2
                      */
                     @Deprecated
