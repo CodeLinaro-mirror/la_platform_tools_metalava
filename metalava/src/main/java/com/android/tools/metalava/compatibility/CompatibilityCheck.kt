@@ -366,11 +366,20 @@ class CompatibilityCheck(
         }
 
         if (old.hasDefaultValue() && !new.hasDefaultValue()) {
-            report(
-                Issues.DEFAULT_VALUE_CHANGE,
-                new,
-                "Attempted to remove default value from ${describe(new)}"
-            )
+            // Default values only matter for Kotlin clients. Check if there is another Kotlin
+            // function which could replace all calls to the old function with the default value.
+            // This could happen if the default value were removed from the old function to avoid
+            // a signature clash with a new function with additional optional parameters to the
+            // old function.
+            val compatibleOverload =
+                findCompatibleKotlinOverload(old.containingCallable(), new.containingClass())
+            if (compatibleOverload == null) {
+                report(
+                    Issues.DEFAULT_VALUE_CHANGE,
+                    new,
+                    "Attempted to remove default value from ${describe(new)}"
+                )
+            }
         }
 
         if (old.isVarArgs() && !new.isVarArgs()) {

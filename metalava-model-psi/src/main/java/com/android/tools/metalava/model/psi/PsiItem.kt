@@ -23,8 +23,7 @@ import org.jetbrains.kotlin.idea.KotlinLanguage
 import org.jetbrains.uast.UElement
 
 internal interface PsiItem : Item {
-
-    override val codebase: PsiBasedCodebase
+    val psiCodebase: PsiBasedCodebase
 
     /** The source PSI provided by UAST */
     val sourcePsi

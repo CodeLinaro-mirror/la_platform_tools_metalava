@@ -55,12 +55,12 @@ import kotlin.metadata.KmFunction
 import kotlin.metadata.KmProperty
 import kotlin.metadata.KmPropertyAccessorAttributes
 import kotlin.metadata.Visibility
-import kotlin.metadata.hasAnnotations
 import kotlin.metadata.isReified
 import kotlin.metadata.jvm.JvmMethodSignature
 import kotlin.metadata.jvm.KotlinClassMetadata
 import kotlin.metadata.jvm.Metadata
 import kotlin.metadata.jvm.getterSignature
+import kotlin.metadata.jvm.hasAnnotationsInBytecode
 import kotlin.metadata.jvm.setterSignature
 import kotlin.metadata.jvm.signature
 import kotlin.metadata.jvm.syntheticMethodForAnnotations
@@ -606,7 +606,7 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
         kmProperty: KmProperty,
         psiClass: PsiClass,
     ) {
-        if (!kmProperty.hasAnnotations) return
+        if (!kmProperty.hasAnnotationsInBytecode) return
 
         // The annotations on a property in source end up in bytecode on a synthetic method
         // generated to track the annotations. Find that method in the psi class.
@@ -628,7 +628,7 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
             annotationMethod.annotations
                 .firstOrNull { it.qualifiedName == "kotlin.PublishedApi" }
                 ?.let { publishedAnnotation ->
-                    val annotationItem = PsiAnnotationItem.create(codebase, publishedAnnotation)
+                    val annotationItem = PsiAnnotationItem.create(psiCodebase, publishedAnnotation)
                     mutateModifiers { addAnnotation(annotationItem) }
                 }
         }
@@ -647,7 +647,7 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
             // to a property, they are implicitly propagated to the getter and setter
             // (if present) for Kotlin clients. Match Kotlin compiler behavior by propagating.
             if (annotationClass.hasAnnotation("kotlin.RequiresOptIn")) {
-                val annotationItem = PsiAnnotationItem.create(codebase, annotationEntry)
+                val annotationItem = PsiAnnotationItem.create(psiCodebase, annotationEntry)
                 mutateModifiers { addAnnotation(annotationItem) }
             }
         }

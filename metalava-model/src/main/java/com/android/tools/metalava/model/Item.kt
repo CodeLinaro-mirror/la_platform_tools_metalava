@@ -385,7 +385,7 @@ interface Item : Reportable {
 
 /** Base [Item] implementation that is common to all models. */
 abstract class DefaultItem(
-    override val codebase: Codebase,
+    final override val codebase: Codebase,
     final override val fileLocation: FileLocation,
     final override val sourceLanguage: SourceLanguage,
     modifiers: BaseModifierList,
@@ -397,8 +397,20 @@ abstract class DefaultItem(
      *
      * The leaking of `this` is safe as the implementations do not access anything that has not been
      * initialized.
+     *
+     * If this is private then it cannot be included in an API so its documentation is irrelevant.
+     * In that case this ignores its [ItemDocumentationFactory] and uses [ItemDocumentation.NONE]
+     * instead. The latter is immutable and attempting to change it will throw an error but that is
+     * safe as only documentation for API [Item]s is modified.
+     *
+     * The [ItemDocumentationFactory] is also ignored if this is not a [SelectableItem], i.e. is a
+     * [ParameterItem] as they do not have documentation.
+     *
+     * TODO: Move this to [com.android.tools.metalava.model.item.DefaultSelectableItem],
      */
-    final override val documentation = @Suppress("LeakingThis") documentationFactory(this)
+    final override val documentation =
+        if (modifiers.isPrivate() || this !is SelectableItem) ItemDocumentation.NONE
+        else @Suppress("LeakingThis") documentationFactory(this)
 
     /**
      * The immutable [modifiers].
@@ -413,7 +425,7 @@ abstract class DefaultItem(
         private set
 
     init {
-        if (!modifiers.isDeprecated() && documentation.hasTagSection("@deprecated")) {
+        if (!modifiers.isDeprecated() && documentation.hasBlockTagOfType("deprecated")) {
             @Suppress("LeakingThis") mutateModifiers { setDeprecated(true) }
         }
     }

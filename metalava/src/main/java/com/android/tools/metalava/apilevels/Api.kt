@@ -19,6 +19,8 @@ import java.util.Collections
 import java.util.TreeMap
 import java.util.TreeSet
 
+private const val SDK_EXTENSIONS_INTERNAL_NAME = "android/os/ext/SdkExtensions"
+
 /**
  * Represents the whole Android API.
  *
@@ -102,7 +104,7 @@ class Api(val useInternalNames: Boolean) : ParentApiElement {
      */
     fun patchSdkExtensionsHistory() {
         val sdkExtensions =
-            findClass("android/os/ext/SdkExtensions")
+            findClass(SDK_EXTENSIONS_INTERNAL_NAME)
                 // This is either for the module-lib/system-server (null) or for a non-Android API.
                 // Either way it does not need patching.
                 ?: return
@@ -112,7 +114,9 @@ class Api(val useInternalNames: Boolean) : ParentApiElement {
         val sdk33 = ApiVersion.fromLevel(33)
         val sdkExtensionsSince = sdkExtensions.since
         if (sdkExtensionsSince != sdk30 && sdkExtensionsSince != sdk33) {
-            throw AssertionError("Received unexpected historical data")
+            throw AssertionError(
+                "Received unexpected historical data, first occurrence of $SDK_EXTENSIONS_INTERNAL_NAME was $sdkExtensionsSince, expected $sdk30 or $sdk33"
+            )
         } else if (sdkExtensionsSince == sdk30) {
             // This is the system API db (30). The class does not need patching but the members do.
             // Drop through.

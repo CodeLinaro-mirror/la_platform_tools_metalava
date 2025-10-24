@@ -39,7 +39,7 @@ import org.jetbrains.uast.getParentOfType
 
 internal class PsiClassItem
 internal constructor(
-    override val codebase: PsiBasedCodebase,
+    override val psiCodebase: PsiBasedCodebase,
     val psiClass: PsiClass,
     modifiers: BaseModifierList,
     documentationFactory: ItemDocumentationFactory,
@@ -53,7 +53,7 @@ internal constructor(
     interfaceTypes: List<ClassTypeItem>
 ) :
     DefaultClassItem(
-        codebase = codebase,
+        codebase = psiCodebase,
         fileLocation = PsiFileLocation.fromPsiElement(psiClass),
         sourceLanguage = psiClass.sourceLanguage,
         targetLanguages = TargetLanguageSet.ALL,
@@ -79,7 +79,7 @@ internal constructor(
         internal set
 
     override fun createClassTypeItemForThis() =
-        codebase.globalTypeItemFactory.getClassTypeForClass(this)
+        psiCodebase.globalTypeItemFactory.getClassTypeForClass(this)
 
     override fun sourceFile(): SourceFile? {
         if (isNestedClass()) {
@@ -99,17 +99,21 @@ internal constructor(
                 null
             }
 
-        return PsiSourceFile(codebase, containingFile, uFile)
+        return PsiSourceFile(psiCodebase, containingFile, uFile)
     }
 
     /** Creates a constructor in this class */
     override fun createDefaultConstructor(visibility: VisibilityLevel): PsiConstructorItem {
-        return PsiConstructorItem.createDefaultConstructor(codebase, this, psiClass, visibility)
+        return PsiConstructorItem.createDefaultConstructor(psiCodebase, this, psiClass, visibility)
     }
 
     override fun isFileFacade(): Boolean {
         return psiClass.isKotlin() &&
             psiClass is UClass &&
             psiClass.javaPsi is KtLightClassForFacade
+    }
+
+    override fun isMultiFileClass(): Boolean {
+        return ((psiClass as? UClass)?.javaPsi as? KtLightClassForFacade)?.multiFileClass ?: false
     }
 }

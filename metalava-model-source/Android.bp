@@ -43,7 +43,6 @@ java_library_host {
         "src/main/java/**/*.kt",
         ":metalava-model-source-javadoc-parser",
     ],
-    kotlin_lang_version: "2",
     libs: [
         "metalava-model",
         "metalava-reporter",

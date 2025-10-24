@@ -95,7 +95,10 @@ class ApiAnalyzerTest : DriverTest() {
                         """
                             package test.pkg;
                             import android.annotation.SystemApi;
-                            /** This class is OK because it is all hidden @hide */
+                            /**
+                             * This class is OK because it is all hidden
+                             * @hide
+                             */
                             public abstract class HiddenClass {
                                 public abstract boolean goodAbstractHiddenMethod() { return true; }
                             }
@@ -404,10 +407,10 @@ class ApiAnalyzerTest : DriverTest() {
                     package test.pkg {
                       @Deprecated public final class Foo {
                         ctor @Deprecated public Foo(@Deprecated int i, @Deprecated boolean b);
-                        method @Deprecated public boolean getB();
-                        method @Deprecated public int getI();
-                        method @Deprecated public void setB(boolean);
-                        method @Deprecated public void setI(int);
+                        method @InaccessibleFromKotlin @Deprecated public boolean getB();
+                        method @InaccessibleFromKotlin @Deprecated public int getI();
+                        method @InaccessibleFromKotlin @Deprecated public void setB(boolean);
+                        method @InaccessibleFromKotlin @Deprecated public void setI(int);
                         property @Deprecated public boolean b;
                         property @Deprecated public int i;
                       }

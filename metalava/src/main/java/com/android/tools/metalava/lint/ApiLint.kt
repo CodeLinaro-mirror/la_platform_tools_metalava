@@ -76,6 +76,8 @@ import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
+import com.android.tools.metalava.model.TypeParameterItem
+import com.android.tools.metalava.model.TypeParameterListOwner
 import com.android.tools.metalava.model.TypeStringConfiguration
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.findAnnotation
@@ -179,6 +181,7 @@ import com.android.tools.metalava.reporter.Issues.STATIC_FINAL_BUILDER
 import com.android.tools.metalava.reporter.Issues.STATIC_UTILS
 import com.android.tools.metalava.reporter.Issues.STREAM_FILES
 import com.android.tools.metalava.reporter.Issues.TOP_LEVEL_BUILDER
+import com.android.tools.metalava.reporter.Issues.TYPE_PARAMETER_NAME
 import com.android.tools.metalava.reporter.Issues.UNFLAGGED_API
 import com.android.tools.metalava.reporter.Issues.UNIQUE_KOTLIN_OPERATOR
 import com.android.tools.metalava.reporter.Issues.USER_HANDLE
@@ -385,7 +388,7 @@ private constructor(
         reporter.withContext(cls) {
             checkClass(cls, methods, constructors, allCallables, fields, superClass, interfaces)
         }
-        kotlinInterop.checkClass(cls)
+        kotlinInterop.checkClass(cls, allCallables + fields)
     }
 
     override fun visitCallable(callable: CallableItem) {
@@ -416,6 +419,7 @@ private constructor(
             checkClone(method)
             checkCallbackOrListenerMethod(method)
             checkMethodSuffixListenableFutureReturn(method)
+            checkTypeParameterNames(method)
             kotlinInterop.checkMethod(method)
         }
     }
@@ -446,6 +450,37 @@ private constructor(
         checkFutures(typeString, item)
     }
 
+    // Enforce type parameter naming rules:
+    // https://developer.android.com/kotlin/style-guide#type_variable_names
+    fun <T> checkTypeParameterNames(item: T) where T : Item, T : TypeParameterListOwner {
+        for (typeParameter: TypeParameterItem in item.typeParameterList) {
+            if (!isValidGenericTypeName(typeParameter.name())) {
+                report(
+                    TYPE_PARAMETER_NAME,
+                    item,
+                    "Invalid type parameter name \"${typeParameter.name()}\". Type parameter names must follow" +
+                        " the Google naming guidelines specified here:" +
+                        " https://developer.android.com/kotlin/style-guide#type_variable_names"
+                )
+            }
+        }
+    }
+
+    /*
+     * Generic parameter naming rules that this method is checking can be found here:
+     * https://developer.android.com/kotlin/style-guide#type_variable_names
+     */
+    private fun isValidGenericTypeName(name: String): Boolean {
+        if (name.isEmpty()) return false
+        if (name.length == 1) {
+            return name[0] >= 'A' && name[0] <= 'Z'
+        }
+        return name.endsWith("T") &&
+            name[0] >= 'A' &&
+            name[0] <= 'Z' &&
+            name.all { it.isLetterOrDigit() }
+    }
+
     private fun checkClass(
         cls: ClassItem,
         methods: Sequence<MethodItem>,
@@ -455,6 +490,7 @@ private constructor(
         superClass: ClassItem?,
         interfaces: Sequence<TypeItem>
     ) {
+        checkTypeParameterNames(cls)
         checkEquals(methods)
         checkEnums(cls)
         checkClassNames(cls)
@@ -1839,7 +1875,11 @@ private constructor(
             // it makes sense for this check to treat it as if it was replaced with its lower bound.
             val throwableClass = throwableType.erasedClass ?: continue
             if (isUncheckedException(throwableClass)) {
-                report(BANNED_THROW, callable, "Methods must not throw unchecked exceptions")
+                report(
+                    BANNED_THROW,
+                    callable,
+                    "Unchecked exception ${throwableType.toTypeString()} does not need to be listed in the method throws clause (only in documentation)"
+                )
             } else if (throwableType is VariableTypeItem) {
                 // Preserve legacy behavior where the following check did nothing for type
                 // parameters as a type parameters qualifiedName(), which is just its name without
@@ -2006,23 +2046,6 @@ private constructor(
      * Check to see whether a `FlaggedApi` annotation is required due to changes on an existing API.
      */
     private fun checkFlaggedApiOnPreviouslyReleasedApi(previousItem: Item, currentItem: Item) {
-        // Generate the modifiers from the previous API.
-        val previousModifiers = normalizeModifiers(previousItem)
-        // Generate the modifiers from the current API.
-        val currentModifiers = normalizeModifiers(currentItem)
-
-        if (currentModifiers != previousModifiers) {
-            report(
-                UNFLAGGED_API,
-                currentItem,
-                "Changes to modifiers, from '$previousModifiers' to '$currentModifiers' must be flagged with @FlaggedApi: ${currentItem.describe()}",
-                maximumSeverity = Severity.WARNING_ERROR_WHEN_NEW
-            )
-            // Reporting the same issue on the same Item is pointless as the first report will
-            // update the baseline and so suppress the second report so return immediately.
-            return
-        }
-
         // Check the deprecated status, if it has changed
         val previousDeprecated = previousItem.effectivelyDeprecated
         val currentDeprecated = currentItem.effectivelyDeprecated
@@ -2045,6 +2068,23 @@ private constructor(
                 "Changes from $previous to $current must be flagged with @FlaggedApi: ${currentItem.describe()}",
                 location = location ?: FileLocation.UNKNOWN,
                 maximumSeverity = Severity.WARNING_ERROR_WHEN_NEW,
+            )
+            // Reporting the same issue on the same Item is pointless as the first report will
+            // update the baseline and so suppress the second report so return immediately.
+            return
+        }
+
+        // Generate the modifiers from the previous API.
+        val previousModifiers = normalizeModifiers(previousItem)
+        // Generate the modifiers from the current API.
+        val currentModifiers = normalizeModifiers(currentItem)
+
+        if (currentModifiers != previousModifiers) {
+            report(
+                UNFLAGGED_API,
+                currentItem,
+                "Changes to modifiers, from '$previousModifiers' to '$currentModifiers' must be flagged with @FlaggedApi: ${currentItem.describe()}",
+                maximumSeverity = Severity.WARNING_ERROR_WHEN_NEW
             )
             // Reporting the same issue on the same Item is pointless as the first report will
             // update the baseline and so suppress the second report so return immediately.

@@ -208,7 +208,7 @@ class ProjectDescriptionTest : DriverTest() {
                 package some.pkg {
                   public final class Foo {
                     ctor public Foo();
-                    method public int getLazyVal();
+                    method @InaccessibleFromKotlin public int getLazyVal();
                     property public int lazyVal;
                   }
                 }

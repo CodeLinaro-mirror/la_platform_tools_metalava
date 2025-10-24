@@ -449,7 +449,7 @@ class DocAnalyzerTest : DriverTest() {
                     /**
                      * Methods in this class must be called on the thread that originally created
                      * this UI element, unless otherwise noted. This is typically the
-                     * main thread of your app. *
+                     * main thread of your app.
                      */
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class RangeTest {

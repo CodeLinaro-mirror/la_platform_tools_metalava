@@ -45,7 +45,7 @@ import org.jetbrains.uast.UMethod
 
 internal class PsiConstructorItem
 private constructor(
-    override val codebase: PsiBasedCodebase,
+    override val psiCodebase: PsiBasedCodebase,
     override val psiMethod: PsiMethod,
     fileLocation: FileLocation = PsiFileLocation(psiMethod),
     containingClass: ClassItem,
@@ -61,7 +61,7 @@ private constructor(
     targetLanguages: Set<TargetLanguage>,
 ) :
     DefaultConstructorItem(
-        codebase = codebase,
+        codebase = psiCodebase,
         fileLocation = fileLocation,
         sourceLanguage = psiMethod.sourceLanguage,
         targetLanguages = targetLanguages,
@@ -117,7 +117,7 @@ private constructor(
                 )
             val constructor =
                 PsiConstructorItem(
-                    codebase = codebase,
+                    psiCodebase = codebase,
                     psiMethod = psiMethod,
                     containingClass = containingClass,
                     name = name,
@@ -181,7 +181,7 @@ private constructor(
 
             val item =
                 PsiConstructorItem(
-                    codebase = codebase,
+                    psiCodebase = codebase,
                     psiMethod = psiMethod,
                     // Use the location of the containing class for the implicit default
                     // constructor.

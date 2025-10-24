@@ -23,7 +23,6 @@ java_library_host {
         "src/main/java/**/*.java",
         "src/main/java/**/*.kt",
     ],
-    kotlin_lang_version: "2",
     static_libs: [
         "metalava-reporter",
     ],

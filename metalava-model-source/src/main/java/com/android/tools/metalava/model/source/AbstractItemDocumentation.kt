@@ -17,12 +17,18 @@
 package com.android.tools.metalava.model.source
 
 import com.android.tools.metalava.model.ItemDocumentation
+import com.android.tools.metalava.model.SelectableItem
+import com.android.tools.metalava.model.source.doc.DocComment
+import com.android.tools.metalava.model.source.doc.DocumentationIssueReporter
+import com.android.tools.metalava.reporter.Issues
 import java.util.regex.Pattern
 
 /**
  * Abstract [ItemDocumentation] into which functionality that is common to all models will be added.
  */
-abstract class AbstractItemDocumentation : ItemDocumentation {
+abstract class AbstractItemDocumentation(
+    protected val item: SelectableItem,
+) : ItemDocumentation, DocumentationIssueReporter {
 
     /**
      * The mutable text contents of the documentation. This is abstract to allow the implementations
@@ -30,14 +36,44 @@ abstract class AbstractItemDocumentation : ItemDocumentation {
      */
     abstract override var text: String
 
+    /**
+     * Call when [text] changes to discard the [_docComment] so it will be regenerated next time it
+     * is accessed.
+     *
+     * This ensures that [text] and [_docComment] do not get out of sync. It is needed because
+     * currently the [text] is modified directly. Longer term, changes will be applied directly to
+     * [_docComment] and [text] will be dropped.
+     */
+    protected fun textChanged() {
+        _docComment = null
+    }
+
+    /** Lazily initialized from [text]. Is cleared by [textChanged] if [text] is modified. */
+    private var _docComment: DocComment? = null
+
+    private val docComment: DocComment
+        get() {
+            val docComment = _docComment
+            return if (docComment == null) {
+                val new = DocComment.createDocComment(text, this)
+                _docComment = new
+                new
+            } else {
+                docComment
+            }
+        }
+
     override val isHidden
-        get() = text.contains("@hide")
+        get() = hasBlockTagOfType("hide")
 
     override val isDocOnly
-        get() = text.contains("@doconly")
+        get() = hasBlockTagOfType("doconly")
 
     override val isRemoved
-        get() = text.contains("@removed")
+        get() = hasBlockTagOfType("removed")
+
+    override fun hasBlockTagOfType(blockTagType: String) =
+        docComment.hasBlockTagOfType(blockTagType)
 
     override fun workAroundJavaDocSummaryTruncationIssue() {
         // Work around javadoc cutting off the summary line after the first ". ".
@@ -147,6 +183,11 @@ abstract class AbstractItemDocumentation : ItemDocumentation {
 
     override fun removeDeprecatedSection() {
         text = removeDeprecatedSection(text)
+    }
+
+    override fun report(issue: Issues.Issue, message: String, lineOffset: Int) {
+        val location = fileLocation.forLineOffset(lineOffset)
+        item.codebase.reporter.report(issue, null, message, location)
     }
 }
 

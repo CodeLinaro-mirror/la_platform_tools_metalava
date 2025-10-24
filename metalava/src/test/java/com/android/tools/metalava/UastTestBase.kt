@@ -106,7 +106,7 @@ abstract class UastTestBase : DriverTest() {
                 package androidx.annotation.experimental {
                   @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention.BINARY) @kotlin.annotation.Target(allowedTargets={kotlin.annotation.AnnotationTarget.CLASS, kotlin.annotation.AnnotationTarget.PROPERTY, kotlin.annotation.AnnotationTarget.LOCAL_VARIABLE, kotlin.annotation.AnnotationTarget.VALUE_PARAMETER, kotlin.annotation.AnnotationTarget.CONSTRUCTOR, kotlin.annotation.AnnotationTarget.FUNCTION, kotlin.annotation.AnnotationTarget.PROPERTY_GETTER, kotlin.annotation.AnnotationTarget.PROPERTY_SETTER, kotlin.annotation.AnnotationTarget.FILE, kotlin.annotation.AnnotationTarget.TYPEALIAS}) public @interface UseExperimental {
                     ctor @KotlinOnly public UseExperimental(kotlin.reflect.KClass<? extends java.lang.annotation.Annotation>... markerClass);
-                    method public abstract $klass<? extends java.lang.annotation.Annotation>[] markerClass();
+                    method @InaccessibleFromKotlin public abstract $klass<? extends java.lang.annotation.Annotation>[] markerClass();
                     property public abstract kotlin.reflect.KClass<? extends java.lang.annotation.Annotation>[] markerClass;
                   }
                 }
@@ -139,11 +139,11 @@ abstract class UastTestBase : DriverTest() {
                     package test.pkg {
                       public final class ColorRamp {
                         ctor public ColorRamp(int[] colors, boolean interpolated);
-                        method public int[] getColors();
-                        method public int[] getOtherColors();
-                        method public boolean isInitiallyEnabled();
-                        method public boolean isInterpolated();
-                        method public void updateOtherColors(int[]);
+                        method @InaccessibleFromKotlin public int[] getColors();
+                        method @InaccessibleFromKotlin public int[] getOtherColors();
+                        method @InaccessibleFromKotlin public boolean isInitiallyEnabled();
+                        method @InaccessibleFromKotlin public boolean isInterpolated();
+                        method @InaccessibleFromKotlin public void updateOtherColors(int[]);
                         property public int[] colors;
                         property public boolean initiallyEnabled;
                         property public boolean interpolated;
@@ -157,11 +157,11 @@ abstract class UastTestBase : DriverTest() {
                     package test.pkg {
                       public final class ColorRamp {
                         ctor public ColorRamp(int[] colors, boolean interpolated);
-                        method public int[] getColors();
-                        method public boolean getInterpolated();
-                        method public int[] getOtherColors();
-                        method public boolean isInitiallyEnabled();
-                        method public void updateOtherColors(int[]);
+                        method @InaccessibleFromKotlin public int[] getColors();
+                        method @InaccessibleFromKotlin public boolean getInterpolated();
+                        method @InaccessibleFromKotlin public int[] getOtherColors();
+                        method @InaccessibleFromKotlin public boolean isInitiallyEnabled();
+                        method @InaccessibleFromKotlin public void updateOtherColors(int[]);
                         property public int[] colors;
                         property public boolean initiallyEnabled;
                         property public boolean interpolated;
@@ -220,8 +220,8 @@ abstract class UastTestBase : DriverTest() {
                     method public int component1();
                     method public String component2();
                     method public test.pkg.Foo copy(optional @test.pkg.MyAnnotation int p1, optional String p2);
-                    method public int getP1();
-                    method public String getP2();
+                    method @InaccessibleFromKotlin public int getP1();
+                    method @InaccessibleFromKotlin public String getP2();
                     property public int p1;
                     property public String p2;
                   }
@@ -545,7 +545,7 @@ abstract class UastTestBase : DriverTest() {
                   public static final class Alignment.Companion {
                     method @BytecodeOnly public int getStart-6VHEJhI();
                     method @BytecodeOnly public int getTop-8LqPg6A();
-                    method public test.pkg.Alignment getTopStart();
+                    method @InaccessibleFromKotlin public test.pkg.Alignment getTopStart();
                     property public test.pkg.Alignment.Horizontal Start;
                     property public test.pkg.Alignment.Vertical Top;
                     property public test.pkg.Alignment TopStart;
@@ -630,8 +630,8 @@ abstract class UastTestBase : DriverTest() {
                 package test.pkg {
                   public final class Test {
                     ctor public Test();
-                    method public java.util.Set<java.lang.String> getLazyProp();
-                    method public String getProp();
+                    method @InaccessibleFromKotlin public java.util.Set<java.lang.String> getLazyProp();
+                    method @InaccessibleFromKotlin public String getProp();
                     property public java.util.Set<java.lang.String> lazyProp;
                     property public String prop;
                   }
@@ -687,7 +687,7 @@ abstract class UastTestBase : DriverTest() {
                 package test.pkg {
                   public final class Foo {
                     ctor public Foo(int x);
-                    method public int getX();
+                    method @InaccessibleFromKotlin public int getX();
                     property public int x;
                   }
                   public final class FooComparator implements java.util.Comparator<test.pkg.Foo> {
@@ -778,7 +778,7 @@ abstract class UastTestBase : DriverTest() {
                   }
                   public enum State {
                     method public boolean isAtLeast(test.pkg.State state);
-                    method public boolean isFinished();
+                    method @InaccessibleFromKotlin public boolean isFinished();
                     property public boolean isFinished;
                     enum_constant public static final test.pkg.State BLOCKED;
                     enum_constant public static final test.pkg.State CANCELLED;
@@ -817,7 +817,7 @@ abstract class UastTestBase : DriverTest() {
                   }
                   public final class Foo {
                     ctor public Foo();
-                    method public java.util.List<test.pkg.Bar> getBars();
+                    method @InaccessibleFromKotlin public java.util.List<test.pkg.Bar> getBars();
                     property public java.util.List<test.pkg.Bar> bars;
                   }
                 }
@@ -903,8 +903,8 @@ abstract class UastTestBase : DriverTest() {
                     method public test.pkg.PowerMetric.Type.Power Power(optional java.util.Map<test.pkg.PowerCategory,${upperBound}test.pkg.PowerCategoryDisplayLevel> categories);
                   }
                   public abstract static sealed class PowerMetric.Type {
-                    method public final java.util.Map<test.pkg.PowerCategory,test.pkg.PowerCategoryDisplayLevel> getCategories();
-                    method public final void setCategories(java.util.Map<test.pkg.PowerCategory,${upperBound}test.pkg.PowerCategoryDisplayLevel>);
+                    method @InaccessibleFromKotlin public final java.util.Map<test.pkg.PowerCategory,test.pkg.PowerCategoryDisplayLevel> getCategories();
+                    method @InaccessibleFromKotlin public final void setCategories(java.util.Map<test.pkg.PowerCategory,${upperBound}test.pkg.PowerCategoryDisplayLevel>);
                     property public final java.util.Map<test.pkg.PowerCategory,test.pkg.PowerCategoryDisplayLevel> categories;
                   }
                   public static final class PowerMetric.Type.Battery extends test.pkg.PowerMetric.Type {
@@ -1226,7 +1226,7 @@ abstract class UastTestBase : DriverTest() {
                 """
                 package test.pkg {
                   public abstract class AbstractAlarm<Self extends test.pkg.AbstractAlarm<Self, Builder>, Builder extends test.pkg.AbstractAlarm.Builder<Builder, Self>> implements test.pkg.Alarm {
-                    method public final String getIdentifier();
+                    method @InaccessibleFromKotlin public final String getIdentifier();
                     property public final String identifier;
                   }
                   public abstract static class AbstractAlarm.Builder<Self extends test.pkg.AbstractAlarm.Builder<Self, Built>, Built extends test.pkg.AbstractAlarm<Built, Self>> implements test.pkg.Alarm.Builder<Self> {
@@ -1339,7 +1339,7 @@ abstract class UastTestBase : DriverTest() {
                 """
                 package test.pkg {
                   public final class PrepareGetCredentialResponse {
-                    method public kotlin.jvm.functions.Function0<java.lang.Boolean>? getHasAuthResultsDelegate();
+                    method @InaccessibleFromKotlin public kotlin.jvm.functions.Function0<java.lang.Boolean>? getHasAuthResultsDelegate();
                     property public kotlin.jvm.functions.Function0<java.lang.Boolean>? hasAuthResultsDelegate;
                   }
                   public typealias HasAuthenticationResultsDelegate = kotlin.jvm.functions.Function0<java.lang.Boolean>;
@@ -1386,8 +1386,8 @@ abstract class UastTestBase : DriverTest() {
                 package test.pkg {
                   @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention.SOURCE) @kotlin.annotation.Target(allowedTargets=kotlin.annotation.AnnotationTarget.ANNOTATION_CLASS) public @interface MyIntDef {
                     ctor @KotlinOnly public MyIntDef(optional int... value, optional boolean flag);
-                    method public abstract boolean flag() default false;
-                    method public abstract int[] value();
+                    method @InaccessibleFromKotlin public abstract boolean flag() default false;
+                    method @InaccessibleFromKotlin public abstract int[] value();
                     property public abstract boolean flag;
                     property public abstract int[] value;
                   }
@@ -1427,14 +1427,14 @@ abstract class UastTestBase : DriverTest() {
                         method @BytecodeOnly @Deprecated @test.pkg.MyAnnotation public int getPOld_deprecatedOnProperty_myAnnoOnBoth();
                         method @BytecodeOnly @Deprecated @test.pkg.MyAnnotation public int getPOld_deprecatedOnProperty_myAnnoOnGetter();
                         method @BytecodeOnly @Deprecated public int getPOld_deprecatedOnProperty_myAnnoOnSetter();
-                        method public int getPOld_deprecatedOnSetter();
-                        method @test.pkg.MyAnnotation public int getPOld_deprecatedOnSetter_myAnnoOnBoth();
-                        method @test.pkg.MyAnnotation public int getPOld_deprecatedOnSetter_myAnnoOnGetter();
-                        method public int getPOld_deprecatedOnSetter_myAnnoOnSetter();
-                        method @Deprecated public void setPOld_deprecatedOnGetter(int);
-                        method @Deprecated @test.pkg.MyAnnotation public void setPOld_deprecatedOnGetter_myAnnoOnBoth(int);
-                        method @Deprecated public void setPOld_deprecatedOnGetter_myAnnoOnGetter(int);
-                        method @Deprecated @test.pkg.MyAnnotation public void setPOld_deprecatedOnGetter_myAnnoOnSetter(int);
+                        method @InaccessibleFromKotlin public int getPOld_deprecatedOnSetter();
+                        method @InaccessibleFromKotlin @test.pkg.MyAnnotation public int getPOld_deprecatedOnSetter_myAnnoOnBoth();
+                        method @InaccessibleFromKotlin @test.pkg.MyAnnotation public int getPOld_deprecatedOnSetter_myAnnoOnGetter();
+                        method @InaccessibleFromKotlin public int getPOld_deprecatedOnSetter_myAnnoOnSetter();
+                        method @InaccessibleFromKotlin @Deprecated public void setPOld_deprecatedOnGetter(int);
+                        method @InaccessibleFromKotlin @Deprecated @test.pkg.MyAnnotation public void setPOld_deprecatedOnGetter_myAnnoOnBoth(int);
+                        method @InaccessibleFromKotlin @Deprecated public void setPOld_deprecatedOnGetter_myAnnoOnGetter(int);
+                        method @InaccessibleFromKotlin @Deprecated @test.pkg.MyAnnotation public void setPOld_deprecatedOnGetter_myAnnoOnSetter(int);
                         method @BytecodeOnly @Deprecated public void setPOld_deprecatedOnProperty(int);
                         method @BytecodeOnly @Deprecated @test.pkg.MyAnnotation public void setPOld_deprecatedOnProperty_myAnnoOnBoth(int);
                         method @BytecodeOnly @Deprecated public void setPOld_deprecatedOnProperty_myAnnoOnGetter(int);
@@ -1454,12 +1454,12 @@ abstract class UastTestBase : DriverTest() {
                       }
                       public final class Test_accessors {
                         ctor public Test_accessors();
-                        method public String? getPNew_accessors();
+                        method @InaccessibleFromKotlin public String? getPNew_accessors();
                         method @BytecodeOnly @Deprecated public String! getPOld_accessors_deprecatedOnGetter();
                         method @BytecodeOnly @Deprecated public String! getPOld_accessors_deprecatedOnProperty();
-                        method public String? getPOld_accessors_deprecatedOnSetter();
-                        method public void setPNew_accessors(String?);
-                        method @Deprecated public void setPOld_accessors_deprecatedOnGetter(String?);
+                        method @InaccessibleFromKotlin public String? getPOld_accessors_deprecatedOnSetter();
+                        method @InaccessibleFromKotlin public void setPNew_accessors(String?);
+                        method @InaccessibleFromKotlin @Deprecated public void setPOld_accessors_deprecatedOnGetter(String?);
                         method @BytecodeOnly @Deprecated public void setPOld_accessors_deprecatedOnProperty(String!);
                         method @BytecodeOnly @Deprecated public void setPOld_accessors_deprecatedOnSetter(String!);
                         property public String? pNew_accessors;
@@ -1468,12 +1468,12 @@ abstract class UastTestBase : DriverTest() {
                       }
                       public final class Test_getter {
                         ctor public Test_getter();
-                        method public String? getPNew_getter();
+                        method @InaccessibleFromKotlin public String? getPNew_getter();
                         method @BytecodeOnly @Deprecated public String! getPOld_getter_deprecatedOnGetter();
                         method @BytecodeOnly @Deprecated public String! getPOld_getter_deprecatedOnProperty();
-                        method public String? getPOld_getter_deprecatedOnSetter();
-                        method public void setPNew_getter(String?);
-                        method @Deprecated public void setPOld_getter_deprecatedOnGetter(String?);
+                        method @InaccessibleFromKotlin public String? getPOld_getter_deprecatedOnSetter();
+                        method @InaccessibleFromKotlin public void setPNew_getter(String?);
+                        method @InaccessibleFromKotlin @Deprecated public void setPOld_getter_deprecatedOnGetter(String?);
                         method @BytecodeOnly @Deprecated public void setPOld_getter_deprecatedOnProperty(String!);
                         method @BytecodeOnly @Deprecated public void setPOld_getter_deprecatedOnSetter(String!);
                         property public String? pNew_getter;
@@ -1482,12 +1482,12 @@ abstract class UastTestBase : DriverTest() {
                       }
                       public final class Test_noAccessor {
                         ctor public Test_noAccessor();
-                        method public String getPNew_noAccessor();
+                        method @InaccessibleFromKotlin public String getPNew_noAccessor();
                         method @BytecodeOnly @Deprecated public String! getPOld_noAccessor_deprecatedOnGetter();
                         method @BytecodeOnly @Deprecated public String! getPOld_noAccessor_deprecatedOnProperty();
-                        method public String getPOld_noAccessor_deprecatedOnSetter();
-                        method public void setPNew_noAccessor(String);
-                        method @Deprecated public void setPOld_noAccessor_deprecatedOnGetter(String);
+                        method @InaccessibleFromKotlin public String getPOld_noAccessor_deprecatedOnSetter();
+                        method @InaccessibleFromKotlin public void setPNew_noAccessor(String);
+                        method @InaccessibleFromKotlin @Deprecated public void setPOld_noAccessor_deprecatedOnGetter(String);
                         method @BytecodeOnly @Deprecated public void setPOld_noAccessor_deprecatedOnProperty(String!);
                         method @BytecodeOnly @Deprecated public void setPOld_noAccessor_deprecatedOnSetter(String!);
                         property public String pNew_noAccessor;
@@ -1496,12 +1496,12 @@ abstract class UastTestBase : DriverTest() {
                       }
                       public final class Test_setter {
                         ctor public Test_setter();
-                        method public String? getPNew_setter();
+                        method @InaccessibleFromKotlin public String? getPNew_setter();
                         method @BytecodeOnly @Deprecated public String! getPOld_setter_deprecatedOnGetter();
                         method @BytecodeOnly @Deprecated public String! getPOld_setter_deprecatedOnProperty();
-                        method public String? getPOld_setter_deprecatedOnSetter();
-                        method public void setPNew_setter(String?);
-                        method @Deprecated public void setPOld_setter_deprecatedOnGetter(String?);
+                        method @InaccessibleFromKotlin public String? getPOld_setter_deprecatedOnSetter();
+                        method @InaccessibleFromKotlin public void setPNew_setter(String?);
+                        method @InaccessibleFromKotlin @Deprecated public void setPOld_setter_deprecatedOnGetter(String?);
                         method @BytecodeOnly @Deprecated public void setPOld_setter_deprecatedOnProperty(String!);
                         method @BytecodeOnly @Deprecated public void setPOld_setter_deprecatedOnSetter(String!);
                         property public String? pNew_setter;
@@ -1551,11 +1551,11 @@ abstract class UastTestBase : DriverTest() {
                       }
                       public final class Test_accessors {
                         ctor public Test_accessors();
-                        method public String? getPNew_accessors();
+                        method @InaccessibleFromKotlin public String? getPNew_accessors();
                         method @BytecodeOnly @Deprecated public String! getPOld_accessors_deprecatedOnGetter();
                         method @BytecodeOnly @Deprecated public String! getPOld_accessors_deprecatedOnProperty();
                         method @BytecodeOnly public String? getPOld_accessors_deprecatedOnSetter();
-                        method public void setPNew_accessors(String?);
+                        method @InaccessibleFromKotlin public void setPNew_accessors(String?);
                         method @BytecodeOnly public void setPOld_accessors_deprecatedOnGetter(String?);
                         method @BytecodeOnly @Deprecated public void setPOld_accessors_deprecatedOnProperty(String!);
                         method @BytecodeOnly @Deprecated public void setPOld_accessors_deprecatedOnSetter(String!);
@@ -1565,11 +1565,11 @@ abstract class UastTestBase : DriverTest() {
                       }
                       public final class Test_getter {
                         ctor public Test_getter();
-                        method public String? getPNew_getter();
+                        method @InaccessibleFromKotlin public String? getPNew_getter();
                         method @BytecodeOnly @Deprecated public String! getPOld_getter_deprecatedOnGetter();
                         method @BytecodeOnly @Deprecated public String! getPOld_getter_deprecatedOnProperty();
                         method @BytecodeOnly public String? getPOld_getter_deprecatedOnSetter();
-                        method public void setPNew_getter(String?);
+                        method @InaccessibleFromKotlin public void setPNew_getter(String?);
                         method @BytecodeOnly public void setPOld_getter_deprecatedOnGetter(String?);
                         method @BytecodeOnly @Deprecated public void setPOld_getter_deprecatedOnProperty(String!);
                         method @BytecodeOnly @Deprecated public void setPOld_getter_deprecatedOnSetter(String!);
@@ -1579,11 +1579,11 @@ abstract class UastTestBase : DriverTest() {
                       }
                       public final class Test_noAccessor {
                         ctor public Test_noAccessor();
-                        method public String getPNew_noAccessor();
+                        method @InaccessibleFromKotlin public String getPNew_noAccessor();
                         method @BytecodeOnly @Deprecated public String! getPOld_noAccessor_deprecatedOnGetter();
                         method @BytecodeOnly @Deprecated public String! getPOld_noAccessor_deprecatedOnProperty();
                         method @BytecodeOnly public String getPOld_noAccessor_deprecatedOnSetter();
-                        method public void setPNew_noAccessor(String);
+                        method @InaccessibleFromKotlin public void setPNew_noAccessor(String);
                         method @BytecodeOnly public void setPOld_noAccessor_deprecatedOnGetter(String);
                         method @BytecodeOnly @Deprecated public void setPOld_noAccessor_deprecatedOnProperty(String!);
                         method @BytecodeOnly @Deprecated public void setPOld_noAccessor_deprecatedOnSetter(String!);
@@ -1593,11 +1593,11 @@ abstract class UastTestBase : DriverTest() {
                       }
                       public final class Test_setter {
                         ctor public Test_setter();
-                        method public String? getPNew_setter();
+                        method @InaccessibleFromKotlin public String? getPNew_setter();
                         method @BytecodeOnly @Deprecated public String! getPOld_setter_deprecatedOnGetter();
                         method @BytecodeOnly @Deprecated public String! getPOld_setter_deprecatedOnProperty();
                         method @BytecodeOnly public String? getPOld_setter_deprecatedOnSetter();
-                        method public void setPNew_setter(String?);
+                        method @InaccessibleFromKotlin public void setPNew_setter(String?);
                         method @BytecodeOnly public void setPOld_setter_deprecatedOnGetter(String?);
                         method @BytecodeOnly @Deprecated public void setPOld_setter_deprecatedOnProperty(String!);
                         method @BytecodeOnly @Deprecated public void setPOld_setter_deprecatedOnSetter(String!);
@@ -1977,7 +1977,7 @@ abstract class UastTestBase : DriverTest() {
                 package test.pkg {
                   public final class PointerEvent {
                     ctor public PointerEvent();
-                    method public test.pkg.PointerKeyboardModifiers getKeyboardModifiers();
+                    method @InaccessibleFromKotlin public test.pkg.PointerKeyboardModifiers getKeyboardModifiers();
                     property public test.pkg.PointerKeyboardModifiers keyboardModifiers;
                   }
                   public final class PointerKeyboardModifiers {
@@ -2324,7 +2324,7 @@ abstract class UastTestBase : DriverTest() {
             package test.pkg {
               @kotlin.jvm.JvmInline public final value class IntValue {
                 ctor @KotlinOnly public IntValue(int value);
-                method public int getValue();
+                method @InaccessibleFromKotlin public int getValue();
                 property public int value;
               }
             }
@@ -2494,7 +2494,7 @@ abstract class UastTestBase : DriverTest() {
                     ctor @KotlinOnly public IntValue(int value);
                     method @BytecodeOnly public static test.pkg.IntValue! box-impl(int);
                     method @BytecodeOnly public static int constructor-impl(int);
-                    method public int getValue();
+                    method @InaccessibleFromKotlin public int getValue();
                     method @BytecodeOnly public int unbox-impl();
                     property public int value;
                   }
@@ -2602,7 +2602,7 @@ abstract class UastTestBase : DriverTest() {
                     ctor @KotlinOnly public IntValue(int value);
                     method @BytecodeOnly public static test.pkg.IntValue! box-impl(int);
                     method @BytecodeOnly public static int constructor-impl(int);
-                    method public int getValue();
+                    method @InaccessibleFromKotlin public int getValue();
                     method @BytecodeOnly public int unbox-impl();
                     property public int value;
                   }
@@ -2683,12 +2683,12 @@ abstract class UastTestBase : DriverTest() {
                 package test.pkg {
                   @java.lang.annotation.Repeatable(AnnotationCanRepeat.Entries::class) public @interface AnnotationCanRepeat {
                     ctor @KotlinOnly public AnnotationCanRepeat(int value);
-                    method public abstract int value();
+                    method @InaccessibleFromKotlin public abstract int value();
                     property public abstract int value;
                   }
                   @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public static @interface AnnotationCanRepeat.Entries {
                     ctor @KotlinOnly public AnnotationCanRepeat.Entries(test.pkg.AnnotationCanRepeat... value);
-                    method public abstract test.pkg.AnnotationCanRepeat[] value();
+                    method @InaccessibleFromKotlin public abstract test.pkg.AnnotationCanRepeat[] value();
                     property public abstract test.pkg.AnnotationCanRepeat[] value;
                   }
                 }
@@ -2719,7 +2719,7 @@ abstract class UastTestBase : DriverTest() {
                     ctor public Foo(java.util.List<? extends T> items);
                     method public java.util.List<T> component1();
                     method public test.pkg.Foo<T> copy(optional java.util.List<? extends T> items);
-                    method public java.util.List<T> getItems();
+                    method @InaccessibleFromKotlin public java.util.List<T> getItems();
                     property public java.util.List<T> items;
                   }
                 }
@@ -2760,12 +2760,12 @@ abstract class UastTestBase : DriverTest() {
                   }
                   @kotlin.jvm.JvmInline public final value class IntValue {
                     ctor @KotlinOnly public IntValue(int value);
-                    method public int getValue();
+                    method @InaccessibleFromKotlin public int getValue();
                     property public int value;
                     field public static final test.pkg.IntValue.Companion Companion;
                   }
                   public static final class IntValue.Companion {
-                    method public int getWithNonValueClassTypeSpecified();
+                    method @InaccessibleFromKotlin public int getWithNonValueClassTypeSpecified();
                     property @test.pkg.Anno public int withNonValueClassTypeSpecified;
                     property @test.pkg.Anno public test.pkg.IntValue withValueClassTypeSpecified;
                     property @test.pkg.Anno public test.pkg.IntValue withValueClassTypeUnspecified;
@@ -2995,7 +2995,7 @@ abstract class UastTestBase : DriverTest() {
                     method public boolean contains(String element);
                     method public boolean containsAll(java.util.Collection<${maybeExtends}java.lang.String> elements);
                     method public Void get(int index);
-                    method public int getSize();
+                    method @InaccessibleFromKotlin public int getSize();
                     method @BytecodeOnly public int indexOf(Object!);
                     method public int indexOf(String element);
                     method public boolean isEmpty();

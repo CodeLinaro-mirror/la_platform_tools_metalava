@@ -93,6 +93,7 @@ Available Issues                             |  Category                        
   ExecutorRegistration                       |  api_lint                             |   warning
   ExtendsDeprecated                          |  api_lint                             |   hidden
   ExtendsError                               |  api_lint                             |   error
+  FacadeClassJvmName                         |  api_lint                             |   hidden
   FlaggedApiLiteral                          |  api_lint                             |   warning_error_when_new
   ForbiddenSuperClass                        |  api_lint                             |   error
   ForbiddenTag                               |  documentation                        |   error
@@ -120,6 +121,7 @@ Available Issues                             |  Category                        
   InternalError                              |  unknown                              |   error
   InternalField                              |  api_lint                             |   error
   InvalidFeatureEnforcement                  |  documentation                        |   error
+  InvalidJavadoc                             |  documentation                        |   warning_error_when_new
   InvalidNullConversion                      |  source_compatibility_only            |   error
   InvalidNullabilityAnnotation               |  unknown                              |   error
   InvalidNullabilityAnnotationWarning        |  unknown                              |   warning
@@ -214,6 +216,7 @@ Available Issues                             |  Category                        
   SuperfluousPrefix                          |  unknown                              |   warning
   Todo                                       |  documentation                        |   error
   TopLevelBuilder                            |  api_lint                             |   warning
+  TypeParameterName                          |  api_lint                             |   warning_error_when_new
   TypeParseError                             |  unknown                              |   error
   UnavailableSymbol                          |  documentation                        |   warning
   UnflaggedApi                               |  api_lint                             |   hidden

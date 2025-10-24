@@ -87,6 +87,7 @@ object Issues {
     val REMOVED_FROM_KOTLIN by Issue(Severity.ERROR, Category.SOURCE_COMPATIBILITY_ONLY)
 
     // Issues in javadoc generation
+    val INVALID_JAVADOC by Issue(Severity.WARNING_ERROR_WHEN_NEW, Category.DOCUMENTATION)
     val UNRESOLVED_LINK by Issue(Severity.ERROR, Category.DOCUMENTATION)
     val UNAVAILABLE_SYMBOL by Issue(Severity.WARNING, Category.DOCUMENTATION)
     val HIDDEN_SUPERCLASS by Issue(Severity.WARNING, Category.DOCUMENTATION)
@@ -156,6 +157,7 @@ object Issues {
     val COMPILE_TIME_CONSTANT by Issue(Severity.ERROR, Category.API_LINT)
     val SINGULAR_CALLBACK by Issue(Severity.ERROR, Category.API_LINT)
     val CALLBACK_NAME by Issue(Severity.WARNING, Category.API_LINT)
+    val TYPE_PARAMETER_NAME by Issue(Severity.WARNING_ERROR_WHEN_NEW, Category.API_LINT)
     // Obsolete per https://s.android.com/api-guidelines.
     val CALLBACK_INTERFACE by Issue(Severity.HIDDEN, Category.API_LINT)
     val CALLBACK_METHOD_NAME by Issue(Severity.ERROR, Category.API_LINT)
@@ -255,6 +257,9 @@ object Issues {
     val MISSING_FROM_VALUE by Issue(Severity.ERROR, Category.API_LINT)
     val INHERIT_CHANGES_SIGNATURE by Issue(Severity.WARNING_ERROR_WHEN_NEW)
     val DATA_CLASS_DEFINITION by Issue(Severity.HIDDEN, Category.API_LINT)
+    // TODO(b/165356974): set this to error once AndroidX selectively opts-in for projects that
+    // target Java
+    val FACADE_CLASS_JVM_NAME by Issue(Severity.HIDDEN, Category.API_LINT)
 
     fun findIssueById(id: String?): Issue? {
         return nameToIssue[id]
