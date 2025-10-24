@@ -521,7 +521,9 @@ class ApiLevelsGenerationOptions(
                 cliError("Suspicious $ARG_CURRENT_VERSION $currentSdkVersion, expected at least 27")
             }
 
-            val nextSdkVersion = currentSdkVersion + 1
+            // b/447588979 In future the version to use will be passed on the command line so
+            // Metalava does not need to deduce it. A placeholder is used temporarily.
+            val nextSdkVersion = ApiVersion.fromString("10000")
             val lastFinalizedVersion = versionedHistoricalApis.lastOrNull()?.apiVersion
 
             // Compute the version to use for the current codebase, or null if the current codebase

@@ -24,7 +24,7 @@ import java.io.StringWriter
  *
  * Implementations of these are mutable.
  */
-interface DocComment {
+internal interface DocComment {
     /** The main description, i.e. the part before any block tags. */
     val description: DocDescription
 
@@ -37,6 +37,9 @@ interface DocComment {
 
     /** Check to see whether there are any block tags of type [blockTagType]. */
     fun hasBlockTagOfType(blockTagType: String): Boolean
+
+    /** Add a [BlockTagSection] of [blockTagType] with [description] to the list. */
+    fun addBlockTagSection(blockTagType: String, description: DocDescription)
 
     /**
      * Removes any [BlockTagSection] for which [predicate] returns `true`.
@@ -84,6 +87,10 @@ internal class DefaultDocComment(
     override fun hasBlockTagOfType(blockTagType: String) =
         blockTagSections.any { it.tagType == blockTagType }
 
+    override fun addBlockTagSection(blockTagType: String, description: DocDescription) {
+        blockTagSections = blockTagSections + DefaultBlockTagSection(blockTagType, description)
+    }
+
     override fun removeBlockTagSections(predicate: (BlockTagSection) -> Boolean): Boolean {
         val filtered = blockTagSections.filter { !predicate(it) }
         return if (filtered.size == blockTagSections.size) {
@@ -120,6 +127,9 @@ internal class DefaultDocComment(
         val blockTagSectionRequiredSpace = requiredSpaceForBlockTagSections()
         val overallRequiredSpace = mainDescriptionRequiredSpace + blockTagSectionRequiredSpace
 
+        // Create a printer for [DocDescription]s.
+        val descriptionPrinter = DocDescriptionPrinter(writer)
+
         // Check to see whether this is multi-line comment. If is then output it on multiple lines,
         // e.g.
         // ```
@@ -141,7 +151,9 @@ internal class DefaultDocComment(
             if (multiLine) {
                 writer.print(" *")
             }
-            description.printAsJavadocComment(writer)
+            // Add leading space as all leading whitespace was removed from description.
+            writer.print(" ")
+            descriptionPrinter.print(description)
             if (multiLine) {
                 writer.println()
             }
@@ -165,7 +177,7 @@ internal class DefaultDocComment(
                 val sectionDescription = section.description
                 if (sectionDescription.isNotEmpty()) {
                     writer.print(" ")
-                    sectionDescription.printAsJavadocComment(writer)
+                    descriptionPrinter.print(sectionDescription)
                 }
                 if (multiLine) {
                     writer.println()

@@ -17,7 +17,6 @@
 package com.android.tools.metalava.model.source.javadoc
 
 import com.android.tools.metalava.model.source.doc.BaseDocCommentTest
-import com.android.tools.metalava.model.source.doc.DefaultDocDescription
 import com.android.tools.metalava.model.source.doc.DocComment
 import com.android.tools.metalava.model.source.doc.DocDescription
 import kotlin.test.assertEquals
@@ -36,7 +35,7 @@ class JavadocParserTest : BaseDocCommentTest() {
         val docComment = createTestDocComment(text)
 
         // Parse the main description
-        val description = descriptionGetter(docComment) as DefaultDocDescription
+        val description = descriptionGetter(docComment)
         var content = description.content
 
         // Make sure that no unexpected JavadocParser issues were found.
@@ -48,7 +47,7 @@ class JavadocParserTest : BaseDocCommentTest() {
 
         // Generate a string representation of the model structure.
         val actualStructure = buildString {
-            content.accept(
+            content?.accept(
                 object : JavadocContentVisitor {
                     private var indent = ""
 
@@ -93,7 +92,7 @@ class JavadocParserTest : BaseDocCommentTest() {
     fun `Test simple comment`() {
         checkParse(
             "/** Simple text */",
-            expectedStructure = "text: ' Simple text'",
+            expectedStructure = "text: 'Simple text'",
         )
     }
 
@@ -101,7 +100,7 @@ class JavadocParserTest : BaseDocCommentTest() {
     fun `Test simple comment - leading newline`() {
         checkParse(
             "\n/** Simple text */",
-            expectedStructure = """text: ' Simple text'""",
+            expectedStructure = """text: 'Simple text'""",
         )
     }
 
@@ -109,7 +108,7 @@ class JavadocParserTest : BaseDocCommentTest() {
     fun `Test simple comment - trailing newline`() {
         checkParse(
             "/** Simple text */\n",
-            expectedStructure = """text: ' Simple text'""",
+            expectedStructure = """text: 'Simple text'""",
         )
     }
 
@@ -119,7 +118,7 @@ class JavadocParserTest : BaseDocCommentTest() {
             "/** /** */\n",
             expectedStructure =
                 """
-                    text: ' /**'
+                    text: '/**'
                 """,
         )
     }
@@ -134,7 +133,6 @@ class JavadocParserTest : BaseDocCommentTest() {
             """,
             expectedStructure =
                 """
-                    text: ' '
                     inlineTag: link
                       text: 'Class'
                 """,
@@ -151,7 +149,7 @@ class JavadocParserTest : BaseDocCommentTest() {
             """,
             expectedStructure =
                 """
-                    text: ' Text before link '
+                    text: 'Text before link '
                     inlineTag: link
                       text: 'Class'
                     text: ' and some text after.'
@@ -171,7 +169,7 @@ class JavadocParserTest : BaseDocCommentTest() {
             """,
             expectedStructure =
                 """
-                    text: ' Text before link\n '
+                    text: 'Text before link\n '
                     inlineTag: link
                       text: 'Class'
                     text: '\n and some text after.'
@@ -189,7 +187,6 @@ class JavadocParserTest : BaseDocCommentTest() {
             """,
             expectedStructure =
                 """
-                    text: ' '
                     inlineTag: code
                       text: '@Annotation'
                 """,
@@ -206,7 +203,6 @@ class JavadocParserTest : BaseDocCommentTest() {
             """,
             expectedStructure =
                 """
-                    text: ' '
                     inlineTag: code
                       text: 'some '
                       inlineTag: code
@@ -229,7 +225,6 @@ class JavadocParserTest : BaseDocCommentTest() {
             """,
             expectedStructure =
                 """
-                    text: ' '
                     inlineTag: code
                       text: 'unclosed'
                 """,
@@ -250,7 +245,6 @@ class JavadocParserTest : BaseDocCommentTest() {
             """,
             expectedStructure =
                 """
-                    text: ' '
                     inlineTag: code
                       text: 'extra space'
                 """,
@@ -265,7 +259,6 @@ class JavadocParserTest : BaseDocCommentTest() {
             """,
             expectedStructure =
                 """
-                    text: ' '
                     inlineTag: inheritDoc
                 """,
         )
@@ -285,7 +278,7 @@ class JavadocParserTest : BaseDocCommentTest() {
                 .replace('X', ' '),
             expectedStructure =
                 """
-                    text: ' Some text with trailing whitespace\n on multiple lines'
+                    text: 'Some text with trailing whitespace\n on multiple lines'
                 """,
         )
     }
@@ -301,7 +294,7 @@ class JavadocParserTest : BaseDocCommentTest() {
             expectedStructure =
                 // Error recovery ignores the */ and everything after it.
                 """
-                    text: ' Some text with'
+                    text: 'Some text with'
                 """,
             expectedJavadocIssues =
                 """
@@ -351,7 +344,7 @@ class JavadocParserTest : BaseDocCommentTest() {
             """,
             expectedStructure =
                 """
-                    text: ' Summary.\n <pre>'
+                    text: 'Summary.\n <pre>'
                     inlineTag: code
                       text: '\n someSampleCode()\n '
                     text: '</pre>'
@@ -376,7 +369,7 @@ class JavadocParserTest : BaseDocCommentTest() {
             """,
             expectedStructure =
                 """
-                    text: ' Summary line.\n\n <pre>\n Text before multiple blank lines.\n\n\n Text after multiple blank lines.\n </pre>'
+                    text: 'Summary line.\n\n <pre>\n Text before multiple blank lines.\n\n\n Text after multiple blank lines.\n </pre>'
                 """,
         )
     }

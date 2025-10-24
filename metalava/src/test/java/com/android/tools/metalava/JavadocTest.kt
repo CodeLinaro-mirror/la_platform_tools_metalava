@@ -156,7 +156,7 @@ class JavadocTest : DriverTest() {
                     import java.io.IOException;
                     import test.pkg2.OtherClass;
                     /**
-                     *  Blah blah {@link test.pkg2.OtherClass OtherClass} blah blah.
+                     * Blah blah {@link test.pkg2.OtherClass OtherClass} blah blah.
                      *  Referencing <b>field</b> {@link test.pkg2.OtherClass#foo OtherClass.foo},
                      *  and referencing method {@link test.pkg2.OtherClass#bar(int,boolean) OtherClass.bar(int,
                      *   boolean)}.
@@ -366,7 +366,7 @@ class JavadocTest : DriverTest() {
                 import java.io.IOException;
                 import test.pkg2.OtherClass;
                 /**
-                 *  Blah blah {@link test.pkg2.OtherClass OtherClass} blah blah.
+                 * Blah blah {@link test.pkg2.OtherClass OtherClass} blah blah.
                  *  Referencing <b>field</b> {@link test.pkg2.OtherClass#foo OtherClass.foo},
                  *  and referencing method {@link test.pkg2.OtherClass#bar(int,boolean) OtherClass.bar(int,
                  *   boolean)}.

@@ -103,7 +103,7 @@ internal object DocCommentParser {
             if (blockTagType != null) {
                 val blockTagDescriptionEndExclusive = matchStart
                 val blockTagDescription =
-                    DefaultDocDescription(
+                    LazyDocDescription(
                         text,
                         blockTagDescriptionStartInclusive,
                         blockTagDescriptionEndExclusive,
@@ -154,7 +154,7 @@ internal object DocCommentParser {
         // Create the description, from the start of the comment body to the start of the first
         // block tag, if present, or the end of the comment body, otherwise.
         val description =
-            DefaultDocDescription(
+            LazyDocDescription(
                 text,
                 commentBodyStartInclusive,
                 descriptionEndExclusive,
@@ -204,19 +204,6 @@ internal object DocCommentParser {
 
         return end + 1
     }
-
-    /**
-     * Starting with the character at position [startInclusive] and searching forwards, return the
-     * position of the first non-whitespace character.
-     */
-    private fun CharSequence.skipForwardsOverLeadingWhitespace(startInclusive: Int): Int {
-        val length = this.length
-        var index = startInclusive
-        while (index < length && this[index].isWhitespace()) {
-            index += 1
-        }
-        return index
-    }
 }
 
 /**
@@ -255,10 +242,23 @@ fun String.characterOffsetFor(index: Int): Int {
 }
 
 /**
+ * Starting with the character at position [startInclusive] and searching forwards, return the
+ * position of the first non-whitespace character.
+ */
+internal fun CharSequence.skipForwardsOverLeadingWhitespace(startInclusive: Int): Int {
+    val length = this.length
+    var index = startInclusive
+    while (index < length && this[index].isWhitespace()) {
+        index += 1
+    }
+    return index
+}
+
+/**
  * Starting with the character at position [endInclusive] and searching backwards, return the
  * position of the first non-whitespace character.
  */
-fun CharSequence.skipBackwardsOverTrailingWhitespace(endInclusive: Int): Int {
+internal fun CharSequence.skipBackwardsOverTrailingWhitespace(endInclusive: Int): Int {
     // Skip backwards over any trailing whitespace.
     var end = endInclusive
     while (end >= 0 && this[end].isWhitespace()) {

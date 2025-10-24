@@ -54,6 +54,8 @@ com.android.tools.metalava.model.testsuite.codebase.CommonCodebaseTest
 
 com.android.tools.metalava.model.testsuite.documentation.CommonItemDocumentationTest
   Test ItemDocumentation appendDocumentation[turbine]
+  Test appending to Javadoc with errors[turbine]
+  Test fully qualifying links that wrap on multiple lines[turbine]
   Test javadoc error locations[turbine]
   Test javadoc locations[turbine]
 

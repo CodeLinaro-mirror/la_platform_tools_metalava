@@ -24,7 +24,7 @@ package com.android.tools.metalava.model.source.doc
  *     * @<tag-type> <description>
  * ```
  */
-interface BlockTagSection {
+internal interface BlockTagSection {
     /** The type of the block tag. */
     val tagType: String
 

@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.source.javadoc
 
 import com.android.tools.metalava.model.source.doc.DocumentationIssueReporter
 import com.android.tools.metalava.model.source.doc.skipBackwardsOverTrailingWhitespace
+import com.android.tools.metalava.model.source.doc.skipForwardsOverLeadingWhitespace
 import com.android.tools.metalava.reporter.Issues
 import java.nio.CharBuffer
 import org.antlr.v4.runtime.BaseErrorListener
@@ -54,7 +55,7 @@ private constructor(
             startInclusive: Int,
             endExclusive: Int,
             reporter: DocumentationIssueReporter,
-        ): JavadocContent {
+        ): JavadocContent? {
             var fileName = "<unknown>"
             val errorListener = JavadocErrorListener(reporter)
             val charStream = charStreamFromStringRange(text, startInclusive, endExclusive, fileName)
@@ -87,9 +88,9 @@ private constructor(
         }
     }
 
-    private fun parse(): JavadocContent {
+    private fun parse(): JavadocContent? {
         val descriptionContext = antlrParser.description()
-        return JavadocContentBuilder.buildFrom(descriptionContext, reporter) ?: JavadocContent.EMPTY
+        return JavadocContentBuilder.buildFrom(descriptionContext, reporter)
     }
 }
 
@@ -155,15 +156,14 @@ private class JavadocContentBuilder(
     private val reporter: DocumentationIssueReporter,
 ) : AntlrJavadocParserBaseVisitor<Unit>() {
     /**
-     * Determines whether newlines should be trimmed from the start of the content.
+     * Determines whether whitespace should be trimmed from the start of the content.
      *
      * Initialized to `true`, set to `false` as soon as any non-newline content is added.
      *
-     * This is needed because an extra newline is often added at the beginning of a multi-line
-     * comment to prettify the formatting. That newline needs to be removed to ensure consistent
-     * behavior.
+     * This is needed because extra whitespace is often added at the beginning of a block of text to
+     * prettify the formatting. That whitespace needs to be removed to ensure consistent behavior.
      */
-    private var trimLeadingNewlines = true
+    private var trimLeadingWhitespace = true
 
     /**
      * A [MutableList] of consecutive [JavadocContent] instances that have been created from the
@@ -205,7 +205,7 @@ private class JavadocContentBuilder(
 
         // Some non-newline content has been added so any newlines left are significant and should
         // be kept.
-        trimLeadingNewlines = false
+        trimLeadingWhitespace = false
     }
 
     /** [StringBuilder] into which consecutive blocks of text from the Javadoc are accumulated. */
@@ -215,11 +215,10 @@ private class JavadocContentBuilder(
     private fun appendText(text: String) {
         // If this could be the start of the whole description block then check to see if there are
         // any leading newlines that can be skipped.
-        if (trimLeadingNewlines) {
+        if (trimLeadingWhitespace) {
             // Find the first non-newline character in the text to be appended.
             val length = text.length
-            var start = 0
-            while (start < length && text[start] == '\n') start += 1
+            val start = text.skipForwardsOverLeadingWhitespace(0)
 
             // If the text only consists of a newline character then do nothing.
             if (start == length) return
@@ -229,7 +228,7 @@ private class JavadocContentBuilder(
 
             // As a non-newline character was seen any newline characters found from now onwards
             // cannot be a leading newline.
-            trimLeadingNewlines = false
+            trimLeadingWhitespace = false
         } else {
             textBuffer.append(text)
         }

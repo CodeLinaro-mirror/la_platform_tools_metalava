@@ -36,4 +36,24 @@ internal class JavadocInlineTag(val tagType: String, val content: JavadocContent
     override fun accept(visitor: JavadocContentVisitor) {
         visitor.visit(this)
     }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+
+        other as JavadocInlineTag
+
+        if (tagType != other.tagType) return false
+        if (content != other.content) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = tagType.hashCode()
+        result = 31 * result + (content?.hashCode() ?: 0)
+        return result
+    }
+
+    override fun toString() = "JavadocInlineTag(@$tagType, $content)"
 }

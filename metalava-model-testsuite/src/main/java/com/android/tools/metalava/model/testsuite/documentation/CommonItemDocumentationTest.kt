@@ -709,4 +709,248 @@ class CommonItemDocumentationTest : BaseModelTest() {
             )
         }
     }
+
+    @Test
+    fun `Test addUniqueBlockTagSectionWithSimpleText`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    /**
+                     * Summary line.
+                     */
+                    public class Test {
+                    }
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            checkItemDocumentationPrint(
+                testClass,
+                expectedOutput =
+                    """
+                        /** Summary line. */
+
+                    """,
+            )
+
+            testClass.documentation.addUniqueBlockTagSectionWithSimpleText("unique", "1")
+
+            checkItemDocumentationPrint(
+                testClass,
+                expectedOutput =
+                    """
+                        /**
+                         * Summary line.
+                         * @unique 1
+                         */
+
+                    """,
+            )
+
+            testClass.documentation.addUniqueBlockTagSectionWithSimpleText("unique", "2")
+
+            checkItemDocumentationPrint(
+                testClass,
+                expectedOutput =
+                    """
+                        /**
+                         * Summary line.
+                         * @unique 2
+                         */
+
+                    """,
+            )
+        }
+    }
+
+    @Test
+    fun `Test appending to Javadoc with errors`() {
+        val reporter = RecordingReporter()
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+                    /** Unclosed {@code inline tag */
+                    public class Test {}
+                 """
+            ),
+            testFixture =
+                TestFixture(
+                    reporter = reporter,
+                ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+
+            // Add a block tag to the `DocComment`. This will create a DocComment from `text`, by
+            // splitting it into a main `DocDescription` and an empty set of `BlockTagSection`s. It
+            // does not parse the `DocDescription` content so does not detect the unclosed `code`
+            // tag. After creating the `DocComment` it mutates it by adding a `BlockTagSection`
+            // which again does not detect the unclosed `code` tag. It then sets `text` to `null` to
+            // force it to be regenerated from the `DocComment` next time it is accessed.
+            testClass.documentation.addUniqueBlockTagSectionWithSimpleText("custom", "text")
+
+            // Append the documentation. This forces the `text` field to be generated from the
+            // `DocComment`. That first has to parse the `DocDescription` and create the
+            // `JavadocContent` model. During that process the unclosed `code` tag is detected and
+            // reported. Reporting requires accessing `ItemDocumentation.fileLocation` and in the
+            // `PsiItemDocumentation` implementation that requires the `psiComment` field to have
+            // been initialized. That is initialized at the same time as `text` was first
+            // initialized so the implementation checks to see whether `text` has been initialized
+            // before trying to initialize it to avoid re-entering the code to generate `text` from
+            // the `DocComment` which would cause a `StackOverflowError`.
+            testClass.documentation.appendDocumentation("Blah", null)
+
+            checkItemDocumentationPrint(
+                testClass,
+                expectedOutput =
+                    """
+                        /**
+                         * Unclosed {@code inline tag}
+                         * <br>
+                         * Blah
+                         * @custom text
+                         */
+
+                    """,
+            )
+        }
+    }
+
+    @Test
+    fun `Test leading whitespace in descriptions`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+                    /**
+                     *    Summary line with leading whitespace.
+                     * @see   "With leading whitespace"
+                     * @deprecated
+                     *     Block tag with leading whitespace on separate line.
+                     */
+                    public class Test {}
+                 """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+
+            checkItemDocumentationPrint(
+                testClass,
+                // The whitespace at the start of the summary line and at the start of each block
+                // tag is removed.
+                expectedOutput =
+                    """
+                        /**
+                         * Summary line with leading whitespace.
+                         *
+                         * @see "With leading whitespace"
+                         * @deprecated Block tag with leading whitespace on separate line.
+                         */
+
+                    """,
+            )
+        }
+    }
+
+    @Test
+    fun `Test fully qualifying links that wrap on multiple lines`() {
+        runSourceCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+                        import other.pkg.Other;
+                        /**
+                         * {@link
+                         * Other}
+                         * {@link
+                         * Other#Other}
+                         * {@link
+                         * Other#field}
+                         * {@link
+                         * Other#method}
+                         * <br>
+                         * {@link Other
+                         * other class}
+                         * {@link Other#method
+                         * custom text}
+                         */
+                        public class Test {
+                            /**
+                             * Method.
+                             * @param p Parameter
+                             *     {@link
+                             *     Other}
+                             *     {@link
+                             *     Other#Other}
+                             *     {@link
+                             *     Other#field}
+                             *     {@link
+                             *     Other#method}
+                             *     <br>
+                             *     {@link Other
+                             *     other class}
+                             *     {@link Other#method
+                             *     custom text}
+                             */
+                            public void method(int p) {}
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package other.pkg;
+
+                        public class Other {
+                            public Other() {}
+                            public int field;
+                            public void method() {}
+                        }
+                    """
+                )
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+
+            checkItemDocumentationPrint(
+                testClass,
+                expectedOutput =
+                    """
+                        /**
+                         * {@link other.pkg.Other Other}
+                         * {@link other.pkg.Other#Other Other.Other}
+                         * {@link other.pkg.Other#field Other.field}
+                         * {@link other.pkg.Other#method Other.method}
+                         * <br>
+                         * {@link other.pkg.Other other class}
+                         * {@link other.pkg.Other#method custom text}
+                         */
+
+                    """,
+            )
+
+            val testMethod = testClass.methods().single()
+            checkItemDocumentationPrint(
+                testMethod,
+                expectedOutput =
+                    """
+                        /**
+                         * Method.
+                         *
+                         * @param p Parameter
+                         *     {@link other.pkg.Other Other}
+                         *     {@link other.pkg.Other#Other Other.Other}
+                         *     {@link other.pkg.Other#field Other.field}
+                         *     {@link other.pkg.Other#method Other.method}
+                         *     <br>
+                         *     {@link other.pkg.Other other class}
+                         *     {@link other.pkg.Other#method custom text}
+                         */
+
+                    """,
+            )
+        }
+    }
 }

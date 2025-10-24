@@ -6,6 +6,8 @@ com.android.tools.metalava.model.testsuite.classitem.CommonDuplicateClassItemTes
 
 com.android.tools.metalava.model.testsuite.documentation.CommonItemDocumentationTest
   Test ItemDocumentation appendDocumentation
+  Test appending to Javadoc with errors
+  Test fully qualifying links that wrap on multiple lines
   Test javadoc error locations
   Test javadoc locations
 

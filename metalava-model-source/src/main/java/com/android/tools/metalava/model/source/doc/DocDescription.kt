@@ -17,13 +17,10 @@
 package com.android.tools.metalava.model.source.doc
 
 import com.android.tools.metalava.model.source.javadoc.JavadocContent
-import com.android.tools.metalava.model.source.javadoc.JavadocContentList
-import com.android.tools.metalava.model.source.javadoc.JavadocContentVisitor
-import com.android.tools.metalava.model.source.javadoc.JavadocInlineTag
 import com.android.tools.metalava.model.source.javadoc.JavadocParser
-import com.android.tools.metalava.model.source.javadoc.JavadocText
 import com.android.tools.metalava.reporter.Issues
-import java.io.PrintWriter
+import java.util.Optional
+import kotlin.jvm.optionals.getOrNull
 
 /**
  * A [DocComment] description block.
@@ -31,17 +28,23 @@ import java.io.PrintWriter
  * This represents a block of text and inline tags in a [DocComment]. It can either be the main
  * description for the item or the description of a block tag in the item.
  */
-interface DocDescription {
+internal interface DocDescription {
+    /** The [JavadocContent], `null` if this is empty. */
+    val content: JavadocContent?
+
     /** Return `true` if this is empty, `false` otherwise. */
-    fun isEmpty(): Boolean
+    fun isEmpty(): Boolean = content == null
 
     /** Return `true` if this is not empty, `false` otherwise. */
     fun isNotEmpty() = !isEmpty()
 
-    fun requiredSpace(): RequiredSpace
-
-    /** Print this as part of a Javadoc comment to [writer]. */
-    fun printAsJavadocComment(writer: PrintWriter)
+    /** Determines how much vertical space this [DocDescription] requires when printed. */
+    fun requiredSpace(): RequiredSpace =
+        when {
+            isEmpty() -> RequiredSpace.EMPTY
+            content?.isMultiLine() == true -> RequiredSpace.MULTI_LINE
+            else -> RequiredSpace.SINGLE_LINE
+        }
 
     companion object {
         /** An empty [DocDescription]. */
@@ -50,38 +53,49 @@ interface DocDescription {
 }
 
 internal class EmptyDocDescription : DocDescription {
+    override val content
+        get() = null
+
     override fun isEmpty() = true
 
     override fun requiredSpace() = RequiredSpace.EMPTY
 
-    override fun printAsJavadocComment(writer: PrintWriter) {
-        // Nothing to do.
-    }
-
     override fun toString() = "<<>>"
 }
 
+/** A simple [DocDescription] that encapsulates [content]. */
+internal class DefaultDocDescription(override val content: JavadocContent) : DocDescription {
+    override fun toString(): String {
+        return "<$content>"
+    }
+}
+
 /**
- * The default [DocDescription] whose content is a subsequence of [text] starting from
- * [startInclusive] and ending at [endExclusive].
+ * A lazy [DocDescription] that creates [content] lazily by parsing a subsequence of [text] starting
+ * from [startInclusive] and ending at [endExclusive].
  */
-internal class DefaultDocDescription(
+internal class LazyDocDescription(
     private val text: String,
     private val startInclusive: Int,
     private val endExclusive: Int,
     private val reporter: DocumentationIssueReporter,
 ) : DocDescription, DocumentationIssueReporter {
+    /** Secondary constructor to simple creation during testing. */
+    constructor(
+        text: String,
+        reporter: DocumentationIssueReporter
+    ) : this(text, 0, text.length, reporter)
 
-    private lateinit var _content: JavadocContent
+    private lateinit var _content: Optional<JavadocContent>
 
-    val content: JavadocContent
+    override val content: JavadocContent?
         get() {
             if (!::_content.isInitialized) {
                 // Trim whitespace from the end of the description.
                 val trimmedEnd = text.skipBackwardsOverTrailingWhitespace(endExclusive - 1) + 1
-                _content =
+                val optionalContent =
                     if (trimmedEnd <= startInclusive) {
-                        JavadocContent.EMPTY
+                        null
                     } else {
                         JavadocParser.parse(
                             text,
@@ -93,55 +107,10 @@ internal class DefaultDocDescription(
                             this,
                         )
                     }
+                _content = Optional.ofNullable(optionalContent)
             }
-            return _content
+            return _content.getOrNull()
         }
-
-    override fun isEmpty() = content == JavadocContent.EMPTY
-
-    override fun requiredSpace() =
-        when {
-            isEmpty() -> RequiredSpace.EMPTY
-            content.isMultiLine() -> RequiredSpace.MULTI_LINE
-            else -> RequiredSpace.SINGLE_LINE
-        }
-
-    override fun printAsJavadocComment(writer: PrintWriter) {
-        content.accept(
-            object : JavadocContentVisitor {
-                override fun visit(list: JavadocContentList) {
-                    list.visitContents(this)
-                }
-
-                override fun visit(inlineTag: JavadocInlineTag) {
-                    writer.print("{@")
-                    writer.print(inlineTag.tagType)
-                    inlineTag.content?.let { nestedContent ->
-                        if (!nestedContent.startsWithNewline()) {
-                            writer.print(" ")
-                        }
-                        nestedContent.accept(this)
-                    }
-                    writer.print("}")
-                }
-
-                override fun visit(text: JavadocText) {
-                    var previousChar = '\u0000'
-                    for (c in text.text) {
-                        if (previousChar == '\n' && c != '/') {
-                            writer.print(" *")
-                        }
-                        writer.print(c)
-                        previousChar = c
-                    }
-
-                    if (previousChar == '\n') {
-                        writer.print(" *")
-                    }
-                }
-            }
-        )
-    }
 
     override fun toString() = buildString {
         append("<<")
