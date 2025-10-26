@@ -75,7 +75,7 @@ class ExtractSystemApiLevelsTest : ApiGeneratorIntegrationTestBase() {
         // mainline module
         assertTrue(
             xml.contains(
-                "<class name=\"android/app/StatsCursor\" module=\"framework-statsd\" since=\"34\" sdks=\"30:7\">"
+                "<class name=\"android/app/StatsCursor\" module=\"framework-statsd\" since=\"10000\" sdks=\"30:7\">"
             )
         )
 
@@ -146,7 +146,7 @@ class ExtractSystemApiLevelsTest : ApiGeneratorIntegrationTestBase() {
                     <extends name="java/lang/Object"/>
                     <method name="getAllExtensionVersions()Ljava/util/Map;" since="31"/>
                     <method name="getExtensionVersion(I)I"/>
-                    <field name="AD_SERVICES" since="34" sdks="30:4"/>
+                    <field name="AD_SERVICES" since="10000" sdks="30:4"/>
                 </class>
             """
         )

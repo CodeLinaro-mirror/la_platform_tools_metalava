@@ -1459,8 +1459,8 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                         expectedApiVersions =
                             """
                                 <?xml version="1.0" encoding="utf-8"?>
-                                <api version="3" min="33">
-                                  <class name="test/pkg/Foo" since="33">
+                                <api version="3" min="10000">
+                                  <class name="test/pkg/Foo" since="10000">
                                     <method name="&lt;init>()V"/>
                                     <method name="abstractMethod()V"/>
                                     <method name="method(Ljava/lang/String;)V"/>
@@ -1490,8 +1490,8 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                         expectedApiVersions =
                             """
                                 <?xml version="1.0" encoding="utf-8"?>
-                                <api version="3" min="33">
-                                  <class name="test/pkg/Foo" since="33">
+                                <api version="3" min="10000">
+                                  <class name="test/pkg/Foo" since="10000">
                                     <method name="&lt;init>()V"/>
                                     <method name="abstractMethod()V"/>
                                     <method name="method(Ljava/lang/String;)V"/>
@@ -1756,20 +1756,20 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                         expectedApiVersions =
                             """
                                 <?xml version="1.0" encoding="utf-8"?>
-                                <api version="3" min="33">
-                                  <class name="test/pkg/Bar" since="33" deprecated="33">
+                                <api version="3" min="10000">
+                                  <class name="test/pkg/Bar" since="10000" deprecated="10000">
                                     <method name="&lt;init>()V"/>
                                     <method name="method()V"/>
                                     <field name="field"/>
                                   </class>
-                                  <class name="test/pkg/Baz" since="33" deprecated="33">
+                                  <class name="test/pkg/Baz" since="10000" deprecated="10000">
                                     <method name="&lt;init>()V"/>
                                     <method name="method()V"/>
                                     <field name="field"/>
                                   </class>
-                                  <class name="test/pkg/Foo" since="33">
+                                  <class name="test/pkg/Foo" since="10000">
                                     <method name="method(Ljava/lang/String;)V"/>
-                                    <field name="field" deprecated="33"/>
+                                    <field name="field" deprecated="10000"/>
                                   </class>
                                 </api>
                             """,
@@ -1801,18 +1801,18 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                         expectedApiVersions =
                             """
                                 <?xml version="1.0" encoding="utf-8"?>
-                                <api version="3" min="33">
-                                  <class name="test/pkg/Bar" since="33">
+                                <api version="3" min="10000">
+                                  <class name="test/pkg/Bar" since="10000">
                                     <method name="&lt;init>()V"/>
                                     <method name="method()V"/>
                                     <field name="field"/>
                                   </class>
-                                  <class name="test/pkg/Baz" since="33" deprecated="33">
+                                  <class name="test/pkg/Baz" since="10000" deprecated="10000">
                                     <method name="&lt;init>()V"/>
                                     <method name="method()V"/>
                                     <field name="field"/>
                                   </class>
-                                  <class name="test/pkg/Foo" since="33">
+                                  <class name="test/pkg/Foo" since="10000">
                                     <method name="method(Ljava/lang/String;)V"/>
                                     <field name="field"/>
                                   </class>

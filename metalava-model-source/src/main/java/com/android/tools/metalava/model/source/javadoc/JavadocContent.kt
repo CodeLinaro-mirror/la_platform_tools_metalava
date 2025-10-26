@@ -38,23 +38,6 @@ internal sealed interface JavadocContent {
      * Call type specific method in [JavadocContentVisitor] corresponding to the implement of this.
      */
     fun accept(visitor: JavadocContentVisitor)
-
-    companion object {
-        val EMPTY: JavadocContent = EmptyJavadocContent()
-    }
-}
-
-/** An empty [JavadocContent]. */
-private class EmptyJavadocContent : JavadocContent {
-    /** Empty content does not occupy multiple lines. */
-    override fun isMultiLine() = false
-
-    /** Empty content does not start with a newline. */
-    override fun startsWithNewline() = false
-
-    override fun accept(visitor: JavadocContentVisitor) {
-        // Do nothing.
-    }
 }
 
 /** Visitor of [JavadocContent] subclasses. */
@@ -67,19 +50,36 @@ internal interface JavadocContentVisitor {
 }
 
 /** A [JavadocContent] that encapsulates a number of other [JavadocContent] instances. */
-internal class JavadocContentList(private val list: List<JavadocContent>) : JavadocContent {
+internal class JavadocContentList(val contents: List<JavadocContent>) : JavadocContent {
     /** A list of [JavadocContent] occupies multiple lines if any of them occupy multiple lines. */
-    override fun isMultiLine() = list.any { it.isMultiLine() }
+    override fun isMultiLine() = contents.any { it.isMultiLine() }
 
     /** A list of [JavadocContent] starts with newline if the first item starts with newline. */
-    override fun startsWithNewline() = list.first().startsWithNewline()
+    override fun startsWithNewline() = contents.first().startsWithNewline()
 
     /** Visit the contents of this in turn. */
     fun visitContents(visitor: JavadocContentVisitor) {
-        list.forEach { content -> content.accept(visitor) }
+        contents.forEach { content -> content.accept(visitor) }
     }
 
     override fun accept(visitor: JavadocContentVisitor) {
         visitor.visit(this)
+    }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+
+        other as JavadocContentList
+
+        return contents == other.contents
+    }
+
+    override fun hashCode() = contents.hashCode()
+
+    override fun toString() = buildString {
+        append("JavadocContentList(")
+        contents.joinTo(this)
+        append(")")
     }
 }

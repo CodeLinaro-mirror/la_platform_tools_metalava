@@ -52,7 +52,7 @@ class DocCommentParserTest : BaseDocCommentTest() {
             expectedString = "description: <<Description>>",
             expectedPrintOutput =
                 """
-                    /**Description */
+                    /** Description */
                 """,
         )
     }
@@ -64,7 +64,7 @@ class DocCommentParserTest : BaseDocCommentTest() {
             expectedString = "description: <<Description {@code something}>>",
             expectedPrintOutput =
                 """
-                    /**Description {@code something} */
+                    /** Description {@code something} */
                 """,
         )
     }
@@ -103,7 +103,7 @@ class DocCommentParserTest : BaseDocCommentTest() {
             expectedPrintOutput =
                 """
                     /**
-                     *Some text
+                     * Some text
                      *
                      * @see something
                      * @see other thing

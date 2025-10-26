@@ -167,7 +167,7 @@ class ApiGeneratorTest : DriverTest() {
                 <api version="3" min="30">
                     <sdk id="30" shortname="R-ext" name="R Extensions" reference="android/os/Build$VERSION_CODES$R"/>
                     <sdk id="31" shortname="S-ext" name="S Extensions" reference="android/os/Build$VERSION_CODES$S"/>
-                    <class name="android/test/ClassAddedAndDeprecatedInApi30" since="30" deprecated="30" removed="33">
+                    <class name="android/test/ClassAddedAndDeprecatedInApi30" since="30" deprecated="30" removed="10000">
                         <extends name="java/lang/Object"/>
                         <method name="&lt;init>(F)V"/>
                         <method name="&lt;init>(I)V"/>
@@ -177,38 +177,38 @@ class ApiGeneratorTest : DriverTest() {
                         <field name="FIELD_IMPLICITLY_DEPRECATED"/>
                     </class>
                     <class name="android/test/ClassAddedInApi30" module="framework-ext" since="30" sdks="30:2,0:30">
-                        <extends name="android/test/MarkerSuperClass" since="33" sdks="30:2,31:2"/>
-                        <extends name="java/lang/Object" removed="33"/>
-                        <implements name="android/test/MarkerInterface" since="33" sdks="30:2,31:2"/>
+                        <extends name="android/test/MarkerSuperClass" since="10000" sdks="30:2,31:2"/>
+                        <extends name="java/lang/Object" removed="10000"/>
+                        <implements name="android/test/MarkerInterface" since="10000" sdks="30:2,31:2"/>
                         <method name="methodAddedInApi30()V"/>
                         <method name="methodAddedInApi31()V" since="31" sdks="30:2,31:2,0:31"/>
                     </class>
                     <class name="android/test/ClassAddedInApi31AndExt2" module="framework-ext" since="31" sdks="30:2,31:2,0:31">
                         <extends name="java/lang/Object"/>
                         <method name="methodAddedInApi31AndExt2()V"/>
-                        <method name="methodAddedInExt3()V" since="33" sdks="30:3,31:3"/>
-                        <method name="methodNotFinalized()V" since="33" sdks="0:33"/>
+                        <method name="methodAddedInExt3()V" since="10000" sdks="30:3,31:3"/>
+                        <method name="methodNotFinalized()V" since="10000" sdks="0:10000"/>
                         <field name="FIELD_ADDED_IN_API_31_AND_EXT_2"/>
-                        <field name="FIELD_ADDED_IN_EXT_3" since="33" sdks="30:3,31:3"/>
+                        <field name="FIELD_ADDED_IN_EXT_3" since="10000" sdks="30:3,31:3"/>
                     </class>
                     <class name="android/test/ClassAddedInExt1" module="framework-ext" since="31" sdks="30:1,31:1,0:31">
                         <extends name="java/lang/Object"/>
                         <method name="methodAddedInApi31AndExt2()V" sdks="30:2,31:2,0:31"/>
                         <method name="methodAddedInExt1()V"/>
-                        <method name="methodAddedInExt3()V" since="33" sdks="30:3,31:3"/>
+                        <method name="methodAddedInExt3()V" since="10000" sdks="30:3,31:3"/>
                         <field name="FIELD_ADDED_IN_API_31_AND_EXT_2" sdks="30:2,31:2,0:31"/>
                         <field name="FIELD_ADDED_IN_EXT_1"/>
-                        <field name="FIELD_ADDED_IN_EXT_3" since="33" sdks="30:3,31:3"/>
+                        <field name="FIELD_ADDED_IN_EXT_3" since="10000" sdks="30:3,31:3"/>
                     </class>
-                    <class name="android/test/ClassAddedInExt3" module="framework-ext" since="33" sdks="30:3,31:3">
+                    <class name="android/test/ClassAddedInExt3" module="framework-ext" since="10000" sdks="30:3,31:3">
                         <extends name="java/lang/Object"/>
                         <method name="methodAddedInExt3()V"/>
                         <field name="FIELD_ADDED_IN_EXT_3"/>
                     </class>
-                    <class name="android/test/MarkerInterface" module="framework-ext" since="33" sdks="30:2,31:2">
+                    <class name="android/test/MarkerInterface" module="framework-ext" since="10000" sdks="30:2,31:2">
                         <extends name="java/lang/Object"/>
                     </class>
-                    <class name="android/test/MarkerSuperClass" module="framework-ext" since="33" sdks="30:2,31:2">
+                    <class name="android/test/MarkerSuperClass" module="framework-ext" since="10000" sdks="30:2,31:2">
                         <extends name="java/lang/Object"/>
                         <method name="&lt;init>()V"/>
                     </class>
@@ -296,8 +296,8 @@ class ApiGeneratorTest : DriverTest() {
         val expected =
             """
             <?xml version="1.0" encoding="utf-8"?>
-            <api version="3" min="33">
-                <class name="android/test/ClassThatImplementsMethodFromApex" since="33">
+            <api version="3" min="10000">
+                <class name="android/test/ClassThatImplementsMethodFromApex" since="10000">
                     <method name="&lt;init>()V"/>
                 </class>
             </api>
@@ -334,7 +334,7 @@ class ApiGeneratorTest : DriverTest() {
         val expected =
             """
                 <?xml version="1.0" encoding="utf-8"?>
-                <api version="3" min="33">
+                <api version="3" min="10000">
                 </api>
             """
 

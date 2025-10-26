@@ -27,4 +27,17 @@ internal class JavadocText(val text: String) : JavadocContent {
     override fun accept(visitor: JavadocContentVisitor) {
         visitor.visit(this)
     }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+
+        other as JavadocText
+
+        return text == other.text
+    }
+
+    override fun hashCode() = text.hashCode()
+
+    override fun toString() = "JavadocText(\"${text.replace("\n", "\\n").replace("\"", "\\\"")}\")"
 }

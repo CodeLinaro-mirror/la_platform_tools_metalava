@@ -90,4 +90,49 @@ class DocCommentTest : BaseDocCommentTest() {
             message = "after remove all block tag sections"
         )
     }
+
+    @Test
+    fun `Test addBlockTagSection`() {
+        val docComment =
+            createTestDocComment(
+                """
+                    /**
+                     * Some text.
+                     */
+                """
+            )
+
+        docComment.addBlockTagSection("custom", LazyDocDescription("a custom block tag", reporter))
+
+        checkPrintOutput(
+            docComment,
+            expectedPrintOutput =
+                """
+                    /**
+                     * Some text.
+                     * @custom a custom block tag
+                     */
+                """,
+            message = "after adding custom tag"
+        )
+
+        docComment.addBlockTagSection(
+            "custom",
+            LazyDocDescription("another custom block tag", reporter)
+        )
+
+        checkPrintOutput(
+            docComment,
+            expectedPrintOutput =
+                """
+                    /**
+                     * Some text.
+                     *
+                     * @custom a custom block tag
+                     * @custom another custom block tag
+                     */
+                """,
+            message = "after adding another custom tag"
+        )
+    }
 }

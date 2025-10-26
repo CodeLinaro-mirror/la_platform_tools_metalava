@@ -124,6 +124,15 @@ interface ItemDocumentation {
     /** Remove the `@deprecated` section, if any. */
     fun removeDeprecatedSection()
 
+    /**
+     * Adds a unique block tag section of [blockTagType] with some simple [text], i.e. no inline
+     * tags.
+     *
+     * @param blockTagType the type of the tag, e.g. `apiSince` for `@apiSince 27`.
+     * @param text the text description.
+     */
+    fun addUniqueBlockTagSectionWithSimpleText(blockTagType: String, text: String)
+
     companion object {
         /**
          * A special [ItemDocumentation] that contains no documentation.
@@ -177,5 +186,9 @@ interface ItemDocumentation {
         override fun findMainDocumentation() = ""
 
         override fun removeDeprecatedSection() {}
+
+        override fun addUniqueBlockTagSectionWithSimpleText(blockTagType: String, text: String) {
+            error("cannot modify documentation on an item that does not support documentation")
+        }
     }
 }
