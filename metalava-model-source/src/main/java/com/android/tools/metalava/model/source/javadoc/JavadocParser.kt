@@ -16,7 +16,9 @@
 
 package com.android.tools.metalava.model.source.javadoc
 
+import com.android.tools.metalava.model.source.doc.DocCommentContext
 import com.android.tools.metalava.model.source.doc.DocumentationIssueReporter
+import com.android.tools.metalava.model.source.doc.InlineTagTypes
 import com.android.tools.metalava.model.source.doc.skipBackwardsOverTrailingWhitespace
 import com.android.tools.metalava.model.source.doc.skipForwardsOverLeadingWhitespace
 import com.android.tools.metalava.reporter.Issues
@@ -38,6 +40,7 @@ import org.antlr.v4.runtime.TokenStream
 internal class JavadocParser
 private constructor(
     private val antlrParser: AntlrJavadocParser,
+    private val context: DocCommentContext,
     private val reporter: DocumentationIssueReporter,
 ) {
 
@@ -46,11 +49,13 @@ private constructor(
          * Parse [text] from [startInclusive] up to, but not including [endExclusive] as a javadoc
          * comment (optionally including the /** ... */).
          *
+         * @param context context that applies to [text].
          * @param text the String to be parsed.
          * @param startInclusive the index of the first character to parse.
          * @param endExclusive the index after the last character to parse.
          */
         fun parse(
+            context: DocCommentContext,
             text: String,
             startInclusive: Int,
             endExclusive: Int,
@@ -64,7 +69,7 @@ private constructor(
             val antlrParser = AntlrJavadocParser(tokenStream)
             antlrParser.removeErrorListeners()
             antlrParser.addErrorListener(errorListener)
-            val parser = JavadocParser(antlrParser, reporter)
+            val parser = JavadocParser(antlrParser, context, reporter)
             return parser.parse()
         }
 
@@ -90,7 +95,7 @@ private constructor(
 
     private fun parse(): JavadocContent? {
         val descriptionContext = antlrParser.description()
-        return JavadocContentBuilder.buildFrom(descriptionContext, reporter)
+        return JavadocContentBuilder.buildFrom(descriptionContext, context, reporter)
     }
 }
 
@@ -153,6 +158,7 @@ internal class JavadocErrorListener(
 
 /** Builds [JavadocContent] from [AntlrJavadocParser.DescriptionContext]. */
 private class JavadocContentBuilder(
+    private val context: DocCommentContext,
     private val reporter: DocumentationIssueReporter,
 ) : AntlrJavadocParserBaseVisitor<Unit>() {
     /**
@@ -347,24 +353,18 @@ private class JavadocContentBuilder(
         // whitespace if required.
         flushText(trimTrailingWhitespace)
 
-        val contentList = _contentList
-        return if (contentList == null) {
-            null
-        } else {
-            // Discard the content list to force a new one to be created next time content is added.
-            // This will ensure correct behavior even if _contentList is wrapped in a
-            // [JavadocContentList].
-            _contentList = null
+        // Get the optional content from _contentList.
+        val content =
+            _contentList?.let { contentList ->
+                // Discard the content list to force a new one to be created next time content is
+                // added. This will ensure correct behavior even if _contentList is wrapped in a
+                // [JavadocContentList].
+                _contentList = null
 
-            val size = contentList.size
-            when (size) {
-                0 -> null
-                1 -> contentList[0]
-                else -> {
-                    JavadocContentList(contentList.toList())
-                }
+                contentList.toOptionalJavadocContent()
             }
-        }
+
+        return content
     }
 
     override fun visitDescriptionLineText(ctx: AntlrJavadocParser.DescriptionLineTextContext) {
@@ -379,7 +379,8 @@ private class JavadocContentBuilder(
     }
 
     override fun visitInlineTag(ctx: AntlrJavadocParser.InlineTagContext) {
-        val tagType = ctx.inlineTagName().NAME().text
+        val tagTypeName = ctx.inlineTagName().NAME().text
+        val tagType = InlineTagTypes.tagTypeOf(tagTypeName)
 
         // If a BRACE_CLOSE token was not found then the inline tag was not closed properly so
         // report the issue.
@@ -391,7 +392,7 @@ private class JavadocContentBuilder(
             var lineOffset = startToken.line - 1
             reporter.report(
                 Issues.UNCLOSED_INLINE_TAG,
-                "unclosed inline '@${tagType}' tag",
+                "unclosed inline '@${tagTypeName}' tag",
                 lineOffset,
                 startToken.charPositionInLine,
             )
@@ -408,8 +409,11 @@ private class JavadocContentBuilder(
                 }
             }
 
+        val result = tagContent?.extractTagDataForTagType(context, tagType)
+        val tagData = result?.tagData
+
         // Add an inline tag to the content.
-        appendContent(JavadocInlineTag(tagType, tagContent))
+        appendContent(JavadocInlineTag(tagType, tagData, tagContent))
     }
 
     override fun visitBraceExpression(ctx: AntlrJavadocParser.BraceExpressionContext) {
@@ -429,11 +433,12 @@ private class JavadocContentBuilder(
         /** Build a optional [JavadocContent] from [descriptionContext]. */
         fun buildFrom(
             descriptionContext: AntlrJavadocParser.DescriptionContext,
+            context: DocCommentContext,
             reporter: DocumentationIssueReporter,
         ): JavadocContent? {
             // Create a builder that will create [JavadocContent] by traversing the
             // [descriptionContext] structure.
-            val builder = JavadocContentBuilder(reporter)
+            val builder = JavadocContentBuilder(context, reporter)
 
             // Traverse the [descriptionContent] structure.
             descriptionContext.accept(builder)

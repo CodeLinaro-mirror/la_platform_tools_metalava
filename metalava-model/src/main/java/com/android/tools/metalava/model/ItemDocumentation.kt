@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.doc.DocContentOwner
 import com.android.tools.metalava.reporter.FileLocation
 import java.io.PrintWriter
 
@@ -110,6 +111,24 @@ interface ItemDocumentation {
     /** Returns the main documentation for the method (the documentation before any tags). */
     fun findMainDocumentation(): String
 
+    /** Get the owner of the main description for the comment. */
+    val mainDescriptionOwner: DocContentOwner?
+
+    /**
+     * Get the owner of the description for the first block tag of [tagTypeName].
+     *
+     * Returns `null` if this has no underlying Javadoc comment, or no such block tag.
+     */
+    fun blockTagDescriptionOwner(tagTypeName: String): DocContentOwner?
+
+    /**
+     * Get owner of the description for the @param tag for [name]
+     *
+     * Returns `null` if this has no Javadoc comment, or no such parameter, or the description is
+     * empty, i.e. has no significant non-whitespace content, or is invalid, e.g. no parameter name.
+     */
+    fun paramTagDescriptionOwner(name: String): DocContentOwner?
+
     /**
      * Returns the [text], but with fully qualified links (except for the same package, and when
      * turning a relative reference into a fully qualified reference, use the javadoc syntax for
@@ -125,13 +144,13 @@ interface ItemDocumentation {
     fun removeDeprecatedSection()
 
     /**
-     * Adds a unique block tag section of [blockTagType] with some simple [text], i.e. no inline
+     * Adds a unique block tag section of [tagTypeName] with some simple [text], i.e. no inline
      * tags.
      *
-     * @param blockTagType the type of the tag, e.g. `apiSince` for `@apiSince 27`.
+     * @param tagTypeName the type of the tag, e.g. `apiSince` for `@apiSince 27`.
      * @param text the text description.
      */
-    fun addUniqueBlockTagSectionWithSimpleText(blockTagType: String, text: String)
+    fun addUniqueBlockTagSectionWithSimpleText(tagTypeName: String, text: String)
 
     companion object {
         /**
@@ -177,6 +196,13 @@ interface ItemDocumentation {
         // Empty documentation has nothing to print.
         override fun print(writer: PrintWriter) {}
 
+        override val mainDescriptionOwner: DocContentOwner?
+            get() = null
+
+        override fun blockTagDescriptionOwner(tagTypeName: String): DocContentOwner? = null
+
+        override fun paramTagDescriptionOwner(name: String): DocContentOwner? = null
+
         override fun findTagDocumentation(tag: String, value: String?): String? = null
 
         override fun appendDocumentation(comment: String, tagSection: String?) {
@@ -187,7 +213,7 @@ interface ItemDocumentation {
 
         override fun removeDeprecatedSection() {}
 
-        override fun addUniqueBlockTagSectionWithSimpleText(blockTagType: String, text: String) {
+        override fun addUniqueBlockTagSectionWithSimpleText(tagTypeName: String, text: String) {
             error("cannot modify documentation on an item that does not support documentation")
         }
     }

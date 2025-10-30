@@ -70,4 +70,22 @@ internal interface DocumentationIssueReporter {
      *   occurred. If this is `-1` then no character position is reported.
      */
     fun report(issue: Issue, message: String, lineOffset: Int, charOffset: Int)
+
+    companion object {
+        /**
+         * A special [DocumentationIssueReporter] that will immediately throw an error for the first
+         * issue reported.
+         */
+        val THROWING =
+            object : DocumentationIssueReporter {
+                override fun report(
+                    issue: Issue,
+                    message: String,
+                    lineOffset: Int,
+                    charOffset: Int
+                ) {
+                    error("${lineOffset + 1}:${charOffset + 1}: $message [${issue.name}]")
+                }
+            }
+    }
 }

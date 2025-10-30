@@ -322,8 +322,8 @@ class DocAnalyzerRangeTest : DriverTest() {
                      * This is the existing documentation.
                      *
                      * @param parameter1 docs for parameter1
-                     * @param parameter3 docs for parameter2
                      * @param parameter2 Value is 10 or greater
+                     * @param parameter3 docs for parameter2
                      * @return return value documented here
                      */
                     public int test1(int parameter1, int parameter2, int parameter3) { throw new RuntimeException("Stub!"); }

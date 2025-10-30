@@ -15,6 +15,9 @@
  */
 package com.android.tools.metalava.model.source.javadoc
 
+import com.android.tools.metalava.model.source.doc.TagData
+import com.android.tools.metalava.model.source.doc.TagType
+
 /**
  * An inline tag within a block of Javadoc.
  *
@@ -22,8 +25,11 @@ package com.android.tools.metalava.model.source.javadoc
  * @property content the optional content, e.g. for `{@link ref}` it would be the reference, for
  *   `{@inheritDoc}` it would be `null`.
  */
-internal class JavadocInlineTag(val tagType: String, val content: JavadocContent?) :
-    JavadocContent {
+internal class JavadocInlineTag(
+    val tagType: TagType<*>,
+    val tagData: TagData?,
+    val content: JavadocContent?,
+) : JavadocContent {
     /**
      * An inline tag occupies multiple lines if the nested content, if present, occupies multiple
      * lines.
@@ -36,6 +42,8 @@ internal class JavadocInlineTag(val tagType: String, val content: JavadocContent
     override fun accept(visitor: JavadocContentVisitor) {
         visitor.visit(this)
     }
+
+    override fun rewrite(rewriter: JavadocContentRewriter) = rewriter.rewrite(this)
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

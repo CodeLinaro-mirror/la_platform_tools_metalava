@@ -16,12 +16,17 @@
 
 package com.android.tools.metalava.model.source
 
+import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.SelectableItem
-import com.android.tools.metalava.model.source.doc.DefaultDocDescription
+import com.android.tools.metalava.model.TypeParameterListOwner
+import com.android.tools.metalava.model.doc.DocContentOwner
+import com.android.tools.metalava.model.source.doc.BlockTagTypes
 import com.android.tools.metalava.model.source.doc.DocComment
+import com.android.tools.metalava.model.source.doc.DocCommentContext
+import com.android.tools.metalava.model.source.doc.DocCommentMutationListener
 import com.android.tools.metalava.model.source.doc.DocumentationIssueReporter
-import com.android.tools.metalava.model.source.javadoc.JavadocText
+import com.android.tools.metalava.model.source.javadoc.toOptionalJavadocContent
 import com.android.tools.metalava.reporter.Issues
 import java.io.PrintWriter
 import java.util.regex.Pattern
@@ -31,7 +36,13 @@ import java.util.regex.Pattern
  */
 abstract class AbstractItemDocumentation(
     protected val item: SelectableItem,
-) : ItemDocumentation, DocumentationIssueReporter {
+) :
+    ItemDocumentation,
+    DocumentationIssueReporter,
+    DocCommentContext,
+    // Implement this as a temporary measure while this needs to keep [text] and [docComment] in
+    // sync.
+    DocCommentMutationListener {
 
     /**
      * Lazily initialized backing property for [text].
@@ -106,13 +117,21 @@ abstract class AbstractItemDocumentation(
         get() {
             val docComment = _docComment
             return if (docComment == null) {
-                val new = DocComment.createDocComment(text, this)
+                val new =
+                    DocComment.createDocComment(
+                        context = this,
+                        text,
+                        reporter = this,
+                    )
                 _docComment = new
                 new
             } else {
                 docComment
             }
         }
+
+    override val mutationListener: DocCommentMutationListener
+        get() = this
 
     /**
      * Called when [docComment] is mutated to discard [_text] so it will be regenerated from
@@ -122,12 +141,52 @@ abstract class AbstractItemDocumentation(
      * currently both [text] and [docComment] are modified directly. Longer term, changes will be
      * applied directly to [_docComment] and [text] will be dropped.
      */
-    private fun docCommentMutated() {
+    override fun docCommentMutated() {
         _text = null
     }
 
+    /** Implements [DocCommentContext.ordinalOfCallableParameter]. */
     override val isHidden
         get() = hasBlockTagOfType("hide")
+
+    /**
+     * Return the ordinal for the first item that matches [predicate].
+     *
+     * If no item matches then return the length of the list, as if the unknown item was at the end.
+     */
+    inline fun <T> List<T>.ordinalInListUnknownAtEnd(predicate: (T) -> Boolean): Int {
+        val index = indexOfFirst(predicate)
+        return if (index == -1) size else index
+    }
+
+    override fun ordinalInParamsList(name: String): Int {
+        return if (item is TypeParameterListOwner) {
+            val typeParameterList = item.typeParameterList
+            val typeParameterCount = typeParameterList.size
+
+            if (name.startsWith("<") && name.endsWith(">")) {
+                val typeParameterName = name.substring(1, name.length - 1)
+                // Type parameters are always at the start of the `@param` list so just return the
+                // ordinal in the type parameter list with unknown at the end.
+                typeParameterList.ordinalInListUnknownAtEnd { it.name() == typeParameterName }
+            } else {
+                // Get the callable parameters list, if any.
+                val parametersList = (item as? CallableItem)?.parameters() ?: emptyList()
+
+                // Get the ordinal of the parameter in the callable parameters list.
+                val ordinalInParametersList =
+                    parametersList.ordinalInListUnknownAtEnd { it.name() == name }
+
+                // Callable parameters always start after type parameters, both known and unknown
+                // so offset their ordinal so they come after the
+                val parameterListStart = typeParameterCount + 1
+                parameterListStart + ordinalInParametersList
+            }
+        } else {
+            // Only TypeParameterListOwners have parameters or either type.
+            0
+        }
+    }
 
     override val isDocOnly
         get() = hasBlockTagOfType("doconly")
@@ -151,12 +210,26 @@ abstract class AbstractItemDocumentation(
             // create a new one from the fully qualified text.
             val fullyQualifiedComment =
                 if (fullyQualifiedText == originalText) docComment
-                else DocComment.createDocComment(fullyQualifiedText, this)
+                else
+                    DocComment.createDocComment(
+                        context = this,
+                        fullyQualifiedText,
+                        reporter = this,
+                    )
 
             // Print the docComment as Javadoc.
             fullyQualifiedComment.printAsJavadocComment(writer)
         }
     }
+
+    override val mainDescriptionOwner: DocContentOwner
+        get() = docComment
+
+    override fun blockTagDescriptionOwner(tagTypeName: String): DocContentOwner? =
+        docComment.blockTagSections.find { it.tagType.name == tagTypeName }
+
+    override fun paramTagDescriptionOwner(name: String): DocContentOwner? =
+        docComment.blockTagSections.find { it.typeSafeTagData(BlockTagTypes.PARAM)?.name == name }
 
     override fun workAroundJavaDocSummaryTruncationIssue() {
         // Work around javadoc cutting off the summary line after the first ". ".
@@ -186,22 +259,16 @@ abstract class AbstractItemDocumentation(
     protected abstract fun mergeDocumentation(comment: String, tagSection: String?)
 
     override fun removeDeprecatedSection() {
-        // Try and remove all the `@deprecated` sections. If any were removed then report that the
-        // docComment was mutated.
-        val mutated = docComment.removeBlockTagSections { it.tagType == "deprecated" }
-        if (mutated) {
-            docCommentMutated()
-        }
+        // Try and remove all the `@deprecated` sections.
+        docComment.removeBlockTagSections { it.tagType == BlockTagTypes.DEPRECATED }
     }
 
-    override fun addUniqueBlockTagSectionWithSimpleText(blockTagType: String, text: String) {
+    override fun addUniqueBlockTagSectionWithSimpleText(tagTypeName: String, text: String) {
         // Remove any existing sections of the specified type.
-        docComment.removeBlockTagSections { it.tagType == blockTagType }
+        docComment.removeBlockTagSections { it.tagType.name == tagTypeName }
 
         // Add a block tag section to the end.
-        docComment.addBlockTagSection(blockTagType, DefaultDocDescription(JavadocText(text)))
-
-        docCommentMutated()
+        docComment.addBlockTagSection(tagTypeName, text.toOptionalJavadocContent())
     }
 
     override fun report(issue: Issues.Issue, message: String, lineOffset: Int, charOffset: Int) {

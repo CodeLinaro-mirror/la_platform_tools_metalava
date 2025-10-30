@@ -35,6 +35,7 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageList
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
+import com.android.tools.metalava.model.SUPPRESS_COMPATIBILITY_ANNOTATION_QUALIFIED
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeItem
@@ -113,6 +114,44 @@ class ApiAnalyzer(
         // Propagate visibility down into individual elements -- if a class is hidden,
         // then the methods and fields are hidden etc
         propagateHiddenRemovedAndDocOnly()
+    }
+
+    fun addExperimentalAnnotationsToGeneratedClassesIfAllTopLevelItemsExperimental(
+        filterEmit: FilterPredicate
+    ) {
+        // make sure that all the methods, properties, and fields in a class are marked with a
+        // suppress compatibility annotation, and that the class itself doesn't have any suppress
+        // compatibility annotations
+        codebase.getTopLevelClassesFromSource().forEach { cls ->
+            if (
+                cls.isFileFacade() &&
+                    cls.modifiers.annotations().none { it.isSuppressCompatibilityAnnotation() } &&
+                    cls.emit &&
+                    allEmittableItemsHaveExperimentalAnnotations(cls.methods(), filterEmit) &&
+                    allEmittableItemsHaveExperimentalAnnotations(cls.fields(), filterEmit) &&
+                    allEmittableItemsHaveExperimentalAnnotations(cls.properties(), filterEmit)
+            ) {
+                // add a suppress compatibility annotation to the class
+
+                val newSuppressCompatibilityAnnotation =
+                    AnnotationItem.createMarkerAnnotation(
+                        codebase,
+                        SUPPRESS_COMPATIBILITY_ANNOTATION_QUALIFIED,
+                    )
+                cls.mutateModifiers { this.addAnnotation(newSuppressCompatibilityAnnotation) }
+            }
+        }
+    }
+
+    private fun allEmittableItemsHaveExperimentalAnnotations(
+        items: List<SelectableItem>,
+        filterEmit: FilterPredicate
+    ): Boolean {
+        return items
+            .filter { filterEmit.test(it) }
+            .all { item ->
+                item.modifiers.annotations().any { it.isSuppressCompatibilityAnnotation() }
+            }
     }
 
     fun generateInheritedStubs(filterEmit: FilterPredicate, filterReference: FilterPredicate) {
