@@ -119,7 +119,7 @@ class JavadocTest : DriverTest() {
                        * @param focus The focus to find. One of {@link OtherClass#FOCUS_INPUT} or
                        *         {@link OtherClass#FOCUS_ACCESSIBILITY}.
                        * @throws IOException when blah blah blah
-                       * @throws {@link RuntimeException} when blah blah blah
+                       * @throws RuntimeException when blah blah blah
                        */
                        public void baz(int focus) throws IOException;
                        public boolean importance;
@@ -165,9 +165,9 @@ class JavadocTest : DriverTest() {
                      *  Here's an already fully qualified reference: {@link test.pkg2.OtherClass}.
                      *  And here's one in the same package: {@link test.pkg1.LocalClass LocalClass}.
                      *
-                     * @deprecated For some reason
                      * @see test.pkg2.OtherClass
                      * @see test.pkg2.OtherClass#bar(int, boolean)
+                     * @deprecated For some reason
                      */
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     @Deprecated
@@ -180,7 +180,7 @@ class JavadocTest : DriverTest() {
                      * @param focus The focus to find. One of {@link test.pkg2.OtherClass#FOCUS_INPUT OtherClass.FOCUS_INPUT} or
                      *         {@link test.pkg2.OtherClass#FOCUS_ACCESSIBILITY OtherClass.FOCUS_ACCESSIBILITY}.
                      * @throws java.io.IOException when blah blah blah
-                     * @throws {@link java.lang.RuntimeException RuntimeException} when blah blah blah
+                     * @throws java.lang.RuntimeException when blah blah blah
                      */
                     @Deprecated
                     public void baz(int focus) throws java.io.IOException { throw new RuntimeException("Stub!"); }
@@ -236,7 +236,7 @@ class JavadocTest : DriverTest() {
                        * @param focus The focus to find. One of {@link OtherClass#FOCUS_INPUT} or
                        *         {@link OtherClass#FOCUS_ACCESSIBILITY}.
                        * @throws IOException when blah blah blah
-                       * @throws {@link RuntimeException} when blah blah blah
+                       * @throws RuntimeException when blah blah blah
                        */
                        public void baz(int focus) throws IOException;
                        public boolean importance;
@@ -329,7 +329,7 @@ class JavadocTest : DriverTest() {
                        * @param focus The focus to find. One of {@link OtherClass#FOCUS_INPUT} or
                        *         {@link OtherClass#FOCUS_ACCESSIBILITY}.
                        * @throws java.io.IOException when blah blah blah
-                       * @throws {@link java.lang.RuntimeException} when blah blah blah
+                       * @throws java.lang.RuntimeException when blah blah blah
                        */
                        public void baz(int focus) throws IOException;
                        public boolean importance;
@@ -375,9 +375,9 @@ class JavadocTest : DriverTest() {
                  *  Here's an already fully qualified reference: {@link test.pkg2.OtherClass}.
                  *  And here's one in the same package: {@link test.pkg1.LocalClass LocalClass}.
                  *
-                 * @deprecated For some reason
                  * @see test.pkg2.OtherClass
                  * @see test.pkg2.OtherClass#bar(int, boolean)
+                 * @deprecated For some reason
                  */
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 @Deprecated
@@ -390,7 +390,7 @@ class JavadocTest : DriverTest() {
                  * @param focus The focus to find. One of {@link test.pkg2.OtherClass#FOCUS_INPUT OtherClass.FOCUS_INPUT} or
                  *         {@link test.pkg2.OtherClass#FOCUS_ACCESSIBILITY OtherClass.FOCUS_ACCESSIBILITY}.
                  * @throws java.io.IOException when blah blah blah
-                 * @throws {@link java.lang.RuntimeException} when blah blah blah
+                 * @throws java.lang.RuntimeException when blah blah blah
                  */
                 @Deprecated
                 public void baz(int focus) throws java.io.IOException { throw new RuntimeException("Stub!"); }

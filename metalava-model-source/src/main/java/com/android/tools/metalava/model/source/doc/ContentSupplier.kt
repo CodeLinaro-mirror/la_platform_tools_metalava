@@ -23,69 +23,46 @@ import java.util.Optional
 import kotlin.jvm.optionals.getOrNull
 
 /**
- * A [DocComment] description block.
+ * Supplies a [JavadocContent] description block.
  *
  * This represents a block of text and inline tags in a [DocComment]. It can either be the main
  * description for the item or the description of a block tag in the item.
  */
-internal interface DocDescription {
+internal interface ContentSupplier {
     /** The [JavadocContent], `null` if this is empty. */
     val content: JavadocContent?
 
-    /** Return `true` if this is empty, `false` otherwise. */
-    fun isEmpty(): Boolean = content == null
-
-    /** Return `true` if this is not empty, `false` otherwise. */
-    fun isNotEmpty() = !isEmpty()
-
-    /** Determines how much vertical space this [DocDescription] requires when printed. */
-    fun requiredSpace(): RequiredSpace =
-        when {
-            isEmpty() -> RequiredSpace.EMPTY
-            content?.isMultiLine() == true -> RequiredSpace.MULTI_LINE
-            else -> RequiredSpace.SINGLE_LINE
-        }
-
     companion object {
-        /** An empty [DocDescription]. */
-        val EMPTY: DocDescription = EmptyDocDescription()
+        /** An empty [ContentSupplier]. */
+        val EMPTY: ContentSupplier = EmptyContentSupplier()
     }
 }
 
-internal class EmptyDocDescription : DocDescription {
+internal class EmptyContentSupplier : ContentSupplier {
     override val content
         get() = null
-
-    override fun isEmpty() = true
-
-    override fun requiredSpace() = RequiredSpace.EMPTY
 
     override fun toString() = "<<>>"
 }
 
-/** A simple [DocDescription] that encapsulates [content]. */
-internal class DefaultDocDescription(override val content: JavadocContent) : DocDescription {
+/** A simple [ContentSupplier] that encapsulates [content]. */
+internal class DefaultContentSupplier(override val content: JavadocContent?) : ContentSupplier {
     override fun toString(): String {
-        return "<$content>"
+        return "<${content?: ""}>"
     }
 }
 
 /**
- * A lazy [DocDescription] that creates [content] lazily by parsing a subsequence of [text] starting
- * from [startInclusive] and ending at [endExclusive].
+ * A lazy [ContentSupplier] that creates [content] lazily by parsing a subsequence of [text]
+ * starting from [startInclusive] and ending at [endExclusive].
  */
-internal class LazyDocDescription(
-    private val text: String,
-    private val startInclusive: Int,
-    private val endExclusive: Int,
+internal class LazyContentSupplier(
+    private val context: DocCommentContext,
     private val reporter: DocumentationIssueReporter,
-) : DocDescription, DocumentationIssueReporter {
-    /** Secondary constructor to simple creation during testing. */
-    constructor(
-        text: String,
-        reporter: DocumentationIssueReporter
-    ) : this(text, 0, text.length, reporter)
-
+    private val text: String,
+    private val startInclusive: Int = 0,
+    private val endExclusive: Int = text.length,
+) : ContentSupplier, DocumentationIssueReporter {
     private lateinit var _content: Optional<JavadocContent>
 
     override val content: JavadocContent?
@@ -98,6 +75,7 @@ internal class LazyDocDescription(
                         null
                     } else {
                         JavadocParser.parse(
+                            context,
                             text,
                             startInclusive,
                             trimmedEnd,

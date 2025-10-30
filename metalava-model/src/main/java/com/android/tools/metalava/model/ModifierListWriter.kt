@@ -395,5 +395,5 @@ const val SUPPRESS_COMPATIBILITY_ANNOTATION = "SuppressCompatibility"
  * This is only used at run-time for matching against [AnnotationItem.qualifiedName], so it doesn't
  * need to maintain compatibility.
  */
-internal val SUPPRESS_COMPATIBILITY_ANNOTATION_QUALIFIED =
+val SUPPRESS_COMPATIBILITY_ANNOTATION_QUALIFIED =
     AnnotationItem.unshortenAnnotation("@$SUPPRESS_COMPATIBILITY_ANNOTATION").substring(1)
