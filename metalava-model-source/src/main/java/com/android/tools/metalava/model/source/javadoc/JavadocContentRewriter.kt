@@ -26,7 +26,7 @@ package com.android.tools.metalava.model.source.javadoc
  *   which needs removing from the content. This can be used to remove the parameter name from the
  *   content.
  */
-internal interface JavadocContentRewriter {
+internal interface JavadocContentRewriter : JavadocContentVisitor<JavadocContent?> {
     /**
      * Rewrite a [JavadocContentList] into optional [JavadocContent].
      * * Return [list] if rewriting does not change it.
@@ -35,7 +35,7 @@ internal interface JavadocContentRewriter {
      *   [JavadocContentList.contents].
      * * Otherwise, return a new [JavadocContent] that is the result of rewriting.
      */
-    fun rewrite(list: JavadocContentList): JavadocContent?
+    override fun visit(list: JavadocContentList): JavadocContent?
 
     /**
      * Rewrite a [JavadocContentList] into optional [JavadocContent].
@@ -44,7 +44,7 @@ internal interface JavadocContentRewriter {
      * * Return a new [JavadocText] if rewriting changes the contents of [JavadocText.contents].
      * * Otherwise, return a new [JavadocContent] that is the result of rewriting.
      */
-    fun rewrite(text: JavadocText): JavadocContent?
+    override fun visit(text: JavadocText): JavadocContent?
 
     /**
      * Rewrite a [JavadocContentList] into optional [JavadocContent].
@@ -53,5 +53,5 @@ internal interface JavadocContentRewriter {
      * * Return a new [JavadocInlineTag] if its contents were changed.
      * * Otherwise, return a new [JavadocContent] that is the result of rewriting.
      */
-    fun rewrite(inlineTag: JavadocInlineTag): JavadocContent?
+    override fun visit(inlineTag: JavadocInlineTag): JavadocContent?
 }

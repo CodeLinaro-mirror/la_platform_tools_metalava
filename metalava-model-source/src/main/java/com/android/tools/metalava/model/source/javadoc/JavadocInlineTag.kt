@@ -30,20 +30,7 @@ internal class JavadocInlineTag(
     val tagData: TagData?,
     val content: JavadocContent?,
 ) : JavadocContent {
-    /**
-     * An inline tag occupies multiple lines if the nested content, if present, occupies multiple
-     * lines.
-     */
-    override fun isMultiLine() = content?.isMultiLine() == true
-
-    /** An inline tag does not start with a newline. */
-    override fun startsWithNewline() = false
-
-    override fun accept(visitor: JavadocContentVisitor) {
-        visitor.visit(this)
-    }
-
-    override fun rewrite(rewriter: JavadocContentRewriter) = rewriter.rewrite(this)
+    override fun <R> accept(visitor: JavadocContentVisitor<R>) = visitor.visit(this)
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

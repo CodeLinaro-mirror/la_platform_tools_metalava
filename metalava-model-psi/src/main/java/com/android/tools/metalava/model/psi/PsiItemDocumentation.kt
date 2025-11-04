@@ -126,57 +126,6 @@ internal class PsiItemDocumentation(
 
     override fun snapshot(item: SelectableItem) = this
 
-    override fun findTagDocumentation(tag: String, value: String?): String? {
-        if (psi is PsiCompiledElement) {
-            return null
-        }
-        if (text.isBlank()) {
-            return null
-        }
-
-        // We can't just use element.docComment here because we may have modified the comment and
-        // then the comment snapshot in PSI isn't up-to-date with our latest changes
-        val docComment = codebase.psiAssembler.getComment(text)
-        val tagComment =
-            if (value == null) {
-                docComment.findTagByName(tag)
-            } else {
-                docComment.findTagsByName(tag).firstOrNull { it.valueElement?.text == value }
-            }
-
-        if (tagComment == null) {
-            return null
-        }
-
-        val text = tagComment.text
-        // Trim trailing next line (javadoc *)
-        var index = text.length - 1
-        while (index > 0) {
-            val c = text[index]
-            if (!(c == '*' || c.isWhitespace())) {
-                break
-            }
-            index--
-        }
-        index++
-        return if (index < text.length) {
-            text.substring(0, index)
-        } else {
-            text
-        }
-    }
-
-    override fun mergeDocumentation(comment: String, tagSection: String?) {
-        text = mergeDocumentation(text, psi, comment, tagSection)
-    }
-
-    override fun findMainDocumentation(): String {
-        if (text == "") return text
-        val comment = codebase.psiAssembler.getComment(text)
-        val end = findFirstTag(comment)?.textRange?.startOffset ?: text.length
-        return comment.text.substring(0, end)
-    }
-
     override fun fullyQualifiedDocumentation(documentation: String): String {
         if (documentation.isBlank() || !containsLinkTags(documentation)) {
             return documentation

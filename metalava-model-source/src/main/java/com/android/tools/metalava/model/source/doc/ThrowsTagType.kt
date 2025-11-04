@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava.model.source.doc
 
+import java.io.PrintWriter
+
 /** [TagType] for `@throws` block tag. */
 internal class ThrowsTagType() : TagType<ThrowsTagData>("throws") {
     override fun extractData(
@@ -23,8 +25,12 @@ internal class ThrowsTagType() : TagType<ThrowsTagData>("throws") {
         text: CharSequence
     ): ExtractDataResult<ThrowsTagData>? {
         val throwsName = text.findLeadingIdentifier() ?: return null
+
         return ExtractDataResult(
             tagData = ThrowsTagData(throwsName),
+            // The throwable name and any following whitespace must be removed from the content as
+            // they are part of [ThrowsTagData].
+            consumedContent = text.skipForwardsOverLeadingWhitespace(throwsName.length),
         )
     }
 }
@@ -37,5 +43,10 @@ internal data class ThrowsTagData(
     override fun compareTo(other: TagData): Int {
         other as ThrowsTagData
         return throwableClass.compareTo(other.throwableClass)
+    }
+
+    override fun printAfterTagType(writer: PrintWriter) {
+        writer.print(" ")
+        writer.print(throwableClass)
     }
 }

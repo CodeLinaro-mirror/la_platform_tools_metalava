@@ -42,6 +42,34 @@ import org.junit.Test
 
 class CompatibilityCheckTest : DriverTest() {
     @Test
+    fun `Should not raise issue when experimental package is added`() {
+        check(
+            expectedIssues = "",
+            extraArguments = arrayOf(ARG_ERROR_CATEGORY, "Compatibility"),
+            checkCompatibilityApiReleased =
+                """
+                package test.sub.pkgA {
+                    public final class MyClass {
+                    }
+                }
+                """,
+            signatureSource =
+                """
+                package @SuppressCompatibility test.sub.pkgB {
+                    public final class MyClass2 {
+                    }
+                }
+                package test.sub.pkgA {
+                    public final class MyClass {
+                    }
+                }
+                """,
+            suppressCompatibilityMetaAnnotations =
+                arrayOf("androidx.annotation.SuppressCompatibility")
+        )
+    }
+
+    @Test
     fun `Change between class and interface`() {
         check(
             expectedIssues =

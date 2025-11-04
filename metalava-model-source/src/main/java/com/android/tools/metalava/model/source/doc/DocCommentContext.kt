@@ -16,6 +16,9 @@
 
 package com.android.tools.metalava.model.source.doc
 
+import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.SelectableItem
+
 /**
  * Provides contextual information from the surrounding model for use when processing a
  * [DocComment].
@@ -45,4 +48,16 @@ internal interface DocCommentContext {
      *   callable parameter.
      */
     fun ordinalInParamsList(name: String): Int
+
+    /**
+     * Check to see whether the comment is on an overriding method and so may require insertion of
+     * `{@inheritDoc}` tags when appending content to preserve the developer's intended behavior.
+     *
+     * @return `true` if the commented [SelectableItem] is a [MethodItem] that has at least one
+     *   [MethodItem.superMethods].
+     */
+    fun isOverridingMethod(): Boolean
+
+    /** Fully qualify the Javadoc [comment]. */
+    fun fullyQualifyComment(comment: String): String
 }

@@ -185,4 +185,6 @@ internal object BlockTagTypes : BaseTagTypes() {
 }
 
 /** Collection of all the inline [TagType]s that have been created. */
-internal object InlineTagTypes : BaseTagTypes()
+internal object InlineTagTypes : BaseTagTypes() {
+    val INHERIT_DOC = tagTypeOf("inheritDoc")
+}

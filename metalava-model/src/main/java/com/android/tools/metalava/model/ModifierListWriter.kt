@@ -243,7 +243,7 @@ private constructor(
                 }
         }
 
-        // Do not write deprecate or suppress compatibility annotations on a package.
+        // Do not write deprecate annotations on a package.
         if (item !is PackageItem) {
             val writeDeprecated =
                 when {
@@ -256,11 +256,11 @@ private constructor(
                 writer.write("@Deprecated")
                 writer.write(if (separateLines) "\n" else " ")
             }
+        }
 
-            if (annotations.any { it.isSuppressCompatibilityAnnotation() }) {
-                writer.write("@$SUPPRESS_COMPATIBILITY_ANNOTATION")
-                writer.write(if (separateLines) "\n" else " ")
-            }
+        if (annotations.any { it.isSuppressCompatibilityAnnotation() }) {
+            writer.write("@$SUPPRESS_COMPATIBILITY_ANNOTATION")
+            writer.write(if (separateLines) "\n" else " ")
         }
 
         // Remove @SuppressCompatibility if it exists (it will for text codebases) because it was

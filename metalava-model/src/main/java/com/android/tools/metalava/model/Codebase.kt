@@ -41,6 +41,13 @@ interface Codebase : ClassResolver, AnnotationContext {
     /** [Reporter] to which any issues found within the [Codebase] can be reported. */
     val reporter: Reporter
 
+    /**
+     * Whether this [Codebase] is set up as Kotlin Multiplatform (KMP).
+     *
+     * See https://kotlinlang.org/docs/multiplatform.html
+     */
+    val isMultiplatform: Boolean
+
     /** The [ApiSurfaces] that will be tracked in this [Codebase]. */
     val apiSurfaces: ApiSurfaces
 

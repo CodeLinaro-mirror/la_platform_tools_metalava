@@ -119,6 +119,7 @@ class DefaultItemFactory(
             origin,
             superClassType,
             interfaceTypes,
+            isFileFacade = false,
         )
 
     /** Create a [ConstructorItem]. */
@@ -231,7 +232,7 @@ class DefaultItemFactory(
         containingCallable: CallableItem,
         parameterIndex: Int,
         type: TypeItem,
-        defaultValueFactory: ParameterDefaultValueFactory,
+        hasDefaultValue: Boolean,
     ): ParameterItem =
         DefaultParameterItem(
             codebase,
@@ -243,7 +244,7 @@ class DefaultItemFactory(
             containingCallable,
             parameterIndex,
             type,
-            defaultValueFactory,
+            hasDefaultValue,
         )
 
     /** Create a [PropertyItem]. */

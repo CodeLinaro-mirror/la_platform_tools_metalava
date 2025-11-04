@@ -64,6 +64,7 @@ internal class TurbineSourceParser(
                         trustedApi = false,
                         supportsDocumentation = true,
                         assembler = assembler,
+                        isMultiplatform = false,
                     )
                 },
                 classpath = classPath,

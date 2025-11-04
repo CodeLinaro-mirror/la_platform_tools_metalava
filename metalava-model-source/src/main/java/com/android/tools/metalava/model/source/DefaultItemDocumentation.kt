@@ -39,14 +39,6 @@ internal class DefaultItemDocumentation(
     override fun duplicate(item: SelectableItem) = DefaultItemDocumentation(item, text)
 
     override fun snapshot(item: SelectableItem) = text.toItemDocumentation(item)
-
-    override fun mergeDocumentation(comment: String, tagSection: String?) {
-        TODO("Not yet implemented")
-    }
-
-    override fun findMainDocumentation(): String {
-        TODO("Not yet implemented")
-    }
 }
 
 /** Wrap a [String] in an [ItemDocumentationFactory]. */

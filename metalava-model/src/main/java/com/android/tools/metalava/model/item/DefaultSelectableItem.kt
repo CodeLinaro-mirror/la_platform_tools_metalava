@@ -21,7 +21,10 @@ import com.android.tools.metalava.model.ApiVariantSelectorsFactory
 import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultItem
+import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
+import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.Showability
 import com.android.tools.metalava.model.SourceLanguage
@@ -44,9 +47,31 @@ abstract class DefaultSelectableItem(
         fileLocation,
         sourceLanguage,
         modifiers,
-        documentationFactory,
     ),
     SelectableItem {
+    /**
+     * Create a [ItemDocumentation] appropriate for this [Item].
+     *
+     * The leaking of `this` is safe as the implementations do not access anything that has not been
+     * initialized.
+     *
+     * If this is private then it cannot be included in an API so its documentation is irrelevant.
+     * In that case this ignores its [ItemDocumentationFactory] and uses [ItemDocumentation.NONE]
+     * instead. The latter is immutable and attempting to change it will throw an error but that is
+     * safe as only documentation for API [Item]s is modified.
+     *
+     * The [ItemDocumentationFactory] is also ignored if this is not a [SelectableItem], i.e. is a
+     * [ParameterItem] as they do not have documentation.
+     */
+    final override val documentation =
+        if (modifiers.isPrivate()) ItemDocumentation.NONE
+        else @Suppress("LeakingThis") documentationFactory(this)
+
+    init {
+        if (!modifiers.isDeprecated() && documentation.hasBlockTagOfType("deprecated")) {
+            @Suppress("LeakingThis") mutateModifiers { setDeprecated(true) }
+        }
+    }
 
     final override var selectedApiVariants: ApiVariantSet = codebase.apiSurfaces.emptyVariantSet
 
@@ -85,16 +110,4 @@ abstract class DefaultSelectableItem(
 
     final override val showability: Showability
         get() = variantSelectors.showability
-
-    final override fun appendDocumentation(comment: String, tagSection: String?) {
-        if (comment.isBlank()) {
-            return
-        }
-
-        // TODO: Figure out if an annotation should go on the return value, or on the method.
-        // For example; threading: on the method, range: on the return value.
-        // TODO: Find a good way to add or append to a given tag (@param <something>, @return, etc)
-
-        documentation.appendDocumentation(comment, tagSection)
-    }
 }

@@ -29,6 +29,7 @@ import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.transformer.CodebaseTransformer
 import com.android.tools.metalava.model.testsuite.ModelSuiteRunner
+import com.android.tools.metalava.model.utils.splitIntoOptionalQualifierAndSimpleName
 import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.testing.getAndroidJar
 import java.io.File
@@ -117,12 +118,10 @@ class ClassLoaderBasedClassResolver(
             } catch (e: ClassNotFoundException) {
                 // If the class could not be found then maybe it was a nested class so replace the
                 // last '.' in the name with a $ and try again. If there is no '.' then return.
-                val lastDot = binaryName.lastIndexOf('.')
-                if (lastDot == -1) {
+                val (before, after) = binaryName.splitIntoOptionalQualifierAndSimpleName()
+                if (before == null) {
                     return null
                 } else {
-                    val before = binaryName.substring(0, lastDot)
-                    val after = binaryName.substring(lastDot + 1)
                     binaryName = "$before\$$after"
                 }
             }

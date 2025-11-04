@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.item
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PackageList
 import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.model.utils.extractPossiblyEmptyQualifierName
 import java.util.HashMap
 
 private const val PACKAGE_ESTIMATE = 500
@@ -107,15 +108,7 @@ class PackageTracker(private val packageItemFactory: PackageItemFactory) {
      * the root package.
      */
     private fun getContainingPackageName(packageName: String): String? =
-        if (packageName == "") null
-        else
-            packageName.lastIndexOf('.').let { index ->
-                if (index == -1) {
-                    ""
-                } else {
-                    packageName.substring(0, index)
-                }
-            }
+        if (packageName == "") null else packageName.extractPossiblyEmptyQualifierName()
 
     /** Add the package to this. */
     private fun addPackage(packageItem: DefaultPackageItem) {

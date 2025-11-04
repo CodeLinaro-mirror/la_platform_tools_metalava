@@ -309,7 +309,7 @@ class KotlinInteropChecks(val reporter: Reporter) {
         filteredMembers: Sequence<MemberItem>,
     ) {
         if (
-            cls.isFileFacade() &&
+            cls.isFileFacade &&
                 // Technically it is possible to use JvmMultifileClass without using JvmName, but it
                 // wouldn't make sense to and it is difficult to find the annotations in psi in this
                 // case, so skip the check for multi-file classes.

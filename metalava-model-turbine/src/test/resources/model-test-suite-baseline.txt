@@ -4,9 +4,11 @@ com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTe
 com.android.tools.metalava.model.testsuite.classitem.CommonDuplicateClassItemTest
   Test duplicate classes
 
+com.android.tools.metalava.model.testsuite.documentation.CommonDocReferenceTest
+  Test @throws resolution
+
 com.android.tools.metalava.model.testsuite.documentation.CommonItemDocumentationTest
-  Test ItemDocumentation appendDocumentation
-  Test appending to Javadoc with errors
+  Test append DocContent to main description
   Test fully qualifying links that wrap on multiple lines
   Test javadoc error locations
   Test javadoc locations

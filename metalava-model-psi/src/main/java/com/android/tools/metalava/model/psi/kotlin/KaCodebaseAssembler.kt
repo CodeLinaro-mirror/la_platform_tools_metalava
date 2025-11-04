@@ -45,7 +45,6 @@ import com.android.tools.metalava.model.item.DefaultParameterItem
 import com.android.tools.metalava.model.item.DefaultPropertyItem
 import com.android.tools.metalava.model.item.DefaultTypeAliasItem
 import com.android.tools.metalava.model.item.DefaultTypeParameterItem
-import com.android.tools.metalava.model.item.ParameterDefaultValue
 import com.android.tools.metalava.model.psi.PsiBasedCodebase
 import com.android.tools.metalava.model.psi.PsiFieldItem
 import com.android.tools.metalava.model.psi.PsiFileLocation
@@ -76,7 +75,6 @@ import org.jetbrains.kotlin.analysis.api.symbols.KaSymbolVisibility
 import org.jetbrains.kotlin.analysis.api.symbols.KaTypeAliasSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaTypeParameterSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaValueParameterSymbol
-import org.jetbrains.kotlin.analysis.api.symbols.psi
 import org.jetbrains.kotlin.analysis.api.symbols.receiverType
 import org.jetbrains.kotlin.analysis.api.types.KaType
 import org.jetbrains.kotlin.asJava.toLightElements
@@ -662,7 +660,7 @@ internal class KaCodebaseAssembler(
                     containingCallable = containingCallable,
                     parameterIndex = 0,
                     type = type,
-                    defaultValueFactory = { ParameterDefaultValue.NONE },
+                    hasDefaultValue = false,
                 )
             }
         val regularParameters =
@@ -689,13 +687,7 @@ internal class KaCodebaseAssembler(
                     containingCallable = containingCallable,
                     parameterIndex = index,
                     type = type,
-                    defaultValueFactory = {
-                        if (parameterSymbol.hasDefaultValue) {
-                            ParameterDefaultValue.UNKNOWN
-                        } else {
-                            ParameterDefaultValue.NONE
-                        }
-                    },
+                    hasDefaultValue = parameterSymbol.hasDefaultValue,
                 )
             }
 
@@ -714,7 +706,7 @@ internal class KaCodebaseAssembler(
                     containingCallable = containingCallable,
                     parameterIndex = index,
                     type = enclosingTypeItemFactory.createContinuationType(returnType),
-                    defaultValueFactory = { ParameterDefaultValue.NONE },
+                    hasDefaultValue = false,
                 )
             } else {
                 null

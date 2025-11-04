@@ -26,6 +26,7 @@ import com.android.tools.metalava.model.ItemVisitor
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierListWriter
 import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.item.ResourceFile
 import com.android.tools.metalava.model.visitors.ApiFilters
 import com.android.tools.metalava.model.visitors.ApiPredicate
@@ -94,7 +95,7 @@ internal class StubWriter(
         val annotations = pkg.modifiers.annotations()
         val writeAnnotations = annotations.isNotEmpty() && generateAnnotations
         val writeDocumentation =
-            config.includeDocumentationInStubs && pkg.documentation.text.isNotBlank()
+            config.includeDocumentationInStubs && pkg.documentation.requiresSourceComment()
         if (writeAnnotations || writeDocumentation) {
             val sourceFile = File(getPackageDir(pkg), "package-info.java")
             val packageInfoWriter =
@@ -292,7 +293,11 @@ fun createFilteringVisitorForStubs(
     )
 }
 
-internal fun appendDocumentation(item: Item, writer: PrintWriter, config: StubWriterConfig) {
+internal fun appendDocumentation(
+    item: SelectableItem,
+    writer: PrintWriter,
+    config: StubWriterConfig
+) {
     if (config.includeDocumentationInStubs) {
         val documentation = item.documentation
         documentation.print(writer)

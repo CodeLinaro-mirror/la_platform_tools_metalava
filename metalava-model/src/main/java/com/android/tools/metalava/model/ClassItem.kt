@@ -151,9 +151,6 @@ interface ClassItem : ClassContentItem, SelectableItem, TypeParameterListOwner {
     /** The constructors in this class */
     @MetalavaApi fun constructors(): List<ConstructorItem>
 
-    /** Whether this class has an implicit default constructor */
-    fun hasImplicitDefaultConstructor(): Boolean
-
     /** The non-constructor methods in this class */
     @MetalavaApi fun methods(): List<MethodItem>
 
@@ -186,7 +183,7 @@ interface ClassItem : ClassContentItem, SelectableItem, TypeParameterListOwner {
      * Whether this class is a File Facade class, i.e. a `*Kt` class that contains declarations
      * which do not belong to a Kotlin class, e.g. top-level functions, properties, etc.
      */
-    fun isFileFacade() = false
+    val isFileFacade: Boolean
 
     /**
      * Whether this class is a multi-file facade class, generated from Kotlin files annotated with
