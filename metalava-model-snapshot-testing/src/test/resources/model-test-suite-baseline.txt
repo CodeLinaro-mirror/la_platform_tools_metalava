@@ -52,9 +52,11 @@ com.android.tools.metalava.model.testsuite.codebase.CommonCodebaseTest
   Test getTopLevelClassesFromSource[psi,java,k2]
   Test getTopLevelClassesFromSource[turbine]
 
+com.android.tools.metalava.model.testsuite.documentation.CommonDocReferenceTest
+  Test @throws resolution[turbine]
+
 com.android.tools.metalava.model.testsuite.documentation.CommonItemDocumentationTest
-  Test ItemDocumentation appendDocumentation[turbine]
-  Test appending to Javadoc with errors[turbine]
+  Test append DocContent to main description[turbine]
   Test fully qualifying links that wrap on multiple lines[turbine]
   Test javadoc error locations[turbine]
   Test javadoc locations[turbine]

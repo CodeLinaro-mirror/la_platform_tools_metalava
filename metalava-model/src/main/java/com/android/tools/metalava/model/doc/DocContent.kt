@@ -23,7 +23,13 @@ import com.android.tools.metalava.model.ItemDocumentation
  *
  * @see DocContentOwner.docContent
  */
-interface DocContent
+interface DocContent {
+    /** Check if [predicate] matches this [DocContent]. */
+    fun check(predicate: DocContentPredicate): Boolean
+}
+
+/** Marker interface that represents a predicate that can be applied to [DocContent]. */
+interface DocContentPredicate
 
 /**
  * The owner of a block of content extracted from a documentation comment.

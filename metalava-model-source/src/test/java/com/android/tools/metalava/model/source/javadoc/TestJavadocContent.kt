@@ -21,7 +21,7 @@ import kotlin.test.assertEquals
 /** Dump the internal structure of this [JavadocContent]. */
 internal fun JavadocContent?.dumpContentStructure(): String = buildString {
     this@dumpContentStructure?.accept(
-        object : JavadocContentVisitor {
+        object : JavadocContentVisitor<Unit> {
             private var indent = ""
 
             private fun appendPrefix() {

@@ -419,7 +419,7 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
         var parametersForOriginal = callableItem.parameters().dropLast(2)
         // For functions that aren't at the top level, the generated method has the class type as
         // the first parameter.
-        if (!isConstructor && !containingClassItem.isFileFacade()) {
+        if (!isConstructor && !containingClassItem.isFileFacade) {
             parametersForOriginal = parametersForOriginal.drop(1)
         }
 
@@ -536,12 +536,14 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
         // If the item was created as Kotlin only but does exist in bytecode with the same return
         // type, update the target language set. Exclude reified inline functions because even
         // though these are present in bytecode, there's an error if they're actually used.
-        if (callableItem.targetLanguages == TargetLanguageSet.KOTLIN_ONLY) {
+        if (
+            callableItem.targetLanguages == TargetLanguageSet.KOTLIN_ONLY &&
+                callableItem.typeParameterList.none { it.isReified() }
+        ) {
             val jvmName = (callableItem as? MethodItem)?.findJvmNameFromAnnotation()
             if (
                 callableItem is ConstructorItem ||
                     callableItem.returnType().toErasedTypeString() == erasedReturn &&
-                        callableItem.typeParameterList.none { it.isReified() } &&
                         // Make sure not to merge separate method definitions which use JvmName.
                         (jvmName == null || jvmName == callableItem.name())
             ) {
@@ -637,6 +639,38 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
     }
 
     /**
+     * Determines the function name and descriptor that should be used to search for the metadata
+     * entry of a function.
+     */
+    private fun PsiCallableItem.computeNameAndDescriptor(): Pair<String, String> {
+        val initialDescriptor = internalDesc(voidConstructorTypes = true)
+
+        return if (name().endsWith(DEFAULT_MARKER)) {
+            // Search for compiler generated default overloads with the regular method name.
+            val name = name().removeSuffix(DEFAULT_MARKER)
+            // Remove the extra arguments added by the compiler to the end of the signature.
+            val trailingArgs = "ILjava/lang/Object;)"
+            val removeDefaults =
+                if (initialDescriptor.contains(trailingArgs)) {
+                    initialDescriptor.replaceFirst(trailingArgs, ")")
+                } else {
+                    throw IllegalStateException(
+                        "Unexpected descriptor for ${toStringForItem()}: $initialDescriptor"
+                    )
+                }
+            // For regular classes, the compiler also adds an argument to the start of the signature
+            // which is the containing class.
+            if (containingClass().isFileFacade) {
+                name to removeDefaults
+            } else {
+                name to removeDefaults.replaceFirst(containingClass().type().internalName(), "")
+            }
+        } else {
+            name() to initialDescriptor
+        }
+    }
+
+    /**
      * Finds the metadata for the callable in the [container]. The metadata might be from a
      * constructor, function, or property accessor.
      */
@@ -647,13 +681,13 @@ internal class KotlinBytecodeApis(val codebase: PsiBasedCodebase) {
 
         // For constructors and functions generated from constructor definitions, check if there
         // is a constructor with the right signature.
-        return if (isConstructor() || name() == "constructor-impl") {
+        return if (isConstructor() || name().startsWith("constructor-impl")) {
             findMatchingConstructor(container)
         } else {
-            val expectedDescriptor = internalDesc(voidConstructorTypes = true)
+            val (expectedName, expectedDescriptor) = computeNameAndDescriptor()
             // Check for a function with the right signature.
             container.functions
-                .firstOrNull { it.signature.matches(name(), expectedDescriptor) }
+                .firstOrNull { it.signature.matches(expectedName, expectedDescriptor) }
                 ?.let { MetadataEntry.FunctionMetadataEntry(it) }
                 // No matching function, check if this is a property accessor.
                 ?: container.properties.firstNotNullOfOrNull {

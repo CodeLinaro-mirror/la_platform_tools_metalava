@@ -69,6 +69,7 @@ internal constructor(
         origin = origin,
         superClassType = superClassType,
         interfaceTypes = interfaceTypes,
+        isFileFacade = isFileFacade(psiClass),
     ),
     ClassItem,
     PsiItem {
@@ -107,13 +108,16 @@ internal constructor(
         return PsiConstructorItem.createDefaultConstructor(psiCodebase, this, psiClass, visibility)
     }
 
-    override fun isFileFacade(): Boolean {
-        return psiClass.isKotlin() &&
-            psiClass is UClass &&
-            psiClass.javaPsi is KtLightClassForFacade
-    }
-
     override fun isMultiFileClass(): Boolean {
         return ((psiClass as? UClass)?.javaPsi as? KtLightClassForFacade)?.multiFileClass ?: false
+    }
+
+    companion object {
+        /** Whether the [psiClass] is a file-facade class. See [ClassItem.isFileFacade]. */
+        fun isFileFacade(psiClass: PsiClass): Boolean {
+            return psiClass.isKotlin() &&
+                psiClass is UClass &&
+                psiClass.javaPsi is KtLightClassForFacade
+        }
     }
 }

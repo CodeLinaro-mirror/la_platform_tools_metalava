@@ -55,9 +55,13 @@ open class DefaultPackageItem(
         // have at least one class that has `emit = true`. That will be updated, if necessary, when
         // adding a class or type alias to the package.
         emit = false
+
+        containingPackage?.addChildPackage(this)
     }
 
     private val topClasses = mutableListOf<ClassItem>()
+
+    private val childPackages = mutableListOf<PackageItem>()
 
     final override fun qualifiedName(): String = qualifiedName
 
@@ -74,6 +78,14 @@ open class DefaultPackageItem(
 
     fun addTopClass(classItem: ClassItem) {
         topClasses.add(classItem)
+    }
+
+    override fun addChildPackage(pkg: PackageItem) {
+        childPackages.add(pkg)
+    }
+
+    override fun childPackages(): List<PackageItem> {
+        return childPackages.toList()
     }
 
     private val typeAliases = mutableListOf<TypeAliasItem>()

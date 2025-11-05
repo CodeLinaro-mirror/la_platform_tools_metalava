@@ -55,7 +55,7 @@ internal class PsiBasedCodebase(
     val allowReadingComments: Boolean,
     val fromClasspath: Boolean = false,
     assembler: PsiCodebaseAssembler,
-    val isMultiplatform: Boolean,
+    isMultiplatform: Boolean,
     /** The KaModule to use for adding kotlin-only APIs to the codebase. */
     val mainAnalysisModule: KaModule? = null,
 ) :
@@ -67,6 +67,7 @@ internal class PsiBasedCodebase(
         trustedApi = false,
         supportsDocumentation = true,
         assembler = assembler,
+        isMultiplatform = isMultiplatform,
     ) {
 
     internal val psiAssembler = assembler

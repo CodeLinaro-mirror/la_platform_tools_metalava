@@ -724,19 +724,18 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             ),
         ) {
             val testClass = codebase.assertClass("test.pkg.Test")
-            assertEquals(false, testClass.hasImplicitDefaultConstructor())
             assertEquals(2, testClass.constructors().count())
             val constructorItem = testClass.constructors().first()
             assertEquals("Test", constructorItem.name())
             assertEquals(testClass.type(), constructorItem.returnType())
-            assertEquals(false, testClass.hasImplicitDefaultConstructor())
+            assertEquals(false, constructorItem.isImplicitConstructor())
 
             val testClass1 = codebase.assertClass("test.pkg.Test.Test1")
             val constructorItem1 = testClass1.constructors().single()
             assertEquals("Test1", constructorItem1.name())
             assertEquals("test.pkg.Test.Test1", constructorItem1.returnType().toString())
             assertEquals(testClass1.type(), constructorItem1.returnType())
-            assertEquals(true, testClass1.hasImplicitDefaultConstructor())
+            assertEquals(true, constructorItem1.isImplicitConstructor())
         }
     }
 

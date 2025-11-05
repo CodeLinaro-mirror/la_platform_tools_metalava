@@ -36,6 +36,7 @@ import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.annotation.AnnotationClass
 import com.android.tools.metalava.model.type.DefaultResolvedClassTypeItem
+import com.android.tools.metalava.model.utils.extractSimpleName
 import com.android.tools.metalava.reporter.FileLocation
 
 open class DefaultClassItem(
@@ -55,6 +56,7 @@ open class DefaultClassItem(
     final override val origin: ClassOrigin,
     private var superClassType: ClassTypeItem?,
     private var interfaceTypes: List<ClassTypeItem>,
+    override val isFileFacade: Boolean,
 ) :
     DefaultSelectableItem(
         codebase = codebase,
@@ -67,7 +69,7 @@ open class DefaultClassItem(
     ),
     ClassItem {
 
-    private val simpleName = qualifiedName.substring(qualifiedName.lastIndexOf('.') + 1)
+    private val simpleName = qualifiedName.extractSimpleName()
 
     private val fullName: String
 
@@ -201,17 +203,7 @@ open class DefaultClassItem(
     fun addConstructor(constructor: ConstructorItem) {
         ensureNotFrozen()
         mutableConstructors += constructor
-
-        // Keep track of whether any implicit constructors were added.
-        if (constructor.isImplicitConstructor()) {
-            hasImplicitDefaultConstructor = true
-        }
     }
-
-    /** Tracks whether the class has an implicit default constructor. */
-    private var hasImplicitDefaultConstructor = false
-
-    final override fun hasImplicitDefaultConstructor(): Boolean = hasImplicitDefaultConstructor
 
     override fun createDefaultConstructor(visibility: VisibilityLevel): ConstructorItem {
         return DefaultConstructorItem.createDefaultConstructor(

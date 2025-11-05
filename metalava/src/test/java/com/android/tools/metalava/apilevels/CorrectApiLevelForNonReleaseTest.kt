@@ -17,11 +17,13 @@
 package com.android.tools.metalava.apilevels
 
 import com.android.tools.metalava.ARG_ANDROID_JAR_PATTERN
+import com.android.tools.metalava.ARG_API_VERSION_FOR_SOURCES
 import com.android.tools.metalava.ARG_CURRENT_CODENAME
 import com.android.tools.metalava.ARG_CURRENT_VERSION
 import com.android.tools.metalava.ARG_GENERATE_API_LEVELS
 import com.android.tools.metalava.doc.getApiLookup
 import com.android.tools.metalava.testing.java
+import kotlin.test.assertFalse
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -29,7 +31,7 @@ import org.junit.Test
 class CorrectApiLevelForNonReleaseTest : ApiGeneratorIntegrationTestBase() {
 
     @Test
-    fun `Correct API Level for non-release`() {
+    fun `Correct API Level for non-release using current version arg`() {
         check(
             extraArguments =
                 arrayOf(
@@ -55,13 +57,255 @@ class CorrectApiLevelForNonReleaseTest : ApiGeneratorIntegrationTestBase() {
         )
 
         assertTrue(output.isFile)
-        // b/447588979 In future the version to use will be passed on the command line so
-        // Metalava does not need to deduce it. A placeholder is used temporarily.
+        // As api-version-for-sources is not set, fall back to default value
         val nextVersion = 10_000
         val xml = output.readText(Charsets.UTF_8)
         assertTrue(xml.contains("<class name=\"android/pkg/MyTest\" since=\"$nextVersion\""))
         val apiLookup = getApiLookup(output, temporaryFolder.newFolder())
         @Suppress("DEPRECATION")
         assertEquals(nextVersion, apiLookup.getClassVersion("android.pkg.MyTest"))
+    }
+
+    @Test
+    fun `Correct API Level for non-release using api version for sources arg`() {
+        val nextVersion = MAGIC_VERSION_INT + 1
+        check(
+            extraArguments =
+                arrayOf(
+                    ARG_GENERATE_API_LEVELS,
+                    outputPath,
+                    ARG_ANDROID_JAR_PATTERN,
+                    androidPublicJarsPattern,
+                    ARG_CURRENT_CODENAME,
+                    "ZZZ", // not just Z, but very ZZZ
+                    ARG_CURRENT_VERSION,
+                    MAGIC_VERSION_STR, // not real api level
+                    ARG_API_VERSION_FOR_SOURCES,
+                    nextVersion.toString()
+                ),
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                        package android.pkg;
+                        public class MyTest {
+                        }
+                        """
+                    )
+                )
+        )
+
+        assertTrue(output.isFile)
+        val xml = output.readText(Charsets.UTF_8)
+        // Sources will always be included with the api level of --api-for-sources when
+        // --api-for-sources is set with a valid value regardless of the codename
+        assertTrue(xml.contains("<class name=\"android/pkg/MyTest\" since=\"$nextVersion\""))
+        val apiLookup = getApiLookup(output, temporaryFolder.newFolder())
+        @Suppress("DEPRECATION")
+        assertEquals(nextVersion, apiLookup.getClassVersion("android.pkg.MyTest"))
+    }
+
+    @Test
+    fun `Throw error when current version is less than 27`() {
+        val currentApiVersion = 27 - 1
+        check(
+            extraArguments =
+                arrayOf(
+                    ARG_GENERATE_API_LEVELS,
+                    outputPath,
+                    ARG_ANDROID_JAR_PATTERN,
+                    androidPublicJarsPattern,
+                    ARG_CURRENT_CODENAME,
+                    "ZZZ", // not just Z, but very ZZZ
+                    ARG_CURRENT_VERSION,
+                    currentApiVersion.toString()
+                ),
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                        package android.pkg;
+                        public class MyTest {
+                        }
+                        """
+                    )
+                ),
+            expectedFail =
+                "Aborting: Suspicious $ARG_CURRENT_VERSION $currentApiVersion, expected at least 27"
+        )
+    }
+
+    @Test
+    fun `Throw error when api version for sources is less than or equal to last finalized version`() {
+        val lastFinalizedVersion = 35
+        check(
+            extraArguments =
+                arrayOf(
+                    ARG_GENERATE_API_LEVELS,
+                    outputPath,
+                    ARG_ANDROID_JAR_PATTERN,
+                    androidPublicJarsPattern,
+                    ARG_CURRENT_CODENAME,
+                    "ZZZ", // not just Z, but very ZZZ
+                    ARG_CURRENT_VERSION,
+                    MAGIC_VERSION_STR, // not real api level
+                    ARG_API_VERSION_FOR_SOURCES,
+                    lastFinalizedVersion.toString()
+                ),
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                        package android.pkg;
+                        public class MyTest {
+                        }
+                        """
+                    )
+                ),
+            expectedFail =
+                "Aborting: Suspicious --api-version-for-sources $lastFinalizedVersion, expected a version greater than $lastFinalizedVersion"
+        )
+
+        check(
+            extraArguments =
+                arrayOf(
+                    ARG_GENERATE_API_LEVELS,
+                    outputPath,
+                    ARG_ANDROID_JAR_PATTERN,
+                    androidPublicJarsPattern,
+                    ARG_CURRENT_CODENAME,
+                    "ZZZ", // not just Z, but very ZZZ
+                    ARG_CURRENT_VERSION,
+                    MAGIC_VERSION_STR, // not real api level
+                    ARG_API_VERSION_FOR_SOURCES,
+                    (lastFinalizedVersion - 1).toString()
+                ),
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                        package android.pkg;
+                        public class MyTest {
+                        }
+                        """
+                    )
+                ),
+            expectedFail =
+                "Aborting: Suspicious --api-version-for-sources ${lastFinalizedVersion-1}, expected a version greater than $lastFinalizedVersion"
+        )
+    }
+
+    @Test
+    fun `Do not include sources for release (REL) with current version arg less than last finalized version`() {
+        val lastFinalizedVersion = 35
+        check(
+            extraArguments =
+                arrayOf(
+                    ARG_GENERATE_API_LEVELS,
+                    outputPath,
+                    ARG_ANDROID_JAR_PATTERN,
+                    androidPublicJarsPattern,
+                    ARG_CURRENT_CODENAME,
+                    "REL", // not just Z, but very ZZZ
+                    ARG_CURRENT_VERSION,
+                    lastFinalizedVersion.toString()
+                ),
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                        package android.pkg;
+                        public class MyTest {
+                        }
+                        """
+                    )
+                )
+        )
+
+        assertTrue(output.isFile)
+        val xml = output.readText(Charsets.UTF_8)
+        assertFalse(xml.contains("<class name=\"android/pkg/MyTest\""))
+        val apiLookup = getApiLookup(output, temporaryFolder.newFolder())
+        @Suppress("DEPRECATION") assertEquals(-1, apiLookup.getClassVersion("android.pkg.MyTest"))
+    }
+
+    @Test
+    fun `Correct API Level for release (REL) with current version arg greater than last finalized version`() {
+        val lastFinalizedVersion = 35
+        check(
+            extraArguments =
+                arrayOf(
+                    ARG_GENERATE_API_LEVELS,
+                    outputPath,
+                    ARG_ANDROID_JAR_PATTERN,
+                    androidPublicJarsPattern,
+                    ARG_CURRENT_CODENAME,
+                    "REL", // not just Z, but very ZZZ
+                    ARG_CURRENT_VERSION,
+                    (lastFinalizedVersion + 1).toString()
+                ),
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                        package android.pkg;
+                        public class MyTest {
+                        }
+                        """
+                    )
+                )
+        )
+
+        assertTrue(output.isFile)
+
+        val xml = output.readText(Charsets.UTF_8)
+        assertTrue(
+            xml.contains("<class name=\"android/pkg/MyTest\" since=\"${lastFinalizedVersion + 1}\"")
+        )
+        val apiLookup = getApiLookup(output, temporaryFolder.newFolder())
+        @Suppress("DEPRECATION")
+        assertEquals(lastFinalizedVersion + 1, apiLookup.getClassVersion("android.pkg.MyTest"))
+    }
+
+    @Test
+    fun `Correct API Level for release (REL) using api version for sources arg`() {
+        val apiVersionForSources = 40
+        check(
+            extraArguments =
+                arrayOf(
+                    ARG_GENERATE_API_LEVELS,
+                    outputPath,
+                    ARG_ANDROID_JAR_PATTERN,
+                    androidPublicJarsPattern,
+                    ARG_CURRENT_CODENAME,
+                    "REL", // not just Z, but very ZZZ
+                    ARG_CURRENT_VERSION,
+                    MAGIC_VERSION_STR, // not real api level,
+                    ARG_API_VERSION_FOR_SOURCES,
+                    apiVersionForSources.toString()
+                ),
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                        package android.pkg;
+                        public class MyTest {
+                        }
+                        """
+                    )
+                )
+        )
+
+        assertTrue(output.isFile)
+        val xml = output.readText(Charsets.UTF_8)
+
+        // Sources will always be included with the api level of --api-for-sources when
+        // --api-for-sources is set with a valid value regardless of the codename
+        assertTrue(
+            xml.contains("<class name=\"android/pkg/MyTest\" since=\"$apiVersionForSources\"")
+        )
+        val apiLookup = getApiLookup(output, temporaryFolder.newFolder())
+        @Suppress("DEPRECATION")
+        assertEquals(apiVersionForSources, apiLookup.getClassVersion("android.pkg.MyTest"))
     }
 }

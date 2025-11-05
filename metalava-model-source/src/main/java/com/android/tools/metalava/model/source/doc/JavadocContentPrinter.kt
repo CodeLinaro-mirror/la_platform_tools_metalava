@@ -21,11 +21,13 @@ import com.android.tools.metalava.model.source.javadoc.JavadocContentList
 import com.android.tools.metalava.model.source.javadoc.JavadocContentVisitor
 import com.android.tools.metalava.model.source.javadoc.JavadocInlineTag
 import com.android.tools.metalava.model.source.javadoc.JavadocText
+import com.android.tools.metalava.model.source.javadoc.TextStartsWithVisitor
 import java.io.PrintWriter
 import kotlin.text.iterator
 
 /** Prints [JavadocContent] instances to [writer]. */
-internal class JavadocContentPrinter(private val writer: PrintWriter) : JavadocContentVisitor {
+internal class JavadocContentPrinter(private val writer: PrintWriter) :
+    JavadocContentVisitor<Unit> {
     /** Prints [content] as part of a Javadoc comment to [writer]. */
     fun print(content: JavadocContent?) {
         content?.accept(this)
@@ -40,7 +42,7 @@ internal class JavadocContentPrinter(private val writer: PrintWriter) : JavadocC
         writer.print(inlineTag.tagType)
         inlineTag.tagData?.printAfterTagType(writer)
         inlineTag.content?.let { nestedContent ->
-            if (!nestedContent.startsWithNewline()) {
+            if (!nestedContent.matches(STARTS_WITH_NEWLINE_CHECKER)) {
                 writer.print(" ")
             }
             print(nestedContent)
@@ -60,6 +62,13 @@ internal class JavadocContentPrinter(private val writer: PrintWriter) : JavadocC
 
         if (previousChar == '\n') {
             writer.print(" *")
+        }
+    }
+
+    companion object {
+        /** Check to see whether [JavadocContent] starts with a newline character. */
+        private val STARTS_WITH_NEWLINE_CHECKER = TextStartsWithVisitor { string ->
+            string[0] == '\n'
         }
     }
 }

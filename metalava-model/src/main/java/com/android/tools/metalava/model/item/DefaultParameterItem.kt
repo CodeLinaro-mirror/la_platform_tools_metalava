@@ -21,7 +21,6 @@ import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DefaultItem
-import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SourceLanguage
@@ -39,14 +38,13 @@ open class DefaultParameterItem(
     private val containingCallable: CallableItem,
     override val parameterIndex: Int,
     private var type: TypeItem,
-    defaultValueFactory: ParameterDefaultValueFactory,
+    private val hasDefaultValue: Boolean,
 ) :
     DefaultItem(
         codebase = codebase,
         fileLocation = fileLocation,
         sourceLanguage = sourceLanguage,
         modifiers = modifiers,
-        documentationFactory = ItemDocumentation.NONE_FACTORY,
     ),
     ParameterItem {
 
@@ -54,12 +52,6 @@ open class DefaultParameterItem(
         // Set the varargs modifier to true if the type is a varargs.
         type.let { if (it is ArrayTypeItem && it.isVarargs) mutateModifiers { setVarArg(true) } }
     }
-
-    /**
-     * Create the [ParameterDefaultValue] during initialization of this parameter to allow it to
-     * contain an immutable reference to this object.
-     */
-    final override val defaultValue = defaultValueFactory(this)
 
     final override fun name(): String = name
 
@@ -73,17 +65,9 @@ open class DefaultParameterItem(
         this.type = type
     }
 
-    final override fun hasDefaultValue(): Boolean = defaultValue.hasDefaultValue()
+    final override fun hasDefaultValue(): Boolean = hasDefaultValue
 
     override var property: PropertyItem? = null
-
-    final override fun appendDocumentation(comment: String, tagSection: String?) {
-        // For parameters, the documentation goes into the surrounding method's documentation!
-        // Find the right parameter location!
-        val parameterName = name()
-        val target = containingCallable()
-        target.appendDocumentation(comment, parameterName)
-    }
 
     override fun duplicate(
         containingCallable: CallableItem,
@@ -99,6 +83,6 @@ open class DefaultParameterItem(
             containingCallable,
             parameterIndex,
             type().convertType(typeVariableMap),
-            defaultValue::duplicate,
+            hasDefaultValue(),
         )
 }

@@ -555,7 +555,7 @@ class Options(
         apiLevelsGenerationOptions::includeApiVersionInDocumentation
 
     /** Reads API XML file to apply into documentation */
-    var applyApiLevelsXml: File? = null
+    var applyApiLevelsXmlFile: File? = null
 
     /** Whether to include the signature file format version header in removed signature files */
     val includeSignatureFormatVersionRemoved: EmitFileHeader
@@ -713,8 +713,8 @@ class Options(
 
                 // Extracting API levels
                 ARG_APPLY_API_LEVELS -> {
-                    applyApiLevelsXml =
-                        if (apiLevelsGenerationOptions.generateApiLevelXml != null) {
+                    applyApiLevelsXmlFile =
+                        if (apiLevelsGenerationOptions.generateApiLevelsXmlFile != null) {
                             // If generating the API file at the same time, it doesn't have
                             // to already exist
                             stringToNewFile(getValue(args, ++index))

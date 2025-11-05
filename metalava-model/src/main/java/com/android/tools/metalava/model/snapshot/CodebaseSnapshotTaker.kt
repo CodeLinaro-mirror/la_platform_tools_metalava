@@ -114,6 +114,7 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
                 // Supports documentation if the copied codebase does.
                 supportsDocumentation = codebase.supportsDocumentation(),
                 assembler = this,
+                isMultiplatform = codebase.isMultiplatform,
             )
 
         this.snapshotCodebase = newCodebase
@@ -597,7 +598,7 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
                     containingCallable = containingCallable,
                     parameterIndex = parameterItem.parameterIndex,
                     type = parameterItem.type().snapshot(),
-                    defaultValueFactory = parameterItem.defaultValue::snapshot,
+                    hasDefaultValue = parameterItem.hasDefaultValue(),
                 )
             }
         }

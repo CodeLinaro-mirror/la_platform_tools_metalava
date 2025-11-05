@@ -1204,6 +1204,30 @@ class CompatibilityCheck(
         handleRemoved(Issues.REMOVED_TYPE_ALIAS, old)
     }
 
+    /**
+     * There are cases where compatibility issues need to be raised even for items marked as
+     * experimental. This happens when experimental items are modified, added, or removed and then
+     * create breaking changes for consumers of non-experimental APIs. This function determines if a
+     * change to an experimentally marked item can result in such problems, and if an issue needs to
+     * be raised. For a more detailed explanation and examples, see
+     * go/metalava-experimental-compatibility.
+     */
+    private fun shouldIssueApplyToExperimentalItem(issue: Issue, item: Item): Boolean {
+        when (issue) {
+            Issues.ADDED_ABSTRACT_METHOD -> {
+                val parentClass = item.containingClass()
+                // We need to raise an error here because adding an experimental abstract method
+                // to a non-experimental class is a breaking change, see b/454020293
+                if (
+                    parentClass?.isCompatibilitySuppressed() == false && parentClass.isExtensible()
+                ) {
+                    return true
+                }
+            }
+        }
+        return false
+    }
+
     private fun report(
         issue: Issue,
         item: Item,
@@ -1216,7 +1240,10 @@ class CompatibilityCheck(
         // issues. In addition, if the old version of the item being compared against is
         // compatibility suppressed, we don't want to raise compatibility issues because
         // incompatible changes should still be allowed from that version. See b/391848485
-        if (item.isCompatibilitySuppressed() || oldItem?.isCompatibilitySuppressed() == true) {
+        if (
+            (item.isCompatibilitySuppressed() || oldItem?.isCompatibilitySuppressed() == true) &&
+                !shouldIssueApplyToExperimentalItem(issue, item)
+        ) {
             // Long-term, we should consider allowing meta-annotations to specify a different
             // `configuration` so it can use a separate set of severities. For now, though, we'll
             // treat all issues for all unchecked items as `Severity.IGNORE`.

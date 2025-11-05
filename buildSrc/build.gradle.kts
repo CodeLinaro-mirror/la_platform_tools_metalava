@@ -20,7 +20,15 @@ plugins {
 }
 
 repositories {
-    maven("../../../prebuilts/androidx/external")
+    // For CI builds, it is important to use prebuilts because maven central throttles requests for
+    // artifacts. The `DOWNLOAD_DEPENDENCIES` flag allows building locally in repos which do not
+    // include the AndroidX prebuilts repo.
+    if (System.getenv("DOWNLOAD_DEPENDENCIES") == "true") {
+        mavenCentral()
+        google()
+    } else {
+        maven("../../../prebuilts/androidx/external")
+    }
 }
 
 dependencies {

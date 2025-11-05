@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.source.doc
 
+import com.android.tools.metalava.model.doc.DocContent
 import com.android.tools.metalava.model.doc.DocContentOwner
 import com.android.tools.metalava.model.source.javadoc.ExtractorResult
 import com.android.tools.metalava.model.source.javadoc.JavadocContent
@@ -38,6 +39,8 @@ internal interface BlockTagSection : DocContentOwner {
 
     /** The optional [tagType] specific data. */
     val tagData: TagData?
+
+    val docContentForAppending: DocContent?
 
     /**
      * Get the type safe tag specific data for [tagType].
@@ -79,7 +82,14 @@ internal class DefaultBlockTagSection(
     context: DocCommentContext,
     override val tagType: TagType<*>,
     descriptionSupplier: ContentSupplier,
-) : DescriptionOwner(context, descriptionSupplier), BlockTagSection {
+    mutationListener: DocCommentMutationListener? = null,
+) :
+    DescriptionOwner(
+        context,
+        descriptionSupplier,
+        noComment = false,
+    ),
+    BlockTagSection {
 
     /**
      * Backing field for [tagData].

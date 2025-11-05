@@ -18,18 +18,23 @@ package com.android.tools.metalava.model.source
 
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ItemDocumentation
+import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TypeParameterListOwner
+import com.android.tools.metalava.model.doc.DocContent
 import com.android.tools.metalava.model.doc.DocContentOwner
+import com.android.tools.metalava.model.doc.DocContentPredicate
+import com.android.tools.metalava.model.source.doc.BlockTagSection
 import com.android.tools.metalava.model.source.doc.BlockTagTypes
 import com.android.tools.metalava.model.source.doc.DocComment
 import com.android.tools.metalava.model.source.doc.DocCommentContext
 import com.android.tools.metalava.model.source.doc.DocCommentMutationListener
 import com.android.tools.metalava.model.source.doc.DocumentationIssueReporter
+import com.android.tools.metalava.model.source.javadoc.JavadocContentPredicate
+import com.android.tools.metalava.model.source.javadoc.JavadocText
 import com.android.tools.metalava.model.source.javadoc.toOptionalJavadocContent
 import com.android.tools.metalava.reporter.Issues
 import java.io.PrintWriter
-import java.util.regex.Pattern
 
 /**
  * Abstract [ItemDocumentation] into which functionality that is common to all models will be added.
@@ -145,7 +150,6 @@ abstract class AbstractItemDocumentation(
         _text = null
     }
 
-    /** Implements [DocCommentContext.ordinalOfCallableParameter]. */
     override val isHidden
         get() = hasBlockTagOfType("hide")
 
@@ -159,6 +163,7 @@ abstract class AbstractItemDocumentation(
         return if (index == -1) size else index
     }
 
+    /** Implements [DocCommentContext.ordinalInParamsList]. */
     override fun ordinalInParamsList(name: String): Int {
         return if (item is TypeParameterListOwner) {
             val typeParameterList = item.typeParameterList
@@ -187,6 +192,14 @@ abstract class AbstractItemDocumentation(
             0
         }
     }
+
+    /** Implements [DocCommentContext.isOverridingMethod]. */
+    override fun isOverridingMethod() =
+        // Purposely does not cache this as superMethods() is already cached.
+        item is MethodItem && item.superMethods().isNotEmpty()
+
+    /** Implements [DocCommentContext.fullyQualifyComment]. */
+    override fun fullyQualifyComment(comment: String) = fullyQualifiedDocumentation(comment)
 
     override val isDocOnly
         get() = hasBlockTagOfType("doconly")
@@ -222,14 +235,49 @@ abstract class AbstractItemDocumentation(
         }
     }
 
+    override val mainDescription: DocContent?
+        get() = docComment.description
+
     override val mainDescriptionOwner: DocContentOwner
         get() = docComment
 
-    override fun blockTagDescriptionOwner(tagTypeName: String): DocContentOwner? =
+    override fun blockTagDescription(tagTypeName: String, forAppending: Boolean): DocContent? =
+        findBlockTagSection(tagTypeName)?.let { blockTagSection ->
+            if (forAppending) blockTagSection.docContentForAppending else blockTagSection.docContent
+        }
+
+    override fun blockTagDescriptionOwner(tagTypeName: String): DocContentOwner {
+        return findBlockTagSection(tagTypeName)
+            ?: docComment.pendingBlockTagSection(
+                tagTypeName,
+            )
+    }
+
+    /** Find the block tag section for [tagTypeName]. */
+    private fun findBlockTagSection(tagTypeName: String): BlockTagSection? =
         docComment.blockTagSections.find { it.tagType.name == tagTypeName }
 
-    override fun paramTagDescriptionOwner(name: String): DocContentOwner? =
+    override fun paramTagDescription(name: String): DocContent? =
+        findParamTagSection(name)?.docContent
+
+    override fun paramTagDescriptionOwner(name: String): DocContentOwner {
+        return findParamTagSection(name)
+            ?: docComment.pendingBlockTagSection(
+                "param",
+                // Pass the parameter name through the description.
+                description = JavadocText(name),
+            )
+    }
+
+    /** Find the block tag section for `@param` of [name]. */
+    private fun findParamTagSection(name: String): BlockTagSection? =
         docComment.blockTagSections.find { it.typeSafeTagData(BlockTagTypes.PARAM)?.name == name }
+
+    override fun check(predicate: DocContentPredicate) =
+        docComment.check(predicate as JavadocContentPredicate)
+
+    /** Check to see if this requires a source comment. */
+    override fun requiresSourceComment() = docComment.requiresSourceComment()
 
     override fun workAroundJavaDocSummaryTruncationIssue() {
         // Work around javadoc cutting off the summary line after the first ". ".
@@ -238,25 +286,6 @@ abstract class AbstractItemDocumentation(
             text = text.substring(0, firstDot) + ".g.&nbsp;" + text.substring(firstDot + 4)
         }
     }
-
-    override fun findTagDocumentation(tag: String, value: String?): String? {
-        TODO("Not yet implemented")
-    }
-
-    override fun appendDocumentation(comment: String, tagSection: String?) {
-        if (comment.isBlank()) {
-            return
-        }
-
-        mergeDocumentation(comment.trim(), tagSection)
-    }
-
-    /**
-     * Merge the comment into the appropriate [tagSection].
-     *
-     * See [com.android.tools.metalava.model.Item.appendDocumentation] for more details.
-     */
-    protected abstract fun mergeDocumentation(comment: String, tagSection: String?)
 
     override fun removeDeprecatedSection() {
         // Try and remove all the `@deprecated` sections.
@@ -274,71 +303,5 @@ abstract class AbstractItemDocumentation(
     override fun report(issue: Issues.Issue, message: String, lineOffset: Int, charOffset: Int) {
         val location = fileLocation.adjustForLineAndCharOffset(lineOffset, charOffset)
         item.codebase.reporter.report(issue, null, message, location)
-    }
-}
-
-/**
- * Matches a comment line, allowing significant content to be extracted.
- *
- * Significant content excludes trailing whitespace and leading asterisks
- * https://docs.oracle.com/en/java/javase/11/docs/specs/doc-comment-spec.html#leading-asterisks
- */
-private val COMMENT_LINE = Pattern.compile("""^(\h*\*+)?(.*?)\h*$""", Pattern.MULTILINE)
-
-/** The group in [COMMENT_LINE] that contains the optional leading asterisks. */
-private const val LEADING_ASTERISKS_GROUP = 1
-
-/** The group in [COMMENT_LINE] that contains the significant content. */
-private const val SIGNIFICANT_TEXT_GROUP = 2
-
-/**
- * Trim indentation from the [existingDoc] comment.
- *
- * Removes indentation whitespace after the first newline, making sure that there is at least one
- * white space of indentation.
- */
-fun trimDocIndent(existingDoc: String): String {
-    // Trim leading/trailing whitespace from the existing documentation
-    val trimmed = existingDoc.trim()
-
-    val index = trimmed.indexOf('\n')
-    if (index == -1) {
-        return trimmed
-    }
-
-    // Transform the comment normalizing the indentation.
-    return buildString {
-        var separator = ""
-        val matcher = COMMENT_LINE.matcher(trimmed)
-
-        // Match each comment line to determine if it has any leading asterisks and what the
-        // significant content is.
-        while (matcher.find()) {
-            append(separator)
-            separator = "\n"
-
-            // Get the bounds of the significant text from the comment line.
-            val start = matcher.start(SIGNIFICANT_TEXT_GROUP)
-            val end = matcher.end(SIGNIFICANT_TEXT_GROUP)
-
-            if (matcher.start(LEADING_ASTERISKS_GROUP) != -1 || start == end) {
-                // It either has leading asterisks in which case they need to be replaced with " *"
-                // or it is blank in which case it should be represented with " *".
-                append(" *")
-            } else {
-                val c = trimmed[start]
-                // Add a leading " *" to every line except lines that start with a "/" as that would
-                // produce a "*/" token which would prematurely end the comment and cause
-                // compilation errors.
-                if (c != '/') {
-                    append(" *")
-                }
-            }
-
-            // Add the significant text from the comment line.
-            if (start != end) {
-                append(trimmed, start, end)
-            }
-        }
     }
 }

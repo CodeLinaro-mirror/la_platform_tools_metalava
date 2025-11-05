@@ -3680,4 +3680,126 @@ class CommonTargetLanguageTest : BaseModelTest() {
             assertThat(generatedCtor.modifiers.isDeprecated()).isTrue()
         }
     }
+
+    @Test
+    fun `Test compiler generated default version of reified functions with optional parameters`() {
+        runCodebaseTest(
+            inputSet(
+                kotlin(
+                    """
+                    package test.pkg
+                    class Foo {
+                        internal inline fun <reified T> internalReified(i: Int = 0, s: String = "") = Unit
+                        inline fun <reified T> publicReified(i: Int = 0, s: String = "") = Unit
+                    }
+                    """
+                )
+            ),
+            compiledSourceJar =
+                base64gzip(
+                    "test.jar",
+                    // kotlinc version info: kotlinc-jvm 1.9.23 (JRE 21.0.8+9-LTS)
+                    "" +
+                        "H4sIAAAAAAAA/wvwZmYRYeDg4GBgYFBkQAYiDCwMvq4hjrqefm76vo5+nm6u" +
+                        "wSF6vm7/TjEwfPY9c9rHW1fvIq+3rta5M+c3BxlcMX7wtEjPy1fH0/di6aot" +
+                        "QR+8dAu1vM6c0Q77cE7/5Mkzj58+esrEEODNzrFeWHO9JdACcyAOwGm9EBCX" +
+                        "pBaX6Bdkp+u75efrJeckFhevDTnvL+wo8i/td3a5ZqrjgW1NCmKaHToP+IUU" +
+                        "VbKcdDQXTCl4aLKFm+fuu0nvplQY2VZ+eXf1/4HJx5ozLX65S97XCdVIOHIk" +
+                        "z+rzXvP8e7/3mW/+/ff49XwGucRGRc25Drfcr9ZWH/0unMBzTdH+2bbTe2ur" +
+                        "k79f0DzNosTzUfUh584zAif989QFne+4iHC2rbARYHReVWF3Ucl5/4clwd93" +
+                        "7H7ZYfswpMhUz6btYM3CirAFKq8P3Y6fcydtRtytqqg9EVWFP/0f6lyYmLQj" +
+                        "9utSbZvfH3ak/dfKELcRFe8omtBw1CDAruDU1dL4deYx30XXf57l3Mgj/PP0" +
+                        "13Va01zk82a8cLV3VlMvqt65eulGpr+szvefqvA4h789GTrH9l6B6mGnfZvr" +
+                        "w1foxaStlmKUdebZeOelYYm8aVlsYJ64op7ife5zjXy/e1zyN949a+r+iWv6" +
+                        "nIrsrY857oouY3PmVZgY+mm/4KlZqiEzkyvuZ/XNjIoyNl191cQ0lnGt7etl" +
+                        "RZGaqcuiz1bmTrPtn1vTE3zk1RTRk1mbL27ccS8raqPJ7OulZ7smawsqzZ3w" +
+                        "8dOSlasL7sbIbt+1TvCfX/iaZ5JVeiZzV+RfDF3Gdj7EM/9La3yhxioNm/S9" +
+                        "gbdLX0XXXC+9wvkr9V3e510BZbczpxzZdzx1sd+O3SqVO3cd67+VnXYy/8rp" +
+                        "c10BbmmbH3oGFm9zVcj4OvP5z0neD6sZny24GL24zvCV8l4Xk3OTUlev03p/" +
+                        "Jf3FfI4Mka4CSY+EeceeZDLwzGi42q33KePhs+tvlxwriT8vzuMyzVr4xZcV" +
+                        "LMEiSybbdszm8P9sEtpx6Umyopeic7V8m+QuXebIO1nFNkr+Pc/eFHx5y35E" +
+                        "yfuw4azHtYezn792e7GZadWSl1UnDiyJfdWXdm7jiTnJE4++Net+ky92M1hM" +
+                        "pejJL6VevomL/6t8OlcvmBkQttj5yYv7rpc+WzxJfMx5VnqLmRvPu3cKQQ7r" +
+                        "Gj4yvUtsUvjE6pOU1b6vZkf/S1kV5hmMbUxHmG04Dvo0lHAEPbwhmvBEHZRb" +
+                        "tuou+/OOiYHhNSu+3CINxPDMmpuYmaeXnV+Sk5kXn5ufUpqTmpyQkJAGxCxJ" +
+                        "fmwaAUkXkhjAOfGr0p69wkCdEuCcyMgkwoAwHTmXgooCVICrYEA3Bdn1Qigm" +
+                        "1GPN3+j6kV0ojaJ/LTNeHwd4s7KBlDED4XkgzQn2AQCe5Ge97gQAAA=="
+                ),
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+
+            val publicReified =
+                fooClass.assertMethod("publicReified", listOf("int", "java.lang.String"))
+            assertThat(publicReified.targetLanguages).isEqualTo(TargetLanguageSet.KOTLIN_ONLY)
+            assertThat(publicReified.modifiers.getVisibilityLevel())
+                .isEqualTo(VisibilityLevel.PUBLIC)
+
+            val internalReified =
+                fooClass.assertMethod("internalReified", listOf("int", "java.lang.String"))
+            assertThat(internalReified.targetLanguages).isEqualTo(TargetLanguageSet.KOTLIN_ONLY)
+            assertThat(internalReified.modifiers.getVisibilityLevel())
+                .isEqualTo(VisibilityLevel.INTERNAL)
+
+            assertThat(fooClass.methods()).hasSize(2)
+        }
+    }
+
+    @Test
+    fun `Test compiler generated default version of top level reified functions with optional parameters`() {
+        runCodebaseTest(
+            inputSet(
+                kotlin(
+                    """
+                    package test.pkg
+                    internal inline fun <reified T> internalReified(i: Int = 0, s: String = "") = Unit
+                    inline fun <reified T> publicReified(i: Int = 0, s: String = "") = Unit
+                    """
+                )
+            ),
+            compiledSourceJar =
+                base64gzip(
+                    "test.jar",
+                    // kotlinc version info: kotlinc-jvm 1.9.23 (JRE 21.0.8+9-LTS)
+                    "" +
+                        "H4sIAAAAAAAA/wvwZmYRYeDg4GBgYFBkQAYiDCwMvq4hjrqefm76vo5+nm6u" +
+                        "wSF6vm7/TjEwfPY9c9rHW1fvIq+3rta5M+c3BxlcMX7wtEjPy1fH0/di6aot" +
+                        "QR+8dAu1vM6c0Q77cE7/5Mkzj58+esrEEODNzrFeWHO9JdACcyAOwGm9KBCX" +
+                        "pBaX6Bdkp+uHABneJXrJOYnFxWtDfP2FA0Vs89Nu7QubsNBpoajgRg4OI4eY" +
+                        "zlkSQqVJjs7SZmvill/+9aKkrSSuU/vy1P8H5z88t8PgyFL7UxX3G2pEhcT0" +
+                        "nt0rtk87Z/t975n39vZ1TBVdoW2CT4+fsszYPkeqsVyL+VjC+27nhyxKOZbv" +
+                        "X//e5x45OSp1xZ88jSbZeLOl9xM0dHZM3Xxt1atTG7Zu3HF6w58939YU/VSW" +
+                        "1l+fnW7Inj4jz11rwsLN9TcK/xVa5q34nfTyqOQTiWN7+/ddv9d3pUyfw65j" +
+                        "3YsfV04Y7Dc4US56U6DNYM5h3TtpEtqnizbbLOja+cWj7c+D3zzC02+d5t2v" +
+                        "WdWYFLHHa661xVQxnj6mwx8c18t5vJ9iMf9MsaZlnaLdYum1c3KyT4cvUpyy" +
+                        "4GHPuYWe7Ke3nMxiDrp07cCCR+orBefuvBiR3NH3q/VOoH36DbdzD77c+GOx" +
+                        "x3edSfpkw7CbObPkv+YmT1pbnHdDbekalqUcS+//e1X86sydBR+5r295beLX" +
+                        "q7j4/R2v2S4RswMPL58dOnHh/ruvr/zN873CHP/e7pPLBu1dQcfVT+aEbnNa" +
+                        "WBV76HCo6p5v0ywsVj5dFbj+9c/1S/m6rPcGnOzbr53seTU8UUJzYYrIsYhm" +
+                        "Ru98tmmxLlyZXeKaVc52kbeD7H7LKj/rzq/KrvAx841+EhKjZOM8Lzgnecqq" +
+                        "K302iiodj/lCp03+blQmliyxPKJ+T6VT1KxNdvWup+7M8Jro/1xd6/lNH5uL" +
+                        "yQcf2Dw8q8qj1vV8R/fzHd7L7yxNzhMyqSx2vMbqeFSaQ+uvuKNYYaQ4i+h6" +
+                        "YZebU1tqGfl++p66s9R49q3ml4/mdWeKfzd8/IgxLdbGpbL/n8qMw4ttP0is" +
+                        "lGiV+Gz4ifNB59w/3KDEO3HSId4qJgaGPyz4Eq80EMPzTm5iZp5edn5JTmZe" +
+                        "fG5+SmlOanJCQkIaELMk+bFpPBB69EjDE5iXtE/4iSdxM27a4z1FYosEOKvo" +
+                        "N+0TUwWapQPOKoxMIgwI+5CzESivogJcORfdFGT/iKKYUI8rA6IbgexIaRQj" +
+                        "bJjxBkOANysbSBkzEF4C0quYQTwAWP/HnJIEAAA="
+                ),
+        ) {
+            val testKtClass = codebase.assertClass("test.pkg.TestKt")
+
+            val publicReified =
+                testKtClass.assertMethod("publicReified", listOf("int", "java.lang.String"))
+            assertThat(publicReified.targetLanguages).isEqualTo(TargetLanguageSet.KOTLIN_ONLY)
+            assertThat(publicReified.modifiers.getVisibilityLevel())
+                .isEqualTo(VisibilityLevel.PUBLIC)
+
+            val internalReified =
+                testKtClass.assertMethod("internalReified", listOf("int", "java.lang.String"))
+            assertThat(internalReified.targetLanguages).isEqualTo(TargetLanguageSet.KOTLIN_ONLY)
+            assertThat(internalReified.modifiers.getVisibilityLevel())
+                .isEqualTo(VisibilityLevel.INTERNAL)
+
+            assertThat(testKtClass.methods()).hasSize(2)
+        }
+    }
 }

@@ -42,16 +42,16 @@ internal class TagDataExtractor(
      *   returned `null` or [JavadocContent] did not start with [JavadocText].
      */
     fun extractTagData(content: JavadocContent): ExtractorResult {
-        val remainder = content.rewrite(this)
+        val remainder = content.accept(this)
         return ExtractorResult(tagData, remainder)
     }
 
     /** Extract the data from the first item in the [JavadocContentList.contents]. */
-    override fun rewrite(list: JavadocContentList): JavadocContent? {
+    override fun visit(list: JavadocContentList): JavadocContent? {
         // Can only extract data from the start of a list.
         var contents = list.contents
         val first = contents[0]
-        val rewritten = first.rewrite(this)
+        val rewritten = first.accept(this)
 
         return when {
             rewritten === first -> list
@@ -80,7 +80,7 @@ internal class TagDataExtractor(
     }
 
     /** A [JavadocInlineTag] cannot have data extracted so do nothing. */
-    override fun rewrite(inlineTag: JavadocInlineTag): JavadocContent? {
+    override fun visit(inlineTag: JavadocInlineTag): JavadocContent? {
         // Nothing to do as cannot extract data from an inline tag.
         return inlineTag
     }
@@ -91,7 +91,7 @@ internal class TagDataExtractor(
      * This will only be called for a [JavadocText] that is at the start of the [JavadocContent]
      * passed into [extractTagData].
      */
-    override fun rewrite(text: JavadocText): JavadocContent? {
+    override fun visit(text: JavadocText): JavadocContent? {
         val contents = text.contents
         var result = tagType.extractData(context, contents)
         tagData = result?.tagData

@@ -65,6 +65,10 @@ interface PackageItem : SelectableItem {
     override fun parent(): PackageItem? =
         if (qualifiedName().isEmpty()) null else containingPackage()
 
+    fun addChildPackage(pkg: PackageItem)
+
+    fun childPackages(): List<PackageItem>
+
     override val effectivelyDeprecated: Boolean
         get() = originallyDeprecated
 

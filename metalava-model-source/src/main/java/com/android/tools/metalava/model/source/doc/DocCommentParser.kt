@@ -51,11 +51,16 @@ internal object DocCommentParser {
 
         // Trim any whitespace from the start as well as the start token `/**` (if any).
         val commentBodyStartInclusive = skipDocCommentStartToken(text)
+
+        // The comment does not exist if skipping forwards over whitespace reaches the end of the
+        // text. An empty comment (e.g. `/** */`) would stop at the end token.
         if (commentBodyStartInclusive == length) {
+            // There was no comment so return an empty DocComment immediately to save time.
             return DefaultDocComment(
                 context,
-                ContentSupplier.EMPTY,
+                ContentSupplier.NULL,
                 emptyList(),
+                noComment = true,
             )
         }
 
@@ -184,6 +189,7 @@ internal object DocCommentParser {
             context,
             description,
             blockTagSections.toList(),
+            noComment = false,
         )
     }
 

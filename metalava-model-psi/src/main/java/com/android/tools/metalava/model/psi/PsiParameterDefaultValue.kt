@@ -16,8 +16,7 @@
 
 package com.android.tools.metalava.model.psi
 
-import com.android.tools.metalava.model.ParameterItem
-import com.android.tools.metalava.model.item.ParameterDefaultValue
+import com.intellij.psi.PsiParameter
 import org.jetbrains.kotlin.analysis.api.KaExperimentalApi
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.analysis.api.symbols.KaFunctionSymbol
@@ -25,48 +24,26 @@ import org.jetbrains.kotlin.analysis.api.symbols.KaNamedFunctionSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaParameterSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaValueParameterSymbol
 import org.jetbrains.kotlin.psi.KtClass
-import org.jetbrains.kotlin.psi.KtConstantExpression
 import org.jetbrains.kotlin.psi.KtFunction
-import org.jetbrains.kotlin.psi.KtParameter
 import org.jetbrains.kotlin.psi.KtPrimaryConstructor
+import org.jetbrains.kotlin.psi.psiUtil.containingClass
 import org.jetbrains.kotlin.psi.psiUtil.hasActualModifier
-import org.jetbrains.uast.UExpression
 import org.jetbrains.uast.UMethod
-import org.jetbrains.uast.UastFacade
+import org.jetbrains.uast.getUastParentOfType
 
-internal class PsiParameterDefaultValue(private val item: PsiParameterItem) :
-    ParameterDefaultValue {
-
-    override fun duplicate(parameter: ParameterItem) =
-        PsiParameterDefaultValue(parameter as PsiParameterItem)
-
-    private var hasDefaultValue: Boolean? = null
-
-    override fun hasDefaultValue(): Boolean {
-        if (hasDefaultValue == null) {
-            hasDefaultValue = item.computeHasDefaultValue()
-        }
-        return hasDefaultValue!!
-    }
-
+internal object PsiParameterDefaultValue {
+    /** Determines whether a [psiParameter] has a default value. */
     @OptIn(KaExperimentalApi::class)
-    private fun PsiParameterItem.computeHasDefaultValue(): Boolean {
+    fun compute(psiParameter: PsiParameter, parameterIndex: Int): Boolean {
         if (psiParameter.isKotlin()) {
-            val psiCallableItem = item.containingCallable() as PsiCallableItem
-            val sourcePsi = (psiCallableItem.psi() as? UMethod)?.sourcePsi
+            val containingUMethod = psiParameter.getUastParentOfType<UMethod>()
 
-            // The compiler-generated data class copy method has all optional parameters. The source
-            // psi in this case is the constructor for K2, the class for K1 (for a copy method
-            // defined in source, the psi would not be the source method).
-            if (
-                containingClass().modifiers.isData() &&
-                    psiCallableItem.name() == "copy" &&
-                    (sourcePsi is KtPrimaryConstructor || sourcePsi is KtClass)
-            ) {
+            // The compiler-generated data class copy method has all optional parameters.
+            if (isDataClassCopyMethod(containingUMethod)) {
                 return true
             }
 
-            val ktFunction = (sourcePsi as? KtFunction) ?: return false
+            val ktFunction = (containingUMethod?.sourcePsi as? KtFunction) ?: return false
             analyze(ktFunction) {
                 val function =
                     if (ktFunction.hasActualModifier()) {
@@ -75,26 +52,33 @@ internal class PsiParameterDefaultValue(private val item: PsiParameterItem) :
                         ktFunction.symbol
                     }
                 if (function !is KaFunctionSymbol) return false
-                val symbol = getKtParameterSymbol(function) ?: return false
-                if (symbol is KaValueParameterSymbol && symbol.hasDefaultValue) {
-                    val defaultValue = (symbol.psi as? KtParameter)?.defaultValue ?: return false
-                    if (defaultValue is KtConstantExpression) {
-                        return true
-                    }
-
-                    return UastFacade.convertElement(defaultValue, null, UExpression::class.java) is
-                        UExpression
-                }
+                val symbol = getKtParameterSymbol(function, parameterIndex, psiParameter.name)
+                return symbol is KaValueParameterSymbol && symbol.hasDefaultValue
             }
         }
 
         return false
     }
 
-    private fun PsiParameterItem.getKtParameterSymbol(
-        functionSymbol: KaFunctionSymbol
+    /** Returns whether the [uMethod] is the generated copy function of a data class. */
+    private fun isDataClassCopyMethod(uMethod: UMethod?): Boolean {
+        if (uMethod?.name != "copy") return false
+        // The source psi for the generated copy function is the constructor for K2, the class for
+        // K1 (for a copy method defined in source, the psi would be the source method).
+        return when (val sourcePsi = uMethod.sourcePsi) {
+            is KtClass -> sourcePsi.isData()
+            is KtPrimaryConstructor -> sourcePsi.containingClass()?.isData() ?: false
+            else -> false
+        }
+    }
+
+    private fun getKtParameterSymbol(
+        functionSymbol: KaFunctionSymbol,
+        parameterIndex: Int,
+        name: String,
     ): KaParameterSymbol? {
-        if (isReceiver()) {
+        // If a function is an extension, the first parameter is the receiver.
+        if (parameterIndex == 0 && functionSymbol.isExtension) {
             return functionSymbol.receiverParameter
         }
 
@@ -114,13 +98,13 @@ internal class PsiParameterDefaultValue(private val item: PsiParameterItem) :
         // Quick lookup first which usually works
         if (index >= 0) {
             val parameter = parameters[index]
-            if (parameter.name.asString() == name()) {
+            if (parameter.name.asString() == name) {
                 return parameter
             }
         }
 
         for (parameter in parameters) {
-            if (parameter.name.asString() == name()) {
+            if (parameter.name.asString() == name) {
                 return parameter
             }
         }
@@ -128,10 +112,7 @@ internal class PsiParameterDefaultValue(private val item: PsiParameterItem) :
         // Fallback to handle scenario where the real parameter names are hidden by
         // UAST (see UastKotlinPsiParameter which replaces parameter names to p$index)
         if (index >= 0) {
-            val parameter = parameters[index]
-            if (!isReceiver()) {
-                return parameter
-            }
+            return parameters[index]
         }
 
         return null
