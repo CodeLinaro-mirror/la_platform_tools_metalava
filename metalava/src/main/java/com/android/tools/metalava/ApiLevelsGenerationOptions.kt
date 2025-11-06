@@ -228,13 +228,18 @@ class ApiLevelsGenerationOptions(
     /**
      * The last api level.
      *
-     * This is one more than [currentApiVersion] if this is a developer preview build.
+     * This is one more than [optionalCurrentApiVersion] if this is a developer preview build.
      */
     private val lastApiVersion
-        get() = currentApiVersion + if (isDeveloperPreviewBuild) 1 else 0
+        get() =
+            (optionalCurrentApiVersion ?: ApiVersion.fromLevel(10_000)) +
+                if (isDeveloperPreviewBuild) 1 else 0
 
-    /** The [ApiVersion] of the codebase, or null if not known/specified */
-    private val optionalCurrentApiVersion: ApiVersion? by
+    /**
+     * The [ApiVersion] of the codebase, or null if not known/specified (TODO: b/454050901 avoid
+     * using as it will be removed)
+     */
+    internal val optionalCurrentApiVersion: ApiVersion? by
         option(
                 ARG_CURRENT_VERSION,
                 metavar = "<api-version>",
@@ -248,17 +253,6 @@ class ApiLevelsGenerationOptions(
                         .trimIndent(),
             )
             .apiVersion()
-
-    /**
-     * Get the current API version.
-     *
-     * This must only be called if needed as it will fail if [ARG_CURRENT_VERSION] has not been
-     * specified.
-     */
-    internal val currentApiVersion: ApiVersion
-        get() =
-            optionalCurrentApiVersion
-                ?: cliError("$ARG_GENERATE_API_LEVELS requires $ARG_CURRENT_VERSION")
 
     /**
      * The codename of the codebase: non-null string if this is a developer preview build, null if
@@ -314,7 +308,7 @@ class ApiLevelsGenerationOptions(
      * True if [currentCodeName] is specified, false otherwise.
      *
      * If this is `true` then the API defined in the sources will be added to the API levels file
-     * with an API level of [currentApiVersion]` - 1`.
+     * with an API level of [optionalCurrentApiVersion]` - 1`.
      */
     private val isDeveloperPreviewBuild
         get() = currentCodeName != null
@@ -437,8 +431,8 @@ class ApiLevelsGenerationOptions(
      * not going to be published outside Android, so it is safe to include all [ApiVersion]s,
      * including the next one.
      *
-     * If no [currentApiVersion] has been provided then allow any [ApiVersion] level as there is no
-     * way to determine whether the [ApiVersion] is a future API or not.
+     * If no [optionalCurrentApiVersion] has been provided then allow any [ApiVersion] level as
+     * there is no way to determine whether the [ApiVersion] is a future API or not.
      *
      * Otherwise, it is a release build so ignore any [ApiVersion]s after the current one.
      */
@@ -840,8 +834,10 @@ class ApiLevelsGenerationOptions(
             return apiVersionForSources
         }
 
-        if (currentApiVersion.major <= 26) {
-            cliError("Suspicious $ARG_CURRENT_VERSION $currentApiVersion, expected at least 27")
+        optionalCurrentApiVersion?.let { currentApiVersion ->
+            if (currentApiVersion.major <= 26) {
+                cliError("Suspicious $ARG_CURRENT_VERSION $currentApiVersion, expected at least 27")
+            }
         }
 
         return when {
@@ -855,8 +851,9 @@ class ApiLevelsGenerationOptions(
             // If no finalized versions were provided or the last finalized version is less
             // than the current version then use the current version as the version of the
             // codebase.
-            lastFinalizedVersion == null || lastFinalizedVersion < currentApiVersion ->
-                currentApiVersion
+            lastFinalizedVersion == null ||
+                optionalCurrentApiVersion?.let { lastFinalizedVersion < it } == true ->
+                optionalCurrentApiVersion
 
             // Else do not include the current codebase.
             else -> null

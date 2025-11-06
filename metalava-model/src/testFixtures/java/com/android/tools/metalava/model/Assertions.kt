@@ -67,6 +67,13 @@ interface Assertions {
         return packageItem
     }
 
+    /** Resolve the package from the [Codebase], failing if it does not exist. */
+    fun Codebase.assertResolvedPackage(pkgName: String): PackageItem {
+        val packageItem = resolvePackage(pkgName)
+        assertNotNull(packageItem, message = "Expected $pkgName to be defined")
+        return packageItem
+    }
+
     /** Get the type alias from the [Codebase], failing if it does not exist. */
     fun Codebase.assertTypeAlias(qualifiedName: String): TypeAliasItem {
         val typeAliasItem = findTypeAlias(qualifiedName)
@@ -223,6 +230,17 @@ interface Assertions {
             explicitlyDeprecated = false,
             implicitlyDeprecated = true,
         )
+    }
+
+    /** Make sure that [this] contains a [TypeParameterItem] called [name], returning it. */
+    fun TypeParameterListOwner.assertTypeParameter(name: String): TypeParameterItem {
+        val found = typeParameterList.find { it.name() == name }
+        assertNotNull(
+            found,
+            message =
+                "Expected $this to have type parameter $name but had ${typeParameterList.joinToString()}"
+        )
+        return found
     }
 
     /**

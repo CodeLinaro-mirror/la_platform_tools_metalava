@@ -35,6 +35,7 @@ import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.annotation.AnnotationClass
+import com.android.tools.metalava.model.scope.ReferencableNameScope
 import com.android.tools.metalava.model.type.DefaultResolvedClassTypeItem
 import com.android.tools.metalava.model.utils.extractSimpleName
 import com.android.tools.metalava.reporter.FileLocation
@@ -275,6 +276,22 @@ open class DefaultClassItem(
         ensureNotFrozen()
         mutableNestedClasses.add(classItem)
     }
+
+    override val containingScope: ReferencableNameScope?
+        get() = containingClass() ?: sourceFile()
+
+    override fun resolveReferencableItemBySimpleName(
+        simpleName: String,
+        isFirstSimpleName: Boolean
+    ) =
+        // Implements https://docs.oracle.com/javase/specs/jls/se21/html/jls-6.html#jls-6.5.2
+        // First, check to see if it matches this class and if it does then return it.
+        if (simpleName == simpleName()) this
+        else
+        // Then check to see type parameters.
+        typeParameterList.find { it.name() == simpleName }
+                // Then, check to see if it matches a nested class and if it does then return that.
+                ?: mutableNestedClasses.find { it.simpleName() == simpleName }
 
     /** Cache value of [annotationClass]. */
     private lateinit var cachedAnnotationClass: AnnotationClass

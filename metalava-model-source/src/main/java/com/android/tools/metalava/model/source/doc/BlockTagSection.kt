@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.source.doc
 
 import com.android.tools.metalava.model.doc.DocContent
 import com.android.tools.metalava.model.doc.DocContentOwner
+import com.android.tools.metalava.model.source.javadoc.DocTag
 import com.android.tools.metalava.model.source.javadoc.ExtractorResult
 import com.android.tools.metalava.model.source.javadoc.JavadocContent
 import com.android.tools.metalava.model.source.javadoc.extractTagDataForTagType
@@ -30,15 +31,19 @@ import com.android.tools.metalava.model.source.javadoc.extractTagDataForTagType
  *     * @<tag-type> <description>
  * ```
  */
-internal interface BlockTagSection : DocContentOwner {
+internal interface BlockTagSection : DocContentOwner, DocTag {
     /** The type of the block tag. */
-    val tagType: TagType<*>
+    override val tagType: TagType<*>
 
     /** The description of the block tag. */
     val description: JavadocContent?
 
+    /** Implements [DocTag.content] */
+    override val content: JavadocContent?
+        get() = description
+
     /** The optional [tagType] specific data. */
-    val tagData: TagData?
+    override val tagData: TagData?
 
     val docContentForAppending: DocContent?
 

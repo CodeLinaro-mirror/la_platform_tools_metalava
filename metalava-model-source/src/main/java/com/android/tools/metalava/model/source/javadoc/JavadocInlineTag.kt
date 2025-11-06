@@ -26,10 +26,10 @@ import com.android.tools.metalava.model.source.doc.TagType
  *   `{@inheritDoc}` it would be `null`.
  */
 internal class JavadocInlineTag(
-    val tagType: TagType<*>,
-    val tagData: TagData?,
-    val content: JavadocContent?,
-) : JavadocContent {
+    override val tagType: TagType<*>,
+    override val tagData: TagData?,
+    override val content: JavadocContent?,
+) : JavadocContent, DocTag {
     override fun <R> accept(visitor: JavadocContentVisitor<R>) = visitor.visit(this)
 
     override fun equals(other: Any?): Boolean {

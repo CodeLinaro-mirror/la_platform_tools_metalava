@@ -89,8 +89,20 @@ interface Codebase : ClassResolver, AnnotationContext {
      */
     override fun resolveClass(erasedName: String): ClassItem?
 
+    /** The root [PackageItem]. */
+    val rootPackage
+        get() = resolvePackage("")
+
     /** Returns a package identified by fully qualified name, if in the codebase */
     fun findPackage(pkgName: String): PackageItem?
+
+    /**
+     * Resolve a package identified by fully qualified name.
+     *
+     * This does everything it can to retrieve a suitable package, e.g. searching classpath (if
+     * available).
+     */
+    fun resolvePackage(pkgName: String): PackageItem?
 
     /** Returns a typealias identified by fully qualified name, if in the codebase */
     fun findTypeAlias(typeAliasName: String): TypeAliasItem?

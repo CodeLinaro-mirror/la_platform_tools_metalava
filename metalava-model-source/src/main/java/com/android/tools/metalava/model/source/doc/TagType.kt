@@ -36,6 +36,8 @@ internal interface TagData : Comparable<TagData> {
      * [ExtractDataResult.consumedContent] to a non-`0` value in [TagType.extractData].
      */
     fun printAfterTagType(writer: PrintWriter) {}
+
+    fun textMatches(predicate: (String) -> Boolean): Boolean = false
 }
 
 /** Provides tag type specific functionality for block and inline tags. */

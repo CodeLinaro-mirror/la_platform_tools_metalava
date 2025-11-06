@@ -26,8 +26,16 @@ internal class ThrowsTagType() : TagType<ThrowsTagData>("throws") {
     ): ExtractDataResult<ThrowsTagData>? {
         val throwsName = text.findLeadingIdentifier() ?: return null
 
+        // Resolve the class name to a fully qualified class reference or type parameter. If it
+        // could not be found then fake one.
+        val throwableReference =
+            context.resolveThrowableType(throwsName) ?: ClassReference(throwsName)
+
         return ExtractDataResult(
-            tagData = ThrowsTagData(throwsName),
+            tagData =
+                ThrowsTagData(
+                    throwableReference,
+                ),
             // The throwable name and any following whitespace must be removed from the content as
             // they are part of [ThrowsTagData].
             consumedContent = text.skipForwardsOverLeadingWhitespace(throwsName.length),
@@ -37,16 +45,18 @@ internal class ThrowsTagType() : TagType<ThrowsTagData>("throws") {
 
 /** Tag specific data for the `@throws` block tag. */
 internal data class ThrowsTagData(
-    /** The reference to the throwable class. */
-    val throwableClass: String,
+    /** The reference to the throwable type, could be a class or a type parameter. */
+    val throwableType: TypeReference,
 ) : TagData {
     override fun compareTo(other: TagData): Int {
         other as ThrowsTagData
-        return throwableClass.compareTo(other.throwableClass)
+        return compareValues(throwableType, other.throwableType)
     }
 
     override fun printAfterTagType(writer: PrintWriter) {
         writer.print(" ")
-        writer.print(throwableClass)
+        writer.print(throwableType.displayName)
     }
+
+    override fun textMatches(predicate: (String) -> Boolean) = predicate(throwableType.displayName)
 }

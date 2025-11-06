@@ -19,18 +19,32 @@ package com.android.tools.metalava.model.turbine
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.Import
+import com.android.tools.metalava.model.JavaImport
+import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.item.AbstractSourceFile
 import com.android.tools.metalava.model.item.DefaultCodebase
-import com.android.tools.metalava.model.source.AbstractSourceFile
+import com.android.tools.metalava.model.source.filterImports
 import com.google.turbine.diag.LineMap
 import com.google.turbine.tree.Tree.CompUnit
 import java.util.TreeSet
 
 internal class TurbineSourceFile(
-    val codebase: DefaultCodebase,
+    override val codebase: DefaultCodebase,
     val compUnit: CompUnit,
 ) : AbstractSourceFile() {
 
-    override fun getHeaderComments() = getHeaderComments(compUnit.source().source())
+    private lateinit var _containingPackage: PackageItem
+
+    override val containingPackage: PackageItem
+        get() {
+            if (!::_containingPackage.isInitialized) {
+                val packageName = getPackageName(compUnit)
+                _containingPackage = codebase.packageTracker.findOrCreatePackage(packageName)
+            }
+            return _containingPackage
+        }
+
+    override fun getHeaderComments() = compUnit.getHeaderComments()
 
     override fun classes(): Sequence<ClassItem> {
         val pkgName = getPackageName(compUnit)
@@ -47,6 +61,15 @@ internal class TurbineSourceFile(
     override fun hashCode(): Int {
         return compUnit.hashCode()
     }
+
+    override fun allJavaImports() =
+        compUnit.imports().map { import ->
+            JavaImport(
+                qualifiedName = import.type().dotSeparatedName,
+                onDemand = import.wild(),
+                static = import.stat(),
+            )
+        }
 
     override fun getImports(predicate: FilterPredicate): Collection<Import> {
         val imports = TreeSet<Import>(compareBy { it.pattern })
@@ -78,7 +101,7 @@ internal class TurbineSourceFile(
         // Next only keep those that are present in any docs; those are the only ones
         // we need to import
         if (imports.isNotEmpty()) {
-            return filterImports(imports, predicate)
+            return filterImports(imports, classes(), predicate)
         }
 
         return emptyList()

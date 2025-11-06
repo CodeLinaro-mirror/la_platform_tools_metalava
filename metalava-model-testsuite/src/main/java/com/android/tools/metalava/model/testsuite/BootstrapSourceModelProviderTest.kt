@@ -34,6 +34,7 @@ import com.google.common.truth.Truth.assertThat
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertSame
 import org.junit.Test
 
 /**
@@ -946,18 +947,14 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
                          */
                 """
                     .trimIndent()
-            assertEquals(
-                sourceFile,
-                innerClassItem.sourceFile(),
-                message = "inner class sourceFile"
-            )
+            assertSame(sourceFile, innerClassItem.sourceFile(), message = "inner class sourceFile")
             assertEquals(headerComment, sourceFile.getHeaderComments())
             assertEquals(methodComment, methodItem.documentation.text)
             assertEquals("/** Class documentation */", classItem.documentation.text)
             assertEquals("/** Field Doc */", fieldItem.documentation.text)
             assertEquals("", fieldItem1.documentation.text)
             assertEquals("", pkgItem.documentation.text)
-            assertEquals(classItem.sourceFile(), classItem1.sourceFile())
+            assertSame(classItem.sourceFile(), classItem1.sourceFile())
         }
     }
 

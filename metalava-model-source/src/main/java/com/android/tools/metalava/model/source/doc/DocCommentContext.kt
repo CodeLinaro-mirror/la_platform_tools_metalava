@@ -16,8 +16,11 @@
 
 package com.android.tools.metalava.model.source.doc
 
+import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.SelectableItem
+import com.android.tools.metalava.model.TypeParameterItem
 
 /**
  * Provides contextual information from the surrounding model for use when processing a
@@ -60,4 +63,35 @@ internal interface DocCommentContext {
 
     /** Fully qualify the Javadoc [comment]. */
     fun fullyQualifyComment(comment: String): String
+
+    /**
+     * Resolve [typeName] (which may be a reference to a class or a type parameter) to a
+     * [TypeReference], if possible.
+     */
+    fun resolveThrowableType(typeName: String): TypeReference?
+}
+
+/**
+ * Base for type returned by [DocCommentContext.resolveThrowableType].
+ *
+ * This allows the caller to differentiate between the different resolved types without depending on
+ * [Item]s that would cause issues when taking a snapshot.
+ */
+interface TypeReference : Comparable<TypeReference> {
+    /** The display name of the referenced type. */
+    val displayName: String
+
+    override fun compareTo(other: TypeReference) = displayName.compareTo(other.displayName)
+}
+
+/** A reference to a [ClassItem]. */
+data class ClassReference(val qualifiedName: String) : TypeReference {
+    override val displayName: String
+        get() = qualifiedName
+}
+
+/** A reference to a [TypeParameterItem]. */
+data class TypeParameterReference(val name: String) : TypeReference {
+    override val displayName: String
+        get() = name
 }

@@ -34,8 +34,6 @@ import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiCompiledFile
 import org.jetbrains.kotlin.asJava.classes.KtLightClassForFacade
 import org.jetbrains.uast.UClass
-import org.jetbrains.uast.UFile
-import org.jetbrains.uast.getParentOfType
 
 internal class PsiClassItem
 internal constructor(
@@ -93,14 +91,7 @@ internal constructor(
             return null
         }
 
-        val uFile =
-            if (psiClass is UClass) {
-                psiClass.getParentOfType(UFile::class.java)
-            } else {
-                null
-            }
-
-        return PsiSourceFile(psiCodebase, containingFile, uFile)
+        return psiCodebase.sourceFileCache.psiSourceFile(containingFile)
     }
 
     /** Creates a constructor in this class */

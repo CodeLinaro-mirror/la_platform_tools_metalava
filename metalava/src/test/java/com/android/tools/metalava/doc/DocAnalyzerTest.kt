@@ -1790,7 +1790,7 @@ class DocAnalyzerTest : DriverTest() {
                              */
                             public Fun() { throw new RuntimeException("Stub!"); }
                             /**
-                             * Separate comment
+                             * Separate comment.
                              * <br>
                              * Important {@link another.pkg.Bar#BAR}
                              * and here

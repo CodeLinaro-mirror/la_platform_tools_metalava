@@ -25,6 +25,79 @@ import org.junit.Test
 class ExperimentalCompatibilityCheckTest : DriverTest() {
 
     @Test
+    fun `Don't raise error when experimental method is removed from extensible class or interface`() {
+        check(
+            expectedIssues =
+                """
+                released-api.txt:7: error: Binary breaking change: Removed method test.pkg.MyNonExperimentalAbstractClass.myExperimentalAbstractFun() [RemovedMethod]
+                released-api.txt:18: error: Binary breaking change: Removed method test.pkg.MyNonExperimentalInterface.myExperimentalAbstractMethod() [RemovedMethod]
+            """
+                    .trimIndent(),
+            checkCompatibilityApiReleased =
+                """
+                package test.pkg {
+                  @SuppressCompatibility @kotlin.RequiresOptIn public @interface MyExperimentalAnnotation {
+                  }
+                  public abstract class MyNonExperimentalAbstractClass {
+                    ctor public MyNonExperimentalAbstractClass();
+                    method @SuppressCompatibility @test.pkg.MyExperimentalAnnotation public abstract void myExperimentalAbstractFun();
+                    method @SuppressCompatibility @test.pkg.MyExperimentalAnnotation public final void myExperimentalClosedFun();
+                    method @SuppressCompatibility @test.pkg.MyExperimentalAnnotation public void myExperimentalOpenFun();
+                    method public abstract void myNonExperimentalAbstractFun();
+                  }
+                  public final class MyNonExperimentalFinalClass {
+                    ctor public MyNonExperimentalFinalClass();
+                    method public void myFunA();
+                    method @SuppressCompatibility @test.pkg.MyExperimentalAnnotation public void myFunB();
+                  }
+                  public interface MyNonExperimentalInterface {
+                    method @SuppressCompatibility @test.pkg.MyExperimentalAnnotation public void myExperimentalAbstractMethod();
+                    method @SuppressCompatibility @test.pkg.MyExperimentalAnnotation public default void myExperimentalNonAbstractMethod();
+                    method public void myFunA();
+                  }
+                  public class MyNonExperimentalOpenClassWithFinalExperimentalMethod {
+                    ctor public MyNonExperimentalOpenClassWithFinalExperimentalMethod();
+                    method public final void myFunA();
+                    method @SuppressCompatibility @test.pkg.MyExperimentalAnnotation public final void myFunB();
+                  }
+                  public class MyNonExperimentalOpenClassWithOpenExperimentalMethod {
+                    ctor public MyNonExperimentalOpenClassWithOpenExperimentalMethod();
+                    method public final void myFunA();
+                    method @SuppressCompatibility @test.pkg.MyExperimentalAnnotation public final void myFunB();
+                  }
+                }
+                """,
+            signatureSource =
+                """
+                package test.pkg {
+                  @SuppressCompatibility @kotlin.RequiresOptIn public @interface MyExperimentalAnnotation {
+                  }
+                  public abstract class MyNonExperimentalAbstractClass {
+                    ctor public MyNonExperimentalAbstractClass();
+                    method public abstract void myNonExperimentalAbstractFun();
+                  }
+                  public final class MyNonExperimentalFinalClass {
+                    ctor public MyNonExperimentalFinalClass();
+                    method public void myFunA();
+                  }
+                  public interface MyNonExperimentalInterface {
+                    method public void myFunA();
+                  }
+                  public class MyNonExperimentalOpenClassWithFinalExperimentalMethod {
+                    ctor public MyNonExperimentalOpenClassWithFinalExperimentalMethod();
+                    method public final void myFunA();
+                  }
+                  public class MyNonExperimentalOpenClassWithOpenExperimentalMethod {
+                    ctor public MyNonExperimentalOpenClassWithOpenExperimentalMethod();
+                    method public final void myFunA();
+                  }
+                }
+                """,
+            suppressCompatibilityMetaAnnotations = arrayOf("test.pkg.ExperimentalAnnotation")
+        )
+    }
+
+    @Test
     fun `Raise error when experimental abstract method is added to non-experimental class`() {
         check(
             expectedIssues =
