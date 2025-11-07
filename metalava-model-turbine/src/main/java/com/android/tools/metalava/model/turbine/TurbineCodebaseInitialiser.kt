@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JAVA_PACKAGE_INFO
 import com.android.tools.metalava.model.PackageFilter
+import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.VisibilityLevel
@@ -239,10 +240,9 @@ internal class TurbineCodebaseInitialiser(
                 packageNameFilter = { true },
                 packageInfoList
             ) { (unit, packageName, sourceTypeBoundClass) ->
-                val source = unit.source().source()
                 val file = File(unit.source().path())
                 val fileLocation = FileLocation.forFile(file)
-                val comment = getHeaderComments(source).toItemDocumentationFactory()
+                val comment = unit.getHeaderComments().toItemDocumentationFactory()
 
                 val annotations =
                     annotationFactory.createAnnotations(sourceTypeBoundClass.annotations())
@@ -447,6 +447,12 @@ internal class TurbineCodebaseInitialiser(
             enclosingClassTypeItemFactory = globalTypeItemFactory,
             origin = origin,
         )
+    }
+
+    override fun createPackageFromUnderlyingModel(qualifiedName: String): PackageItem? {
+        // Make sure that the underlying package exists before creating one.
+        turbineElements.getPackageElement(qualifiedName) ?: return null
+        return codebase.findOrCreatePackage(qualifiedName)
     }
 
     /** Tries to create a class from a Turbine class with [qualifiedName]. */

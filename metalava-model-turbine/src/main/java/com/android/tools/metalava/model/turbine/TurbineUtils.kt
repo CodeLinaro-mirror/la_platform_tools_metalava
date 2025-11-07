@@ -24,6 +24,7 @@ import com.google.turbine.model.Const.Kind
 import com.google.turbine.model.Const.Value
 import com.google.turbine.tree.Tree.CompUnit
 import com.google.turbine.tree.Tree.Ident
+import kotlin.jvm.optionals.getOrNull
 
 /**
  * Extracts the package name from a provided compilation unit.
@@ -53,17 +54,23 @@ internal val List<Ident>.dotSeparatedName: String
     }
 
 /**
- * Extracts header comments from a source file string. Header comments are defined as any content
- * appearing before the "package" keyword.
+ * Extracts header comments from a [CompUnit].
  *
- * @param source The source file string.
+ * Header comments are defined as any content appearing before the "package" keyword.
+ *
  * @return The extracted header comments, or an empty string if no "package" keyword or comments are
  *   found.
  */
-internal fun getHeaderComments(source: String): String {
-    val packageIndex = source.indexOf("package")
-    // Return everything before "package" keyword
-    return if (packageIndex == -1) "" else source.substring(0, packageIndex)
+internal fun CompUnit.getHeaderComments(): String {
+    // Find the package statement.
+    val pkgDecl = pkg().getOrNull() ?: return ""
+    val source = source().source()
+    // The PkgDecl.position() is the start of the package name not the `package` keyword.
+    val packageNamePosition = pkgDecl.position()
+    // Search backwards for the start of the `package` keyword.
+    val packageKeywordStart = source.lastIndexOf("package", packageNamePosition)
+    // Return the content before the `package` keyword to match Java.
+    return source.substring(0, packageKeywordStart)
 }
 
 /**

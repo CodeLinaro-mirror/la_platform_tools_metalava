@@ -44,6 +44,7 @@ import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.doc.DocContentOwner
 import com.android.tools.metalava.model.getCallableParameterDescriptorUsingDots
+import com.android.tools.metalava.model.value.ArrayElementValue
 import com.android.tools.metalava.model.value.FieldReferenceValue
 import com.android.tools.metalava.model.value.FloatingPointValue
 import com.android.tools.metalava.model.value.IntegralValue
@@ -456,54 +457,55 @@ class DocAnalyzer(
                     if (flag) {
                         sb.append("either <code>0</code> or ")
                         if (values.size > 1) {
-                            sb.append("a combination of ")
+                            sb.append("a combination of the following:")
                         }
+                    } else {
+                        sb.append("one of the following:")
                     }
 
-                    values.forEachIndexed { index, value ->
-                        sb.append(
-                            when (index) {
-                                0 -> {
-                                    ""
-                                }
-                                values.size - 1 -> {
-                                    if (flag) {
-                                        ", and "
-                                    } else {
-                                        ", or "
-                                    }
-                                }
-                                else -> {
-                                    ", "
-                                }
-                            }
-                        )
-
-                        val field = (value as? FieldReferenceValue)?.resolve()
-                        if (field is FieldItem)
-                            if (filterReference.test(field)) {
-                                sb.append(
-                                    "{@link ${field.containingClass().qualifiedName()}#${field.name()}}"
-                                )
-                            } else {
-                                // Typedef annotation references field which isn't part of the API:
-                                // don't
-                                // try to link to it.
-                                reporter.report(
-                                    Issues.HIDDEN_TYPEDEF_CONSTANT,
-                                    item,
-                                    "Typedef references constant which isn't part of the API, skipping in documentation: " +
-                                        "${field.containingClass().qualifiedName()}#${field.name()}"
-                                )
-                                sb.append(
-                                    field.containingClass().qualifiedName() + "." + field.name()
-                                )
-                            }
-                        else {
-                            sb.append(value.toValueString())
-                        }
+                    sb.append("\n <ul>")
+                    for (value in values) {
+                        val valueAsJavadoc = convertTypeDefValueToJavadoc(item, value) ?: continue
+                        sb.append("\n   <li>")
+                        sb.append(valueAsJavadoc)
+                        sb.append("</li>")
                     }
+                    sb.append("\n <ul>")
+
                     appendDocumentation(sb.toString(), item, true)
+                }
+
+                /**
+                 * Convert [value] into Javadoc.
+                 *
+                 * If [value] is a reference to a field that is not part of the API then report an
+                 * issue and do not wrap in a `{@link ...}`. If it is a reference to a field that is
+                 * part of the API then wrap it in a `{@link ...}. Otherwise, just use its string
+                 * representation.
+                 */
+                private fun convertTypeDefValueToJavadoc(
+                    item: Item,
+                    value: ArrayElementValue
+                ): String? {
+                    val field = (value as? FieldReferenceValue)?.resolve()
+                    return if (field is FieldItem) {
+                        if (filterReference.test(field)) {
+                            "{@link ${field.containingClass().qualifiedName()}#${field.name()}}"
+                        } else {
+                            // Typedef annotation references field which isn't part of the API:
+                            // don't try to link to it.
+                            reporter.report(
+                                Issues.HIDDEN_TYPEDEF_CONSTANT,
+                                item,
+                                "Typedef references constant which isn't part of the API, skipping in documentation: " +
+                                    "${field.containingClass().qualifiedName()}#${field.name()}"
+                            )
+                            // Do not include the field in the documentation
+                            null
+                        }
+                    } else {
+                        value.toValueString()
+                    }
                 }
 
                 private fun handleRequiresFeature(annotation: AnnotationItem, item: Item) {

@@ -60,6 +60,10 @@ internal class TextCodebaseAssembler(
         codebase.packageTracker.createInitialPackages(PackageDocs.EMPTY)
     }
 
+    override fun createPackageFromUnderlyingModel(qualifiedName: String) =
+        // There are no additional packages available when processing signature files.
+        null
+
     override fun createClassFromUnderlyingModel(qualifiedName: String) =
         getOrCreateClass(qualifiedName)
 

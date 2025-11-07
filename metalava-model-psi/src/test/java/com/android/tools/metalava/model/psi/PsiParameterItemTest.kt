@@ -104,7 +104,7 @@ class PsiParameterItemTest : BaseModelTest() {
             }
 
             val classItem = codebase.assertClass("Test")
-            assertEquals(actualFile, classItem.sourceFile())
+            assertSame(actualFile, classItem.sourceFile())
 
             val constructorItem = classItem.constructors().single()
             with(constructorItem) {

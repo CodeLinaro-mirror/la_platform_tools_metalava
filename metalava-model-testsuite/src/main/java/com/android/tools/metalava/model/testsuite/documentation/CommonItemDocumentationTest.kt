@@ -1335,7 +1335,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
             val expectedOutputAfterSecondMutation =
                 """
                     /**
-                     * @deprecated extra text
+                     * @deprecated extra text.
                      * <br>
                      * Some more content
                      */
@@ -1458,7 +1458,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
             val expectedOutputAfterSecondMutation =
                 """
                     /**
-                     * @param p extra text
+                     * @param p extra text.
                      * <br>
                      * Some more content
                      */

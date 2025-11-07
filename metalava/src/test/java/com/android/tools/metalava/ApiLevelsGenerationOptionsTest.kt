@@ -169,21 +169,21 @@ class ApiLevelsGenerationOptionsTest :
     @Test
     fun `Test current version supports major-minor`() {
         runTest(ARG_CURRENT_VERSION, "1.2") {
-            assertThat(options.currentApiVersion.toString()).isEqualTo("1.2")
+            assertThat(options.optionalCurrentApiVersion.toString()).isEqualTo("1.2")
         }
     }
 
     @Test
     fun `Test current version supports major-minor-patch`() {
         runTest(ARG_CURRENT_VERSION, "1.2.3") {
-            assertThat(options.currentApiVersion.toString()).isEqualTo("1.2.3")
+            assertThat(options.optionalCurrentApiVersion.toString()).isEqualTo("1.2.3")
         }
     }
 
     @Test
     fun `Test current version supports major-minor-patch-preRelease`() {
         runTest(ARG_CURRENT_VERSION, "1.2.3-beta01") {
-            assertThat(options.currentApiVersion.toString()).isEqualTo("1.2.3-beta01")
+            assertThat(options.optionalCurrentApiVersion.toString()).isEqualTo("1.2.3-beta01")
         }
     }
 
@@ -221,25 +221,6 @@ class ApiLevelsGenerationOptionsTest :
             assertThat(apiHistoryConfig).isNotNull()
             val apiVersions = apiHistoryConfig!!.versionedApis.map { it.apiVersion }.joinToString()
             assertThat(apiVersions).isEqualTo("1.2.0, 1.2.3-beta01")
-        }
-    }
-
-    @Test
-    fun `Test --api-version-signature-pattern without --current-version`() {
-        val signatureFile = newFile("1.2.0/api.txt")
-        val apiVersionsJson = temporaryFolder.newFile("api-versions.json")
-        runTest(
-            ARG_GENERATE_API_VERSION_HISTORY,
-            apiVersionsJson.path,
-            ARG_API_VERSION_SIGNATURE_FILES,
-            signatureFile.path,
-            ARG_API_VERSION_SIGNATURE_PATTERN,
-            "${temporaryFolder.root}:/{version:major.minor.patch}/api.txt",
-        ) {
-            val exception =
-                assertThrows(MetalavaCliException::class.java) { options.fromFakeSignatureFiles() }
-            assertThat(exception.message)
-                .isEqualTo("Must specify --current-version with --api-version-signature-pattern")
         }
     }
 

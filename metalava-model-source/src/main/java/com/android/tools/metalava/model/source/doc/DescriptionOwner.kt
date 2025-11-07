@@ -21,6 +21,7 @@ import com.android.tools.metalava.model.doc.DocContentOwner
 import com.android.tools.metalava.model.source.javadoc.JavadocContent
 import com.android.tools.metalava.model.source.javadoc.JavadocInlineTag
 import com.android.tools.metalava.model.source.javadoc.JavadocText
+import com.android.tools.metalava.model.source.javadoc.TextEndsWithVisitor
 import com.android.tools.metalava.model.source.javadoc.concatJavadocContent
 import java.io.PrintWriter
 import java.io.StringWriter
@@ -213,6 +214,10 @@ internal open class DescriptionOwner(
         this?.let {
             concatJavadocContent {
                 add(it)
+                // Add a period after existing content, if needed.
+                if (it.matches(NEEDS_PUNCTUATION)) {
+                    add(PERIOD)
+                }
                 add(BR_SEPARATOR)
                 add(other)
             }
@@ -240,5 +245,21 @@ internal open class DescriptionOwner(
          * indentation.
          */
         private val BR_SEPARATOR = JavadocText("\n <br>\n ")
+
+        /**
+         * Predicate to check whether the existing content needs punctuation.
+         *
+         * It checks for the absence of `.` and `{@inheritDoc}`. The latter is included as it will
+         * be replaced by content from the super method, and it is not known if that ends with a `.`
+         * or not.
+         *
+         * TODO(b/454257440): Check content of super method.
+         */
+        private val NEEDS_PUNCTUATION = TextEndsWithVisitor {
+            !it.endsWith(".") && !it.endsWith("{@inheritDoc}")
+        }
+
+        /** Period to insert at the end of the preceding sentence if it was not present. */
+        private val PERIOD = JavadocText(".")
     }
 }

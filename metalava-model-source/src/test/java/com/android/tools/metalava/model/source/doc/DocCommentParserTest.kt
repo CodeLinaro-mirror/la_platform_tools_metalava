@@ -656,7 +656,7 @@ class DocCommentParserTest : BaseDocCommentTest() {
                 docComment,
                 """
                     /**
-                     * existing
+                     * existing.
                      * <br>
                      * appended
                      */
@@ -720,7 +720,7 @@ class DocCommentParserTest : BaseDocCommentTest() {
                 docComment,
                 """
                     /**
-                     * existing
+                     * existing.
                      * <br>
                      * some {@code text} to append
                      */
@@ -729,6 +729,7 @@ class DocCommentParserTest : BaseDocCommentTest() {
             docComment.description.assertStructure(
                 """
                     text: 'existing'
+                    text: '.'
                     text: '\n <br>\n '
                     text: 'some '
                     inlineTag: code

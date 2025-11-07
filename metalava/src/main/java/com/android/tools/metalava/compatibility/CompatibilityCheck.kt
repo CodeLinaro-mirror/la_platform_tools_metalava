@@ -1224,6 +1224,22 @@ class CompatibilityCheck(
                     return true
                 }
             }
+            Issues.REMOVED_METHOD -> {
+                val parentClass = item.containingClass()
+                val methodItem = item as? CallableItem
+                // Any of these cases indicates that a method was removed from a class that, if
+                // a client decided to implement, the client would have been forced to implement
+                // the removed method, and as such removal of the method will break the client.
+                // Therefore, we should return an error
+                if (
+                    parentClass?.isCompatibilitySuppressed() == false &&
+                        (parentClass.modifiers.isAbstract() || parentClass.isInterface()) &&
+                        parentClass.isExtensible() &&
+                        methodItem?.modifiers?.isAbstract() == true
+                ) {
+                    return true
+                }
+            }
         }
         return false
     }

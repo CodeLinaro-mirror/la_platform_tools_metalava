@@ -18,12 +18,14 @@ package com.android.tools.metalava.model.testsuite.documentation
 
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.provider.Capability
+import com.android.tools.metalava.model.source.doc.DocContentPredicates
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
 import java.io.PrintWriter
 import java.io.StringWriter
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 import org.junit.Test
 
 /** Common tests for references from within documentation comments. */
@@ -58,6 +60,7 @@ class CommonDocReferenceTest : BaseModelTest() {
                              * @throws IllegalArgumentException because reason 4.
                              * @throws java.io.IOException because reason 5.
                              * @throws ConcurrentModificationException because reason 6.
+                             * @throws UnknownException because reason 7.
                              */
                             public <Y extends Throwable> void method() throws X, Y, java.io.IOException {}
 
@@ -74,6 +77,7 @@ class CommonDocReferenceTest : BaseModelTest() {
                 expectedOutput =
                     """
                         /**
+                         * @throws UnknownException because reason 7.
                          * @throws X because reason 1.
                          * @throws Y because reason 2.
                          * @throws java.io.IOException because reason 5.
@@ -83,6 +87,13 @@ class CommonDocReferenceTest : BaseModelTest() {
                          */
 
                     """,
+            )
+
+            val containsIOException =
+                DocContentPredicates.textContainsAny { it.contains("IOException") }
+            assertTrue(
+                testMethod.documentation.check(containsIOException),
+                message = "contains IOException"
             )
         }
     }
