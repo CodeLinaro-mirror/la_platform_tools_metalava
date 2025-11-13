@@ -23,7 +23,9 @@ import com.android.tools.metalava.model.source.doc.InlineTagTypes
 import com.android.tools.metalava.model.source.doc.JavadocContentPrinter
 import com.android.tools.metalava.model.source.doc.TagData
 import com.android.tools.metalava.model.source.doc.TagType
+import com.android.tools.metalava.model.source.doc.TagTypeIssueReporter
 import com.android.tools.metalava.model.source.doc.skipForwardsOverLeadingWhitespace
+import com.android.tools.metalava.reporter.Issues
 
 internal object TestTagTypes {
     val BAR_TAG_TYPE =
@@ -37,10 +39,19 @@ internal object TestTagTypes {
 internal class BarTagType : TagType<BarTagData>("bar") {
     override fun extractData(
         context: DocCommentContext,
+        reporter: TagTypeIssueReporter,
         text: CharSequence
     ): ExtractDataResult<BarTagData>? {
         val identifierStart = text.skipForwardsOverLeadingWhitespace(0)
         val identifier = text.findLeadingIdentifier(identifierStart) ?: return null
+
+        if (identifier.contains('e') || identifier.contains('o')) {
+            reporter.report(
+                Issues.INVALID_JAVADOC,
+                "@bar tag cannot contain 'e' or 'o' in the identifier"
+            )
+        }
+
         return ExtractDataResult(
             tagData = BarTagData(identifier),
             // The identifier and any following whitespace must be removed from the content as they

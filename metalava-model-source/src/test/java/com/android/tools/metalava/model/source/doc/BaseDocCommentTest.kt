@@ -36,7 +36,7 @@ abstract class BaseDocCommentTest {
                 input.trimIndent(),
                 reporter,
             )
-        assertEquals(expectedIssues.trimIndent(), reporter.toString().trim())
+        reporter.assertJavadocParserIssues(expectedIssues)
         return docComment
     }
 
@@ -66,6 +66,15 @@ class CollatingDocumentationIssueReporter : DocumentationIssueReporter {
     }
 
     override fun toString() = builder.toString()
+
+    /** Verify that the reported issues matches [expectedIssues]. */
+    fun assertJavadocParserIssues(expectedIssues: String) {
+        assertEquals(
+            expectedIssues.trimIndent(),
+            toString().trim(),
+            message = "javadoc parser issues"
+        )
+    }
 }
 
 /** A test [DocCommentContext] that provides basic no-op implementations. */

@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.source.doc
 
 import com.android.tools.metalava.model.source.javadoc.JavadocContent
+import com.android.tools.metalava.reporter.Issues.Issue
 
 /**
  * Base type of all tag specific data.
@@ -87,8 +88,11 @@ internal abstract class TagType<D : TagData>(
      *   have no leading whitespace as it is removed from the start of the block tag description.
      *   However, for inline tags it may have leading whitespace as it is preserved for inline tags.
      */
-    open fun extractData(context: DocCommentContext, text: CharSequence): ExtractDataResult<D>? =
-        null
+    open fun extractData(
+        context: DocCommentContext,
+        reporter: TagTypeIssueReporter,
+        text: CharSequence,
+    ): ExtractDataResult<D>? = null
 
     /** This must be the [name] of the tag type. */
     override fun toString() = name
@@ -126,6 +130,18 @@ internal abstract class TagType<D : TagData>(
     }
 }
 
+/** Passed to [TagType.extractData] to report issues with the tag. */
+interface TagTypeIssueReporter {
+    /**
+     * Report [issue] with [message] for the tag that is being processed in the call to
+     * [TagType.extractData].
+     *
+     * @param issue the [Issue] to report.
+     * @param [message] the message to report.
+     */
+    fun report(issue: Issue, message: String)
+}
+
 /** Result of a call to [TagType.extractData]. */
 internal data class ExtractDataResult<D : TagData>(
     /** The [TagData] extracted. */
@@ -142,7 +158,11 @@ internal data class ExtractDataResult<D : TagData>(
 
 /** The default [TagType] used for all tags that do not have special behavior. */
 internal class DefaultTagType(name: String) : TagType<TagData>(name) {
-    override fun extractData(context: DocCommentContext, text: CharSequence) = null
+    override fun extractData(
+        context: DocCommentContext,
+        reporter: TagTypeIssueReporter,
+        text: CharSequence
+    ) = null
 }
 
 /**

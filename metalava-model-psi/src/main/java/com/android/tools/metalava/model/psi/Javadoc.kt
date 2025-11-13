@@ -25,13 +25,6 @@ package com.android.tools.metalava.model.psi
  */
 
 /**
- * If the reference is to a class in the same package, include the package prefix? This should not
- * be necessary, but doclava has problems finding classes without it. Consider turning this off when
- * we switch to Dokka.
- */
-internal const val INCLUDE_SAME_PACKAGE = true
-
-/**
  * Whether we should report unresolved symbols. This is typically a bug in the documentation. It
  * looks like there are a LOT of mistakes right now, so I'm worried about turning this on since
  * doclava didn't seem to abort on this.

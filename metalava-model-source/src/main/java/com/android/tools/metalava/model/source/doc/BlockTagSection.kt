@@ -116,7 +116,11 @@ internal class DefaultBlockTagSection(
      */
     override fun initializeDescription(suppliedDescription: JavadocContent?) {
         val result: ExtractorResult? =
-            suppliedDescription?.extractTagDataForTagType(context, tagType)
+            suppliedDescription?.extractTagDataForTagType(
+                context,
+                tagType,
+                descriptionSupplier.reporter,
+            )
         _tagData = result?.tagData
 
         // Delegate to the super method to store the remainder in description.

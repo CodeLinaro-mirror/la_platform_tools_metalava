@@ -20,7 +20,9 @@ import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.source.doc.DocContentPredicates
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.testsuite.BaseModelTest
+import com.android.tools.metalava.reporter.RecordingReporter
 import com.android.tools.metalava.testing.java
+import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import org.junit.Test
 
@@ -141,6 +143,40 @@ class CommonDocReferenceTest : BaseModelTest() {
                     """
                         /** {@code new {@link ArrayList}()} */
                     """,
+            )
+        }
+    }
+
+    @Test
+    fun `Test link tag with invalid reference starting with period`() {
+        val recordingReporter = RecordingReporter()
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+                    import java.util.ArrayList;
+                    /** {@link .java.util.List} */
+                    public class Test {
+                    }
+                """
+            ),
+            testFixture =
+                TestFixture(
+                    reporter = recordingReporter,
+                )
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            testClass.assertPrintedDocumentation(
+                expectedOutput =
+                    """
+                        /** {@link .java.util.List} */
+                    """,
+            )
+
+            val issues = removeTestSpecificDirectories(recordingReporter.issues)
+            assertEquals(
+                "MAIN_SRC/src/test/pkg/Test.java:3:12: warning: Malformed reference `.java.util.List` (ErrorWhenNew) [MalformedDocReference]",
+                issues
             )
         }
     }

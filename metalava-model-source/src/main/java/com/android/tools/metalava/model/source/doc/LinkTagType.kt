@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.source.doc
 
 import com.android.tools.metalava.model.source.javadoc.JavadocContent
+import com.android.tools.metalava.reporter.Issues
 
 /** [TagType] for `@link` and `@linkplain` inline tags. */
 internal class LinkTagType(name: String) : TagType<LinkTagData>(name) {
@@ -27,6 +28,7 @@ internal class LinkTagType(name: String) : TagType<LinkTagData>(name) {
     /** Override to extract the source reference from the tag content. */
     override fun extractData(
         context: DocCommentContext,
+        reporter: TagTypeIssueReporter,
         text: CharSequence
     ): ExtractDataResult<LinkTagData>? {
         val referenceStart = text.skipForwardsOverLeadingWhitespace(0)
@@ -35,14 +37,23 @@ internal class LinkTagType(name: String) : TagType<LinkTagData>(name) {
 
         val sourceReference =
             text
-                .substring(0, referenceEndExclusive)
+                .substring(referenceStart, referenceEndExclusive)
                 // Normalize whitespace by replacing blocks of whitespace with a single space.
                 // Ensures consistent formatting irrespective of how it was formatted in the source.
                 .replace(SOME_WHITESPACE, " ")
 
         // Resolve the source reference, if it failed then still return a non-null result to ensure
         // that whitespace is normalized consistently.
-        val resolvedReference = context.resolveReference(sourceReference)
+        val resolvedReference =
+            if (validateReference(sourceReference)) {
+                context.resolveReference(sourceReference)
+            } else {
+                reporter.report(
+                    Issues.MALFORMED_DOC_REFERENCE,
+                    "Malformed reference `$sourceReference`"
+                )
+                null
+            }
 
         return ExtractDataResult(
             LinkTagData(sourceReference, resolvedReference),
@@ -55,6 +66,51 @@ internal class LinkTagType(name: String) : TagType<LinkTagData>(name) {
     companion object {
         /** Regex that matches one or more whitespace characters. */
         private val SOME_WHITESPACE = Regex("""\s+""")
+
+        /** A simple, unqualified, java name. */
+        private const val SIMPLE_NAME =
+            """(?:\p{javaJavaIdentifierStart}\p{javaJavaIdentifierPart}*)"""
+
+        /**
+         * A qualified name.
+         *
+         * Can be one of:
+         * * `<simple-name>`
+         * * `<qualified-name>.<simple-name>`
+         */
+        private const val QUALIFIED_NAME = """(?:$SIMPLE_NAME(?:\.$SIMPLE_NAME)*)"""
+
+        /**
+         * A member.
+         *
+         * Can be one of:
+         * * `<simple-name>`
+         * * `<simple-name>(...)`
+         */
+        private const val MEMBER = """$SIMPLE_NAME(?:\([^)]*\))?"""
+
+        /** A URI fragment, consists of most characters except `#` and white spaces. */
+        private const val FRAGMENT = """[^ #]+"""
+
+        /**
+         * A valid reference.
+         *
+         * Can be one of:
+         * * `<qualified-name>`
+         * * `<qualified-name>#<member>`
+         * * `#<member>`
+         * * `<member>`
+         * * `<qualified-name>##<uri-fragment>`
+         * * `##<uri-fragment>`
+         */
+        private val VALID_REFERENCE =
+            Regex(
+                """$QUALIFIED_NAME|$QUALIFIED_NAME#$MEMBER|#$MEMBER|$MEMBER|$QUALIFIED_NAME##$FRAGMENT|##$FRAGMENT"""
+            )
+
+        /** Validate [sourceReference], returning `true` if it is valid, `false` otherwise. */
+        internal fun validateReference(sourceReference: String): Boolean =
+            VALID_REFERENCE.matches(sourceReference)
     }
 }
 

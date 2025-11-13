@@ -17,10 +17,8 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
-import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.source.AbstractItemDocumentation
 import com.android.tools.metalava.model.source.toItemDocumentationFactory
@@ -172,7 +170,7 @@ internal class PsiItemDocumentation(
                 val resolved = element.reference?.resolve()
                 if (resolved is PsiMember) {
                     val containingClass = resolved.containingClass
-                    if (containingClass != null && !samePackage(containingClass)) {
+                    if (containingClass != null) {
                         val referenceText = element.reference?.element?.text ?: text
                         if (referenceText.startsWith("#")) {
                             sb.append(text)
@@ -224,7 +222,7 @@ internal class PsiItemDocumentation(
             element is PsiJavaCodeReferenceElement -> {
                 val resolved = element.resolve()
                 if (resolved is PsiClass) {
-                    if (samePackage(resolved) || resolved is PsiTypeParameter) {
+                    if (resolved is PsiTypeParameter) {
                         sb.append(element.text)
                     } else {
                         sb.append(resolved.classQualifiedName)
@@ -341,10 +339,6 @@ internal class PsiItemDocumentation(
                     }
 
                     val text = element.text
-                    if (samePackage(resolved)) {
-                        sb.append(text)
-                        return true
-                    }
                     val qualifiedName =
                         resolved.qualifiedName
                             ?: run {
@@ -384,10 +378,6 @@ internal class PsiItemDocumentation(
                                 sb.append(text)
                                 return true
                             }
-                    if (samePackage(containing)) {
-                        sb.append(text)
-                        return true
-                    }
                     val qualifiedName =
                         containing.qualifiedName
                             ?: run {
@@ -529,27 +519,6 @@ internal class PsiItemDocumentation(
         while (index < suffix.length) {
             sb.append(suffix[index++])
         }
-    }
-
-    private fun samePackage(cls: PsiClass): Boolean {
-        if (INCLUDE_SAME_PACKAGE) {
-            // doclava seems to have REAL problems with this
-            return false
-        }
-        val pkg = packageName() ?: return false
-        return cls.qualifiedName == "$pkg.${cls.name}"
-    }
-
-    private fun packageName(): String? {
-        var curr: Item? = item
-        while (curr != null) {
-            if (curr is PackageItem) {
-                return curr.qualifiedName()
-            }
-            curr = curr.parent()
-        }
-
-        return null
     }
 
     // Copied from UnnecessaryJavaDocLinkInspection and tweaked a bit

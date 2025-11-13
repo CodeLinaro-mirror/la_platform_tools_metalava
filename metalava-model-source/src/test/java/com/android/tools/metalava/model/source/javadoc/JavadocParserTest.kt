@@ -18,7 +18,6 @@ package com.android.tools.metalava.model.source.javadoc
 
 import com.android.tools.metalava.model.source.doc.BaseDocCommentTest
 import com.android.tools.metalava.model.source.doc.DocComment
-import kotlin.test.assertEquals
 import org.junit.Test
 
 class JavadocParserTest : BaseDocCommentTest() {
@@ -35,11 +34,7 @@ class JavadocParserTest : BaseDocCommentTest() {
         var content = contentGetter(docComment)
 
         // Make sure that no unexpected JavadocParser issues were found.
-        assertEquals(
-            expectedJavadocIssues.trimIndent(),
-            reporter.toString().trim(),
-            message = "javadoc parser issues"
-        )
+        reporter.assertJavadocParserIssues(expectedJavadocIssues)
 
         // Check the model structure.
         content.assertStructure(expectedStructure.trimIndent())
@@ -419,6 +414,10 @@ class JavadocParserTest : BaseDocCommentTest() {
                       text: 'inside'
                     text: ' outside after'
                 """,
+            expectedJavadocIssues =
+                """
+                    2:25: @bar tag cannot contain 'e' or 'o' in the identifier [InvalidJavadoc]
+                """,
         )
     }
 
@@ -470,7 +469,7 @@ class JavadocParserTest : BaseDocCommentTest() {
                 /**
                  * {@bar some
                  * text}
-                 * {@bar
+                    * {@bar
                  * some text}
                  */
             """,
@@ -481,6 +480,11 @@ class JavadocParserTest : BaseDocCommentTest() {
                     text: '\n '
                     inlineTag: bar BarTagData(identifier=some)
                       text: 'text'
+                """,
+            expectedJavadocIssues =
+                """
+                    2:10: @bar tag cannot contain 'e' or 'o' in the identifier [InvalidJavadoc]
+                    4:12: @bar tag cannot contain 'e' or 'o' in the identifier [InvalidJavadoc]
                 """,
         )
     }

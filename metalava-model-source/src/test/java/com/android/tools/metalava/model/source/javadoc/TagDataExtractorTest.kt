@@ -24,6 +24,7 @@ class TagDataExtractorTest : BaseDocCommentTest() {
     private fun checkExtractedData(
         input: String,
         expectedInputStructure: String?,
+        expectedJavadocIssues: String = "",
         expectedTagData: BarTagData?,
         expectedRemainderStructure: String? = expectedInputStructure,
     ) {
@@ -31,7 +32,14 @@ class TagDataExtractorTest : BaseDocCommentTest() {
         val content = docComment.description
         content.assertStructure(expectedInputStructure, message = "input structure")
 
-        var result = content?.extractTagDataForTagType(context, TestTagTypes.BAR_TAG_TYPE)
+        var result =
+            content?.extractTagDataForTagType(
+                context,
+                TestTagTypes.BAR_TAG_TYPE,
+                reporter,
+            )
+
+        reporter.assertJavadocParserIssues(expectedJavadocIssues)
 
         val tagData = result?.tagData
         assertEquals(expectedTagData, tagData, message = "tagData")
@@ -74,6 +82,10 @@ class TagDataExtractorTest : BaseDocCommentTest() {
                 """
                     text: 'foo text after'
                 """,
+            expectedJavadocIssues =
+                """
+                    1:1: @bar tag cannot contain 'e' or 'o' in the identifier [InvalidJavadoc]
+                """,
             expectedTagData = BarTagData(identifier = "foo"),
             expectedRemainderStructure =
                 """
@@ -92,6 +104,10 @@ class TagDataExtractorTest : BaseDocCommentTest() {
                     inlineTag: code
                       text: 'inline'
                     text: ' more text'
+                """,
+            expectedJavadocIssues =
+                """
+                    1:1: @bar tag cannot contain 'e' or 'o' in the identifier [InvalidJavadoc]
                 """,
             expectedTagData = BarTagData(identifier = "foo"),
             expectedRemainderStructure =

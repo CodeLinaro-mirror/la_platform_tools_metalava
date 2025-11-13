@@ -22,6 +22,7 @@ import com.android.tools.metalava.model.source.javadoc.JavadocContent
 internal class ParamTagType(name: String) : TagType<ParamTagData>(name) {
     override fun extractData(
         context: DocCommentContext,
+        reporter: TagTypeIssueReporter,
         text: CharSequence
     ): ExtractDataResult<ParamTagData>? {
         val paramName = text.findLeadingIdentifier() ?: return null

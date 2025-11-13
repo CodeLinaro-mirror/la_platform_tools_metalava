@@ -135,6 +135,7 @@ Available Issues                             |  Category                        
   KotlinOperator                             |  api_lint                             |   info
   ListenerInterface                          |  api_lint                             |   error
   ListenerLast                               |  api_lint                             |   warning
+  MalformedDocReference                      |  documentation                        |   warning_error_when_new
   ManagerConstructor                         |  api_lint                             |   error
   ManagerLookup                              |  api_lint                             |   error
   MentionsGoogle                             |  api_lint                             |   error

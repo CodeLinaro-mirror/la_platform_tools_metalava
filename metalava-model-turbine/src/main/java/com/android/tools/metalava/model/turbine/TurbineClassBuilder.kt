@@ -24,6 +24,7 @@ import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.DefaultTypeParameterList
 import com.android.tools.metalava.model.ExceptionTypeItem
+import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.ModifierFlags.Companion.ABSTRACT
 import com.android.tools.metalava.model.ModifierFlags.Companion.DEFAULT
@@ -49,7 +50,7 @@ import com.android.tools.metalava.model.createMutableModifiers
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.item.DefaultTypeParameterItem
-import com.android.tools.metalava.model.source.toItemDocumentationFactory
+import com.android.tools.metalava.model.source.NO_SOURCE_COMMENT_FACTORY
 import com.android.tools.metalava.model.type.MethodFingerprint
 import com.android.tools.metalava.model.value.ValueUseSite
 import com.android.tools.metalava.reporter.FileLocation
@@ -143,7 +144,6 @@ internal class TurbineClassBuilder(
 
         // Create class
         val qualifiedName = classSymbol.qualifiedName
-        val documentation = javadoc(decl)
         val modifierItem =
             createModifiers(
                 typeBoundClass.access(),
@@ -187,7 +187,7 @@ internal class TurbineClassBuilder(
             itemFactory.createClassItem(
                 fileLocation = fileLocation,
                 modifiers = modifierItem,
-                documentationFactory = getCommentedDoc(documentation),
+                documentationFactory = itemDocumentationFactoryForDecl(sourceFile, decl),
                 source = sourceFile,
                 classKind = classKind,
                 containingClass = containingClassItem,
@@ -417,12 +417,11 @@ internal class TurbineClassBuilder(
                     valueFactory.providerFor(type, turbineValue, ValueUseSite.FIELD)
                 }
 
-            val documentation = javadoc(decl)
             val fieldItem =
                 itemFactory.createFieldItem(
                     fileLocation = TurbineFileLocation.forTree(classItem, decl),
                     modifiers = fieldModifierItem,
-                    documentationFactory = getCommentedDoc(documentation),
+                    documentationFactory = itemDocumentationFactoryForDecl(classItem, decl),
                     name = field.name(),
                     containingClass = classItem,
                     type = type,
@@ -456,7 +455,6 @@ internal class TurbineClassBuilder(
                     enclosingClassTypeItemFactory,
                     name,
                 )
-            val documentation = javadoc(decl)
             val defaultValueExpr = getAnnotationDefaultExpression(method)
             val defaultTurbineValue =
                 method.defaultValue()?.let { defaultConst ->
@@ -483,7 +481,7 @@ internal class TurbineClassBuilder(
                 itemFactory.createMethodItem(
                     fileLocation = TurbineFileLocation.forTree(classItem, decl),
                     modifiers = methodModifierItem,
-                    documentationFactory = getCommentedDoc(documentation),
+                    documentationFactory = itemDocumentationFactoryForDecl(classItem, decl),
                     name = name,
                     containingClass = classItem,
                     typeParameterList = typeParams,
@@ -581,12 +579,11 @@ internal class TurbineClassBuilder(
             val isImplicitDefaultConstructor =
                 (constructor.access() and TurbineFlag.ACC_SYNTH_CTOR) != 0
             val name = classItem.simpleName()
-            val documentation = javadoc(decl)
             val constructorItem =
                 itemFactory.createConstructorItem(
                     fileLocation = TurbineFileLocation.forTree(classItem, decl),
                     modifiers = constructorModifierItem,
-                    documentationFactory = getCommentedDoc(documentation),
+                    documentationFactory = itemDocumentationFactoryForDecl(classItem, decl),
                     // Turbine's Binder gives return type of constructors as void but the
                     // model expects it to the type of object being created. So, use the
                     // containing [ClassItem]'s type as the constructor return type.
@@ -611,21 +608,6 @@ internal class TurbineClassBuilder(
         }
     }
 
-    private fun javadoc(item: TyDecl?): String {
-        if (!allowReadingComments) return ""
-        return item?.javadoc() ?: ""
-    }
-
-    private fun javadoc(item: VarDecl?): String {
-        if (!allowReadingComments) return ""
-        return item?.javadoc() ?: ""
-    }
-
-    private fun javadoc(item: MethDecl?): String {
-        if (!allowReadingComments) return ""
-        return item?.javadoc() ?: ""
-    }
-
     private fun getThrowsList(
         throwsTypes: List<Type>,
         enclosingTypeItemFactory: TurbineTypeItemFactory
@@ -633,15 +615,29 @@ internal class TurbineClassBuilder(
         return throwsTypes.map { type -> enclosingTypeItemFactory.getExceptionType(type) }
     }
 
-    private fun getCommentedDoc(doc: String): ItemDocumentationFactory {
-        return buildString {
-                if (doc != "") {
-                    append("/**")
-                    append(doc)
-                    append("*/")
-                }
+    /** Get an [ItemDocumentationFactory] for [decl] in [classItem]. */
+    private fun itemDocumentationFactoryForDecl(classItem: ClassItem, decl: Tree?) =
+        itemDocumentationFactoryForDecl(classItem.sourceFile() as? TurbineSourceFile, decl)
+
+    /** Get an [ItemDocumentationFactory] for [decl] in [sourceFile]. */
+    private fun itemDocumentationFactoryForDecl(
+        sourceFile: TurbineSourceFile?,
+        decl: Tree?
+    ): ItemDocumentationFactory {
+        if (!allowReadingComments) return ItemDocumentation.NONE_FACTORY
+
+        val doc: String? =
+            when (decl) {
+                is TyDecl -> decl.javadoc()
+                is MethDecl -> decl.javadoc()
+                is VarDecl -> decl.javadoc()
+                null -> null
+                else -> error("Should never be called")
             }
-            .toItemDocumentationFactory()
+
+        if (doc == null || doc == "") return NO_SOURCE_COMMENT_FACTORY
+
+        return { item -> TurbineItemDocumentation(item, sourceFile, doc, decl?.position() ?: -1) }
     }
 
     /**

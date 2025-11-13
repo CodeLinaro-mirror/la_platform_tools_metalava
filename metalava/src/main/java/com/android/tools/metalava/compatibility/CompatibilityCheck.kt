@@ -1275,6 +1275,20 @@ class CompatibilityCheck(
                     return true
                 }
             }
+            Issues.CHANGED_DEFAULT -> {
+                val parentClass = newItem.containingClass()
+                // If a method within a non-experimental interface changes from default to abstract,
+                // clients that implemented that interface will be broken unless they implement
+                // that function, so we should raise an error.
+                if (
+                    parentClass?.isCompatibilitySuppressed() == false &&
+                        parentClass.isExtensible() &&
+                        parentClass.isInterface() &&
+                        newItem is CallableItem
+                ) {
+                    return true
+                }
+            }
         }
         return false
     }

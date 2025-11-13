@@ -18,7 +18,6 @@ package com.android.tools.metalava.model.source.doc
 
 import com.android.tools.metalava.model.source.javadoc.JavadocContent
 import com.android.tools.metalava.model.source.javadoc.JavadocParser
-import com.android.tools.metalava.reporter.Issues
 import java.util.Optional
 import kotlin.jvm.optionals.getOrNull
 
@@ -32,6 +31,9 @@ internal interface ContentSupplier {
     /** The [JavadocContent], `null` if this is empty. */
     val content: JavadocContent?
 
+    /** Get the [DocumentationIssueReporter] to use to report issues with [content]. */
+    val reporter: DocumentationIssueReporter
+
     companion object {
         /** A null [ContentSupplier]. */
         val NULL: ContentSupplier = DefaultContentSupplier(null)
@@ -40,6 +42,9 @@ internal interface ContentSupplier {
 
 /** A simple [ContentSupplier] that encapsulates [content]. */
 private class DefaultContentSupplier(override val content: JavadocContent?) : ContentSupplier {
+    override val reporter: DocumentationIssueReporter
+        get() = DocumentationIssueReporter.NULL
+
     override fun toString(): String {
         return "<<${content?: ""}>>"
     }
@@ -55,11 +60,11 @@ internal fun JavadocContent?.toSupplier(): ContentSupplier =
  */
 internal class LazyContentSupplier(
     private val context: DocCommentContext,
-    private val reporter: DocumentationIssueReporter,
+    reporter: DocumentationIssueReporter,
     private val text: String,
     private val startInclusive: Int = 0,
     private val endExclusive: Int = text.length,
-) : ContentSupplier, DocumentationIssueReporter {
+) : ContentSupplier, DocumentationFragmentIssueReporter(reporter) {
     private lateinit var _content: Optional<JavadocContent>
 
     override val content: JavadocContent?
@@ -70,6 +75,9 @@ internal class LazyContentSupplier(
             }
             return _content.getOrNull()
         }
+
+    override val reporter: DocumentationIssueReporter
+        get() = this
 
     /**
      * Parse [text] from [startInclusive] to [endExclusive] producing a [JavadocContent], if
@@ -106,23 +114,11 @@ internal class LazyContentSupplier(
         append(">>")
     }
 
-    /**
-     * Provide an implementation of [DocumentationIssueReporter] that corrects the line and char
-     * offsets based on the [startInclusive] position within [text].
-     */
-    override fun report(issue: Issues.Issue, message: String, lineOffset: Int, charOffset: Int) {
-        val lineOffsetCorrection = text.lineOffsetFor(startInclusive)
+    /** Get the line offset of [startInclusive] within [text]. */
+    override val lineOffsetFromContainer: Int
+        get() = text.lineOffsetFor(startInclusive)
 
-        // If this issue is being reported on the first line then make sure to compensate for any
-        // possible indentation of that first line before [startInclusive].
-        val charOffsetCorrection =
-            if (lineOffset == 0) text.characterOffsetFor(startInclusive) else 0
-
-        reporter.report(
-            issue,
-            message,
-            lineOffset + lineOffsetCorrection,
-            charOffset + charOffsetCorrection
-        )
-    }
+    /** Get the character offset of [startInclusive] within [text]. */
+    override val firstLineCharacterOffset: Int
+        get() = text.characterOffsetFor(startInclusive)
 }

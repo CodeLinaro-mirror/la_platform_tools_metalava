@@ -6,8 +6,6 @@ com.android.tools.metalava.model.testsuite.classitem.CommonDuplicateClassItemTes
 
 com.android.tools.metalava.model.testsuite.documentation.CommonItemDocumentationTest
   Test fully qualifying links that wrap on multiple lines
-  Test javadoc error locations
-  Test javadoc locations
 
 com.android.tools.metalava.model.testsuite.documentation.CommonParameterizedDocReferenceTest
   Documentation text[@link,Imported#Imported()]

@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.turbine
 
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.source.doc.characterOffsetFor
 import com.android.tools.metalava.reporter.FileLocation
 import com.google.turbine.tree.Tree
 import java.nio.file.Path
@@ -40,6 +41,9 @@ internal class TurbineFileLocation(
 
     override val line
         get() = sourceFile.lineForPosition(position)
+
+    override val characterPosition: Int
+        get() = sourceFile.compUnit.source().source().characterOffsetFor(position) + 1
 
     companion object {
         /** Get the [Path] for the [TurbineSourceFile]. */

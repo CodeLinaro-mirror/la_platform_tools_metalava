@@ -22,6 +22,7 @@ import com.android.tools.metalava.model.source.javadoc.JavadocContent
 internal class ThrowsTagType() : TagType<ThrowsTagData>("throws") {
     override fun extractData(
         context: DocCommentContext,
+        reporter: TagTypeIssueReporter,
         text: CharSequence
     ): ExtractDataResult<ThrowsTagData>? {
         val throwsName = text.findLeadingIdentifier() ?: return null

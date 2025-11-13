@@ -69,7 +69,7 @@ internal interface DocumentationIssueReporter {
      * @param charOffset is the 0-based index of the character within the line where the issue
      *   occurred. If this is `-1` then no character position is reported.
      */
-    fun report(issue: Issue, message: String, lineOffset: Int, charOffset: Int)
+    fun report(issue: Issue, message: String, lineOffset: Int = 0, charOffset: Int = 0)
 
     companion object {
         /**

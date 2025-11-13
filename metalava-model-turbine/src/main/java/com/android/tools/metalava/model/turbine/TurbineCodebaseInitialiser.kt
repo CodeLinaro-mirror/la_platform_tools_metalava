@@ -34,6 +34,7 @@ import com.android.tools.metalava.model.item.DefaultItemFactory
 import com.android.tools.metalava.model.item.DefaultPackageItem
 import com.android.tools.metalava.model.item.MutablePackageDoc
 import com.android.tools.metalava.model.item.PackageDocs
+import com.android.tools.metalava.model.source.NO_SOURCE_COMMENT_FACTORY
 import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.model.source.toItemDocumentationFactory
 import com.android.tools.metalava.model.source.utils.gatherPackageJavadoc
@@ -397,7 +398,7 @@ internal class TurbineCodebaseInitialiser(
         codebase.packageTracker.createInitialPackages(packageDocs)
     }
 
-    override fun emptyPackageDocumentationFactory() = "".toItemDocumentationFactory()
+    override fun emptyPackageDocumentationFactory() = NO_SOURCE_COMMENT_FACTORY
 
     private fun createAllCommandLineClasses(
         sourceClassMap: Map<ClassSymbol, SourceTypeBoundClass>,

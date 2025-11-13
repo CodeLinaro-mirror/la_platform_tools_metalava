@@ -641,6 +641,10 @@ class DocCommentParserTest : BaseDocCommentTest() {
         ) {
             val barBlockTagSection = docComment.blockTagSections.single()
             assertEquals(BarTagData("foo"), barBlockTagSection.tagData)
+
+            reporter.assertJavadocParserIssues(
+                "2:9: @bar tag cannot contain 'e' or 'o' in the identifier [InvalidJavadoc]"
+            )
         }
     }
 

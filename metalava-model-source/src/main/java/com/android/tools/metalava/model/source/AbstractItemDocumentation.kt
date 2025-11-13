@@ -328,4 +328,10 @@ abstract class AbstractItemDocumentation(
         val location = fileLocation.adjustForLineAndCharOffset(lineOffset, charOffset)
         item.codebase.reporter.report(issue, null, message, location)
     }
+
+    override fun duplicate(item: SelectableItem): ItemDocumentation =
+        DefaultItemDocumentation(item, text, fileLocation)
+
+    override fun snapshot(item: SelectableItem): ItemDocumentation =
+        DefaultItemDocumentation(item, text, fileLocation)
 }
