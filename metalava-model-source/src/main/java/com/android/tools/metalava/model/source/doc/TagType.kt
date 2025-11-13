@@ -63,6 +63,10 @@ internal abstract class TagType<D : TagData>(
      */
     val ordinal: Int = BlockTagOrder.ordinalForTagType(name)
 
+    /** Indicates whether inline tags of this type only contain text or not. */
+    open val containsTextOnly: Boolean
+        get() = false
+
     /**
      * Extract tag type specific data [D] from [text] using [context] where necessary.
      *
@@ -83,7 +87,8 @@ internal abstract class TagType<D : TagData>(
      *   have no leading whitespace as it is removed from the start of the block tag description.
      *   However, for inline tags it may have leading whitespace as it is preserved for inline tags.
      */
-    abstract fun extractData(context: DocCommentContext, text: CharSequence): ExtractDataResult<D>?
+    open fun extractData(context: DocCommentContext, text: CharSequence): ExtractDataResult<D>? =
+        null
 
     /** This must be the [name] of the tag type. */
     override fun toString() = name
@@ -205,5 +210,8 @@ internal object InlineTagTypes : BaseTagTypes() {
     init {
         register(LinkTagType("link"))
         register(LinkTagType("linkplain"))
+
+        register(TextOnlyInlineTagType("code"))
+        register(TextOnlyInlineTagType("literal"))
     }
 }

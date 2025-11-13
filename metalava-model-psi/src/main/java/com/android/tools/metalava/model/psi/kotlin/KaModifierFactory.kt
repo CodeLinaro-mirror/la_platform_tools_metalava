@@ -30,12 +30,14 @@ import org.jetbrains.kotlin.analysis.api.symbols.KaKotlinPropertySymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaNamedFunctionSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaParameterSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaPropertySymbol
+import org.jetbrains.kotlin.analysis.api.symbols.KaReceiverParameterSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaSymbolModality
 import org.jetbrains.kotlin.analysis.api.symbols.KaSymbolVisibility
+import org.jetbrains.kotlin.analysis.api.symbols.KaValueParameterSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.isTopLevel
 
 /** Creates modifiers for ka symbols. */
-internal class KaModifierFactory(private val assembler: KaCodebaseAssembler) {
+internal class KaModifierFactory(private val processor: KaModuleProcessor) {
     /** Creates modifiers for the [propertySymbol]. */
     fun createForProperty(
         propertySymbol: KaPropertySymbol,
@@ -194,7 +196,7 @@ internal class KaModifierFactory(private val assembler: KaCodebaseAssembler) {
                 KaSymbolVisibility.LOCAL,
                 KaSymbolVisibility.UNKNOWN -> VisibilityLevel.PRIVATE
             }
-        val annotations = symbol.annotations.mapNotNull { assembler.createAnnotation(it) }
+        val annotations = symbol.annotations.mapNotNull { processor.createAnnotation(it) }
         val modifiers = createMutableModifiers(visibility, annotations)
 
         // Set keyword modifiers if applicable
@@ -212,9 +214,25 @@ internal class KaModifierFactory(private val assembler: KaCodebaseAssembler) {
         return modifiers
     }
 
+    /** Creates modifiers for a value parameter (visibility, annotations, and varargs). */
+    fun createForValueParameter(symbol: KaValueParameterSymbol): MutableModifierList {
+        val modifiers = createForParameter(symbol)
+
+        if (symbol.isVararg) {
+            modifiers.setVarArg(true)
+        }
+
+        return modifiers
+    }
+
+    /** Creates modifiers for a receiver parameter (just visibility and annotations). */
+    fun createForReceiverParameter(symbol: KaReceiverParameterSymbol): MutableModifierList {
+        return createForParameter(symbol)
+    }
+
     /** Creates modifiers for a parameter (just visibility and annotations). */
-    fun createForParameter(symbol: KaParameterSymbol): MutableModifierList {
-        val annotations = symbol.annotations.mapNotNull { assembler.createAnnotation(it) }
+    private fun createForParameter(symbol: KaParameterSymbol): MutableModifierList {
+        val annotations = symbol.annotations.mapNotNull { processor.createAnnotation(it) }
         val modifiers = createMutableModifiers(VisibilityLevel.PACKAGE_PRIVATE, annotations)
         if (annotations.any { it.qualifiedName == KOTLIN_DEPRECATED }) {
             modifiers.setDeprecated(true)

@@ -49,9 +49,9 @@ class CommonReferencableNameScopeTest : BaseModelTest() {
     private fun CodebaseContext.checkReferencableNameScopeAgainstUnderlyingModel(
         scopeClass: String,
         simpleName: String,
-        expectedUnderlyingClass: String,
+        expectedUnderlyingClass: String?,
         // By default, the resolved class should match the underlying class.
-        expectedResolvedClass: String = expectedUnderlyingClass,
+        expectedResolvedClass: String? = expectedUnderlyingClass,
     ) {
         val testClass = codebase.assertClass(scopeClass)
 
@@ -59,12 +59,12 @@ class CommonReferencableNameScopeTest : BaseModelTest() {
         // type name.
         val testField = testClass.fields().single()
         val fieldClass = (testField.type() as ClassTypeItem).asClass()
-        val expectedUnderlyingClass = codebase.resolveClass(expectedUnderlyingClass)!!
+        val expectedUnderlyingClass = expectedUnderlyingClass?.let { codebase.resolveClass(it)!! }
         assertSame(expectedUnderlyingClass, fieldClass, message = "field class")
 
         // Verify that the resolution is correct.
         val resolved = testClass.resolveReferencableItem(simpleName)
-        val expectedResolvedClassItem = codebase.resolveClass(expectedResolvedClass)!!
+        val expectedResolvedClassItem = expectedResolvedClass?.let { codebase.resolveClass(it)!! }
         assertSame(expectedResolvedClassItem, resolved, message = "resolved class")
     }
 
@@ -165,5 +165,220 @@ class CommonReferencableNameScopeTest : BaseModelTest() {
             import = "import java.util.*;",
             expectedUnderlyingClass = "test.pkg.List",
         )
+    }
+
+    @RequiresCapabilities(Capability.JAVA)
+    @Test
+    fun `Test inheritance of nested classes of the base class`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package other.pkg;
+                        public class Base {
+                            public static class Foo {}
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        import other.pkg.Base;
+                        public class Derived extends Base {
+                            // Should resolve to Base.Foo.
+                            public Foo field;
+                        }
+                    """
+                ),
+            ),
+        ) {
+            checkReferencableNameScopeAgainstUnderlyingModel(
+                scopeClass = "test.pkg.Derived",
+                simpleName = "Foo",
+                expectedUnderlyingClass = "other.pkg.Base.Foo",
+            )
+        }
+    }
+
+    @RequiresCapabilities(Capability.JAVA)
+    @Test
+    fun `Test inheritance of nested classes of a base interface`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package other.pkg;
+                        public interface Base {
+                            class Foo {}
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        import other.pkg.Base;
+                        public class Derived implements Base {
+                            // Should resolve to Base.Foo.
+                            public Foo field;
+                        }
+                    """
+                ),
+            ),
+        ) {
+            checkReferencableNameScopeAgainstUnderlyingModel(
+                "test.pkg.Derived",
+                "Foo",
+                expectedUnderlyingClass = "other.pkg.Base.Foo",
+            )
+        }
+    }
+
+    @RequiresCapabilities(Capability.JAVA)
+    @Test
+    fun `Test non-inheritance of top-level class of base class`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package other.pkg;
+                        public class Base {
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package other.pkg;
+                        public class Foo {
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        import other.pkg.Base;
+                        public class Derived extends Base {
+                            // Should not resolve to other.pkg.Foo.
+                            public Foo field;
+                        }
+                    """
+                ),
+            ),
+        ) {
+            checkReferencableNameScopeAgainstUnderlyingModel(
+                "test.pkg.Derived",
+                "Foo",
+                expectedUnderlyingClass = null,
+            )
+        }
+    }
+
+    @RequiresCapabilities(Capability.JAVA)
+    @Test
+    fun `Test non-inheritance of outer classes of base class`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package other.pkg;
+                        public class Base {
+                            public static class Nested {}
+                            public static class Foo {}
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        import other.pkg.Base;
+                        public class Derived extends Base.Nested {
+                            // Should resolve to Base.Foo.
+                            public Foo field;
+                        }
+                    """
+                ),
+            ),
+        ) {
+            checkReferencableNameScopeAgainstUnderlyingModel(
+                "test.pkg.Derived",
+                "Foo",
+                expectedUnderlyingClass = null,
+            )
+        }
+    }
+
+    @RequiresCapabilities(Capability.JAVA)
+    @Test
+    fun `Test inheritance and class collision - local nested class wins`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package other.pkg;
+                        public class Base {
+                            public static class Foo {}
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        import other.pkg.Base;
+                        public class Derived extends Base {
+                            public static class Foo {}
+
+                            // Should resolve to `Derived.Foo` and not `Base.Foo`. That is
+                            // because it searches nested classes before super classes.
+                            public Foo field;
+                        }
+                    """
+                ),
+            ),
+        ) {
+            checkReferencableNameScopeAgainstUnderlyingModel(
+                "test.pkg.Derived",
+                "Foo",
+                expectedUnderlyingClass = "test.pkg.Derived.Foo",
+            )
+        }
+    }
+
+    @RequiresCapabilities(Capability.JAVA)
+    @Test
+    fun `Test inheritance and class collision - super nested class wins before enclosing class`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package other.pkg;
+                        public class Base {
+                            public static class BaseNested {
+                                public static class Foo {}
+                            }
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        import other.pkg.Base;
+                        public class Derived extends Base {
+                            public static class Nested extends BaseNested {
+                                // Should resolve to BaseNested.Foo and not Derived.Foo. That is
+                                // because it searches super classes before enclosing classes.
+                                public Foo field;
+                            }
+
+                            public static class Foo {}
+                        }
+                    """
+                ),
+            ),
+        ) {
+            checkReferencableNameScopeAgainstUnderlyingModel(
+                "test.pkg.Derived.Nested",
+                "Foo",
+                expectedUnderlyingClass = "other.pkg.Base.BaseNested.Foo",
+            )
+        }
     }
 }

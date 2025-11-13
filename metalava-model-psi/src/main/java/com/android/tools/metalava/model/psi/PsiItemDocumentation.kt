@@ -334,6 +334,12 @@ internal class PsiItemDocumentation(
         if (resolved != null) {
             when (resolved) {
                 is PsiClass -> {
+                    // No need to handle class references in {@link} and {@linkplain} tags as they
+                    // have been resolved in LinkTagType.
+                    if (element.name == "link" || element.name == "linkplain") {
+                        return false
+                    }
+
                     val text = element.text
                     if (samePackage(resolved)) {
                         sb.append(text)

@@ -219,6 +219,7 @@ internal class PsiMethodItem(
                             psiMethod,
                             containingCallable as PsiCallableItem,
                             methodTypeItemFactory,
+                            modifiers,
                             psiParameters,
                         )
                     },

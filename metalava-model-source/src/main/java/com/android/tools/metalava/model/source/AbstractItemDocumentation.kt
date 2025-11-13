@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterListOwner
@@ -36,6 +37,8 @@ import com.android.tools.metalava.model.source.doc.DocCommentMutationListener
 import com.android.tools.metalava.model.source.doc.DocCommentPredicate
 import com.android.tools.metalava.model.source.doc.DocumentationIssueReporter
 import com.android.tools.metalava.model.source.doc.JavaSummaryTruncationWorkaround
+import com.android.tools.metalava.model.source.doc.PackageReference
+import com.android.tools.metalava.model.source.doc.ResolvedReference
 import com.android.tools.metalava.model.source.doc.TypeParameterReference
 import com.android.tools.metalava.model.source.doc.TypeReference
 import com.android.tools.metalava.model.source.javadoc.JavadocText
@@ -199,6 +202,25 @@ abstract class AbstractItemDocumentation(
         val resolved = scope.resolveReferencableItem(typeName)
         return when (resolved) {
             is ClassItem -> ClassReference(resolved.qualifiedName())
+            is TypeParameterItem -> TypeParameterReference(resolved.name())
+            else -> null
+        }
+    }
+
+    override fun resolveReference(sourceReference: String): ResolvedReference? {
+        // Not all items that have documentation currently support resolving references from it,
+        // e.g. properties and type aliases.
+        val scope = item as? ReferencableNameScope ?: return null
+
+        // Ignore references to members for now.
+        val hashIndex = sourceReference.indexOf('#')
+        if (hashIndex != -1) return null
+
+        // Resolve the reference.
+        val resolved = scope.resolveReferencableItem(sourceReference)
+        return when (resolved) {
+            is ClassItem -> ClassReference(resolved.qualifiedName())
+            is PackageItem -> PackageReference(resolved.qualifiedName())
             is TypeParameterItem -> TypeParameterReference(resolved.name())
             else -> null
         }

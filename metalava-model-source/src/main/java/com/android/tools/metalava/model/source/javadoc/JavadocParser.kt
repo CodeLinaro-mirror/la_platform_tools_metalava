@@ -171,6 +171,9 @@ private class JavadocContentBuilder(
      */
     private var trimLeadingWhitespace = true
 
+    /** Responsible for handling an [AntlrJavadocParser.InlineTagContext]. */
+    private var inlineTagHandler: InlineTagHandler = ADD_INLINE_TAG_AS_OBJECT
+
     /**
      * A [MutableList] of consecutive [JavadocContent] instances that have been created from the
      * Javadoc.
@@ -307,12 +310,16 @@ private class JavadocContentBuilder(
      * [contentList]. It then calls [getContent]
      */
     @Suppress("DEPRECATION")
-    private fun nestedContent(body: () -> Unit): JavadocContent? {
+    private fun nestedContent(containsTextOnly: Boolean, body: () -> Unit): JavadocContent? {
         // Make sure that any text which has been appended to [textBuffer] has been added to the
         // content list so that it appears before any nested content. Trailing whitespace is not
         // trimmed as it could provide significant separation between any non-whitespace content and
         // the nested content.
         flushText(trimTrailingWhitespace = false)
+
+        val oldInlineTagHandler = inlineTagHandler
+        inlineTagHandler =
+            if (containsTextOnly) TREAT_INLINE_TAG_AS_TEXT else ADD_INLINE_TAG_AS_OBJECT
 
         // Save away the current _contentList and set it to null so a new list will be created if
         // any nested content is added.
@@ -329,6 +336,9 @@ private class JavadocContentBuilder(
         } finally {
             // Restore _contentList back to what it was before.
             _contentList = oldContentList
+
+            // Restore inlineTagHandler back to what it was before.
+            inlineTagHandler = oldInlineTagHandler
         }
     }
 
@@ -379,6 +389,11 @@ private class JavadocContentBuilder(
     }
 
     override fun visitInlineTag(ctx: AntlrJavadocParser.InlineTagContext) {
+        inlineTagHandler.handleInlineTag(this, ctx)
+    }
+
+    /** Create a [JavadocInlineTag] from [ctx] and add to the [contentList]. */
+    private fun addAsJavadocInlineTag(ctx: AntlrJavadocParser.InlineTagContext) {
         // The inline tag is the end of any leading whitespace so prevent any from being removed
         // from the start of the inline tag content.
         trimLeadingWhitespace = false
@@ -407,7 +422,7 @@ private class JavadocContentBuilder(
         val tagContent =
             inlineTagContentContext?.let { inlineCtx ->
                 // Construct a nested JavadocContent object from the content of the inline tag.
-                nestedContent {
+                nestedContent(tagType.containsTextOnly) {
                     // Visit the inline tag content.
                     inlineCtx.accept(this)
                 }
@@ -419,6 +434,22 @@ private class JavadocContentBuilder(
 
         // Add an inline tag to the content.
         appendContent(JavadocInlineTag(tagType, tagData, remainder))
+    }
+
+    /** Treat [ctx] as a block of text. */
+    private fun treatAsText(ctx: AntlrJavadocParser.InlineTagContext) {
+        // Add all the children as text.
+        val inlineContent = ctx.inlineTagContent()
+        for (child in ctx.children) {
+            if (child === inlineContent) {
+                // Visit the inline content and have each append as text. This ensures that leading
+                // asterisks are moves from the beginning of the newline.
+                inlineContent.accept(this)
+            } else {
+                // All other children are simple tokens so just add their string representation.
+                appendText(child.text)
+            }
+        }
     }
 
     override fun visitBraceExpression(ctx: AntlrJavadocParser.BraceExpressionContext) {
@@ -451,5 +482,39 @@ private class JavadocContentBuilder(
             // Get the [JavadocContent], if any, that was created.
             return builder.getContent(trimTrailingWhitespace = true)
         }
+
+        /**
+         * Adds [AntlrJavadocParser.InlineTagContext] to [JavadocContentBuilder] as a
+         * [JavadocInlineTag] object.
+         */
+        private val ADD_INLINE_TAG_AS_OBJECT =
+            object : InlineTagHandler {
+                override fun handleInlineTag(
+                    builder: JavadocContentBuilder,
+                    ctx: AntlrJavadocParser.InlineTagContext
+                ) {
+                    builder.addAsJavadocInlineTag(ctx)
+                }
+            }
+
+        private val TREAT_INLINE_TAG_AS_TEXT =
+            object : InlineTagHandler {
+                override fun handleInlineTag(
+                    builder: JavadocContentBuilder,
+                    ctx: AntlrJavadocParser.InlineTagContext
+                ) {
+                    builder.treatAsText(ctx)
+                }
+            }
     }
+}
+
+/**
+ * Responsible for handling a [AntlrJavadocParser.InlineTagContext].
+ *
+ * Used in [JavadocContentBuilder] to select context specific handling of inline tags.
+ */
+private interface InlineTagHandler {
+    /** Determine how [builder] should handle the [ctx] inline tag. */
+    fun handleInlineTag(builder: JavadocContentBuilder, ctx: AntlrJavadocParser.InlineTagContext)
 }

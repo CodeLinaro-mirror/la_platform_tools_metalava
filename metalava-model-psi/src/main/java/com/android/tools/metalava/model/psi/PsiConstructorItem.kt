@@ -129,6 +129,7 @@ private constructor(
                             psiMethod,
                             containingCallable as PsiCallableItem,
                             constructorTypeItemFactory,
+                            modifiers,
                             psiParameters,
                         )
                     },

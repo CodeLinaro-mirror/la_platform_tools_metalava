@@ -546,7 +546,7 @@ internal class TurbineClassBuilder(
                     fileLocation = fileLocation,
                     modifiers = parameterModifierItem,
                     name = parameter.name(),
-                    publicNameProvider = { null },
+                    publicName = null,
                     containingCallable = containingCallable,
                     parameterIndex = idx,
                     type = type,

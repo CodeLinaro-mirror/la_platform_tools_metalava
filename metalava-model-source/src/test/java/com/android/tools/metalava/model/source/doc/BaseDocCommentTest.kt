@@ -82,4 +82,6 @@ class NoOpDocCommentContext : DocCommentContext, DocCommentMutationListener {
     override fun fullyQualifyComment(comment: String) = comment
 
     override fun resolveThrowableType(typeName: String) = ClassReference(typeName)
+
+    override fun resolveReference(sourceReference: String) = null
 }

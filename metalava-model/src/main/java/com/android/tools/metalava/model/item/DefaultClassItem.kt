@@ -292,6 +292,12 @@ open class DefaultClassItem(
         typeParameterList.find { it.name() == simpleName }
                 // Then, check to see if it matches a nested class and if it does then return that.
                 ?: mutableNestedClasses.find { it.simpleName() == simpleName }
+                // Then, check to see if it matches a class defined in a super class.
+                ?: superClass()?.resolveReferencableItemBySimpleName(simpleName, isFirstSimpleName)
+                // Then, check to see if it matches a class defined in a super interface.
+                ?: interfaceTypes().firstNotNullOfOrNull {
+                    it.asClass()?.resolveReferencableItemBySimpleName(simpleName, isFirstSimpleName)
+                }
 
     /** Cache value of [annotationClass]. */
     private lateinit var cachedAnnotationClass: AnnotationClass

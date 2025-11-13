@@ -20,6 +20,10 @@ import com.android.tools.metalava.model.source.javadoc.JavadocContent
 
 /** [TagType] for `@link` and `@linkplain` inline tags. */
 internal class LinkTagType(name: String) : TagType<LinkTagData>(name) {
+    /** Link tags can only contain */
+    override val containsTextOnly: Boolean
+        get() = true
+
     /** Override to extract the source reference from the tag content. */
     override fun extractData(
         context: DocCommentContext,
@@ -36,8 +40,12 @@ internal class LinkTagType(name: String) : TagType<LinkTagData>(name) {
                 // Ensures consistent formatting irrespective of how it was formatted in the source.
                 .replace(SOME_WHITESPACE, " ")
 
+        // Resolve the source reference, if it failed then still return a non-null result to ensure
+        // that whitespace is normalized consistently.
+        val resolvedReference = context.resolveReference(sourceReference)
+
         return ExtractDataResult(
-            LinkTagData(sourceReference),
+            LinkTagData(sourceReference, resolvedReference),
             // The source reference and any following whitespace must be removed from the content as
             // they are part of [LinkTagData].
             consumedContent = text.skipForwardsOverLeadingWhitespace(referenceEndExclusive)
@@ -93,21 +101,38 @@ internal fun CharSequence.findEndOfReference(startInclusive: Int): Int {
 
 /** Encapsulates information about the `@link` and `@linkplain` tags. */
 internal data class LinkTagData(
-    /** The reference from the source. */
+    /** The reference from the source; used as the label if necessary. */
     val sourceReference: String,
+    /** The resolved reference, subclasses identify the specific part of the API it references. */
+    val resolvedReference: ResolvedReference?,
 ) : TagData {
     /**
      * Print the tag contents which consists of the [sourceReference] and the [content] which is the
      * optional label.
+     *
+     * If the [resolvedReference] is different to the [sourceReference] and [content] is `null` then
+     * this will use the [sourceReference] as the label.
      */
     override fun printTagContents(contentPrinter: JavadocContentPrinter, content: JavadocContent?) {
         val writer = contentPrinter.writer
         writer.print(" ")
-        writer.print(sourceReference)
+        val resolvedText = resolvedReference?.displayName ?: sourceReference
+        writer.print(resolvedText)
 
-        // Print the remaining content. Always preceded by a space as any leading whitespace has
-        // been trimmed from it.
-        content?.printWithLeadingSpaceTo(contentPrinter)
+        // The content is the label of the link tag so check it if exists.
+        if (content == null) {
+            // If the label is not specified and the resolved text is different to the source
+            // reference then use the source reference as the label to try and preserve the
+            // developer's original intent.
+            if (resolvedText != sourceReference) {
+                writer.print(" ")
+                writer.print(sourceReference)
+            }
+        } else {
+            // Print the remaining content. Always preceded by a space as any leading whitespace has
+            // been trimmed from it.
+            content.printWithLeadingSpaceTo(contentPrinter)
+        }
     }
 
     /**

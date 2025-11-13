@@ -34,7 +34,7 @@ open class DefaultParameterItem(
     sourceLanguage: SourceLanguage,
     modifiers: BaseModifierList,
     private val name: String,
-    protected val publicNameProvider: PublicNameProvider,
+    protected val publicName: String?,
     private val containingCallable: CallableItem,
     override val parameterIndex: Int,
     private var type: TypeItem,
@@ -55,7 +55,7 @@ open class DefaultParameterItem(
 
     final override fun name(): String = name
 
-    final override fun publicName(): String? = publicNameProvider(this)
+    final override fun publicName(): String? = publicName
 
     final override fun containingCallable(): CallableItem = containingCallable
 
@@ -79,7 +79,7 @@ open class DefaultParameterItem(
             sourceLanguage,
             modifiers,
             name(),
-            publicNameProvider,
+            publicName,
             containingCallable,
             parameterIndex,
             type().convertType(typeVariableMap),

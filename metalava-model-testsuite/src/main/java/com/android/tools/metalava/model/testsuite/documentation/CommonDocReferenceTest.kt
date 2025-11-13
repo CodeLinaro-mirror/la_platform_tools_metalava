@@ -115,4 +115,33 @@ class CommonDocReferenceTest : BaseModelTest() {
             )
         }
     }
+
+    @Test
+    fun `Test link tag inside @code`() {
+        // This is not valid. The specification says the following at
+        // https://docs.oracle.com/en/java/javase/21/docs/specs/javadoc/doc-comment-spec.html#code
+        //   `{@code text}` - Displays text in code font without interpreting the text as HTML
+        //           markup or nested Javadoc tags.
+        //
+        // This verifies that a `{@link}` tag is not resolved when it is inside `{@code}`.
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+                    import java.util.ArrayList;
+                    /** {@code new {@link ArrayList}()} */
+                    public class Test {
+                    }
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            testClass.assertPrintedDocumentation(
+                expectedOutput =
+                    """
+                        /** {@code new {@link ArrayList}()} */
+                    """,
+            )
+        }
+    }
 }

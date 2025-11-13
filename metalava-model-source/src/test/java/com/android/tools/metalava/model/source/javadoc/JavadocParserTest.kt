@@ -90,7 +90,7 @@ class JavadocParserTest : BaseDocCommentTest() {
             """,
             expectedStructure =
                 """
-                    inlineTag: link LinkTagData(sourceReference=Class)
+                    inlineTag: link LinkTagData(sourceReference=Class, resolvedReference=null)
                 """,
         )
     }
@@ -106,7 +106,7 @@ class JavadocParserTest : BaseDocCommentTest() {
             expectedStructure =
                 """
                     text: 'Text before link '
-                    inlineTag: link LinkTagData(sourceReference=Class)
+                    inlineTag: link LinkTagData(sourceReference=Class, resolvedReference=null)
                     text: ' and some text after.'
                 """,
         )
@@ -125,7 +125,7 @@ class JavadocParserTest : BaseDocCommentTest() {
             expectedStructure =
                 """
                     text: 'Text before link\n '
-                    inlineTag: link LinkTagData(sourceReference=Class)
+                    inlineTag: link LinkTagData(sourceReference=Class, resolvedReference=null)
                     text: '\n and some text after.'
                 """,
         )
@@ -158,10 +158,84 @@ class JavadocParserTest : BaseDocCommentTest() {
             expectedStructure =
                 """
                     inlineTag: code
-                      text: 'some '
-                      inlineTag: code
-                        text: 'nested'
-                      text: ' inline tags'
+                      text: 'some {@code nested} inline tags'
+                """,
+        )
+    }
+
+    @Test
+    fun `Test inline tag nested within code tag`() {
+        // Make sure that the BAR_TAG_TYPE is registered.
+        TestTagTypes.BAR_TAG_TYPE
+        checkParse(
+            """
+                /**
+                 * {@code cannot contain inline {@bar tag}}.
+                 */
+            """,
+            expectedStructure =
+                """
+                    inlineTag: code
+                      text: 'cannot contain inline {@bar tag}'
+                    text: '.'
+                """,
+        )
+    }
+
+    @Test
+    fun `Test inline tag nested within literal tag`() {
+        // Make sure that the BAR_TAG_TYPE is registered.
+        TestTagTypes.BAR_TAG_TYPE
+        checkParse(
+            """
+                /**
+                 * {@literal cannot contain inline {@bar tag}}.
+                 */
+            """,
+            expectedStructure =
+                """
+                    inlineTag: literal
+                      text: 'cannot contain inline {@bar tag}'
+                    text: '.'
+                """,
+        )
+    }
+
+    @Test
+    fun `Test inline tag nested within link tag`() {
+        // Make sure that the BAR_TAG_TYPE is registered.
+        TestTagTypes.BAR_TAG_TYPE
+        checkParse(
+            """
+                /**
+                 * {@link String cannot contain inline {@bar
+                 * tag}}.
+                 */
+            """,
+            expectedStructure =
+                """
+                    inlineTag: link LinkTagData(sourceReference=String, resolvedReference=null)
+                      text: 'cannot contain inline {@bar\n tag}'
+                    text: '.'
+                """,
+        )
+    }
+
+    @Test
+    fun `Test inline tag nested within linkplain tag`() {
+        // Make sure that the BAR_TAG_TYPE is registered.
+        TestTagTypes.BAR_TAG_TYPE
+        checkParse(
+            """
+                /**
+                 * {@linkplain String cannot contain inline {@bar tag}}.
+                 */
+            """,
+            expectedStructure =
+                """
+                    inlineTag: linkplain LinkTagData(sourceReference=String, resolvedReference=null)
+                      text: 'cannot contain inline {@bar tag}'
+                    text: '.'
                 """,
         )
     }
