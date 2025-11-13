@@ -73,9 +73,6 @@ interface ItemDocumentation {
      */
     fun snapshot(item: SelectableItem): ItemDocumentation
 
-    /** Work around javadoc cutting off the summary line after the first ". ". */
-    fun workAroundJavaDocSummaryTruncationIssue() {}
-
     /**
      * Check to see whether this has a tag section of [blockTagType].
      *

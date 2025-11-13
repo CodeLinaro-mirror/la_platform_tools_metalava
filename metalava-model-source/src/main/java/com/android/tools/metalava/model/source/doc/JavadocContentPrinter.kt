@@ -26,11 +26,26 @@ import java.io.PrintWriter
 import kotlin.text.iterator
 
 /** Prints [JavadocContent] instances to [writer]. */
-internal class JavadocContentPrinter(private val writer: PrintWriter) :
+internal class JavadocContentPrinter(internal val writer: PrintWriter) :
     JavadocContentVisitor<Unit> {
-    /** Prints [content] as part of a Javadoc comment to [writer]. */
-    fun print(content: JavadocContent?) {
-        content?.accept(this)
+    /**
+     * Prints [content] as part of a Javadoc comment to [writer].
+     *
+     * @param content the content to print, if `null` this returns immediately.
+     * @param addLeadingSpaceIfNeeded determines whether a leading space should be written before
+     *   the content is written. This has no effect if [content] is `null` or if it starts with a
+     *   newline. Otherwise, this will cause a space to be printed before the content.
+     */
+    fun print(content: JavadocContent?, addLeadingSpaceIfNeeded: Boolean = false) {
+        content ?: return
+
+        if (addLeadingSpaceIfNeeded) {
+            if (!content.matches(STARTS_WITH_NEWLINE_CHECKER)) {
+                writer.print(" ")
+            }
+        }
+
+        content.accept(this)
     }
 
     override fun visit(list: JavadocContentList) {
@@ -40,13 +55,7 @@ internal class JavadocContentPrinter(private val writer: PrintWriter) :
     override fun visit(inlineTag: JavadocInlineTag) {
         writer.print("{@")
         writer.print(inlineTag.tagType)
-        inlineTag.tagData?.printAfterTagType(writer)
-        inlineTag.content?.let { nestedContent ->
-            if (!nestedContent.matches(STARTS_WITH_NEWLINE_CHECKER)) {
-                writer.print(" ")
-            }
-            print(nestedContent)
-        }
+        inlineTag.printTagContents(this)
         writer.print("}")
     }
 

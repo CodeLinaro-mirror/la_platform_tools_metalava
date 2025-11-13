@@ -16,7 +16,7 @@
 
 package com.android.tools.metalava.model.source.doc
 
-import java.io.PrintWriter
+import com.android.tools.metalava.model.source.javadoc.JavadocContent
 
 /** [TagType] for `@param` block tag. */
 internal class ParamTagType(name: String) : TagType<ParamTagData>(name) {
@@ -53,10 +53,16 @@ internal data class ParamTagData(
     }
 
     /**
-     * Print the parameter [name] which was removed from the content by [ParamTagType.extractData].
+     * Print the parameter [name] which was removed from the content by [ParamTagType.extractData]
+     * followed by [content], if any.
      */
-    override fun printAfterTagType(writer: PrintWriter) {
+    override fun printTagContents(contentPrinter: JavadocContentPrinter, content: JavadocContent?) {
+        val writer = contentPrinter.writer
         writer.print(" ")
         writer.print(name)
+
+        // Print the remaining content. Always preceded by a space as any leading whitespace has
+        // been trimmed from it.
+        content?.printWithLeadingSpaceTo(contentPrinter)
     }
 }

@@ -90,8 +90,7 @@ class JavadocParserTest : BaseDocCommentTest() {
             """,
             expectedStructure =
                 """
-                    inlineTag: link
-                      text: 'Class'
+                    inlineTag: link LinkTagData(sourceReference=Class)
                 """,
         )
     }
@@ -107,8 +106,7 @@ class JavadocParserTest : BaseDocCommentTest() {
             expectedStructure =
                 """
                     text: 'Text before link '
-                    inlineTag: link
-                      text: 'Class'
+                    inlineTag: link LinkTagData(sourceReference=Class)
                     text: ' and some text after.'
                 """,
         )
@@ -127,8 +125,7 @@ class JavadocParserTest : BaseDocCommentTest() {
             expectedStructure =
                 """
                     text: 'Text before link\n '
-                    inlineTag: link
-                      text: 'Class'
+                    inlineTag: link LinkTagData(sourceReference=Class)
                     text: '\n and some text after.'
                 """,
         )
@@ -345,8 +342,71 @@ class JavadocParserTest : BaseDocCommentTest() {
                 """
                     text: 'outside before '
                     inlineTag: bar BarTagData(identifier=inline)
-                      text: 'inline inside'
+                      text: 'inside'
                     text: ' outside after'
+                """,
+        )
+    }
+
+    @Test
+    fun `Test inline tag split across lines - nested content starts with text`() {
+        checkParse(
+            """
+                /**
+                 * {@code some
+                 * text}
+                 */
+            """,
+            expectedStructure =
+                """
+                    inlineTag: code
+                      text: 'some\n text'
+                """,
+        )
+    }
+
+    @Test
+    fun `Test inline tag split across lines - nested content starts with whitespace`() {
+        checkParse(
+            """
+                /**
+                 * {@code
+                 * some text}
+                 * {@code
+                 * some text}
+                 */
+            """,
+            expectedStructure =
+                """
+                    inlineTag: code
+                      text: '\n some text'
+                    text: '\n '
+                    inlineTag: code
+                      text: '\n some text'
+                """,
+        )
+    }
+
+    @Test
+    fun `Test inline tag split across lines - tag with data`() {
+        // Make sure that the BAR_TAG_TYPE is registered.
+        TestTagTypes.BAR_TAG_TYPE
+        checkParse(
+            """
+                /**
+                 * {@bar some
+                 * text}
+                 * {@bar
+                 * some text}
+                 */
+            """,
+            expectedStructure =
+                """
+                    inlineTag: bar BarTagData(identifier=some)
+                      text: 'text'
+                    text: '\n '
+                    inlineTag: bar BarTagData(identifier=some)
+                      text: 'text'
                 """,
         )
     }

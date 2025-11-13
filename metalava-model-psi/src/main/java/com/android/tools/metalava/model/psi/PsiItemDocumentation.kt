@@ -26,6 +26,7 @@ import com.android.tools.metalava.model.source.AbstractItemDocumentation
 import com.android.tools.metalava.model.source.toItemDocumentationFactory
 import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.Issues
+import com.intellij.psi.JavaDocTokenType
 import com.intellij.psi.JavaPsiFacade
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiComment
@@ -267,10 +268,9 @@ internal class PsiItemDocumentation(
 
     private fun handleTag(element: PsiInlineDocTag, sb: StringBuilder): Boolean {
         val name = element.name
-        if (name == "code" || name == "literal") {
-            // @code: don't attempt to rewrite this
-            sb.append(element.text)
-            return true
+        if (name == "code" || name == "literal" || name == "throws") {
+            // Don't attempt to rewrite this
+            return false
         }
 
         val reference = extractReference(element)
@@ -563,12 +563,69 @@ internal class PsiItemDocumentation(
     }
 
     private fun extractCustomLinkText(tag: PsiDocTag): String? {
-        val dataElements = tag.dataElements
-        if (dataElements.isEmpty()) {
-            return null
+        val children = tag.children
+        // The child elements should have the following structure
+        // 1. Inline tag start.
+        // 2. Tag name.
+        // 3. Some white space.
+        // 4. Some non-white space which is the reference.
+        // 5. Some more white space.
+        // 6. The rest of the label.
+        // 7. Inline tag end.
+
+        // 7. Skip inline tag end.
+        val end = children.size - 1
+
+        // 1-3. Find the reference, start from after the tag name.
+        var start = 2
+        while (start < end) {
+            val child = children[start]
+            if (child is PsiDocMethodOrFieldRef || child.firstChild is PsiReference) break
+            start += 1
         }
-        val salientElement = dataElements.lastOrNull { it !is PsiWhiteSpace }
-        return (salientElement as? PsiDocToken)?.text?.trimStart()
+
+        // 4. Skip past the reference.
+        start += 1
+
+        // 5. Skip white space and leading asterisks.
+        while (start < end) {
+            val child = children[start]
+            // Stop at the first non-whitespace, non-leading asterisk element.
+            if (
+                child !is PsiWhiteSpace &&
+                    !(child is PsiDocToken &&
+                        child.tokenType == JavaDocTokenType.DOC_COMMENT_LEADING_ASTERISKS)
+            ) {
+                break
+            }
+            start += 1
+        }
+
+        // Check to see if there is any label.
+        if (start >= end) return null
+
+        // 6. Collect label.
+        return buildString {
+                for (i in start until end) {
+                    val child = children[i]
+
+                    // If the child is a leading asterisk then it must not be added and also any
+                    // leading spaces that have already been appended to this StringBuilder need to
+                    // be removed as per the Javadoc specification on handling leading asterisks.
+                    if (
+                        child is PsiDocToken &&
+                            child.tokenType == JavaDocTokenType.DOC_COMMENT_LEADING_ASTERISKS
+                    ) {
+                        var trimmedIndex = length
+                        while (trimmedIndex > 0 && this[trimmedIndex - 1] != '\n') trimmedIndex -= 1
+                        setLength(trimmedIndex)
+                        continue
+                    }
+
+                    append(child.text)
+                }
+            }
+            .trimStart()
     }
 
     companion object {

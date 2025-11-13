@@ -65,27 +65,35 @@ internal class LazyContentSupplier(
     override val content: JavadocContent?
         get() {
             if (!::_content.isInitialized) {
-                // Trim whitespace from the end of the description.
-                val trimmedEnd = text.skipBackwardsOverTrailingWhitespace(endExclusive - 1) + 1
-                val optionalContent =
-                    if (trimmedEnd <= startInclusive) {
-                        null
-                    } else {
-                        JavadocParser.parse(
-                            context,
-                            text,
-                            startInclusive,
-                            trimmedEnd,
-                            // Pass this as the reporter so that this can apply corrections to the
-                            // line and char offset based on the [startInclusive] position within
-                            // [text].
-                            this,
-                        )
-                    }
+                val optionalContent = parseAsJavadocContent()
                 _content = Optional.ofNullable(optionalContent)
             }
             return _content.getOrNull()
         }
+
+    /**
+     * Parse [text] from [startInclusive] to [endExclusive] producing a [JavadocContent], if
+     * possible.
+     */
+    private fun parseAsJavadocContent(): JavadocContent? {
+        // Trim whitespace from the end of the description.
+        val trimmedEnd = text.skipBackwardsOverTrailingWhitespace(endExclusive - 1) + 1
+
+        // It was all whitespace so there is no content.
+        if (trimmedEnd <= startInclusive) return null
+
+        // Parse the text.
+        return JavadocParser.parse(
+            context,
+            text,
+            startInclusive,
+            trimmedEnd,
+            // Pass this as the reporter so that this can apply corrections to the
+            // line and char offset based on the [startInclusive] position within
+            // [text].
+            this,
+        )
+    }
 
     override fun toString() = buildString {
         append("<<")

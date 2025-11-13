@@ -4,11 +4,79 @@ com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTe
 com.android.tools.metalava.model.testsuite.classitem.CommonDuplicateClassItemTest
   Test duplicate classes
 
+com.android.tools.metalava.model.testsuite.documentation.CommonDocReferenceTest
+  Test link tag spread across multiple lines
+
 com.android.tools.metalava.model.testsuite.documentation.CommonItemDocumentationTest
   Test append DocContent to main description
   Test fully qualifying links that wrap on multiple lines
   Test javadoc error locations
   Test javadoc locations
+
+com.android.tools.metalava.model.testsuite.documentation.CommonParameterizedDocReferenceTest
+  Documentation text[@link,Imported#Imported()]
+  Documentation text[@link,Imported#Imported(int p)]
+  Documentation text[@link,Imported#Imported(int)]
+  Documentation text[@link,Imported#field]
+  Documentation text[@link,Imported#intMethod(int p)]
+  Documentation text[@link,Imported#intMethod(int)]
+  Documentation text[@link,Imported#noParamsMethod()]
+  Documentation text[@link,Imported#noParamsMethod]
+  Documentation text[@link,Imported.Nested]
+  Documentation text[@link,Other#Other()]
+  Documentation text[@link,Other#Other(int p)]
+  Documentation text[@link,Other#Other(int)]
+  Documentation text[@link,Other#field]
+  Documentation text[@link,Other#intMethod(int p)]
+  Documentation text[@link,Other#intMethod(int)]
+  Documentation text[@link,Other#noParamsMethod()]
+  Documentation text[@link,Other#noParamsMethod]
+  Documentation text[@link,Other.Nested]
+  Documentation text[@link,String]
+  Documentation text[@link,Test.Nested]
+  Documentation text[@link,Test]
+  Documentation text[@linkplain,Imported#Imported()]
+  Documentation text[@linkplain,Imported#Imported(int p)]
+  Documentation text[@linkplain,Imported#Imported(int)]
+  Documentation text[@linkplain,Imported#field]
+  Documentation text[@linkplain,Imported#intMethod(int p)]
+  Documentation text[@linkplain,Imported#intMethod(int)]
+  Documentation text[@linkplain,Imported#noParamsMethod()]
+  Documentation text[@linkplain,Imported#noParamsMethod]
+  Documentation text[@linkplain,Imported.Nested]
+  Documentation text[@linkplain,Other#Other()]
+  Documentation text[@linkplain,Other#Other(int p)]
+  Documentation text[@linkplain,Other#Other(int)]
+  Documentation text[@linkplain,Other#field]
+  Documentation text[@linkplain,Other#intMethod(int p)]
+  Documentation text[@linkplain,Other#intMethod(int)]
+  Documentation text[@linkplain,Other#noParamsMethod()]
+  Documentation text[@linkplain,Other#noParamsMethod]
+  Documentation text[@linkplain,Other.Nested]
+  Documentation text[@linkplain,String]
+  Documentation text[@linkplain,Test.Nested]
+  Documentation text[@linkplain,Test]
+  Documentation text[@see,Imported#Imported()]
+  Documentation text[@see,Imported#Imported(int p)]
+  Documentation text[@see,Imported#Imported(int)]
+  Documentation text[@see,Imported#field]
+  Documentation text[@see,Imported#intMethod(int p)]
+  Documentation text[@see,Imported#intMethod(int)]
+  Documentation text[@see,Imported#noParamsMethod()]
+  Documentation text[@see,Imported#noParamsMethod]
+  Documentation text[@see,Imported.Nested]
+  Documentation text[@see,Other#Other()]
+  Documentation text[@see,Other#Other(int p)]
+  Documentation text[@see,Other#Other(int)]
+  Documentation text[@see,Other#field]
+  Documentation text[@see,Other#intMethod(int p)]
+  Documentation text[@see,Other#intMethod(int)]
+  Documentation text[@see,Other#noParamsMethod()]
+  Documentation text[@see,Other#noParamsMethod]
+  Documentation text[@see,Other.Nested]
+  Documentation text[@see,String]
+  Documentation text[@see,Test.Nested]
+  Documentation text[@see,Test]
 
 com.android.tools.metalava.model.testsuite.documentation.CommonParameterizedDocumentationTest
   Documentation fully qualified[doc comment with link - java]

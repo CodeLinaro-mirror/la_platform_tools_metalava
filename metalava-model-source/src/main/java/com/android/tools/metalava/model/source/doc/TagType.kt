@@ -16,7 +16,7 @@
 
 package com.android.tools.metalava.model.source.doc
 
-import java.io.PrintWriter
+import com.android.tools.metalava.model.source.javadoc.JavadocContent
 
 /**
  * Base type of all tag specific data.
@@ -26,16 +26,22 @@ import java.io.PrintWriter
 internal interface TagData : Comparable<TagData> {
     override fun compareTo(other: TagData) = 0
 
+    /** Print [this] to [contentPrinter] adding a leading space. */
+    fun JavadocContent.printWithLeadingSpaceTo(contentPrinter: JavadocContentPrinter) {
+        contentPrinter.writer.print(' ')
+        contentPrinter.print(this)
+    }
+
     /**
-     * Called after the block or inline tag type has been written to [writer] to print any tag
-     * specific data.
+     * Called after the block or inline tag type has been written to [writer] to print the tag
+     * contents to [contentPrinter].
      *
      * If it prints anything it must first print a space to separate it from the tag type.
      *
-     * This must be implemented to print any content that was removed by setting
-     * [ExtractDataResult.consumedContent] to a non-`0` value in [TagType.extractData].
+     * This must print any content that was removed by setting [ExtractDataResult.consumedContent]
+     * to a non-`0` value in [TagType.extractData] plus [content].
      */
-    fun printAfterTagType(writer: PrintWriter) {}
+    fun printTagContents(contentPrinter: JavadocContentPrinter, content: JavadocContent?)
 
     fun textMatches(predicate: (String) -> Boolean): Boolean = false
 }
@@ -68,9 +74,14 @@ internal abstract class TagType<D : TagData>(
      * Otherwise, return an instance of [ExtractDataResult] such that:
      * * [ExtractDataResult.tagData] is set to the instance of [D] that this created.
      * * [ExtractDataResult.consumedContent] is set to the character position with [text] where the
-     *   remainder of the content starts. If this is set to something greater than 0 then type [D]
-     *   must implement [TagData.printAfterTagType] to print the data that was removed from the
-     *   content.
+     *   remainder of the content starts.
+     *
+     * If this returns a non-null value then type [D] must implement [TagData.printTagContents] to
+     * print the tag contents.
+     *
+     * @param text the [CharSequence] from which this must extract data. For block tags this will
+     *   have no leading whitespace as it is removed from the start of the block tag description.
+     *   However, for inline tags it may have leading whitespace as it is preserved for inline tags.
      */
     abstract fun extractData(context: DocCommentContext, text: CharSequence): ExtractDataResult<D>?
 
@@ -93,19 +104,20 @@ internal abstract class TagType<D : TagData>(
     /**
      * Find the leading identifier, if any, in [this], returning `null` if it could not be found.
      *
-     * [this] must have no leading whitespace. If it does then this will fail to find an identifier.
-     *
      * For the purposes of this method an identifier is simply a series of non-whitespace
      * characters.
+     *
+     * @param startInclusive the start of the identifier, must be non-whitespace otherwise this will
+     *   fail to find an identifier.
      */
-    internal fun CharSequence.findLeadingIdentifier(): String? {
+    internal fun CharSequence.findLeadingIdentifier(startInclusive: Int = 0): String? {
         // Find the end of the identifier by finding the first non-whitespace character.
-        val endIndex = skipForwardsOverNonWhitespace(0)
+        val endIndex = skipForwardsOverNonWhitespace(startInclusive)
 
         // No identifier found.
-        if (endIndex == 0) return null
+        if (endIndex == startInclusive) return null
 
-        return substring(0, endIndex)
+        return substring(startInclusive, endIndex)
     }
 }
 
@@ -189,4 +201,9 @@ internal object BlockTagTypes : BaseTagTypes() {
 /** Collection of all the inline [TagType]s that have been created. */
 internal object InlineTagTypes : BaseTagTypes() {
     val INHERIT_DOC = tagTypeOf("inheritDoc")
+
+    init {
+        register(LinkTagType("link"))
+        register(LinkTagType("linkplain"))
+    }
 }

@@ -16,32 +16,16 @@
 
 package com.android.tools.metalava.model.testsuite.documentation
 
-import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.source.doc.DocContentPredicates
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
-import java.io.PrintWriter
-import java.io.StringWriter
-import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import org.junit.Test
 
 /** Common tests for references from within documentation comments. */
 class CommonDocReferenceTest : BaseModelTest() {
-    private fun checkItemDocumentationPrint(
-        item: SelectableItem,
-        expectedOutput: String,
-        message: String? = null
-    ) {
-        val documentation = item.documentation
-        val stringWriter = StringWriter()
-        PrintWriter(stringWriter).use { documentation.print(it) }
-        val actualOutput = stringWriter.toString()
-        assertEquals(expectedOutput.trimIndent(), actualOutput, message)
-    }
-
     @RequiresCapabilities(Capability.JAVA)
     @Test
     @Suppress("RedundantThrows")
@@ -72,8 +56,7 @@ class CommonDocReferenceTest : BaseModelTest() {
         ) {
             val testClass = codebase.assertClass("test.pkg.Test")
             val testMethod = testClass.methods().single()
-            checkItemDocumentationPrint(
-                testMethod,
+            testMethod.assertPrintedDocumentation(
                 expectedOutput =
                     """
                         /**
@@ -85,7 +68,6 @@ class CommonDocReferenceTest : BaseModelTest() {
                          * @throws java.util.ConcurrentModificationException because reason 6.
                          * @throws test.pkg.Test.TestException because reason 3.
                          */
-
                     """,
             )
 
@@ -94,6 +76,42 @@ class CommonDocReferenceTest : BaseModelTest() {
             assertTrue(
                 testMethod.documentation.check(containsIOException),
                 message = "contains IOException"
+            )
+        }
+    }
+
+    @Test
+    fun `Test link tag spread across multiple lines`() {
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+                    import java.util.List;
+                    /**
+                     * {@link java.util.List a list
+                     * class}
+                     * {@link List a list
+                     * class}
+                     * {@link List
+                     * a list class}
+                     */
+                    public class Test {
+                    }
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            testClass.assertPrintedDocumentation(
+                expectedOutput =
+                    """
+                        /**
+                         * {@link java.util.List a list
+                         * class}
+                         * {@link java.util.List a list
+                         * class}
+                         * {@link java.util.List a list class}
+                         */
+                    """,
             )
         }
     }

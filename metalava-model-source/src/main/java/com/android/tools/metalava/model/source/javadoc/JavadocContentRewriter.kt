@@ -28,6 +28,16 @@ package com.android.tools.metalava.model.source.javadoc
  */
 internal interface JavadocContentRewriter : JavadocContentVisitor<JavadocContent?> {
     /**
+     * Entry point for applying this to [content].
+     *
+     * Using this allows implementations to hide implementation details of exactly how this is
+     * applied to [content].
+     */
+    fun rewrite(content: JavadocContent?): JavadocContent? {
+        return content?.accept(this)
+    }
+
+    /**
      * Rewrite a [JavadocContentList] into optional [JavadocContent].
      * * Return [list] if rewriting does not change it.
      * * Return `null` if rewriting removes all the items from [JavadocContentList.contents].

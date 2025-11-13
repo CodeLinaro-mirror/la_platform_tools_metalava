@@ -941,19 +941,19 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             val methodComment =
                 """
                     /**
-                         * Method documentation
-                         * Multiple
-                         * Lines
-                         */
+                     * Method documentation
+                     * Multiple
+                     * Lines
+                     */
                 """
                     .trimIndent()
             assertSame(sourceFile, innerClassItem.sourceFile(), message = "inner class sourceFile")
             assertEquals(headerComment, sourceFile.getHeaderComments())
-            assertEquals(methodComment, methodItem.documentation.text)
-            assertEquals("/** Class documentation */", classItem.documentation.text)
-            assertEquals("/** Field Doc */", fieldItem.documentation.text)
-            assertEquals("", fieldItem1.documentation.text)
-            assertEquals("", pkgItem.documentation.text)
+            methodItem.assertDocumentationText(methodComment, message = "method")
+            classItem.assertDocumentationText("/** Class documentation */", message = "class")
+            fieldItem.assertDocumentationText("/** Field Doc */", message = "field")
+            fieldItem1.assertDocumentationText("", message = "field1")
+            pkgItem.assertDocumentationText("", message = "package")
             assertSame(classItem.sourceFile(), classItem1.sourceFile())
         }
     }
