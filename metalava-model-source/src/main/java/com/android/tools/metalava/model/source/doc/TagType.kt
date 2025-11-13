@@ -17,7 +17,7 @@
 package com.android.tools.metalava.model.source.doc
 
 import com.android.tools.metalava.model.source.javadoc.JavadocContent
-import com.android.tools.metalava.reporter.Issues.Issue
+import com.android.tools.metalava.reporter.LocationSpecificReporter
 
 /**
  * Base type of all tag specific data.
@@ -90,7 +90,7 @@ internal abstract class TagType<D : TagData>(
      */
     open fun extractData(
         context: DocCommentContext,
-        reporter: TagTypeIssueReporter,
+        reporter: LocationSpecificReporter,
         text: CharSequence,
     ): ExtractDataResult<D>? = null
 
@@ -130,18 +130,6 @@ internal abstract class TagType<D : TagData>(
     }
 }
 
-/** Passed to [TagType.extractData] to report issues with the tag. */
-interface TagTypeIssueReporter {
-    /**
-     * Report [issue] with [message] for the tag that is being processed in the call to
-     * [TagType.extractData].
-     *
-     * @param issue the [Issue] to report.
-     * @param [message] the message to report.
-     */
-    fun report(issue: Issue, message: String)
-}
-
 /** Result of a call to [TagType.extractData]. */
 internal data class ExtractDataResult<D : TagData>(
     /** The [TagData] extracted. */
@@ -160,7 +148,7 @@ internal data class ExtractDataResult<D : TagData>(
 internal class DefaultTagType(name: String) : TagType<TagData>(name) {
     override fun extractData(
         context: DocCommentContext,
-        reporter: TagTypeIssueReporter,
+        reporter: LocationSpecificReporter,
         text: CharSequence
     ) = null
 }

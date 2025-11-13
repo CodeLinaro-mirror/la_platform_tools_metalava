@@ -19,7 +19,6 @@ package com.android.tools.metalava.model.testsuite.documentation
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.doc.DocContent
 import com.android.tools.metalava.model.testsuite.BaseModelTest
-import com.android.tools.metalava.reporter.RecordingReporter
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import kotlin.test.assertEquals
@@ -338,7 +337,6 @@ class CommonItemDocumentationTest : BaseModelTest() {
 
     @Test
     fun `Test javadoc error locations`() {
-        val reporter = RecordingReporter()
         runSourceCodebaseTest(
             java(
                 """
@@ -362,15 +360,10 @@ class CommonItemDocumentationTest : BaseModelTest() {
                     }
                 """
             ),
-            testFixture =
-                TestFixture(
-                    reporter = reporter,
-                ),
         ) {
             // Make sure that no issues are found before parsing the Javadoc description blocks.
             // This ensures that no parsing is done unless required.
-            val issuesBeforeParsing = removeTestSpecificDirectories(reporter.issues)
-            assertEquals("", issuesBeforeParsing)
+            assertAndRemoveReportedIssues("")
 
             // Then, check the printed form of the comment. That is needed to ensure that the
             // comment is parsed and any issues found.
@@ -406,16 +399,13 @@ class CommonItemDocumentationTest : BaseModelTest() {
             )
 
             // Finally, check to see what issues have been reported.
-            val issuesAfterParsing = removeTestSpecificDirectories(reporter.issues)
-            assertEquals(
+            assertAndRemoveReportedIssues(
                 """
                     MAIN_SRC/src/test/pkg/Test.java:3:5: error: unclosed inline '@code' tag [UnclosedInlineTag]
                     MAIN_SRC/src/test/pkg/Test.java:5:9: error: unclosed inline '@code' tag [UnclosedInlineTag]
                     MAIN_SRC/src/test/pkg/Test.java:10:8: error: unclosed inline '@code' tag [UnclosedInlineTag]
                     MAIN_SRC/src/test/pkg/Test.java:15:20: error: unclosed inline '@code' tag [UnclosedInlineTag]
                 """
-                    .trimIndent(),
-                issuesAfterParsing
             )
         }
     }

@@ -1016,4 +1016,48 @@ class ExperimentalApiFileTest : DriverTest() {
             suppressCompatibilityMetaAnnotations = arrayOf("test.pkg.ExperimentalFeature")
         )
     }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Check experimental annotations on properties`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+                        @RequiresOptIn
+                        annotation class ExperimentalFeature
+
+                        object Foo {
+                            @ExperimentalFeature const val CONST = 0
+
+                            @ExperimentalFeature @JvmField var jvmField = 0
+
+                            @ExperimentalFeature var regularProperty = 0
+                        }
+                        """
+                    )
+                ),
+            extraArguments =
+                arrayOf(ARG_SUPPRESS_COMPATIBILITY_META_ANNOTATION, "kotlin.RequiresOptIn"),
+            api =
+                """
+                package test.pkg {
+                  @SuppressCompatibility @kotlin.RequiresOptIn public @interface ExperimentalFeature {
+                  }
+                  public final class Foo {
+                    method @InaccessibleFromKotlin @SuppressCompatibility @test.pkg.ExperimentalFeature public int getRegularProperty();
+                    method @InaccessibleFromKotlin @SuppressCompatibility @test.pkg.ExperimentalFeature public void setRegularProperty(int);
+                    property @SuppressCompatibility @test.pkg.ExperimentalFeature public static int CONST;
+                    property @SuppressCompatibility @test.pkg.ExperimentalFeature public int jvmField;
+                    property @SuppressCompatibility @test.pkg.ExperimentalFeature public int regularProperty;
+                    field @SuppressCompatibility @test.pkg.ExperimentalFeature public static final int CONST = 0; // 0x0
+                    field public static final test.pkg.Foo INSTANCE;
+                    field @SuppressCompatibility @test.pkg.ExperimentalFeature public static int jvmField;
+                  }
+                }
+                """
+        )
+    }
 }

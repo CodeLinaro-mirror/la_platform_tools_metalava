@@ -228,7 +228,7 @@ Available Issues                             |  Category                        
   UnmatchedMergeAnnotation                   |  api_lint                             |   error
   UnqualifiedTypeError                       |  unknown                              |   hidden
   UnresolvedImport                           |  unknown                              |   info
-  UnresolvedLink                             |  documentation                        |   error
+  UnresolvedLink                             |  documentation                        |   warning_error_when_new
   UseIcu                                     |  api_lint                             |   warning
   UseParcelFileDescriptor                    |  api_lint                             |   error
   UserHandle                                 |  api_lint                             |   warning

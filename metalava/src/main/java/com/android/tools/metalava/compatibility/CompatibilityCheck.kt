@@ -1289,6 +1289,21 @@ class CompatibilityCheck(
                     return true
                 }
             }
+            Issues.CHANGED_ABSTRACT -> {
+                val parentClass = newItem.containingClass()
+                // If a method within a non-experimental abstract class has abstract added to it,
+                // this can be a breaking change for clients who either couldn't implement the
+                // method (because it was final) or didn't have to (because it was open and non-
+                // abstract). Thus, we should raise an error.
+
+                if (
+                    parentClass?.isCompatibilitySuppressed() == false &&
+                        (oldItem as? MethodItem)?.modifiers?.isAbstract() == false &&
+                        (newItem as? MethodItem)?.modifiers?.isAbstract() == true
+                ) {
+                    return true
+                }
+            }
         }
         return false
     }

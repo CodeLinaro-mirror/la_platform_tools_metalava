@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.source.doc
 
 import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.reporter.LocationSpecificReporter
 import kotlin.test.assertEquals
 
 abstract class BaseDocCommentTest {
@@ -90,7 +91,8 @@ class NoOpDocCommentContext : DocCommentContext, DocCommentMutationListener {
 
     override fun fullyQualifyComment(comment: String) = comment
 
-    override fun resolveThrowableType(typeName: String) = ClassReference(typeName)
+    override fun resolveThrowableType(reporter: LocationSpecificReporter, typeName: String) =
+        ClassReference(typeName)
 
     override fun resolveReference(sourceReference: String) = null
 }

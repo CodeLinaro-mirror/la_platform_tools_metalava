@@ -1,9 +1,6 @@
 com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTest
   annotation with unknown field
 
-com.android.tools.metalava.model.testsuite.classitem.CommonDuplicateClassItemTest
-  Test duplicate classes
-
 com.android.tools.metalava.model.testsuite.documentation.CommonItemDocumentationTest
   Test fully qualifying links that wrap on multiple lines
 

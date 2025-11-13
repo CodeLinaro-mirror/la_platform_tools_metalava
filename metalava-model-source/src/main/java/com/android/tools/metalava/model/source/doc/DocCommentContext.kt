@@ -22,6 +22,7 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TypeParameterItem
+import com.android.tools.metalava.reporter.LocationSpecificReporter
 
 /**
  * Provides contextual information from the surrounding model for use when processing a
@@ -69,7 +70,7 @@ internal interface DocCommentContext {
      * Resolve [typeName] (which may be a reference to a class or a type parameter) to a
      * [TypeReference], if possible.
      */
-    fun resolveThrowableType(typeName: String): TypeReference?
+    fun resolveThrowableType(reporter: LocationSpecificReporter, typeName: String): TypeReference?
 
     /**
      * Resolve [sourceReference] (which may be a reference to a package, class, type parameter,

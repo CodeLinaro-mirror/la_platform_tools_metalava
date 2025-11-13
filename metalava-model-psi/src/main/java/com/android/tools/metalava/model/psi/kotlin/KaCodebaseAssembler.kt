@@ -621,6 +621,12 @@ internal class KaModuleProcessor(val kaModule: KaModule, val codebase: PsiBasedC
                 null
             }
 
+        val modifiers =
+            kaModifierFactory.createForProperty(
+                propertySymbol,
+                containingClass,
+            )
+        kaModifierFactory.updatePropertyAccessors(modifiers, getter, setter, backingField)
         val propertyItem =
             DefaultPropertyItem(
                 codebase = codebase,
@@ -628,13 +634,7 @@ internal class KaModuleProcessor(val kaModule: KaModule, val codebase: PsiBasedC
                 sourceLanguage = SourceLanguage.KOTLIN,
                 documentationFactory = propertySymbol.getDocumentation(),
                 variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
-                modifiers =
-                    kaModifierFactory.createForProperty(
-                        propertySymbol,
-                        containingClass,
-                        getter,
-                        setter
-                    ),
+                modifiers = modifiers,
                 name = propertySymbol.name.identifier,
                 containingClass = containingClass,
                 type = type,

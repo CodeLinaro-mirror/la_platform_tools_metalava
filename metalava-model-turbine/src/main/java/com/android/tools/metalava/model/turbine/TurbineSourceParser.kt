@@ -22,7 +22,11 @@ import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.source.SourceSet
+import com.android.tools.metalava.reporter.FileLocation
+import com.android.tools.metalava.reporter.Issues
+import com.google.turbine.diag.TurbineError
 import java.io.File
+import java.nio.file.Paths
 
 internal class TurbineSourceParser(
     private val codebaseConfig: Codebase.Config,
@@ -71,8 +75,26 @@ internal class TurbineSourceParser(
                 allowReadingComments = allowReadingComments,
             )
 
-        // Initialize the codebase.
-        assembler.initialize(sourceSet, apiPackages)
+        try {
+            // Initialize the codebase.
+            assembler.initialize(sourceSet, apiPackages)
+        } catch (e: TurbineError) {
+            for (diagnostic in e.diagnostics()) {
+                val path = diagnostic.path()
+                val location =
+                    FileLocation.createLocation(
+                        Paths.get(path),
+                        line = diagnostic.line(),
+                        characterPosition = diagnostic.column()
+                    )
+                codebaseConfig.reporter.report(
+                    Issues.INVALID_SYNTAX,
+                    null,
+                    diagnostic.message(),
+                    location
+                )
+            }
+        }
 
         // Return the newly created and initialized codebase.
         return assembler.codebase

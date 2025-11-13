@@ -44,6 +44,7 @@ import com.android.tools.metalava.model.source.doc.TypeReference
 import com.android.tools.metalava.model.source.javadoc.JavadocText
 import com.android.tools.metalava.model.source.javadoc.toOptionalJavadocContent
 import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.reporter.LocationSpecificReporter
 import java.io.PrintWriter
 
 /**
@@ -197,13 +198,19 @@ abstract class AbstractItemDocumentation(
     /** Implements [DocCommentContext.fullyQualifyComment]. */
     override fun fullyQualifyComment(comment: String) = fullyQualifiedDocumentation(comment)
 
-    override fun resolveThrowableType(typeName: String): TypeReference? {
+    override fun resolveThrowableType(
+        reporter: LocationSpecificReporter,
+        typeName: String
+    ): TypeReference? {
         val scope = item as? ReferencableNameScope ?: return null
         val resolved = scope.resolveReferencableItem(typeName)
         return when (resolved) {
             is ClassItem -> ClassReference(resolved.qualifiedName())
             is TypeParameterItem -> TypeParameterReference(resolved.name())
-            else -> null
+            else -> {
+                reporter.report(Issues.UNRESOLVED_LINK, "Could not resolve $typeName")
+                null
+            }
         }
     }
 

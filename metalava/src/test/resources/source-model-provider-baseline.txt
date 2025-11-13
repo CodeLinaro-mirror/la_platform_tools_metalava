@@ -58,12 +58,6 @@ com.android.tools.metalava.RequiresFeatureTest
   Check RequiresFeature handling - invalid enforcement[turbine]
   Check RequiresFeature handling - missing feature[turbine]
 
-com.android.tools.metalava.ShowAnnotationTest
-  Testing parsing an annotation whose attribute references the annotated class[turbine]
-
-com.android.tools.metalava.SyntaxErrorTest
-  Invalid syntax[turbine]
-
 com.android.tools.metalava.TypeUseAnnotationFilteringTest
   Keep type use annotations[turbine]
 
@@ -88,13 +82,6 @@ com.android.tools.metalava.doc.DocAnalyzerTest
   @sdkExtSince (not finalized)[turbine]
   Test Column annotation[turbine]
   memberDoc crash[turbine]
-
-com.android.tools.metalava.doc.RestrictedForEnvironmentTest
-  Check RestrictedForEnvironment handling for SDK_SANDBOX env - android[turbine]
-  Check RestrictedForEnvironment handling for SDK_SANDBOX env - androidx[turbine]
-  Check RestrictedForEnvironment handling for fully nested SDK_SANDBOX env - androidx[turbine]
-  Check RestrictedForEnvironment handling for multiple annotations - androidx[turbine]
-  Check RestrictedForEnvironment handling for partial nested SDK_SANDBOX env - androidx[turbine]
 
 com.android.tools.metalava.jar.StandaloneJarCodebaseLoaderTest
   Test jar loader does not freeze codebase[turbine]

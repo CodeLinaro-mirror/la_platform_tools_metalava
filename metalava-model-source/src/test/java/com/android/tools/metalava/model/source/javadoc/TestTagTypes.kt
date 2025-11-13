@@ -23,9 +23,9 @@ import com.android.tools.metalava.model.source.doc.InlineTagTypes
 import com.android.tools.metalava.model.source.doc.JavadocContentPrinter
 import com.android.tools.metalava.model.source.doc.TagData
 import com.android.tools.metalava.model.source.doc.TagType
-import com.android.tools.metalava.model.source.doc.TagTypeIssueReporter
 import com.android.tools.metalava.model.source.doc.skipForwardsOverLeadingWhitespace
 import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.reporter.LocationSpecificReporter
 
 internal object TestTagTypes {
     val BAR_TAG_TYPE =
@@ -39,7 +39,7 @@ internal object TestTagTypes {
 internal class BarTagType : TagType<BarTagData>("bar") {
     override fun extractData(
         context: DocCommentContext,
-        reporter: TagTypeIssueReporter,
+        reporter: LocationSpecificReporter,
         text: CharSequence
     ): ExtractDataResult<BarTagData>? {
         val identifierStart = text.skipForwardsOverLeadingWhitespace(0)

@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.source.doc
 
 import com.android.tools.metalava.model.source.javadoc.JavadocContent
 import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.reporter.LocationSpecificReporter
 
 /** [TagType] for `@link` and `@linkplain` inline tags. */
 internal class LinkTagType(name: String) : TagType<LinkTagData>(name) {
@@ -28,7 +29,7 @@ internal class LinkTagType(name: String) : TagType<LinkTagData>(name) {
     /** Override to extract the source reference from the tag content. */
     override fun extractData(
         context: DocCommentContext,
-        reporter: TagTypeIssueReporter,
+        reporter: LocationSpecificReporter,
         text: CharSequence
     ): ExtractDataResult<LinkTagData>? {
         val referenceStart = text.skipForwardsOverLeadingWhitespace(0)

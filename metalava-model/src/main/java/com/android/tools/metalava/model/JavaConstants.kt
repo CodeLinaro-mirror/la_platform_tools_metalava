@@ -41,6 +41,7 @@ const val KT_RETENTION = "kotlin.annotation.Retention"
 const val JVM_STATIC = "kotlin.jvm.JvmStatic"
 const val JVM_NAME = "kotlin.jvm.JvmName"
 const val JVM_SYNTHETIC = "kotlin.jvm.JvmSynthetic"
+const val JVM_FIELD = "kotlin.jvm.JvmField"
 
 const val KOTLIN_METADATA = "kotlin.Metadata"
 

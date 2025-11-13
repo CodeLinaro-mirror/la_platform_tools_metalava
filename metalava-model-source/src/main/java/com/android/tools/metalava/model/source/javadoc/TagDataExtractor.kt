@@ -20,8 +20,8 @@ import com.android.tools.metalava.model.source.doc.DocCommentContext
 import com.android.tools.metalava.model.source.doc.DocumentationIssueReporter
 import com.android.tools.metalava.model.source.doc.TagData
 import com.android.tools.metalava.model.source.doc.TagType
-import com.android.tools.metalava.model.source.doc.TagTypeIssueReporter
 import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.reporter.LocationSpecificReporter
 
 /**
  * Uses [tagType] to extract [TagData] from [JavadocContent] using [context].
@@ -35,11 +35,11 @@ internal class TagDataExtractor(
     private val context: DocCommentContext,
     private val tagType: TagType<*>,
     private val reporter: DocumentationIssueReporter,
-) : JavadocContentRewriter, TagTypeIssueReporter {
+) : JavadocContentRewriter, LocationSpecificReporter {
 
     private var tagData: TagData? = null
 
-    /** Implement [TagTypeIssueReporter.report] to delegate to [reporter]. */
+    /** Implement [LocationSpecificReporter.report] to delegate to [reporter]. */
     override fun report(issue: Issues.Issue, message: String) {
         reporter.report(issue, message)
     }

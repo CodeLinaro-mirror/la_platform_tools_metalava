@@ -21,6 +21,7 @@ import com.android.tools.metalava.androidRestrictedForEnvironment
 import com.android.tools.metalava.androidXRestrictedForEnvironment
 import com.android.tools.metalava.model.ANDROIDX_ANNOTATION_PACKAGE
 import com.android.tools.metalava.model.ANDROID_ANNOTATION_PACKAGE
+import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import org.junit.Test
 
@@ -32,7 +33,6 @@ class RestrictedForEnvironmentTest : DriverTest() {
         packageName: String = ANDROIDX_ANNOTATION_PACKAGE,
         restrictedForEnvironmentClass: TestFile = androidXRestrictedForEnvironment,
     ) {
-        val packageDir = packageName.replace(".", "/")
         check(
             sourceFiles =
                 arrayOf(
@@ -50,6 +50,7 @@ class RestrictedForEnvironmentTest : DriverTest() {
                         """
                     ),
                     restrictedForEnvironmentClass,
+                    KnownSourceFiles.stringDefSource,
                 ),
             api =
                 """
@@ -150,6 +151,7 @@ class RestrictedForEnvironmentTest : DriverTest() {
                         """
                     ),
                     androidXRestrictedForEnvironment,
+                    KnownSourceFiles.stringDefSource,
                 ),
             docStubs = true,
             skipEmitPackages = listOf("androidx.annotation"),

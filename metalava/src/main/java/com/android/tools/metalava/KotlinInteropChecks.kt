@@ -19,6 +19,7 @@ package com.android.tools.metalava
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.JVM_FIELD
 import com.android.tools.metalava.model.JVM_NAME
 import com.android.tools.metalava.model.JVM_STATIC
 import com.android.tools.metalava.model.MemberItem
@@ -151,9 +152,7 @@ class KotlinInteropChecks(val reporter: Reporter) {
                     property,
                     "Companion object constants like ${property.name()} should be using @JvmField, not @JvmStatic; see https://developer.android.com/kotlin/interop#companion_constants"
                 )
-            } else if (
-                property.backingField?.modifiers?.findAnnotation("kotlin.jvm.JvmField") == null
-            ) {
+            } else if (property.backingField?.modifiers?.findAnnotation(JVM_FIELD) == null) {
                 reporter.report(
                     Issues.MISSING_JVMSTATIC,
                     property,
