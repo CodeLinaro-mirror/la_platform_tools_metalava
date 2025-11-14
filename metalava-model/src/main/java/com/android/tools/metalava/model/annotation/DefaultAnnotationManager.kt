@@ -41,6 +41,7 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.JAVA_LANG_DEPRECATED
 import com.android.tools.metalava.model.JAVA_LANG_PREFIX
+import com.android.tools.metalava.model.JVM_FIELD
 import com.android.tools.metalava.model.JVM_NAME
 import com.android.tools.metalava.model.JVM_STATIC
 import com.android.tools.metalava.model.KOTLIN_DEPRECATED
@@ -461,7 +462,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
             // Metalava already tracks all the methods that get generated due to these
             // annotations.
             "kotlin.jvm.JvmOverloads",
-            "kotlin.jvm.JvmField",
+            JVM_FIELD,
             JVM_STATIC,
             KOTLIN_METADATA,
             JVM_NAME -> return NO_ANNOTATION_TARGETS

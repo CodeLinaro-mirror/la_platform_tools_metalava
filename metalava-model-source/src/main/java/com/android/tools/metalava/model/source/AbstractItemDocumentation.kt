@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterListOwner
@@ -35,11 +36,15 @@ import com.android.tools.metalava.model.source.doc.DocCommentContext
 import com.android.tools.metalava.model.source.doc.DocCommentMutationListener
 import com.android.tools.metalava.model.source.doc.DocCommentPredicate
 import com.android.tools.metalava.model.source.doc.DocumentationIssueReporter
+import com.android.tools.metalava.model.source.doc.JavaSummaryTruncationWorkaround
+import com.android.tools.metalava.model.source.doc.PackageReference
+import com.android.tools.metalava.model.source.doc.ResolvedReference
 import com.android.tools.metalava.model.source.doc.TypeParameterReference
 import com.android.tools.metalava.model.source.doc.TypeReference
 import com.android.tools.metalava.model.source.javadoc.JavadocText
 import com.android.tools.metalava.model.source.javadoc.toOptionalJavadocContent
 import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.reporter.LocationSpecificReporter
 import java.io.PrintWriter
 
 /**
@@ -83,14 +88,15 @@ abstract class AbstractItemDocumentation(
     }
 
     /**
-     * The mutable text contents of the documentation.
+     * The immutable text contents of the documentation.
      *
-     * It uses [_text] as its backing field and setting this will invoke [textChanged].
+     * Although it is not possible to modify this property the backing field will be kept in sync
+     * with [docComment] so the value returned from this will change if [docComment] is mutated.
      *
      * If [_docComment] is null then this needs initializing from the model, otherwise this is set
      * from [_docComment].
      */
-    override var text: String
+    override val text: String
         get() {
             if (_text == null) {
                 val docComment = _docComment
@@ -104,24 +110,8 @@ abstract class AbstractItemDocumentation(
             }
             return _text!!
         }
-        set(value) {
-            _text = value
-            textChanged()
-        }
 
-    /**
-     * Called when [text] changes to discard [_docComment] so it will be regenerated the next time
-     * [docComment] is accessed.
-     *
-     * This ensures that [text] and [_docComment] do not get out of sync. It is needed because
-     * currently both [text] and [docComment] are modified directly. Longer term, changes will be
-     * applied directly to [_docComment] and [text] will be dropped.
-     */
-    private fun textChanged() {
-        _docComment = null
-    }
-
-    /** Lazily initialized from [text]. Is cleared by [textChanged] if [text] is modified. */
+    /** Lazily initialized from [text]. */
     private var _docComment: DocComment? = null
 
     private val docComment: DocComment
@@ -134,6 +124,7 @@ abstract class AbstractItemDocumentation(
                         text,
                         reporter = this,
                     )
+                _text = null
                 _docComment = new
                 new
             } else {
@@ -207,11 +198,36 @@ abstract class AbstractItemDocumentation(
     /** Implements [DocCommentContext.fullyQualifyComment]. */
     override fun fullyQualifyComment(comment: String) = fullyQualifiedDocumentation(comment)
 
-    override fun resolveThrowableType(typeName: String): TypeReference? {
+    override fun resolveThrowableType(
+        reporter: LocationSpecificReporter,
+        typeName: String
+    ): TypeReference? {
         val scope = item as? ReferencableNameScope ?: return null
         val resolved = scope.resolveReferencableItem(typeName)
         return when (resolved) {
             is ClassItem -> ClassReference(resolved.qualifiedName())
+            is TypeParameterItem -> TypeParameterReference(resolved.name())
+            else -> {
+                reporter.report(Issues.UNRESOLVED_LINK, "Could not resolve $typeName")
+                null
+            }
+        }
+    }
+
+    override fun resolveReference(sourceReference: String): ResolvedReference? {
+        // Not all items that have documentation currently support resolving references from it,
+        // e.g. properties and type aliases.
+        val scope = item as? ReferencableNameScope ?: return null
+
+        // Ignore references to members for now.
+        val hashIndex = sourceReference.indexOf('#')
+        if (hashIndex != -1) return null
+
+        // Resolve the reference.
+        val resolved = scope.resolveReferencableItem(sourceReference)
+        return when (resolved) {
+            is ClassItem -> ClassReference(resolved.qualifiedName())
+            is PackageItem -> PackageReference(resolved.qualifiedName())
             is TypeParameterItem -> TypeParameterReference(resolved.name())
             else -> null
         }
@@ -231,7 +247,7 @@ abstract class AbstractItemDocumentation(
 
         // Before printing fully qualify the comment. This expects a whole comment and will fix up
         // @link and @see tags.
-        val fullyQualifiedText = fullyQualifiedDocumentation(text)
+        val fullyQualifiedText = fullyQualifiedDocumentation(originalText)
 
         // Only print the comment if it is not blank.
         if (fullyQualifiedText.isNotBlank()) {
@@ -243,11 +259,18 @@ abstract class AbstractItemDocumentation(
                     DocComment.createDocComment(
                         context = this,
                         fullyQualifiedText,
-                        reporter = this,
+                        // Ignore any errors that are found while parsing the fully qualified test
+                        // as they will duplicate issues found when first creating and the line
+                        // numbers may not match the original source.
+                        reporter = DocumentationIssueReporter.NULL,
                     )
 
             // Print the docComment as Javadoc.
-            fullyQualifiedComment.printAsJavadocComment(writer)
+            fullyQualifiedComment.printAsJavadocComment(
+                writer,
+                // Apply the [JavaSummaryTruncationWorkaround] to the main description.
+                mainDescriptionRewriter = JavaSummaryTruncationWorkaround()
+            )
         }
     }
 
@@ -295,14 +318,6 @@ abstract class AbstractItemDocumentation(
     /** Check to see if this requires a source comment. */
     override fun requiresSourceComment() = docComment.requiresSourceComment()
 
-    override fun workAroundJavaDocSummaryTruncationIssue() {
-        // Work around javadoc cutting off the summary line after the first ". ".
-        val firstDot = text.indexOf(".")
-        if (firstDot > 0 && text.regionMatches(firstDot - 1, "e.g. ", 0, 5, false)) {
-            text = text.substring(0, firstDot) + ".g.&nbsp;" + text.substring(firstDot + 4)
-        }
-    }
-
     override fun removeDeprecatedSection() {
         // Try and remove all the `@deprecated` sections.
         docComment.removeBlockTagSections { it.tagType == BlockTagTypes.DEPRECATED }
@@ -320,4 +335,10 @@ abstract class AbstractItemDocumentation(
         val location = fileLocation.adjustForLineAndCharOffset(lineOffset, charOffset)
         item.codebase.reporter.report(issue, null, message, location)
     }
+
+    override fun duplicate(item: SelectableItem): ItemDocumentation =
+        DefaultItemDocumentation(item, text, fileLocation)
+
+    override fun snapshot(item: SelectableItem): ItemDocumentation =
+        DefaultItemDocumentation(item, text, fileLocation)
 }

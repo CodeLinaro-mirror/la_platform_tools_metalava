@@ -51,9 +51,18 @@ class DocCommentParserTest : BaseDocCommentTest() {
     }
 
     @Test
-    fun `Test empty comment`() {
+    fun `Test non-existent comment`() {
         checkDocComment(
             input = "",
+            expectedString = "description: <<>>",
+            expectedPrintOutput = "",
+        )
+    }
+
+    @Test
+    fun `Test empty comment`() {
+        checkDocComment(
+            input = "/***/",
             expectedString = "description: <<>>",
             expectedPrintOutput =
                 """
@@ -515,6 +524,29 @@ class DocCommentParserTest : BaseDocCommentTest() {
     }
 
     @Test
+    fun `Test a block tag split across multiple lines`() {
+        checkDocComment(
+            input =
+                """
+                    /**
+                     * @see
+                     *
+                     * "Me"
+                     */
+                """,
+            expectedString =
+                """
+                    description: <<>>
+                    @see <<\n *\n * "Me">>
+                """,
+            expectedPrintOutput =
+                """
+                    /** @see "Me" */
+                """,
+        )
+    }
+
+    @Test
     fun `Test multiple blank lines`() {
         checkDocComment(
             input =
@@ -609,6 +641,10 @@ class DocCommentParserTest : BaseDocCommentTest() {
         ) {
             val barBlockTagSection = docComment.blockTagSections.single()
             assertEquals(BarTagData("foo"), barBlockTagSection.tagData)
+
+            reporter.assertJavadocParserIssues(
+                "2:9: @bar tag cannot contain 'e' or 'o' in the identifier [InvalidJavadoc]"
+            )
         }
     }
 

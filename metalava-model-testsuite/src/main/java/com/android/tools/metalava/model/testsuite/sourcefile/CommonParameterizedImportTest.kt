@@ -65,15 +65,6 @@ class CommonParameterizedImportTest : BaseModelTest() {
         private val params =
             listOf(
                 TestParams(
-                    name = "implicit String",
-                    imports = "",
-                    expectedJavaImports = emptyList(),
-                    expectedResolvedImports =
-                        mapOf(
-                            "String" to ResolvedImport("java.lang.String"),
-                        )
-                ),
-                TestParams(
                     name = "java.util.Map.Entry",
                     expectedJavaImports =
                         listOf(
@@ -219,7 +210,10 @@ class CommonParameterizedImportTest : BaseModelTest() {
         simpleName: String,
         expectedResult: ResolvedImport?
     ) {
-        val actualResult = resolveImport(simpleName)
+        // Check the named imports first, then the on demand imports.
+        val actualResult =
+            resolveImport(simpleName, onDemand = false)
+                ?: resolveImport(simpleName, onDemand = true)
         assertEquals(expectedResult, actualResult, message = "$simpleName -> $expectedResult")
     }
 

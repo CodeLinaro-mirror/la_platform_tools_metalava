@@ -17,17 +17,28 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.testing.java
+import kotlin.test.fail
 import org.junit.Test
 
 class SyntaxErrorTest : DriverTest() {
     @Test
     fun `Invalid syntax`() {
+        val providerSpecificIssues =
+            when (val providerName = codebaseCreatorConfig.providerName) {
+                "psi" ->
+                    """
+                        src/test/pkg/Foo.java:1: info: Unresolved import: `nonexistent.path` [UnresolvedImport]
+                        src/test/pkg/Foo.java:5: error: Syntax error: `'{' or ';' expected` [InvalidSyntax]
+                    """
+                "turbine" ->
+                    """
+                        src/test/pkg/Foo.java:6: error: unexpected token: } [InvalidSyntax]
+                    """
+                else -> fail("Unknown provider $providerName")
+            }
+
         check(
-            expectedIssues =
-                """
-                src/test/pkg/Foo.java:1: info: Unresolved import: `nonexistent.path` [UnresolvedImport]
-                src/test/pkg/Foo.java:5: error: Syntax error: `'{' or ';' expected` [InvalidSyntax]
-            """,
+            expectedIssues = providerSpecificIssues,
             sourceFiles =
                 arrayOf(
                     java(

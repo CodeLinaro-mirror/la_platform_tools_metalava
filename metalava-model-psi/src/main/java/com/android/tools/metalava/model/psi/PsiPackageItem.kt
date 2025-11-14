@@ -26,7 +26,7 @@ import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.item.DefaultPackageItem
 import com.android.tools.metalava.model.item.PackageDoc
 import com.android.tools.metalava.model.item.ResourceFile
-import com.android.tools.metalava.model.source.toItemDocumentationFactory
+import com.android.tools.metalava.model.source.NO_SOURCE_COMMENT_FACTORY
 import com.android.tools.metalava.reporter.FileLocation
 import com.intellij.psi.PsiPackage
 
@@ -80,7 +80,7 @@ internal constructor(
                 psiPackage = psiPackage,
                 fileLocation = packageDoc.fileLocation,
                 modifiers = modifiers,
-                documentationFactory = packageDoc.commentFactory ?: "".toItemDocumentationFactory(),
+                documentationFactory = packageDoc.commentFactory ?: NO_SOURCE_COMMENT_FACTORY,
                 qualifiedName = qualifiedName,
                 containingPackage = containingPackage,
                 overviewDocumentation = packageDoc.overview,

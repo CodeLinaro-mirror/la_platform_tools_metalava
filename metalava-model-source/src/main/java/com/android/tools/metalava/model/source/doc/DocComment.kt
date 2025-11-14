@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.source.doc
 import com.android.tools.metalava.model.doc.DocContent
 import com.android.tools.metalava.model.doc.DocContentOwner
 import com.android.tools.metalava.model.source.javadoc.JavadocContent
+import com.android.tools.metalava.model.source.javadoc.JavadocContentRewriter
 import com.android.tools.metalava.model.source.javadoc.TextContainsAnyVisitor
 import java.io.PrintWriter
 import java.io.StringWriter
@@ -75,8 +76,16 @@ internal interface DocComment : DocContentOwner {
      */
     fun requiresSourceComment(): Boolean
 
-    /** Print this as a Javadoc comment to [writer]. */
-    fun printAsJavadocComment(writer: PrintWriter)
+    /**
+     * Print this as a Javadoc comment to [writer].
+     *
+     * If [mainDescriptionRewriter] is provided then it is applied to the [description] after fully
+     * qualifying but before printing.
+     */
+    fun printAsJavadocComment(
+        writer: PrintWriter,
+        mainDescriptionRewriter: JavadocContentRewriter? = null
+    )
 
     /** Get the output of [printAsJavadocComment] as a [String]. */
     fun asJavadocCommentString(): String {
@@ -231,11 +240,20 @@ internal class DefaultDocComment(
     override fun requiresSourceComment() =
         !noComment || description != null || blockTagSections.isNotEmpty()
 
-    override fun printAsJavadocComment(writer: PrintWriter) {
+    override fun printAsJavadocComment(
+        writer: PrintWriter,
+        mainDescriptionRewriter: JavadocContentRewriter?
+    ) {
+        val mainDescription = mainDescriptionRewriter?.rewrite(description) ?: description
+
         // Compute require space for the main description and block tag sections.
-        val mainDescriptionRequiredSpace = description.requiredSpace()
+        val mainDescriptionRequiredSpace = mainDescription.requiredSpace()
         val blockTagSectionRequiredSpace = requiredSpaceForBlockTagSections()
         val overallRequiredSpace = mainDescriptionRequiredSpace + blockTagSectionRequiredSpace
+
+        // If there is no content in the comment and there was no comment in the source then do not
+        // print a comment at all.
+        if (overallRequiredSpace == RequiredSpace.EMPTY && noComment) return
 
         // Create a printer for [JavadocContent].
         val contentPrinter = JavadocContentPrinter(writer)
@@ -263,7 +281,7 @@ internal class DefaultDocComment(
             }
             // Add leading space as all leading whitespace was removed from description.
             writer.print(" ")
-            contentPrinter.print(description)
+            contentPrinter.print(mainDescription)
             if (multiLine) {
                 writer.println()
             }
@@ -284,11 +302,7 @@ internal class DefaultDocComment(
                     writer.print(" *")
                 }
                 writer.print(" @${section.tagType}")
-                section.tagData?.printAfterTagType(writer)
-                section.description?.let { content ->
-                    writer.print(" ")
-                    contentPrinter.print(content)
-                }
+                section.printTagContents(contentPrinter)
                 if (multiLine) {
                     writer.println()
                 }

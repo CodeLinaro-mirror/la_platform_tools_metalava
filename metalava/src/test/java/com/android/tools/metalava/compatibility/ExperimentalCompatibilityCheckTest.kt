@@ -25,7 +25,203 @@ import org.junit.Test
 class ExperimentalCompatibilityCheckTest : DriverTest() {
 
     @Test
-    fun `Don't raise error when experimental method is removed from extensible class or interface`() {
+    fun `Should raise compatibility error on added abstract to experimental method in non-experimental class`() {
+        check(
+            /*
+             * There is a compatibility error raised on finalFunToBeAbstract because
+             * it is changing from a closed non-abstract method which clients can't override to
+             * an abstract method, which is a breaking change for clients implementing the class.
+             *
+             * There also is a compatibility error raised on openFunToBeAbstract because
+             * it is changing from an open non-abstract method which clients aren't forced to
+             * override to an abstract method, which can be a breaking change if clients aren't
+             * already overriding it.
+             */
+            expectedIssues =
+                """
+                    load-api.txt:5: error: Binary breaking change: Method test.pkg.AbstractClass.finalFunToBeAbstract has changed 'abstract' qualifier [ChangedAbstract]
+                    load-api.txt:6: error: Binary breaking change: Method test.pkg.AbstractClass.openFunToBeAbstract has changed 'abstract' qualifier [ChangedAbstract]
+                """,
+            checkCompatibilityApiReleased =
+                """
+                package test.pkg {
+                  public abstract class AbstractClass {
+                    ctor public AbstractClass();
+                    method @test.pkg.Experimental public final void finalFunToBeAbstract();
+                    method @test.pkg.Experimental public void openFunToBeAbstract();
+                  }
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface Experimental {
+                  }
+                }
+                """,
+            signatureSource =
+                """
+                package test.pkg {
+                  public abstract class AbstractClass {
+                    ctor public AbstractClass();
+                    method @test.pkg.Experimental public abstract void finalFunToBeAbstract();
+                    method @test.pkg.Experimental public abstract void openFunToBeAbstract();
+                  }
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface Experimental {
+                  }
+                }
+                """,
+            suppressCompatibilityMetaAnnotations = arrayOf("test.pkg.Experimental")
+        )
+    }
+
+    @Test
+    fun `Should raise compatibility error on changed default on method in interface`() {
+        check(
+            expectedIssues =
+                """
+                    load-api.txt:6: error: Binary breaking change: Method test.pkg.MyInterface.myFun has changed 'default' qualifier [ChangedDefault]
+                """,
+            checkCompatibilityApiReleased =
+                """
+                package test.pkg {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface ExperimentalAnnotation {
+                  }
+                  public interface MyInterface {
+                    method @test.pkg.ExperimentalAnnotation public default void myFun();
+                  }
+                }
+                """,
+            signatureSource =
+                """
+                package test.pkg {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface ExperimentalAnnotation {
+                  }
+                  public interface MyInterface {
+                    method @test.pkg.ExperimentalAnnotation public void myFun();
+                  }
+                }
+                """,
+            suppressCompatibilityMetaAnnotations = arrayOf("test.pkg.ExperimentalAnnotation")
+        )
+    }
+
+    @Test
+    fun `Should raise compatibility error on changed method return type in abstract class or interface`() {
+        check(
+            /*
+             * The changed return type in the experimental method in MyClass should not trigger
+             * a compatibility error because overriding or using that method is not required
+             * and needs to be opted into. Also, the changed return types in the non-abstract and
+             * final methods in the abstract class and interface should not trigger errors
+             * because they either don't have to or can't be overridden.
+             */
+            expectedIssues =
+                """
+                    load-api.txt:7: error: Binary breaking change: Method test.pkg.MyAbstractClass.myExperimentalAbstractFun has changed return type from java.lang.String to int [ChangedType]
+                    load-api.txt:18: error: Binary breaking change: Method test.pkg.MyInterface.myExperimentalAbstractFun has changed return type from java.lang.String to int [ChangedType]
+                """,
+            checkCompatibilityApiReleased =
+                """
+                package test.pkg {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface ExperimentalAnnotation {
+                  }
+                  public abstract class MyAbstractClass {
+                    ctor public MyAbstractClass();
+                    method @test.pkg.ExperimentalAnnotation public abstract String myExperimentalAbstractFun();
+                    method @test.pkg.ExperimentalAnnotation public final String myExperimentalNonAbstractClosedFun();
+                    method @test.pkg.ExperimentalAnnotation public String myExperimentalNonAbstractFun();
+                    method public abstract void myFun();
+                  }
+                  public final class MyClass {
+                    ctor public MyClass();
+                    method @test.pkg.ExperimentalAnnotation public String myExperimentalFun();
+                    method public void myFun();
+                  }
+                  public interface MyInterface {
+                    method @test.pkg.ExperimentalAnnotation public String myExperimentalAbstractFun();
+                    method @test.pkg.ExperimentalAnnotation public default String myExperimentalNonAbstractFun();
+                    method public void myFun();
+                  }
+                }
+                """,
+            signatureSource =
+                """
+                package test.pkg {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface ExperimentalAnnotation {
+                  }
+                  public abstract class MyAbstractClass {
+                    ctor public MyAbstractClass();
+                    method @test.pkg.ExperimentalAnnotation public abstract int myExperimentalAbstractFun();
+                    method @test.pkg.ExperimentalAnnotation public final int myExperimentalNonAbstractClosedFun();
+                    method @test.pkg.ExperimentalAnnotation public int myExperimentalNonAbstractFun();
+                    method public abstract void myFun();
+                  }
+                  public final class MyClass {
+                    ctor public MyClass();
+                    method @test.pkg.ExperimentalAnnotation public int myExperimentalFun();
+                    method public void myFun();
+                  }
+                  public interface MyInterface {
+                    method @test.pkg.ExperimentalAnnotation public int myExperimentalAbstractFun();
+                    method @test.pkg.ExperimentalAnnotation public default int myExperimentalNonAbstractFun();
+                    method public void myFun();
+                  }
+                }
+                """,
+            suppressCompatibilityMetaAnnotations = arrayOf("test.pkg.ExperimentalAnnotation")
+        )
+    }
+
+    @Test
+    fun `Should raise compatibility error on added final to method in abstract class`() {
+        check(
+            /*
+             * Adding 'final' to the experimental method in MyClass shouldn't have a compatibility
+             * error raised because overriding the method is optional and must be opted into.
+             * Same for myNonAbstractExperimentalFun in MyAbstractClass.
+             */
+            expectedIssues =
+                """
+                    load-api.txt:7: error: Binary breaking change: Method test.pkg.MyAbstractClass.myAbstractExperimentalFun has added 'final' qualifier [AddedFinal]
+                """,
+            checkCompatibilityApiReleased =
+                """
+                package test.pkg {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface ExperimentalAnnotation {
+                  }
+                  public abstract class MyAbstractClass {
+                    ctor public MyAbstractClass();
+                    method @SuppressCompatibility @test.pkg.ExperimentalAnnotation public abstract void myAbstractExperimentalFun();
+                    method @SuppressCompatibility @test.pkg.ExperimentalAnnotation public void myNonAbstractExperimentalFun();
+                    method public abstract void myNonExperimentalFun();
+                  }
+                  public class MyClass {
+                    ctor public MyClass();
+                    method @SuppressCompatibility @test.pkg.ExperimentalAnnotation public void myFun();
+                    method public final void myNonExperimentalFun();
+                  }
+                }
+                """,
+            signatureSource =
+                """
+                package test.pkg {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface ExperimentalAnnotation {
+                  }
+                  public abstract class MyAbstractClass {
+                    ctor public MyAbstractClass();
+                    method @SuppressCompatibility @test.pkg.ExperimentalAnnotation public final void myAbstractExperimentalFun();
+                    method @SuppressCompatibility @test.pkg.ExperimentalAnnotation public final void myNonAbstractExperimentalFun();
+                    method public abstract void myNonExperimentalFun();
+                  }
+                  public class MyClass {
+                    ctor public MyClass();
+                    method @SuppressCompatibility @test.pkg.ExperimentalAnnotation public final void myFun();
+                    method public final void myNonExperimentalFun();
+                  }
+                }
+                """,
+            suppressCompatibilityMetaAnnotations = arrayOf("test.pkg.ExperimentalAnnotation")
+        )
+    }
+
+    @Test
+    fun `Should raise error when experimental method is removed from extensible class`() {
         check(
             expectedIssues =
                 """

@@ -16,12 +16,14 @@
 
 package com.android.tools.metalava.model.source.doc
 
-import java.io.PrintWriter
+import com.android.tools.metalava.model.source.javadoc.JavadocContent
+import com.android.tools.metalava.reporter.LocationSpecificReporter
 
 /** [TagType] for `@throws` block tag. */
 internal class ThrowsTagType() : TagType<ThrowsTagData>("throws") {
     override fun extractData(
         context: DocCommentContext,
+        reporter: LocationSpecificReporter,
         text: CharSequence
     ): ExtractDataResult<ThrowsTagData>? {
         val throwsName = text.findLeadingIdentifier() ?: return null
@@ -29,7 +31,7 @@ internal class ThrowsTagType() : TagType<ThrowsTagData>("throws") {
         // Resolve the class name to a fully qualified class reference or type parameter. If it
         // could not be found then fake one.
         val throwableReference =
-            context.resolveThrowableType(throwsName) ?: ClassReference(throwsName)
+            context.resolveThrowableType(reporter, throwsName) ?: ClassReference(throwsName)
 
         return ExtractDataResult(
             tagData =
@@ -53,9 +55,14 @@ internal data class ThrowsTagData(
         return compareValues(throwableType, other.throwableType)
     }
 
-    override fun printAfterTagType(writer: PrintWriter) {
+    override fun printTagContents(contentPrinter: JavadocContentPrinter, content: JavadocContent?) {
+        val writer = contentPrinter.writer
         writer.print(" ")
         writer.print(throwableType.displayName)
+
+        // Print the remaining content. Always preceded by a space as any leading whitespace has
+        // been trimmed from it.
+        content?.printWithLeadingSpaceTo(contentPrinter)
     }
 
     override fun textMatches(predicate: (String) -> Boolean) = predicate(throwableType.displayName)

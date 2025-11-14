@@ -39,13 +39,13 @@ import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.model.value.FieldReferenceValue
 import com.android.tools.metalava.model.value.Value
 import com.android.tools.metalava.reporter.FileLocation
-import com.android.tools.metalava.reporter.RecordingReporter
 import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertSame
+import kotlin.test.fail
 import org.junit.Test
 
 /** Annotation that is added on a line before the item being annotated. */
@@ -791,7 +791,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
     }
 
     @Test
-    fun `annotation with constant literal values`() {
+    fun `annotation with constant literal value in int attribute`() {
         runCodebaseTest(
             signature(
                 """
@@ -839,8 +839,55 @@ class CommonAnnotationItemTest : BaseModelTest() {
     }
 
     @Test
+    fun `annotation with constant literal value in int array attribute`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      @test.pkg.Test.Anno({test.pkg.Test.FIELD})
+                      public class Test {
+                        ctor public Test();
+                        field public static final int FIELD = 5;
+                      }
+
+                      public @interface Test.Anno {
+                         method public int[] values();
+                      }
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+
+                    @Test.Anno(Test.FIELD)
+                    public class Test {
+                        public Test() {}
+
+                        public static final int FIELD = 5;
+
+                        public @interface Anno {
+                          int[] value();
+                        }
+                    }
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            val anno = testClass.modifiers.annotations().single()
+
+            val expectedAnno =
+                annotationItem(
+                    "test.pkg.Test.Anno",
+                    "value" to arrayValue(fieldReferenceValue("test.pkg.Test", "FIELD")),
+                )
+            assertEquals(expectedAnno, anno)
+        }
+    }
+
+    @Test
     fun `annotation with unknown field`() {
-        val reporter = RecordingReporter()
         runCodebaseTest(
             signature(
                 """
@@ -899,10 +946,6 @@ class CommonAnnotationItemTest : BaseModelTest() {
                     }
                 """
             ),
-            testFixture =
-                TestFixture(
-                    reporter = reporter,
-                )
         ) {
             val testClass = codebase.assertClass("test.pkg.Test")
             val anno = testClass.modifiers.annotations().single()
@@ -921,6 +964,15 @@ class CommonAnnotationItemTest : BaseModelTest() {
                     fieldReferenceValue("", "UNKNOWN"),
                 )
             )
+
+            // Kotlin does not report an unresolved import for some reason.
+            val unresolvedImportIssues =
+                "MAIN_SRC/src/test/pkg/Test.java:2: info: Unresolved import: `other.pkg.TestEnum` [UnresolvedImport]"
+            removeReportedIssues().let { actualIssues ->
+                if (actualIssues != "" && actualIssues != unresolvedImportIssues) {
+                    fail("Unexpected issues:\n${actualIssues.prependIndent("    ")}")
+                }
+            }
         }
     }
 
@@ -1376,6 +1428,59 @@ class CommonAnnotationItemTest : BaseModelTest() {
             codebase.assertResolvedClass("test.pkg.Bar")
             // This should not be defined.
             codebase.assertResolvedClass("test.pkg.Baz")
+        }
+    }
+
+    @Test
+    fun `annotation repeated inside container`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+                        import java.lang.annotation.*;
+                        import static java.lang.annotation.ElementType.*;
+                        import static java.lang.annotation.RetentionPolicy;
+                        @Retention(RetentionPolicy.RUNTIME)
+                        @Target({TYPE})
+                        @Repeatable(Repeated.Container.class)
+                        public @interface Repeated {
+                          String value();
+
+                          @Retention(RetentionPolicy.RUNTIME)
+                          @Target(TYPE)
+                          @interface Container {
+                              Repeated[] value();
+                          }
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        @Repeated("1")
+                        @Repeated("2")
+                        public class Test {
+                        }
+                    """
+                ),
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            val annos = testClass.modifiers.annotations()
+
+            val expectedAnnos =
+                listOf(
+                    annotationItem(
+                        "test.pkg.Repeated",
+                        "value" to literalValue("1"),
+                    ),
+                    annotationItem(
+                        "test.pkg.Repeated",
+                        "value" to literalValue("2"),
+                    ),
+                )
+            assertEquals(expectedAnnos, annos)
         }
     }
 }

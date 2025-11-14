@@ -19,7 +19,6 @@ package com.android.tools.metalava.model.testsuite.packageitem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.testsuite.BaseModelTest
-import com.android.tools.metalava.reporter.RecordingReporter
 import com.android.tools.metalava.testing.KnownSourceFiles.nonNullSource
 import com.android.tools.metalava.testing.html
 import com.android.tools.metalava.testing.java
@@ -272,11 +271,7 @@ class CommonPackageItemTest : BaseModelTest() {
             ),
         ) {
             val packageItem = codebase.assertPackage("test.pkg")
-
-            assertEquals(
-                "/** Some text. */",
-                packageItem.documentation.text.trim(),
-            )
+            packageItem.assertDocumentationText(expectedOutput = "/** Some text. */")
         }
     }
 
@@ -340,15 +335,7 @@ class CommonPackageItemTest : BaseModelTest() {
         ) {
             val packageItem = codebase.assertPackage("test.pkg")
 
-            assertEquals(
-                """
-                    /**
-                     * Some text.
-                     */
-                """
-                    .trimIndent(),
-                packageItem.documentation.text.trim(),
-            )
+            packageItem.assertDocumentationText(expectedOutput = "/** Some text. */")
         }
     }
 
@@ -423,7 +410,6 @@ class CommonPackageItemTest : BaseModelTest() {
 
     @Test
     fun `Test mismatching between package and directory`() {
-        val recordingReporter = RecordingReporter()
         runCodebaseTest(
             java(
                 "src/test/other/Foo.java",
@@ -434,7 +420,6 @@ class CommonPackageItemTest : BaseModelTest() {
                     }
                 """
             ),
-            testFixture = TestFixture(reporter = recordingReporter),
         ) {
             codebase.assertClass("test.pkg.Foo")
             // Make sure that if any errors are reported that they are included in this list of
@@ -446,7 +431,7 @@ class CommonPackageItemTest : BaseModelTest() {
                     MAIN_SRC/src/test/other/Foo.java:3: error: Could not find package test.pkg for class test.pkg.Foo. This is most likely due to a mismatch between the package statement and the directory MAIN_SRC/src/test/other [InvalidPackage]
                 """
                     .trimIndent(),
-                removeTestSpecificDirectories(recordingReporter.issues)
+                removeReportedIssues()
             )
         }
     }
@@ -474,15 +459,7 @@ class CommonPackageItemTest : BaseModelTest() {
             ),
         ) {
             val packageItem = codebase.assertPackage("test")
-            assertEquals(
-                """
-                    /**
-                     * Some documentation.
-                     */
-                """
-                    .trimIndent(),
-                packageItem.documentation.text.trimIndent()
-            )
+            packageItem.assertDocumentationText(expectedOutput = "/** Some documentation. */")
         }
     }
 }

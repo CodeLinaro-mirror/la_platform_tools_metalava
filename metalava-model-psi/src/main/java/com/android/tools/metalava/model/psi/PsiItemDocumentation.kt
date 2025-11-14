@@ -17,15 +17,14 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
-import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.source.AbstractItemDocumentation
 import com.android.tools.metalava.model.source.toItemDocumentationFactory
 import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.Issues
+import com.intellij.psi.JavaDocTokenType
 import com.intellij.psi.JavaPsiFacade
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiComment
@@ -171,7 +170,7 @@ internal class PsiItemDocumentation(
                 val resolved = element.reference?.resolve()
                 if (resolved is PsiMember) {
                     val containingClass = resolved.containingClass
-                    if (containingClass != null && !samePackage(containingClass)) {
+                    if (containingClass != null) {
                         val referenceText = element.reference?.element?.text ?: text
                         if (referenceText.startsWith("#")) {
                             sb.append(text)
@@ -223,7 +222,7 @@ internal class PsiItemDocumentation(
             element is PsiJavaCodeReferenceElement -> {
                 val resolved = element.resolve()
                 if (resolved is PsiClass) {
-                    if (samePackage(resolved) || resolved is PsiTypeParameter) {
+                    if (resolved is PsiTypeParameter) {
                         sb.append(element.text)
                     } else {
                         sb.append(resolved.classQualifiedName)
@@ -267,10 +266,9 @@ internal class PsiItemDocumentation(
 
     private fun handleTag(element: PsiInlineDocTag, sb: StringBuilder): Boolean {
         val name = element.name
-        if (name == "code" || name == "literal") {
-            // @code: don't attempt to rewrite this
-            sb.append(element.text)
-            return true
+        if (name == "code" || name == "literal" || name == "throws") {
+            // Don't attempt to rewrite this
+            return false
         }
 
         val reference = extractReference(element)
@@ -334,11 +332,13 @@ internal class PsiItemDocumentation(
         if (resolved != null) {
             when (resolved) {
                 is PsiClass -> {
-                    val text = element.text
-                    if (samePackage(resolved)) {
-                        sb.append(text)
-                        return true
+                    // No need to handle class references in {@link} and {@linkplain} tags as they
+                    // have been resolved in LinkTagType.
+                    if (element.name == "link" || element.name == "linkplain") {
+                        return false
                     }
+
+                    val text = element.text
                     val qualifiedName =
                         resolved.qualifiedName
                             ?: run {
@@ -378,10 +378,6 @@ internal class PsiItemDocumentation(
                                 sb.append(text)
                                 return true
                             }
-                    if (samePackage(containing)) {
-                        sb.append(text)
-                        return true
-                    }
                     val qualifiedName =
                         containing.qualifiedName
                             ?: run {
@@ -525,27 +521,6 @@ internal class PsiItemDocumentation(
         }
     }
 
-    private fun samePackage(cls: PsiClass): Boolean {
-        if (INCLUDE_SAME_PACKAGE) {
-            // doclava seems to have REAL problems with this
-            return false
-        }
-        val pkg = packageName() ?: return false
-        return cls.qualifiedName == "$pkg.${cls.name}"
-    }
-
-    private fun packageName(): String? {
-        var curr: Item? = item
-        while (curr != null) {
-            if (curr is PackageItem) {
-                return curr.qualifiedName()
-            }
-            curr = curr.parent()
-        }
-
-        return null
-    }
-
     // Copied from UnnecessaryJavaDocLinkInspection and tweaked a bit
     private fun extractReference(tag: PsiDocTag): PsiReference? {
         val valueElement = tag.valueElement
@@ -563,12 +538,69 @@ internal class PsiItemDocumentation(
     }
 
     private fun extractCustomLinkText(tag: PsiDocTag): String? {
-        val dataElements = tag.dataElements
-        if (dataElements.isEmpty()) {
-            return null
+        val children = tag.children
+        // The child elements should have the following structure
+        // 1. Inline tag start.
+        // 2. Tag name.
+        // 3. Some white space.
+        // 4. Some non-white space which is the reference.
+        // 5. Some more white space.
+        // 6. The rest of the label.
+        // 7. Inline tag end.
+
+        // 7. Skip inline tag end.
+        val end = children.size - 1
+
+        // 1-3. Find the reference, start from after the tag name.
+        var start = 2
+        while (start < end) {
+            val child = children[start]
+            if (child is PsiDocMethodOrFieldRef || child.firstChild is PsiReference) break
+            start += 1
         }
-        val salientElement = dataElements.lastOrNull { it !is PsiWhiteSpace }
-        return (salientElement as? PsiDocToken)?.text?.trimStart()
+
+        // 4. Skip past the reference.
+        start += 1
+
+        // 5. Skip white space and leading asterisks.
+        while (start < end) {
+            val child = children[start]
+            // Stop at the first non-whitespace, non-leading asterisk element.
+            if (
+                child !is PsiWhiteSpace &&
+                    !(child is PsiDocToken &&
+                        child.tokenType == JavaDocTokenType.DOC_COMMENT_LEADING_ASTERISKS)
+            ) {
+                break
+            }
+            start += 1
+        }
+
+        // Check to see if there is any label.
+        if (start >= end) return null
+
+        // 6. Collect label.
+        return buildString {
+                for (i in start until end) {
+                    val child = children[i]
+
+                    // If the child is a leading asterisk then it must not be added and also any
+                    // leading spaces that have already been appended to this StringBuilder need to
+                    // be removed as per the Javadoc specification on handling leading asterisks.
+                    if (
+                        child is PsiDocToken &&
+                            child.tokenType == JavaDocTokenType.DOC_COMMENT_LEADING_ASTERISKS
+                    ) {
+                        var trimmedIndex = length
+                        while (trimmedIndex > 0 && this[trimmedIndex - 1] != '\n') trimmedIndex -= 1
+                        setLength(trimmedIndex)
+                        continue
+                    }
+
+                    append(child.text)
+                }
+            }
+            .trimStart()
     }
 
     companion object {

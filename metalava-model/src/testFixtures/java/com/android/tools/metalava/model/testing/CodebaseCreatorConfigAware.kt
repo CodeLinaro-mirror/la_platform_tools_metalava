@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.testing
 
+import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.provider.FilterableCodebaseCreator
 
 /**
@@ -24,4 +25,8 @@ import com.android.tools.metalava.model.provider.FilterableCodebaseCreator
  */
 interface CodebaseCreatorConfigAware<C : FilterableCodebaseCreator> {
     var codebaseCreatorConfig: CodebaseCreatorConfig<C>
+
+    /** Check if the codebase creator supports [capability]. */
+    fun codebaseCreatorHasCapability(capability: Capability) =
+        capability in codebaseCreatorConfig.creator.capabilities
 }

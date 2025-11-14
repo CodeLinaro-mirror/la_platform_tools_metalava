@@ -20,6 +20,7 @@ import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.lint.DefaultLintErrorMessage
 import com.android.tools.metalava.model.psi.REPORT_UNRESOLVED_SYMBOLS
 import com.android.tools.metalava.model.source.utils.packageHtmlToJavadoc
+import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import org.intellij.lang.annotations.Language
 import org.junit.Assert.assertEquals
@@ -158,8 +159,7 @@ class JavadocTest : DriverTest() {
                     /**
                      * Blah blah {@link test.pkg2.OtherClass OtherClass} blah blah.
                      *  Referencing <b>field</b> {@link test.pkg2.OtherClass#foo OtherClass.foo},
-                     *  and referencing method {@link test.pkg2.OtherClass#bar(int,boolean) OtherClass.bar(int,
-                     *   boolean)}.
+                     *  and referencing method {@link test.pkg2.OtherClass#bar(int,boolean) OtherClass.bar(int, boolean)}.
                      *  And relative method reference {@link #baz()}.
                      *  And relative field reference {@link #importance}.
                      *  Here's an already fully qualified reference: {@link test.pkg2.OtherClass}.
@@ -368,8 +368,7 @@ class JavadocTest : DriverTest() {
                 /**
                  * Blah blah {@link test.pkg2.OtherClass OtherClass} blah blah.
                  *  Referencing <b>field</b> {@link test.pkg2.OtherClass#foo OtherClass.foo},
-                 *  and referencing method {@link test.pkg2.OtherClass#bar(int,boolean) OtherClass.bar(int,
-                 *   boolean)}.
+                 *  and referencing method {@link test.pkg2.OtherClass#bar(int,boolean) OtherClass.bar(int, boolean)}.
                  *  And relative method reference {@link #baz()}.
                  *  And relative field reference {@link #importance}.
                  *  Here's an already fully qualified reference: {@link test.pkg2.OtherClass}.
@@ -997,8 +996,7 @@ class JavadocTest : DriverTest() {
                 /**
                  * Blah blah
                  * <blockquote><pre>
-                 * {@link #wrap(java.nio.ByteBuffer[],int,int,java.nio.ByteBuffer)
-                 *     engine.wrap(new ByteBuffer [] { src }, 0, 1, dst);}
+                 * {@link #wrap(java.nio.ByteBuffer[],int,int,java.nio.ByteBuffer) engine.wrap(new ByteBuffer [] { src }, 0, 1, dst);}
                  * </pre></blockquote>
                  */
                 public void test() { throw new RuntimeException("Stub!"); }
@@ -1307,6 +1305,52 @@ class JavadocTest : DriverTest() {
                             public void quux() { throw new RuntimeException("Stub!"); }
                             /** {@hide} */
                             public void qux() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                ),
+        )
+    }
+
+    @Test
+    fun `Test non-block @hide tag and appending content`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            import android.annotation.Nullable;
+                            @UiThread
+                            public class Foo {
+                                private Foo() {}
+                                /** Does not use @hide correctly; {@link Nullable}. */
+                                @Nullable
+                                public String method() {return null;}
+                            }
+                        """
+                    ),
+                    KnownSourceFiles.nullableSource,
+                ),
+            expectedIssues =
+                """
+                    src/test/pkg/Foo.java:6: warning: Invalid @hide syntax, it is ignored as it must be a block tag (ErrorWhenNew) [InvalidHideDocTag]
+                """,
+            docStubs = true,
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Foo {
+                            Foo() { throw new RuntimeException("Stub!"); }
+                            /**
+                             * Does not use @hide correctly; {@link android.annotation.Nullable Nullable}.
+                             * @return This value may be {@code null}.
+                             */
+                            @androidx.annotation.Nullable
+                            public java.lang.String method() { throw new RuntimeException("Stub!"); }
                             }
                         """
                     ),

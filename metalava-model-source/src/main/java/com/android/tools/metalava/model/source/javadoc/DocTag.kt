@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.source.javadoc
 
 import com.android.tools.metalava.model.source.doc.BlockTagSection
+import com.android.tools.metalava.model.source.doc.JavadocContentPrinter
 import com.android.tools.metalava.model.source.doc.TagData
 import com.android.tools.metalava.model.source.doc.TagType
 
@@ -30,4 +31,16 @@ internal interface DocTag {
 
     /** The tag content, excludes any that was extracted into [tagData]. */
     val content: JavadocContent?
+
+    /**
+     * Print the contents of this tag, if any.
+     *
+     * The contents come from [tagData] and/or [content].
+     */
+    fun printTagContents(contentPrinter: JavadocContentPrinter) {
+        // If there is tag data then get it to print the tag contents, else if there is content then
+        // print that, else there is nothing to do.
+        tagData?.printTagContents(contentPrinter, content)
+            ?: contentPrinter.print(content, addLeadingSpaceIfNeeded = true)
+    }
 }

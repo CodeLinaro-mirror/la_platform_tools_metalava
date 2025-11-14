@@ -107,8 +107,6 @@ class DocAnalyzer(
         // Apply options for packages that should be hidden
         documentsFromAnnotations()
 
-        tweakGrammar()
-
         // TODO:
         // insertMissingDocFromHiddenSuperclasses()
     }
@@ -732,28 +730,6 @@ class DocAnalyzer(
         }
 
         return s
-    }
-
-    private fun tweakGrammar() {
-        codebase.accept(
-            object :
-                ApiVisitor(
-                    // Do not visit [ParameterItem]s as they do not have their own summary line that
-                    // could become truncated.
-                    visitParameterItems = false,
-                    apiPredicateConfig = apiPredicateConfig,
-                ) {
-                /**
-                 * Work around an issue with JavaDoc summary truncation.
-                 *
-                 * This is not called for [ParameterItem]s as they do not have their own summary
-                 * line that could become truncated.
-                 */
-                override fun visitSelectableItem(item: SelectableItem) {
-                    item.documentation.workAroundJavaDocSummaryTruncationIssue()
-                }
-            }
-        )
     }
 
     fun applyApiVersions(apiVersionsFile: File) {

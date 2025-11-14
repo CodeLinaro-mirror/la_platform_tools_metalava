@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.source
 
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.provider.Capability
+import com.android.tools.metalava.model.provider.FilterableCodebaseCreator
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.transformer.CodebaseTransformer
 import com.android.tools.metalava.model.testsuite.ModelSuiteRunner
@@ -29,13 +30,9 @@ import java.io.File
 
 /** A [ModelSuiteRunner] that is implemented using a [SourceModelProvider]. */
 class SourceModelSuiteRunner(private val sourceModelProvider: SourceModelProvider) :
-    ModelSuiteRunner {
-
-    override val providerName = sourceModelProvider.providerName
-
-    override val supportedInputFormats = sourceModelProvider.supportedInputFormats
-
-    override val capabilities: Set<Capability> = sourceModelProvider.capabilities
+    ModelSuiteRunner,
+    // Delegate implementation to [sourceModelProvider].
+    FilterableCodebaseCreator by sourceModelProvider {
 
     override val testConfigurations: List<TestConfiguration> =
         supportedInputFormats.flatMap { inputFormat ->

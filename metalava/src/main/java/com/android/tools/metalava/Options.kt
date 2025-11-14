@@ -176,7 +176,6 @@ const val ARG_INCLUDE_SOURCE_RETENTION = "--include-source-retention"
 const val ARG_PASS_THROUGH_ANNOTATION = "--pass-through-annotation"
 const val ARG_EXCLUDE_ANNOTATION = "--exclude-annotation"
 const val ARG_DELETE_EMPTY_REMOVED_SIGNATURES = "--delete-empty-removed-signatures"
-const val ARG_SUBTRACT_API = "--subtract-api"
 const val ARG_TYPEDEFS_IN_SIGNATURES = "--typedefs-in-signatures"
 const val ARG_IGNORE_CLASSES_ON_CLASSPATH = "--ignore-classes-on-classpath"
 const val ARG_USE_K2_UAST = "--Xuse-k2-uast"
@@ -221,9 +220,6 @@ class Options(
     private val mutablePassThroughAnnotations: MutableSet<String> = mutableSetOf()
     /** Internal list backing [excludeAnnotations] */
     private val mutableExcludeAnnotations: MutableSet<String> = mutableSetOf()
-
-    /** API to subtract from signature and stub generation. Corresponds to [ARG_SUBTRACT_API]. */
-    var subtractApiFile: File? = null
 
     /**
      * Backing property for [nullabilityAnnotationsValidator]
@@ -660,12 +656,6 @@ class Options(
                         mutableSources.addAll(stringToExistingFiles(path))
                     }
                 }
-                ARG_SUBTRACT_API -> {
-                    if (subtractApiFile != null) {
-                        cliError("Only one $ARG_SUBTRACT_API can be supplied")
-                    }
-                    subtractApiFile = stringToExistingFile(getValue(args, ++index))
-                }
 
                 // TODO: Remove the legacy --merge-annotations flag once it's no longer used to
                 // update P docs
@@ -995,10 +985,6 @@ object OptionsHelp {
                 "Use the given API level",
                 "$ARG_JDK_HOME <dir>",
                 "If set, add the Java APIs from the given JDK to the classpath",
-                "$ARG_SUBTRACT_API <api file>",
-                "Subtracts the API in the given signature or jar file from the " +
-                    "current API being emitted via $ARG_API, $ARG_STUBS, $ARG_DOC_STUBS, etc. " +
-                    "Note that the subtraction only applies to classes; it does not subtract members.",
                 ARG_IGNORE_CLASSES_ON_CLASSPATH,
                 "Prevents references to classes on the classpath from being added to " +
                     "the generated stub files.",

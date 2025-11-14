@@ -303,4 +303,33 @@ object KnownSourceFiles {
                 """
             )
             .indented()
+
+    val stringDefSource: TestFile =
+        TestFiles.java(
+                """
+                    package android.annotation;
+
+                    import java.lang.annotation.Retention;
+                    import java.lang.annotation.Target;
+
+                    import static java.lang.annotation.ElementType.ANNOTATION_TYPE;
+                    import static java.lang.annotation.RetentionPolicy.SOURCE;
+
+                    /**
+                     * @hide
+                     */
+                    @Retention(SOURCE)
+                    @Target({ANNOTATION_TYPE})
+                    public @interface StringDef {
+                        /** Defines the constant prefix for this element */
+                        String[] prefix() default {};
+                        /** Defines the constant suffix for this element */
+                        String[] suffix() default {};
+
+                        /** Defines the allowed constants for this element */
+                        String[] value() default {};
+                    }
+                """
+            )
+            .indented()
 }

@@ -85,7 +85,7 @@ class CommonParameterizedDocumentationTest : BaseModelTest() {
                     inputFormats = javaOnly,
                     imports = listOf("java.util.List"),
                     comment = "/** {@link List} */",
-                    expectedFullyQualified = "/** {@link java.util.List List} */",
+                    expectedText = "/** {@link java.util.List List} */",
                 ),
                 TestParams(
                     name = "doc comment with link - kotlin",
@@ -147,9 +147,7 @@ class CommonParameterizedDocumentationTest : BaseModelTest() {
             )
         ) {
             val testClass = codebase.assertClass("test.pkg.Test")
-            val documentation = testClass.documentation
-
-            assertEquals(params.expectedText, documentation.text)
+            testClass.assertDocumentationText(expectedOutput = params.expectedText)
         }
     }
 
@@ -179,7 +177,10 @@ class CommonParameterizedDocumentationTest : BaseModelTest() {
             val testClass = codebase.assertClass("test.pkg.Test")
             val documentation = testClass.documentation
 
-            assertEquals(params.expectedFullyQualified, documentation.fullyQualifiedDocumentation())
+            assertEquals(
+                params.expectedFullyQualified,
+                documentation.fullyQualifiedDocumentation().trimEnd()
+            )
         }
     }
 }

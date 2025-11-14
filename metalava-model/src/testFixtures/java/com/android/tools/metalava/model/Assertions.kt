@@ -18,6 +18,8 @@ package com.android.tools.metalava.model
 
 import com.android.tools.metalava.model.testing.testTypeString
 import com.google.common.truth.Truth.assertThat
+import java.io.PrintWriter
+import java.io.StringWriter
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
@@ -241,6 +243,19 @@ interface Assertions {
                 "Expected $this to have type parameter $name but had ${typeParameterList.joinToString()}"
         )
         return found
+    }
+
+    /** Make sure when the documentation for [this] is printed that it matches [expectedOutput]. */
+    fun SelectableItem.assertPrintedDocumentation(expectedOutput: String, message: String? = null) {
+        val stringWriter = StringWriter()
+        PrintWriter(stringWriter).use { documentation.print(it) }
+        val actualOutput = stringWriter.toString()
+        assertEquals("$expectedOutput\n".trimIndent(), actualOutput, message)
+    }
+
+    /** Make sure the documentation text for [this] matches [expectedOutput]. */
+    fun SelectableItem.assertDocumentationText(expectedOutput: String, message: String? = null) {
+        assertEquals(expectedOutput.trimIndent(), documentation.text.trim(), message)
     }
 
     /**

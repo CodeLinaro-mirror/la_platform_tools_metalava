@@ -606,7 +606,7 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
                     sourceLanguage = parameterItem.sourceLanguage,
                     modifiers = parameterItem.modifiers.snapshot(),
                     name = name,
-                    publicNameProvider = { publicName },
+                    publicName = publicName,
                     containingCallable = containingCallable,
                     parameterIndex = parameterItem.parameterIndex,
                     type = parameterItem.type().snapshot(),

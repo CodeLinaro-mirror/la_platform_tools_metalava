@@ -17,8 +17,11 @@
 package com.android.tools.metalava.model.source.javadoc
 
 import com.android.tools.metalava.model.source.doc.DocCommentContext
+import com.android.tools.metalava.model.source.doc.DocumentationIssueReporter
 import com.android.tools.metalava.model.source.doc.TagData
 import com.android.tools.metalava.model.source.doc.TagType
+import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.reporter.LocationSpecificReporter
 
 /**
  * Uses [tagType] to extract [TagData] from [JavadocContent] using [context].
@@ -31,9 +34,15 @@ import com.android.tools.metalava.model.source.doc.TagType
 internal class TagDataExtractor(
     private val context: DocCommentContext,
     private val tagType: TagType<*>,
-) : JavadocContentRewriter {
+    private val reporter: DocumentationIssueReporter,
+) : JavadocContentRewriter, LocationSpecificReporter {
 
     private var tagData: TagData? = null
+
+    /** Implement [LocationSpecificReporter.report] to delegate to [reporter]. */
+    override fun report(issue: Issues.Issue, message: String) {
+        reporter.report(issue, message)
+    }
 
     /**
      * Extract the [TagData], if any, from [JavadocContent].
@@ -93,7 +102,7 @@ internal class TagDataExtractor(
      */
     override fun visit(text: JavadocText): JavadocContent? {
         val contents = text.contents
-        var result = tagType.extractData(context, contents)
+        var result = tagType.extractData(context, reporter = this, contents)
         tagData = result?.tagData
 
         val consumedContent = result?.consumedContent ?: 0
@@ -109,7 +118,8 @@ internal class TagDataExtractor(
 internal fun JavadocContent.extractTagDataForTagType(
     context: DocCommentContext,
     tagType: TagType<*>,
-) = TagDataExtractor(context, tagType).extractTagData(this)
+    reporter: DocumentationIssueReporter,
+) = TagDataExtractor(context, tagType, reporter).extractTagData(this)
 
 /** The result of [TagDataExtractor.extractTagData]. */
 internal data class ExtractorResult(

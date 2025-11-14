@@ -23,9 +23,10 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterBindings
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.item.DefaultParameterItem
-import com.android.tools.metalava.model.item.PublicNameProvider
+import com.android.tools.metalava.model.psi.PsiMethodItem.Companion.isKotlinProperty
 import com.android.tools.metalava.model.type.MethodFingerprint
 import com.intellij.psi.PsiEllipsisType
+import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiParameter
 
 internal class PsiParameterItem
@@ -34,7 +35,7 @@ internal constructor(
     internal val psiParameter: PsiParameter,
     modifiers: BaseModifierList,
     name: String,
-    publicNameProvider: PublicNameProvider,
+    publicName: String?,
     containingCallable: PsiCallableItem,
     parameterIndex: Int,
     type: TypeItem,
@@ -46,7 +47,7 @@ internal constructor(
         sourceLanguage = psiParameter.sourceLanguage,
         modifiers = modifiers,
         name = name,
-        publicNameProvider = publicNameProvider,
+        publicName = publicName,
         containingCallable = containingCallable,
         parameterIndex = parameterIndex,
         type = type,
@@ -55,10 +56,6 @@ internal constructor(
     PsiItem {
 
     override fun psi() = psiParameter
-
-    // Note receiver parameter used to be named $receiver in previous UAST versions, now it is
-    // $this$functionName
-    internal fun isReceiver(): Boolean = parameterIndex == 0 && name().startsWith("\$this\$")
 
     override fun duplicate(
         containingCallable: CallableItem,
@@ -69,7 +66,7 @@ internal constructor(
             psiParameter = psiParameter,
             modifiers = modifiers,
             name = name(),
-            publicNameProvider = publicNameProvider,
+            publicName = publicName,
             containingCallable = containingCallable as PsiCallableItem,
             parameterIndex = parameterIndex,
             type = type().convertType(typeVariableMap) as PsiTypeItem,
@@ -84,6 +81,8 @@ internal constructor(
             psiParameter: PsiParameter,
             parameterIndex: Int,
             enclosingMethodTypeItemFactory: PsiTypeItemFactory,
+            psiMethod: PsiMethod,
+            containingCallableModifiers: BaseModifierList,
         ): PsiParameterItem {
             val name = psiParameter.name
             val modifiers = createParameterModifiers(codebase, psiParameter)
@@ -101,7 +100,14 @@ internal constructor(
                     psiParameter = psiParameter,
                     modifiers = modifiers,
                     name = name,
-                    publicNameProvider = { (it as PsiParameterItem).getPublicName() },
+                    publicName =
+                        getPublicName(
+                            psiParameter,
+                            parameterIndex,
+                            fingerprint.parameterCount,
+                            psiMethod,
+                            containingCallableModifiers,
+                        ),
                     containingCallable = containingCallable,
                     parameterIndex = parameterIndex,
                     type = type,
@@ -130,8 +136,22 @@ internal constructor(
     }
 }
 
-/** Get the public name of this parameter. */
-internal fun PsiParameterItem.getPublicName(): String? {
+/**
+ * Get the public name of a parameter.
+ *
+ * @param psiParameter The [PsiParameter] to find the name of.
+ * @param parameterIndex The index of this parameter in the containing callable.
+ * @param parameterCount The total number of parameters of the containing callable.
+ * @param psiMethod The containing [PsiMethod] of the parameter.
+ * @param containingCallableModifiers The modifiers of the containing callable.
+ */
+internal fun getPublicName(
+    psiParameter: PsiParameter,
+    parameterIndex: Int,
+    parameterCount: Int,
+    psiMethod: PsiMethod,
+    containingCallableModifiers: BaseModifierList,
+): String? {
     if (psiParameter.isKotlin()) {
         // Omit names of some special parameters in Kotlin. None of these parameters may be set
         // through Kotlin keyword arguments, so there's no need to track their names for
@@ -139,22 +159,21 @@ internal fun PsiParameterItem.getPublicName(): String? {
         // what name they're using for these parameters.
 
         // Receiver parameter of extension function
-        if (isReceiver()) {
+        // Note receiver parameter used to be named $receiver in previous UAST versions, now it is
+        // $this$functionName
+        if (parameterIndex == 0 && psiParameter.name.startsWith("\$this\$")) {
             return null
         }
         // Property setter parameter
-        if (possibleContainingMethod()?.isKotlinProperty() == true) {
+        if (isKotlinProperty(psiMethod)) {
             return null
         }
-        // Continuation parameter of suspend function
-        if (
-            containingCallable().modifiers.isSuspend() &&
-                "kotlin.coroutines.Continuation" == type().asClass()?.qualifiedName() &&
-                containingCallable().parameters().size - 1 == parameterIndex
-        ) {
+        // Continuation parameter of suspend function (the final parameter of a suspend function is
+        // the continuation).
+        if (containingCallableModifiers.isSuspend() && parameterCount - 1 == parameterIndex) {
             return null
         }
-        return name()
+        return psiParameter.name
     }
 
     return null

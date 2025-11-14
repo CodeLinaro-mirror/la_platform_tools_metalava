@@ -32,4 +32,7 @@ enum class Capability() {
 
     /** Can load additional APIs from a jar file when creating an API from source files. */
     JAR_WITH_SOURCES,
+
+    /** Can continue parsing if it hits an error. */
+    LAX_PARSER,
 }

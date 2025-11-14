@@ -18,7 +18,6 @@ package com.android.tools.metalava.model.turbine
 
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.FieldItem
-import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.type.ContextNullability
 import com.android.tools.metalava.model.value.ArrayElementValue
@@ -108,10 +107,19 @@ internal class TurbineValueFactory(globalContext: TurbineGlobalContext) :
             val arrayTypeItem = optionalTypeItem as ArrayTypeItem
             val elementTypeItem = arrayTypeItem.componentType
 
-            val elements = const.elements()
-            val exprElements = (expr as? ArrayInit)?.exprs()
+            val constElements = const.elements()
+
+            val exprElements =
+                expr?.let { expr ->
+                    // If expr is an ArrayInit then get the expressions that make up its contents.
+                    (expr as? ArrayInit)?.exprs()
+                        // Otherwise, it was just a single value in the source so wrap it in a list
+                        // to match the constElements.
+                        ?: listOf(expr)
+                }
+
             val turbineValues =
-                elements.mapIndexed { index, element ->
+                constElements.mapIndexed { index, element ->
                     TurbineValue(element, exprElements?.get(index), fieldResolver)
                 }
 
@@ -122,7 +130,7 @@ internal class TurbineValueFactory(globalContext: TurbineGlobalContext) :
             // `ArrayInitValue` so check the expression. If the expression was provided (i.e. from
             // sources not jars) but was not an `ArrayInit` expression (no `exprElements) then it
             // was unwrapped in the sources, otherwise it was not.
-            val wasUnwrappedInSource = expr != null && exprElements == null
+            val wasUnwrappedInSource = expr != null && expr !is ArrayInit
 
             return createArrayValue(values, wasUnwrappedInSource)
         }

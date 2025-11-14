@@ -49,9 +49,9 @@ abstract class AbstractSourceFile() : SourceFile {
         }
 
     /** Resolve [simpleName] to a [ClassItem] using [importResolver]. */
-    private fun importedClassItem(simpleName: String): ClassItem? {
+    private fun importedClassItem(simpleName: String, onDemand: Boolean): ClassItem? {
         // Resolve the import, if possible.
-        val resolvedImport = importResolver.resolveImport(simpleName) ?: return null
+        val resolvedImport = importResolver.resolveImport(simpleName, onDemand) ?: return null
 
         // Assume that the resolved import was for a qualified class name.
         val qualifiedClassName = resolvedImport.treatAsQualifiedClassName()
@@ -61,7 +61,10 @@ abstract class AbstractSourceFile() : SourceFile {
     }
 
     override val containingScope: ReferencableNameScope?
-        get() = containingPackage
+        get() =
+            // Fall straight back to the root package as the containing package has been checked in
+            // [resolveReferencableItemBySimpleName].
+            codebase.rootPackage
 
     override fun resolveReferencableItemBySimpleName(
         simpleName: String,
@@ -69,6 +72,10 @@ abstract class AbstractSourceFile() : SourceFile {
     ) =
         // First, check for other top level classes in the same file.
         classes().find { it.simpleName() == simpleName }
-            // Then check for imports.
-            ?: importedClassItem(simpleName)
+            // Then check for named imports first.
+            ?: importedClassItem(simpleName, onDemand = false)
+            // Then check the containing package.
+            ?: containingPackage.resolveReferencableItemBySimpleName(simpleName, isFirstSimpleName)
+            // Then check for on demand imports.
+            ?: importedClassItem(simpleName, onDemand = true)
 }

@@ -129,13 +129,21 @@ class ImportResolver(
         onDemandImports = onDemandImportsBuilder.toList()
     }
 
-    /** Return the [ResolvedImport], if any, for [simpleName]. */
-    fun resolveImport(simpleName: String): ResolvedImport? {
-        namedImports[simpleName]?.let {
-            return it
-        }
-        for (onDemandImport in onDemandImports) {
-            onDemandImport.findImport(simpleName)?.let {
+    /**
+     * Return the [ResolvedImport], if any, for [simpleName].
+     *
+     * @param onDemand if `true` then check the [onDemandImports], otherwise check the
+     *   [namedImports].
+     */
+    fun resolveImport(simpleName: String, onDemand: Boolean): ResolvedImport? {
+        if (onDemand) {
+            for (onDemandImport in onDemandImports) {
+                onDemandImport.findImport(simpleName)?.let {
+                    return it
+                }
+            }
+        } else {
+            namedImports[simpleName]?.let {
                 return it
             }
         }

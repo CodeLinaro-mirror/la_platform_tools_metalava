@@ -44,7 +44,6 @@ import com.android.tools.metalava.doc.DocAnalyzer
 import com.android.tools.metalava.jar.JarCodebaseLoader
 import com.android.tools.metalava.lint.ApiLint
 import com.android.tools.metalava.lint.FlaggedApiLint
-import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.CodebaseFragment
@@ -197,11 +196,6 @@ internal fun processFlags(
     progressTracker.progress(
         "$PROGRAM_NAME analyzed API in ${stopwatch.elapsed(SECONDS)} seconds\n"
     )
-
-    options.subtractApiFile?.let {
-        progressTracker.progress("Subtracting API: ")
-        actionContext.subtractApiFromCodebase(signatureFileCache, codebase, it)
-    }
 
     generateApiHistoryFromOptions(options, codebase, progressTracker)
 
@@ -581,40 +575,6 @@ private fun generateApiHistoryFromOptions(
 
             apiGenerator.generateApiHistory(config)
         }
-}
-
-private fun ActionContext.subtractApiFromCodebase(
-    signatureFileCache: SignatureFileCache,
-    codebase: Codebase,
-    subtractApiFile: File,
-) {
-    val path = subtractApiFile.path
-    val codebaseToSubtract =
-        when {
-            path.endsWith(DOT_TXT) ->
-                signatureFileCache.load(SignatureFile.fromFiles(subtractApiFile))
-            path.endsWith(DOT_JAR) -> loadFromJarFile(subtractApiFile)
-            else ->
-                cliError(
-                    "Unsupported $ARG_SUBTRACT_API format, expected .txt or .jar: ${subtractApiFile.name}"
-                )
-        }
-
-    // Iterate over the top level classes in the codebase and if they are present in the codebase
-    // being subtracted then do not emit the class or any of its nested classes.
-    for (classItem in codebase.getTopLevelClassesFromSource()) {
-        if (codebaseToSubtract.findClass(classItem.qualifiedName()) != null) {
-            stopEmittingClassAndContents(classItem)
-        }
-    }
-}
-
-/** Stop emitting [classItem] and any of its nested classes. */
-private fun stopEmittingClassAndContents(classItem: ClassItem) {
-    classItem.emit = false
-    for (nestedClass in classItem.nestedClasses()) {
-        stopEmittingClassAndContents(nestedClass)
-    }
 }
 
 /** Checks compatibility of the given codebase with the codebase described in the signature file. */

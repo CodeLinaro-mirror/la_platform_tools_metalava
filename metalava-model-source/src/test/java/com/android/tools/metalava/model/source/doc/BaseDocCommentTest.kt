@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.source.doc
 
 import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.reporter.LocationSpecificReporter
 import kotlin.test.assertEquals
 
 abstract class BaseDocCommentTest {
@@ -36,7 +37,7 @@ abstract class BaseDocCommentTest {
                 input.trimIndent(),
                 reporter,
             )
-        assertEquals(expectedIssues.trimIndent(), reporter.toString().trim())
+        reporter.assertJavadocParserIssues(expectedIssues)
         return docComment
     }
 
@@ -66,6 +67,15 @@ class CollatingDocumentationIssueReporter : DocumentationIssueReporter {
     }
 
     override fun toString() = builder.toString()
+
+    /** Verify that the reported issues matches [expectedIssues]. */
+    fun assertJavadocParserIssues(expectedIssues: String) {
+        assertEquals(
+            expectedIssues.trimIndent(),
+            toString().trim(),
+            message = "javadoc parser issues"
+        )
+    }
 }
 
 /** A test [DocCommentContext] that provides basic no-op implementations. */
@@ -81,5 +91,8 @@ class NoOpDocCommentContext : DocCommentContext, DocCommentMutationListener {
 
     override fun fullyQualifyComment(comment: String) = comment
 
-    override fun resolveThrowableType(typeName: String) = ClassReference(typeName)
+    override fun resolveThrowableType(reporter: LocationSpecificReporter, typeName: String) =
+        ClassReference(typeName)
+
+    override fun resolveReference(sourceReference: String) = null
 }

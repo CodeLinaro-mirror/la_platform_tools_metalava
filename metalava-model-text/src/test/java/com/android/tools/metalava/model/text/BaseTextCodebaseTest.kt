@@ -19,9 +19,6 @@ package com.android.tools.metalava.model.text
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.testsuite.BaseModelTest
-import com.android.tools.metalava.reporter.RecordingReporter
-import javax.annotation.CheckReturnValue
-import kotlin.test.assertEquals
 
 /**
  * Base class for text test classes that parse signature files to create a [Codebase] that can then
@@ -29,41 +26,11 @@ import kotlin.test.assertEquals
  */
 abstract class BaseTextCodebaseTest : BaseModelTest() {
 
-    /** A [CodebaseContext] wrapper that records and provides access to any reported issues. */
-    class RecordingCodebaseContext(
-        private val delegate: CodebaseContext,
-        private val recordingReporter: RecordingReporter
-    ) : CodebaseContext by delegate {
-        /**
-         * The reported issues, with any test specific directories replaced with fixed symbols.
-         *
-         * Accessing this will remove any issues from the [recordingReporter] and it is the caller's
-         * responsibility to check the returned value.
-         */
-        @get:CheckReturnValue
-        val reportedIssues
-            get() = removeTestSpecificDirectories(recordingReporter.removeIssues())
-    }
-
     /** Run a single signature test with a set of signature files. */
     fun runSignatureTest(
         vararg sources: TestFile,
-        test: RecordingCodebaseContext.() -> Unit,
+        test: CodebaseContext.() -> Unit,
     ) {
-        // Create a recorder.
-        val recordingReporter = RecordingReporter()
-        val testFixture = TestFixture(reporter = recordingReporter)
-
-        runCodebaseTest(
-            inputSet(*sources),
-            testFixture = testFixture,
-            test = {
-                val recordingContext = RecordingCodebaseContext(delegate = this, recordingReporter)
-                recordingContext.test()
-            }
-        )
-
-        // Make sure that any unchecked issues will cause the test to fail.
-        assertEquals("", recordingReporter.issues, message = "Unexpected issues were reported")
+        runCodebaseTest(inputSet(*sources), test = test)
     }
 }
