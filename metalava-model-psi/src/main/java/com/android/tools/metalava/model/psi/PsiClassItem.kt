@@ -68,6 +68,7 @@ internal constructor(
         superClassType = superClassType,
         interfaceTypes = interfaceTypes,
         isFileFacade = isFileFacade(psiClass),
+        optionalAliasedType = null,
     ),
     ClassItem,
     PsiItem {

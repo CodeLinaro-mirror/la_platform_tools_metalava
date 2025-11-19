@@ -22,6 +22,7 @@ import com.android.tools.metalava.model.NO_ANNOTATION_TARGETS
 import com.android.tools.metalava.model.Showability
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
 import com.android.tools.metalava.model.api.flags.ApiFlag
+import com.android.tools.metalava.model.api.flags.ApiFlagAction.*
 import com.android.tools.metalava.model.api.flags.ApiFlags
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.KnownJarFiles
@@ -95,7 +96,7 @@ class CommonFlagTest : BaseModelTest() {
             val annotation = fooClass.assertAnnotation(ANDROID_FLAGGED_API)
 
             val apiFlag = annotation.apiFlag
-            assertSame(ApiFlag.REVERT_FLAGGED_API, apiFlag, "apiFlag")
+            assertSame(ApiFlag.getFlag(REVERT), apiFlag, "apiFlag")
             assertEquals(Showability.REVERT_UNSTABLE_API, annotation.showability, "showability")
             assertEquals(NO_ANNOTATION_TARGETS, annotation.targets, "targets")
         }
@@ -106,15 +107,14 @@ class CommonFlagTest : BaseModelTest() {
         runFlagsTest(
             apiFlags =
                 ApiFlags(
-                    byQualifiedName =
-                        mapOf("test.pkg.flags.flag_name" to ApiFlag.FINALIZE_FLAGGED_API)
+                    byQualifiedName = mapOf("test.pkg.flags.flag_name" to ApiFlag.getFlag(FINALIZE))
                 ),
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
             val annotation = fooClass.assertAnnotation(ANDROID_FLAGGED_API)
 
             val apiFlag = annotation.apiFlag
-            assertSame(ApiFlag.FINALIZE_FLAGGED_API, apiFlag, "apiFlag")
+            assertSame(ApiFlag.getFlag(FINALIZE), apiFlag, "apiFlag")
             assertEquals(Showability.NO_EFFECT, annotation.showability, "showability")
             assertEquals(NO_ANNOTATION_TARGETS, annotation.targets, "targets")
         }
@@ -125,14 +125,14 @@ class CommonFlagTest : BaseModelTest() {
         runFlagsTest(
             apiFlags =
                 ApiFlags(
-                    byQualifiedName = mapOf("test.pkg.flags.flag_name" to ApiFlag.KEEP_FLAGGED_API)
+                    byQualifiedName = mapOf("test.pkg.flags.flag_name" to ApiFlag.getFlag(KEEP))
                 ),
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
             val annotation = fooClass.assertAnnotation(ANDROID_FLAGGED_API)
 
             val apiFlag = annotation.apiFlag
-            assertSame(ApiFlag.KEEP_FLAGGED_API, apiFlag, "apiFlag")
+            assertSame(ApiFlag.getFlag(KEEP), apiFlag, "apiFlag")
             assertEquals(Showability.NO_EFFECT, annotation.showability, "showability")
             assertEquals(ANNOTATION_IN_ALL_STUBS, annotation.targets, "targets")
         }

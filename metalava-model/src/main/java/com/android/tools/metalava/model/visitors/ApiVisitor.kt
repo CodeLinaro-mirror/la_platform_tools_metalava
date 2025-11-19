@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.visitors
 import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.ItemVisitor
@@ -36,6 +37,9 @@ open class ApiVisitor(
 
     /** @see BaseItemVisitor.visitParameterItems */
     visitParameterItems: Boolean = true,
+
+    /** Whether to visit typealiases in a package after all other [ClassItem]s have been visited. */
+    private val sortTypeAliasesLast: Boolean = true,
 
     /** Whether to include inherited fields too */
     private val inlineInheritedFields: Boolean = true,
@@ -121,10 +125,19 @@ open class ApiVisitor(
 
     /**
      * Visit a [List] of [ClassItem]s after sorting it into order defined by
-     * [ClassItem.classNameSorter].
+     * [ClassItem.classNameSorter]. If [sortTypeAliasesLast] is true, type aliases are after all
+     * other classes.
      */
     private fun visitClassList(classes: List<ClassItem>) {
-        classes.sortedWith(ClassItem.classNameSorter()).forEach { it.accept(this) }
+        val sortedByName = classes.sortedWith(ClassItem.classNameSorter())
+        if (sortTypeAliasesLast) {
+                // [sortedBy] is a stable sort, so the name order will be preserved within the
+                // non-typealias classes and within the typealiases.
+                sortedByName.sortedBy { it.classKind == ClassKind.TYPEALIAS }
+            } else {
+                sortedByName
+            }
+            .forEach { it.accept(this) }
     }
 
     /**
@@ -154,18 +167,14 @@ open class ApiVisitor(
         val classesToVisitDirectly: List<ClassItem> =
             packageClassesAsSequence(pkg).mapNotNull { getVisitCandidateIfNeeded(it) }.toList()
 
-        val typeAliasesToVisit = pkg.typeAliases().filter { filterEmit.test(it) }
-
         // If none of the classes or typealiases in this package will be visited then ignore the
         // package entirely.
-        if (classesToVisitDirectly.isEmpty() && typeAliasesToVisit.isEmpty()) return
+        if (classesToVisitDirectly.isEmpty()) return
 
         wrapBodyWithCallsToVisitMethodsForSelectableItem(pkg) {
             visitPackage(pkg)
 
             visitClassList(classesToVisitDirectly)
-
-            typeAliasesToVisit.sortedBy { it.simpleName }.forEach { it.accept(this) }
 
             afterVisitPackage(pkg)
         }

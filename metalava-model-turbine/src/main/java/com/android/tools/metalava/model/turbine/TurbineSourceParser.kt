@@ -47,7 +47,7 @@ internal class TurbineSourceParser(
         apiPackages: PackageFilter?,
         projectDescription: File?,
         compiledSourceJar: File?,
-    ): Codebase {
+    ): Codebase? {
         if (projectDescription != null) {
             error("Turbine model does not support --project")
         }
@@ -94,6 +94,8 @@ internal class TurbineSourceParser(
                     location
                 )
             }
+
+            return null
         }
 
         // Return the newly created and initialized codebase.

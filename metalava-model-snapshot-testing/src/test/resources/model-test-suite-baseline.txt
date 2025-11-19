@@ -49,6 +49,9 @@ com.android.tools.metalava.model.testsuite.codebase.CommonCodebaseTest
   Test getTopLevelClassesFromSource[psi,java,k2]
   Test getTopLevelClassesFromSource[turbine]
 
+com.android.tools.metalava.model.testsuite.constructoritem.CommonConstructorModifierTest
+  Test varargs[turbine]
+
 com.android.tools.metalava.model.testsuite.documentation.CommonItemDocumentationTest
   Test fully qualifying links that wrap on multiple lines[turbine]
 
@@ -110,9 +113,17 @@ com.android.tools.metalava.model.testsuite.documentation.CommonParameterizedDocR
 com.android.tools.metalava.model.testsuite.fielditem.CommonFieldItemTest
   Test implicit nullability of constant field initialized from @NonNull method[turbine]
 
+com.android.tools.metalava.model.testsuite.methoditem.CommonMethodModifierTest
+  Test final method in final class[text]
+  Test final method in final class[turbine]
+  Test varargs[turbine]
+
 com.android.tools.metalava.model.testsuite.methoditem.CommonParameterItemTest
   Test publicName reports correct name when called on binary class - Object#equals[turbine]
   Test publicName reports correct name when called on binary class - ViewGroup#onLayout[turbine]
+
+com.android.tools.metalava.model.testsuite.methoditem.CommonParameterModifierTest
+  Test varargs[turbine]
 
 com.android.tools.metalava.model.testsuite.packageitem.CommonPackageItemTest
   Test @hide in package html[psi,java,k1]

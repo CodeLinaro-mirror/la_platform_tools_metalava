@@ -81,7 +81,7 @@ class TypeAliasCompatibilityTest : DriverTest() {
                 }
                 """,
             expectedIssues =
-                "load-api.txt:3: error: Source breaking change: typealias test.pkg.Foo has changed type from String to int [ChangedType]"
+                "load-api.txt:3: error: Source breaking change: Typealias test.pkg.Foo has changed type from String to int [ChangedType]"
         )
     }
 

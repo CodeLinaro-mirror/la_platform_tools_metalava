@@ -24,6 +24,7 @@ import com.android.tools.metalava.requiresPermissionSource
 import com.android.tools.metalava.systemApiSource
 import com.android.tools.metalava.testing.KnownJarFiles
 import com.android.tools.metalava.testing.java
+import com.android.tools.metalava.testing.xml
 import org.junit.Test
 
 class FlaggedApiLintTest : DriverTest() {
@@ -930,6 +931,65 @@ class FlaggedApiLintTest : DriverTest() {
                     ARG_PASS_THROUGH_ANNOTATION,
                     "test.annotation.Custom"
                 ),
+        )
+    }
+
+    @Test
+    fun `Require @FlaggedApi api flags to be exported`() {
+        val apiFlagsXmlFile =
+            xml(
+                "config-api-flags.xml",
+                """
+                <config xmlns="http://www.google.com/tools/metalava/config"
+                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                    xsi:schemaLocation="http://www.google.com/tools/metalava/config ../../../../../../../resources/schemas/config.xsd">
+                    <api-flags>
+                        <api-flag package="test.pkg" name="unexported_flag" mutability="mutable" status="disabled" is-exported='false'/>
+                        <api-flag package="test.pkg" name="exported_flag" mutability="mutable" status="disabled" is-exported='true'/>
+                    </api-flags>
+                </config>
+            """
+            )
+
+        val previouslyReleasedApi =
+            """
+                // Signature format: 2.0
+                package test.pkg {
+                  @FlaggedApi("test.pkg.unexported_flag")
+                  public class Foo {
+                    ctor @FlaggedApi("test.pkg.exported_flag") public Foo();
+                  }
+                }
+            """
+
+        check(
+            configFiles = arrayOf(apiFlagsXmlFile),
+            expectedIssues =
+                """
+                    src/test/pkg/Foo.java:6: warning: @FlaggedApi flag test.pkg.unexported_flag is not exported (ErrorWhenNew) [UnexportedFlaggedApi]
+                """,
+            apiLint = previouslyReleasedApi,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            import android.annotation.FlaggedApi;
+
+                            // Use of unexported flag will result in UnexportedFlaggedApi error
+                            @FlaggedApi("test.pkg.unexported_flag")
+                            public class Foo {
+                                // Use of exported flag will not result in errors
+                                @FlaggedApi("test.pkg.exported_flag")
+                                public Foo() {}
+                            }
+                        """
+                    ),
+                ),
+            checkCompatibilityApiReleased = previouslyReleasedApi,
+            // Access android.annotation.FlaggedApi
+            classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
         )
     }
 }

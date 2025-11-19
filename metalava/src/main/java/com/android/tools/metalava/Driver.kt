@@ -142,11 +142,11 @@ fun run(
     return exitCode
 }
 
-@Suppress("DEPRECATION")
 internal fun processFlags(
     executionEnvironment: ExecutionEnvironment,
     environmentManager: EnvironmentManager,
-    progressTracker: ProgressTracker
+    progressTracker: ProgressTracker,
+    options: Options,
 ) {
     val stopwatch = Stopwatch.createStarted()
     val reporter = options.reporter
@@ -208,17 +208,19 @@ internal fun processFlags(
     )
 
     // Generate the documentation stubs *before* we migrate nullness information.
-    options.docStubsDir?.let {
+    options.docStubsDir?.let { stubDir ->
         createStubFiles(
             progressTracker,
-            it,
+            options,
+            stubDir,
             codebase,
-            docStubs = true,
+            isDocStubs = true,
         )
     }
 
-    // Based on the input flags, generates various output files such as signature files and/or stubs
-    // files
+    // Generate signature files based on provided input flags (i.e. if api file locations were
+    // provided).
+    // Also run API lint checks on current codebase
     createApiSignatureFilesFromOptions(
         options,
         codebase,
@@ -260,7 +262,13 @@ internal fun processFlags(
     }
 
     for (check in options.compatibilityChecks) {
-        actionContext.checkCompatibility(signatureFileCache, classResolverProvider, codebase, check)
+        actionContext.checkCompatibility(
+            options,
+            signatureFileCache,
+            classResolverProvider,
+            codebase,
+            check,
+        )
     }
 
     convertToWarningNullabilityAnnotations(
@@ -271,16 +279,24 @@ internal fun processFlags(
     )
 
     // Now that we've migrated nullness information we can proceed to write non-doc stubs, if any.
-    options.stubsDir?.let {
+    options.stubsDir?.let { stubDir ->
         createStubFiles(
             progressTracker,
-            it,
+            options,
+            stubDir,
             codebase,
-            docStubs = false,
+            isDocStubs = false,
         )
     }
 
-    options.externalAnnotations?.let { extractAnnotations(progressTracker, codebase, it) }
+    options.externalAnnotationsFile?.let { outputFile ->
+        extractAnnotations(
+            progressTracker,
+            outputFile,
+            options,
+            codebase,
+        )
+    }
 
     val packageCount = codebase.size()
     progressTracker.progress(
@@ -487,9 +503,9 @@ private fun createCodebaseFromOptions(
             classResolverProvider.classResolver,
         )
     } else if (sources.size == 1 && sources[0].path.endsWith(DOT_JAR)) {
-        return actionContext.loadFromJarFile(sources[0])
+        return actionContext.loadFromJarFile(sources[0], options.apiAnalyzerConfig)
     } else if (sources.isNotEmpty() || options.sourcePath.isNotEmpty()) {
-        return actionContext.loadFromSources(signatureFileCache, classResolverProvider)
+        return actionContext.loadFromSources(options, signatureFileCache, classResolverProvider)
     }
 
     return null
@@ -578,8 +594,8 @@ private fun generateApiHistoryFromOptions(
 }
 
 /** Checks compatibility of the given codebase with the codebase described in the signature file. */
-@Suppress("DEPRECATION")
 private fun ActionContext.checkCompatibility(
+    options: Options,
     signatureFileCache: SignatureFileCache,
     classResolverProvider: ClassResolverProvider,
     newCodebase: Codebase,
@@ -711,11 +727,11 @@ private fun convertToWarningNullabilityAnnotations(
     }
 }
 
-@Suppress("DEPRECATION")
 private fun ActionContext.loadFromSources(
+    options: Options,
     signatureFileCache: SignatureFileCache,
     classResolverProvider: ClassResolverProvider,
-): Codebase {
+): Codebase? {
     progressTracker.progress("Processing sources: ")
 
     val sourceSet =
@@ -739,7 +755,7 @@ private fun ActionContext.loadFromSources(
             apiPackages = options.apiPackages,
             projectDescription = options.projectDescription,
             compiledSourceJar = options.compiledSourceJar
-        )
+        ) ?: return null
 
     progressTracker.progress("Analyzing API: ")
 
@@ -818,7 +834,7 @@ private class ClassResolverProvider(
 
 fun ActionContext.loadFromJarFile(
     apiJar: File,
-    apiAnalyzerConfig: ApiAnalyzer.Config = @Suppress("DEPRECATION") options.apiAnalyzerConfig,
+    apiAnalyzerConfig: ApiAnalyzer.Config,
 ): Codebase {
     val jarCodebaseLoader =
         JarCodebaseLoader.createForSourceParser(
@@ -829,28 +845,30 @@ fun ActionContext.loadFromJarFile(
     return jarCodebaseLoader.loadFromJarFile(apiJar, apiAnalyzerConfig)
 }
 
-@Suppress("DEPRECATION")
-private fun extractAnnotations(progressTracker: ProgressTracker, codebase: Codebase, file: File) {
+private fun extractAnnotations(
+    progressTracker: ProgressTracker,
+    outputFile: File,
+    options: Options,
+    codebase: Codebase
+) {
     val localTimer = Stopwatch.createStarted()
 
-    options.externalAnnotations?.let { outputFile ->
-        ExtractAnnotations(codebase, options.reporter, outputFile).extractAnnotations()
-        if (options.verbose) {
-            progressTracker.progress(
-                "$PROGRAM_NAME extracted annotations into $file in ${localTimer.elapsed(SECONDS)} seconds\n"
-            )
-        }
+    ExtractAnnotations(codebase, options.reporter, outputFile).extractAnnotations()
+    if (options.verbose) {
+        progressTracker.progress(
+            "$PROGRAM_NAME extracted annotations into $outputFile in ${localTimer.elapsed(SECONDS)} seconds\n"
+        )
     }
 }
 
-@Suppress("DEPRECATION")
 private fun createStubFiles(
     progressTracker: ProgressTracker,
+    options: Options,
     stubDir: File,
     codebase: Codebase,
-    docStubs: Boolean,
+    isDocStubs: Boolean,
 ) {
-    if (docStubs) {
+    if (isDocStubs) {
         progressTracker.progress("Generating documentation stub files: ")
     } else {
         progressTracker.progress("Generating stub files: ")
@@ -858,21 +876,11 @@ private fun createStubFiles(
 
     val localTimer = Stopwatch.createStarted()
 
-    val stubWriterConfig =
-        options.stubWriterConfig.let {
-            if (docStubs) {
-                // Doc stubs always include documentation.
-                it.copy(includeDocumentationInStubs = true)
-            } else {
-                it
-            }
-        }
-
     var codebaseFragment =
         CodebaseFragment.create(codebase) { delegate ->
             createFilteringVisitorForStubs(
                 delegate = delegate,
-                docStubs = docStubs,
+                isDocStubs = isDocStubs,
                 preFiltered = codebase.preFiltered,
                 apiPredicateConfig = options.apiPredicateConfig,
             )
@@ -886,7 +894,7 @@ private fun createStubFiles(
                 referenceVisitorFactory = { delegate ->
                     createFilteringVisitorForStubs(
                         delegate = delegate,
-                        docStubs = docStubs,
+                        isDocStubs = isDocStubs,
                         preFiltered = codebase.preFiltered,
                         apiPredicateConfig = options.apiPredicateConfig,
                         ignoreEmit = true,
@@ -910,15 +918,15 @@ private fun createStubFiles(
         StubWriter(
             stubsDir = stubDir,
             generateAnnotations = options.generateAnnotations,
-            docStubs = docStubs,
+            isDocStubs = isDocStubs,
             reporter = options.reporter,
-            config = stubWriterConfig,
+            config = options.stubWriterConfig,
             stubConstructorManager = stubConstructorManager,
         )
 
     codebaseFragment.accept(stubWriter)
 
-    if (docStubs) {
+    if (isDocStubs) {
         // Overview docs? These are generally in the empty package.
         codebase.findPackage("")?.let { empty ->
             val overview = empty.overviewDocumentation
@@ -929,7 +937,7 @@ private fun createStubFiles(
     }
 
     progressTracker.progress(
-        "$PROGRAM_NAME wrote ${if (docStubs) "documentation" else ""} stubs directory $stubDir in ${
+        "$PROGRAM_NAME wrote ${if (isDocStubs) "documentation" else ""} stubs directory $stubDir in ${
         localTimer.elapsed(SECONDS)} seconds\n"
     )
 }

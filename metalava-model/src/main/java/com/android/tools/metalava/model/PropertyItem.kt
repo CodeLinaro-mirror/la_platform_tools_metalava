@@ -36,6 +36,8 @@ interface PropertyItem : MemberItem {
     val constructorParameter: ParameterItem?
         get() = null
 
+    override fun describe(capitalize: Boolean) = toString()
+
     /** The type of this property */
     override fun type(): TypeItem
 

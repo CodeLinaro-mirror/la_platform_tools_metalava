@@ -51,6 +51,4 @@ interface DelegatedVisitor {
     fun visitMethod(method: MethodItem) {}
 
     fun visitProperty(property: PropertyItem) {}
-
-    fun visitTypeAlias(typeAlias: TypeAliasItem) {}
 }

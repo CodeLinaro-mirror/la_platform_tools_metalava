@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.turbine
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.source.AbstractItemDocumentation
 import com.android.tools.metalava.reporter.FileLocation
+import com.google.turbine.model.TurbineJavadoc
 
 /**
  * A Turbine specialization of [AbstractItemDocumentation] that delays finding the position of the
@@ -27,8 +28,7 @@ import com.android.tools.metalava.reporter.FileLocation
 internal class TurbineItemDocumentation(
     item: SelectableItem,
     private val sourceFile: TurbineSourceFile?,
-    private val javadoc: String,
-    private val declPosition: Int,
+    private val turbineJavadoc: TurbineJavadoc,
 ) : AbstractItemDocumentation(item) {
     /** Backing field for [fileLocation]. */
     private lateinit var _fileLocation: FileLocation
@@ -43,6 +43,7 @@ internal class TurbineItemDocumentation(
 
     override fun initializeTextBackingField() {
         // Reconstruct the original comment.
+        val javadoc = turbineJavadoc.value()
         val originalComment = "/**$javadoc*/"
 
         // Initialize the text backing field.
@@ -53,17 +54,7 @@ internal class TurbineItemDocumentation(
             if (sourceFile == null) {
                 FileLocation.UNKNOWN
             } else {
-                val fileContents = sourceFile.compUnit.source().source()
-
-                // Find the comment in the source file by searching backwards from the position of
-                // the declaration to which it was attached.
-                val commentPosition = fileContents.lastIndexOf(originalComment, declPosition)
-                if (commentPosition == -1) {
-                    // This should never happen.
-                    error("Cannot find documentation for $item")
-                } else {
-                    TurbineFileLocation(sourceFile, commentPosition)
-                }
+                TurbineFileLocation(sourceFile, turbineJavadoc.startPosition())
             }
     }
 

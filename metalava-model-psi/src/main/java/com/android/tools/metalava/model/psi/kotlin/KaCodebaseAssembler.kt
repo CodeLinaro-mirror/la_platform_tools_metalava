@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.CallableBody
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.DefaultTypeParameterList
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.ItemDocumentation
@@ -43,7 +44,6 @@ import com.android.tools.metalava.model.item.DefaultConstructorItem
 import com.android.tools.metalava.model.item.DefaultMethodItem
 import com.android.tools.metalava.model.item.DefaultParameterItem
 import com.android.tools.metalava.model.item.DefaultPropertyItem
-import com.android.tools.metalava.model.item.DefaultTypeAliasItem
 import com.android.tools.metalava.model.item.DefaultTypeParameterItem
 import com.android.tools.metalava.model.psi.PsiBasedCodebase
 import com.android.tools.metalava.model.psi.PsiFieldItem
@@ -63,6 +63,7 @@ import org.jetbrains.kotlin.analysis.api.annotations.KaAnnotation
 import org.jetbrains.kotlin.analysis.api.annotations.KaAnnotationValue
 import org.jetbrains.kotlin.analysis.api.projectStructure.KaModule
 import org.jetbrains.kotlin.analysis.api.symbols.KaCallableSymbol
+import org.jetbrains.kotlin.analysis.api.symbols.KaClassifierSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaConstructorSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaFunctionSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaNamedClassSymbol
@@ -215,6 +216,14 @@ internal class KaModuleProcessor(val kaModule: KaModule, val codebase: PsiBasedC
         }
     }
 
+    private fun KaClassifierSymbol.classOrigin(): ClassOrigin {
+        return when (origin) {
+            KaSymbolOrigin.LIBRARY,
+            KaSymbolOrigin.JAVA_LIBRARY -> ClassOrigin.CLASS_PATH
+            else -> ClassOrigin.COMMAND_LINE
+        }
+    }
+
     /** Creates a [DefaultTypeAliasItem] from the [typeAlias]. */
     private fun processTypeAlias(typeAlias: KaTypeAliasSymbol) {
         val qualifiedName = typeAlias.classId?.asFqNameString() ?: return
@@ -228,7 +237,7 @@ internal class KaModuleProcessor(val kaModule: KaModule, val codebase: PsiBasedC
                 typeAlias.typeParameters,
             )
 
-        DefaultTypeAliasItem(
+        DefaultClassItem.createTypeAlias(
             codebase = codebase,
             fileLocation = PsiFileLocation.fromPsiElement(typeAlias.psi),
             modifiers = kaModifierFactory.createForDeclaration(typeAlias),
@@ -239,6 +248,7 @@ internal class KaModuleProcessor(val kaModule: KaModule, val codebase: PsiBasedC
             qualifiedName = qualifiedName,
             typeParameterList = typeParameterListAndFactory.typeParameterList,
             containingPackage = containingPackage,
+            origin = typeAlias.classOrigin(),
         )
     }
 

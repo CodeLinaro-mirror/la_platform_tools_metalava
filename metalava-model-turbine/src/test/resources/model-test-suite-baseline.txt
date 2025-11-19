@@ -1,6 +1,9 @@
 com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTest
   annotation with unknown field
 
+com.android.tools.metalava.model.testsuite.constructoritem.CommonConstructorModifierTest
+  Test varargs
+
 com.android.tools.metalava.model.testsuite.documentation.CommonItemDocumentationTest
   Test fully qualifying links that wrap on multiple lines
 
@@ -62,9 +65,16 @@ com.android.tools.metalava.model.testsuite.documentation.CommonParameterizedDocR
 com.android.tools.metalava.model.testsuite.fielditem.CommonFieldItemTest
   Test implicit nullability of constant field initialized from @NonNull method
 
+com.android.tools.metalava.model.testsuite.methoditem.CommonMethodModifierTest
+  Test final method in final class
+  Test varargs
+
 com.android.tools.metalava.model.testsuite.methoditem.CommonParameterItemTest
   Test publicName reports correct name when called on binary class - Object#equals
   Test publicName reports correct name when called on binary class - ViewGroup#onLayout
+
+com.android.tools.metalava.model.testsuite.methoditem.CommonParameterModifierTest
+  Test varargs
 
 com.android.tools.metalava.model.testsuite.typeitem.CommonIsAssignableFromTest
   Test assignability without unboxing[boxedInt to primitiveInt]

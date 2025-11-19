@@ -219,7 +219,7 @@ class CommonCopyMethodItemTest : CommonCopyMemberItemTest<MethodItem>() {
                           public class Source {
                             method public void method();
                           }
-                          public final class Target implements test.pkg.Source {
+                          public final class Target extends test.pkg.Source {
                           }
                         }
                     """
@@ -241,7 +241,7 @@ class CommonCopyMethodItemTest : CommonCopyMemberItemTest<MethodItem>() {
                     """
                         package test.pkg;
 
-                        public final class Target implements Source {}
+                        public final class Target extends Source {}
                     """
                 ),
             ),
@@ -266,7 +266,7 @@ class CommonCopyMethodItemTest : CommonCopyMemberItemTest<MethodItem>() {
                           public class Source {
                             method public void method();
                           }
-                          @Deprecated public class Target implements test.pkg.Source {
+                          @Deprecated public class Target extends test.pkg.Source {
                           }
                         }
                     """
@@ -290,7 +290,7 @@ class CommonCopyMethodItemTest : CommonCopyMemberItemTest<MethodItem>() {
 
                         /** @deprecated */
                         @Deprecated
-                        public final class Target implements Source {}
+                        public final class Target extends Source {}
                     """
                 ),
             ),
@@ -318,7 +318,7 @@ class CommonCopyMethodItemTest : CommonCopyMemberItemTest<MethodItem>() {
                           @Deprecated public class Source {
                             method public void method();
                           }
-                          public class Target implements test.pkg.Source {
+                          public class Target extends test.pkg.Source {
                           }
                         }
                     """
@@ -342,7 +342,7 @@ class CommonCopyMethodItemTest : CommonCopyMemberItemTest<MethodItem>() {
                     """
                         package test.pkg;
 
-                        public final class Target implements Source {}
+                        public final class Target extends Source {}
                     """
                 ),
             ),
@@ -370,7 +370,7 @@ class CommonCopyMethodItemTest : CommonCopyMemberItemTest<MethodItem>() {
                           public class Source {
                             method @Deprecated public void method();
                           }
-                          public class Target implements test.pkg.Source {
+                          public class Target extends test.pkg.Source {
                           }
                         }
                     """
@@ -393,7 +393,7 @@ class CommonCopyMethodItemTest : CommonCopyMemberItemTest<MethodItem>() {
                     """
                         package test.pkg;
 
-                        public final class Target implements Source {}
+                        public final class Target extends Source {}
                     """
                 ),
             ),

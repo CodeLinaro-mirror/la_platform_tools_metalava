@@ -32,6 +32,8 @@ import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TargetLanguage
+import com.android.tools.metalava.model.TargetLanguageSet
+import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.annotation.AnnotationClass
@@ -58,6 +60,11 @@ open class DefaultClassItem(
     private var superClassType: ClassTypeItem?,
     private var interfaceTypes: List<ClassTypeItem>,
     override val isFileFacade: Boolean,
+    /**
+     * If [classKind] is [ClassKind.TYPEALIAS], the [optionalAliasedType] must be specified.
+     * Otherwise, it should be null.
+     */
+    private val optionalAliasedType: TypeItem?,
 ) :
     DefaultSelectableItem(
         codebase = codebase,
@@ -109,6 +116,23 @@ open class DefaultClassItem(
     final override fun containingPackage(): PackageItem = containingPackage
 
     final override fun containingClass() = containingClass
+
+    private lateinit var subClassList: MutableList<ClassItem>
+
+    final override fun subClasses(): List<ClassItem> {
+        if (!::subClassList.isInitialized) {
+            subClassList =
+                codebase
+                    .getAllClassesByName()
+                    .values
+                    .filter { cls ->
+                        cls.superClassType()?.qualifiedName == this.qualifiedName ||
+                            cls.interfaceTypes().any { it.qualifiedName == this.qualifiedName }
+                    }
+                    .toMutableList()
+        }
+        return subClassList.toList()
+    }
 
     final override fun qualifiedName() = qualifiedName
 
@@ -314,4 +338,54 @@ open class DefaultClassItem(
 
             return cachedAnnotationClass
         }
+
+    override val aliasedType: TypeItem
+        get() {
+            if (classKind != ClassKind.TYPEALIAS) {
+                error("aliasedType can only be accessed on typealiases")
+            }
+            return optionalAliasedType!!
+        }
+
+    companion object {
+        /** Creates a [DefaultClassItem] which has [ClassKind.TYPEALIAS]. */
+        fun createTypeAlias(
+            codebase: DefaultCodebase,
+            fileLocation: FileLocation,
+            modifiers: BaseModifierList,
+            documentationFactory: ItemDocumentationFactory,
+            variantSelectorsFactory: ApiVariantSelectorsFactory,
+            aliasedType: TypeItem,
+            qualifiedName: String,
+            typeParameterList: TypeParameterList,
+            containingPackage: DefaultPackageItem,
+            origin: ClassOrigin,
+        ): DefaultClassItem {
+            return DefaultClassItem(
+                codebase = codebase,
+                fileLocation = fileLocation,
+                // Typealiases can only be defined in Kotlin.
+                sourceLanguage = SourceLanguage.KOTLIN,
+                // Typealiases can only be referenced from Kotlin source.
+                targetLanguages = TargetLanguageSet.KOTLIN_ONLY,
+                modifiers = modifiers,
+                documentationFactory = documentationFactory,
+                variantSelectorsFactory = variantSelectorsFactory,
+                source = null,
+                classKind = ClassKind.TYPEALIAS,
+                // Typealiases can only be defined at the top leve.
+                containingClass = null,
+                containingPackage = containingPackage,
+                qualifiedName = qualifiedName,
+                typeParameterList = typeParameterList,
+                origin = origin,
+                // Typealiases don't have a superclass or interface types, since they are not
+                // normal classes.
+                superClassType = null,
+                interfaceTypes = emptyList(),
+                isFileFacade = false,
+                optionalAliasedType = aliasedType,
+            )
+        }
+    }
 }

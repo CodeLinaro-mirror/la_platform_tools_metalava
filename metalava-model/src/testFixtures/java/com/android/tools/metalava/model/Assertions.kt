@@ -77,9 +77,14 @@ interface Assertions {
     }
 
     /** Get the type alias from the [Codebase], failing if it does not exist. */
-    fun Codebase.assertTypeAlias(qualifiedName: String): TypeAliasItem {
-        val typeAliasItem = findTypeAlias(qualifiedName)
-        assertNotNull(typeAliasItem, message = "Expected $qualifiedName to be a defined type alias")
+    fun Codebase.assertTypeAlias(qualifiedName: String): ClassItem {
+        val typeAliasItem = assertClass(qualifiedName)
+        assertEquals(
+            typeAliasItem.classKind,
+            ClassKind.TYPEALIAS,
+            message =
+                "Expected $qualifiedName to be a defined type alias but was ${typeAliasItem.classKind}"
+        )
         return typeAliasItem
     }
 

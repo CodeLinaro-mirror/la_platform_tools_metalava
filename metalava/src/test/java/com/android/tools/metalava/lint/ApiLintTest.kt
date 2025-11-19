@@ -1054,7 +1054,7 @@ class ApiLintTest : DriverTest() {
                         """
                     package android.pkg;
 
-                    public abstract class MyClass2 implements android.os.IInterface {
+                    public interface MyClass2 extends android.os.IInterface {
                     }
                     """
                     ),

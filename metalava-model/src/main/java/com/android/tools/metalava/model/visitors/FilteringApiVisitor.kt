@@ -34,7 +34,6 @@ import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TargetLanguageSet
-import com.android.tools.metalava.model.TypeAliasItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeTransformer
 import com.android.tools.metalava.model.typeUseAnnotationFilter
@@ -175,11 +174,6 @@ class FilteringApiVisitor(
         delegate.visitProperty(filteringProperty)
     }
 
-    override fun visitTypeAlias(typeAlias: TypeAliasItem) {
-        val filteringTypeAlias = FilteringTypeAliasItem(typeAlias)
-        delegate.visitTypeAlias(filteringTypeAlias)
-    }
-
     /**
      * [SourceFile] that will filter out anything which is not to be written out by the
      * [FilteringApiVisitor.delegate].
@@ -269,6 +263,9 @@ class FilteringApiVisitor(
 
         override fun fields(): List<FieldItem> =
             delegate.filteredFields(filterReference, showUnannotated).map { FilteringFieldItem(it) }
+
+        override val aliasedType: TypeItem
+            get() = delegate.aliasedType.transform(typeAnnotationFilter)
     }
 
     /**
@@ -346,16 +343,6 @@ class FilteringApiVisitor(
      */
     private inner class FilteringPropertyItem(private val delegate: PropertyItem) :
         PropertyItem by delegate {
-
-        override fun type() = delegate.type().transform(typeAnnotationFilter)
-    }
-
-    /**
-     * [TypeAliasItem] that will filter out anything which is not to be written out by the
-     * [FilteringApiVisitor.delegate].
-     */
-    private inner class FilteringTypeAliasItem(private val delegate: TypeAliasItem) :
-        TypeAliasItem by delegate {
 
         override fun type() = delegate.type().transform(typeAnnotationFilter)
     }

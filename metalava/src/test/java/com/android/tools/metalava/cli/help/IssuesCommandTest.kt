@@ -47,6 +47,7 @@ Available Issues                             |  Category                        
   AddedMethod                                |  other_compatibility                  |   hidden
   AddedPackage                               |  other_compatibility                  |   hidden
   AddedReified                               |  binary_compatibility_only            |   error
+  AddedSubclassToSealedClass                 |  source_compatibility_only            |   hidden
   AllUpper                                   |  api_lint                             |   error
   AndroidUri                                 |  api_lint                             |   error
   AnnotationExtraction                       |  unknown                              |   error
@@ -203,6 +204,7 @@ Available Issues                             |  Category                        
   ReturningUnexpectedConstant                |  unknown                              |   warning
   SamShouldBeLast                            |  api_lint                             |   warning
   SdkConstant                                |  documentation                        |   error
+  SealedClassExhaustivityChanged             |  source_compatibility_only            |   hidden
   ServiceName                                |  api_lint                             |   error
   SetterReturnsThis                          |  api_lint                             |   warning
   ShowingMemberInHiddenClass                 |  api_lint                             |   error
@@ -222,6 +224,7 @@ Available Issues                             |  Category                        
   TypeParseError                             |  unknown                              |   error
   UnavailableSymbol                          |  documentation                        |   warning
   UnclosedInlineTag                          |  documentation                        |   error
+  UnexportedFlaggedApi                       |  api_lint                             |   warning_error_when_new
   UnflaggedApi                               |  api_lint                             |   hidden
   UnhiddenSystemApi                          |  api_lint                             |   error
   UniqueKotlinOperator                       |  api_lint                             |   error

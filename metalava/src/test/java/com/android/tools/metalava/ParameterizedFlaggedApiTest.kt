@@ -151,6 +151,7 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                             ApiFlagConfig(
                                 pkg = "test.pkg.flags",
                                 name = "foo_bar",
+                                isExported = true,
                                 mutability = IMMUTABLE,
                                 status = ENABLED,
                             ),

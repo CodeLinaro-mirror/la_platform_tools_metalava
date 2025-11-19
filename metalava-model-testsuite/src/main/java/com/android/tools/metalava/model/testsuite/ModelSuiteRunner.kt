@@ -89,13 +89,14 @@ interface ModelSuiteRunner : FilterableCodebaseCreator {
     )
 
     /**
-     * Create a [Codebase] from the supplied [inputs] and then run a test on that [Codebase].
+     * Try and create a [Codebase] from the supplied [inputs] and then run a test on that
+     * [Codebase].
      *
      * Implementations of this consume [inputs] to create a [Codebase] on which the test is run.
      */
     fun createCodebaseAndRun(
         inputs: TestInputs,
-        test: (Codebase) -> Unit,
+        test: (Codebase?) -> Unit,
     )
 
     /** The name of the runner used in parameterized test names. */

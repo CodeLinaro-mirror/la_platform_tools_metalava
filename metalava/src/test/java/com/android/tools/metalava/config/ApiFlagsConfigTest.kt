@@ -37,12 +37,14 @@ class ApiFlagsConfigTest : BaseConfigParserTest() {
                                     name = "flag_name",
                                     mutability = IMMUTABLE,
                                     status = ENABLED,
+                                    isExported = true,
                                 ),
                                 ApiFlagConfig(
                                     pkg = "test.pkg",
                                     name = "other_flag_name",
                                     mutability = MUTABLE,
                                     status = DISABLED,
+                                    isExported = false,
                                 ),
                             )
                     )
@@ -50,8 +52,8 @@ class ApiFlagsConfigTest : BaseConfigParserTest() {
             """
                 <config xmlns="http://www.google.com/tools/metalava/config">
                   <api-flags>
-                    <api-flag package="test.pkg" name="flag_name" mutability="immutable" status="enabled"/>
-                    <api-flag package="test.pkg" name="other_flag_name" mutability="mutable" status="disabled"/>
+                    <api-flag package="test.pkg" name="flag_name" mutability="immutable" status="enabled" is-exported="true"/>
+                    <api-flag package="test.pkg" name="other_flag_name" mutability="mutable" status="disabled" is-exported="false"/>
                   </api-flags>
                 </config>
             """
@@ -66,8 +68,8 @@ class ApiFlagsConfigTest : BaseConfigParserTest() {
                 """
                     <config xmlns="http://www.google.com/tools/metalava/config">
                       <api-flags>
-                        <api-flag package="test.pkg" name="flag_name" mutability="immutable" status="enabled"/>
-                        <api-flag package="test.pkg" name="flag_name" mutability="mutable" status="disabled"/>
+                        <api-flag package="test.pkg" name="flag_name" mutability="immutable" status="enabled" is-exported="true"/>
+                        <api-flag package="test.pkg" name="flag_name" mutability="mutable" status="disabled" is-exported="true"/>
                       </api-flags>
                     </config>
                 """

@@ -25,6 +25,7 @@ import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.source.DEFAULT_JAVA_LANGUAGE_LEVEL
 import com.android.tools.metalava.model.testing.CodebaseCreatorConfig
 import com.android.tools.metalava.model.testing.CodebaseCreatorConfigAware
 import com.android.tools.metalava.reporter.RecordingReporter
@@ -158,8 +159,22 @@ abstract class BaseModelTest() :
      * Context within which the main body of tests that check the state of the [Codebase] will run.
      */
     interface CodebaseContext {
-        /** The newly created [Codebase]. */
+        /**
+         * The newly created [Codebase].
+         *
+         * If the [Codebase] could not be created then accessing this will throw an error.
+         *
+         * @see optionalCodebase
+         */
         val codebase: Codebase
+            get() = optionalCodebase ?: error("Codebase was not created")
+
+        /**
+         * The optionally created [Codebase].
+         *
+         * Will be `null` if the [Codebase] could not be created
+         */
+        val optionalCodebase: Codebase?
 
         /** The [InputFormat] from which [codebase] was created. */
         val inputFormat: InputFormat
@@ -185,7 +200,7 @@ abstract class BaseModelTest() :
     }
 
     inner class DefaultCodebaseContext(
-        override val codebase: Codebase,
+        override val optionalCodebase: Codebase?,
         override val inputFormat: InputFormat,
         private val fileToSymbol: Map<File, String>,
         private val recordingReporter: RecordingReporter,
@@ -217,6 +232,9 @@ abstract class BaseModelTest() :
 
         /** Additional jar files to add to the class path. */
         val additionalClassPath: List<File> = emptyList(),
+
+        /** The Java language level. */
+        val javaLanguageLevel: String = DEFAULT_JAVA_LANGUAGE_LEVEL,
     ) {
         /** The [Codebase.Config] to use when creating a [Codebase] to test. */
         val codebaseConfig =
