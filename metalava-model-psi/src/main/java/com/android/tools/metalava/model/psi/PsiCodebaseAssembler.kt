@@ -77,6 +77,7 @@ import com.intellij.psi.util.PsiTreeUtil
 import java.io.File
 import java.io.IOException
 import java.util.zip.ZipFile
+import kotlin.collections.forEach
 import kotlin.collections.set
 import org.jetbrains.kotlin.asJava.classes.KtLightClassForFacade
 import org.jetbrains.kotlin.name.FqName
@@ -179,7 +180,7 @@ internal class PsiCodebaseAssembler(
         findOrCreateClass(qualifiedName)
 
     /** Check if the [BaseModifierList] is accsssible. */
-    private val BaseModifierList.isAccessible
+    private val BaseModifierList.hasApiVisibilityOrShowAnnotation
         get() =
             when (getVisibilityLevel()) {
                 VisibilityLevel.PUBLIC,
@@ -204,7 +205,7 @@ internal class PsiCodebaseAssembler(
 
         // Ignore inaccessible classes.
         val modifiers = PsiModifierItem.create(codebase, psiClass)
-        if (!modifiers.isAccessible) {
+        if (!modifiers.hasApiVisibilityOrShowAnnotation) {
             deferredHeavyweightPsiClasses[psiClass.qualifiedName!!] = psiClass
             return null
         }
@@ -278,6 +279,7 @@ internal class PsiCodebaseAssembler(
             )
         val (superClassType, interfaceTypes) =
             computeSuperTypes(psiClass, classKind, classTypeItemFactory)
+
         val classItem =
             PsiClassItem(
                 psiCodebase = codebase,
@@ -885,8 +887,73 @@ internal class PsiCodebaseAssembler(
             initializeClassFromSources(psiClass, multiFileClasses, apiPackages)
         }
 
+        // Determining sealed class exhaustivity is done here because it requires looking at
+        // classes that are private and won't be turned into ClassItems, and these classes are
+        // only all available here during codebase assembly. Doing this at a later stage (for
+        // example in ApiAnalyzer) wouldn't be possible because non-visible classes are no longer
+        // accessible from there.
+        determineIfInaccessibleClassesMakeSuperClassesNonExhaustive(psiClasses)
+
         // Add kotlin-only APIs.
         kaCodebaseAssembler?.assemble()
+    }
+
+    // Instances of sealed classes can be matched using `when` statements. If all the subclasses
+    // of a sealed class are available to API consumers, then new subclasses can't be added
+    // to the sealed class because doing so would be a breaking change (clients' `when`
+    // statements would no longer be exhaustive). In this case, we label the sealed class as
+    // exhaustive. If there is an inaccessible class that extends a sealed class, however, then
+    // the sealed class is not exhaustive. For more details, see b/447143803
+    private fun determineIfInaccessibleClassesMakeSuperClassesNonExhaustive(
+        psiClasses: List<PsiClass>
+    ) {
+        psiClasses.forEach { psiClass -> sealedClassExhaustivityHelper(psiClass, false) }
+    }
+
+    /**
+     * Recursively traverses the inner classes of [psiClass] to determine if any sealed super
+     * classes should be marked as non-exhaustive.
+     *
+     * A sealed class is considered non-exhaustive if it has at least one inaccessible subclass.
+     *
+     * @param psiClass The current [PsiClass] being checked.
+     * @param parentWasNotVisible True if any containing class of [psiClass] was not visible.
+     */
+    private fun sealedClassExhaustivityHelper(
+        psiClass: PsiClass,
+        parentWasNotVisible: Boolean,
+    ) {
+        val qualifiedName = psiClass.qualifiedName
+        if (qualifiedName != null) {
+
+            // If a ClassItem already exists for this psiClass, use its modifiers. Otherwise, create
+            // new ones.
+            val modifiers =
+                codebase.findClass(psiClass)?.modifiers
+                    ?: PsiModifierItem.create(codebase, psiClass)
+            val curClassNotVisible =
+                modifiers.annotations().any { it.showability.hide() } ||
+                    !modifiers.hasApiVisibilityOrShowAnnotation
+
+            if (curClassNotVisible || parentWasNotVisible) {
+                val superClassName = psiClass.superClass?.qualifiedName
+                if (superClassName != null) {
+                    codebase.findClass(superClassName)?.mutateModifiers { setExhaustive(false) }
+                }
+                psiClass.interfaces
+                    .mapNotNull { it?.qualifiedName }
+                    .forEach { name ->
+                        codebase.findClass(name)?.mutateModifiers { setExhaustive(false) }
+                    }
+            }
+
+            psiClass.innerClasses.forEach { innerClass ->
+                sealedClassExhaustivityHelper(
+                    innerClass,
+                    parentWasNotVisible || curClassNotVisible,
+                )
+            }
+        }
     }
 
     /**
@@ -969,6 +1036,9 @@ internal class PsiCodebaseAssembler(
 
         // Make sure we only process the files once; sometimes there's overlap in the source lists
         for (psiFile in psiFiles.asSequence().distinct()) {
+            // Check for syntax errors across the whole file.
+            checkForSyntaxErrors(psiFile)
+
             checkForUnresolvedImports(psiFile)
 
             val classes = getPsiClassesFromPsiFile(psiFile)
@@ -979,10 +1049,7 @@ internal class PsiCodebaseAssembler(
                     }
                 }
                 else -> {
-                    for (psiClass in classes) {
-                        checkForSyntaxErrors(psiClass)
-                        psiClasses.add(psiClass)
-                    }
+                    psiClasses.addAll(classes)
                 }
             }
         }
@@ -1048,9 +1115,9 @@ internal class PsiCodebaseAssembler(
         return null
     }
 
-    /** Check the [psiClass] for any syntax errors. */
-    private fun checkForSyntaxErrors(psiClass: PsiClass) {
-        psiClass.accept(
+    /** Check the [psiFile] for any syntax errors. */
+    private fun checkForSyntaxErrors(psiFile: PsiFile) {
+        psiFile.accept(
             object : JavaRecursiveElementVisitor() {
                 override fun visitErrorElement(element: PsiErrorElement) {
                     super.visitErrorElement(element)

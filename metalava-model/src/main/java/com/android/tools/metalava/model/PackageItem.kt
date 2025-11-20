@@ -49,8 +49,10 @@ interface PackageItem : SelectableItem, ReferencableItem, ReferencableNameScope 
         return topLevelClasses().asSequence().flatMap { it.allClasses() }
     }
 
-    /** All type aliases defined in this package. */
-    fun typeAliases(): List<TypeAliasItem>
+    override fun describe(capitalize: Boolean): String {
+        val suffix = qualifiedName().let { if (it.isEmpty()) "<root>" else it }
+        return "${if (capitalize) "Package" else "package"} $suffix"
+    }
 
     override fun type(): TypeItem? = null
 

@@ -25,7 +25,6 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ReferencableItem
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TargetLanguage
-import com.android.tools.metalava.model.TypeAliasItem
 import com.android.tools.metalava.model.scope.ReferencableNameScope
 import com.android.tools.metalava.reporter.FileLocation
 
@@ -126,15 +125,5 @@ open class DefaultPackageItem(
 
     override fun childPackages(): List<PackageItem> {
         return childPackages.toList()
-    }
-
-    private val typeAliases = mutableListOf<TypeAliasItem>()
-
-    internal fun addTypeAlias(typeAlias: DefaultTypeAliasItem) {
-        typeAliases += typeAlias
-    }
-
-    override fun typeAliases(): List<TypeAliasItem> {
-        return typeAliases.toList()
     }
 }

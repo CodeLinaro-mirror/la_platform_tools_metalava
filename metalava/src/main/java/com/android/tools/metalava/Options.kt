@@ -67,12 +67,9 @@ import com.android.tools.metalava.stub.StubWriterConfig
 import com.android.utils.SdkUtils.wrap
 import com.github.ajalt.clikt.core.NoSuchOption
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
-import com.github.ajalt.clikt.parameters.options.default
-import com.github.ajalt.clikt.parameters.options.deprecated
 import com.github.ajalt.clikt.parameters.options.multiple
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.unique
-import com.github.ajalt.clikt.parameters.types.choice
 import com.github.ajalt.clikt.parameters.types.file
 import java.io.File
 import java.io.PrintWriter
@@ -181,7 +178,6 @@ const val ARG_IGNORE_CLASSES_ON_CLASSPATH = "--ignore-classes-on-classpath"
 const val ARG_USE_K2_UAST = "--Xuse-k2-uast"
 const val ARG_USE_K1_UAST = "--Xuse-k1-uast"
 const val ARG_PROJECT = "--project"
-const val ARG_SOURCE_MODEL_PROVIDER = "--source-model-provider"
 
 class Options(
     private val executionEnvironment: ExecutionEnvironment = ExecutionEnvironment(),
@@ -455,7 +451,7 @@ class Options(
 
     internal val stubWriterConfig by lazy {
         StubWriterConfig(
-            includeDocumentationInStubs = includeDocumentationInStubs,
+            includeDocumentationInStubs = includeDocumentationInStubs || docStubsDir != null,
         )
     }
 
@@ -484,7 +480,7 @@ class Options(
      * If set, a file to write extracted annotations to. Corresponds to the --extract-annotations
      * flag.
      */
-    var externalAnnotations: File? = null
+    var externalAnnotationsFile: File? = null
 
     /** An optional manifest [File]. */
     private val manifestFile by
@@ -629,18 +625,6 @@ class Options(
             field = value
         }
 
-    val sourceModelProvider by
-        option(
-                ARG_SOURCE_MODEL_PROVIDER,
-                hidden = true,
-            )
-            .choice("psi", "turbine")
-            .default("psi")
-            .deprecated(
-                """WARNING: The turbine model is under work and not usable for now. Eventually this option can be used to set the source model provider to either turbine or psi. The default is psi. """
-                    .trimIndent()
-            )
-
     fun parse(args: Array<String>) {
         var index = 0
         while (index < args.size) {
@@ -699,7 +683,7 @@ class Options(
                 }
                 ARG_DELETE_EMPTY_REMOVED_SIGNATURES -> deleteEmptyRemovedSignatures = true
                 ARG_EXTRACT_ANNOTATIONS ->
-                    externalAnnotations = stringToNewFile(getValue(args, ++index))
+                    externalAnnotationsFile = stringToNewFile(getValue(args, ++index))
 
                 // Extracting API levels
                 ARG_APPLY_API_LEVELS -> {

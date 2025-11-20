@@ -69,9 +69,9 @@ class FlagReportCommandTest : BaseCommandTest<FlagReportCommand>({ FlagReportCom
             verify {
                 assertEquals(
                     """
-                        test.pkg.finalized_flag,known,finalized
-                        test.pkg.kept_flag,known,kept
-                        test.pkg.reverted_flag,known,reverted
+                        test.pkg.finalized_flag,known,finalized,unexported
+                        test.pkg.kept_flag,known,kept,unexported
+                        test.pkg.reverted_flag,known,reverted,unexported
                         test.pkg.unknown_flag,unknown,reverted
                     """
                         .trimIndent(),

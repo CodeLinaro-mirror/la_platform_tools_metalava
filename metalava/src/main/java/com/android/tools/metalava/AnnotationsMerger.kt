@@ -134,7 +134,9 @@ class AnnotationsMerger(
                         projectDescription = null,
                         compiledSourceJar = null,
                     )
-                mergeJavaStubsCodebase(javaStubsCodebase)
+                if (javaStubsCodebase != null) {
+                    mergeJavaStubsCodebase(javaStubsCodebase)
+                }
             }
         }
     }

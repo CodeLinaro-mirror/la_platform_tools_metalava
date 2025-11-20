@@ -26,7 +26,7 @@ import com.android.tools.metalava.cli.common.cliError
 import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.flag.ApiFlagReportProducer
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.api.flags.ApiFlag
+import com.android.tools.metalava.model.api.flags.ApiFlagAction
 import com.android.tools.metalava.model.text.SignatureFile
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.arguments.multiple
@@ -77,11 +77,12 @@ class FlagReportCommand :
         val reportFile = flagReportOptions.flagReportFile
         reportFile.printWriter().use { writer ->
             for ((qualifiedName, apiFlag) in report.flagStatuses) {
+                val exportedStatus = if (apiFlag?.isExported == true) "exported" else "unexported"
                 val status =
-                    when (apiFlag) {
-                        ApiFlag.KEEP_FLAGGED_API -> "known,kept"
-                        ApiFlag.FINALIZE_FLAGGED_API -> "known,finalized"
-                        ApiFlag.REVERT_FLAGGED_API -> "known,reverted"
+                    when (apiFlag?.description) {
+                        ApiFlagAction.KEEP -> "known,kept,$exportedStatus"
+                        ApiFlagAction.FINALIZE -> "known,finalized,$exportedStatus"
+                        ApiFlagAction.REVERT -> "known,reverted,$exportedStatus"
                         else -> "unknown,reverted"
                     }
                 writer.println("$qualifiedName,$status")

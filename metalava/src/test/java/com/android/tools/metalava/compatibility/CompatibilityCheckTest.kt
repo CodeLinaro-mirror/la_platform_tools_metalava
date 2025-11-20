@@ -41,6 +41,290 @@ import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
 
 class CompatibilityCheckTest : DriverTest() {
+
+    @Test
+    fun `Should raise issue when adding private subclass to exhaustive sealed interface (sealed interface changes from exhaustive to nonexhaustive)`() {
+        check(
+            expectedIssues =
+                """
+                    load-api.txt:6: error: Sealed interface can no longer be exhaustively matched because an inaccessible subclass was added. [SealedClassExhaustivityChanged]
+                """
+                    .trimIndent(),
+            expectedFail = "",
+            extraArguments =
+                arrayOf(
+                    "--error",
+                    Issues.ADDED_SUBCLASS_TO_SEALED_CLASS.name,
+                    "--error",
+                    Issues.SEALED_CLASS_EXHAUSTIVITY_CHANGED.name
+                ),
+            checkCompatibilityApiReleased =
+                """
+                package test.pkg {
+                  public final class OriginalInterfaceImplementor implements test.pkg.SealedInterface {
+                    ctor public OriginalInterfaceImplementor();
+                  }
+                  public sealed exhaustive interface SealedInterface {
+                  }
+                }
+                """,
+            signatureSource =
+                """
+                package test.pkg {
+                  public final class OriginalInterfaceImplementor implements test.pkg.SealedInterface {
+                    ctor public OriginalInterfaceImplementor();
+                  }
+                  public sealed nonexhaustive interface SealedInterface {
+                  }
+                }
+                """
+        )
+    }
+
+    @Test
+    fun `Should raise issue when adding private subclass to exhaustive sealed class (sealed class changes from exhaustive to nonexhaustive)`() {
+        check(
+            expectedIssues =
+                """
+                load-api.txt:6: error: Sealed class can no longer be exhaustively matched because an inaccessible subclass was added. [SealedClassExhaustivityChanged]
+            """
+                    .trimIndent(),
+            expectedFail = "",
+            extraArguments =
+                arrayOf(
+                    "--error",
+                    Issues.ADDED_SUBCLASS_TO_SEALED_CLASS.name,
+                    "--error",
+                    Issues.SEALED_CLASS_EXHAUSTIVITY_CHANGED.name
+                ),
+            checkCompatibilityApiReleased =
+                """
+                package test.pkg {
+                  public final class MySubClass extends test.pkg.SealedClass {
+                    ctor public MySubClass();
+                  }
+                  public abstract sealed exhaustive class SealedClass {
+                  }
+                }
+                """,
+            signatureSource =
+                """
+                package test.pkg {
+                  public final class MySubClass extends test.pkg.SealedClass {
+                    ctor public MySubClass();
+                  }
+                  public abstract sealed nonexhaustive class SealedClass {
+                  }
+                }
+                """
+        )
+    }
+
+    @Test
+    fun `Don't raise issue when adding subclass to nonexhaustive sealed class`() {
+        check(
+            expectedIssues = "",
+            extraArguments = arrayOf("--error", Issues.ADDED_SUBCLASS_TO_SEALED_CLASS.name),
+            checkCompatibilityApiReleased =
+                """
+                package test.pkg {
+                  public final class OriginalSubclass extends test.pkg.SealedClass {
+                    ctor public OriginalSubclass();
+                  }
+                  public abstract sealed nonexhaustive class SealedClass {
+                  }
+                }
+                """,
+            signatureSource =
+                """
+                package test.pkg {
+                  public final class NewSubclass extends test.pkg.SealedClass {
+                    ctor public NewSubclass();
+                  }
+                  public final class OriginalSubclass extends test.pkg.SealedClass {
+                    ctor public OriginalSubclass();
+                  }
+                  public abstract sealed nonexhaustive class SealedClass {
+                  }
+                }
+                """
+        )
+    }
+
+    @Test
+    fun `Should raise issue when adding implementor to exhaustive sealed interface`() {
+        check(
+            expectedIssues =
+                """
+                    load-api.txt:3: error: Added a subclass to a sealed interface that can be exhaustively matched [AddedSubclassToSealedClass]
+                """
+                    .trimIndent(),
+            expectedFail = "",
+            extraArguments = arrayOf("--error", Issues.ADDED_SUBCLASS_TO_SEALED_CLASS.name),
+            checkCompatibilityApiReleased =
+                """
+                package test.pkg {
+                  public final class OriginalInterfaceImplementor implements test.pkg.SealedInterface {
+                    ctor public OriginalInterfaceImplementor();
+                  }
+                  public sealed exhaustive interface SealedInterface {
+                  }
+                }
+                """,
+            signatureSource =
+                """
+                package test.pkg {
+                  public final class NewInterfaceImplementor implements test.pkg.SealedInterface {
+                    ctor public NewInterfaceImplementor();
+                  }
+                  public final class OriginalInterfaceImplementor implements test.pkg.SealedInterface {
+                    ctor public OriginalInterfaceImplementor();
+                  }
+                  public sealed exhaustive interface SealedInterface {
+                  }
+                }
+                """
+        )
+    }
+
+    @Test
+    fun `Should raise issue when adding non-experimental subclass to exhaustive sealed class`() {
+        check(
+            expectedIssues =
+                """
+                load-api.txt:3: error: Added a subclass to a sealed class that can be exhaustively matched [AddedSubclassToSealedClass]
+            """
+                    .trimIndent(),
+            expectedFail = "",
+            extraArguments = arrayOf("--error", Issues.ADDED_SUBCLASS_TO_SEALED_CLASS.name),
+            checkCompatibilityApiReleased =
+                """
+                package test.pkg {
+                  public abstract sealed exhaustive class SealedClass {
+                  }
+                  public final class OriginalSubclass extends test.pkg.SealedClass {
+                    ctor public OriginalSubclass();
+                  }
+                }
+                """,
+            signatureSource =
+                """
+                package test.pkg {
+                  public final class NewSubclass extends test.pkg.SealedClass {
+                    ctor public NewSubclass();
+                  }
+                  public abstract sealed exhaustive class SealedClass {
+                  }
+                  public final class OriginalSubclass extends test.pkg.SealedClass {
+                    ctor public OriginalSubclass();
+                  }
+                }
+                """
+        )
+    }
+
+    @Test
+    fun `Should raise issue when adding experimental subclass to exhaustive sealed class`() {
+        check(
+            expectedIssues =
+                """
+                load-api.txt:3: error: Added a subclass to a sealed class that can be exhaustively matched [AddedSubclassToSealedClass]
+            """
+                    .trimIndent(),
+            expectedFail = "",
+            extraArguments = arrayOf("--error", Issues.ADDED_SUBCLASS_TO_SEALED_CLASS.name),
+            checkCompatibilityApiReleased =
+                """
+                package test.pkg {
+                  public abstract sealed exhaustive class SealedClass {
+                  }
+                  public final class OriginalSubclass extends test.pkg.SealedClass {
+                    ctor public OriginalSubclass();
+                  }
+                }
+                """,
+            signatureSource =
+                """
+                package test.pkg {
+                  @SuppressCompatibility @kotlin.RequiresOptIn public final class NewSubclass extends test.pkg.SealedClass {
+                    ctor public NewSubclass();
+                  }
+                  public abstract sealed exhaustive class SealedClass {
+                  }
+                  public final class OriginalSubclass extends test.pkg.SealedClass {
+                    ctor public OriginalSubclass();
+                  }
+                }
+                """,
+            suppressCompatibilityMetaAnnotations =
+                arrayOf("androidx.annotation.SuppressCompatibility")
+        )
+    }
+
+    @Test
+    fun `Should not raise issue when comparing against sealed interface without any exhaustivity modifier`() {
+        check(
+            expectedIssues = "",
+            extraArguments = arrayOf("--error", Issues.ADDED_SUBCLASS_TO_SEALED_CLASS.name),
+            checkCompatibilityApiReleased =
+                """
+                package test.pkg {
+                  public final class OriginalInterfaceImplementor implements test.pkg.SealedInterface {
+                    ctor public OriginalInterfaceImplementor();
+                  }
+                  public sealed interface SealedInterface {
+                  }
+                }
+                """,
+            signatureSource =
+                """
+                package test.pkg {
+                  public final class NewInterfaceImplementor implements test.pkg.SealedInterface {
+                    ctor public NewInterfaceImplementor();
+                  }
+                  public final class OriginalInterfaceImplementor implements test.pkg.SealedInterface {
+                    ctor public OriginalInterfaceImplementor();
+                  }
+                  public sealed exhaustive interface SealedInterface {
+                  }
+                }
+                """
+        )
+    }
+
+    @Test
+    fun `Should not raise issue when comparing against sealed class without any exhaustivity modifier`() {
+        check(
+            expectedIssues = "",
+            extraArguments = arrayOf("--error", Issues.ADDED_SUBCLASS_TO_SEALED_CLASS.name),
+            checkCompatibilityApiReleased =
+                """
+                package test.pkg {
+                  public abstract sealed class SealedClass {
+                  }
+                  public final class OriginalSubclass extends test.pkg.SealedClass {
+                    ctor public OriginalSubclass();
+                  }
+                }
+                """,
+            signatureSource =
+                """
+                package test.pkg {
+                  @SuppressCompatibility @kotlin.RequiresOptIn public final class NewSubclass extends test.pkg.SealedClass {
+                    ctor public NewSubclass();
+                  }
+                  public abstract sealed exhaustive class SealedClass {
+                  }
+                  public final class OriginalSubclass extends test.pkg.SealedClass {
+                    ctor public OriginalSubclass();
+                  }
+                }
+                """,
+            suppressCompatibilityMetaAnnotations =
+                arrayOf("androidx.annotation.SuppressCompatibility")
+        )
+    }
+
     @Test
     fun `Should not raise issue when experimental package is added`() {
         check(
@@ -974,8 +1258,8 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                src/test/pkg/Foo.kt:3: error: Source breaking change: Attempted to remove default value from parameter s1 in test.pkg.Foo [DefaultValueChange]
-                src/test/pkg/Foo.kt:7: error: Source breaking change: Attempted to remove default value from parameter s1 in test.pkg.Foo.method4 [DefaultValueChange]
+                src/test/pkg/Foo.kt:3: error: Source breaking change: Attempted to remove default value from parameter s1 in test.pkg.Foo(String s1) [DefaultValueChange]
+                src/test/pkg/Foo.kt:7: error: Source breaking change: Attempted to remove default value from parameter s1 in test.pkg.Foo.method4(boolean b, String s1) [DefaultValueChange]
                 """,
             format = FileFormat.V4,
             checkCompatibilityApiReleased =
@@ -4303,12 +4587,12 @@ class CompatibilityCheckTest : DriverTest() {
                 error: Binary breaking change: Method test.pkg.MyCollection.size has changed 'abstract' qualifier [ChangedAbstract]
                 error: Binary breaking change: Method test.pkg.MyCollection.toArray has changed 'abstract' qualifier [ChangedAbstract]
                 error: Binary breaking change: Method test.pkg.MyCollection.toArray has changed 'abstract' qualifier [ChangedAbstract]
-                error: Source breaking change: Attempted to remove parameter name from parameter p in test.pkg.MyCollection.add [ParameterNameChange]
-                error: Source breaking change: Attempted to remove parameter name from parameter p in test.pkg.MyCollection.addAll [ParameterNameChange]
-                error: Source breaking change: Attempted to remove parameter name from parameter p in test.pkg.MyCollection.remove [ParameterNameChange]
-                error: Source breaking change: Attempted to remove parameter name from parameter p in test.pkg.MyCollection.removeAll [ParameterNameChange]
-                error: Source breaking change: Attempted to remove parameter name from parameter p in test.pkg.MyCollection.retainAll [ParameterNameChange]
-                error: Source breaking change: Attempted to remove parameter name from parameter p in test.pkg.MyCollection.toArray [ParameterNameChange]
+                error: Source breaking change: Attempted to remove parameter name from parameter p in test.pkg.MyCollection.add(E p) [ParameterNameChange]
+                error: Source breaking change: Attempted to remove parameter name from parameter p in test.pkg.MyCollection.addAll(java.util.Collection<? extends E> p) [ParameterNameChange]
+                error: Source breaking change: Attempted to remove parameter name from parameter p in test.pkg.MyCollection.remove(Object p) [ParameterNameChange]
+                error: Source breaking change: Attempted to remove parameter name from parameter p in test.pkg.MyCollection.removeAll(java.util.Collection<?> p) [ParameterNameChange]
+                error: Source breaking change: Attempted to remove parameter name from parameter p in test.pkg.MyCollection.retainAll(java.util.Collection<?> p) [ParameterNameChange]
+                error: Source breaking change: Attempted to remove parameter name from parameter p in test.pkg.MyCollection.toArray(T[] p) [ParameterNameChange]
                 load-api.txt:5: error: Source breaking change: Attempted to change parameter name from o to element in method test.pkg.MyCollection.contains [ParameterNameChange]
                 load-api.txt:5: error: Source breaking change: Attempted to change parameter name from o to element in method test.pkg.MyCollection.contains [ParameterNameChange]
                 load-api.txt:6: error: Source breaking change: Attempted to change parameter name from c to elements in method test.pkg.MyCollection.containsAll [ParameterNameChange]
@@ -4735,8 +5019,8 @@ class CompatibilityCheckTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                src/test/pkg/Foo.kt:7: error: Source breaking change: Attempted to remove default value from parameter p1 in test.pkg.Foo.noCompatibleOverloadNewParamNotOptional [DefaultValueChange]
-                src/test/pkg/Foo.kt:10: error: Source breaking change: Attempted to remove default value from parameter p1 in test.pkg.Foo.noCompatibleOverloadNoDefaultOnOverload [DefaultValueChange]
+                src/test/pkg/Foo.kt:7: error: Source breaking change: Attempted to remove default value from parameter p1 in test.pkg.Foo.noCompatibleOverloadNewParamNotOptional(int p0, boolean p1) [DefaultValueChange]
+                src/test/pkg/Foo.kt:10: error: Source breaking change: Attempted to remove default value from parameter p1 in test.pkg.Foo.noCompatibleOverloadNoDefaultOnOverload(int p0, boolean p1) [DefaultValueChange]
                 """,
             checkCompatibilityApiReleased =
                 """

@@ -63,6 +63,9 @@ interface Codebase : ClassResolver, AnnotationContext {
      */
     fun getTopLevelClassesFromSource(): List<ClassItem>
 
+    /** Returns a list of all classes (including nested classes) created by this. */
+    fun getAllClassesByName(): Map<String, ClassItem>
+
     /**
      * Return `true` if this whole [Codebase] was created from the class path, i.e. not from
      * sources.
@@ -103,9 +106,6 @@ interface Codebase : ClassResolver, AnnotationContext {
      * available).
      */
     fun resolvePackage(pkgName: String): PackageItem?
-
-    /** Returns a typealias identified by fully qualified name, if in the codebase */
-    fun findTypeAlias(typeAliasName: String): TypeAliasItem?
 
     /** Returns true if this codebase supports documentation. */
     fun supportsDocumentation(): Boolean

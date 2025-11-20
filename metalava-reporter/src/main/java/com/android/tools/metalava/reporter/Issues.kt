@@ -43,6 +43,9 @@ object Issues {
     val ADDED_ANNOTATION by Issue(Severity.ERROR, Category.OTHER_COMPATIBILITY)
     val ADDED_PACKAGE by Issue(Severity.HIDDEN, Category.OTHER_COMPATIBILITY)
     val ADDED_CLASS by Issue(Severity.HIDDEN, Category.OTHER_COMPATIBILITY)
+    val ADDED_SUBCLASS_TO_SEALED_CLASS by Issue(Severity.HIDDEN, Category.SOURCE_COMPATIBILITY_ONLY)
+    val SEALED_CLASS_EXHAUSTIVITY_CHANGED by
+        Issue(Severity.HIDDEN, Category.SOURCE_COMPATIBILITY_ONLY)
     // Adding an abstract method is breaking, but that is a separate issue.
     val ADDED_METHOD by Issue(Severity.HIDDEN, Category.OTHER_COMPATIBILITY)
     // Note that this may be breaking if the class/interface can be implemented, but the reporter
@@ -253,6 +256,7 @@ object Issues {
     val KOTLIN_DEFAULT_PARAMETER_ORDER by Issue(Severity.ERROR, Category.API_LINT)
     val UNFLAGGED_API by Issue(Severity.HIDDEN, Category.API_LINT)
     val FLAGGED_API_LITERAL by Issue(Severity.WARNING_ERROR_WHEN_NEW, Category.API_LINT)
+    val UNEXPORTED_FLAGGED_API by Issue(Severity.WARNING_ERROR_WHEN_NEW, Category.API_LINT)
     val GETTER_SETTER_NULLABILITY by Issue(Severity.WARNING_ERROR_WHEN_NEW, Category.API_LINT)
     val CONDITIONAL_REQUIRES_PERMISSION_NOT_EXPLAINED by Issue(Severity.HIDDEN, Category.API_LINT)
     val VALUE_CLASS_DEFINITION by Issue(Severity.ERROR, Category.API_LINT)

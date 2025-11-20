@@ -23,6 +23,7 @@ import com.android.tools.metalava.config.ApiFlagConfig.Status.DISABLED
 import com.android.tools.metalava.config.ApiFlagConfig.Status.ENABLED
 import com.android.tools.metalava.config.ApiFlagsConfig
 import com.android.tools.metalava.model.api.flags.ApiFlag
+import com.android.tools.metalava.model.api.flags.ApiFlagAction
 import com.android.tools.metalava.model.api.flags.ApiFlags
 import com.android.utils.associateNotNull
 
@@ -65,12 +66,13 @@ object ApiFlagsCreator {
     ): Pair<String, ApiFlag>? {
         val apiFlag =
             when (mutability) {
-                MUTABLE -> ApiFlag.KEEP_FLAGGED_API
+                MUTABLE -> ApiFlag.getFlag(ApiFlagAction.KEEP, isExported)
                 IMMUTABLE ->
                     when (status) {
-                        ENABLED -> ApiFlag.FINALIZE_FLAGGED_API
+                        ENABLED -> ApiFlag.getFlag(ApiFlagAction.FINALIZE, isExported)
                         DISABLED ->
-                            if (pruneDisabledFlags) return null else ApiFlag.REVERT_FLAGGED_API
+                            if (pruneDisabledFlags) return null
+                            else ApiFlag.getFlag(ApiFlagAction.REVERT, isExported)
                     }
             }
         val qualifiedName = "$pkg.$name"

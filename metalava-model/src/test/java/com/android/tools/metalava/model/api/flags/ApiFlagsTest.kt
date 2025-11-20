@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.api.flags
 
+import com.android.tools.metalava.model.api.flags.ApiFlagAction.*
 import kotlin.test.assertEquals
 import org.junit.Test
 
@@ -25,16 +26,16 @@ class ApiFlagsTest {
         val apiFlags =
             ApiFlags(
                 mapOf(
-                    "test.pkg.flag1" to ApiFlag.KEEP_FLAGGED_API,
-                    "test.pkg.flag2" to ApiFlag.REVERT_FLAGGED_API,
-                    "test.pkg.flag3" to ApiFlag.FINALIZE_FLAGGED_API,
+                    "test.pkg.flag1" to ApiFlag.getFlag(KEEP),
+                    "test.pkg.flag2" to ApiFlag.getFlag(REVERT),
+                    "test.pkg.flag3" to ApiFlag.getFlag(FINALIZE),
                 )
             )
 
-        assertEquals(ApiFlag.KEEP_FLAGGED_API, apiFlags["test.pkg.flag1"])
-        assertEquals(ApiFlag.REVERT_FLAGGED_API, apiFlags["test.pkg.flag2"])
-        assertEquals(ApiFlag.FINALIZE_FLAGGED_API, apiFlags["test.pkg.flag3"])
+        assertEquals(ApiFlag.getFlag(KEEP), apiFlags["test.pkg.flag1"])
+        assertEquals(ApiFlag.getFlag(REVERT), apiFlags["test.pkg.flag2"])
+        assertEquals(ApiFlag.getFlag(FINALIZE), apiFlags["test.pkg.flag3"])
         // Unknown flags default to reverting.
-        assertEquals(ApiFlag.REVERT_FLAGGED_API, apiFlags["test.pkg.flag4"])
+        assertEquals(ApiFlag.getFlag(REVERT), apiFlags["test.pkg.flag4"])
     }
 }

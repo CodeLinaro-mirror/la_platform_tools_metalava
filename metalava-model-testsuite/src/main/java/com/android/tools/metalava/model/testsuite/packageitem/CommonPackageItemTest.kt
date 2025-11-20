@@ -251,7 +251,7 @@ class CommonPackageItemTest : BaseModelTest() {
     }
 
     @Test
-    fun `Test package documentation (package-info)`() {
+    fun `Test package documentation (package-info) without header comment`() {
         runCodebaseTest(
             inputSet(
                 java(
@@ -271,7 +271,34 @@ class CommonPackageItemTest : BaseModelTest() {
             ),
         ) {
             val packageItem = codebase.assertPackage("test.pkg")
-            packageItem.assertDocumentationText(expectedOutput = "/** Some text. */")
+            packageItem.assertDocumentationText("/** Some text. */")
+        }
+    }
+
+    @Test
+    fun `Test package documentation (package-info) with header comment`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+
+                        public class Foo {
+                        }
+                    """
+                ),
+                java(
+                    """
+                        /* Header comment */
+
+                        /** Package comment. */
+                        package test.pkg;
+                    """
+                ),
+            ),
+        ) {
+            val packageItem = codebase.assertPackage("test.pkg")
+            packageItem.assertDocumentationText("/** Package comment. */")
         }
     }
 

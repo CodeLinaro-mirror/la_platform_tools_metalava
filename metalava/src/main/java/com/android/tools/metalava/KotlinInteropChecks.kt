@@ -28,7 +28,7 @@ import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.hasAnnotation
-import com.android.tools.metalava.model.psi.PsiEnvironmentManager
+import com.android.tools.metalava.model.psi.javaLanguageLevelFromString
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import com.intellij.psi.util.PsiUtil
@@ -40,8 +40,7 @@ import com.intellij.psi.util.PsiUtil
 class KotlinInteropChecks(val reporter: Reporter) {
 
     @Suppress("DEPRECATION")
-    private val javaLanguageLevel =
-        PsiEnvironmentManager.javaLanguageLevelFromString(options.javaLanguageLevelAsString)
+    private val javaLanguageLevel = javaLanguageLevelFromString(options.javaLanguageLevelAsString)
 
     fun checkField(field: FieldItem, isKotlin: Boolean = field.isKotlin()) {
         ensureFieldNameNotKeyword(field)

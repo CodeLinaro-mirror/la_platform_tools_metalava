@@ -53,7 +53,7 @@ interface SourceParser {
         apiPackages: PackageFilter?,
         projectDescription: File?,
         compiledSourceJar: File?,
-    ): Codebase
+    ): Codebase?
 
     /**
      * Load a [Codebase] from a single jar.

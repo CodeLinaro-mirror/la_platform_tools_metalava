@@ -78,7 +78,8 @@ class FilteringReporter(
 
     private fun computeMaximumSeverity(item: Item?, previousItem: Item?, issue: Issues.Issue) =
         when {
-            issue == Issues.UNFLAGGED_API -> Severity.ERROR
+            issue == Issues.UNFLAGGED_API || issue == Issues.UNEXPORTED_FLAGGED_API ->
+                Severity.ERROR
             item === contextItem -> maximumSeverityForItem
             maximumSeverityForItem == Severity.HIDDEN && previousItem == null ->
                 Severity.WARNING_ERROR_WHEN_NEW

@@ -239,6 +239,13 @@
                 </xs:restriction>
             </xs:simpleType>
         </xs:attribute>
+        <xs:attribute name="is-exported" type="xs:boolean" default="true">
+            <xs:annotation>
+                <xs:documentation>
+                    If the flag is exported.
+                </xs:documentation>
+            </xs:annotation>
+        </xs:attribute>
     </xs:complexType>
 
     <xs:simpleType name="ApiFlagPackageNameType">

@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.psi
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
@@ -214,5 +215,14 @@ internal class PsiBasedCodebase(
         }
 
         return AnnotationDefaults.EMPTY
+    }
+
+    /**
+     * Returns a typealias identified by fully qualified name, if in the codebase.
+     *
+     * If there is a [ClassItem] with the [qualifiedName] that is not a typealias, returns null.
+     */
+    fun findTypeAlias(qualifiedName: String): ClassItem? {
+        return findClass(qualifiedName)?.takeIf { it.classKind == ClassKind.TYPEALIAS }
     }
 }

@@ -36,7 +36,6 @@ import com.android.tools.metalava.model.item.MutablePackageDoc
 import com.android.tools.metalava.model.item.PackageDocs
 import com.android.tools.metalava.model.source.NO_SOURCE_COMMENT_FACTORY
 import com.android.tools.metalava.model.source.SourceSet
-import com.android.tools.metalava.model.source.toItemDocumentationFactory
 import com.android.tools.metalava.model.source.utils.gatherPackageJavadoc
 import com.android.tools.metalava.reporter.FileLocation
 import com.google.common.collect.ImmutableList
@@ -243,7 +242,8 @@ internal class TurbineCodebaseInitialiser(
             ) { (unit, packageName, sourceTypeBoundClass) ->
                 val file = File(unit.source().path())
                 val fileLocation = FileLocation.forFile(file)
-                val comment = unit.getHeaderComments().toItemDocumentationFactory()
+                val turbineSourceFile = sourceFileCache.turbineSourceFile(unit.source())
+                val comment = itemDocumentationFactoryForDecl(turbineSourceFile, unit.pkg().get())
 
                 val annotations =
                     annotationFactory.createAnnotations(sourceTypeBoundClass.annotations())

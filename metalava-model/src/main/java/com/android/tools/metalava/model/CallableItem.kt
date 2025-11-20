@@ -36,6 +36,63 @@ interface CallableItem : MemberItem, TypeParameterListOwner, ReferencableNameSco
     /** The list of parameters */
     @MetalavaApi fun parameters(): List<ParameterItem>
 
+    override fun describe(capitalize: Boolean) =
+        describeCallableItem(includeParameterTypes = true, capitalize = capitalize)
+
+    fun describeCallableItem(
+        includeParameterNames: Boolean = false,
+        includeParameterTypes: Boolean = false,
+        includeReturnValue: Boolean = false,
+        capitalize: Boolean = false
+    ) = buildString {
+        if (isConstructor()) {
+            append(if (capitalize) "Constructor" else "constructor")
+        } else {
+            append(if (capitalize) "Method" else "method")
+        }
+        append(' ')
+        if (includeReturnValue && !isConstructor()) {
+            append(returnType().toSimpleType())
+            append(' ')
+        }
+        appendCallableSignature(includeParameterNames, includeParameterTypes)
+    }
+
+    fun StringBuilder.appendCallableSignature(
+        includeParameterNames: Boolean,
+        includeParameterTypes: Boolean
+    ) {
+        append(containingClass().qualifiedName())
+        if (!isConstructor()) {
+            append('.')
+            append(name())
+        }
+        if (includeParameterNames || includeParameterTypes) {
+            append('(')
+            var first = true
+            for (parameter in parameters()) {
+                if (first) {
+                    first = false
+                } else {
+                    append(',')
+                    if (includeParameterNames && includeParameterTypes) {
+                        append(' ')
+                    }
+                }
+                if (includeParameterTypes) {
+                    append(parameter.type().toSimpleType())
+                    if (includeParameterNames) {
+                        append(' ')
+                    }
+                }
+                if (includeParameterNames) {
+                    append(parameter.publicName() ?: parameter.name())
+                }
+            }
+            append(')')
+        }
+    }
+
     override fun type() = returnType()
 
     /** Types of exceptions that this callable can throw */

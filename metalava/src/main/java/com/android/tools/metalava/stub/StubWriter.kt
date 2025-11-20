@@ -45,7 +45,7 @@ import java.io.Writer
 internal class StubWriter(
     private val stubsDir: File,
     private val generateAnnotations: Boolean = false,
-    private val docStubs: Boolean,
+    private val isDocStubs: Boolean,
     private val reporter: Reporter,
     private val config: StubWriterConfig,
     private val stubConstructorManager: StubConstructorManager,
@@ -63,7 +63,7 @@ internal class StubWriter(
 
         writePackageInfo(pkg)
 
-        if (docStubs) {
+        if (isDocStubs) {
             pkg.overviewDocumentation?.let { writeDocOverview(pkg, it) }
         }
     }
@@ -114,7 +114,7 @@ internal class StubWriter(
                 // modifiers.
                 ModifierListWriter.forStubs(
                         writer = packageInfoWriter,
-                        docStubs = docStubs,
+                        isDocStubs = isDocStubs,
                     )
                     .write(pkg)
             }
@@ -193,7 +193,7 @@ internal class StubWriter(
             val modifierListWriter =
                 ModifierListWriter.forStubs(
                     writer = textWriter,
-                    docStubs = docStubs,
+                    isDocStubs = isDocStubs,
                     runtimeAnnotationsOnly = !generateAnnotations,
                 )
 
@@ -263,14 +263,14 @@ internal class StubWriter(
  */
 fun createFilteringVisitorForStubs(
     delegate: DelegatedVisitor,
-    docStubs: Boolean,
+    isDocStubs: Boolean,
     preFiltered: Boolean,
     apiPredicateConfig: ApiPredicate.Config,
     ignoreEmit: Boolean = false,
 ): ItemVisitor {
     val filterReference =
         ApiPredicate(
-            includeDocOnly = docStubs,
+            includeDocOnly = isDocStubs,
             config = apiPredicateConfig.copy(ignoreShown = true),
         )
     val filterEmit = MatchOverridingMethodPredicate(filterReference)

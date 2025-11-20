@@ -835,9 +835,7 @@ class ApiAnalyzer(
             reporter.report(
                 Issues.REFERENCES_HIDDEN,
                 from,
-                "Class ${cl.qualifiedName()} is ${if (cl.isHiddenOrRemoved()) "hidden" else "not public"} but was referenced ($usage) from public ${from.describe(
-                    false
-                )}"
+                "Class ${cl.qualifiedName()} is ${if (cl.isHiddenOrRemoved()) "hidden" else "not public"} but was referenced ($usage) from public ${from.describe()}"
             )
         }
 

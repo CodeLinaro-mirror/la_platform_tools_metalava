@@ -46,7 +46,7 @@ class TextModelSuiteRunner : ModelSuiteRunner {
 
     override fun createCodebaseAndRun(
         inputs: ModelSuiteRunner.TestInputs,
-        test: (Codebase) -> Unit
+        test: (Codebase?) -> Unit
     ) {
         if (inputs.projectDescription != null) {
             error("text model does not support project description")

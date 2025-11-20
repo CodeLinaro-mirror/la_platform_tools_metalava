@@ -24,6 +24,19 @@ interface ParameterItem : ClassContentItem, Item {
     /** The name of this field */
     fun name(): String
 
+    override fun describe(capitalize: Boolean) = buildString {
+        append(if (capitalize) "Parameter" else "parameter")
+        append(' ')
+        append(name())
+        append(" in ")
+        with(containingCallable()) {
+            appendCallableSignature(
+                includeParameterNames = true,
+                includeParameterTypes = true,
+            )
+        }
+    }
+
     /** The type of this field */
     @MetalavaApi override fun type(): TypeItem
 

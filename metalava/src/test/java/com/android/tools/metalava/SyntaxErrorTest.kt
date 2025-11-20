@@ -28,6 +28,8 @@ class SyntaxErrorTest : DriverTest() {
                 "psi" ->
                     """
                         src/test/pkg/Foo.java:1: info: Unresolved import: `nonexistent.path` [UnresolvedImport]
+                        src/test/pkg/Foo.java:3: error: Syntax error: `'class' or 'interface' expected` [InvalidSyntax]
+                        src/test/pkg/Foo.java:3: error: Syntax error: `Identifier expected` [InvalidSyntax]
                         src/test/pkg/Foo.java:5: error: Syntax error: `'{' or ';' expected` [InvalidSyntax]
                     """
                 "turbine" ->

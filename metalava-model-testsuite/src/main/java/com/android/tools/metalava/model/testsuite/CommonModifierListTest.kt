@@ -114,7 +114,7 @@ class CommonModifierListTest : BaseModelTest() {
                     annotations = listOf(annotation),
                 )
             assertEquals(
-                "ModifierList(flags = 0b100, annotations = [@java.lang.Deprecated])",
+                "ModifierList(flags = [public], annotations = [@java.lang.Deprecated])",
                 modifiers.toString()
             )
         }

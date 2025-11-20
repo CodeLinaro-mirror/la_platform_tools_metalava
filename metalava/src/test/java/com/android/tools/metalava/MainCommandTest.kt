@@ -251,15 +251,18 @@ $EXPECTED_HELP
     @Test
     fun `Test for @file`() {
         val dir = temporaryFolder.newFolder()
-        val files = (1..4).map { TestFiles.source("File$it.java", "File$it").createFile(dir) }
+        val files =
+            (1..4).map {
+                TestFiles.source("File$it.java", "public class File$it {}").createFile(dir)
+            }
         val fileList =
             TestFiles.source(
                 "files.lst",
                 """
-            ${files[0]}
-            ${files[1]} ${files[2]}
-            ${files[3]}
-        """
+                    ${files[0]}
+                    ${files[1]} ${files[2]}
+                    ${files[3]}
+                """
                     .trimIndent()
             )
 

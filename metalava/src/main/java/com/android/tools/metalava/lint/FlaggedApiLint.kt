@@ -29,6 +29,7 @@ import com.android.tools.metalava.model.JAVA_LANG_DEPRECATED
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierListWriter
 import com.android.tools.metalava.model.SelectableItem
+import com.android.tools.metalava.model.api.flags.optionalFlagName
 import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.value.ValueKind
@@ -39,6 +40,7 @@ import com.android.tools.metalava.model.visitors.ApiVisitor.Companion.addTargetL
 import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.Issues.FLAGGED_API_LITERAL
 import com.android.tools.metalava.reporter.Issues.Issue
+import com.android.tools.metalava.reporter.Issues.UNEXPORTED_FLAGGED_API
 import com.android.tools.metalava.reporter.Issues.UNFLAGGED_API
 import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.reporter.Severity
@@ -85,6 +87,7 @@ class FlaggedApiLint(
     private fun visitCallable(callable: CallableItem) {
         checkHasFlaggedApi(callable)
         checkFlaggedApiLiteral(callable)
+        checkFlaggedApiIsExported(callable)
     }
 
     override fun visitMethod(method: MethodItem) {
@@ -104,11 +107,28 @@ class FlaggedApiLint(
     ) {
         checkHasFlaggedApi(cls)
         checkFlaggedApiLiteral(cls)
+        checkFlaggedApiIsExported(cls)
     }
 
     private fun checkField(field: FieldItem) {
         checkHasFlaggedApi(field)
         checkFlaggedApiLiteral(field)
+        checkFlaggedApiIsExported(field)
+    }
+
+    private fun checkFlaggedApiIsExported(item: Item) {
+        val annotation =
+            item.modifiers.findAnnotation { it.qualifiedName == ANDROID_FLAGGED_API } ?: return
+        annotation.apiFlag?.let { apiFlag ->
+            if (!apiFlag.isExported) {
+                report(
+                    UNEXPORTED_FLAGGED_API,
+                    item,
+                    "@FlaggedApi flag ${annotation.optionalFlagName} is not exported",
+                    location = annotation.fileLocation,
+                )
+            }
+        }
     }
 
     private fun checkFlaggedApiLiteral(item: Item) {
