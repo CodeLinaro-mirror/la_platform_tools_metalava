@@ -408,16 +408,30 @@ internal class KaTypeItemFactory(
             if (type.isValueClassType()) {
                 // Find the inlined type through the constructor of the value class. Value classes
                 // must have a single parameter for the primary constructor
+                val valueClass = kaType.expandedSymbol as KaNamedClassSymbol
                 val inlineKaType =
-                    (kaType.expandedSymbol as KaNamedClassSymbol)
-                        .memberScope
-                        .constructors
+                    valueClass.memberScope.constructors
                         .first { it.isPrimary }
                         .valueParameters
                         .first()
                         .returnType
+                // A value class can have type variables which are used in its inlined type. When
+                // inlining the type, the variables need to be in scope.
+                // Value classes cannot be inner or local, so only the type parameters of the class
+                // itself are necessary because it can't use variables from an outer scope.
+                val valueClassTypeFactory =
+                    processor
+                        .typeParameterListAndFactory(
+                            enclosingTypeItemFactory = this@KaTypeItemFactory,
+                            scopeDescription = "value class ${valueClass.name.identifier}",
+                            typeParameterSymbols = valueClass.typeParameters
+                        )
+                        .factory
                 // Create a TypeItem from the inlined ka type
-                val inlineType = getGeneralType(inlineKaType).substitute(type.modifiers.nullability)
+                val inlineType =
+                    valueClassTypeFactory
+                        .getGeneralType(inlineKaType)
+                        .substitute(type.modifiers.nullability)
                 // Recursively inline the type, if needed
                 if (inlineType is PrimitiveTypeItem && inlineType.modifiers.isNullable) {
                     type

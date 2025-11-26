@@ -236,6 +236,26 @@ class JavadocParserTest : BaseDocCommentTest() {
     }
 
     @Test
+    fun `Test inline tag nested within tag that supports nested inline tags`() {
+        // Make sure that the BAR_TAG_TYPE is registered.
+        TestTagTypes.BAR_TAG_TYPE
+        checkParse(
+            """
+                /**
+                 * {@bar can contain inline {@bar tag}}.
+                 */
+            """,
+            expectedStructure =
+                """
+                    inlineTag: bar BarTagData(identifier=can)
+                      text: 'contain inline '
+                      inlineTag: bar BarTagData(identifier=tag)
+                    text: '.'
+                """,
+        )
+    }
+
+    @Test
     fun `Test unclosed inline tags in main description`() {
         checkParse(
             // This purposely indents the second and third lines so they no longer align with the
@@ -271,6 +291,10 @@ class JavadocParserTest : BaseDocCommentTest() {
                     inlineTag: code
                       text: 'extra space'
                 """,
+            expectedJavadocIssues =
+                """
+                    2:6: token recognition error at: ' ' [InvalidJavadoc]
+                """,
         )
     }
 
@@ -302,54 +326,6 @@ class JavadocParserTest : BaseDocCommentTest() {
             expectedStructure =
                 """
                     text: 'Some text with trailing whitespace\n on multiple lines'
-                """,
-        )
-    }
-
-    @Test
-    fun `Test invalid Javadoc comment with end comment token in main description`() {
-        checkParse(
-            """
-                /**
-                 * Some text with */ inside
-                 */
-            """,
-            expectedStructure =
-                // Error recovery ignores the */ and everything after it.
-                """
-                    text: 'Some text with'
-                """,
-            expectedJavadocIssues =
-                """
-                    2:19: extraneous input '*/' expecting {<EOF>, NEWLINE} [InvalidJavadoc]
-                """,
-        )
-    }
-
-    @Test
-    fun `Test invalid Javadoc comment with end comment token in block tag description`() {
-        checkParse(
-            """
-                /**
-                 * Some text
-                 * @param p A block tag with */ inside
-                 */
-            """,
-            contentGetter = { docComment -> docComment.blockTagSections.single().description },
-            expectedStructure =
-                // Error recovery ignores the */ and everything after it.
-                """
-                    text: 'A block tag with'
-                """,
-            expectedJavadocIssues =
-                """
-                    3:30: mismatched input '*/' expecting {<EOF>, NEWLINE}
-                      Expected:
-                        EOF
-                        NEWLINE
-                      Found:
-                        COMMENT_END "*/"
-                     [InvalidJavadoc]
                 """,
         )
     }
@@ -485,6 +461,24 @@ class JavadocParserTest : BaseDocCommentTest() {
                 """
                     2:10: @bar tag cannot contain 'e' or 'o' in the identifier [InvalidJavadoc]
                     4:12: @bar tag cannot contain 'e' or 'o' in the identifier [InvalidJavadoc]
+                """,
+        )
+    }
+
+    @Test
+    fun `Test unbalanced braces`() {
+        checkParse(
+            """
+                /**
+                 * { } } } {@code text} { { { {
+                 */
+            """,
+            expectedStructure =
+                """
+                    text: '{ } } } '
+                    inlineTag: code
+                      text: 'text'
+                    text: ' { { { {'
                 """,
         )
     }

@@ -47,22 +47,14 @@ descriptionLine
     : descriptionLineElement*
     ;
 
-descriptionLineNoSpaceNoAt
-    : TEXT_CONTENT
-    | NAME
-    | STAR
-    | SLASH
-    | BRACE_OPEN
-    | BRACE_CLOSE
-    ;
-
 descriptionLineElement
     : inlineTag
-    | descriptionLineText
+    | textContent
     ;
 
-descriptionLineText
-    : (descriptionLineNoSpaceNoAt | SPACE | AT)+
+textContent
+    : TEXT_CONTENT
+    | SPACE
     ;
 
 // Newline requires special handling when constructing the model.
@@ -73,12 +65,7 @@ newline
 inlineTag
     // Make BRACE_CLOSE optional to support inline tags without a closing brace.
     // TODO(b/429965593): Fix broken javadoc and make BRACE_CLOSE required.
-    // TODO(b/429965593): Fix broken javadoc and remove SPACE* between INLINE_TAG_START and inlineTagName
-    : INLINE_TAG_START SPACE* inlineTagName SPACE* inlineTagContent? BRACE_CLOSE?
-    ;
-
-inlineTagName
-    : NAME
+    : INLINE_TAG_START INLINE_TAG_NAME SPACE* inlineTagContent? BRACE_CLOSE?
     ;
 
 inlineTagContent
@@ -91,16 +78,7 @@ braceExpression
 
 braceContent
     : braceExpression
-    | braceText
+    | textContent
     | inlineTag
     | newline
-    ;
-
-braceText
-    : TEXT_CONTENT
-    | NAME
-    | SPACE
-    | STAR
-    | SLASH
-    | AT
     ;

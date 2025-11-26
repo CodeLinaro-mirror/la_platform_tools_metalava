@@ -27,6 +27,7 @@ class SyntaxErrorTest : DriverTest() {
             when (val providerName = codebaseCreatorConfig.providerName) {
                 "psi" ->
                     """
+                        src/test/pkg/Bar.java:2: error: Syntax error: `Identifier expected` [InvalidSyntax]
                         src/test/pkg/Foo.java:1: info: Unresolved import: `nonexistent.path` [UnresolvedImport]
                         src/test/pkg/Foo.java:3: error: Syntax error: `'class' or 'interface' expected` [InvalidSyntax]
                         src/test/pkg/Foo.java:3: error: Syntax error: `Identifier expected` [InvalidSyntax]
@@ -34,6 +35,7 @@ class SyntaxErrorTest : DriverTest() {
                     """
                 "turbine" ->
                     """
+                        src/test/pkg/Bar.java:2: error: expected token <identifier> [InvalidSyntax]
                         src/test/pkg/Foo.java:6: error: unexpected token: } [InvalidSyntax]
                     """
                 else -> fail("Unknown provider $providerName")
@@ -45,14 +47,21 @@ class SyntaxErrorTest : DriverTest() {
                 arrayOf(
                     java(
                         """
-                    import nonexistent.path;
+                            import nonexistent.path;
 
-                    package test.pkg;
-                    public class Foo {
-                        public void foo()
-                    }
-                    """
-                    )
+                            package test.pkg;
+                            public class Foo {
+                                public void foo()
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            public class Bar extends {
+                            }
+                        """
+                    ),
                 )
         )
     }

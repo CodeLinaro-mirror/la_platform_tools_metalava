@@ -2165,8 +2165,8 @@ class ApiLintTest : DriverTest() {
                         """
                     package android.pkg;
 
-                    public class MyInterface extends AutoCloseable {
-                        public void close() {}
+                    public interface MyInterface extends AutoCloseable {
+                        void close();
                     }
                     """
                     ),

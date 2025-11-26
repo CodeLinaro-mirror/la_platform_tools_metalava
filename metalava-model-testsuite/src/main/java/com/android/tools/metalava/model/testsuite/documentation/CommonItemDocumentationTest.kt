@@ -1355,10 +1355,6 @@ class CommonItemDocumentationTest : BaseModelTest() {
                 """
                     package test.pkg;
 
-                    import static java.lang.annotation.ElementType.*;
-                    import static java.lang.annotation.RetentionPolicy.CLASS;
-                    import java.lang.annotation.*;
-
                     /**
                      * A summary line that uses e.g. to test whether the workaround for a Javadoc
                      * problem that ends the summary line at the first `.` is applied when
@@ -1390,10 +1386,6 @@ class CommonItemDocumentationTest : BaseModelTest() {
                 """
                     package test.pkg;
 
-                    import static java.lang.annotation.ElementType.*;
-                    import static java.lang.annotation.RetentionPolicy.CLASS;
-                    import java.lang.annotation.*;
-
                     /**
                      * A {@link java.util.List list} contains things, e.g. names.
                      */
@@ -1418,10 +1410,6 @@ class CommonItemDocumentationTest : BaseModelTest() {
             java(
                 """
                     package test.pkg;
-
-                    import static java.lang.annotation.ElementType.*;
-                    import static java.lang.annotation.RetentionPolicy.CLASS;
-                    import java.lang.annotation.*;
 
                     /**
                      * A simple summary sentence.
@@ -1453,10 +1441,6 @@ class CommonItemDocumentationTest : BaseModelTest() {
             java(
                 """
                     package test.pkg;
-
-                    import static java.lang.annotation.ElementType.*;
-                    import static java.lang.annotation.RetentionPolicy.CLASS;
-                    import java.lang.annotation.*;
 
                     /**
                      * A simple summary sentence with an inline tag {@code e.g. this}.
