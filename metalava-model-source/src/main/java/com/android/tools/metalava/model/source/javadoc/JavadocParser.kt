@@ -24,6 +24,7 @@ import com.android.tools.metalava.model.source.doc.skipBackwardsOverTrailingWhit
 import com.android.tools.metalava.model.source.doc.skipForwardsOverLeadingWhitespace
 import com.android.tools.metalava.reporter.Issues
 import java.nio.CharBuffer
+import org.antlr.v4.runtime.ANTLRErrorListener
 import org.antlr.v4.runtime.BaseErrorListener
 import org.antlr.v4.runtime.CodePointBuffer
 import org.antlr.v4.runtime.CodePointCharStream
@@ -65,12 +66,17 @@ private constructor(
         ): JavadocContent? {
             var fileName = "<unknown>"
             val errorListener = JavadocErrorListener(reporter)
+
+            // Create the ANTLR lexer.
             val charStream = charStreamFromStringRange(text, startInclusive, endExclusive, fileName)
             val lexer = AntlrJavadocLexer(charStream)
+            lexer.setErrorListener(errorListener)
+
+            // Create the ANTLR parser.
             val tokenStream = CommonTokenStream(lexer)
             val antlrParser = AntlrJavadocParser(tokenStream)
-            antlrParser.removeErrorListeners()
-            antlrParser.addErrorListener(errorListener)
+            antlrParser.setErrorListener(errorListener)
+
             val parser = JavadocParser(antlrParser, context, reporter)
             return parser.parse()
         }
@@ -93,6 +99,12 @@ private constructor(
             codePointBufferBuilder.append(cb)
             return CodePointCharStream.fromBuffer(codePointBufferBuilder.build(), fileName)
         }
+
+        /** Remove any default listeners and add [listener] as the only one. */
+        private fun Recognizer<*, *>.setErrorListener(listener: ANTLRErrorListener) {
+            removeErrorListeners()
+            addErrorListener(listener)
+        }
     }
 
     private fun parse(): JavadocContent? {
@@ -110,50 +122,70 @@ internal class JavadocErrorListener(
         offendingSymbol: Any?,
         line: Int,
         charPositionInLine: Int,
-        msg: String?,
+        msg: String,
         e: RecognitionException?
     ) {
         // Construct a full message that includes lots of debug information about the nature of the
-        // problem. This is not intended to report issues for developers to
-        val fullMsg =
-            e?.expectedTokens?.let { expectedTokens ->
-                buildString {
-                    append(msg)
-                    append("\n")
-                    append("  Expected:\n")
-                    val vocabulary = recognizer?.vocabulary
-                    for (interval in expectedTokens.intervals) {
-                        for (tokenTypeIndex in interval.a.rangeTo(interval.b)) {
-                            append("    ${vocabulary?.getSymbolicName(tokenTypeIndex)}\n")
-                        }
-                    }
-                    val offendingToken = e.offendingToken
-                    val tokens = recognizer?.inputStream as? TokenStream
-                    if (e is NoViableAltException && tokens != null) {
-                        append("  No viable alternative found for sequence:\n")
-                        for (tokenIndex in
-                            e.startToken.tokenIndex.rangeTo(offendingToken.tokenIndex)) {
-                            val token = tokens[tokenIndex]
-                            append(
-                                "    ${vocabulary?.getSymbolicName(token.type)} \"${token.text}\"\n"
-                            )
-                        }
-                    } else {
-                        append("  Found:\n")
-                        append(
-                            "    ${vocabulary?.getSymbolicName(offendingToken.type)} \"${offendingToken.text}\"\n"
-                        )
-                    }
+        // problem. This is not intended to report issues for developers to handle.
+        val fullMsg = appendExpectedTokens(e, msg, recognizer) ?: msg
+
+        // line is 1-based but lineOffset is 0-based so subtract 1 from the former to create the
+        // latter.
+        val lineOffset = line - 1
+        // charPositionInLine is 0-based and so is charOffset so the former can be used as the
+        // latter directly.
+        val charOffset = charPositionInLine
+        reporter.report(Issues.INVALID_JAVADOC, fullMsg, lineOffset, charOffset)
+    }
+
+    /**
+     * Append information about expected tokens in [e] (if any) from [recognizer], from [e] to the
+     * [msg], or return `null` if the original [msg] is to be used unchanged.
+     */
+    private fun appendExpectedTokens(
+        e: RecognitionException?,
+        msg: String,
+        recognizer: Recognizer<*, *>?
+    ): String? {
+        // If there is no exception then return immediately.
+        e ?: return null
+
+        // If there is no recognizer then there is no way to create meaningful descriptions of any
+        // expected tokens so return immediately.
+        recognizer ?: return null
+
+        // Work around a problem where calling expectedTokens does not work if [recognizer] has
+        // never entered a valid state.
+        if (e.offendingState == -1) return null
+
+        // If the exception does not have any expected tokens then return immediately.
+        val expectedTokens = e.expectedTokens ?: return null
+
+        // Otherwise, append the expected token information to `msg`.
+        return buildString {
+            append(msg)
+            append("\n")
+            append("  Expected:\n")
+            val vocabulary = recognizer.vocabulary
+            for (interval in expectedTokens.intervals) {
+                for (tokenTypeIndex in interval.a.rangeTo(interval.b)) {
+                    append("    ${vocabulary.getSymbolicName(tokenTypeIndex)}\n")
                 }
-            } ?: msg
-        if (fullMsg != null) {
-            // line is 1-based but lineOffset is 0-based so subtract 1 from the former to create the
-            // latter.
-            val lineOffset = line - 1
-            // charPositionInLine is 0-based and so is charOffset so the former can be used as the
-            // latter directly.
-            val charOffset = charPositionInLine
-            reporter.report(Issues.INVALID_JAVADOC, fullMsg, lineOffset, charOffset)
+            }
+            val offendingToken = e.offendingToken
+            val tokens = recognizer.inputStream as? TokenStream
+            if (e is NoViableAltException && tokens != null) {
+                append("  No viable alternative found for sequence:\n")
+                for (tokenIndex in e.startToken.tokenIndex.rangeTo(offendingToken.tokenIndex)) {
+                    val token = tokens[tokenIndex]
+                    append("    ${vocabulary?.getSymbolicName(token.type)} \"${token.text}\"\n")
+                }
+            } else {
+                append("  Found:\n")
+                append(
+                    "    ${vocabulary?.getSymbolicName(offendingToken.type)} \"${offendingToken.text}\"\n"
+                )
+            }
         }
     }
 }
@@ -382,7 +414,7 @@ private class JavadocContentBuilder(
         return content
     }
 
-    override fun visitDescriptionLineText(ctx: AntlrJavadocParser.DescriptionLineTextContext) {
+    override fun visitTextContent(ctx: AntlrJavadocParser.TextContentContext) {
         // Add the text to the text buffer.
         appendText(ctx.text)
     }
@@ -403,7 +435,7 @@ private class JavadocContentBuilder(
         // from the start of the inline tag content.
         trimLeadingWhitespace = false
 
-        val tagTypeName = ctx.inlineTagName().NAME().text
+        val tagTypeName = ctx.INLINE_TAG_NAME().text
         val tagType = InlineTagTypes.tagTypeOf(tagTypeName)
 
         // If a BRACE_CLOSE token was not found then the inline tag was not closed properly so
@@ -462,12 +494,6 @@ private class JavadocContentBuilder(
         appendText("{")
         super.visitBraceExpression(ctx)
         appendText("}")
-    }
-
-    override fun visitBraceText(ctx: AntlrJavadocParser.BraceTextContext) {
-        // Brace text is just a set of possible different blocks of text so just add them into the
-        // buffer.
-        appendText(ctx.text)
     }
 
     /** A [DocumentationIssueReporter] that reports issues for a [Token]. */

@@ -171,7 +171,7 @@ internal class PsiEnvironmentManager(
 
 private const val METALAVA_SYNTHETIC_SUFFIX = "metalava_module"
 
-fun javaLanguageLevelFromString(value: String): LanguageLevel {
+private fun javaLanguageLevelFromString(value: String): LanguageLevel {
     val level = LanguageLevel.parse(value)
     when {
         level == null ->

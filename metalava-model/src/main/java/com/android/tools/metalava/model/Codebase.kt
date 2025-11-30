@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.api.flags.ApiFlags
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.reporter.ThrowingReporter
@@ -191,6 +192,13 @@ interface Codebase : ClassResolver, AnnotationContext {
     data class Config(
         /** Determines how annotations will affect the [Codebase]. */
         val annotationManager: AnnotationManager,
+
+        /**
+         * The [ApiFlags] to use in conditional javadoc.
+         *
+         * If set to `null` then it behaves as if all flags are enabled.
+         */
+        val apiFlags: ApiFlags? = null,
 
         /** The [ApiSurfaces] that will be tracked in the [Codebase]. */
         val apiSurfaces: ApiSurfaces = ApiSurfaces.DEFAULT,

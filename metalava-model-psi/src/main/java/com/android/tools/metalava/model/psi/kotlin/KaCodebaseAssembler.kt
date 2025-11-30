@@ -837,7 +837,7 @@ internal class KaModuleProcessor(val kaModule: KaModule, val codebase: PsiBasedC
      * Creates a list of type parameters from the [typeParameterSymbols] and a type factory based on
      * the [enclosingTypeItemFactory].
      */
-    private fun typeParameterListAndFactory(
+    internal fun typeParameterListAndFactory(
         enclosingTypeItemFactory: KaTypeItemFactory,
         scopeDescription: String,
         typeParameterSymbols: List<KaTypeParameterSymbol>,

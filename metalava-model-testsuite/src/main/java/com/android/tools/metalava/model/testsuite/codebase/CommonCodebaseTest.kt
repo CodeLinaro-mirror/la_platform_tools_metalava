@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.testsuite.codebase
 
 import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.api.flags.ApiFlags
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
 import kotlin.test.assertEquals
@@ -90,6 +91,27 @@ class CommonCodebaseTest : BaseModelTest() {
 
             // Make sure that resolving an unknown package does not create it.
             assertNull(codebase.resolvePackage("unknown"), message = "resolve unknown package")
+        }
+    }
+
+    @Test
+    fun `Test ApiFlags passed through to codebase config`() {
+        val apiFlags = ApiFlags(emptyMap())
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    public class Test {}
+                """
+            ),
+            testFixture =
+                TestFixture(
+                    apiFlags = apiFlags,
+                ),
+        ) {
+            // Make sure that the `apiFlags` has been passed through to the Codebase.Config.
+            assertSame(apiFlags, codebase.config.apiFlags)
         }
     }
 }

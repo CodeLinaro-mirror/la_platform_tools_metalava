@@ -349,6 +349,10 @@ class Options(
     val skipEmitPackages
         get() = executionEnvironment.testEnvironment?.skipEmitPackages ?: emptyList()
 
+    private val apiFlags by lazy {
+        ApiFlagsCreator.createFromConfig(configFileOptions.config.apiFlags)
+    }
+
     private val annotationManager: AnnotationManager by lazy {
         DefaultAnnotationManager(
             DefaultAnnotationManager.Config(
@@ -365,7 +369,7 @@ class Options(
                 previouslyReleasedCodebaseProvider = {
                     previouslyReleasedApi?.load { signatureFileCache.load(it) }
                 },
-                apiFlags = ApiFlagsCreator.createFromConfig(configFileOptions.config.apiFlags),
+                apiFlags = apiFlags,
             )
         )
     }
@@ -378,6 +382,7 @@ class Options(
         lazy(LazyThreadSafetyMode.NONE) {
             Codebase.Config(
                 annotationManager = annotationManager,
+                apiFlags = apiFlags,
                 apiSurfaces = apiSurfaces,
                 reporter = reporter,
             )

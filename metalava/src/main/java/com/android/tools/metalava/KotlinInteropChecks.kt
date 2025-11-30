@@ -28,20 +28,14 @@ import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.hasAnnotation
-import com.android.tools.metalava.model.psi.javaLanguageLevelFromString
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
-import com.intellij.psi.util.PsiUtil
 
 // Enforces the interoperability guidelines outlined in
 //   https://android.github.io/kotlin-guides/interop.html
 //
 // Also potentially makes other API suggestions.
 class KotlinInteropChecks(val reporter: Reporter) {
-
-    @Suppress("DEPRECATION")
-    private val javaLanguageLevel = javaLanguageLevelFromString(options.javaLanguageLevelAsString)
-
     fun checkField(field: FieldItem, isKotlin: Boolean = field.isKotlin()) {
         ensureFieldNameNotKeyword(field)
     }
@@ -261,7 +255,7 @@ class KotlinInteropChecks(val reporter: Reporter) {
                 item,
                 "Avoid $typeLabel names that are Kotlin hard keywords (\"$name\"); see https://android.github.io/kotlin-guides/interop.html#no-hard-keywords"
             )
-        } else if (isJavaKeyword(name)) {
+        } else if (isReservedJavaKeyword(name)) {
             reporter.report(
                 Issues.KOTLIN_KEYWORD,
                 item,
@@ -366,7 +360,7 @@ class KotlinInteropChecks(val reporter: Reporter) {
     }
 
     /** Returns true if the given string is a reserved Java keyword */
-    private fun isJavaKeyword(keyword: String): Boolean {
-        return PsiUtil.isKeyword(keyword, javaLanguageLevel)
+    private fun isReservedJavaKeyword(keyword: String): Boolean {
+        return JavaKeywords.isReservedJavaKeyword(keyword)
     }
 }
