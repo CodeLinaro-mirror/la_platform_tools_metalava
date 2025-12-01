@@ -952,8 +952,9 @@ interface PrimitiveTypeItem : TypeItem {
         ),
         VOID(
             primitiveName = "void",
-            // Kotlin does not really have a name for this but Nothing is closest.
-            kotlinName = "Nothing",
+            // Unit is not exactly the same as void, but it is what is used in Kotlin when a method
+            // has no return, like void in Java.
+            kotlinName = "Unit",
             defaultValue = null,
             defaultValueString = "null",
             wrapperClass = java.lang.Void::class.java,

@@ -21,6 +21,7 @@ import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
@@ -39,7 +40,13 @@ import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.reporter.Severity
 import java.util.regex.Pattern
 
-/** Misc API suggestions */
+/**
+ * Misc API suggestions.
+ *
+ * Currently, all the checks in here require [SelectableItem.documentation] to be non-null in order
+ * for them to do anything. So, this whole check is disabled when [Options.allowReadingComments] is
+ * `false`.
+ */
 class AndroidApiChecks(val reporter: Reporter) {
     fun check(codebase: Codebase) {
         for (packageItem in codebase.getPackages().packages) {
@@ -73,30 +80,30 @@ class AndroidApiChecks(val reporter: Reporter) {
                 }
 
                 override fun visitMethod(method: MethodItem) {
+                    val documentation = method.documentation ?: return
+                    val content = documentation.blockTagDescription("return") ?: return
                     checkVariable(
                         method,
-                        method.documentation.blockTagDescription("return"),
+                        content,
                         "Return value of '" + method.name() + "'",
                         method.returnType()
                     )
                 }
 
                 override fun visitField(field: FieldItem) {
+                    val documentation = field.documentation ?: return
+                    val content = documentation.mainDescription ?: return
                     if (field.name().contains("ACTION")) {
-                        checkIntentAction(field)
+                        checkIntentAction(field, documentation)
                     }
-                    checkVariable(
-                        field,
-                        field.documentation.mainDescription,
-                        "Field '" + field.name() + "'",
-                        field.type()
-                    )
+                    checkVariable(field, content, "Field '" + field.name() + "'", field.type())
                 }
 
                 override fun visitParameter(parameter: ParameterItem) {
+                    val content = parameter.description ?: return
                     checkVariable(
                         parameter,
-                        parameter.description,
+                        content,
                         "Parameter '" +
                             parameter.name() +
                             "' of '" +
@@ -110,13 +117,14 @@ class AndroidApiChecks(val reporter: Reporter) {
     }
 
     private fun checkTodos(item: SelectableItem) {
-        if (item.documentation.check(CONTAINS_TODO_PREDICATE)) {
+        val documentation = item.documentation ?: return
+        if (documentation.check(CONTAINS_TODO_PREDICATE)) {
             reporter.report(Issues.TODO, item, "Documentation mentions 'TODO'")
         }
     }
 
     private fun checkRequiresPermission(callable: CallableItem) {
-        val documentation = callable.documentation
+        val documentation = callable.documentation ?: return
 
         val annotation = callable.modifiers.findAnnotation("androidx.annotation.RequiresPermission")
         val requiresPermissionInfo = annotation?.getRequiresPermissionInfo()
@@ -156,7 +164,7 @@ class AndroidApiChecks(val reporter: Reporter) {
         }
     }
 
-    private fun checkIntentAction(field: FieldItem) {
+    private fun checkIntentAction(field: FieldItem, documentation: ItemDocumentation) {
         // Intent rules don't apply to support library
         if (field.containingClass().qualifiedName().startsWith("android.support.")) {
             return
@@ -166,8 +174,6 @@ class AndroidApiChecks(val reporter: Reporter) {
             field.modifiers.findAnnotation("android.annotation.BroadcastBehavior") != null
         val hasSdkConstant =
             field.modifiers.findAnnotation("android.annotation.SdkConstant") != null
-
-        val documentation = field.documentation
 
         if (documentation.check(CONTAINS_BROADCAST_ACTION_OR_SYSTEM_PREDICATE)) {
             if (!hasBehavior) {
@@ -212,11 +218,7 @@ class AndroidApiChecks(val reporter: Reporter) {
      * Checks to make sure that the documentation and type are consistent with respect to use of
      * `null` annotations and `@IntDef` annotations.
      */
-    private fun checkVariable(item: Item, content: DocContent?, ident: String, type: TypeItem?) {
-        // Nothing to do if the type is null or there is no content.
-        type ?: return
-        content ?: return
-
+    private fun checkVariable(item: Item, content: DocContent, ident: String, type: TypeItem) {
         // Check to see if it mentions a constant name that could/should be an IntDef.
         if (type.isIntType() && content.check(CONTAINS_CONSTANT_NAME_PREDICATE)) {
             var foundTypeDef = false

@@ -323,7 +323,13 @@ class ApiFileTest : BaseTextCodebaseTest() {
                     ),
                 ) {}
             }
-        assertThat(exception.message).contains("Contradicting declaration of package test.pkg")
+        assertThat(exception.message)
+            .endsWith(
+                """
+                    Contradicting declaration of package test.pkg. Previously seen with annotations "[@androidx.annotation.PackageAnnotation1]", but now with "[@androidx.annotation.PackageAnnotation2]"
+                """
+                    .trimIndent()
+            )
     }
 
     /** Dump the package structure of [codebase] to a string for easy comparison. */

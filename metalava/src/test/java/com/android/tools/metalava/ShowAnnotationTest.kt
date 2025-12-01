@@ -831,13 +831,13 @@ class ShowAnnotationTest : DriverTest() {
                     java(
                         """
                     package test.pkg;
-                    /** @hide */
+                    /** */
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Class1 {
                     public Class1() { throw new RuntimeException("Stub!"); }
-                    /** @hide */
+                    /** */
                     public void member() { throw new RuntimeException("Stub!"); }
-                    /** @hide */
+                    /** */
                     public static final java.lang.String FIELD = "Class1.FIELD";
                     }
                     """
@@ -845,11 +845,11 @@ class ShowAnnotationTest : DriverTest() {
                     java(
                         """
                     package test.pkg;
-                    /** @hide */
+                    /** */
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Class2 extends test.pkg.Class1 {
                     public Class2() { throw new RuntimeException("Stub!"); }
-                    /** @hide */
+                    /** */
                     public void member() { throw new RuntimeException("Stub!"); }
                     }
                     """
@@ -913,9 +913,9 @@ class ShowAnnotationTest : DriverTest() {
                   @SuppressWarnings({"unchecked", "deprecation", "all"})
                   public class Foo {
                   public Foo() { throw new RuntimeException("Stub!"); }
-                  /** @hide */
+                  /** */
                   public void method1() { throw new RuntimeException("Stub!"); }
-                  /** @hide */
+                  /** */
                   public void method2() { throw new RuntimeException("Stub!"); }
                   }
               """

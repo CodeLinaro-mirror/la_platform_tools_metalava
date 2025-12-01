@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.snapshot
 
+import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
@@ -27,6 +28,7 @@ import com.android.tools.metalava.model.DefaultTypeParameterList
 import com.android.tools.metalava.model.DelegatedVisitor
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.FilterPredicate
+import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.ItemVisitor
 import com.android.tools.metalava.model.MethodItem
@@ -50,6 +52,7 @@ import com.android.tools.metalava.model.item.DefaultTypeParameterItem
 import com.android.tools.metalava.model.item.MutablePackageDoc
 import com.android.tools.metalava.model.item.PackageDoc
 import com.android.tools.metalava.model.item.PackageDocs
+import com.android.tools.metalava.model.snapshottingFactory
 import com.android.tools.metalava.model.value.OptionalValueProvider
 import com.android.tools.metalava.model.value.Value
 import java.util.IdentityHashMap
@@ -119,7 +122,6 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
                 // Supports documentation if the copied codebase does.
                 supportsDocumentation = codebase.supportsDocumentation(),
                 assembler = this,
-                isMultiplatform = codebase.isMultiplatform,
             )
 
         this.snapshotCodebase = newCodebase
@@ -152,8 +154,7 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
                         MutablePackageDoc(
                             qualifiedName = qualifiedName,
                             fileLocation = pkgItem.fileLocation,
-                            modifiers = pkgItem.modifiers.snapshot(),
-                            commentFactory = pkgItem.documentation::snapshot,
+                            commentFactory = pkgItem.documentation.snapshottingFactory(),
                             overview = pkgItem.overviewDocumentation,
                         )
                     put(qualifiedName, packageDoc)
@@ -162,6 +163,11 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
                 }
             }
         )
+    }
+
+    override fun createPackageAnnotations(packageName: String): List<AnnotationItem> {
+        val originalPackage = originalCodebase.resolvePackage(packageName) ?: return emptyList()
+        return originalPackage.modifiers.annotations()
     }
 
     /**
@@ -213,6 +219,8 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
         itemToSnapshot: SelectableItem,
         documentedItem: SelectableItem,
     ): ItemDocumentationFactory {
+        val documentation = documentedItem.documentation ?: return ItemDocumentation.NONE_FACTORY
+
         // The documentation does not need to be reverted if...
         if (
             // the item is not being reverted
@@ -224,10 +232,11 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
                 ||
                 itemToSnapshot.effectivelyDeprecated
         )
-            return documentedItem.documentation::snapshot
+            return documentation.snapshottingFactory()
 
-        val documentation = documentedItem.documentation
-        return { item -> documentation.snapshot(item).apply { removeDeprecatedSection() } }
+        return ItemDocumentationFactory { item ->
+            documentation.snapshot(item).apply { removeDeprecatedSection() }
+        }
     }
 
     /** Get the [ClassItem] corresponding to this [ClassItem] in the [snapshotCodebase]. */

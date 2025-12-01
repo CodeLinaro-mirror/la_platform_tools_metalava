@@ -26,8 +26,6 @@ import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TypeParameterScope
-import com.android.tools.metalava.model.VisibilityLevel
-import com.android.tools.metalava.model.createImmutableModifiers
 import com.android.tools.metalava.model.item.DefaultCodebaseAssembler
 import com.android.tools.metalava.model.item.DefaultCodebaseFactory
 import com.android.tools.metalava.model.item.DefaultItemFactory
@@ -273,19 +271,19 @@ internal class TurbineCodebaseInitialiser(
             gatherPackageJavadoc(
                 codebase.reporter,
                 sourceSet,
-                packageNameFilter = { true },
+                packageNameFilter = { isValidPackage(it) },
                 packageInfoList
-            ) { (unit, packageName, sourceTypeBoundClass) ->
+            ) { (unit, packageName) ->
                 val file = File(unit.source().path())
                 val fileLocation = FileLocation.forFile(file)
                 val turbineSourceFile = sourceFileCache.turbineSourceFile(unit.source())
                 val comment = itemDocumentationFactoryForDecl(turbineSourceFile, unit.pkg().get())
 
-                val annotations =
-                    annotationFactory.createAnnotations(sourceTypeBoundClass.annotations())
-
-                val modifiers = createImmutableModifiers(VisibilityLevel.PUBLIC, annotations)
-                MutablePackageDoc(packageName, fileLocation, modifiers, comment)
+                MutablePackageDoc(
+                    qualifiedName = packageName,
+                    fileLocation = fileLocation,
+                    commentFactory = comment,
+                )
             }
 
         // Get the map from ClassSymbol to SourceTypeBoundClass for only those classes provided on
@@ -440,12 +438,26 @@ internal class TurbineCodebaseInitialiser(
     }
 
     /**
+     * Convert this qualified name consisting of a list of identifiers separated by '.' into a list
+     * of identifiers.
+     *
+     * The empty string is converted to an empty list, otherwise it is just split on '.'.
+     */
+    private fun String.qualifiedNameToIdentifierList() = if (isEmpty()) emptyList() else split('.')
+
+    /**
+     * Check to make sure that [packageName] is a valid package, i.e. is present in the sources or
+     * on the classpath.
+     */
+    private fun isValidPackage(packageName: String) =
+        index.lookupPackage(packageName.qualifiedNameToIdentifierList()) != null
+
+    /**
      * Encapsulates information needed to create a [DefaultPackageItem] in [gatherPackageJavadoc].
      */
     data class PackageInfoClass(
         val unit: CompUnit,
         val packageName: String,
-        val sourceTypeBoundClass: SourceTypeBoundClass,
     )
 
     /** Combine `package-info.java` synthetic classes and units */
@@ -456,12 +468,11 @@ internal class TurbineCodebaseInitialiser(
         // Create a mapping between the package name and the unit.
         val packageInfoMap = packageInfoUnits.associateBy { getPackageName(it) }
 
-        return sourceClassMap.entries.map { (symbol, typeBoundClass) ->
+        return sourceClassMap.keys.map { symbol ->
             val packageName = symbol.packageName().replace('/', '.')
             PackageInfoClass(
                 unit = packageInfoMap[packageName]!!,
                 packageName = packageName,
-                sourceTypeBoundClass = typeBoundClass,
             )
         }
     }
@@ -473,6 +484,18 @@ internal class TurbineCodebaseInitialiser(
     private fun createAllPackages(packageDocs: PackageDocs) {
         // Create packages for all the documentation packages and make sure there is a root package.
         codebase.packageTracker.createInitialPackages(packageDocs)
+    }
+
+    override fun createPackageAnnotations(packageName: String): List<AnnotationItem> {
+        // Construct the binary name for the package-info class.
+        val packageInfoBinaryName = "${packageName.replace('.', '/')}/package-info"
+
+        // The underlying package may have annotations if it had a package-info.java file so check
+        // for the presence of the corresponding `package-info.class`.
+        val packageInfoSym = ClassSymbol(packageInfoBinaryName)
+        val packageInfoClass = envClassMap[packageInfoSym] ?: return emptyList()
+
+        return annotationFactory.createAnnotations(packageInfoClass.annotations())
     }
 
     override fun emptyPackageDocumentationFactory() = NO_SOURCE_COMMENT_FACTORY
@@ -529,7 +552,7 @@ internal class TurbineCodebaseInitialiser(
 
     override fun createPackageFromUnderlyingModel(qualifiedName: String): PackageItem? {
         // Make sure that the underlying package exists before creating one.
-        turbineElements.getPackageElement(qualifiedName) ?: return null
+        if (!isValidPackage(qualifiedName)) return null
         return codebase.findOrCreatePackage(qualifiedName)
     }
 

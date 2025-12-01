@@ -37,6 +37,7 @@ import com.android.tools.metalava.model.JAVA_LANG_OBJECT
 import com.android.tools.metalava.model.MetalavaApi
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.MutableModifierList
+import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.SelectableItem
@@ -55,7 +56,6 @@ import com.android.tools.metalava.model.createImmutableModifiers
 import com.android.tools.metalava.model.createMutableModifiers
 import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.item.DefaultCodebase
-import com.android.tools.metalava.model.item.DefaultPackageItem
 import com.android.tools.metalava.model.item.DefaultTypeParameterItem
 import com.android.tools.metalava.model.item.MutablePackageDoc
 import com.android.tools.metalava.model.item.PackageDocs
@@ -534,32 +534,58 @@ private constructor(
         }
     }
 
+    /**
+     * Find an existing package called [name] or create a new one.
+     *
+     * If an existing package exists then this makes sure that its annotations match [annotations].
+     */
+    private fun findOrCreatePackage(
+        tokenizer: Tokenizer,
+        name: String,
+        annotations: List<AnnotationItem>
+    ): PackageItem {
+        // Check to see if the package already exists, if it does then return it.
+        codebase.findPackage(name)?.let { existing ->
+            // If the same package showed up multiple times, make sure they have the same modifiers.
+            // (Packages can't have public/private/etc., but they can have annotations, which are
+            // part of ModifierList.)
+            var existingAnnotations = existing.modifiers.annotations()
+            if (annotations != existingAnnotations) {
+                throw ApiParseException(
+                    String.format(
+                        "Contradicting declaration of package %s." +
+                            " Previously seen with annotations \"%s\", but now with \"%s\"",
+                        name,
+                        existingAnnotations,
+                        annotations
+                    ),
+                    tokenizer,
+                )
+            }
+
+            return existing
+        }
+
+        // Wrap the file location in a PackageDocs so that findOrCreatePackage(...) will create a
+        // package with them.
+        val packageDoc = MutablePackageDoc(name, fileLocation = tokenizer.fileLocation())
+        val packageDocs = PackageDocs(mapOf(name to packageDoc))
+
+        // Create the package. This relies on containing packages always being processed before any
+        // contained package which is guaranteed by the signature file order.
+        return codebase.packageTracker.createPackage(name, packageDocs, annotations)
+    }
+
     private fun parsePackage(tokenizer: Tokenizer) {
         var token: String = tokenizer.requireToken()
 
         // Metalava: including annotations in file now
         val annotations = getAnnotations(tokenizer, token)
-        val modifiers = createModifiers(VisibilityLevel.PUBLIC, annotations)
         token = tokenizer.current
         tokenizer.assertIdent(token)
         val name: String = token
 
-        // Wrap the modifiers and file location in a PackageDocs so that findOrCreatePackage(...)
-        // will create a package with them and will check to make sure that an existing package, if
-        // any, has matching modifiers.
-        val packageDoc =
-            MutablePackageDoc(
-                name,
-                fileLocation = tokenizer.fileLocation(),
-                modifiers = modifiers,
-            )
-        val packageDocs = PackageDocs(mapOf(name to packageDoc))
-        val pkg =
-            try {
-                codebase.findOrCreatePackage(name, packageDocs)
-            } catch (e: IllegalStateException) {
-                throw ApiParseException(e.message!!, tokenizer)
-            }
+        val pkg = findOrCreatePackage(tokenizer, name, annotations)
 
         // Make sure that the package records the ApiVariants to which it belongs.
         pkg.markSelectedApiVariant()
@@ -588,7 +614,7 @@ private constructor(
      * typealias line.
      */
     private fun parseTypeAlias(
-        pkg: DefaultPackageItem,
+        pkg: PackageItem,
         tokenizer: Tokenizer,
         modifiers: MutableModifierList,
         location: FileLocation
@@ -640,7 +666,7 @@ private constructor(
         )
     }
 
-    private fun parseClass(pkg: DefaultPackageItem, tokenizer: Tokenizer, startingToken: String) {
+    private fun parseClass(pkg: PackageItem, tokenizer: Tokenizer, startingToken: String) {
         var token = startingToken
         var classKind = ClassKind.CLASS
         var superClassType: ClassTypeItem? = null
@@ -979,7 +1005,7 @@ private constructor(
      * If the qualified name matches an existing class then return its information.
      */
     private fun parseDeclaredClassType(
-        pkg: DefaultPackageItem,
+        pkg: PackageItem,
         declaredClassType: String,
         classFileLocation: FileLocation,
     ): DeclaredClassTypeComponents {

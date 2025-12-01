@@ -30,7 +30,6 @@ import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.item.DefaultCodebaseAssembler
 import com.android.tools.metalava.model.item.DefaultCodebaseFactory
 import com.android.tools.metalava.model.item.DefaultItemFactory
-import com.android.tools.metalava.model.item.DefaultPackageItem
 import com.android.tools.metalava.model.item.PackageDocs
 import com.android.tools.metalava.model.utils.extractOptionalQualifierName
 import com.android.tools.metalava.model.utils.extractPossiblyEmptyQualifierName
@@ -94,11 +93,9 @@ internal class TextCodebaseAssembler(
      * Override to return an [ItemDocumentation.NONE_FACTORY].
      *
      * This will be called for every package loaded from a signature file as none of them have any
-     * documentation. The returned [ItemDocumentation.NONE_FACTORY] will create
-     * [ItemDocumentation.NONE] instances which will throw an exception if any attempt is made to
-     * modify the documentation. That should not be a problem as they will only be modified when
-     * creating stubs containing enhanced documentation which cannot be created from signature
-     * files.
+     * documentation. The returned [ItemDocumentation.NONE_FACTORY] will return `null`. That should
+     * not be a problem as [ItemDocumentation] is only needed when creating stubs containing
+     * enhanced documentation which cannot be created from signature files.
      */
     override fun emptyPackageDocumentationFactory() = ItemDocumentation.NONE_FACTORY
 
@@ -179,7 +176,7 @@ internal class TextCodebaseAssembler(
                 val pkgName = qualifiedName.extractPossiblyEmptyQualifierName()
                 codebase.findOrCreatePackage(pkgName)
             } else {
-                outerClass.containingPackage() as DefaultPackageItem
+                outerClass.containingPackage()
             }
 
         // Build a stub class of the required kind.
@@ -215,7 +212,6 @@ internal class TextCodebaseAssembler(
                             trustedApi = true,
                             supportsDocumentation = false,
                             assembler = assembler,
-                            isMultiplatform = false,
                         )
                     },
                     classResolver = classResolver,

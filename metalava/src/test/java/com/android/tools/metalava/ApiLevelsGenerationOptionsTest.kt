@@ -25,6 +25,7 @@ import com.android.tools.metalava.cli.common.SignatureFileLoader
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.model.text.SignatureFile
+import com.android.tools.metalava.testing.java
 import com.google.common.truth.Truth.assertThat
 import kotlin.test.assertEquals
 import org.junit.Assert.assertThrows
@@ -221,6 +222,64 @@ class ApiLevelsGenerationOptionsTest :
             assertThat(apiHistoryConfig).isNotNull()
             val apiVersions = apiHistoryConfig!!.versionedApis.map { it.apiVersion }.joinToString()
             assertThat(apiVersions).isEqualTo("1.2.0, 1.2.3-beta01")
+        }
+    }
+
+    @Test
+    fun `Throw error when --api-version-for-sources is less than or equal to last finalized version`() {
+        val root = buildFileStructure {
+            dir("1") { dir("public") { emptyFile("api.txt") } }
+            dir("2") {
+                dir("public") { emptyFile("api.txt") }
+                dir("system") { emptyFile("api.txt") }
+            }
+        }
+        val lastFinalizedVersion = 2
+
+        val apiSurfaces =
+            ApiSurfaces.build {
+                createSurface("public")
+                createSurface("system", isMain = true)
+            }
+        val apiVersionsXml = temporaryFolder.newFile("api-versions.xml")
+        runTest(
+            ARG_API_VERSION_FOR_SOURCES,
+            lastFinalizedVersion.toString(),
+            ARG_GENERATE_API_LEVELS,
+            apiVersionsXml.path,
+            ARG_API_VERSION_SIGNATURE_PATTERN,
+            "$root/{version:major.minor?}/{surface}/api.txt",
+            optionGroup = ApiLevelsGenerationOptions(apiSurfacesProvider = { apiSurfaces }),
+        ) {
+            val exception =
+                assertThrows(MetalavaCliException::class.java) { options.testForAndroidConfig() }
+            assertThat(cleanupString(exception.message!!))
+                .isEqualTo(
+                    """
+                        Suspicious --api-version-for-sources $lastFinalizedVersion, expected a version greater than $lastFinalizedVersion
+                    """
+                        .trimIndent()
+                )
+        }
+
+        runTest(
+            ARG_API_VERSION_FOR_SOURCES,
+            (lastFinalizedVersion - 1).toString(),
+            ARG_GENERATE_API_LEVELS,
+            apiVersionsXml.path,
+            ARG_API_VERSION_SIGNATURE_PATTERN,
+            "$root/{version:major.minor?}/{surface}/api.txt",
+            optionGroup = ApiLevelsGenerationOptions(apiSurfacesProvider = { apiSurfaces }),
+        ) {
+            val exception =
+                assertThrows(MetalavaCliException::class.java) { options.testForAndroidConfig() }
+            assertThat(cleanupString(exception.message!!))
+                .isEqualTo(
+                    """
+                        Suspicious --api-version-for-sources ${lastFinalizedVersion - 1}, expected a version greater than $lastFinalizedVersion
+                    """
+                        .trimIndent()
+                )
         }
     }
 

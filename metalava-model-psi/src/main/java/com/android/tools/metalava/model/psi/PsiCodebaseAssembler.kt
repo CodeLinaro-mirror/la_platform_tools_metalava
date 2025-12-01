@@ -21,6 +21,7 @@ import com.android.tools.lint.UastEnvironment
 import com.android.tools.lint.annotations.Extractor
 import com.android.tools.metalava.model.ANDROIDX_COMPOSABLE
 import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
@@ -32,6 +33,7 @@ import com.android.tools.metalava.model.JVM_NAME
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeParameterScope
@@ -40,13 +42,13 @@ import com.android.tools.metalava.model.WildcardTypeItem
 import com.android.tools.metalava.model.addDefaultRetentionPolicyAnnotation
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.isRetention
-import com.android.tools.metalava.model.item.CodebaseAssembler
-import com.android.tools.metalava.model.item.DefaultPackageItem
+import com.android.tools.metalava.model.item.DefaultCodebaseAssembler
+import com.android.tools.metalava.model.item.DefaultItemFactory
 import com.android.tools.metalava.model.item.MutablePackageDoc
-import com.android.tools.metalava.model.item.PackageDoc
 import com.android.tools.metalava.model.item.PackageDocs
 import com.android.tools.metalava.model.psi.PsiConstructorItem.Companion.isPrimaryConstructor
 import com.android.tools.metalava.model.psi.kotlin.KaCodebaseAssembler
+import com.android.tools.metalava.model.source.NO_SOURCE_COMMENT_FACTORY
 import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.model.source.utils.gatherPackageJavadoc
 import com.android.tools.metalava.reporter.Issues
@@ -64,16 +66,13 @@ import com.intellij.psi.PsiField
 import com.intellij.psi.PsiFile
 import com.intellij.psi.PsiImportStatement
 import com.intellij.psi.PsiJavaFile
-import com.intellij.psi.PsiManager
 import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiPackage
 import com.intellij.psi.PsiSubstitutor
 import com.intellij.psi.PsiType
 import com.intellij.psi.PsiTypeParameter
-import com.intellij.psi.impl.file.PsiPackageImpl
 import com.intellij.psi.javadoc.PsiDocComment
 import com.intellij.psi.search.GlobalSearchScope
-import com.intellij.psi.util.PsiTreeUtil
 import java.io.File
 import java.io.IOException
 import java.util.zip.ZipFile
@@ -96,9 +95,19 @@ import org.jetbrains.uast.kotlin.psi.UastFakeSourceLightMethod
 internal class PsiCodebaseAssembler(
     private val uastEnvironment: UastEnvironment,
     codebaseFactory: (PsiCodebaseAssembler) -> PsiBasedCodebase
-) : CodebaseAssembler {
+) : DefaultCodebaseAssembler() {
 
     internal val codebase = codebaseFactory(this)
+
+    override val itemFactory: DefaultItemFactory =
+        DefaultItemFactory(
+            codebase = codebase,
+            // Psi can process Java and Kotlin so use unknown as the default.
+            defaultSourceLanguage = SourceLanguage.UNKNOWN,
+            // Source files need to track which parts belong to which API surface variants, so they
+            // need to create an ApiVariantSelectors instance that can be used to track that.
+            defaultVariantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
+        )
 
     internal val globalTypeItemFactory = PsiTypeItemFactory(this, TypeParameterScope.empty)
 
@@ -148,27 +157,12 @@ internal class PsiCodebaseAssembler(
         return JavaPsiFacade.getInstance(project).findPackage(pkgName)
     }
 
-    override fun createPackageItem(
-        packageName: String,
-        packageDoc: PackageDoc,
-        containingPackage: PackageItem?
-    ): DefaultPackageItem {
-        val psiPackage =
-            findPsiPackage(packageName)
-                ?: run {
-                    // This can happen if a class's package statement does not match its file path.
-                    // In that case, this fakes up a PsiPackageImpl that matches the package
-                    // statement as that is the source of truth.
-                    val manager = PsiManager.getInstance(codebase.project)
-                    PsiPackageImpl(manager, packageName)
-                }
-        return PsiPackageItem.create(
-            codebase = codebase,
-            psiPackage = psiPackage,
-            packageDoc = packageDoc,
-            containingPackage = containingPackage,
-        )
-    }
+    override fun createPackageAnnotations(packageName: String) =
+        findPsiPackage(packageName)?.let { psiPackage ->
+            PsiModifierItem.create(codebase, psiPackage).annotations()
+        } ?: emptyList()
+
+    override fun emptyPackageDocumentationFactory() = NO_SOURCE_COMMENT_FACTORY
 
     override fun createPackageFromUnderlyingModel(qualifiedName: String): PackageItem? {
         // Make sure that the underlying package exists before creating one.
@@ -1100,19 +1094,11 @@ internal class PsiCodebaseAssembler(
         // Make sure that this is actually a package.
         findPsiPackage(packageName) ?: return null
 
-        // Look for javadoc on the package statement; this is NOT handed to us on the PsiPackage!
-        val comment = PsiTreeUtil.getPrevSiblingOfType(packageStatement, PsiDocComment::class.java)
-        if (comment != null) {
-            return MutablePackageDoc(
-                qualifiedName = packageName,
-                fileLocation = PsiFileLocation.fromPsiElement(psiFile),
-                commentFactory =
-                    PsiItemDocumentation.factory(packageStatement, codebase, comment.text),
-            )
-        }
-
-        // No comment could be found.
-        return null
+        return MutablePackageDoc(
+            qualifiedName = packageName,
+            fileLocation = PsiFileLocation.fromPsiElement(psiFile),
+            commentFactory = PsiItemDocumentation.factory(packageStatement, codebase),
+        )
     }
 
     /** Check the [psiFile] for any syntax errors. */

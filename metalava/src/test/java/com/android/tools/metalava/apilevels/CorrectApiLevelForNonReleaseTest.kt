@@ -18,6 +18,7 @@ package com.android.tools.metalava.apilevels
 
 import com.android.tools.metalava.ARG_ANDROID_JAR_PATTERN
 import com.android.tools.metalava.ARG_API_VERSION_FOR_SOURCES
+import com.android.tools.metalava.ARG_API_VERSION_RANGE
 import com.android.tools.metalava.ARG_CURRENT_CODENAME
 import com.android.tools.metalava.ARG_CURRENT_VERSION
 import com.android.tools.metalava.ARG_GENERATE_API_LEVELS
@@ -136,66 +137,6 @@ class CorrectApiLevelForNonReleaseTest : ApiGeneratorIntegrationTestBase() {
     }
 
     @Test
-    fun `Throw error when api version for sources is less than or equal to last finalized version`() {
-        val lastFinalizedVersion = 35
-        check(
-            extraArguments =
-                arrayOf(
-                    ARG_GENERATE_API_LEVELS,
-                    outputPath,
-                    ARG_ANDROID_JAR_PATTERN,
-                    androidPublicJarsPattern,
-                    ARG_CURRENT_CODENAME,
-                    "ZZZ", // not just Z, but very ZZZ
-                    ARG_CURRENT_VERSION,
-                    MAGIC_VERSION_STR, // not real api level
-                    ARG_API_VERSION_FOR_SOURCES,
-                    lastFinalizedVersion.toString()
-                ),
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                        package android.pkg;
-                        public class MyTest {
-                        }
-                        """
-                    )
-                ),
-            expectedFail =
-                "Aborting: Suspicious --api-version-for-sources $lastFinalizedVersion, expected a version greater than $lastFinalizedVersion"
-        )
-
-        check(
-            extraArguments =
-                arrayOf(
-                    ARG_GENERATE_API_LEVELS,
-                    outputPath,
-                    ARG_ANDROID_JAR_PATTERN,
-                    androidPublicJarsPattern,
-                    ARG_CURRENT_CODENAME,
-                    "ZZZ", // not just Z, but very ZZZ
-                    ARG_CURRENT_VERSION,
-                    MAGIC_VERSION_STR, // not real api level
-                    ARG_API_VERSION_FOR_SOURCES,
-                    (lastFinalizedVersion - 1).toString()
-                ),
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                        package android.pkg;
-                        public class MyTest {
-                        }
-                        """
-                    )
-                ),
-            expectedFail =
-                "Aborting: Suspicious --api-version-for-sources ${lastFinalizedVersion-1}, expected a version greater than $lastFinalizedVersion"
-        )
-    }
-
-    @Test
     fun `Do not include sources for release (REL) with current version arg less than last finalized version`() {
         val lastFinalizedVersion = 35
         check(
@@ -229,6 +170,7 @@ class CorrectApiLevelForNonReleaseTest : ApiGeneratorIntegrationTestBase() {
         @Suppress("DEPRECATION") assertEquals(-1, apiLookup.getClassVersion("android.pkg.MyTest"))
     }
 
+    // TODO : b/454050901 remove this test once --current-version is deprecated
     @Test
     fun `Correct API Level for release (REL) with current version arg greater than last finalized version`() {
         val lastFinalizedVersion = 35
@@ -242,7 +184,9 @@ class CorrectApiLevelForNonReleaseTest : ApiGeneratorIntegrationTestBase() {
                     ARG_CURRENT_CODENAME,
                     "REL", // not just Z, but very ZZZ
                     ARG_CURRENT_VERSION,
-                    (lastFinalizedVersion + 1).toString()
+                    (lastFinalizedVersion + 1).toString(),
+                    ARG_API_VERSION_RANGE,
+                    "1:35"
                 ),
             sourceFiles =
                 arrayOf(

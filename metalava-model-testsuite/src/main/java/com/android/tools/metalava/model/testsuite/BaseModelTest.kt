@@ -216,6 +216,13 @@ abstract class BaseModelTest() :
 
     /** Additional properties that affect the behavior of the test. */
     data class TestFixture(
+        /**
+         * Indicates whether comments should be read.
+         *
+         * This has no effect on package comments, they are always read.
+         */
+        val allowReadingComments: Boolean = true,
+
         /** The [AnnotationManager] to use when creating a [Codebase]. */
         val annotationManager: AnnotationManager = DefaultAnnotationManager(),
 

@@ -51,13 +51,6 @@ class CompatibilityCheckTest : DriverTest() {
                 """
                     .trimIndent(),
             expectedFail = "",
-            extraArguments =
-                arrayOf(
-                    "--error",
-                    Issues.ADDED_SUBCLASS_TO_SEALED_CLASS.name,
-                    "--error",
-                    Issues.SEALED_CLASS_EXHAUSTIVITY_CHANGED.name
-                ),
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
@@ -90,13 +83,6 @@ class CompatibilityCheckTest : DriverTest() {
             """
                     .trimIndent(),
             expectedFail = "",
-            extraArguments =
-                arrayOf(
-                    "--error",
-                    Issues.ADDED_SUBCLASS_TO_SEALED_CLASS.name,
-                    "--error",
-                    Issues.SEALED_CLASS_EXHAUSTIVITY_CHANGED.name
-                ),
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
@@ -124,7 +110,6 @@ class CompatibilityCheckTest : DriverTest() {
     fun `Don't raise issue when adding subclass to nonexhaustive sealed class`() {
         check(
             expectedIssues = "",
-            extraArguments = arrayOf("--error", Issues.ADDED_SUBCLASS_TO_SEALED_CLASS.name),
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
@@ -160,7 +145,6 @@ class CompatibilityCheckTest : DriverTest() {
                 """
                     .trimIndent(),
             expectedFail = "",
-            extraArguments = arrayOf("--error", Issues.ADDED_SUBCLASS_TO_SEALED_CLASS.name),
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
@@ -196,7 +180,6 @@ class CompatibilityCheckTest : DriverTest() {
             """
                     .trimIndent(),
             expectedFail = "",
-            extraArguments = arrayOf("--error", Issues.ADDED_SUBCLASS_TO_SEALED_CLASS.name),
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
@@ -232,7 +215,6 @@ class CompatibilityCheckTest : DriverTest() {
             """
                     .trimIndent(),
             expectedFail = "",
-            extraArguments = arrayOf("--error", Issues.ADDED_SUBCLASS_TO_SEALED_CLASS.name),
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
@@ -265,7 +247,6 @@ class CompatibilityCheckTest : DriverTest() {
     fun `Should not raise issue when comparing against sealed interface without any exhaustivity modifier`() {
         check(
             expectedIssues = "",
-            extraArguments = arrayOf("--error", Issues.ADDED_SUBCLASS_TO_SEALED_CLASS.name),
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
@@ -296,7 +277,6 @@ class CompatibilityCheckTest : DriverTest() {
     fun `Should not raise issue when comparing against sealed class without any exhaustivity modifier`() {
         check(
             expectedIssues = "",
-            extraArguments = arrayOf("--error", Issues.ADDED_SUBCLASS_TO_SEALED_CLASS.name),
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {

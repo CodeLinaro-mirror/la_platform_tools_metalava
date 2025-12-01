@@ -29,7 +29,7 @@ import org.junit.Test
 
 class PsiCodebasePropertyTest : BaseModelTest() {
     @Test
-    fun `Test isMultiplatform for non-KMP codebase without project description`() {
+    fun `Test inlineTypeAliasUsages for non-KMP codebase without project description`() {
         runCodebaseTest(
             kotlin(
                 "main/src/test/pkg/Foo.kt",
@@ -39,12 +39,12 @@ class PsiCodebasePropertyTest : BaseModelTest() {
                 """
             )
         ) {
-            assertThat((codebase as PsiBasedCodebase).isMultiplatform).isFalse()
+            assertThat((codebase as PsiBasedCodebase).inlineTypeAliasUsages).isFalse()
         }
     }
 
     @Test
-    fun `Test isMultiplatform for non-KMP codebase with project description`() {
+    fun `Test inlineTypeAliasUsages for non-KMP codebase with project description`() {
         val source =
             kotlin(
                 "main/src/test/pkg/Foo.kt",
@@ -66,12 +66,12 @@ class PsiCodebasePropertyTest : BaseModelTest() {
                     )
                 )
         ) {
-            assertThat((codebase as PsiBasedCodebase).isMultiplatform).isFalse()
+            assertThat((codebase as PsiBasedCodebase).inlineTypeAliasUsages).isFalse()
         }
     }
 
     @Test
-    fun `Test isMultiplatform for KMP codebase`() {
+    fun `Test inlineTypeAliasUsages for KMP codebase`() {
         val commonSource =
             kotlin(
                 "commonMain/src/test/pkg/Foo.kt",
@@ -96,7 +96,7 @@ class PsiCodebasePropertyTest : BaseModelTest() {
                     createAndroidModuleDescription(arrayOf(androidSource)),
                 )
         ) {
-            assertThat((codebase as PsiBasedCodebase).isMultiplatform).isTrue()
+            assertThat((codebase as PsiBasedCodebase).inlineTypeAliasUsages).isTrue()
         }
     }
 

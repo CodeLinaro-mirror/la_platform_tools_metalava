@@ -3057,4 +3057,43 @@ abstract class UastTestBase : DriverTest() {
                 """
         )
     }
+
+    @Test
+    fun `Usage of kotlin math PI in value computation`() {
+        // TODO(b/462204247): constant evaluation is not working with kotlin.math.PI with K2
+        val minusPi = if (isK2) "error.UnknownValue.ERROR" else "-3.141592653589793"
+        val doublePi = if (isK2) "error.UnknownValue.ERROR" else "6.283185307179586"
+        check(
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+                        import kotlin.math.PI
+
+                        annotation class Anno(val value: Double = -PI, val additional: DoubleArray = [-PI])
+
+                        @Anno(value = 2 * PI, additional = [2 * PI])
+                        class Foo
+                        """
+                    )
+                ),
+            api =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface Anno {
+                    ctor @KotlinOnly public Anno(optional double value, optional double[] additional);
+                    method @InaccessibleFromKotlin public abstract double[] additional() default {$minusPi};
+                    method @InaccessibleFromKotlin public abstract double value() default $minusPi;
+                    property public abstract double[] additional;
+                    property public abstract double value;
+                  }
+                  @test.pkg.Anno(value=$doublePi, additional={$doublePi}) public final class Foo {
+                    ctor public Foo();
+                  }
+                }
+                """
+        )
+    }
 }

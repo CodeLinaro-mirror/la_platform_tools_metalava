@@ -486,7 +486,7 @@ class StubsTest : AbstractStubsTest() {
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Outer {
                     public Outer() { throw new RuntimeException("Stub!"); }
-                    /** @doconly Some docs here */
+                    /** */
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class MyClass1 {
                     public MyClass1() { throw new RuntimeException("Stub!"); }
@@ -495,9 +495,9 @@ class StubsTest : AbstractStubsTest() {
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class MyClass2 {
                     public MyClass2() { throw new RuntimeException("Stub!"); }
-                    /** @doconly Some docs here */
+                    /** */
                     public int myMethod() { throw new RuntimeException("Stub!"); }
-                    /** @doconly Some docs here */
+                    /** */
                     public int myField;
                     }
                     }

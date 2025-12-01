@@ -5,32 +5,6 @@ com.android.tools.metalava.model.testsuite.BootstrapSourceModelProviderTest
   260 - test doconly members[psi,java,k2]
   260 - test doconly members[turbine]
 
-com.android.tools.metalava.model.testsuite.CommonApiVariantSelectorsTest
-  Test accessible[psi,java,k1]
-  Test accessible[psi,java,k2]
-  Test accessible[turbine]
-  Test docOnly[psi,java,k1]
-  Test docOnly[psi,java,k2]
-  Test docOnly[turbine]
-  Test not docOnly[psi,java,k1]
-  Test not docOnly[psi,java,k2]
-  Test not docOnly[turbine]
-  Test not hidden[psi,java,k1]
-  Test not hidden[psi,java,k2]
-  Test not hidden[turbine]
-  Test not removed[psi,java,k1]
-  Test not removed[psi,java,k2]
-  Test not removed[turbine]
-  Test originallyHidden hidden[psi,java,k1]
-  Test originallyHidden hidden[psi,java,k2]
-  Test originallyHidden hidden[turbine]
-  Test removed[psi,java,k1]
-  Test removed[psi,java,k2]
-  Test removed[turbine]
-  Test toString[psi,java,k1]
-  Test toString[psi,java,k2]
-  Test toString[turbine]
-
 com.android.tools.metalava.model.testsuite.CommonModifierListWriterTest
   modifiers public explicitly final method in final class[psi,java,k1]
   modifiers public explicitly final method in final class[psi,java,k2]
@@ -128,22 +102,6 @@ com.android.tools.metalava.model.testsuite.methoditem.CommonParameterItemTest
 
 com.android.tools.metalava.model.testsuite.methoditem.CommonParameterModifierTest
   Test varargs[turbine]
-
-com.android.tools.metalava.model.testsuite.packageitem.CommonPackageItemTest
-  Test @hide in package html[psi,java,k1]
-  Test @hide in package html[psi,java,k2]
-  Test @hide in package html[turbine]
-  Test @hide in package info processed first[psi,java,k1]
-  Test @hide in package info processed first[psi,java,k2]
-  Test @hide in package info processed first[turbine]
-  Test @hide in package info processed last[psi,java,k1]
-  Test @hide in package info processed last[psi,java,k2]
-  Test @hide in package info processed last[turbine]
-
-com.android.tools.metalava.model.testsuite.sourcefile.CommonParameterizedImportTest
-  Test imports[psi,java,k1,static java.util.Map.*]
-  Test imports[psi,java,k2,static java.util.Map.*]
-  Test imports[turbine,static java.util.Map.*]
 
 com.android.tools.metalava.model.testsuite.typeitem.CommonIsAssignableFromTest
   Test assignability without unboxing[psi,java,k1,boxedInt to primitiveInt]

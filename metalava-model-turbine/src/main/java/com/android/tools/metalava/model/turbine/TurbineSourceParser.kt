@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.item.DefaultCodebase
+import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
 import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.source.SourceSet
 import com.google.turbine.diag.TurbineError
@@ -65,7 +66,6 @@ internal class TurbineSourceParser(
                         trustedApi = false,
                         supportsDocumentation = true,
                         assembler = assembler,
-                        isMultiplatform = false,
                     )
                 },
                 classpath = classPath,
@@ -86,5 +86,9 @@ internal class TurbineSourceParser(
 
     override fun loadFromJar(apiJar: File, classPath: List<File>): Codebase {
         TODO("b/299044569 handle this")
+    }
+
+    override fun createMultiplatformCodebase(projectDescription: File): MultiplatformCodebase {
+        error("Turbine model does not support multiplatform codebase creation")
     }
 }

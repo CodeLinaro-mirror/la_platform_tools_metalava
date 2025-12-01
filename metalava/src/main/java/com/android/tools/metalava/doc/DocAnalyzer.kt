@@ -284,9 +284,10 @@ class DocAnalyzer(
                 private fun handleKotlinDeprecation(annotation: AnnotationItem, item: Item) {
                     // Ignore Items without documentation.
                     item as? SelectableItem ?: return
+                    val documentation = item.documentation ?: return
 
                     // Drop out if it already has a deprecated Javadoc tag.
-                    if (item.documentation.hasBlockTagOfType("deprecated")) {
+                    if (documentation.hasBlockTagOfType("deprecated")) {
                         return
                     }
 
@@ -302,7 +303,7 @@ class DocAnalyzer(
                     }
 
                     // Create a deprecated block tag using the text from the Deprecated annotation.
-                    item.documentation.addUniqueBlockTagSectionWithSimpleText("deprecated", text)
+                    documentation.addUniqueBlockTagSectionWithSimpleText("deprecated", text)
                 }
 
                 private fun documentationContainsNullWord(item: Item): Boolean {
@@ -311,13 +312,13 @@ class DocAnalyzer(
                             item.description.containsNullWord()
                         }
                         is CallableItem -> {
-                            val documentation = item.documentation
+                            val documentation = item.documentation ?: return false
                             // Don't inspect param docs (and other tags) for this purpose.
                             documentation.mainDescription.containsNullWord() ||
                                 documentation.blockTagDescription("return").containsNullWord()
                         }
                         is SelectableItem -> {
-                            val documentation = item.documentation
+                            val documentation = item.documentation ?: return false
                             documentation.mainDescription.containsNullWord()
                         }
                         else -> false
@@ -338,8 +339,8 @@ class DocAnalyzer(
                         }
                         is CallableItem -> {
                             addDoc(annotation, "memberDoc", item.descriptionOwner)
-                            var returnDescriptionOwner =
-                                item.documentation.blockTagDescriptionOwner("return")
+                            val returnDescriptionOwner =
+                                item.requiredDocumentation.blockTagDescriptionOwner("return")
                             addDoc(annotation, "returnDoc", returnDescriptionOwner)
                         }
                         is ClassItem -> {
@@ -676,8 +677,10 @@ class DocAnalyzer(
                 is ParameterItem -> item.descriptionOwner
                 is MethodItem ->
                     // Document as part of return annotation, not member doc
-                    if (returnValue) item.documentation.blockTagDescriptionOwner("return")
-                    else item.descriptionOwner
+                    if (returnValue) {
+                        val documentation = item.requiredDocumentation
+                        documentation.blockTagDescriptionOwner("return")
+                    } else item.descriptionOwner
                 else -> item.descriptionOwner
             }
 
@@ -698,7 +701,7 @@ class DocAnalyzer(
 
         // Documentation of the annotation class that is to be copied into the item where the
         // annotation is used.
-        val annotationDocumentation = cls.documentation
+        val annotationDocumentation = cls.documentation ?: return
 
         // Get the text for the supplied tag as that is what needs to be copied into the use site.
         // If there is no such text then return immediately.
@@ -814,7 +817,7 @@ class DocAnalyzer(
         blockTagType: String,
         content: String,
     ) {
-        val documentation = item.documentation
+        val documentation = item.requiredDocumentation
 
         // Report an issue if [blockTagType] is present in the sources.
         if (documentation.hasBlockTagOfType(blockTagType)) {

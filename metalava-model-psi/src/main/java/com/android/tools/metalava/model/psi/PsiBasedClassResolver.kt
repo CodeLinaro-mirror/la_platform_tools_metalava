@@ -49,7 +49,7 @@ internal class PsiBasedClassResolver(
                     fromClasspath = true,
                     allowReadingComments = allowReadingComments,
                     assembler = assembler,
-                    isMultiplatform = uastEnvironment.isKMP,
+                    inlineTypeAliasUsages = uastEnvironment.isKMP,
                 )
             }
         assembler.initializeFromSources(SourceSet.empty(), apiPackages = null)

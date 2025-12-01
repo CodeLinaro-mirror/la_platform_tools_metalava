@@ -23,6 +23,8 @@ import com.android.tools.lint.detector.api.Project
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.PackageFilter
+import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
+import com.android.tools.metalava.model.psi.kotlin.KaCodebaseAssembler
 import com.android.tools.metalava.model.psi.kotlin.KotlinBytecodeApis
 import com.android.tools.metalava.model.source.DEFAULT_JAVA_LANGUAGE_LEVEL
 import com.android.tools.metalava.model.source.SourceParser
@@ -149,7 +151,7 @@ internal class PsiSourceParser(
                     config = codebaseConfig,
                     allowReadingComments = allowReadingComments,
                     assembler = it,
-                    isMultiplatform = environment.isKMP,
+                    inlineTypeAliasUsages = environment.isKMP,
                     mainAnalysisModule = findMainAnalysisModule(environment),
                 )
             }
@@ -158,22 +160,29 @@ internal class PsiSourceParser(
         return assembler.codebase
     }
 
+    /** Lists all of the [KaModule]s that exist in this project. */
+    private fun UastEnvironment.findAllSourceModules(): List<KaSourceModule> {
+        return (KotlinProjectStructureProvider.getInstance(ideaProject)
+                as? KotlinStaticProjectStructureProvider)
+            ?.allModules
+            ?.filterIsInstance<KaSourceModule>() ?: emptyList()
+    }
+
     /**
      * Attempts to locate the [KaModule] which should be used to create kotlin-only APIs through the
-     * analysis API. For a non-KMP codebase, this will be the only module in the project. For a KMP
-     * codebase, this will be either the androidMain or jvmMain module.
+     * analysis API when creating a regular [Codebase].
      *
-     * In the future (b/407735063), all platforms will be analyzed for KMP projects, but for now,
-     * only the android or jvm target is analyzed.
+     * For non-KMP sources, this will be the only module in the project. For KMP sources, this will
+     * be either the androidMain or jvmMain module.
+     *
+     * All platforms are analyzed when using [createMultiplatformCodebase], but only the main module
+     * is used for the [Codebase] created by [parseSources].
      */
-    private fun findMainAnalysisModule(environment: UastEnvironment): KaModule? {
-        val modules =
-            (KotlinProjectStructureProvider.getInstance(environment.ideaProject)
-                    as? KotlinStaticProjectStructureProvider)
-                ?.allModules
-        return modules?.singleOrNull()
-            ?: modules?.singleOrNull { (it as? KaSourceModule)?.name == "androidMain" }
-            ?: modules?.singleOrNull { (it as? KaSourceModule)?.name == "jvmMain" }
+    private fun findMainAnalysisModule(environment: UastEnvironment): KaSourceModule? {
+        val modules = environment.findAllSourceModules()
+        return modules.singleOrNull()
+            ?: modules.singleOrNull { it.name == "androidMain" }
+            ?: modules.singleOrNull { it.name == "jvmMain" }
     }
 
     private fun isJdkModular(homePath: File): Boolean {
@@ -194,12 +203,27 @@ internal class PsiSourceParser(
                     config = codebaseConfig,
                     allowReadingComments = allowReadingComments,
                     assembler = assembler,
-                    isMultiplatform = environment.isKMP,
+                    inlineTypeAliasUsages = environment.isKMP,
                 )
             }
         val codebase = assembler.codebase
         assembler.initializeFromJar(apiJar)
         return codebase
+    }
+
+    override fun createMultiplatformCodebase(projectDescription: File): MultiplatformCodebase {
+        if (!useK2Uast) error("Multiplatform codebase creation requires K2 UAST.")
+
+        val config = UastEnvironment.Configuration.create(useFirUast = true)
+        config.javaLanguageLevel = javaLanguageLevel
+        configureUastEnvironmentFromProjectDescription(config, projectDescription)
+        val environment = psiEnvironmentManager.createEnvironment(config)
+
+        return KaCodebaseAssembler.assembleMultiplatform(
+            environment.findAllSourceModules(),
+            projectDescription,
+            codebaseConfig
+        )
     }
 
     fun mergeFromJar(existingCodebase: PsiBasedCodebase, jarFile: File) {

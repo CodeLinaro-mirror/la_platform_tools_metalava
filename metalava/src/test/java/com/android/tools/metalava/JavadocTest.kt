@@ -199,10 +199,12 @@ class JavadocTest : DriverTest() {
             apiLint = "",
             expectedFail = DefaultLintErrorMessage,
             // These warnings prove that lint is enabled and will report MutableBareField and
-            // MissingNullability, issues that would be reported on test.hidden.Hidden if it was not
-            // hidden by the package-info.java.
+            // MissingNullability. The first two issues are reported because `test.hidden.Hidden`
+            // is not hidden by the `@hide` in `test/hidden/package-info.java`.
             warnings =
                 """
+                    src/test/hidden/Hidden.java:4: error: Missing nullability on field `bareMutableFieldMissingNullability` in class `class test.hidden.Hidden` [MissingNullability]
+                    src/test/hidden/Hidden.java:4: error: Bare field bareMutableFieldMissingNullability must be marked final, or moved behind accessors if mutable [MutableBareField]
                     src/test/pkg1/SomeClass.java:29: error: Bare field importance must be marked final, or moved behind accessors if mutable [MutableBareField]
                     src/test/pkg2/OtherClass.java:7: error: Missing nullability on field `foo` in class `class test.pkg2.OtherClass` [MissingNullability]
                     src/test/pkg2/OtherClass.java:7: error: Bare field foo must be marked final, or moved behind accessors if mutable [MutableBareField]
@@ -265,8 +267,8 @@ class JavadocTest : DriverTest() {
                     }
                     """
                     ),
-                    // Make sure that hiding a package by using `@hide` in the Javadoc of a
-                    // package-info.java file still works when allowReadingComments = false.
+                    // Make sure that using `@hide` in the package javadoc comment has no effect
+                    // when allowReadingComments = false.
                     java(
                         """
                             /** @hide */
@@ -1267,12 +1269,13 @@ class JavadocTest : DriverTest() {
                         """
                     ),
                 ),
+            expectedFail = DefaultLintErrorMessage,
             expectedIssues =
                 """
-                    src/test/pkg/Foo.java:5: warning: Invalid @hide syntax, it is ignored as it must be a block tag (ErrorWhenNew) [InvalidHideDocTag]
-                    src/test/pkg/Foo.java:10: warning: Invalid @hide syntax, it is ignored as it must be a block tag (ErrorWhenNew) [InvalidHideDocTag]
-                    src/test/pkg/Foo.java:15: warning: Invalid @hide syntax, it is ignored as it must be a block tag (ErrorWhenNew) [InvalidHideDocTag]
-                    src/test/pkg/Foo.java:21: warning: Invalid @hide syntax, it is ignored as it must be a block tag (ErrorWhenNew) [InvalidHideDocTag]
+                    src/test/pkg/Foo.java:4: error: Documentation contains '@hide' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
+                    src/test/pkg/Foo.java:9: error: Documentation contains '@hide' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
+                    src/test/pkg/Foo.java:14: error: Documentation contains '@hide' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
+                    src/test/pkg/Foo.java:19: error: Documentation contains '@hide' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
                 """,
             api =
                 """
@@ -1332,9 +1335,10 @@ class JavadocTest : DriverTest() {
                     ),
                     KnownSourceFiles.nullableSource,
                 ),
+            expectedFail = DefaultLintErrorMessage,
             expectedIssues =
                 """
-                    src/test/pkg/Foo.java:6: warning: Invalid @hide syntax, it is ignored as it must be a block tag (ErrorWhenNew) [InvalidHideDocTag]
+                    src/test/pkg/Foo.java:6: error: Documentation contains '@hide' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
                 """,
             docStubs = true,
             stubFiles =
@@ -1398,17 +1402,25 @@ class JavadocTest : DriverTest() {
                     expectedOutputContents =
                         """
                             // Baseline format: 1.0
-                            InvalidHideDocTag: test/pkg/Foo.java:
-                                Invalid @hide syntax, it is ignored as it must be a block tag
+                            InvalidBlockTagUse: test.pkg.Foo#bar():
+                                Documentation contains '@hide' that is not used as a block tag; that could cause unexpected behavior downstream.
+                            InvalidBlockTagUse: test.pkg.Foo#baz():
+                                Documentation contains '@hide' that is not used as a block tag; that could cause unexpected behavior downstream.
+                            InvalidBlockTagUse: test.pkg.Foo#quux():
+                                Documentation contains '@hide' that is not used as a block tag; that could cause unexpected behavior downstream.
+                            InvalidBlockTagUse: test.pkg.Foo#qux():
+                                Documentation contains '@hide' that is not used as a block tag; that could cause unexpected behavior downstream.
                         """,
                     silentUpdate = false,
                 ),
+            expectedFail =
+                "metalava wrote updated baseline to TESTROOT/update-baseline.txt\n$DefaultLintErrorMessage",
             expectedIssues =
                 """
-                    src/test/pkg/Foo.java:5: warning: Invalid @hide syntax, it is ignored as it must be a block tag (ErrorWhenNew) [InvalidHideDocTag]
-                    src/test/pkg/Foo.java:10: warning: Invalid @hide syntax, it is ignored as it must be a block tag (ErrorWhenNew) [InvalidHideDocTag]
-                    src/test/pkg/Foo.java:15: warning: Invalid @hide syntax, it is ignored as it must be a block tag (ErrorWhenNew) [InvalidHideDocTag]
-                    src/test/pkg/Foo.java:21: warning: Invalid @hide syntax, it is ignored as it must be a block tag (ErrorWhenNew) [InvalidHideDocTag]
+                    src/test/pkg/Foo.java:4: error: Documentation contains '@hide' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
+                    src/test/pkg/Foo.java:9: error: Documentation contains '@hide' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
+                    src/test/pkg/Foo.java:14: error: Documentation contains '@hide' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
+                    src/test/pkg/Foo.java:19: error: Documentation contains '@hide' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
                 """,
             api =
                 """

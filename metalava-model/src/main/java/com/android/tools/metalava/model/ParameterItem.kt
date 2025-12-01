@@ -108,10 +108,10 @@ interface ParameterItem : ClassContentItem, Item {
     ): ParameterItem
 
     override val description: DocContent?
-        get() = containingCallable().documentation.paramTagDescription(name())
+        get() = containingCallable().documentation?.paramTagDescription(name())
 
     override val descriptionOwner: DocContentOwner
-        get() = containingCallable().documentation.paramTagDescriptionOwner(name())
+        get() = containingCallable().requiredDocumentation.paramTagDescriptionOwner(name())
 
     override fun equalsToItem(other: Any?): Boolean {
         if (this === other) return true
