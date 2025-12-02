@@ -122,7 +122,6 @@ internal class PsiEnvironmentManager(
         javaLanguageLevel: String,
         kotlinLanguageLevel: String,
         modelOptions: ModelOptions,
-        allowReadingComments: Boolean,
         jdkHome: File?,
     ): PsiSourceParser {
         return PsiSourceParser(
@@ -131,7 +130,6 @@ internal class PsiEnvironmentManager(
             javaLanguageLevel = javaLanguageLevelFromString(javaLanguageLevel),
             kotlinLanguageLevel = kotlinLanguageVersionSettings(kotlinLanguageLevel),
             useK2Uast = modelOptions[PsiModelOptions.useK2Uast],
-            allowReadingComments = allowReadingComments,
             jdkHome = jdkHome,
         )
     }

@@ -16,30 +16,9 @@
 
 package com.android.tools.metalava.model.source.javadoc
 
-import com.android.tools.metalava.model.source.doc.BaseDocCommentTest
-import com.android.tools.metalava.model.source.doc.DocComment
 import org.junit.Test
 
-class JavadocParserTest : BaseDocCommentTest() {
-    /** Check that [text] is parsed correctly by [JavadocParser]. */
-    private fun checkParse(
-        text: String,
-        contentGetter: (DocComment) -> JavadocContent? = { docComment -> docComment.description },
-        expectedStructure: String,
-        expectedJavadocIssues: String = "",
-    ) {
-        val docComment = createTestDocComment(text)
-
-        // Parse the main description
-        var content = contentGetter(docComment)
-
-        // Make sure that no unexpected JavadocParser issues were found.
-        reporter.assertJavadocParserIssues(expectedJavadocIssues)
-
-        // Check the model structure.
-        content.assertStructure(expectedStructure.trimIndent())
-    }
-
+class JavadocParserTest : BaseJavadocTest() {
     @Test
     fun `Test simple comment`() {
         checkParse(

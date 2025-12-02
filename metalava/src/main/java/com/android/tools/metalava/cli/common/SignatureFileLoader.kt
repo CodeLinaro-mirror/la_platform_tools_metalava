@@ -16,17 +16,31 @@
 
 package com.android.tools.metalava.cli.common
 
-import com.android.tools.metalava.model.ClassResolver
+import com.android.tools.metalava.model.ClassPathResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.text.ApiFile
 import com.android.tools.metalava.model.text.ApiParseException
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.SignatureFile
 
-/** Supports loading [SignatureFile]s into a [Codebase] using an optional [ClassResolver]. */
+/** Supports loading [SignatureFile]s into a [Codebase] using an optional [ClassPathResolver]. */
 interface SignatureFileLoader {
-    /** Load [signatureFiles] into a [Codebase] using the optional [classResolver]. */
-    fun load(signatureFiles: List<SignatureFile>, classResolver: ClassResolver? = null): Codebase
+    /** Load [signatureFiles] into a [Codebase] using the optional [classPathResolver]. */
+    fun load(
+        signatureFiles: List<SignatureFile>,
+        classPathResolver: ClassPathResolver? = null
+    ): Codebase
+
+    companion object {
+        /** A [SignatureFileLoader] that will throw an exception when called. */
+        val THROWING =
+            object : SignatureFileLoader {
+                override fun load(
+                    signatureFiles: List<SignatureFile>,
+                    classPathResolver: ClassPathResolver?
+                ) = error("Throwing signature file loader cannot load signature files")
+            }
+    }
 }
 
 /**
@@ -40,7 +54,7 @@ class DefaultSignatureFileLoader(
 
     override fun load(
         signatureFiles: List<SignatureFile>,
-        classResolver: ClassResolver?,
+        classPathResolver: ClassPathResolver?,
     ): Codebase {
         require(signatureFiles.isNotEmpty()) { "files must not be empty" }
 
@@ -48,7 +62,7 @@ class DefaultSignatureFileLoader(
             return ApiFile.parseApi(
                 signatureFiles = signatureFiles,
                 codebaseConfig = codebaseConfig,
-                classResolver = classResolver,
+                classPathResolver = classPathResolver,
                 formatForLegacyFiles = formatForLegacyFiles,
             )
         } catch (ex: ApiParseException) {

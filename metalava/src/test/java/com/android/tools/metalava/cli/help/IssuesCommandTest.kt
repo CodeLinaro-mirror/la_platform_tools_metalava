@@ -123,7 +123,9 @@ Available Issues                             |  Category                        
   InternalField                              |  api_lint                             |   error
   InvalidBlockTagUse                         |  documentation                        |   error
   InvalidFeatureEnforcement                  |  documentation                        |   error
+  InvalidIfTag                               |  documentation                        |   error
   InvalidJavadoc                             |  documentation                        |   warning_error_when_new
+  InvalidJavadocExpr                         |  documentation                        |   error
   InvalidNullConversion                      |  source_compatibility_only            |   error
   InvalidNullabilityAnnotation               |  unknown                              |   error
   InvalidNullabilityAnnotationWarning        |  unknown                              |   warning

@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model.snapshot
 
-import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
@@ -49,9 +48,7 @@ import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.item.DefaultCodebaseAssembler
 import com.android.tools.metalava.model.item.DefaultItemFactory
 import com.android.tools.metalava.model.item.DefaultTypeParameterItem
-import com.android.tools.metalava.model.item.MutablePackageDoc
-import com.android.tools.metalava.model.item.PackageDoc
-import com.android.tools.metalava.model.item.PackageDocs
+import com.android.tools.metalava.model.item.PackageInfo
 import com.android.tools.metalava.model.snapshottingFactory
 import com.android.tools.metalava.model.value.OptionalValueProvider
 import com.android.tools.metalava.model.value.Value
@@ -68,6 +65,9 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
      * Initialized in [visitCodebase].
      */
     private lateinit var snapshotCodebase: DefaultCodebase
+
+    override val codebase: DefaultCodebase
+        get() = snapshotCodebase
 
     /**
      * The [ItemVisitor] to use in [createClassFromUnderlyingModel] to create a [ClassItem] that is
@@ -128,61 +128,20 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
         this.sourceFileCache = SnapshotSourceFileCache(newCodebase)
     }
 
-    /**
-     * Construct a [PackageDocs] that contains a [PackageDoc] for [packageItem] and each of its
-     * ancestor [PackageItem]s from the original [Codebase] that have not yet been included in the
-     * snapshot.
-     *
-     * Each [PackageDoc] contains information necessary for create [PackageItem]s that are snapshots
-     * of the original [PackageItem].
-     *
-     * It is necessary to include a [PackageDoc] for ancestor [PackageItem]s as while the
-     * [PackageItem]s are visited in order from the top-most down, they are ignored by the visitor
-     * if they do not contain any classes.
-     */
-    private fun packageDocsForPackageItem(packageItem: PackageItem): PackageDocs {
-        return PackageDocs(
-            buildMap {
-                var pkgItem: PackageItem? = packageItem
-                while (pkgItem != null) {
-                    val qualifiedName = pkgItem.qualifiedName()
-                    if (snapshotCodebase.findPackage(qualifiedName) != null) {
-                        break
-                    }
+    override fun getPackageInfoFromUnderlyingModel(packageName: String): PackageInfo {
+        val originalPackage =
+            originalCodebase.resolvePackage(packageName)
+                ?: error(
+                    "Snapshot requires all packages are present in the original codebase but it cannot find '$packageName'"
+                )
 
-                    val packageDoc =
-                        MutablePackageDoc(
-                            qualifiedName = qualifiedName,
-                            fileLocation = pkgItem.fileLocation,
-                            commentFactory = pkgItem.documentation.snapshottingFactory(),
-                            overview = pkgItem.overviewDocumentation,
-                        )
-                    put(qualifiedName, packageDoc)
-
-                    pkgItem = pkgItem.containingPackage()
-                }
-            }
-        )
-    }
-
-    override fun createPackageAnnotations(packageName: String): List<AnnotationItem> {
-        val originalPackage = originalCodebase.resolvePackage(packageName) ?: return emptyList()
-        return originalPackage.modifiers.annotations()
-    }
-
-    /**
-     * Override to throw an error.
-     *
-     * This should never be called when taking a snapshot as:
-     * 1. This will only be called for package items that have a null [PackageDoc.commentFactory].
-     * 2. Every [PackageItem] that is created in the snapshot [Codebase] must have a matching
-     *    [PackageItem] in the original [Codebase].
-     * 3. [packageDocsForPackageItem] will ensure that the [PackageDoc.commentFactory] for every
-     *    [PackageItem] being snapshot is set to a non-null value.
-     */
-    override fun emptyPackageDocumentationFactory(): ItemDocumentationFactory {
-        error(
-            "Internal Error: PackageItems in the snapshot must always be created from PackageItems in the original codebase"
+        var originalAnnotations = originalPackage.modifiers.annotations()
+        val annotations = originalAnnotations.map { it.snapshot(snapshotCodebase) }
+        return PackageInfo(
+            fileLocation = originalPackage.fileLocation,
+            annotations = annotations,
+            commentFactory = originalPackage.documentation.snapshottingFactory(),
+            overview = originalPackage.overviewDocumentation,
         )
     }
 
@@ -194,12 +153,7 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
             return it
         }
 
-        // Get a PackageDocs that contains a PackageDoc for the PackageItem being visited and each
-        // of its ancestor PackageItems that are not already been included in this snapshot. They
-        // are needed to ensure that the findOrCreatePackage(...) call below will use the correct
-        // information when creating the snapshots of the PackageItem.
-        val packageDocs = packageDocsForPackageItem(this)
-        val newPackageItem = snapshotCodebase.findOrCreatePackage(packageName, packageDocs)
+        val newPackageItem = snapshotCodebase.findOrCreatePackage(packageName)
         newPackageItem.copySelectedApiVariants(this)
         return newPackageItem
     }

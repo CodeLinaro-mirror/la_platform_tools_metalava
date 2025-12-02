@@ -17,7 +17,6 @@
 package com.android.tools.metalava.model.source.javadoc
 
 import com.android.tools.metalava.model.source.doc.DocCommentContext
-import com.android.tools.metalava.model.source.doc.DocumentationFragmentIssueReporter
 import com.android.tools.metalava.model.source.doc.DocumentationIssueReporter
 import com.android.tools.metalava.model.source.doc.InlineTagTypes
 import com.android.tools.metalava.model.source.doc.skipBackwardsOverTrailingWhitespace
@@ -197,6 +196,18 @@ private class JavadocContentBuilder(
 ) : AntlrJavadocParserBaseVisitor<Unit>() {
     /** A [DocumentationIssueReporter] that can be used to report issues with a [Token]. */
     private val tokenIssueReporter = TokenIssueReporter(reporter)
+
+    /** Backing field for [exprBuilder], lazily initialized when [exprBuilder] is accessed. */
+    private lateinit var _exprBuilder: ExprBuilder
+
+    /** Get the [ExprBuilder] to use to construct [Expr] for conditional javadoc processing. */
+    private val exprBuilder: ExprBuilder
+        get() {
+            if (!::_exprBuilder.isInitialized) {
+                _exprBuilder = ExprBuilder(tokenIssueReporter)
+            }
+            return _exprBuilder
+        }
 
     /**
      * Determines whether whitespace should be trimmed from the start of the content.
@@ -425,6 +436,33 @@ private class JavadocContentBuilder(
         appendNewline()
     }
 
+    override fun visitInlineIfTag(ctx: AntlrJavadocParser.InlineIfTagContext) {
+        // Convert the expression into an Expr object.
+        val exprRule =
+            ctx.expr()
+                ?: run {
+                    tokenIssueReporter.report(
+                        ctx.INLINE_IF_TAG_START().symbol,
+                        Issues.INVALID_IF_TAG,
+                        "missing <expr>"
+                    )
+                    return
+                }
+        val expr = exprBuilder.buildExpr(exprRule)
+
+        // Evaluate the expression to get a boolean result.
+        val result = expr.evaluate(context)
+
+        // Select the content to use based on the value of the expression.
+        if (result) {
+            // The content to use when true is always provided.
+            ctx.braceExpression(0).braceContent().forEach { it.accept(this) }
+        } else {
+            // The else content is optional.
+            ctx.braceExpression(1)?.braceContent()?.forEach { it.accept(this) }
+        }
+    }
+
     override fun visitInlineTag(ctx: AntlrJavadocParser.InlineTagContext) {
         inlineTagHandler.handleInlineTag(this, ctx)
     }
@@ -441,12 +479,11 @@ private class JavadocContentBuilder(
         // If a BRACE_CLOSE token was not found then the inline tag was not closed properly so
         // report the issue.
         if (ctx.BRACE_CLOSE() == null) {
-            tokenIssueReporter.reportAtToken(ctx.INLINE_TAG_START().symbol) {
-                tokenIssueReporter.report(
-                    Issues.UNCLOSED_INLINE_TAG,
-                    "unclosed inline '@${tagTypeName}' tag",
-                )
-            }
+            tokenIssueReporter.report(
+                ctx.INLINE_TAG_START().symbol,
+                Issues.UNCLOSED_INLINE_TAG,
+                "unclosed inline '@${tagTypeName}' tag",
+            )
         }
 
         // Split the nested content, if any, into separate data and remaining content.
@@ -494,39 +531,6 @@ private class JavadocContentBuilder(
         appendText("{")
         super.visitBraceExpression(ctx)
         appendText("}")
-    }
-
-    /** A [DocumentationIssueReporter] that reports issues for a [Token]. */
-    class TokenIssueReporter(reporter: DocumentationIssueReporter) :
-        DocumentationFragmentIssueReporter(reporter) {
-        /** The [Token] on which the issues will be reported. */
-        private var token: Token? = null
-
-        /**
-         * The line offset of [token] from the beginning of the content parsed by [JavadocParser].
-         */
-        override val lineOffsetFromContainer: Int
-            get() =
-                // The token's `line` property is 1-based but this is 0-based so convert the former
-                // to the latter.
-                token!!.line - 1
-
-        /** The character offset of [token] from the beginning of the line containing it. */
-        override val firstLineCharacterOffset: Int
-            get() =
-                // The token's `charPositionInLine` is already 0-based like this.
-                token!!.charPositionInLine
-
-        /** Treat any issues reported by [body] as if they were reported on [token]. */
-        inline fun <R> reportAtToken(token: Token, body: () -> R): R {
-            val oldToken = token
-            this.token = token
-            try {
-                return body()
-            } finally {
-                this.token = oldToken
-            }
-        }
     }
 
     companion object {

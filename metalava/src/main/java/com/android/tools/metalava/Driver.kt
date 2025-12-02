@@ -25,7 +25,6 @@ import com.android.tools.metalava.cli.common.CheckerContext
 import com.android.tools.metalava.cli.common.EarlyOptions
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.cli.common.MetalavaCommand
-import com.android.tools.metalava.cli.common.PreviouslyReleasedApi
 import com.android.tools.metalava.cli.common.VersionCommand
 import com.android.tools.metalava.cli.common.cliError
 import com.android.tools.metalava.cli.common.commonOptions
@@ -40,18 +39,15 @@ import com.android.tools.metalava.cli.signature.SignatureToDexCommand
 import com.android.tools.metalava.cli.signature.SignatureToJDiffCommand
 import com.android.tools.metalava.cli.signature.UpdateSignatureHeaderCommand
 import com.android.tools.metalava.compatibility.CompatibilityCheck
-import com.android.tools.metalava.doc.DocAnalyzer
 import com.android.tools.metalava.jar.JarCodebaseLoader
 import com.android.tools.metalava.lint.ApiLint
 import com.android.tools.metalava.lint.FlaggedApiLint
-import com.android.tools.metalava.model.ClassResolver
+import com.android.tools.metalava.model.ClassPathResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.CodebaseFragment
 import com.android.tools.metalava.model.DelegatedVisitor
-import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.ItemVisitor
 import com.android.tools.metalava.model.ModelOptions
-import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.psi.PsiModelOptions
 import com.android.tools.metalava.model.snapshot.NonFilteringDelegatingVisitor
 import com.android.tools.metalava.model.source.EnvironmentManager
@@ -69,9 +65,7 @@ import com.android.tools.metalava.model.visitors.FilteringApiVisitor
 import com.android.tools.metalava.model.visitors.MatchOverridingMethodPredicate
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
-import com.android.tools.metalava.stub.StubConstructorManager
-import com.android.tools.metalava.stub.StubWriter
-import com.android.tools.metalava.stub.createFilteringVisitorForStubs
+import com.android.tools.metalava.stub.StubGenerator
 import com.github.ajalt.clikt.core.subcommands
 import com.google.common.base.Stopwatch
 import java.io.File
@@ -158,7 +152,6 @@ internal fun processFlags(
             javaLanguageLevel = options.javaLanguageLevelAsString,
             kotlinLanguageLevel = options.kotlinLanguageLevelAsString,
             modelOptions = modelOptions,
-            allowReadingComments = options.allowReadingComments,
             jdkHome = options.jdkHome,
         )
 
@@ -171,8 +164,8 @@ internal fun processFlags(
             reporterApiLint = reporter,
             sourceParser = sourceParser,
         )
-    val classResolverProvider =
-        ClassResolverProvider(
+    val classPathResolverProvider =
+        ClassPathResolverProvider(
             sourceParser = sourceParser,
             apiClassResolution = options.apiClassResolution,
             classpath = options.classpath,
@@ -180,7 +173,7 @@ internal fun processFlags(
     val codebase =
         createCodebaseFromOptions(
             options,
-            classResolverProvider,
+            classPathResolverProvider,
             signatureFileCache,
             actionContext,
         ) ?: return
@@ -199,25 +192,6 @@ internal fun processFlags(
 
     generateApiHistoryFromOptions(options, codebase, progressTracker)
 
-    enhanceCodebaseDocumentationFromOptions(
-        options,
-        codebase,
-        progressTracker,
-        executionEnvironment,
-        reporter,
-    )
-
-    // Generate the documentation stubs *before* we migrate nullness information.
-    options.docStubsDir?.let { stubDir ->
-        createStubFiles(
-            progressTracker,
-            options,
-            stubDir,
-            codebase,
-            isDocStubs = true,
-        )
-    }
-
     // Generate signature files based on provided input flags (i.e. if api file locations were
     // provided).
     // Also run API lint checks on current codebase
@@ -226,7 +200,7 @@ internal fun processFlags(
         codebase,
         progressTracker,
         signatureFileCache,
-        classResolverProvider,
+        classPathResolverProvider,
         reporter
     )
 
@@ -265,27 +239,9 @@ internal fun processFlags(
         actionContext.checkCompatibility(
             options,
             signatureFileCache,
-            classResolverProvider,
+            classPathResolverProvider,
             codebase,
             check,
-        )
-    }
-
-    convertToWarningNullabilityAnnotations(
-        codebase,
-        options.migrateNullsFrom,
-        options.forceConvertToWarningNullabilityAnnotations,
-        signatureFileCache
-    )
-
-    // Now that we've migrated nullness information we can proceed to write non-doc stubs, if any.
-    options.stubsDir?.let { stubDir ->
-        createStubFiles(
-            progressTracker,
-            options,
-            stubDir,
-            codebase,
-            isDocStubs = false,
         )
     }
 
@@ -298,6 +254,18 @@ internal fun processFlags(
         )
     }
 
+    // Generate the stubs. This must be done as the last operation in this method as it can modify
+    // the [codebase].
+    StubGenerator.generateStubs(
+        options.stubGenerationOptions.generatorConfig(),
+        options,
+        codebase,
+        progressTracker,
+        executionEnvironment,
+        reporter,
+        signatureFileCache,
+    )
+
     val packageCount = codebase.size()
     progressTracker.progress(
         "$PROGRAM_NAME finished handling $packageCount packages in ${stopwatch.elapsed(SECONDS)} seconds\n"
@@ -308,7 +276,7 @@ private fun runApiChecksFromOptions(
     options: Options,
     progressTracker: ProgressTracker,
     signatureFileCache: SignatureFileCache,
-    classResolverProvider: ClassResolverProvider,
+    classPathResolverProvider: ClassPathResolverProvider,
     codebase: Codebase,
     reporter: Reporter,
     apiCheckMethod: (Codebase, Codebase?, Reporter, Options) -> Unit
@@ -322,7 +290,7 @@ private fun runApiChecksFromOptions(
         // See if we should provide a previous codebase to provide a delta from?
         val previouslyReleasedCodebase by lazy {
             apiLintOptions.previouslyReleasedApi?.load { signatureFiles ->
-                signatureFileCache.load(signatureFiles, classResolverProvider.classResolver)
+                signatureFileCache.load(signatureFiles, classPathResolverProvider.classPathResolver)
             }
         }
         apiCheckMethod(codebase, previouslyReleasedCodebase, reporter, options)
@@ -338,7 +306,7 @@ private fun createApiSignatureFilesFromOptions(
     codebase: Codebase,
     progressTracker: ProgressTracker,
     signatureFileCache: SignatureFileCache,
-    classResolverProvider: ClassResolverProvider,
+    classPathResolverProvider: ClassPathResolverProvider,
     reporter: Reporter,
 ) {
     val fileFormat = options.signatureFileFormat
@@ -358,7 +326,7 @@ private fun createApiSignatureFilesFromOptions(
         options,
         progressTracker,
         signatureFileCache,
-        classResolverProvider,
+        classPathResolverProvider,
         codebase,
         reporter
     ) { _, previouslyReleasedCodebase, reporter, options ->
@@ -431,37 +399,6 @@ fun createCodeFragmentForSignatureFile(
     return codebaseFragment
 }
 
-/** Depending on option flags, enhance codebase documentation */
-private fun enhanceCodebaseDocumentationFromOptions(
-    options: Options,
-    codebase: Codebase,
-    progressTracker: ProgressTracker,
-    executionEnvironment: ExecutionEnvironment,
-    reporter: Reporter,
-) {
-    if (options.docStubsDir == null && !options.enhanceDocumentation) return
-    if (!codebase.supportsDocumentation()) {
-        error("Codebase does not support documentation, so it cannot be enhanced.")
-    }
-
-    progressTracker.progress("Enhancing docs: ")
-    val docAnalyzer =
-        DocAnalyzer(
-            executionEnvironment,
-            codebase,
-            reporter,
-            options.apiVersionLabelProvider,
-            options.includeApiLevelInDocumentation,
-            options.apiPredicateConfig,
-        )
-    docAnalyzer.enhance()
-    val applyApiLevelsXmlFile = options.applyApiLevelsXmlFile
-    if (applyApiLevelsXmlFile != null) {
-        progressTracker.progress("Applying API levels")
-        docAnalyzer.applyApiVersions(applyApiLevelsXmlFile)
-    }
-}
-
 /** Create [ModelOptions] object from option flags */
 private fun createModelOptions(
     options: Options,
@@ -483,7 +420,7 @@ private fun createModelOptions(
 /** Create [Codebase] object from option flags */
 private fun createCodebaseFromOptions(
     options: Options,
-    classResolverProvider: ClassResolverProvider,
+    classPathResolverProvider: ClassPathResolverProvider,
     signatureFileCache: SignatureFileCache,
     actionContext: ActionContext
 ): Codebase? {
@@ -500,12 +437,12 @@ private fun createCodebaseFromOptions(
         val signatureFileLoader = options.signatureFileLoader
         return signatureFileLoader.load(
             SignatureFile.fromFiles(sources),
-            classResolverProvider.classResolver,
+            classPathResolverProvider.classPathResolver,
         )
     } else if (sources.size == 1 && sources[0].path.endsWith(DOT_JAR)) {
         return actionContext.loadFromJarFile(sources[0], options.apiAnalyzerConfig)
     } else if (sources.isNotEmpty() || options.sourcePath.isNotEmpty()) {
-        return actionContext.loadFromSources(options, signatureFileCache, classResolverProvider)
+        return actionContext.loadFromSources(options, signatureFileCache, classPathResolverProvider)
     }
 
     return null
@@ -597,7 +534,7 @@ private fun generateApiHistoryFromOptions(
 private fun ActionContext.checkCompatibility(
     options: Options,
     signatureFileCache: SignatureFileCache,
-    classResolverProvider: ClassResolverProvider,
+    classPathResolverProvider: ClassPathResolverProvider,
     newCodebase: Codebase,
     check: CheckRequest,
 ) {
@@ -629,7 +566,7 @@ private fun ActionContext.checkCompatibility(
 
     val oldCodebase =
         check.previouslyReleasedApi.load { signatureFiles ->
-            signatureFileCache.load(signatureFiles, classResolverProvider.classResolver)
+            signatureFileCache.load(signatureFiles, classPathResolverProvider.classPathResolver)
         }
 
     val apiName =
@@ -698,39 +635,10 @@ private fun compareFileContents(file1: File, file2: File): Boolean {
  */
 internal var fastPathCheckResult: Boolean? = null
 
-private fun convertToWarningNullabilityAnnotations(
-    codebase: Codebase,
-    previouslyReleasedApi: PreviouslyReleasedApi?,
-    filter: PackageFilter?,
-    signatureFileCache: SignatureFileCache
-) {
-    if (previouslyReleasedApi != null) {
-        val previousCodebase =
-            previouslyReleasedApi.load { signatureFiles -> signatureFileCache.load(signatureFiles) }
-
-        // If configured, checks for newly added nullness information compared
-        // to the previous stable API and marks the newly annotated elements
-        // as migrated (which will cause the Kotlin compiler to treat problems
-        // as warnings instead of errors
-
-        NullnessMigration.migrateNulls(codebase, previousCodebase)
-
-        previousCodebase.dispose()
-    }
-
-    if (filter != null) {
-        // Our caller has asked for these APIs to not trigger nullness errors (only warnings) if
-        // their callers make incorrect nullness assumptions (for example, calling a function on a
-        // reference of nullable type). The way to communicate this to kotlinc is to mark these
-        // APIs as RecentlyNullable/RecentlyNonNull
-        codebase.accept(MarkPackagesAsRecent(filter))
-    }
-}
-
 private fun ActionContext.loadFromSources(
     options: Options,
     signatureFileCache: SignatureFileCache,
-    classResolverProvider: ClassResolverProvider,
+    classPathResolverProvider: ClassPathResolverProvider,
 ): Codebase? {
     progressTracker.progress("Processing sources: ")
 
@@ -789,7 +697,7 @@ private fun ActionContext.loadFromSources(
 
     // General API documentation checks for Android APIs.
     // They are pointless if Javadoc comments are not being read.
-    if (options.allowReadingComments) {
+    if (codebase.config.allowReadingComments) {
         AndroidApiChecks(reporterApiLint).check(codebase)
     }
 
@@ -797,7 +705,7 @@ private fun ActionContext.loadFromSources(
         options,
         progressTracker,
         signatureFileCache,
-        classResolverProvider,
+        classPathResolverProvider,
         codebase,
         reporter
     ) { codebase, previouslyReleasedCodebase, reporter, options ->
@@ -818,17 +726,17 @@ private fun ActionContext.loadFromSources(
 }
 
 /**
- * Avoids creating a [ClassResolver] unnecessarily as it is expensive to create but once created
+ * Avoids creating a [ClassPathResolver] unnecessarily as it is expensive to create but once created
  * allows it to be reused for the same reason.
  */
-private class ClassResolverProvider(
+private class ClassPathResolverProvider(
     private val sourceParser: SourceParser,
     private val apiClassResolution: ApiClassResolution,
     private val classpath: List<File>
 ) {
-    val classResolver: ClassResolver? by lazy {
+    val classPathResolver: ClassPathResolver? by lazy {
         if (apiClassResolution == ApiClassResolution.API_CLASSPATH && classpath.isNotEmpty()) {
-            sourceParser.getClassResolver(classpath)
+            sourceParser.getClassPathResolver(classpath)
         } else {
             null
         }
@@ -862,87 +770,6 @@ private fun extractAnnotations(
             "$PROGRAM_NAME extracted annotations into $outputFile in ${localTimer.elapsed(SECONDS)} seconds\n"
         )
     }
-}
-
-private fun createStubFiles(
-    progressTracker: ProgressTracker,
-    options: Options,
-    stubDir: File,
-    codebase: Codebase,
-    isDocStubs: Boolean,
-) {
-    if (isDocStubs) {
-        progressTracker.progress("Generating documentation stub files: ")
-    } else {
-        progressTracker.progress("Generating stub files: ")
-    }
-
-    val localTimer = Stopwatch.createStarted()
-
-    var codebaseFragment =
-        CodebaseFragment.create(codebase) { delegate ->
-            createFilteringVisitorForStubs(
-                delegate = delegate,
-                isDocStubs = isDocStubs,
-                preFiltered = codebase.preFiltered,
-                apiPredicateConfig = options.apiPredicateConfig,
-            )
-        }
-
-    // If reverting some changes then create a snapshot that combines the items from the sources for
-    // any un-reverted changes and items from the previously released API for any reverted changes.
-    if (codebaseFragment.codebase.containsRevertedItem) {
-        codebaseFragment =
-            codebaseFragment.snapshotIncludingRevertedItems(
-                referenceVisitorFactory = { delegate ->
-                    createFilteringVisitorForStubs(
-                        delegate = delegate,
-                        isDocStubs = isDocStubs,
-                        preFiltered = codebase.preFiltered,
-                        apiPredicateConfig = options.apiPredicateConfig,
-                        ignoreEmit = true,
-                    )
-                },
-            )
-    }
-
-    // Add additional constructors needed by the stubs.
-    val filterEmit =
-        if (codebaseFragment.codebase.preFiltered) {
-            FilterPredicate { true }
-        } else {
-            val apiPredicateConfigIgnoreShown = options.apiPredicateConfig.copy(ignoreShown = true)
-            ApiPredicate(ignoreRemoved = false, config = apiPredicateConfigIgnoreShown)
-        }
-    val stubConstructorManager = StubConstructorManager(codebaseFragment.codebase)
-    stubConstructorManager.addConstructors(filterEmit)
-
-    val stubWriter =
-        StubWriter(
-            stubsDir = stubDir,
-            generateAnnotations = options.generateAnnotations,
-            isDocStubs = isDocStubs,
-            reporter = options.reporter,
-            config = options.stubWriterConfig,
-            stubConstructorManager = stubConstructorManager,
-        )
-
-    codebaseFragment.accept(stubWriter)
-
-    if (isDocStubs) {
-        // Overview docs? These are generally in the empty package.
-        codebase.findPackage("")?.let { empty ->
-            val overview = empty.overviewDocumentation
-            if (overview != null) {
-                stubWriter.writeDocOverview(empty, overview)
-            }
-        }
-    }
-
-    progressTracker.progress(
-        "$PROGRAM_NAME wrote ${if (isDocStubs) "documentation" else ""} stubs directory $stubDir in ${
-        localTimer.elapsed(SECONDS)} seconds\n"
-    )
 }
 
 fun createOutputFileFromCodebaseFragment(

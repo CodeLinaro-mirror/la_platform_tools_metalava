@@ -27,8 +27,10 @@ import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.createMutableModifiers
 import com.android.tools.metalava.model.hasAnnotation
 import org.jetbrains.kotlin.analysis.api.symbols.KaCallableSymbol
+import org.jetbrains.kotlin.analysis.api.symbols.KaClassKind
 import org.jetbrains.kotlin.analysis.api.symbols.KaDeclarationSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaKotlinPropertySymbol
+import org.jetbrains.kotlin.analysis.api.symbols.KaNamedClassSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaNamedFunctionSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaParameterSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaPropertySymbol
@@ -208,6 +210,37 @@ internal class KaModifierFactory(private val processor: KaModuleProcessor) {
         if (containingClass.isInterface() && !isAbstract()) {
             setDefault(true)
         }
+    }
+
+    /** Creates modifiers for a class [symbol]. */
+    fun createForClass(symbol: KaNamedClassSymbol): MutableModifierList {
+        val modifiers = createForDeclaration(symbol)
+
+        if (symbol.isData) {
+            modifiers.setData(true)
+        }
+        if (symbol.isFun) {
+            modifiers.setFunctional(true)
+        }
+        if (symbol.isInline) {
+            modifiers.setValue(true)
+        }
+
+        when (symbol.modality) {
+            KaSymbolModality.FINAL -> {
+                // Consistency with the rest of metalava: annotations are not treated as final.
+                if (symbol.classKind != KaClassKind.ANNOTATION_CLASS) modifiers.setFinal(true)
+            }
+            KaSymbolModality.SEALED -> {
+                modifiers.setSealed(true)
+                // Sealed classes are also abstract.
+                modifiers.setAbstract(true)
+            }
+            KaSymbolModality.ABSTRACT -> modifiers.setAbstract(true)
+            KaSymbolModality.OPEN -> modifiers.setFinal(false)
+        }
+
+        return modifiers
     }
 
     /** Create modifiers for any declaration. */

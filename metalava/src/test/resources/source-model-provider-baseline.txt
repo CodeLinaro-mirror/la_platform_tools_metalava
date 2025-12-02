@@ -54,12 +54,9 @@ com.android.tools.metalava.apilevels.ApiGeneratorTest
   Generate API for system surface from jar[turbine]
 
 com.android.tools.metalava.compatibility.CompatibilityCheckTest
-  Conversion from AutoCloseable to Closeable is not API-breaking[turbine]
   Conversion from MutableCollection to AbstractMutableCollection is not API-breaking[turbine]
   Empty bundle files[turbine]
   Expected API changes converting collections to Kotlin[turbine]
-  No issues using the same classpath class twice[turbine]
-  Removed method from classpath[turbine]
 
 com.android.tools.metalava.doc.DocAnalyzerTest
   Test Column annotation[turbine]
@@ -87,7 +84,5 @@ com.android.tools.metalava.stub.StubsConstructorTest
   Varargs constructor parameter requiring cast[turbine]
 
 com.android.tools.metalava.stub.StubsTest
-  Compilable stubs are not generated when inheriting class exists in jar passed via classpath[turbine]
-  Ensure that when generating stubs from signature files the constructors are setup correctly[turbine]
   Generate documentation stubs with --exclude-documentation-from-stubs[turbine]
   Generate stubs for various modifier scenarios[turbine]

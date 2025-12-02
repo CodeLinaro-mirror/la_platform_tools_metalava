@@ -17,34 +17,20 @@
 package com.android.tools.metalava.apilevels
 
 import com.android.tools.metalava.cli.common.SignatureFileLoader
-import com.android.tools.metalava.model.ClassResolver
-import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.text.SignatureFile
 import kotlin.test.assertEquals
 import org.junit.Assert.assertThrows
 import org.junit.Test
 
 class VersionedSignatureApiTest {
-    companion object {}
-
     @Test
     fun `Empty files`() {
-        val fakeSignatureFileLoader =
-            object : SignatureFileLoader {
-                override fun load(
-                    signatureFiles: List<SignatureFile>,
-                    classResolver: ClassResolver?
-                ): Codebase {
-                    error("fake")
-                }
-            }
 
         val versionOne = ApiVersion.fromLevel(1)
         val updater = ApiHistoryUpdater.forApiVersion(versionOne)
 
         val exception =
             assertThrows(IllegalArgumentException::class.java) {
-                VersionedSignatureApi(fakeSignatureFileLoader, emptyList(), updater)
+                VersionedSignatureApi(SignatureFileLoader.THROWING, emptyList(), updater)
             }
         assertEquals("files must contain at least one file", exception.message)
     }

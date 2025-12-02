@@ -20,13 +20,11 @@ import com.android.SdkConstants
 import com.android.tools.lint.UastEnvironment
 import com.android.tools.lint.computeMetadata
 import com.android.tools.lint.detector.api.Project
-import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
 import com.android.tools.metalava.model.psi.kotlin.KaCodebaseAssembler
 import com.android.tools.metalava.model.psi.kotlin.KotlinBytecodeApis
-import com.android.tools.metalava.model.source.DEFAULT_JAVA_LANGUAGE_LEVEL
 import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.source.SourceSet
 import com.intellij.pom.java.LanguageLevel
@@ -40,10 +38,6 @@ import org.jetbrains.kotlin.config.JVMConfigurationKeys
 import org.jetbrains.kotlin.config.LanguageVersion
 import org.jetbrains.kotlin.config.LanguageVersionSettings
 import org.jetbrains.kotlin.config.LanguageVersionSettingsImpl
-
-internal val defaultJavaLanguageLevel = LanguageLevel.parse(DEFAULT_JAVA_LANGUAGE_LEVEL)!!
-
-internal val defaultKotlinLanguageLevel = LanguageVersionSettingsImpl.DEFAULT
 
 fun kotlinLanguageVersionSettings(value: String?): LanguageVersionSettings {
     val languageLevel =
@@ -67,20 +61,10 @@ internal class PsiSourceParser(
     private val javaLanguageLevel: LanguageLevel,
     private val kotlinLanguageLevel: LanguageVersionSettings,
     private val useK2Uast: Boolean,
-    private val allowReadingComments: Boolean,
     private val jdkHome: File?,
 ) : SourceParser {
 
     private val reporter = codebaseConfig.reporter
-
-    override fun getClassResolver(classPath: List<File>): ClassResolver {
-        val uastEnvironment = loadUastFromJars(classPath)
-        return PsiBasedClassResolver(
-            uastEnvironment,
-            codebaseConfig,
-            allowReadingComments,
-        )
-    }
 
     /**
      * Returns a codebase initialized from the given Java or Kotlin source files, with the given
@@ -121,14 +105,12 @@ internal class PsiSourceParser(
         val config = UastEnvironment.Configuration.create(useFirUast = useK2Uast)
         config.javaLanguageLevel = javaLanguageLevel
 
-        val rootDir = sourceSet.sourcePath.firstOrNull() ?: File("").canonicalFile
-
         when {
             projectDescription != null -> {
                 configureUastEnvironmentFromProjectDescription(config, projectDescription)
             }
             else -> {
-                configureUastEnvironment(config, sourceSet.sourcePath, classpath, rootDir)
+                configureUastEnvironment(config, sourceSet.sourcePath, classpath)
             }
         }
         // K1 UAST: loading of JDK (via compiler config, i.e., only for FE1.0), when using JDK9+
@@ -143,13 +125,13 @@ internal class PsiSourceParser(
         val kotlinFiles = sourceSet.sources.filter { it.path.endsWith(SdkConstants.DOT_KT) }
         environment.analyzeFiles(kotlinFiles)
 
+        val location = sourceSet.sourcePath.firstOrNull() ?: File("").canonicalFile
         val assembler =
             PsiCodebaseAssembler(environment) {
                 PsiBasedCodebase(
-                    location = rootDir,
+                    location = location,
                     description = description,
                     config = codebaseConfig,
-                    allowReadingComments = allowReadingComments,
                     assembler = it,
                     inlineTypeAliasUsages = environment.isKMP,
                     mainAnalysisModule = findMainAnalysisModule(environment),
@@ -157,7 +139,7 @@ internal class PsiSourceParser(
             }
 
         assembler.initializeFromSources(sourceSet, apiPackages)
-        return assembler.codebase
+        return assembler.psiCodebase
     }
 
     /** Lists all of the [KaModule]s that exist in this project. */
@@ -201,12 +183,11 @@ internal class PsiSourceParser(
                     location = apiJar,
                     description = "Codebase loaded from $apiJar",
                     config = codebaseConfig,
-                    allowReadingComments = allowReadingComments,
                     assembler = assembler,
                     inlineTypeAliasUsages = environment.isKMP,
                 )
             }
-        val codebase = assembler.codebase
+        val codebase = assembler.psiCodebase
         assembler.initializeFromJar(apiJar)
         return codebase
     }
@@ -237,11 +218,11 @@ internal class PsiSourceParser(
     /** Initializes a UAST environment using the [apiJars] as classpath roots. */
     private fun loadUastFromJars(apiJars: List<File>): UastEnvironment {
         val config = UastEnvironment.Configuration.create(useFirUast = useK2Uast)
-        // Use the empty dir otherwise this will end up scanning the current working directory.
-        configureUastEnvironment(config, listOf(psiEnvironmentManager.emptyDir), apiJars)
+        var sourceRoots = emptyList<File>()
+        configureUastEnvironment(config, sourceRoots, apiJars)
 
         val environment = psiEnvironmentManager.createEnvironment(config)
-        environment.analyzeFiles(emptyList()) // Initializes PSI machinery.
+        environment.analyzeFiles(sourceRoots) // Initializes PSI machinery.
         return environment
     }
 
@@ -249,8 +230,8 @@ internal class PsiSourceParser(
         config: UastEnvironment.Configuration,
         sourceRoots: List<File>,
         classpath: List<File>,
-        rootDir: File = sourceRoots.firstOrNull() ?: File("").canonicalFile
     ) {
+        val rootDir = sourceRoots.firstOrNull() ?: psiEnvironmentManager.emptyDir
         val lintClient = MetalavaCliClient()
         // From ...lint.detector.api.Project, `dir` is, e.g., /tmp/foo/dev/src/project1,
         // and `referenceDir` is /tmp/foo/. However, in many use cases, they are just same.
@@ -259,7 +240,11 @@ internal class PsiSourceParser(
         val lintProject =
             Project.create(lintClient, /* dir= */ rootDir, /* referenceDir= */ rootDir)
         lintProject.kotlinLanguageLevel = kotlinLanguageLevel
-        lintProject.javaSourceFolders.addAll(sourceRoots)
+        if (sourceRoots.isEmpty()) {
+            lintProject.javaSourceFolders.add(psiEnvironmentManager.emptyDir)
+        } else {
+            lintProject.javaSourceFolders.addAll(sourceRoots)
+        }
         lintProject.javaLibraries.addAll(classpath)
         config.addModules(
             listOf(

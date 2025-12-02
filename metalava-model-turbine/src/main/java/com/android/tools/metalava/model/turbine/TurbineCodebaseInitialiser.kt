@@ -21,20 +21,14 @@ import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.JAVA_PACKAGE_INFO
 import com.android.tools.metalava.model.PackageFilter
-import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TypeParameterScope
-import com.android.tools.metalava.model.item.DefaultCodebaseAssembler
 import com.android.tools.metalava.model.item.DefaultCodebaseFactory
 import com.android.tools.metalava.model.item.DefaultItemFactory
-import com.android.tools.metalava.model.item.DefaultPackageItem
-import com.android.tools.metalava.model.item.MutablePackageDoc
-import com.android.tools.metalava.model.item.PackageDocs
-import com.android.tools.metalava.model.source.NO_SOURCE_COMMENT_FACTORY
+import com.android.tools.metalava.model.source.SourceCodebaseAssembler
+import com.android.tools.metalava.model.source.SourcePackageInfo
 import com.android.tools.metalava.model.source.SourceSet
-import com.android.tools.metalava.model.source.utils.gatherPackageJavadoc
 import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
@@ -46,6 +40,7 @@ import com.google.turbine.binder.ClassPathBinder
 import com.google.turbine.binder.Processing.ProcessorInfo
 import com.google.turbine.binder.bound.SourceTypeBoundClass
 import com.google.turbine.binder.bound.TypeBoundClass
+import com.google.turbine.binder.bytecode.BytecodeBoundClass
 import com.google.turbine.binder.env.CompoundEnv
 import com.google.turbine.binder.env.SimpleEnv
 import com.google.turbine.binder.lookup.LookupKey
@@ -78,8 +73,7 @@ import javax.lang.model.element.TypeElement
 internal class TurbineCodebaseInitialiser(
     codebaseFactory: DefaultCodebaseFactory,
     private val classpath: List<File>,
-    override val allowReadingComments: Boolean,
-) : DefaultCodebaseAssembler(), TurbineGlobalContext {
+) : SourceCodebaseAssembler(), TurbineGlobalContext {
 
     override val codebase = codebaseFactory(this)
 
@@ -253,45 +247,15 @@ internal class TurbineCodebaseInitialiser(
         globalTypeItemFactory =
             TurbineTypeItemFactory(this, annotationFactory, TypeParameterScope.empty)
 
-        // Find the package-info.java units.
-        val packageInfoUnits = allUnits.filter { it.isPackageInfo() }
-
-        // Split the map from ClassSymbol to SourceTypeBoundClass into separate package-info and
-        // normal classes.
-        val (packageInfoClasses, allSourceClasses) =
-            separatePackageInfoClassesFromRealClasses(allSourceClassMap)
-
-        val packageInfoList =
-            combinePackageInfoClassesAndUnits(packageInfoClasses, packageInfoUnits)
-
-        // Scan the files looking for package.html and overview.html files and combine that with
-        // information from package-info.java units to create a comprehensive set of package
-        // documentation just in case they are needed during package creation.
-        val packageDocs =
-            gatherPackageJavadoc(
-                codebase.reporter,
-                sourceSet,
-                packageNameFilter = { isValidPackage(it) },
-                packageInfoList
-            ) { (unit, packageName) ->
-                val file = File(unit.source().path())
-                val fileLocation = FileLocation.forFile(file)
-                val turbineSourceFile = sourceFileCache.turbineSourceFile(unit.source())
-                val comment = itemDocumentationFactoryForDecl(turbineSourceFile, unit.pkg().get())
-
-                MutablePackageDoc(
-                    qualifiedName = packageName,
-                    fileLocation = fileLocation,
-                    commentFactory = comment,
-                )
-            }
-
         // Get the map from ClassSymbol to SourceTypeBoundClass for only those classes provided on
         // the command line as only those classes can contribute directly to the API.
         val commandLineSourceClasses =
-            topLevelAccessibleCommandLineClasses(allSourceClasses, commandLineSources)
+            topLevelAccessibleCommandLineClasses(allSourceClassMap, commandLineSources)
 
-        createAllPackages(packageDocs)
+        // Scan the files looking for package.html and overview.html files and extract the
+        // documentation just in case they are needed during package creation.
+        createInitialPackages(sourceSet)
+
         createAllCommandLineClasses(commandLineSourceClasses, apiPackages)
     }
 
@@ -341,7 +305,7 @@ internal class TurbineCodebaseInitialiser(
      *
      * @param allSourceClasses all the [SourceTypeBoundClass]s found during binding, includes those
      *   from the source path as well as those whose containing file was provided on the command
-     *   line.
+     *   line. Also, includes `package-info.java` classes.
      * @param commandLineSources the list of source [File]s provided on the command line.
      */
     private fun topLevelAccessibleCommandLineClasses(
@@ -354,7 +318,10 @@ internal class TurbineCodebaseInitialiser(
         // Get the map from ClassSymbol to SourceTypeBoundClass for only the accessible, top level
         // classes provided on the command line as only those classes (and their nested classes) can
         // contribute directly to the API.
-        return allSourceClasses.filter { (_, sourceTypeBoundClass) ->
+        return allSourceClasses.filter { (symbol, sourceTypeBoundClass) ->
+            // Ignore all `package-info.java` classes.
+            if (symbol.simpleName() == "package-info") return@filter false
+
             // Ignore nested classes, they will be created as part of the construction of their
             // containing class.
             if (sourceTypeBoundClass.owner() != null) return@filter false
@@ -413,31 +380,6 @@ internal class TurbineCodebaseInitialiser(
     override fun typeBoundClassForSymbol(classSymbol: ClassSymbol) = envClassMap.get(classSymbol)!!
 
     /**
-     * Separate `package-info.java` synthetic classes from real classes.
-     *
-     * Turbine treats a `package-info.java` file as if it created a class called `package-info`.
-     * This method separates the [sourceClassMap] into two, one for the synthetic `package-info`
-     * classes and one for real classes.
-     *
-     * @param sourceClassMap the map from [ClassSymbol] to [SourceTypeBoundClass] for all classes,
-     *   real or synthetic.
-     */
-    private fun separatePackageInfoClassesFromRealClasses(
-        sourceClassMap: Map<ClassSymbol, SourceTypeBoundClass>,
-    ): Pair<Map<ClassSymbol, SourceTypeBoundClass>, Map<ClassSymbol, SourceTypeBoundClass>> {
-        val packageInfoClasses = mutableMapOf<ClassSymbol, SourceTypeBoundClass>()
-        val sourceClasses = mutableMapOf<ClassSymbol, SourceTypeBoundClass>()
-        for ((symbol, typeBoundClass) in sourceClassMap) {
-            if (symbol.simpleName() == "package-info") {
-                packageInfoClasses[symbol] = typeBoundClass
-            } else {
-                sourceClasses[symbol] = typeBoundClass
-            }
-        }
-        return Pair(packageInfoClasses, sourceClasses)
-    }
-
-    /**
      * Convert this qualified name consisting of a list of identifiers separated by '.' into a list
      * of identifiers.
      *
@@ -445,60 +387,42 @@ internal class TurbineCodebaseInitialiser(
      */
     private fun String.qualifiedNameToIdentifierList() = if (isEmpty()) emptyList() else split('.')
 
-    /**
-     * Check to make sure that [packageName] is a valid package, i.e. is present in the sources or
-     * on the classpath.
-     */
-    private fun isValidPackage(packageName: String) =
-        index.lookupPackage(packageName.qualifiedNameToIdentifierList()) != null
-
-    /**
-     * Encapsulates information needed to create a [DefaultPackageItem] in [gatherPackageJavadoc].
-     */
-    data class PackageInfoClass(
-        val unit: CompUnit,
-        val packageName: String,
-    )
-
-    /** Combine `package-info.java` synthetic classes and units */
-    private fun combinePackageInfoClassesAndUnits(
-        sourceClassMap: Map<ClassSymbol, SourceTypeBoundClass>,
-        packageInfoUnits: List<CompUnit>
-    ): List<PackageInfoClass> {
-        // Create a mapping between the package name and the unit.
-        val packageInfoMap = packageInfoUnits.associateBy { getPackageName(it) }
-
-        return sourceClassMap.keys.map { symbol ->
-            val packageName = symbol.packageName().replace('/', '.')
-            PackageInfoClass(
-                unit = packageInfoMap[packageName]!!,
-                packageName = packageName,
-            )
+    override fun getPackageInfoFromSource(packageName: String): SourcePackageInfo? {
+        // Make sure that the underlying package exists.
+        if (!isValidPackage(packageName)) {
+            if (packageName == "") return null else error("Unknown package '$packageName'")
         }
-    }
 
-    /** Check if this is for a `package-info.java` file or not. */
-    private fun CompUnit.isPackageInfo() =
-        source().path().let { it == JAVA_PACKAGE_INFO || it.endsWith("/" + JAVA_PACKAGE_INFO) }
-
-    private fun createAllPackages(packageDocs: PackageDocs) {
-        // Create packages for all the documentation packages and make sure there is a root package.
-        codebase.packageTracker.createInitialPackages(packageDocs)
-    }
-
-    override fun createPackageAnnotations(packageName: String): List<AnnotationItem> {
         // Construct the binary name for the package-info class.
         val packageInfoBinaryName = "${packageName.replace('.', '/')}/package-info"
 
         // The underlying package may have annotations if it had a package-info.java file so check
         // for the presence of the corresponding `package-info.class`.
         val packageInfoSym = ClassSymbol(packageInfoBinaryName)
-        val packageInfoClass = envClassMap[packageInfoSym] ?: return emptyList()
+        val packageInfoClass = envClassMap[packageInfoSym] ?: return null
 
-        return annotationFactory.createAnnotations(packageInfoClass.annotations())
+        return when (packageInfoClass) {
+            // Handle a package-info.java file.
+            is SourceTypeBoundClass -> {
+                val turbineSourceFile = sourceFileCache.turbineSourceFile(packageInfoClass.source())
+                val unit = turbineSourceFile.compUnit
+                val pkgDecl = unit.pkg().get()
+                var annoInfos = packageInfoClass.annotations()
+                SourcePackageInfo(
+                    fileLocation = TurbineFileLocation.forTree(turbineSourceFile),
+                    annotations = annotationFactory.createAnnotations(annoInfos),
+                    commentFactory = itemDocumentationFactoryForDecl(turbineSourceFile, pkgDecl),
+                )
+            }
+            // Handle a package-info.class file.
+            is BytecodeBoundClass -> {
+                val annotations =
+                    annotationFactory.createAnnotations(packageInfoClass.annotations())
+                SourcePackageInfo(annotations = annotations)
+            }
+            else -> error("Unknown package-info class: $packageInfoClass")
+        }
     }
-
-    override fun emptyPackageDocumentationFactory() = NO_SOURCE_COMMENT_FACTORY
 
     private fun createAllCommandLineClasses(
         sourceClassMap: Map<ClassSymbol, SourceTypeBoundClass>,
@@ -550,11 +474,8 @@ internal class TurbineCodebaseInitialiser(
         )
     }
 
-    override fun createPackageFromUnderlyingModel(qualifiedName: String): PackageItem? {
-        // Make sure that the underlying package exists before creating one.
-        if (!isValidPackage(qualifiedName)) return null
-        return codebase.findOrCreatePackage(qualifiedName)
-    }
+    override fun isValidPackage(packageName: String) =
+        index.lookupPackage(packageName.qualifiedNameToIdentifierList()) != null
 
     /** Tries to create a class from a Turbine class with [qualifiedName]. */
     override fun createClassFromUnderlyingModel(qualifiedName: String): ClassItem? {

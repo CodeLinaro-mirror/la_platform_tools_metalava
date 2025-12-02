@@ -634,7 +634,7 @@ internal class PsiItemDocumentation(
             psi: PsiElement,
             codebase: PsiBasedCodebase,
         ) =
-            if (codebase.allowReadingComments) {
+            if (codebase.config.allowReadingComments) {
                 // When reading comments provide full access to them.
                 ItemDocumentationFactory { item -> PsiItemDocumentation(item, codebase, psi) }
             } else {

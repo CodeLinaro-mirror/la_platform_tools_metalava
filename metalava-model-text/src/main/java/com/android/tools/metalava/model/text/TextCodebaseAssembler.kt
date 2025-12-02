@@ -18,11 +18,10 @@ package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.ClassResolver
+import com.android.tools.metalava.model.ClassPathResolver
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.bestGuessAtFullName
 import com.android.tools.metalava.model.item.DefaultClassItem
@@ -30,17 +29,17 @@ import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.item.DefaultCodebaseAssembler
 import com.android.tools.metalava.model.item.DefaultCodebaseFactory
 import com.android.tools.metalava.model.item.DefaultItemFactory
-import com.android.tools.metalava.model.item.PackageDocs
+import com.android.tools.metalava.model.item.PackageInfo
 import com.android.tools.metalava.model.utils.extractOptionalQualifierName
 import com.android.tools.metalava.model.utils.extractPossiblyEmptyQualifierName
 import java.io.File
 
 internal class TextCodebaseAssembler(
     codebaseFactory: DefaultCodebaseFactory,
-    private val classResolver: ClassResolver?,
+    private val classPathResolver: ClassPathResolver?,
 ) : DefaultCodebaseAssembler() {
 
-    internal val codebase = codebaseFactory(this)
+    override val codebase = codebaseFactory(this)
 
     /** Creates [Item] instances for this. */
     override val itemFactory =
@@ -54,14 +53,9 @@ internal class TextCodebaseAssembler(
             defaultVariantSelectorsFactory = ApiVariantSelectors.IMMUTABLE_FACTORY,
         )
 
-    fun initialize() {
-        // Make sure that it has a root package.
-        codebase.packageTracker.createInitialPackages(PackageDocs.EMPTY)
-    }
-
     override fun createPackageFromUnderlyingModel(qualifiedName: String) =
-        // There are no additional packages available when processing signature files.
-        null
+        // Check on the class path, if any, for additional packages.
+        classPathResolver?.resolvePackage(qualifiedName)
 
     override fun createClassFromUnderlyingModel(qualifiedName: String) =
         getOrCreateClass(qualifiedName)
@@ -89,15 +83,8 @@ internal class TextCodebaseAssembler(
         requiredStubKindForClass.remove(classItem.qualifiedName())
     }
 
-    /**
-     * Override to return an [ItemDocumentation.NONE_FACTORY].
-     *
-     * This will be called for every package loaded from a signature file as none of them have any
-     * documentation. The returned [ItemDocumentation.NONE_FACTORY] will return `null`. That should
-     * not be a problem as [ItemDocumentation] is only needed when creating stubs containing
-     * enhanced documentation which cannot be created from signature files.
-     */
-    override fun emptyPackageDocumentationFactory() = ItemDocumentation.NONE_FACTORY
+    /** Override to return [PackageInfo.NO_COMMENT]. */
+    override fun getPackageInfoFromUnderlyingModel(packageName: String) = PackageInfo.NO_COMMENT
 
     /**
      * Register that the class type requires a specific stub kind.
@@ -146,9 +133,9 @@ internal class TextCodebaseAssembler(
 
         // Only check for external classes if this is not searching for an outer class of a class in
         // this codebase and there is a class resolver that will populate the external classes.
-        if (!isOuterClassOfClassInThisCodebase && classResolver != null) {
+        if (!isOuterClassOfClassInThisCodebase && classPathResolver != null) {
             // Try and resolve the class, returning it if it was found.
-            classResolver.resolveClass(qualifiedName)?.let {
+            classPathResolver.resolveClass(qualifiedName)?.let {
                 return it
             }
         }
@@ -199,7 +186,7 @@ internal class TextCodebaseAssembler(
             location: File,
             description: String,
             codebaseConfig: Codebase.Config,
-            classResolver: ClassResolver?,
+            classPathResolver: ClassPathResolver?,
         ): TextCodebaseAssembler {
             val assembler =
                 TextCodebaseAssembler(
@@ -214,9 +201,8 @@ internal class TextCodebaseAssembler(
                             assembler = assembler,
                         )
                     },
-                    classResolver = classResolver,
+                    classPathResolver = classPathResolver,
                 )
-            assembler.initialize()
 
             return assembler
         }

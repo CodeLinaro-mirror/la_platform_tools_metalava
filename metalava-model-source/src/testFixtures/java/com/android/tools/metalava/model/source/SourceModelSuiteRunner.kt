@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.source
 
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.provider.FilterableCodebaseCreator
 import com.android.tools.metalava.model.provider.InputFormat
@@ -74,6 +75,29 @@ class SourceModelSuiteRunner(private val sourceModelProvider: SourceModelProvide
         }
     }
 
+    override fun createMultiplatformCodebaseAndRun(
+        inputs: ModelSuiteRunner.TestInputs,
+        test: (MultiplatformCodebase?) -> Unit
+    ) {
+        if (Capability.MULTIPLATFORM !in capabilities) return
+        return inputs.projectDescription?.let { projectDescription ->
+            // Make sure that the input files have been created.
+            sourceSet(inputs.mainSourceDir, inputs.additionalMainSourceDir)
+
+            val environmentManager = sourceModelProvider.createEnvironmentManager(forTesting = true)
+            val testFixture = inputs.testFixture
+            val sourceParser =
+                environmentManager.createSourceParser(
+                    codebaseConfig = testFixture.codebaseConfig,
+                    javaLanguageLevel = testFixture.javaLanguageLevel,
+                    modelOptions = inputs.modelOptions,
+                )
+
+            val codebase = sourceParser.createMultiplatformCodebase(projectDescription)
+            test(codebase)
+        } ?: error("Project description file is required to create multiplatform codebase.")
+    }
+
     private fun createTestCodebase(
         environmentManager: EnvironmentManager,
         inputs: ModelSuiteRunner.TestInputs,
@@ -85,7 +109,6 @@ class SourceModelSuiteRunner(private val sourceModelProvider: SourceModelProvide
                 codebaseConfig = testFixture.codebaseConfig,
                 javaLanguageLevel = testFixture.javaLanguageLevel,
                 modelOptions = inputs.modelOptions,
-                allowReadingComments = testFixture.allowReadingComments,
             )
         return sourceParser.parseSources(
             sourceSet(inputs.mainSourceDir, inputs.additionalMainSourceDir),

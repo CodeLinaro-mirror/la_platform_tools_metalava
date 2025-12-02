@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.testsuite
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ModelOptions
+import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
 import com.android.tools.metalava.model.provider.FilterableCodebaseCreator
 import com.android.tools.metalava.model.provider.InputFormat
 import java.io.File
@@ -97,6 +98,12 @@ interface ModelSuiteRunner : FilterableCodebaseCreator {
     fun createCodebaseAndRun(
         inputs: TestInputs,
         test: (Codebase?) -> Unit,
+    )
+
+    /** Try and create a [MultiplatformCodebase] from the supplied [inputs]. */
+    fun createMultiplatformCodebaseAndRun(
+        inputs: TestInputs,
+        test: (MultiplatformCodebase?) -> Unit
     )
 
     /** The name of the runner used in parameterized test names. */

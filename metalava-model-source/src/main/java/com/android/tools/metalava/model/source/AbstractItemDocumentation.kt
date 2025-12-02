@@ -18,12 +18,15 @@ package com.android.tools.metalava.model.source
 
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.ItemDocumentation
+import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterListOwner
+import com.android.tools.metalava.model.api.flags.ApiFlagAction
 import com.android.tools.metalava.model.doc.DocContent
 import com.android.tools.metalava.model.doc.DocContentOwner
 import com.android.tools.metalava.model.doc.DocContentPredicate
@@ -41,8 +44,11 @@ import com.android.tools.metalava.model.source.doc.PackageReference
 import com.android.tools.metalava.model.source.doc.ResolvedReference
 import com.android.tools.metalava.model.source.doc.TypeParameterReference
 import com.android.tools.metalava.model.source.doc.TypeReference
+import com.android.tools.metalava.model.source.javadoc.ExprContext
 import com.android.tools.metalava.model.source.javadoc.JavadocText
 import com.android.tools.metalava.model.source.javadoc.toOptionalJavadocContent
+import com.android.tools.metalava.model.utils.splitIntoOptionalQualifierAndSimpleName
+import com.android.tools.metalava.model.value.StringValue
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.LocationSpecificReporter
 import java.io.PrintWriter
@@ -147,6 +153,14 @@ abstract class AbstractItemDocumentation(
         _text = null
     }
 
+    /** Implements [ExprContext.isFlagEnabled]. */
+    override fun isFlagEnabled(flagFieldReference: String): Boolean {
+        val field = resolveConstantFieldReference(flagFieldReference) ?: return false
+        val flagName = (field.constantValue as? StringValue)?.underlyingValue ?: return false
+        val apiFlags = item.codebase.config.apiFlags ?: return true
+        return apiFlags[flagName].description != ApiFlagAction.REVERT
+    }
+
     override val isHidden
         get() = hasBlockTagOfType("hide")
 
@@ -231,6 +245,39 @@ abstract class AbstractItemDocumentation(
             is TypeParameterItem -> TypeParameterReference(resolved.name())
             else -> null
         }
+    }
+
+    /**
+     * Resolve a constant field reference to the [FieldItem], if possible.
+     *
+     * @param sourceReference the reference to a field as it would be represented in source code.
+     *   e.g. it can be unqualified `FIELD`, qualified with a class `Class.FIELD`, or
+     *   `Class.Nested.FIELD` or fully qualified, e.g. `package.Class.FIELD`.
+     */
+    fun resolveConstantFieldReference(sourceReference: String): FieldItem? {
+        // Not all items that have documentation currently support resolving references from it,
+        // e.g. properties.
+        val scope = item as? ReferencableNameScope ?: return null
+
+        // Split the reference into optional class name and simple field name.
+        val (className, fieldName) = sourceReference.splitIntoOptionalQualifierAndSimpleName()
+
+        // Determine the scope to search.
+        // TODO(b/429965593): Take into account static imports of constant fields.
+        val classScope =
+            if (className != null) {
+                scope.resolveReferencableItem(className) as? ClassItem ?: return null
+            } else {
+                when (item) {
+                    is ClassItem -> item
+                    is MemberItem -> item.containingClass()
+                    else -> return null
+                }
+            }
+
+        // Find the field.
+        // TODO(b/429965593): Check for fields in super classes and interfaces.
+        return classScope.findField(fieldName)
     }
 
     override val isDocOnly

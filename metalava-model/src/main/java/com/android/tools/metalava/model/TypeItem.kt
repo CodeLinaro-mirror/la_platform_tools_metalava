@@ -39,13 +39,14 @@ interface TypeItem {
     fun accept(visitor: MultipleTypeVisitor, other: List<TypeItem>)
 
     /**
-     * Whether this type is equal to [other], not considering modifiers.
+     * Whether this type is equal to [other]. If [includeNullability] is false, does not consider
+     * modifiers. If [includeNullability] is true, nullability is considered but not annotations.
      *
      * This is implemented on each sub-interface of [TypeItem] instead of [equals] because
      * interfaces are not allowed to implement [equals]. An [equals] implementation is provided by
      * [DefaultTypeItem].
      */
-    fun equalToType(other: TypeItem?): Boolean
+    fun equalToType(other: TypeItem?, includeNullability: Boolean): Boolean
 
     /**
      * Hashcode for the type.
@@ -427,7 +428,7 @@ abstract class DefaultTypeItem(
 
     override fun equals(other: Any?): Boolean {
         if (other !is TypeItem) return false
-        return equalToType(other)
+        return equalToType(other, includeNullability = false)
     }
 
     override fun hashCode(): Int = hashCodeForType()
@@ -786,8 +787,11 @@ data class TypeStringConfiguration(
          */
         private val DEFAULT_ANNOTATION_FORMATTER = AnnotationFormatter.legacyAnnotationFormatter()
 
-        /** The default[TypeStringConfiguration]. */
+        /** The default [TypeStringConfiguration]. */
         val DEFAULT: TypeStringConfiguration = TypeStringConfiguration()
+
+        /** A [TypeStringConfiguration] like [DEFAULT], but with Kotlin-style null suffixes. */
+        val DEFAULT_KOTLIN_NULLS = TypeStringConfiguration(kotlinStyleNulls = true)
     }
 }
 
@@ -1026,8 +1030,9 @@ interface PrimitiveTypeItem : TypeItem {
         return transformer.transform(this)
     }
 
-    override fun equalToType(other: TypeItem?): Boolean {
-        return (other as? PrimitiveTypeItem)?.kind == kind
+    override fun equalToType(other: TypeItem?, includeNullability: Boolean): Boolean {
+        return (other as? PrimitiveTypeItem)?.kind == kind &&
+            (!includeNullability || modifiers.nullability == other.modifiers.nullability)
     }
 
     override fun hashCodeForType(): Int = kind.hashCode()
@@ -1090,9 +1095,11 @@ interface ArrayTypeItem : TypeItem, ReferenceTypeItem {
         return transformer.transform(this)
     }
 
-    override fun equalToType(other: TypeItem?): Boolean {
+    override fun equalToType(other: TypeItem?, includeNullability: Boolean): Boolean {
         if (other !is ArrayTypeItem) return false
-        return isVarargs == other.isVarargs && componentType.equalToType(other.componentType)
+        return isVarargs == other.isVarargs &&
+            (!includeNullability || modifiers.nullability == other.modifiers.nullability) &&
+            componentType.equalToType(other.componentType, includeNullability)
     }
 
     override fun hashCodeForType(): Int = Objects.hash(isVarargs, componentType)
@@ -1214,13 +1221,16 @@ interface ClassTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Exception
         return transformer.transform(this)
     }
 
-    override fun equalToType(other: TypeItem?): Boolean {
+    override fun equalToType(other: TypeItem?, includeNullability: Boolean): Boolean {
         if (other !is ClassTypeItem) return false
         return qualifiedName == other.qualifiedName &&
             arguments.size == other.arguments.size &&
-            arguments.zip(other.arguments).all { (p1, p2) -> p1.equalToType(p2) } &&
+            (!includeNullability || modifiers.nullability == other.modifiers.nullability) &&
+            arguments.zip(other.arguments).all { (p1, p2) ->
+                p1.equalToType(p2, includeNullability)
+            } &&
             ((outerClassType == null && other.outerClassType == null) ||
-                outerClassType?.equalToType(other.outerClassType) == true)
+                outerClassType?.equalToType(other.outerClassType, includeNullability) == true)
     }
 
     override fun hashCodeForType(): Int = Objects.hash(qualifiedName, outerClassType, arguments)
@@ -1370,8 +1380,9 @@ interface VariableTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Except
 
     override fun asClass() = asTypeParameter.asErasedType()?.asClass()
 
-    override fun equalToType(other: TypeItem?): Boolean {
-        return (other as? VariableTypeItem)?.name == name
+    override fun equalToType(other: TypeItem?, includeNullability: Boolean): Boolean {
+        return (other as? VariableTypeItem)?.name == name &&
+            (!includeNullability || modifiers.nullability == other.modifiers.nullability)
     }
 
     override fun hashCodeForType(): Int = name.hashCode()
@@ -1460,10 +1471,11 @@ interface WildcardTypeItem : TypeItem, TypeArgumentTypeItem {
         return transformer.transform(this)
     }
 
-    override fun equalToType(other: TypeItem?): Boolean {
+    override fun equalToType(other: TypeItem?, includeNullability: Boolean): Boolean {
         if (other !is WildcardTypeItem) return false
-        return extendsBound?.equalToType(other.extendsBound) != false &&
-            superBound?.equalToType(other.superBound) != false
+        return (!includeNullability || modifiers.nullability == other.modifiers.nullability) &&
+            extendsBound?.equalToType(other.extendsBound, includeNullability) != false &&
+            superBound?.equalToType(other.superBound, includeNullability) != false
     }
 
     override fun hashCodeForType(): Int = Objects.hash(extendsBound, superBound)

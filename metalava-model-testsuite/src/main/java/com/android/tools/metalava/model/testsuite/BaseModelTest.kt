@@ -25,6 +25,7 @@ import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
 import com.android.tools.metalava.model.api.flags.ApiFlags
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
+import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.source.DEFAULT_JAVA_LANGUAGE_LEVEL
 import com.android.tools.metalava.model.testing.CodebaseCreatorConfig
@@ -157,13 +158,14 @@ abstract class BaseModelTest() :
     }
 
     /**
-     * Context within which the main body of tests that check the state of the [Codebase] will run.
+     * Context within which the main body of tests that check the state of the [Codebase] or
+     * [MultiplatformCodebase] will run.
      */
     interface CodebaseContext {
         /**
          * The newly created [Codebase].
          *
-         * If the [Codebase] could not be created then accessing this will throw an error.
+         * If the [Codebase] was not created then accessing this will throw an error.
          *
          * @see optionalCodebase
          */
@@ -173,9 +175,27 @@ abstract class BaseModelTest() :
         /**
          * The optionally created [Codebase].
          *
-         * Will be `null` if the [Codebase] could not be created
+         * Will be `null` if the [Codebase] was not created
          */
         val optionalCodebase: Codebase?
+
+        /**
+         * The newly created [MultiplatformCodebase].
+         *
+         * If the [MultiplatformCodebase] was not be created then accessing this will throw an
+         * error.
+         *
+         * @see optionalMultiplatformCodebase
+         */
+        val multiplatformCodebase: MultiplatformCodebase
+            get() = optionalMultiplatformCodebase ?: error("Multiplatform codebase was not created")
+
+        /**
+         * The optionally created [MultiplatformCodebase].
+         *
+         * Will be `null` if the [MultiplatformCodebase] was not created
+         */
+        val optionalMultiplatformCodebase: MultiplatformCodebase?
 
         /** The [InputFormat] from which [codebase] was created. */
         val inputFormat: InputFormat
@@ -202,6 +222,7 @@ abstract class BaseModelTest() :
 
     inner class DefaultCodebaseContext(
         override val optionalCodebase: Codebase?,
+        override val optionalMultiplatformCodebase: MultiplatformCodebase?,
         override val inputFormat: InputFormat,
         private val fileToSymbol: Map<File, String>,
         private val recordingReporter: RecordingReporter,
@@ -250,6 +271,7 @@ abstract class BaseModelTest() :
         /** The [Codebase.Config] to use when creating a [Codebase] to test. */
         val codebaseConfig =
             Codebase.Config(
+                allowReadingComments = allowReadingComments,
                 annotationManager = annotationManager,
                 apiFlags = apiFlags,
                 apiSurfaces = apiSurfaces,
@@ -258,14 +280,27 @@ abstract class BaseModelTest() :
     }
 
     /**
-     * Create a [Codebase] from any supplied [inputSets] whose [InputSet.inputFormat] is the same as
-     * the current [inputFormat], and then runs a test on each [Codebase].
+     * For any supplied [inputSets] whose [InputSet.inputFormat] is the same as the current
+     * [inputFormat], uses [createCodebaseAndRun] and [createMultiplatformCodebaseAndRun] to attempt
+     * to create a [Codebase] and [MultiplatformCodebase] respectively, and then runs a test on a
+     * [CodebaseContext] containing the [Codebase] and [MultiplatformCodebase], if they exist.
      */
     private fun createCodebaseFromInputSetAndRun(
         inputSets: Array<out InputSet>,
         projectDescription: TestFile?,
         compiledSourceJar: TestFile?,
         testFixture: TestFixture,
+        // Default value allows not creating a Codebase in a test run and continuing.
+        createCodebaseAndRun: (ModelSuiteRunner.TestInputs, (Codebase?) -> Unit) -> Unit =
+            { _, runner ->
+                runner(null)
+            },
+        // Default value allows not creating a MultiplatformCodebase in a test run and continuing.
+        createMultiplatformCodebaseAndRun:
+            (ModelSuiteRunner.TestInputs, (MultiplatformCodebase?) -> Unit) -> Unit =
+            { _, runner ->
+                runner(null)
+            },
         test: CodebaseContext.() -> Unit,
     ) {
         // Run the input sets that match the current inputFormat.
@@ -291,24 +326,29 @@ abstract class BaseModelTest() :
                     projectDescription = projectDescriptionFile,
                     compiledSourceJar = compiledSourceJar,
                 )
-            runner.createCodebaseAndRun(inputs) { codebase ->
-                val context =
-                    DefaultCodebaseContext(
-                        codebase,
-                        inputFormat,
-                        buildMap {
-                            this[mainSourceDir.dir] = "MAIN_SRC"
-                            additionalSourceDir?.dir?.let { dir -> this[dir] = "ADDITIONAL_SRC" }
-                        },
-                        recordingReporter,
-                    )
-                context.test()
+            createCodebaseAndRun(inputs) { codebase ->
+                createMultiplatformCodebaseAndRun(inputs) { multiplatformCodebase ->
+                    val context =
+                        DefaultCodebaseContext(
+                            codebase,
+                            multiplatformCodebase,
+                            inputFormat,
+                            buildMap {
+                                this[mainSourceDir.dir] = "MAIN_SRC"
+                                additionalSourceDir?.dir?.let { dir ->
+                                    this[dir] = "ADDITIONAL_SRC"
+                                }
+                            },
+                            recordingReporter,
+                        )
+                    context.test()
 
-                // Make sure that any unchecked issues will cause the test to fail.
-                context.assertAndRemoveReportedIssues(
-                    expectedIssues = "",
-                    message = "Unexpected issues were reported"
-                )
+                    // Make sure that any unchecked issues will cause the test to fail.
+                    context.assertAndRemoveReportedIssues(
+                        expectedIssues = "",
+                        message = "Unexpected issues were reported"
+                    )
+                }
             }
         }
     }
@@ -346,6 +386,30 @@ abstract class BaseModelTest() :
     }
 
     /**
+     * Creates a [MultiplatformCodebase] from one of the supplied [sources] and then runs the [test]
+     * on that [MultiplatformCodebase].
+     *
+     * The [sources] array should have at most one [InputSet] of each [InputFormat].
+     */
+    fun runMultiplatformCodebaseTest(
+        vararg sources: InputSet,
+        projectDescription: TestFile?,
+        testFixture: TestFixture = TestFixture(),
+        test: CodebaseContext.() -> Unit,
+    ) {
+        createCodebaseFromInputSetAndRun(
+            inputSets = sources,
+            projectDescription = projectDescription,
+            compiledSourceJar = null,
+            testFixture = testFixture,
+            createMultiplatformCodebaseAndRun = { inputs, test ->
+                runner.createMultiplatformCodebaseAndRun(inputs, test)
+            },
+            test = test,
+        )
+    }
+
+    /**
      * Create a [Codebase] from one of the supplied [sources] [InputSet] and then run the [test] on
      * that [Codebase].
      *
@@ -363,6 +427,7 @@ abstract class BaseModelTest() :
             projectDescription = projectDescription,
             compiledSourceJar = compiledSourceJar,
             testFixture = testFixture,
+            createCodebaseAndRun = { inputs, test -> runner.createCodebaseAndRun(inputs, test) },
             test = test,
         )
     }
@@ -406,6 +471,7 @@ abstract class BaseModelTest() :
             projectDescription = projectDescription,
             compiledSourceJar = compiledSourceJar,
             testFixture = testFixture,
+            createCodebaseAndRun = { inputs, test -> runner.createCodebaseAndRun(inputs, test) },
             test = test,
         )
     }
