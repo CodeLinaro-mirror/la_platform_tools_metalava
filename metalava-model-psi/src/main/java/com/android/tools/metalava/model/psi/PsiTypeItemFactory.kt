@@ -68,7 +68,7 @@ internal class PsiTypeItemFactory(
     typeParameterScope: TypeParameterScope
 ) : DefaultTypeItemFactory<PsiTypeInfo, PsiTypeItemFactory>(typeParameterScope) {
 
-    private val codebase = assembler.codebase
+    private val codebase = assembler.psiCodebase
 
     /** Construct a [PsiTypeItemFactory] suitable for creating types within [classItem]. */
     fun from(classItem: ClassItem): PsiTypeItemFactory {

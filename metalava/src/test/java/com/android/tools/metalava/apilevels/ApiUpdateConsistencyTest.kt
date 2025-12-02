@@ -133,9 +133,6 @@ class ApiUpdateConsistencyTest : DriverTest() {
                     sourceSet,
                     "version $version",
                     classPath,
-                    apiPackages = null,
-                    projectDescription = null,
-                    compiledSourceJar = null,
                 )
 
             assertNotNull(codebase, message = "Codebase was not created")

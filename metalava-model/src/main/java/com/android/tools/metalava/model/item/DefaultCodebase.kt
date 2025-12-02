@@ -76,10 +76,7 @@ open class DefaultCodebase(
 
     final override fun findPackage(pkgName: String) = packageTracker.findPackage(pkgName)
 
-    fun findOrCreatePackage(
-        packageName: String,
-        packageDocs: PackageDocs = PackageDocs.EMPTY,
-    ) = packageTracker.findOrCreatePackage(packageName, packageDocs)
+    fun findOrCreatePackage(packageName: String) = packageTracker.findOrCreatePackage(packageName)
 
     /**
      * Map from fully qualified name to [DefaultClassItem] for every class created by this.

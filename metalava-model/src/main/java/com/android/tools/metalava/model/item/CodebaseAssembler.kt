@@ -16,11 +16,9 @@
 
 package com.android.tools.metalava.model.item
 
-import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.createImmutableModifiers
@@ -43,23 +41,26 @@ typealias DefaultCodebaseFactory = (CodebaseAssembler) -> DefaultCodebase
 interface CodebaseAssembler {
     /**
      * Create a [PackageItem] for package called [packageName], with additional information from
-     * [packageDoc] whose containing package, if any, is [containingPackage].
+     * [packageInfo].
+     *
+     * The returned [PackageItem]'s [PackageItem.containingPackage] is set to [containingPackage].
      */
     fun createPackageItem(
         packageName: String,
-        annotations: List<AnnotationItem>,
-        packageDoc: PackageDoc,
+        packageInfo: PackageInfo,
         containingPackage: PackageItem?,
     ): PackageItem
 
     /**
-     * Create package annotations for [packageName].
+     * Gets the [PackageInfo] from the underlying model.
      *
-     * This will be used to create annotations for packages whether they are created by
-     * [createPackageItem] or [createPackageFromUnderlyingModel]. It ensures consistent behavior for
-     * packages from source `package-info.java` files and binary `package-info.class` files.
+     * This will only be used for packages that are known to exist in the underlying model.
+     *
+     * This will be used to create packages whether they are created by [createPackageItem] or
+     * [createPackageFromUnderlyingModel]. It ensures consistent behavior for packages from source
+     * `package-info.java` files and binary `package-info.class` files.
      */
-    fun createPackageAnnotations(packageName: String): List<AnnotationItem> = emptyList()
+    fun getPackageInfoFromUnderlyingModel(packageName: String): PackageInfo
 
     /**
      * A [PackageItem] with [qualifiedName] could not be found in the associated [Codebase] so look
@@ -87,36 +88,41 @@ interface CodebaseAssembler {
  * [Item] classes.
  */
 abstract class DefaultCodebaseAssembler : CodebaseAssembler {
+    /** The [DefaultCodebase] being assembled by this. */
+    abstract val codebase: DefaultCodebase
 
     /** Factory for creating appropriate [Item] subclasses for the [Codebase] this is assembling. */
     abstract val itemFactory: DefaultItemFactory
 
+    /**
+     * Check to make sure that [packageName] is a valid package, i.e. is present in the sources or
+     * on the classpath.
+     */
+    open fun isValidPackage(packageName: String): Boolean = error("Not implemented")
+
+    override fun createPackageFromUnderlyingModel(qualifiedName: String) =
+        // Make sure that the package exists in the jars before creating.
+        if (isValidPackage(qualifiedName)) codebase.findOrCreatePackage(qualifiedName) else null
+
     override fun createPackageItem(
         packageName: String,
-        annotations: List<AnnotationItem>,
-        packageDoc: PackageDoc,
+        packageInfo: PackageInfo,
         containingPackage: PackageItem?,
     ): PackageItem {
-        val documentationFactory = packageDoc.commentFactory ?: emptyPackageDocumentationFactory()
+        val documentationFactory = packageInfo.commentFactory
+        val annotations = packageInfo.annotations
         val modifiers =
             if (annotations.isEmpty()) DEFAULT_PACKAGE_MODIFIERS
             else createImmutableModifiers(VisibilityLevel.PUBLIC, annotations)
         return itemFactory.createPackageItem(
-            packageDoc.fileLocation,
+            packageInfo.fileLocation,
             modifiers,
             documentationFactory,
             packageName,
             containingPackage,
-            packageDoc.overview,
+            packageInfo.overview,
         )
     }
-
-    /**
-     * Get an [ItemDocumentationFactory] for empty package documentation.
-     *
-     * This will be called for packages that have no `package.html` or `package-info.java`.
-     */
-    protected abstract fun emptyPackageDocumentationFactory(): ItemDocumentationFactory
 
     companion object {
         private val DEFAULT_PACKAGE_MODIFIERS = createImmutableModifiers(VisibilityLevel.PUBLIC)

@@ -14,23 +14,23 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.model.item
+package com.android.tools.metalava.model.source
 
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.item.PackageInfo
+import com.android.tools.metalava.model.item.ResourceFile
 import com.android.tools.metalava.reporter.FileLocation
 
 /** Set of [PackageDoc] for every documented package defined in the source. */
-class PackageDocs(
+internal class PackageDocs(
     private val packages: Map<String, PackageDoc>,
 ) {
     /** The set of package names. */
     val packageNames: Collection<String> = packages.keys
 
-    operator fun get(packageName: String): PackageDoc {
-        return packages[packageName] ?: PackageDoc.EMPTY
-    }
+    operator fun get(packageName: String) = packages[packageName]
 
     companion object {
         val EMPTY: PackageDocs = PackageDocs(emptyMap())
@@ -38,7 +38,7 @@ class PackageDocs(
 }
 
 /** Package specific documentation. */
-interface PackageDoc {
+internal interface PackageDoc {
     val fileLocation: FileLocation
 
     /**
@@ -57,23 +57,24 @@ interface PackageDoc {
      */
     val overview: ResourceFile?
 
-    companion object {
-        val EMPTY =
-            object : PackageDoc {
-                override val fileLocation: FileLocation
-                    get() = FileLocation.UNKNOWN
-
-                override val commentFactory
-                    get() = null
-
-                override val overview
-                    get() = null
-            }
-    }
+    /**
+     * Construct a [PackageInfo] from this.
+     *
+     * @param defaultCommentFactory the default [ItemDocumentationFactory] to use if
+     *   [commentFactory] is `null`.
+     */
+    fun toPackageInfo(defaultCommentFactory: ItemDocumentationFactory) =
+        PackageInfo(
+            fileLocation,
+            commentFactory = commentFactory ?: defaultCommentFactory,
+            overview = overview,
+        )
 }
 
-/** Mutable package specific documentation for use in [gatherPackageJavadoc]. */
-data class MutablePackageDoc(
+/**
+ * Mutable package specific documentation for use in [SourceCodebaseAssembler.gatherPackageJavadoc].
+ */
+internal data class MutablePackageDoc(
     val qualifiedName: String,
     override var fileLocation: FileLocation = FileLocation.UNKNOWN,
     override var commentFactory: ItemDocumentationFactory? = null,

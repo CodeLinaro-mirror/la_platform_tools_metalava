@@ -22,9 +22,7 @@ import com.android.tools.metalava.apilevels.VersionedApi
 import com.android.tools.metalava.cli.common.BaseOptionGroupTest
 import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.cli.common.SignatureFileLoader
-import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
-import com.android.tools.metalava.model.text.SignatureFile
 import com.android.tools.metalava.testing.java
 import com.google.common.truth.Truth.assertThat
 import kotlin.test.assertEquals
@@ -145,16 +143,10 @@ class ApiLevelsGenerationOptionsTest :
     ) {
     override fun createOptions() = ApiLevelsGenerationOptions()
 
-    private fun fakeSignatureFileLoader() =
-        object : SignatureFileLoader {
-            override fun load(signatureFiles: List<SignatureFile>, classResolver: ClassResolver?) =
-                error("Fake signature file loader cannot load signature files")
-        }
-
     /** Get an optional [GenerateApiHistoryConfig] for a fake set of signature files. */
     private fun ApiLevelsGenerationOptions.fromFakeSignatureFiles() =
         fromSignatureFilesConfig(
-            signatureFileLoader = fakeSignatureFileLoader(),
+            signatureFileLoader = SignatureFileLoader.THROWING,
             codebaseFragmentProvider = {
                 error("Fake CodebaseFragment provider cannot create CodebaseFragment")
             },
@@ -165,7 +157,7 @@ class ApiLevelsGenerationOptionsTest :
      * [ApiLevelsGenerationOptions.forAndroidConfig].
      */
     private fun ApiLevelsGenerationOptions.testForAndroidConfig() =
-        forAndroidConfig(fakeSignatureFileLoader()) { error("no codebase fragment") }
+        forAndroidConfig(SignatureFileLoader.THROWING) { error("no codebase fragment") }
 
     @Test
     fun `Test current version supports major-minor`() {

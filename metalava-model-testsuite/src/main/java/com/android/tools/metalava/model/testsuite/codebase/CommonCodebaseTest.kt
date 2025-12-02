@@ -74,12 +74,22 @@ class CommonCodebaseTest : BaseModelTest() {
 
     @Test
     fun `Test resolve package`() {
-        runSourceCodebaseTest(
+        runCodebaseTest(
             java(
                 """
                     package test.pkg;
 
                     public class Test {}
+                """
+            ),
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Test {
+                        ctor public Test();
+                      }
+                    }
                 """
             ),
         ) {

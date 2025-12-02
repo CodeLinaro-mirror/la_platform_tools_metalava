@@ -54,7 +54,6 @@ internal class PsiBasedCodebase(
     location: File,
     description: String = "Unknown",
     config: Codebase.Config,
-    val allowReadingComments: Boolean,
     val fromClasspath: Boolean = false,
     assembler: PsiCodebaseAssembler,
     /**

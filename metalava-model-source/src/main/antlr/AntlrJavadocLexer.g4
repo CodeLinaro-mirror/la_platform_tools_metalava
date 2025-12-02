@@ -63,6 +63,11 @@ INLINE_TAG_START: '{@' ->
     // characters in the INLINE_TAG_NAME from TEXT_CONTENT.
     pushMode(INLINE_TAG_MODE);
 
+// The start of an inline if tag.
+INLINE_IF_TAG_START: '{@if' ->
+    // Start a special mode for processing the contents of the `{@if (expr) {...} (else {...})?}` tag.
+    pushMode(INLINE_IF_TAG_MODE);
+
 // General text content. Excludes characters that are handled by one of the other
 // tokens above.
 TEXT_CONTENT: ~[\n\r\t {]+;
@@ -119,6 +124,14 @@ BALANCED_INLINE_TAG_START: '{@' ->
     // this token.
     type(INLINE_TAG_START);
 
+// The start of an inline if tag. Needed to ensure inline tags can contain if tags.
+BALANCED_INLINE_IF_TAG_START: '{@if' ->
+    // Start a special mode for processing the contents of the `{@if (expr) {...} (else {...})?}` tag.
+    pushMode(INLINE_IF_TAG_MODE),
+    // Treat this as the default INLINE_IF_TAG_START token as the parser does not need to be aware of
+    // this token.
+    type(INLINE_IF_TAG_START);
+
 // Balanced brace text content. Excludes characters that are handled by one of the other
 // tokens above.
 BALANCED_BRACE_TEXT_CONTENT: ~[\n\r\t {}]+ ->
@@ -127,6 +140,58 @@ BALANCED_BRACE_TEXT_CONTENT: ~[\n\r\t {}]+ ->
     type(TEXT_CONTENT);
 
 // ============================== END BALANCED_BRACE_MODE ==============================
+
+// ============================== BEGIN INLINE_IF_TAG_MODE ==============================
+mode INLINE_IF_TAG_MODE;
+
+// Ignore any space between tokens in this mode.
+IF_TAG_SPACE: (SPACE | NEWLINE)+ -> skip;
+
+// The `(` that begins the conditional expression. The matching `)` is matched in EXPR_MODE.
+IF_TAG_PAREN_OPEN: '(' ->
+    // Start a special mode for processing expressions.
+    pushMode(EXPR_MODE),
+    // Treat this as the expression PAREN_OPEN token as the parser does not need to be aware of
+    // this token.
+    type(PAREN_OPEN);
+
+// The `{` that begins nested content. The matching `}` is matched in BALANCED_BRACE_MODE.
+IF_TAG_BRACE_OPEN: '{' ->
+    // Start a special mode for processing balanced braces.
+    pushMode(BALANCED_BRACE_MODE),
+    // Treat this as the default BRACE_OPEN token as the parser does not need to be aware of
+    // this token.
+    type(BRACE_OPEN);
+
+// The `}` that matches the `{` in `{@if`.
+IF_TAG_BRACE_CLOSE: '}' ->
+    // Switch back to the original mode.
+    popMode,
+    // Treat this as the default BRACE_CLOSE token as the parser does not need to be aware of
+    // this token.
+    type(BRACE_CLOSE);
+
+// The `else` in `{@if (expr) {...} (else {...})?}`.
+IF_TAG_ELSE: 'else';
+
+// ============================== END INLINE_IF_TAG_MODE ==============================
+
+// ============================== BEGIN EXPR_MODE ==============================
+mode EXPR_MODE;
+
+// Ignore any space between tokens in this mode.
+EXPR_SPACE: (SPACE | NEWLINE)+ -> skip;
+
+// An identifier.
+IDENTIFIER: [a-zA-Z_][a-zA-Z_0-9]*;
+
+// A . seperator in a qualified name.
+DOT: '.';
+
+PAREN_OPEN: '(' -> pushMode(EXPR_MODE);
+PAREN_CLOSE: ')' -> popMode;
+
+// ============================== END INLINE_IF_TAG_MODE ==============================
 
 // Add new modes before this line.
 // ============================== END OF FILE ==============================

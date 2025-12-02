@@ -43,7 +43,6 @@ interface EnvironmentManager : Closeable {
         javaLanguageLevel: String = DEFAULT_JAVA_LANGUAGE_LEVEL,
         kotlinLanguageLevel: String = DEFAULT_KOTLIN_LANGUAGE_LEVEL,
         modelOptions: ModelOptions = ModelOptions.empty,
-        allowReadingComments: Boolean = true,
         jdkHome: File? = null,
     ): SourceParser
 }

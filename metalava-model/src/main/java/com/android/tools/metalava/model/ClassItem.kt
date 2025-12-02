@@ -479,6 +479,12 @@ interface ClassItem :
     val annotationClass: AnnotationClass
 
     /**
+     * For a typealias, the underlying type for which this typealias is an alternative name. Null if
+     * this is not a typealias.
+     */
+    val optionalAliasedType: TypeItem?
+
+    /**
      * For a typealias, the underlying type for which this typealias is an alternative name
      *
      * This must only be called when [classKind] is [ClassKind.TYPEALIAS], and will throw an error

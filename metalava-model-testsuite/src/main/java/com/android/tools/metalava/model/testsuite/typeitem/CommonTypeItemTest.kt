@@ -2007,4 +2007,50 @@ class CommonTypeItemTest : BaseModelTest() {
             assertThat(deprecatedHidden.firstParameterIsVarargs()).isFalse()
         }
     }
+
+    @Test
+    fun `Type equality including nullability`() {
+        runCodebaseTest(
+            // Methods out of alphabetical order to match source files
+            signature(
+                """
+                // Signature format: 5.0
+                // - include-type-use-annotations=yes
+                // - kotlin-name-type-order=yes
+                package test.pkg {
+                  public interface Foo {
+                    method public nonNullString(): String;
+                    method public nullableString(): String?;
+                    method public nonNullAnnotatedString(): @test.pkg.TypeAnno String;
+                    method public nonNullStringList(): java.util.List<java.lang.String>;
+                    method public nullableStringList(): java.util.List<java.lang.String?>;
+                    method public nonNullAnnotatedStringList(): java.util.List<java.lang.@test.pkg.TypeAnno String>;
+                  }
+                  @kotlin.annotation.Target(allowedTargets=kotlin.annotation.AnnotationTarget.TYPE) public @interface TypeAnno {
+                  }
+                }
+                """
+            )
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+
+            val nonNullString = fooClass.assertMethod("nonNullString", emptyList()).returnType()
+            val nullableString = fooClass.assertMethod("nullableString", emptyList()).returnType()
+            val nonNullAnnotatedString =
+                fooClass.assertMethod("nonNullAnnotatedString", emptyList()).returnType()
+            assertThat(nonNullString.equalToType(nonNullString, true)).isTrue()
+            assertThat(nonNullString.equalToType(nullableString, true)).isFalse()
+            assertThat(nonNullString.equalToType(nonNullAnnotatedString, true)).isTrue()
+
+            val nonNullStringList =
+                fooClass.assertMethod("nonNullStringList", emptyList()).returnType()
+            val nullableStringList =
+                fooClass.assertMethod("nullableStringList", emptyList()).returnType()
+            val nonNullAnnotatedStringList =
+                fooClass.assertMethod("nonNullAnnotatedStringList", emptyList()).returnType()
+            assertThat(nonNullStringList.equalToType(nonNullStringList, true)).isTrue()
+            assertThat(nonNullStringList.equalToType(nullableStringList, true)).isFalse()
+            assertThat(nonNullStringList.equalToType(nonNullAnnotatedStringList, true)).isTrue()
+        }
+    }
 }

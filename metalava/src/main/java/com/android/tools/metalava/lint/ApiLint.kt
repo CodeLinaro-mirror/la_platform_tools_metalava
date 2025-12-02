@@ -72,7 +72,6 @@ import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
-import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterListOwner
 import com.android.tools.metalava.model.TypeStringConfiguration
 import com.android.tools.metalava.model.VariableTypeItem
@@ -296,16 +295,23 @@ private constructor(
     // Enforce type parameter naming rules:
     // https://developer.android.com/kotlin/style-guide#type_variable_names
     fun <T> checkTypeParameterNames(item: T) where T : Item, T : TypeParameterListOwner {
-        for (typeParameter: TypeParameterItem in item.typeParameterList) {
-            if (!isValidGenericTypeName(typeParameter.name())) {
-                report(
-                    TYPE_PARAMETER_NAME,
-                    item,
-                    "Invalid type parameter name \"${typeParameter.name()}\". Type parameter names must follow" +
-                        " the Google naming guidelines specified here:" +
-                        " https://developer.android.com/kotlin/style-guide#type_variable_names"
-                )
-            }
+        val invalidTypeParameters =
+            item.typeParameterList
+                .filter { !isValidGenericTypeName(it.name()) }
+                .map { "\"${it.name()}\"" }
+
+        if (invalidTypeParameters.isNotEmpty()) {
+            report(
+                TYPE_PARAMETER_NAME,
+                item,
+                "Invalid type parameter ${if (invalidTypeParameters.size > 1) "names" else "name"} ${
+                    invalidTypeParameters.joinToString(
+                        separator = ", "
+                    )
+                }. Type parameter names must follow" +
+                    " the Google naming guidelines specified here:" +
+                    " https://developer.android.com/kotlin/style-guide#type_variable_names"
+            )
         }
     }
 

@@ -53,6 +53,7 @@ internal interface TurbineGlobalContext {
 
     /** True if comments should be read, false otherwise. */
     val allowReadingComments: Boolean
+        get() = codebase.config.allowReadingComments
 
     /** Find the [TypeBoundClass] for the `ClassSymbol`. */
     fun typeBoundClassForSymbol(classSymbol: ClassSymbol): TypeBoundClass

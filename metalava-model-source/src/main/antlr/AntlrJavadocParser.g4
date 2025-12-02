@@ -49,6 +49,7 @@ descriptionLine
 
 descriptionLineElement
     : inlineTag
+    | inlineIfTag
     | textContent
     ;
 
@@ -80,5 +81,26 @@ braceContent
     : braceExpression
     | textContent
     | inlineTag
+    | inlineIfTag
     | newline
+    ;
+
+// Inline `{@if (expr) {...} (else {...})?}` tag.
+inlineIfTag
+    : INLINE_IF_TAG_START PAREN_OPEN expr PAREN_CLOSE braceExpression (IF_TAG_ELSE braceExpression)? BRACE_CLOSE
+    ;
+
+// An expression, limited to a function call at the moment.
+expr
+    : functionCall
+    ;
+
+// A function call, limited to a single field reference argument at the moment.
+functionCall
+    : IDENTIFIER PAREN_OPEN fieldReference PAREN_CLOSE
+    ;
+
+// A reference to a field, possibly qualified.
+fieldReference
+    : (IDENTIFIER DOT)* IDENTIFIER
     ;

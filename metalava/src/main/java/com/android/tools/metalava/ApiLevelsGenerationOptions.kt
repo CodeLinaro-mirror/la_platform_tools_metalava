@@ -786,10 +786,12 @@ class ApiLevelsGenerationOptions(
     private fun sourceVersionAndMatchedPatternFilesFromSignaturePatterns():
         Pair<ApiVersion, List<MatchedPatternFile>> {
 
+        // TODO b/454050901 : Remove dependency on current version
         val sourceVersion =
-            optionalCurrentApiVersion
+            apiVersionForSources
+                ?: optionalCurrentApiVersion
                 ?: cliError(
-                    "Must specify $ARG_CURRENT_VERSION with $ARG_API_VERSION_SIGNATURE_PATTERN"
+                    "Must specify $ARG_CURRENT_VERSION or $ARG_API_VERSION_FOR_SOURCES with $ARG_API_VERSION_SIGNATURE_PATTERN"
                 )
 
         val historicalSignatureFiles = apiVersionSignatureFiles

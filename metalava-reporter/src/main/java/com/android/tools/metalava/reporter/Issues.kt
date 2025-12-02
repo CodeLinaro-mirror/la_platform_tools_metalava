@@ -91,6 +91,8 @@ object Issues {
 
     // Issues in javadoc generation
     val INVALID_JAVADOC by Issue(Severity.WARNING_ERROR_WHEN_NEW, Category.DOCUMENTATION)
+    val INVALID_IF_TAG by Issue(Severity.ERROR, Category.DOCUMENTATION)
+    val INVALID_JAVADOC_EXPR by Issue(Severity.ERROR, Category.DOCUMENTATION)
     val MALFORMED_DOC_REFERENCE by Issue(Severity.WARNING_ERROR_WHEN_NEW, Category.DOCUMENTATION)
     val INVALID_BLOCK_TAG_USE by Issue(Severity.ERROR, Category.DOCUMENTATION)
     val UNCLOSED_INLINE_TAG by Issue(Severity.ERROR, Category.DOCUMENTATION)

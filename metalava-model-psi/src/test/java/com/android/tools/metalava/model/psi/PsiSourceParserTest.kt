@@ -89,9 +89,6 @@ class PsiSourceParserTest : TemporaryFolderOwner, Assertions {
                 createSourceSet(sources, directory),
                 description = "Test Codebase",
                 classPath = emptyList(),
-                apiPackages = null,
-                projectDescription = null,
-                compiledSourceJar = null,
             )
     }
 

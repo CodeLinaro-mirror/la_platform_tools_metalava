@@ -131,8 +131,6 @@ class AnnotationsMerger(
                         "Codebase loaded from stubs",
                         classPath = options.classpath,
                         apiPackages = options.apiPackages,
-                        projectDescription = null,
-                        compiledSourceJar = null,
                     )
                 if (javaStubsCodebase != null) {
                     mergeJavaStubsCodebase(javaStubsCodebase)

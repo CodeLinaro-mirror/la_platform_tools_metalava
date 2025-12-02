@@ -44,8 +44,8 @@ import java.util.regex.Pattern
  * Misc API suggestions.
  *
  * Currently, all the checks in here require [SelectableItem.documentation] to be non-null in order
- * for them to do anything. So, this whole check is disabled when [Options.allowReadingComments] is
- * `false`.
+ * for them to do anything. So, this whole check is disabled when
+ * [Codebase.Config.allowReadingComments] is `false`.
  */
 class AndroidApiChecks(val reporter: Reporter) {
     fun check(codebase: Codebase) {

@@ -64,7 +64,7 @@ open class DefaultClassItem(
      * If [classKind] is [ClassKind.TYPEALIAS], the [optionalAliasedType] must be specified.
      * Otherwise, it should be null.
      */
-    private val optionalAliasedType: TypeItem?,
+    override val optionalAliasedType: TypeItem?,
 ) :
     DefaultSelectableItem(
         codebase = codebase,
