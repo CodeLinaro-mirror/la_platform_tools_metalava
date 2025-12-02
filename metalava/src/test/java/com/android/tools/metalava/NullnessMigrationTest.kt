@@ -739,7 +739,7 @@ class NullnessMigrationTest : DriverTest() {
                     java(
                         """
                             package test.pkg;
-                            /** @hide */
+                            /** */
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
                             public class ForSystemUse {
                             public ForSystemUse(@androidx.annotation.RecentlyNonNull java.lang.String s) { throw new RuntimeException("Stub!"); }

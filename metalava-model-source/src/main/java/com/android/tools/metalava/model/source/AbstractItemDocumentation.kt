@@ -243,7 +243,17 @@ abstract class AbstractItemDocumentation(
         docComment.hasBlockTagOfType(blockTagType)
 
     override fun print(writer: PrintWriter) {
+        // Remove all `@hide`, and `@doconly` tags before printing to prevent them from being
+        // visible to the documentation generation tool that consumes the stubs. That is because the
+        // tool may act upon them, e.g. hiding any APIs that are tagged with `@hide`.
+        docComment.removeBlockTagSections {
+            val type = it.tagType.name
+            type == "hide" || type == "doconly"
+        }
+
         val originalText = text
+
+        checkDocumentationBeforePrinting(originalText)
 
         // Before printing fully qualify the comment. This expects a whole comment and will fix up
         // @link and @see tags.
@@ -270,6 +280,33 @@ abstract class AbstractItemDocumentation(
                 writer,
                 // Apply the [JavaSummaryTruncationWorkaround] to the main description.
                 mainDescriptionRewriter = JavaSummaryTruncationWorkaround()
+            )
+        }
+    }
+
+    /**
+     * Check the documentation content [text] before printing it.
+     *
+     * Verifies that it does not contain anything which could cause problems downstream, e.g. in
+     * `doclava`.
+     */
+    private fun checkDocumentationBeforePrinting(text: String) {
+        checkForInvalidBlockTagUse(text, "@hide")
+        checkForInvalidBlockTagUse(text, "@removed")
+        checkForInvalidBlockTagUse(text, "@doconly")
+    }
+
+    /**
+     * Check to see if there are any remaining non-block uses of block tags that could cause
+     * problems downstream.
+     */
+    private fun checkForInvalidBlockTagUse(text: String, blockTag: String) {
+        if (text.contains(blockTag)) {
+            item.codebase.reporter.report(
+                Issues.INVALID_BLOCK_TAG_USE,
+                item,
+                "Documentation contains '$blockTag' that is not used as a block tag; that could cause unexpected behavior downstream.",
+                fileLocation,
             )
         }
     }

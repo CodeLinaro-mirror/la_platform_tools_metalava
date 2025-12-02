@@ -28,6 +28,7 @@ import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.model.duplicatingFactory
 import com.android.tools.metalava.model.item.DefaultMethodItem
 import com.android.tools.metalava.model.item.ParameterItemsFactory
 import com.android.tools.metalava.model.psi.PsiCallableItem.Companion.parameterList
@@ -114,7 +115,7 @@ internal class PsiMethodItem(
                 targetContainingClass,
                 name(),
                 modifiers,
-                documentation::duplicate,
+                documentation.duplicatingFactory(),
                 returnType.convertType(typeVariableMap),
                 { methodItem ->
                     parameters().map {

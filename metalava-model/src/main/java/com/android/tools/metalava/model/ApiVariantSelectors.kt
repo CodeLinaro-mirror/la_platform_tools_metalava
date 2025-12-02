@@ -264,7 +264,7 @@ sealed class ApiVariantSelectors {
                     // The item is originally hidden if the javadoc contains @hide or similar, or
                     // it is tagged with a hide annotation. That is true even if the hide annotation
                     // is superseded by a show annotation.
-                    item.documentation.isHidden || item.hasHideAnnotation()
+                    item.documentation?.isHidden == true || item.hasHideAnnotation()
                 }
 
         override var inheritableHidden: Boolean
@@ -314,14 +314,14 @@ sealed class ApiVariantSelectors {
             get() =
                 lazyGet(DOCONLY_BIT_MASK) {
                     (item.parent()?.variantSelectors?.docOnly == true) ||
-                        item.documentation.isDocOnly
+                        item.documentation?.isDocOnly == true
                 }
 
         override var removed: Boolean
             get() =
                 lazyGet(REMOVED_BIT_MASK) {
                     (item.parent()?.variantSelectors?.removed == true) ||
-                        item.documentation.isRemoved
+                        item.documentation?.isRemoved == true
                 }
             // This is only used for testing.
             set(value) {

@@ -676,9 +676,11 @@ class CompatibilityCheck(
                 // be raised is if the removed class is experimental, and in that case the client
                 // would have had to opt in to the usage in the first place. Thus, we only need to
                 // check for cases where the number of subclasses increased
-                new.subClasses().size > old.subClasses().size
+                new.sealedClassDirectSubclasses().size > old.sealedClassDirectSubclasses().size
         ) {
-            val addedSubclasses = new.subClasses().toSet() - old.subClasses().toSet()
+            val addedSubclasses =
+                new.sealedClassDirectSubclasses().toSet() -
+                    old.sealedClassDirectSubclasses().toSet()
             reporter.report(
                 Issues.ADDED_SUBCLASS_TO_SEALED_CLASS,
                 new,

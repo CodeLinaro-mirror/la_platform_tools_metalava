@@ -31,7 +31,7 @@ import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.WildcardTypeItem
 import com.android.tools.metalava.model.item.DefaultClassItem
-import com.android.tools.metalava.model.psi.PsiBasedCodebase
+import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.type.ContextNullability
 import com.android.tools.metalava.model.type.DefaultArrayTypeItem
 import com.android.tools.metalava.model.type.DefaultClassTypeItem
@@ -63,12 +63,12 @@ import org.jetbrains.kotlin.types.Variance
 
 /** Constructs type items from [KaType]s. */
 internal class KaTypeItemFactory(
-    private val codebase: PsiBasedCodebase,
+    private val codebase: DefaultCodebase,
     private val processor: KaModuleProcessor,
     typeParameterScope: TypeParameterScope,
 ) : DefaultTypeItemFactory<KaType, KaTypeItemFactory>(typeParameterScope) {
     constructor(
-        codebase: PsiBasedCodebase,
+        codebase: DefaultCodebase,
         processor: KaModuleProcessor,
         classItem: DefaultClassItem,
     ) : this(codebase, processor, TypeParameterScope.from(classItem))

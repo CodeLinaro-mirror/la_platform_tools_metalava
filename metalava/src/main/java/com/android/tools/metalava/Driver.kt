@@ -787,8 +787,11 @@ private fun ActionContext.loadFromSources(
 
     analyzer.handleStripping()
 
-    // General API checks for Android APIs
-    AndroidApiChecks(reporterApiLint).check(codebase)
+    // General API documentation checks for Android APIs.
+    // They are pointless if Javadoc comments are not being read.
+    if (options.allowReadingComments) {
+        AndroidApiChecks(reporterApiLint).check(codebase)
+    }
 
     runApiChecksFromOptions(
         options,

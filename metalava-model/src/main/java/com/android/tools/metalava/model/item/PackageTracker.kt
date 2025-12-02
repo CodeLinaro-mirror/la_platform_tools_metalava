@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.item
 
+import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PackageList
 import com.android.tools.metalava.model.VisibilityLevel
@@ -24,11 +25,11 @@ import java.util.HashMap
 
 private const val PACKAGE_ESTIMATE = 500
 
-typealias PackageItemFactory = (String, PackageDoc, PackageItem?) -> DefaultPackageItem
-
-class PackageTracker(private val packageItemFactory: PackageItemFactory) {
-    /** Map from package name to [DefaultPackageItem] of all packages in this. */
-    private val packagesByName = HashMap<String, DefaultPackageItem>(PACKAGE_ESTIMATE)
+class PackageTracker(
+    private val assembler: CodebaseAssembler,
+) {
+    /** Map from package name to [PackageItem] of all packages in this. */
+    private val packagesByName = HashMap<String, PackageItem>(PACKAGE_ESTIMATE)
 
     val size
         get() = packagesByName.size
@@ -39,51 +40,43 @@ class PackageTracker(private val packageItemFactory: PackageItemFactory) {
         return PackageList(list)
     }
 
-    fun findPackage(pkgName: String): DefaultPackageItem? {
+    fun findPackage(pkgName: String): PackageItem? {
         return packagesByName[pkgName]
     }
 
     /**
      * Searches for the package with [packageName] in this tracker and if not found creates the
-     * corresponding [DefaultPackageItem], supply additional information from [packageDocs] and adds
-     * the newly created [DefaultPackageItem] to this tracker.
+     * corresponding [PackageItem], supply additional information from [packageDocs] and adds the
+     * newly created [PackageItem] to this tracker.
      *
-     * If the [DefaultPackageItem] exists and [PackageDocs] contains [PackageDoc.modifiers] for the
-     * package then make sure that the existing [DefaultPackageItem] has the same
-     * [DefaultPackageItem.modifiers], if not throw an exception.
+     * If the [PackageItem] exists and [PackageDocs] contains [PackageDoc.modifiers] for the package
+     * then make sure that the existing [PackageItem] has the same [PackageItem.modifiers], if not
+     * throw an exception.
      *
      * @param packageName the name of the package to create.
      * @param packageDocs provides additional information needed for creating a package.
-     * @return the [DefaultPackageItem] that was found or created.
+     * @return the [PackageItem] that was found or created.
      */
     fun findOrCreatePackage(
         packageName: String,
         packageDocs: PackageDocs = PackageDocs.EMPTY,
-    ): DefaultPackageItem {
-        // Get the `PackageDoc`, if any, to use for creating this package.
-        val packageDoc = packageDocs[packageName]
-
+    ): PackageItem {
         // Check to see if the package already exists, if it does then return it.
         findPackage(packageName)?.let { existing ->
-            // If the same package showed up multiple times, make sure they have the same modifiers.
-            // (Packages can't have public/private/etc., but they can have annotations, which are
-            // part of ModifierList.)
-            val modifiers = packageDoc.modifiers
-            if (modifiers != null && modifiers != existing.modifiers) {
-                error(
-                    String.format(
-                        "Contradicting declaration of package %s." +
-                            " Previously seen with modifiers \"%s\", but now with \"%s\"",
-                        packageName,
-                        existing.modifiers,
-                        modifiers
-                    ),
-                )
-            }
-
             return existing
         }
 
+        val annotations = assembler.createPackageAnnotations(packageName)
+
+        return createPackage(packageName, packageDocs, annotations)
+    }
+
+    /** Create [PackageItem] for [packageName] using additional information from [packageDocs]. */
+    fun createPackage(
+        packageName: String,
+        packageDocs: PackageDocs,
+        annotations: List<AnnotationItem>,
+    ): PackageItem {
         // Unless this is the root package, it has a containing package so get that before creating
         // this package, so it can be passed into the `packageItemFactory`.
         val containingPackageName = getContainingPackageName(packageName)
@@ -91,7 +84,11 @@ class PackageTracker(private val packageItemFactory: PackageItemFactory) {
             if (containingPackageName == null) null
             else findOrCreatePackage(containingPackageName, packageDocs)
 
-        val packageItem = packageItemFactory(packageName, packageDoc, containingPackage)
+        // Get the `PackageDoc`, if any, to use for creating this package.
+        val packageDoc = packageDocs[packageName]
+
+        val packageItem =
+            assembler.createPackageItem(packageName, annotations, packageDoc, containingPackage)
 
         // The packageItemFactory may provide its own modifiers so check to make sure that they are
         // public.
@@ -111,7 +108,7 @@ class PackageTracker(private val packageItemFactory: PackageItemFactory) {
         if (packageName == "") null else packageName.extractPossiblyEmptyQualifierName()
 
     /** Add the package to this. */
-    private fun addPackage(packageItem: DefaultPackageItem) {
+    private fun addPackage(packageItem: PackageItem) {
         packagesByName[packageItem.qualifiedName()] = packageItem
     }
 

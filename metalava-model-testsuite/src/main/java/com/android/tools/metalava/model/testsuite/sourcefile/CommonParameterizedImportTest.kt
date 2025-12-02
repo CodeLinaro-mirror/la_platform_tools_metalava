@@ -32,6 +32,12 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runners.Parameterized
 
+@RequiresCapabilities(
+    // Only supports java imports at the moment.
+    Capability.JAVA,
+    // Requires access to the original imports.
+    Capability.IMPORTS,
+)
 class CommonParameterizedImportTest : BaseModelTest() {
 
     @Parameterized.Parameter(0) lateinit var params: TestParams
@@ -217,7 +223,6 @@ class CommonParameterizedImportTest : BaseModelTest() {
         assertEquals(expectedResult, actualResult, message = "$simpleName -> $expectedResult")
     }
 
-    @RequiresCapabilities(Capability.JAVA)
     @Test
     fun `Test imports`() {
         runSourceCodebaseTest(

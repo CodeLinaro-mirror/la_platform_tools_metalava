@@ -201,7 +201,6 @@ class CommonTypeStringTest : BaseModelTest() {
                     public class Inner<P2> {}
                 }
             """
-                    .trimIndent()
             )
 
         private val libcoreTextPackage =

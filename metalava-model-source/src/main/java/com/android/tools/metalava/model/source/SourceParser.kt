@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.source
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.PackageFilter
+import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
 import java.io.File
 
 /** Provides support for creating [Codebase] related objects from source files (including jars). */
@@ -63,4 +64,12 @@ interface SourceParser {
      *   referenced by [apiJar].
      */
     fun loadFromJar(apiJar: File, classPath: List<File>): Codebase
+
+    /**
+     * Creates a multiplatform codebase based on the [projectDescription] file, which is a lint
+     * project model that can describe project structures in detail.
+     *
+     * Only supported by the PSI model.
+     */
+    fun createMultiplatformCodebase(projectDescription: File): MultiplatformCodebase
 }

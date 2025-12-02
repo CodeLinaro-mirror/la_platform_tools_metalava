@@ -24,7 +24,6 @@ import com.android.tools.metalava.model.DefaultItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
-import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.Showability
 import com.android.tools.metalava.model.SourceLanguage
@@ -56,19 +55,14 @@ abstract class DefaultSelectableItem(
      * initialized.
      *
      * If this is private then it cannot be included in an API so its documentation is irrelevant.
-     * In that case this ignores its [ItemDocumentationFactory] and uses [ItemDocumentation.NONE]
-     * instead. The latter is immutable and attempting to change it will throw an error but that is
-     * safe as only documentation for API [Item]s is modified.
-     *
-     * The [ItemDocumentationFactory] is also ignored if this is not a [SelectableItem], i.e. is a
-     * [ParameterItem] as they do not have documentation.
+     * In that case this ignores its [ItemDocumentationFactory] and uses `null` instead.
      */
     final override val documentation =
-        if (modifiers.isPrivate()) ItemDocumentation.NONE
-        else @Suppress("LeakingThis") documentationFactory(this)
+        if (modifiers.isPrivate()) null
+        else @Suppress("LeakingThis") documentationFactory.create(this)
 
     init {
-        if (!modifiers.isDeprecated() && documentation.hasBlockTagOfType("deprecated")) {
+        if (!modifiers.isDeprecated() && documentation?.hasBlockTagOfType("deprecated") == true) {
             @Suppress("LeakingThis") mutateModifiers { setDeprecated(true) }
         }
     }
@@ -81,9 +75,8 @@ abstract class DefaultSelectableItem(
         selectedApiVariants = mutable.toImmutable()
     }
 
-    final override var emit =
-        // Do not emit expect declarations in APIs.
-        !modifiers.isExpect()
+    // Default to true, may be updated later
+    final override var emit = true
 
     /**
      * Create an [ApiVariantSelectors] appropriate for this [SelectableItem].

@@ -39,7 +39,6 @@ open class DefaultCodebase(
     private val trustedApi: Boolean,
     private val supportsDocumentation: Boolean,
     val assembler: CodebaseAssembler,
-    override val isMultiplatform: Boolean,
 ) : Codebase {
 
     final override val annotationManager: AnnotationManager = config.annotationManager
@@ -68,8 +67,8 @@ open class DefaultCodebase(
 
     override val reporter: Reporter = config.reporter
 
-    /** Tracks [DefaultPackageItem] use in this [Codebase]. */
-    val packageTracker = PackageTracker(assembler::createPackageItem)
+    /** Tracks [PackageItem] use in this [Codebase]. */
+    val packageTracker = PackageTracker(assembler)
 
     final override fun getPackages() = packageTracker.getPackages()
 
@@ -91,8 +90,6 @@ open class DefaultCodebase(
 
     /** Find a class created by this [Codebase]. */
     fun findClassInCodebase(className: String) = allClassesByName[className]
-
-    override fun getAllClassesByName(): Map<String, DefaultClassItem> = allClassesByName
 
     /**
      * A list of the top-level classes declared in the codebase's source (rather than on its

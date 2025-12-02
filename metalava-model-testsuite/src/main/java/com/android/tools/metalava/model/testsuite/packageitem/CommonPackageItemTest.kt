@@ -16,19 +16,53 @@
 
 package com.android.tools.metalava.model.testsuite.packageitem
 
+import com.android.tools.lint.checks.infrastructure.TestFiles.source
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.noOpAnnotationManager
+import com.android.tools.metalava.model.provider.Capability
+import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.KnownSourceFiles.nonNullSource
+import com.android.tools.metalava.testing.TestFileCache
+import com.android.tools.metalava.testing.TestFileCacheRule
+import com.android.tools.metalava.testing.cacheIn
 import com.android.tools.metalava.testing.html
+import com.android.tools.metalava.testing.jarFromSources
 import com.android.tools.metalava.testing.java
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
+import org.junit.ClassRule
 import org.junit.Test
 
 class CommonPackageItemTest : BaseModelTest() {
+    companion object {
+        /** Create a [TestFileCache] whose lifespan encompasses all the tests in this class. */
+        @ClassRule @JvmField val testFileCacheRule = TestFileCacheRule()
 
+        private val otherJarFile =
+            jarFromSources(
+                    "other-package.jar",
+                    java(
+                        """
+                            @PkgAnno
+                            package other.pkg;
+                        """
+                    ),
+                    java(
+                        """
+                            package other.pkg;
+
+                            /** Annotation comment. */
+                            public @interface PkgAnno {
+                            }
+                        """
+                    ),
+                )
+                .cacheIn(testFileCacheRule)
+    }
+
+    @RequiresCapabilities(Capability.PACKAGE_HTML_FILES)
     @Test
     fun `Test @hide in package html`() {
         runSourceCodebaseTest(
@@ -50,7 +84,6 @@ class CommonPackageItemTest : BaseModelTest() {
 
                         public class Foo {}
                     """
-                        .trimIndent()
                 ),
             ),
         ) {
@@ -59,6 +92,7 @@ class CommonPackageItemTest : BaseModelTest() {
         }
     }
 
+    @RequiresCapabilities(Capability.HIDDEN_ITEMS)
     @Test
     fun `Test @hide in package info processed first`() {
         runSourceCodebaseTest(
@@ -70,7 +104,6 @@ class CommonPackageItemTest : BaseModelTest() {
                          */
                         package test.pkg;
                     """
-                        .trimIndent()
                 ),
                 java(
                     """
@@ -78,7 +111,6 @@ class CommonPackageItemTest : BaseModelTest() {
 
                         public class Foo {}
                     """
-                        .trimIndent()
                 ),
             ),
         ) {
@@ -87,6 +119,7 @@ class CommonPackageItemTest : BaseModelTest() {
         }
     }
 
+    @RequiresCapabilities(Capability.HIDDEN_ITEMS)
     @Test
     fun `Test @hide in package info processed last`() {
         runSourceCodebaseTest(
@@ -97,7 +130,6 @@ class CommonPackageItemTest : BaseModelTest() {
 
                         public class Foo {}
                     """
-                        .trimIndent()
                 ),
                 java(
                     """
@@ -106,7 +138,6 @@ class CommonPackageItemTest : BaseModelTest() {
                          */
                         package test.pkg;
                     """
-                        .trimIndent()
                 ),
             ),
         ) {
@@ -125,7 +156,6 @@ class CommonPackageItemTest : BaseModelTest() {
                         @android.annotation.NonNull
                         package test.pkg;
                     """
-                        .trimIndent()
                 ),
                 java(
                     """
@@ -133,7 +163,6 @@ class CommonPackageItemTest : BaseModelTest() {
 
                         public class Foo {}
                     """
-                        .trimIndent()
                 ),
             ),
             testFixture =
@@ -487,6 +516,73 @@ class CommonPackageItemTest : BaseModelTest() {
         ) {
             val packageItem = codebase.assertPackage("test")
             packageItem.assertDocumentationText(expectedOutput = "/** Some documentation. */")
+        }
+    }
+
+    @Test
+    fun `Test resolving package from jar`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+
+                        public class Foo {
+                        }
+                    """
+                ),
+            ),
+            testFixture =
+                TestFixture(
+                    additionalClassPath = listOf(otherJarFile.createFile(temporaryFolder.root))
+                ),
+        ) {
+            val packageItem = codebase.assertResolvedPackage("other.pkg")
+
+            assertEquals(
+                "ModifierList(flags = [public], annotations = [@other.pkg.PkgAnno])",
+                packageItem.modifiers.toString()
+            )
+        }
+    }
+
+    @RequiresCapabilities(Capability.PACKAGE_HTML_FILES)
+    @Test
+    fun `Test conflicting comments in package-info java and package html`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        /**
+                         * A package comment.
+                         */
+                        package test.pkg;
+                    """
+                ),
+                source(
+                        "src/test/pkg/package.html",
+                        """
+                        <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+                        <html>
+                        <body bgcolor="white">
+                        An HTML package comment
+                        </BODY>
+                        </html>
+                    """
+                    )
+                    .indented(),
+            ),
+        ) {
+            val testPackage = codebase.assertPackage("test.pkg")
+
+            testPackage.assertPrintedDocumentation(expectedOutput = "/** A package comment. */\n")
+
+            assertAndRemoveReportedIssues(
+                expectedIssues =
+                    """
+                        MAIN_SRC/src/test/pkg/package-info.java: warning: It is illegal to provide both a package-info.java file and a package.html file for the same package [BothPackageInfoAndHtml]
+                    """
+            )
         }
     }
 }

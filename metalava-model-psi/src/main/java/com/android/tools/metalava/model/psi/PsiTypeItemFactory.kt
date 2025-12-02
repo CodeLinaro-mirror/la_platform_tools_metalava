@@ -383,7 +383,7 @@ internal class PsiTypeItemFactory(
         // expect/actual type aliases used from a common source set because the type is platform
         // dependent. Metalava is just modeling the android/jvm platform, so the substitution needs
         // to happen here.
-        if (!codebase.isMultiplatform) return null
+        if (!codebase.inlineTypeAliasUsages) return null
 
         val typeAlias = codebase.findTypeAlias(classTypeItem.qualifiedName) ?: return null
 

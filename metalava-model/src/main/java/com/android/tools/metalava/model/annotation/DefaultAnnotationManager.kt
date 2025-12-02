@@ -530,9 +530,6 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
         return ANNOTATION_EXTERNAL
     }
 
-    override fun isShowAnnotationName(annotationName: String): Boolean =
-        config.allShowAnnotations.matchesAnnotationName(annotationName)
-
     /** Check whether this has been configured in a way that could cause items to be reverted. */
     private fun couldRevertItems(): Boolean = config.apiFlags != null
 

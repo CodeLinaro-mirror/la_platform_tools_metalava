@@ -931,10 +931,7 @@ class DocAnalyzerTest : DriverTest() {
                     public Test() { throw new RuntimeException("Stub!"); }
                     /** @apiSince 35 */
                     public static final java.lang.String UNIT_TEST_1 = "unit.test.1";
-                    /**
-                     * @hide
-                     * @apiSince Z
-                     */
+                    /** @apiSince Z */
                     public static final java.lang.String UNIT_TEST_2 = "unit.test.2";
                     }
                     """

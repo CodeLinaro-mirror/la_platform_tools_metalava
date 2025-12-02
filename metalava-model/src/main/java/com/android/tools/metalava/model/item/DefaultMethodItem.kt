@@ -28,6 +28,7 @@ import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
+import com.android.tools.metalava.model.duplicatingFactory
 import com.android.tools.metalava.model.value.OptionalValueProvider
 import com.android.tools.metalava.reporter.FileLocation
 
@@ -111,7 +112,7 @@ open class DefaultMethodItem(
                 sourceLanguage = sourceLanguage,
                 targetLanguages = targetLanguages,
                 modifiers = modifiers,
-                documentationFactory = documentation::duplicate,
+                documentationFactory = documentation.duplicatingFactory(),
                 variantSelectorsFactory = variantSelectors::duplicate,
                 name = name(),
                 containingClass = targetContainingClass,

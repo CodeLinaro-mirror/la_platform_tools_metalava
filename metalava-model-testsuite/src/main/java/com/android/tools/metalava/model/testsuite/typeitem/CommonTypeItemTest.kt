@@ -88,7 +88,6 @@ class CommonTypeItemTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             )
         ) {
             val method = codebase.assertClass("test.pkg.Foo").methods().single()
@@ -144,7 +143,6 @@ class CommonTypeItemTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             )
         ) {
             val method = codebase.assertClass("test.pkg.Foo").methods().single()
@@ -200,7 +198,6 @@ class CommonTypeItemTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             )
         ) {
             val method = codebase.assertClass("test.pkg.Foo").methods().single()
@@ -243,7 +240,6 @@ class CommonTypeItemTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             )
         ) {
             val method = codebase.assertClass("test.pkg.Foo").methods().single()
@@ -316,7 +312,6 @@ class CommonTypeItemTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             )
         ) {
             val method = codebase.assertClass("test.pkg.Foo").methods().single()
@@ -386,7 +381,6 @@ class CommonTypeItemTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             )
         ) {
             val method = codebase.assertClass("test.pkg.Foo").methods().single()
@@ -467,7 +461,6 @@ class CommonTypeItemTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             )
         ) {
             val clz = codebase.assertClass("test.pkg.Foo")
@@ -524,7 +517,6 @@ class CommonTypeItemTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             )
         ) {
             val foo = codebase.assertClass("test.pkg.Foo")
@@ -587,7 +579,6 @@ class CommonTypeItemTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             )
         ) {
             val foo = codebase.assertClass("test.pkg.Foo")
@@ -623,7 +614,6 @@ class CommonTypeItemTest : BaseModelTest() {
                         public T foo;
                     }
                 """
-                    .trimIndent()
             ),
             kotlin(
                 """
@@ -642,7 +632,6 @@ class CommonTypeItemTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             )
         ) {
             val foo = codebase.assertClass("test.pkg.Foo")
@@ -664,7 +653,6 @@ class CommonTypeItemTest : BaseModelTest() {
                         val foo: T
                     }
                 """
-                    .trimIndent()
             ),
             signature(
                 """
@@ -675,7 +663,6 @@ class CommonTypeItemTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             )
         ) {
             val foo = codebase.assertClass("test.pkg.Foo")
@@ -725,7 +712,6 @@ class CommonTypeItemTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             )
         ) {
             val method = codebase.assertClass("test.pkg.Foo").methods().single()
@@ -815,7 +801,6 @@ class CommonTypeItemTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             )
         ) {
             val method = codebase.assertClass("test.pkg.Outer").methods().single()
@@ -882,7 +867,6 @@ class CommonTypeItemTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             )
         ) {
             val method = codebase.assertClass("test.pkg.Test").methods().single()
@@ -943,7 +927,6 @@ class CommonTypeItemTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             )
         ) {
             val method = codebase.assertClass("test.pkg.Outer").methods().single()
@@ -1070,7 +1053,6 @@ class CommonTypeItemTest : BaseModelTest() {
 
                     public class MyList<E> implements java.util.List<E> {}
                 """
-                    .trimIndent()
             ),
             kotlin(
                 """
@@ -1080,7 +1062,6 @@ class CommonTypeItemTest : BaseModelTest() {
 
                     class MyList<E> : java.util.List<E>
                 """
-                    .trimIndent()
             ),
             signature(
                 """
@@ -1092,7 +1073,6 @@ class CommonTypeItemTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             )
         ) {
             // Verify that the Cache superclass type uses the Cache type variables
@@ -1145,7 +1125,6 @@ class CommonTypeItemTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             ),
             java(
                 """
@@ -1272,14 +1251,12 @@ class CommonTypeItemTest : BaseModelTest() {
                             public Parent<? extends M, ? super N> getWildcards() {}
                         }
                     """
-                        .trimIndent()
                 ),
                 java(
                     """
                         package test.pkg;
                         public class Child<X, Y> extends Parent<X, Y> {}
                     """
-                        .trimIndent()
                 ),
             ),
             inputSet(
@@ -1298,7 +1275,6 @@ class CommonTypeItemTest : BaseModelTest() {
                           }
                         }
                     """
-                        .trimIndent()
                 )
             ),
             inputSet(
@@ -1314,7 +1290,6 @@ class CommonTypeItemTest : BaseModelTest() {
                         }
                         class Child<X, Y> : Parent<X, Y>()
                     """
-                        .trimIndent()
                 )
             )
         ) {
@@ -1392,7 +1367,6 @@ class CommonTypeItemTest : BaseModelTest() {
                       public Foo<? super Number, String> wildcardSuperTypeAfterMatchingConversion;
                     }
                 """
-                    .trimIndent()
             ),
             kotlin(
                 """
@@ -1419,7 +1393,6 @@ class CommonTypeItemTest : BaseModelTest() {
                         @JvmField val wildcardSuperTypeAfterMatchingConversion: Foo<in Number, String>
                     }
                 """
-                    .trimIndent()
             ),
             signature(
                 """
@@ -1448,7 +1421,6 @@ class CommonTypeItemTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             )
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")

@@ -473,7 +473,7 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                                         public Foo() { throw new RuntimeException("Stub!"); }
                                         @android.annotation.FlaggedApi("test.pkg.flags.foo_bar")
                                         public void flaggedPublicApi() { throw new RuntimeException("Stub!"); }
-                                        /** @hide */
+                                        /** */
                                         @android.annotation.FlaggedApi("test.pkg.flags.foo_bar")
                                         public void flaggedSystemApi() { throw new RuntimeException("Stub!"); }
                                         }
@@ -854,13 +854,13 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                                 java(
                                     """
                                     package test.pkg;
-                                    /** @hide */
+                                    /** */
                                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                                     @android.annotation.FlaggedApi("test.pkg.flags.foo_bar")
                                     public final class Foo {
-                                    /** @hide */
+                                    /** */
                                     public Foo() { throw new RuntimeException("Stub!"); }
-                                    /** @hide */
+                                    /** */
                                     public void method() { throw new RuntimeException("Stub!"); }
                                     }
                                 """
@@ -1092,7 +1092,7 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                 java(
                     """
                     package test.pkg;
-                    /** @hide */
+                    /** */
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     @android.annotation.FlaggedApi("test.pkg.flags.foo_bar")
                     public final class Foo {
@@ -1109,7 +1109,7 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                 java(
                     """
                     package test.pkg;
-                    /** @hide */
+                    /** */
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public final class Foo {
                     Foo() { throw new RuntimeException("Stub!"); }

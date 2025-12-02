@@ -74,7 +74,7 @@ class CommonDocReferenceTest : BaseModelTest() {
             val containsIOException =
                 DocContentPredicates.textContainsAny { it.contains("IOException") }
             assertTrue(
-                testMethod.documentation.check(containsIOException),
+                testMethod.requiredDocumentation.check(containsIOException),
                 message = "contains IOException"
             )
 
