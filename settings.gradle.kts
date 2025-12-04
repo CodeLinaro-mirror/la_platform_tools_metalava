@@ -16,17 +16,13 @@
 
 pluginManagement {
     repositories {
-        // Prefer mavenCentral as that has signed artifacts
-        mavenCentral()
-        gradlePluginPortal()
-        google()
+        maven("../../prebuilts/androidx/external")
     }
 }
 
 dependencyResolutionManagement {
     repositories {
-        google()
-        mavenCentral()
+        maven("../../prebuilts/androidx/external")
         val customLintRepo = System.getenv("LINT_REPO")
         if (customLintRepo != null) {
             logger.warn("Building using custom $customLintRepo maven repository")

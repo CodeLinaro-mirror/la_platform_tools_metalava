@@ -55,28 +55,19 @@ internal class PsiItemDocumentation(
     private val extraDocs: String?,
 ) : AbstractItemDocumentation(item) {
 
-    /** Lazily initialized backing property for [text]. */
-    private lateinit var _text: String
-
-    override var text: String
-        get() {
-            if (!::_text.isInitialized) {
-                initializeFromPsiElement(psi)
-                if (extraDocs != null) _text = "$_text\n$extraDocs"
-            }
-            return _text
-        }
-        set(value) {
-            _text = value
-            textChanged()
-        }
+    override fun initializeTextBackingField() {
+        initializeFromPsiElement(psi)
+        if (extraDocs != null) _text = "$_text\n$extraDocs"
+    }
 
     private var psiComment: PsiComment? = null
 
     override val fileLocation: FileLocation
         get() {
-            // Make sure that the psiComment is initialized.
-            text
+            // Make sure that the psiComment is initialized by making sure that the text backing
+            // field has been initialized as they are initialized together in
+            // [initializeTextBackingField].
+            ensureTextBackingFieldHasBeenInitialized()
             return PsiFileLocation.fromPsiElement(psiComment)
         }
 
@@ -176,7 +167,7 @@ internal class PsiItemDocumentation(
     }
 
     override fun mergeDocumentation(comment: String, tagSection: String?) {
-        text = mergeDocumentation(text, psi, comment, tagSection, append = true)
+        text = mergeDocumentation(text, psi, comment, tagSection)
     }
 
     override fun findMainDocumentation(): String {
@@ -336,7 +327,7 @@ internal class PsiItemDocumentation(
         val reference = extractReference(element)
         val referenceText = reference?.element?.text ?: element.text
         val customLinkText = extractCustomLinkText(element)
-        val displayText = customLinkText?.text ?: referenceText.replaceFirst('#', '.')
+        val displayText = customLinkText ?: referenceText.replaceFirst('#', '.')
         if (referenceText.startsWith("#")) {
             val suffix = element.text
             if (suffix.contains("(") && suffix.contains(")")) {
@@ -618,21 +609,17 @@ internal class PsiItemDocumentation(
         if (dataElements.isEmpty()) {
             return null
         }
-        val salientElement: PsiElement =
-            dataElements.firstOrNull { it !is PsiWhiteSpace && it !is PsiDocToken } ?: return null
-        val child = salientElement.firstChild
-        return if (child !is PsiReference) null else child
+        val salientElement = dataElements.firstOrNull { it !is PsiWhiteSpace && it !is PsiDocToken }
+        return salientElement?.firstChild as? PsiReference
     }
 
-    private fun extractCustomLinkText(tag: PsiDocTag): PsiDocToken? {
+    private fun extractCustomLinkText(tag: PsiDocTag): String? {
         val dataElements = tag.dataElements
         if (dataElements.isEmpty()) {
             return null
         }
-        val salientElement: PsiElement =
-            dataElements.lastOrNull { it !is PsiWhiteSpace && it !is PsiDocMethodOrFieldRef }
-                ?: return null
-        return if (salientElement !is PsiDocToken) null else salientElement
+        val salientElement = dataElements.lastOrNull { it !is PsiWhiteSpace }
+        return (salientElement as? PsiDocToken)?.text?.trimStart()
     }
 
     companion object {

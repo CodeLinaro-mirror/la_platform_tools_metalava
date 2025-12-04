@@ -311,7 +311,7 @@ abstract class DriverTest :
                 file.exists()
             )
 
-            val actualText = readFile(file)
+            val actualText = readFileFilterBlankLines(file)
             assertEquals(
                 stripComments(
                     expectedFileContents.trimIndent(),
@@ -379,6 +379,13 @@ abstract class DriverTest :
         stubFiles: Array<TestFile> = emptyArray(),
         /** Expected paths of stub files created */
         stubPaths: Array<String>? = null,
+        /**
+         * Controls whether blank lines are filtered from stub files before comparing against the
+         * expected content.
+         *
+         * Defaults to `true`.
+         */
+        filterBlankLinesFromStubFiles: Boolean = false,
         /**
          * Whether the stubs should be written as documentation stubs instead of plain stubs.
          * Decides whether the stubs include @doconly elements, uses rewritten/migration
@@ -1167,7 +1174,7 @@ abstract class DriverTest :
                 "${proguardFile.path} does not exist even though --proguard was used",
                 proguardFile.exists()
             )
-            val expectedProguard = readFile(proguardFile)
+            val expectedProguard = readFileFilterBlankLines(proguardFile)
             assertEquals(
                 stripComments(proguard, DOT_TXT, stripLineComments = false).trimIndent(),
                 expectedProguard
@@ -1175,32 +1182,32 @@ abstract class DriverTest :
         }
 
         if (sdkBroadcastActions != null) {
-            val actual = readFile(File(sdkFilesDir, "broadcast_actions.txt"))
+            val actual = readFileFilterBlankLines(File(sdkFilesDir, "broadcast_actions.txt"))
             assertEquals(sdkBroadcastActions.trimIndent().trim(), actual.trim())
         }
 
         if (sdkActivityActions != null) {
-            val actual = readFile(File(sdkFilesDir, "activity_actions.txt"))
+            val actual = readFileFilterBlankLines(File(sdkFilesDir, "activity_actions.txt"))
             assertEquals(sdkActivityActions.trimIndent().trim(), actual.trim())
         }
 
         if (sdkServiceActions != null) {
-            val actual = readFile(File(sdkFilesDir, "service_actions.txt"))
+            val actual = readFileFilterBlankLines(File(sdkFilesDir, "service_actions.txt"))
             assertEquals(sdkServiceActions.trimIndent().trim(), actual.trim())
         }
 
         if (sdkCategories != null) {
-            val actual = readFile(File(sdkFilesDir, "categories.txt"))
+            val actual = readFileFilterBlankLines(File(sdkFilesDir, "categories.txt"))
             assertEquals(sdkCategories.trimIndent().trim(), actual.trim())
         }
 
         if (sdkFeatures != null) {
-            val actual = readFile(File(sdkFilesDir, "features.txt"))
+            val actual = readFileFilterBlankLines(File(sdkFilesDir, "features.txt"))
             assertEquals(sdkFeatures.trimIndent().trim(), actual.trim())
         }
 
         if (sdkWidgets != null) {
-            val actual = readFile(File(sdkFilesDir, "widgets.txt"))
+            val actual = readFileFilterBlankLines(File(sdkFilesDir, "widgets.txt"))
             assertEquals(sdkWidgets.trimIndent().trim(), actual.trim())
         }
 
@@ -1244,7 +1251,9 @@ abstract class DriverTest :
                             "Found these files: \n${stubsCreated!!.prependIndent("  ")}"
                     )
                 }
-                val actualContents = readFile(actual)
+                val actualContents =
+                    if (filterBlankLinesFromStubFiles) readFileFilterBlankLines(actual)
+                    else readFile(actual)
                 val stubSource = if (sourceFiles.isEmpty()) "text" else "source"
                 val message =
                     "Generated from-$stubSource stub contents does not match expected contents"
@@ -1325,11 +1334,17 @@ abstract class DriverTest :
     }
 
     companion object {
+        /** Read a text file, filtering out any blank lines and removing whitespace from the end. */
         @JvmStatic
-        protected fun readFile(file: File): String {
-            var apiLines: List<String> = file.readLines()
-            apiLines = apiLines.filter { it.isNotBlank() }
+        protected fun readFileFilterBlankLines(file: File): String {
+            val apiLines = file.readLines().filter { it.isNotBlank() }
             return apiLines.joinToString(separator = "\n") { it }.trim()
+        }
+
+        /** Read a text file, removing whitespace from the end. */
+        private fun readFile(file: File): String {
+            val apiLines = file.readLines()
+            return apiLines.joinToString(separator = "\n") { it }.trimEnd()
         }
 
         /**

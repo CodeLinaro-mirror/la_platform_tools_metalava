@@ -43,6 +43,7 @@ import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.getCallableParameterDescriptorUsingDots
 import com.android.tools.metalava.model.psi.containsLinkTags
+import com.android.tools.metalava.model.source.doc.containsWord
 import com.android.tools.metalava.model.value.FieldReferenceValue
 import com.android.tools.metalava.model.value.FloatingPointValue
 import com.android.tools.metalava.model.value.IntegralValue
@@ -57,7 +58,6 @@ import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import java.io.File
 import java.nio.file.Files
-import java.util.regex.Pattern
 import javax.xml.parsers.SAXParserFactory
 import org.xml.sax.Attributes
 import org.xml.sax.helpers.DefaultHandler
@@ -111,8 +111,6 @@ class DocAnalyzer(
         // TODO:
         // insertMissingDocFromHiddenSuperclasses()
     }
-
-    val mentionsNull: Pattern = Pattern.compile("\\bnull\\b")
 
     /** Format this [Value] for use in handling `IntRange` and `FloatRange` annotations. */
     private fun Value.forRange(): String =
@@ -288,33 +286,36 @@ class DocAnalyzer(
                     item.appendDocumentation(text, "@deprecated")
                 }
 
+                /** Returns `true` if this contains the word `null`. */
+                private fun String?.containsNullWord() = this != null && containsWord("null")
+
+                private fun documentationContainsNullWord(item: Item): Boolean {
+                    val documentation = item.documentation
+                    return when (item) {
+                        is ParameterItem -> {
+                            item
+                                .containingCallable()
+                                .documentation
+                                .findTagDocumentation("param", item.name())
+                                .containsNullWord()
+                        }
+                        is CallableItem -> {
+                            // Don't inspect param docs (and other tags) for this purpose.
+                            documentation.findMainDocumentation().containsNullWord() ||
+                                documentation.findTagDocumentation("return").containsNullWord()
+                        }
+                        else -> {
+                            documentation.text.containsNullWord()
+                        }
+                    }
+                }
+
                 private fun handleInliningDocs(annotation: AnnotationItem, item: Item) {
                     if (annotation.isNullable() || annotation.isNonNull()) {
                         // Some docs already specifically talk about null policy; in that case,
                         // don't include the docs (since it may conflict with more specific
-                        // conditions
-                        // outlined in the docs).
-                        val documentation = item.documentation
-                        val doc =
-                            when (item) {
-                                is ParameterItem -> {
-                                    item
-                                        .containingCallable()
-                                        .documentation
-                                        .findTagDocumentation("param", item.name()) ?: ""
-                                }
-                                is CallableItem -> {
-                                    // Don't inspect param docs (and other tags) for this purpose.
-                                    documentation.findMainDocumentation() +
-                                        (documentation.findTagDocumentation("return") ?: "")
-                                }
-                                else -> {
-                                    documentation.text
-                                }
-                            }
-                        if (doc.contains("null") && mentionsNull.matcher(doc).find()) {
-                            return
-                        }
+                        // conditions outlined in the docs).
+                        if (documentationContainsNullWord(item)) return
                     }
 
                     when (item) {
@@ -674,16 +675,7 @@ class DocAnalyzer(
         // If there is no such text then return immediately.
         val taggedText = annotationDocumentation.findTagDocumentation(tag) ?: return
 
-        assert(taggedText.startsWith("@$tag")) { taggedText }
-        val section =
-            when {
-                taggedText.startsWith("@returnDoc") -> "@return"
-                taggedText.startsWith("@paramDoc") -> "@param"
-                taggedText.startsWith("@memberDoc") -> null
-                else -> null
-            }
-
-        val insert = stripLeadingAsterisks(stripMetaTags(taggedText.substring(tag.length + 2)))
+        val insert = stripLeadingAsterisks(taggedText.substring(tag.length + 2))
         val qualified =
             if (containsLinkTags(insert)) {
                 val original = "/** $insert */"
@@ -695,6 +687,23 @@ class DocAnalyzer(
                 }
             } else {
                 insert
+            }
+
+        // Select the section where the documentation will be appended.
+        val section =
+            when (tag) {
+                "returnDoc" ->
+                    // Return documentation gets added to the `return` block tag.
+                    "@return"
+                "paramDoc" ->
+                    // Parameter documentation gets added to the `param` block tag associated with
+                    // `item` which must be a [ParameterItem].
+                    "@param"
+                else ->
+                    // Everything else, i.e. class and member documentation gets added to the main
+                    // section of `item` which must either be a [ClassItem] or [MemberItem]
+                    // respectively.
+                    null
             }
 
         item.appendDocumentation(qualified, section) // 2: @ and space after tag
@@ -722,16 +731,6 @@ class DocAnalyzer(
         }
 
         return s
-    }
-
-    private fun stripMetaTags(string: String): String {
-        // Get rid of @hide and @remove tags etc. that are part of documentation snippets
-        // we pull in, such that we don't accidentally start applying this to the
-        // item that is pulling in the documentation.
-        if (string.contains("@hide") || string.contains("@remove")) {
-            return string.replace("@hide", "").replace("@remove", "")
-        }
-        return string
     }
 
     private fun tweakGrammar() {
@@ -827,6 +826,34 @@ class DocAnalyzer(
     }
 
     /**
+     * Add [blockTagType] with [content] to the [item]'s [Item.documentation].
+     *
+     * If there is an existing [blockTagType] then an [Issues.FORBIDDEN_TAG] error will be reported,
+     * and it will be removed. Irrespective of that a new [blockTagType] will be added with some
+     * simple textual content.
+     */
+    private fun addUniqueVersionBlockTag(
+        item: SelectableItem,
+        blockTagType: String,
+        content: String,
+    ) {
+        val documentation = item.documentation
+
+        // Report an issue if [blockTagType] is present in the sources.
+        if (documentation.hasBlockTagOfType(blockTagType)) {
+            reporter.report(
+                Issues.FORBIDDEN_TAG,
+                item,
+                "Documentation should not specify @$blockTagType " +
+                    "manually; it's computed and injected at build time by $PROGRAM_NAME"
+            )
+        }
+
+        // Always set @[blockTagType], overriding any existing value.
+        documentation.addUniqueBlockTagSectionWithSimpleText(blockTagType, content)
+    }
+
+    /**
      * Add API version documentation to the [item].
      *
      * This only applies to classes and class members, i.e. not parameters.
@@ -838,22 +865,9 @@ class DocAnalyzer(
                 return
             }
 
+            // Always set @apiSince, overriding any existing value.
             val apiVersionLabel = apiVersionLabelProvider(apiVersion)
-
-            // Also add @since tag, unless already manually entered.
-            // TODO: Override it everywhere in case the existing doc is wrong (we know
-            // better), and at least for OpenJDK sources we *should* since the since tags
-            // are talking about language levels rather than API versions!
-            if (!item.documentation.hasBlockTagOfType("apiSince")) {
-                item.appendDocumentation(apiVersionLabel, "@apiSince")
-            } else {
-                reporter.report(
-                    Issues.FORBIDDEN_TAG,
-                    item,
-                    "Documentation should not specify @apiSince " +
-                        "manually; it's computed and injected at build time by $PROGRAM_NAME"
-                )
-            }
+            addUniqueVersionBlockTag(item, "apiSince", apiVersionLabel)
         }
     }
 
@@ -866,16 +880,9 @@ class DocAnalyzer(
      *   [item].
      */
     private fun addApiExtensionsDocumentation(sdkExtSince: SdkAndVersion, item: SelectableItem) {
-        if (item.documentation.hasBlockTagOfType("sdkExtSince")) {
-            reporter.report(
-                Issues.FORBIDDEN_TAG,
-                item,
-                "Documentation should not specify @sdkExtSince " +
-                    "manually; it's computed and injected at build time by $PROGRAM_NAME"
-            )
-        }
-
-        item.appendDocumentation("${sdkExtSince.name} ${sdkExtSince.version}", "@sdkExtSince")
+        // Always set @sdkExtSince, overriding any existing value.
+        val sdkExtVersion = "${sdkExtSince.name} ${sdkExtSince.version}"
+        addUniqueVersionBlockTag(item, "sdkExtSince", sdkExtVersion)
     }
 
     /**
@@ -890,18 +897,10 @@ class DocAnalyzer(
                 // accurate historical data
                 return
             }
-            val apiVersionLabel = apiVersionLabelProvider(version)
 
-            if (!item.documentation.hasBlockTagOfType("deprecatedSince")) {
-                item.appendDocumentation(apiVersionLabel, "@deprecatedSince")
-            } else {
-                reporter.report(
-                    Issues.FORBIDDEN_TAG,
-                    item,
-                    "Documentation should not specify @deprecatedSince " +
-                        "manually; it's computed and injected at build time by $PROGRAM_NAME"
-                )
-            }
+            // Always set @deprecatedSince, overriding any existing value.
+            val apiVersionLabel = apiVersionLabelProvider(version)
+            addUniqueVersionBlockTag(item, "deprecatedSince", apiVersionLabel)
         }
     }
 

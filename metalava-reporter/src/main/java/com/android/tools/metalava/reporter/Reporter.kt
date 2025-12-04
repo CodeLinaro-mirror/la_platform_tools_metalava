@@ -17,7 +17,6 @@
 package com.android.tools.metalava.reporter
 
 import java.io.File
-import java.io.OutputStream
 import java.io.PrintWriter
 import java.io.StringWriter
 import java.io.Writer
@@ -120,9 +119,15 @@ abstract class AbstractBasicReporter : Reporter {
         val formattedMessage = buildString {
             val usableLocation = reportable?.fileLocation ?: location
             append(usableLocation.path)
-            if (usableLocation.line > 0) {
+            var line = usableLocation.line
+            if (line > 0) {
                 append(":")
-                append(usableLocation.line)
+                append(line)
+            }
+            var characterPosition = usableLocation.characterPosition
+            if (characterPosition > 0) {
+                append(":")
+                append(characterPosition)
             }
             append(": ")
             val severity = id.defaultLevel
@@ -152,8 +157,6 @@ abstract class AbstractBasicReporter : Reporter {
  */
 class BasicReporter(private val stderr: PrintWriter) : AbstractBasicReporter() {
     constructor(writer: Writer) : this(stderr = PrintWriter(writer))
-
-    constructor(outputStream: OutputStream) : this(stderr = PrintWriter(outputStream))
 
     override fun handleFormattedMessage(formattedMessage: String): Boolean {
         stderr.println(formattedMessage)

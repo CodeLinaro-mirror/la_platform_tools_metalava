@@ -765,13 +765,13 @@ class ApiLintTest : DriverTest() {
             apiLint = "", // enabled
             expectedIssues =
                 """
-                src/android/pkg/MyClass1.java:3: error: Inconsistent class name; should be `<Foo>Activity`, was `MyClass1` [ContextNameSuffix]
+                src/android/pkg/MyClass1.java:3: error: Inconsistent class name; should end with one of [`Activity`, `ActivityCompat`], but was `MyClass1` [ContextNameSuffix]
                 src/android/pkg/MyClass1.java:3: error: MyClass1 should not extend `Activity`. Activity subclasses are impossible to compose. Expose a composable API instead. [ForbiddenSuperClass]
                 src/android/pkg/MyClass1.java:6: warning: Methods implemented by developers should follow the on<Something> style, was `badlyNamedAbstractMethod` [OnNameExpected]
                 src/android/pkg/MyClass1.java:7: warning: If implemented by developer, should follow the on<Something> style; otherwise consider marking final [OnNameExpected]
-                src/android/pkg/MyClass2.java:3: error: Inconsistent class name; should be `<Foo>Provider`, was `MyClass2` [ContextNameSuffix]
-                src/android/pkg/MyClass3.java:3: error: Inconsistent class name; should be `<Foo>Service`, was `MyClass3` [ContextNameSuffix]
-                src/android/pkg/MyClass4.java:3: error: Inconsistent class name; should be `<Foo>Receiver`, was `MyClass4` [ContextNameSuffix]
+                src/android/pkg/MyClass2.java:3: error: Inconsistent class name; should end with one of [`Provider`, `ProviderCompat`], but was `MyClass2` [ContextNameSuffix]
+                src/android/pkg/MyClass3.java:3: error: Inconsistent class name; should end with one of [`Service`, `ServiceCompat`], but was `MyClass3` [ContextNameSuffix]
+                src/android/pkg/MyClass4.java:3: error: Inconsistent class name; should end with one of [`Receiver`, `ReceiverCompat`], but was `MyClass4` [ContextNameSuffix]
                 src/android/pkg/MyOkActivity.java:3: error: MyOkActivity should not extend `Activity`. Activity subclasses are impossible to compose. Expose a composable API instead. [ForbiddenSuperClass]
                 """,
             expectedFail = DefaultLintErrorMessage,
@@ -825,6 +825,171 @@ class ApiLintTest : DriverTest() {
                     public class MyOkActivity extends android.app.Activity {
                     }
                     """
+                    )
+                )
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Make sure helper classes that end with the appropriate Compat suffix are not flagged`() {
+        check(
+            extraArguments = arrayOf(ARG_API_LINT, ARG_HIDE, "ForbiddenSuperClass"),
+            apiLint = "", // enabled
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package android.pkg
+
+                        public class MyClass1ActivityCompat: android.app.Activity {
+                        }
+                        """
+                    ),
+                    java(
+                        """
+                        package android.pkg;
+
+                        public class MyClass2ActivityCompat extends android.app.Activity {
+                        }
+                        """
+                    ),
+                    kotlin(
+                        """
+                        package android.pkg
+
+                        public class MyClass3ContentProviderCompat: android.content.ContentProvider {
+                        }
+                        """
+                    ),
+                    java(
+                        """
+                        package android.pkg;
+
+                        public class MyClass4ContentProviderCompat extends android.content.ContentProvider {
+                        }
+                        """
+                    ),
+                    kotlin(
+                        """
+                        package android.pkg
+
+                        public class MyClass5ServiceCompat : android.app.Service {
+                        }
+                        """
+                    ),
+                    java(
+                        """
+                        package android.pkg;
+
+                        public class MyClass6ServiceCompat extends android.app.Service {
+                        }
+                        """
+                    ),
+                    kotlin(
+                        """
+                        package android.pkg
+
+                        public class MyClass7ReceiverCompat : android.content.BroadcastReceiver {
+                        }
+                        """
+                    ),
+                    java(
+                        """
+                        package android.pkg;
+
+                        public class MyClass8ReceiverCompat extends android.content.BroadcastReceiver {
+                        }
+                        """
+                    )
+                )
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Make sure helper classes that end with a just Compat suffix are flagged`() {
+        check(
+            extraArguments = arrayOf(ARG_API_LINT, ARG_HIDE, "ForbiddenSuperClass"),
+            apiLint = "", // enabled
+            expectedIssues =
+                """
+                src/android/pkg/MyClass1Compat.kt:3: error: Inconsistent class name; should end with one of [`Activity`, `ActivityCompat`], but was `MyClass1Compat` [ContextNameSuffix]
+                src/android/pkg/MyClass2Compat.java:3: error: Inconsistent class name; should end with one of [`Activity`, `ActivityCompat`], but was `MyClass2Compat` [ContextNameSuffix]
+                src/android/pkg/MyClass3Compat.kt:3: error: Inconsistent class name; should end with one of [`Provider`, `ProviderCompat`], but was `MyClass3Compat` [ContextNameSuffix]
+                src/android/pkg/MyClass4Compat.java:3: error: Inconsistent class name; should end with one of [`Provider`, `ProviderCompat`], but was `MyClass4Compat` [ContextNameSuffix]
+                src/android/pkg/MyClass5Compat.kt:3: error: Inconsistent class name; should end with one of [`Service`, `ServiceCompat`], but was `MyClass5Compat` [ContextNameSuffix]
+                src/android/pkg/MyClass6Compat.java:3: error: Inconsistent class name; should end with one of [`Service`, `ServiceCompat`], but was `MyClass6Compat` [ContextNameSuffix]
+                src/android/pkg/MyClass7Compat.kt:3: error: Inconsistent class name; should end with one of [`Receiver`, `ReceiverCompat`], but was `MyClass7Compat` [ContextNameSuffix]
+                src/android/pkg/MyClass8Compat.java:3: error: Inconsistent class name; should end with one of [`Receiver`, `ReceiverCompat`], but was `MyClass8Compat` [ContextNameSuffix]
+            """
+                    .trimIndent(),
+            expectedFail = DefaultLintErrorMessage,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package android.pkg
+
+                        public class MyClass1Compat: android.app.Activity {
+                        }
+                        """
+                    ),
+                    java(
+                        """
+                        package android.pkg;
+
+                        public class MyClass2Compat extends android.app.Activity {
+                        }
+                        """
+                    ),
+                    kotlin(
+                        """
+                        package android.pkg
+
+                        public class MyClass3Compat: android.content.ContentProvider {
+                        }
+                        """
+                    ),
+                    java(
+                        """
+                        package android.pkg;
+
+                        public class MyClass4Compat extends android.content.ContentProvider {
+                        }
+                        """
+                    ),
+                    kotlin(
+                        """
+                        package android.pkg
+
+                        public class MyClass5Compat : android.app.Service {
+                        }
+                        """
+                    ),
+                    java(
+                        """
+                        package android.pkg;
+
+                        public class MyClass6Compat extends android.app.Service {
+                        }
+                        """
+                    ),
+                    kotlin(
+                        """
+                        package android.pkg
+
+                        public class MyClass7Compat : android.content.BroadcastReceiver {
+                        }
+                        """
+                    ),
+                    java(
+                        """
+                        package android.pkg;
+
+                        public class MyClass8Compat extends android.content.BroadcastReceiver {
+                        }
+                        """
                     )
                 )
         )

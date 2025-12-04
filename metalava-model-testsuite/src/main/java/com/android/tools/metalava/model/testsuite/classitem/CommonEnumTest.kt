@@ -120,17 +120,17 @@ class CommonEnumTest : BaseModelTest() {
             val fooClass = codebase.assertClass("test.pkg.Foo")
 
             // Make sure that only `values(String)` is in the class.
-            val values = fooClass.assertMethod(JAVA_ENUM_VALUES, "java.lang.String")
+            val values = fooClass.assertMethod(JAVA_ENUM_VALUES, listOf("java.lang.String"))
             assertThat(fooClass.methods().filter { it.name() == JAVA_ENUM_VALUES })
                 .isEqualTo(listOf(values))
 
             // Make sure that only `valueOf(int)` is in the class.
-            val valueOf = fooClass.assertMethod(JAVA_ENUM_VALUE_OF, "int")
+            val valueOf = fooClass.assertMethod(JAVA_ENUM_VALUE_OF, listOf("int"))
             assertThat(fooClass.methods().filter { it.name() == JAVA_ENUM_VALUE_OF })
                 .isEqualTo(listOf(valueOf))
 
             // Make sure that only `getEntries(String)` is in the class.
-            val getEntries = fooClass.assertMethod("getEntries", "java.lang.String")
+            val getEntries = fooClass.assertMethod("getEntries", listOf("java.lang.String"))
             assertThat(fooClass.methods().filter { it.name() == "getEntries" })
                 .isEqualTo(listOf(getEntries))
         }

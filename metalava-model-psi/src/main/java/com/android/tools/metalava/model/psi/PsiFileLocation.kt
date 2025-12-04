@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava.model.psi
 
+import com.android.tools.metalava.model.source.doc.characterOffsetFor
+import com.android.tools.metalava.model.source.doc.lineOffsetFor
 import com.android.tools.metalava.reporter.BaselineKey
 import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.Issues
@@ -23,6 +25,7 @@ import com.android.tools.metalava.reporter.Reporter
 import com.intellij.openapi.util.TextRange
 import com.intellij.openapi.vfs.VfsUtilCore
 import com.intellij.psi.PsiClass
+import com.intellij.psi.PsiComment
 import com.intellij.psi.PsiCompiledElement
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiField
@@ -63,6 +66,8 @@ class PsiFileLocation(private val psiElement: PsiElement) : FileLocation() {
      */
     private var _line: Int = Int.MIN_VALUE
 
+    private var _characterPosition: Int = -1
+
     override val path: Path?
         get() {
             ensureInitialized()
@@ -73,6 +78,12 @@ class PsiFileLocation(private val psiElement: PsiElement) : FileLocation() {
         get() {
             ensureInitialized()
             return _line
+        }
+
+    override val characterPosition: Int
+        get() {
+            ensureInitialized()
+            return _characterPosition
         }
 
     override val baselineKey: BaselineKey
@@ -117,12 +128,17 @@ class PsiFileLocation(private val psiElement: PsiElement) : FileLocation() {
         val range = getTextRange(rangeElement)
 
         // Update the line number.
-        _line =
-            if (range == null) {
-                -1 // No source offsets, use invalid line number
-            } else {
-                getLineNumber(psiFile.text, range.startOffset) + 1
+        if (range == null) {
+            _line = -1 // No source offsets, use invalid line number
+        } else {
+            val fileContents = psiFile.text
+            val commentStartIndex = range.startOffset
+            _line = fileContents.lineOffsetFor(commentStartIndex) + 1
+
+            if (psiElement is PsiComment) {
+                _characterPosition = fileContents.characterOffsetFor(commentStartIndex) + 1
             }
+        }
     }
 
     companion object {
@@ -153,19 +169,6 @@ class PsiFileLocation(private val psiElement: PsiElement) : FileLocation() {
             }
 
             return range
-        }
-
-        /** Returns the 0-based line number of character position <offset> in <text> */
-        private fun getLineNumber(text: String, offset: Int): Int {
-            var line = 0
-            var curr = 0
-            val target = offset.coerceAtMost(text.length)
-            while (curr < target) {
-                if (text[curr++] == '\n') {
-                    line++
-                }
-            }
-            return line
         }
 
         internal fun getBaselineKey(element: PsiElement?): BaselineKey {

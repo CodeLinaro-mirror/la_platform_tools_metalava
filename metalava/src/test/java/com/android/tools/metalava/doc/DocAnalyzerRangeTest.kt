@@ -66,13 +66,9 @@ class DocAnalyzerRangeTest : DriverTest() {
                      * @return Value is 10 or greater
                      */
                     public int test1(int range2) { throw new RuntimeException("Stub!"); }
-                    /**
-                     * @return Value is between 10 and 20 inclusive
-                     */
+                    /** @return Value is between 10 and 20 inclusive */
                     public int test2() { throw new RuntimeException("Stub!"); }
-                    /**
-                     * @return Value is 100 or less
-                     */
+                    /** @return Value is 100 or less */
                     public int test3() { throw new RuntimeException("Stub!"); }
                     }
                     """
@@ -134,13 +130,9 @@ class DocAnalyzerRangeTest : DriverTest() {
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class TypedefTest {
                     public TypedefTest() { throw new RuntimeException("Stub!"); }
-                    /**
-                     * @param flags Value is either <code>0</code> or a combination of {@link test.pkg.TypedefTest#STYLE_NORMAL}, {@link test.pkg.TypedefTest#STYLE_NO_TITLE}, {@link test.pkg.TypedefTest#STYLE_NO_FRAME}, {@link test.pkg.TypedefTest#STYLE_NO_INPUT}, 2, and 4
-                     */
+                    /** @param flags Value is either <code>0</code> or a combination of {@link test.pkg.TypedefTest#STYLE_NORMAL}, {@link test.pkg.TypedefTest#STYLE_NO_TITLE}, {@link test.pkg.TypedefTest#STYLE_NO_FRAME}, {@link test.pkg.TypedefTest#STYLE_NO_INPUT}, 2, and 4 */
                     public void setFlags(java.lang.Object first, int flags) { throw new RuntimeException("Stub!"); }
-                    /**
-                     * @param style Value is {@link test.pkg.TypedefTest#STYLE_NORMAL}, {@link test.pkg.TypedefTest#STYLE_NO_TITLE}, {@link test.pkg.TypedefTest#STYLE_NO_FRAME}, or {@link test.pkg.TypedefTest#STYLE_NO_INPUT}
-                     */
+                    /** @param style Value is {@link test.pkg.TypedefTest#STYLE_NORMAL}, {@link test.pkg.TypedefTest#STYLE_NO_TITLE}, {@link test.pkg.TypedefTest#STYLE_NO_FRAME}, or {@link test.pkg.TypedefTest#STYLE_NO_INPUT} */
                     public void setStyle(int style, int theme) { throw new RuntimeException("Stub!"); }
                     public static final int STYLE_NORMAL = 0;
                     public static final int STYLE_NO_FRAME = 2;
@@ -200,6 +192,8 @@ class DocAnalyzerRangeTest : DriverTest() {
                     public TypedefTest() { throw new RuntimeException("Stub!"); }
                     /**
                      * @param style Value is {@link test.pkg.TypedefTest#STYLE_NORMAL}, {@link test.pkg.TypedefTest#STYLE_NO_TITLE}, {@link test.pkg.TypedefTest#STYLE_NO_FRAME}, or STYLE_NO_INPUT
+                     *
+                     * <br>
                      * Value is 20 or greater
                      */
                     public void setStyle(int style, int theme) { throw new RuntimeException("Stub!"); }
@@ -239,9 +233,7 @@ class DocAnalyzerRangeTest : DriverTest() {
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class RangeTest {
                     public RangeTest() { throw new RuntimeException("Stub!"); }
-                    /**
-                     * @param parameter2 Value is 10 or greater
-                     */
+                    /** @param parameter2 Value is 10 or greater */
                     public int test1(int parameter1, int parameter2, int parameter3) { throw new RuntimeException("Stub!"); }
                     }
                     """
@@ -282,6 +274,7 @@ class DocAnalyzerRangeTest : DriverTest() {
                     public RangeTest() { throw new RuntimeException("Stub!"); }
                     /**
                      * This is the existing documentation.
+                     *
                      * @param parameter2 Value is 10 or greater
                      * @return return value documented here
                      */
@@ -327,6 +320,7 @@ class DocAnalyzerRangeTest : DriverTest() {
                     public RangeTest() { throw new RuntimeException("Stub!"); }
                     /**
                      * This is the existing documentation.
+                     *
                      * @param parameter1 docs for parameter1
                      * @param parameter3 docs for parameter2
                      * @param parameter2 Value is 10 or greater
@@ -375,8 +369,10 @@ class DocAnalyzerRangeTest : DriverTest() {
                     public RangeTest() { throw new RuntimeException("Stub!"); }
                     /**
                      * This is the existing documentation.
+                     *
                      * @param parameter1 docs for parameter1
                      * @param parameter2 docs for parameter2
+                     * <br>
                      * Value is 10 or greater
                      * @param parameter3 docs for parameter2
                      * @return return value documented here
@@ -416,9 +412,7 @@ class DocAnalyzerRangeTest : DriverTest() {
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class RangeTest {
                     public RangeTest() { throw new RuntimeException("Stub!"); }
-                    /**
-                     * @return Value is 10 or greater
-                     */
+                    /** @return Value is 10 or greater */
                     public int test1(int parameter1, int parameter2, int parameter3) { throw new RuntimeException("Stub!"); }
                     }
                     """
@@ -460,7 +454,10 @@ class DocAnalyzerRangeTest : DriverTest() {
                     public RangeTest() { throw new RuntimeException("Stub!"); }
                     /**
                      * This is the existing documentation.
+                     *
                      * @return return value documented here
+                     *
+                     * <br>
                      * Value is 10 or greater
                      */
                     public int test1(int parameter1, int parameter2, int parameter3) { throw new RuntimeException("Stub!"); }
@@ -521,6 +518,7 @@ class DocAnalyzerRangeTest : DriverTest() {
                     public Toolbar() { throw new RuntimeException("Stub!"); }
                     /**
                      * Existing documentation for {@linkplain #getCurrentContentInsetEnd()} here.
+                     *
                      * @return blah blah blah
                      * @apiSince 24
                      */
@@ -622,6 +620,7 @@ class DocAnalyzerRangeTest : DriverTest() {
                             public RangeTest() { throw new RuntimeException("Stub!"); }
                             /**
                              * Blah.
+                             *
                              * @param i1 Value is {@link java.lang.Integer#MIN_VALUE} or greater
                              * @param i2 Value is 2147483646 or greater
                              * @param i3 Value is 1099511627776L or greater

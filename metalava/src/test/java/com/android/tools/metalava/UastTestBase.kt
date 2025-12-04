@@ -1109,7 +1109,9 @@ abstract class UastTestBase : DriverTest() {
                   }
                   public final class NavGraphBuilderKt {
                     method public static Void after(test.pkg.NavGraphBuilder, optional kotlin.jvm.functions.Function1<test.pkg.AnimatedContentTransitionScope<test.pkg.NavBackStackEntry>,test.pkg.EnterTransition?>? enterTransition);
+                    method @BytecodeOnly public static Void! after${'$'}default(test.pkg.NavGraphBuilder!, kotlin.jvm.functions.Function1!, int, Object!);
                     method @BytecodeOnly @Deprecated public static Void! before(test.pkg.NavGraphBuilder!, kotlin.jvm.functions.Function1!);
+                    method @BytecodeOnly @Deprecated public static Void! before${'$'}default(test.pkg.NavGraphBuilder!, kotlin.jvm.functions.Function1!, int, Object!);
                   }
                 }
                 """
@@ -2611,6 +2613,7 @@ abstract class UastTestBase : DriverTest() {
                     ctor @KotlinOnly public IntValueData(test.pkg.IntValue intValue);
                     method @KotlinOnly public test.pkg.IntValueData copy(optional test.pkg.IntValue intValue);
                     $copyEntry
+                    method @BytecodeOnly public static test.pkg.IntValueData! copy-Vxmw0xk${'$'}default(test.pkg.IntValueData!, int, int, Object!);
                   }
                 }
                 """
@@ -2841,8 +2844,7 @@ abstract class UastTestBase : DriverTest() {
 
     @Test
     fun `JvmMultifileClass with files in common and android`() {
-        // b/417699607 the android method is dropped from K2 tracking
-        val androidMethod = if (isK2) "" else "method public static void fooAndroid();"
+        // b/417699607 the android method was dropped from K2 tracking
         val commonSource =
             kotlin(
                 "commonMain/src/test/pkg/Foo.kt",
@@ -2883,7 +2885,7 @@ abstract class UastTestBase : DriverTest() {
                 // Signature format: 5.0
                 package test.pkg {
                   public final class Foo {
-                    $androidMethod
+                    method public static void fooAndroid();
                     method public static void fooCommon();
                   }
                 }

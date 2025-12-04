@@ -144,6 +144,9 @@ com.android.tools.metalava.lint.ApiLintTest
 com.android.tools.metalava.lint.CheckBuilderTest
   Check builders[turbine]
 
+com.android.tools.metalava.lint.FlaggedApiLintTest
+  Require @FlaggedApi on API that modify annotations[turbine]
+
 com.android.tools.metalava.stub.StubsAnnotationTest
   Pass through libcore annotations[turbine]
   Rewrite unknown nullability annotations as doc stubs[turbine]

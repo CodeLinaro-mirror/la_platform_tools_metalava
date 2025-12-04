@@ -92,8 +92,12 @@ class JarToJDiffCommand :
                         )
                     }
 
-                createReportFile(progressTracker, codebaseFragment, xmlFile, "JDiff File") {
-                    printWriter ->
+                createOutputFileFromCodebaseFragment(
+                    progressTracker,
+                    codebaseFragment,
+                    xmlFile,
+                    "JDiff File"
+                ) { printWriter ->
                     JDiffXmlWriter(
                         writer = printWriter,
                     )

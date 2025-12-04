@@ -17,7 +17,6 @@
 package com.android.tools.metalava
 
 import com.android.tools.lint.checks.infrastructure.TestFile
-import com.android.tools.metalava.model.VisibleForTesting
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.text.FileFormat
@@ -26,10 +25,15 @@ import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
 
 /**
- * Test that the `VisibleForTesting` annotation works correctly.
+ * Test that the `VisibleForTesting` annotation does not impact API visibility unless the hide and
+ * show annotation options are used.
  *
- * e.g. if it has an `otherwise` attribute that is used as the actual visibility of the annotated
- * item.
+ * Previously if an `otherwise` value was provided that was used at the visibility of the annotated
+ * item. e.g. if it has an `otherwise` attribute that is used as the actual visibility of the
+ * annotated item.
+ *
+ * Now by default the annotation has no impact on API visibility, but the `--hide-annotation` and
+ * `--show-annotation` options can be used to mostly replicate the old behavior.
  */
 class VisibleForTestingTest : DriverTest() {
     /** Check the behavior of `VisibleForTesting` annotations. */
@@ -37,6 +41,7 @@ class VisibleForTestingTest : DriverTest() {
         format: FileFormat,
         testFile: TestFile,
         api: String,
+        useShowAndHideOptions: Boolean,
     ) {
         check(
             format = format,
@@ -46,6 +51,21 @@ class VisibleForTestingTest : DriverTest() {
                     visibleForTestingSource,
                 ),
             api = api,
+            extraArguments =
+                if (useShowAndHideOptions) {
+                    arrayOf(
+                        "--hide-annotation",
+                        "androidx.annotation.VisibleForTesting",
+                        "--show-annotation",
+                        "androidx.annotation.VisibleForTesting(otherwise=androidx.annotation.VisibleForTesting.PROTECTED)",
+                        "--show-annotation",
+                        "androidx.annotation.VisibleForTesting(otherwise=4)",
+                        "--hide",
+                        "UnhiddenSystemApi",
+                    )
+                } else {
+                    emptyArray()
+                }
         )
     }
 
@@ -82,6 +102,10 @@ class VisibleForTestingTest : DriverTest() {
                             @VisibleForTesting(otherwise = VisibleForTesting.NONE)
                             public void shouldBeHidden() {
                             }
+
+                            @VisibleForTesting
+                            public void defaultOtherwiseShouldBePrivate() {
+                            }
                         }
                     """
                 ),
@@ -89,11 +113,12 @@ class VisibleForTestingTest : DriverTest() {
                 """
                     package test.pkg {
                       public class ProductionCodeJava {
-                        method @VisibleForTesting(otherwise=androidx.annotation.VisibleForTesting.PROTECTED) protected void shouldBeProtected();
+                        method @VisibleForTesting(otherwise=androidx.annotation.VisibleForTesting.PROTECTED) public void shouldBeProtected();
                       }
                     }
                 """,
             format = FileFormat.V2,
+            useShowAndHideOptions = true
         )
     }
 
@@ -137,11 +162,12 @@ class VisibleForTestingTest : DriverTest() {
                 """
                     package test.pkg {
                       public class ProductionCodeJava {
-                        method @VisibleForTesting(otherwise=${VisibleForTesting.PROTECTED}) protected void shouldBeProtected();
+                        method @VisibleForTesting(otherwise=${VisibleForTesting.PROTECTED}) public void shouldBeProtected();
                       }
                     }
                 """,
             format = FileFormat.V2,
+            useShowAndHideOptions = true,
         )
     }
 
@@ -160,6 +186,10 @@ class VisibleForTestingTest : DriverTest() {
 
                             @VisibleForTesting(otherwise = VisibleForTesting.PROTECTED)
                             fun shouldBeProtected() {
+                            }
+
+                            @VisibleForTesting(VisibleForTesting.PROTECTED)
+                            fun shouldBeProtected2() {
                             }
 
                             @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
@@ -184,11 +214,13 @@ class VisibleForTestingTest : DriverTest() {
                 """
                     package test.pkg {
                       public class ProductionCodeKotlin {
-                        method @VisibleForTesting(otherwise=androidx.annotation.VisibleForTesting.PROTECTED) protected final void shouldBeProtected();
+                        method @VisibleForTesting(otherwise=androidx.annotation.VisibleForTesting.PROTECTED) public final void shouldBeProtected();
+                        method @VisibleForTesting(otherwise=androidx.annotation.VisibleForTesting.PROTECTED) public final void shouldBeProtected2();
                       }
                     }
                 """,
             format = FileFormat.V4,
+            useShowAndHideOptions = true,
         )
     }
 
@@ -207,6 +239,10 @@ class VisibleForTestingTest : DriverTest() {
 
                             @VisibleForTesting(otherwise = ${VisibleForTesting.PROTECTED})
                             fun shouldBeProtected() {
+                            }
+
+                            @VisibleForTesting(${VisibleForTesting.PROTECTED})
+                            fun shouldBeProtected2() {
                             }
 
                             @VisibleForTesting(otherwise = ${VisibleForTesting.PRIVATE})
@@ -231,11 +267,163 @@ class VisibleForTestingTest : DriverTest() {
                 """
                     package test.pkg {
                       public class ProductionCodeKotlin {
-                        method @VisibleForTesting(otherwise=${VisibleForTesting.PROTECTED}) protected final void shouldBeProtected();
+                        method @VisibleForTesting(otherwise=${VisibleForTesting.PROTECTED}) public final void shouldBeProtected();
+                        method @VisibleForTesting(otherwise=${VisibleForTesting.PROTECTED}) public final void shouldBeProtected2();
                       }
                     }
                 """,
             format = FileFormat.V4,
+            useShowAndHideOptions = true,
         )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Test VisibleForTesting without show and hide annotation options -- kotlin`() {
+        checkVisibleForTesting(
+            testFile =
+                kotlin(
+                    """
+                    package test.pkg
+                    import androidx.annotation.VisibleForTesting
+
+                    open class ProductionCodeKotlin private constructor() {
+                        @VisibleForTesting
+                        fun withDefaultOtherwise() = Unit
+
+                        @VisibleForTesting(VisibleForTesting.PROTECTED)
+                        fun withProtectedOtherwise() = Unit
+
+                        @VisibleForTesting(VisibleForTesting.PRIVATE)
+                        fun withPrivateOtherwise() = Unit
+
+                        @VisibleForTesting(VisibleForTesting.PACKAGE_PRIVATE)
+                        fun withPackagePrivateOtherwise() = Unit
+
+                        @VisibleForTesting(VisibleForTesting.NONE)
+                        fun withNoneOtherwise() = Unit
+
+                        @VisibleForTesting(${VisibleForTesting.PROTECTED})
+                        fun withNumericProtectedOtherwise() = Unit
+
+                        @VisibleForTesting(${VisibleForTesting.PRIVATE})
+                        fun withNumericPrivateOtherwise() = Unit
+
+                        @VisibleForTesting(${VisibleForTesting.PACKAGE_PRIVATE})
+                        fun withNumericPackagePrivateOtherwise() = Unit
+
+                        @VisibleForTesting(${VisibleForTesting.NONE})
+                        fun withNumericNoneOtherwise() = Unit
+                    }
+                    """
+                ),
+            format = FileFormat.V4,
+            api =
+                """
+                // Signature format: 4.0
+                package test.pkg {
+                  public class ProductionCodeKotlin {
+                    method @VisibleForTesting public final void withDefaultOtherwise();
+                    method @VisibleForTesting(otherwise=androidx.annotation.VisibleForTesting.NONE) public final void withNoneOtherwise();
+                    method @VisibleForTesting(otherwise=${VisibleForTesting.NONE}) public final void withNumericNoneOtherwise();
+                    method @VisibleForTesting(otherwise=${VisibleForTesting.PACKAGE_PRIVATE}) public final void withNumericPackagePrivateOtherwise();
+                    method @VisibleForTesting(otherwise=${VisibleForTesting.PRIVATE}) public final void withNumericPrivateOtherwise();
+                    method @VisibleForTesting(otherwise=${VisibleForTesting.PROTECTED}) public final void withNumericProtectedOtherwise();
+                    method @VisibleForTesting(otherwise=androidx.annotation.VisibleForTesting.PACKAGE_PRIVATE) public final void withPackagePrivateOtherwise();
+                    method @VisibleForTesting(otherwise=androidx.annotation.VisibleForTesting.PRIVATE) public final void withPrivateOtherwise();
+                    method @VisibleForTesting(otherwise=androidx.annotation.VisibleForTesting.PROTECTED) public final void withProtectedOtherwise();
+                  }
+                }
+                """,
+            useShowAndHideOptions = false,
+        )
+    }
+
+    @Test
+    fun `Test VisibleForTesting without show and hide annotation options - java`() {
+        checkVisibleForTesting(
+            testFile =
+                java(
+                    """
+                    package test.pkg;
+                    import androidx.annotation.VisibleForTesting;
+
+                    public class ProductionCodeJava {
+                        private ProductionCodeJava() { }
+
+                        @VisibleForTesting
+                        public void withDefaultOtherwise() {
+                        }
+
+                        @VisibleForTesting(otherwise = VisibleForTesting.PROTECTED)
+                        public void withProtectedOtherwise() {
+                        }
+
+                        @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+                        public void withPrivateOtherwise() {
+                        }
+
+                        @VisibleForTesting(otherwise = VisibleForTesting.NONE)
+                        public void withNoneOtherwise() {
+                        }
+
+                        @VisibleForTesting(otherwise = VisibleForTesting.PACKAGE_PRIVATE)
+                        public void withPackagePrivateOtherwise() {
+                        }
+
+                        @VisibleForTesting(otherwise = ${VisibleForTesting.PROTECTED})
+                        public void withNumericProtectedOtherwise() {
+                        }
+
+                        @VisibleForTesting(otherwise = ${VisibleForTesting.PRIVATE})
+                        public void withNumericPrivateOtherwise() {
+                        }
+
+                        @VisibleForTesting(otherwise = ${VisibleForTesting.PACKAGE_PRIVATE})
+                        public void withNumericPackagePrivateOtherwise() {
+                        }
+
+                        @VisibleForTesting(otherwise = ${VisibleForTesting.NONE})
+                        public void withNumericNoneOtherwise() {
+                        }
+                    }
+                    """
+                ),
+            format = FileFormat.V4,
+            api =
+                """
+                // Signature format: 4.0
+                package test.pkg {
+                  public class ProductionCodeJava {
+                    method @VisibleForTesting public void withDefaultOtherwise();
+                    method @VisibleForTesting(otherwise=androidx.annotation.VisibleForTesting.NONE) public void withNoneOtherwise();
+                    method @VisibleForTesting(otherwise=${VisibleForTesting.NONE}) public void withNumericNoneOtherwise();
+                    method @VisibleForTesting(otherwise=${VisibleForTesting.PACKAGE_PRIVATE}) public void withNumericPackagePrivateOtherwise();
+                    method @VisibleForTesting(otherwise=${VisibleForTesting.PRIVATE}) public void withNumericPrivateOtherwise();
+                    method @VisibleForTesting(otherwise=${VisibleForTesting.PROTECTED}) public void withNumericProtectedOtherwise();
+                    method @VisibleForTesting(otherwise=androidx.annotation.VisibleForTesting.PACKAGE_PRIVATE) public void withPackagePrivateOtherwise();
+                    method @VisibleForTesting(otherwise=androidx.annotation.VisibleForTesting.PRIVATE) public void withPrivateOtherwise();
+                    method @VisibleForTesting(otherwise=androidx.annotation.VisibleForTesting.PROTECTED) public void withProtectedOtherwise();
+                  }
+                }
+                """,
+            useShowAndHideOptions = false,
+        )
+    }
+
+    companion object {
+        /**
+         * Defines the numeric values of the symbols used in tests that use numbers instead of
+         * symbols.
+         */
+        // TODO(b/387992791): Use a real VisibleForTesting annotation.
+        private interface VisibleForTesting {
+            companion object {
+                const val PRIVATE = 2
+                const val PACKAGE_PRIVATE = 3
+                const val PROTECTED = 4
+                const val NONE = 5
+            }
+        }
     }
 }

@@ -568,7 +568,7 @@ class CommonPropertyItemTest : BaseModelTest() {
             val fooCompanion = codebase.assertClass("test.pkg.Foo.Companion")
             assertThat(fooCompanion.fields()).isEmpty()
             assertThat(fooCompanion.methods()).hasSize(1)
-            val valueGetterOnCompanion = fooCompanion.assertMethod("getValue", "")
+            val valueGetterOnCompanion = fooCompanion.assertMethod("getValue", emptyList())
 
             assertThat(fooCompanion.properties()).hasSize(3)
             val constantPropertyOnCompanion = fooCompanion.assertProperty("constant")
@@ -734,8 +734,8 @@ class CommonPropertyItemTest : BaseModelTest() {
 
             // extension property has getter and setter, but no backing field
             val valueClassExtension = fileFacadeClass.assertProperty("valueClassExtension")
-            fileFacadeClass.assertMethod("getValueClassExtension-Vxmw0xk", "int")
-            fileFacadeClass.assertMethod("setValueClassExtension-6VC4vj0", "int,int")
+            fileFacadeClass.assertMethod("getValueClassExtension-Vxmw0xk", listOf("int"))
+            fileFacadeClass.assertMethod("setValueClassExtension-6VC4vj0", listOf("int", "int"))
             assertThat(valueClassExtension.backingField).isNull()
             assertThat(valueClassExtension.constructorParameter).isNull()
 

@@ -94,7 +94,7 @@ class CommonMethodItemTest : BaseModelTest() {
             val methodType =
                 codebase
                     .assertClass("test.pkg.Outer.Middle.Inner")
-                    .assertMethod("method", "")
+                    .assertMethod("method", emptyList())
                     .type()
 
             methodType.assertReferencesTypeParameter(oTypeParameter)
@@ -366,7 +366,7 @@ class CommonMethodItemTest : BaseModelTest() {
             assertEquals(
                 codebase
                     .assertClass("test.pkg.SingleThrowsType")
-                    .assertConstructor("int")
+                    .assertConstructor(listOf("int"))
                     .throwsTypes()
                     .single()
                     .toTypeString(),
@@ -375,7 +375,7 @@ class CommonMethodItemTest : BaseModelTest() {
             assertContentEquals(
                 codebase
                     .assertClass("test.pkg.MultipleThrowsTypes")
-                    .assertConstructor("int")
+                    .assertConstructor(listOf("int"))
                     .throwsTypes()
                     .map { it.toTypeString() },
                 listOf("java.lang.IllegalStateException", "java.lang.IllegalArgumentException")
@@ -383,7 +383,7 @@ class CommonMethodItemTest : BaseModelTest() {
             assertTrue(
                 codebase
                     .assertClass("test.pkg.NoThrowsTypes")
-                    .assertConstructor("int")
+                    .assertConstructor(listOf("int"))
                     .throwsTypes()
                     .isEmpty()
             )
@@ -498,15 +498,18 @@ class CommonMethodItemTest : BaseModelTest() {
             val fooClass = codebase.assertClass("test.pkg.Foo")
 
             // check all overloads for `allOptionalJvmOverloads` are present
-            fooClass.assertMethod("allOptionalJvmOverloads", "")
-            fooClass.assertMethod("allOptionalJvmOverloads", "int")
-            fooClass.assertMethod("allOptionalJvmOverloads", "int,int")
-            fooClass.assertMethod("allOptionalJvmOverloads", "int,int,int")
+            fooClass.assertMethod("allOptionalJvmOverloads", emptyList())
+            fooClass.assertMethod("allOptionalJvmOverloads", listOf("int"))
+            fooClass.assertMethod("allOptionalJvmOverloads", listOf("int", "int"))
+            fooClass.assertMethod("allOptionalJvmOverloads", listOf("int", "int", "int"))
 
             // check all overloads for `someOptionalJvmOverloads` are present
-            fooClass.assertMethod("someOptionalJvmOverloads", "int,int,int")
-            fooClass.assertMethod("someOptionalJvmOverloads", "int,long,int,int")
-            fooClass.assertMethod("someOptionalJvmOverloads", "int,long,int,float,int")
+            fooClass.assertMethod("someOptionalJvmOverloads", listOf("int", "int", "int"))
+            fooClass.assertMethod("someOptionalJvmOverloads", listOf("int", "long", "int", "int"))
+            fooClass.assertMethod(
+                "someOptionalJvmOverloads",
+                listOf("int", "long", "int", "float", "int")
+            )
 
             // check that there aren't any other methods present
             assertEquals(fooClass.methods().size, 7)

@@ -16,8 +16,15 @@
 
 package com.android.tools.metalava.model.source.doc
 
-/** A Javadoc or KDoc comment associated with an API element. */
-interface DocComment {
+import java.io.PrintWriter
+import java.io.StringWriter
+
+/**
+ * A Javadoc or KDoc comment associated with an API element.
+ *
+ * Implementations of these are mutable.
+ */
+internal interface DocComment {
     /** The main description, i.e. the part before any block tags. */
     val description: DocDescription
 
@@ -31,6 +38,26 @@ interface DocComment {
     /** Check to see whether there are any block tags of type [blockTagType]. */
     fun hasBlockTagOfType(blockTagType: String): Boolean
 
+    /** Add a [BlockTagSection] of [blockTagType] with [description] to the list. */
+    fun addBlockTagSection(blockTagType: String, description: DocDescription)
+
+    /**
+     * Removes any [BlockTagSection] for which [predicate] returns `true`.
+     *
+     * @return `true` if any [BlockTagSection]s were removed, `false` if it had no effect.
+     */
+    fun removeBlockTagSections(predicate: (BlockTagSection) -> Boolean): Boolean
+
+    /** Print this as a Javadoc comment to [writer]. */
+    fun printAsJavadocComment(writer: PrintWriter)
+
+    /** Get the output of [printAsJavadocComment] as a [String]. */
+    fun asJavadocCommentString(): String {
+        val writer = StringWriter()
+        PrintWriter(writer).use { printWriter -> printAsJavadocComment(printWriter) }
+        return writer.toString()
+    }
+
     companion object {
         /** Create a [DocComment] from [text], reporting any issues to [reporter]. */
         internal fun createDocComment(
@@ -42,12 +69,125 @@ interface DocComment {
     }
 }
 
+enum class RequiredSpace {
+    EMPTY,
+    SINGLE_LINE,
+    MULTI_LINE,
+    ;
+
+    operator fun plus(other: RequiredSpace): RequiredSpace {
+        return entries[(ordinal + other.ordinal).coerceAtMost(MULTI_LINE.ordinal)]
+    }
+}
+
 internal class DefaultDocComment(
     override val description: DocDescription,
-    override val blockTagSections: List<BlockTagSection>
+    override var blockTagSections: List<BlockTagSection>
 ) : DocComment {
     override fun hasBlockTagOfType(blockTagType: String) =
         blockTagSections.any { it.tagType == blockTagType }
+
+    override fun addBlockTagSection(blockTagType: String, description: DocDescription) {
+        blockTagSections = blockTagSections + DefaultBlockTagSection(blockTagType, description)
+    }
+
+    override fun removeBlockTagSections(predicate: (BlockTagSection) -> Boolean): Boolean {
+        val filtered = blockTagSections.filter { !predicate(it) }
+        return if (filtered.size == blockTagSections.size) {
+            // No changes.
+            false
+        } else {
+            // Something was removed.
+            blockTagSections = filtered
+            true
+        }
+    }
+
+    /** Get the [RequiredSpace] for the block tag sections. */
+    private fun requiredSpaceForBlockTagSections(): RequiredSpace =
+        when (blockTagSections.size) {
+            // If the block tag section is empty then the required space is empty.
+            0 -> RequiredSpace.EMPTY
+            // If the block tag section has a single tag then the block tag section requires at
+            // least a single line (even if the description is empty) but is otherwise determined by
+            // the space required for the description.
+            1 ->
+                blockTagSections
+                    .single()
+                    .description
+                    .requiredSpace()
+                    .coerceAtLeast(RequiredSpace.SINGLE_LINE)
+            // If the block tag section has multiple tags then it requires multiple lines.
+            else -> RequiredSpace.MULTI_LINE
+        }
+
+    override fun printAsJavadocComment(writer: PrintWriter) {
+        // Compute require space for the main description and block tag sections.
+        val mainDescriptionRequiredSpace = description.requiredSpace()
+        val blockTagSectionRequiredSpace = requiredSpaceForBlockTagSections()
+        val overallRequiredSpace = mainDescriptionRequiredSpace + blockTagSectionRequiredSpace
+
+        // Create a printer for [DocDescription]s.
+        val descriptionPrinter = DocDescriptionPrinter(writer)
+
+        // Check to see whether this is multi-line comment. If is then output it on multiple lines,
+        // e.g.
+        // ```
+        // /**
+        //  * ...
+        //  */
+        // ```
+        // if it is not then output it all on one line, e.g. `/** ... */`.
+        val multiLine = overallRequiredSpace == RequiredSpace.MULTI_LINE
+
+        // Start the doc comment.
+        writer.print("/**")
+        if (multiLine) {
+            writer.println()
+        }
+
+        // Print the main description, if it is not empty.
+        if (mainDescriptionRequiredSpace != RequiredSpace.EMPTY) {
+            if (multiLine) {
+                writer.print(" *")
+            }
+            // Add leading space as all leading whitespace was removed from description.
+            writer.print(" ")
+            descriptionPrinter.print(description)
+            if (multiLine) {
+                writer.println()
+            }
+        }
+
+        // Print the tag sections if they are not empty.
+        if (blockTagSections.isNotEmpty()) {
+            // If the block tag section requires multiple lines and the main description was added
+            // then add a blank line between the main description and the block tag section.
+            if (
+                blockTagSectionRequiredSpace == RequiredSpace.MULTI_LINE &&
+                    mainDescriptionRequiredSpace != RequiredSpace.EMPTY
+            ) {
+                writer.println(" *")
+            }
+            for (section in blockTagSections) {
+                if (multiLine) {
+                    writer.print(" *")
+                }
+                writer.print(" @${section.tagType}")
+                val sectionDescription = section.description
+                if (sectionDescription.isNotEmpty()) {
+                    writer.print(" ")
+                    descriptionPrinter.print(sectionDescription)
+                }
+                if (multiLine) {
+                    writer.println()
+                }
+            }
+        }
+
+        // End the doc comment.
+        writer.println(" */")
+    }
 
     override fun toString() = buildString {
         append("description: ")

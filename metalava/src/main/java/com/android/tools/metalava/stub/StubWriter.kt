@@ -27,7 +27,6 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierListWriter
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.item.ResourceFile
-import com.android.tools.metalava.model.psi.trimDocIndent
 import com.android.tools.metalava.model.visitors.ApiFilters
 import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiVisitor
@@ -206,7 +205,12 @@ internal class StubWriter(
                 )
 
             // Copyright statements from the original file?
-            cls.sourceFile()?.getHeaderComments()?.let { textWriter.println(it) }
+            cls.sourceFile()?.getHeaderComments()?.let { headerComment ->
+                val trimmed = headerComment.trim()
+                if (trimmed.isNotEmpty()) {
+                    textWriter.println(trimmed)
+                }
+            }
         }
         stubWriter?.visitClass(cls)
 
@@ -291,11 +295,6 @@ fun createFilteringVisitorForStubs(
 internal fun appendDocumentation(item: Item, writer: PrintWriter, config: StubWriterConfig) {
     if (config.includeDocumentationInStubs) {
         val documentation = item.documentation
-        val text = documentation.fullyQualifiedDocumentation()
-        if (text.isNotBlank()) {
-            val trimmed = trimDocIndent(text)
-            writer.println(trimmed)
-            writer.println()
-        }
+        documentation.print(writer)
     }
 }

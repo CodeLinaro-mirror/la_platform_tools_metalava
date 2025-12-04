@@ -55,8 +55,9 @@ class CorrectApiLevelForNonReleaseTest : ApiGeneratorIntegrationTestBase() {
         )
 
         assertTrue(output.isFile)
-        // Metalava should understand that a codename means "current api + 1"
-        val nextVersion = MAGIC_VERSION_INT + 1
+        // b/447588979 In future the version to use will be passed on the command line so
+        // Metalava does not need to deduce it. A placeholder is used temporarily.
+        val nextVersion = 10_000
         val xml = output.readText(Charsets.UTF_8)
         assertTrue(xml.contains("<class name=\"android/pkg/MyTest\" since=\"$nextVersion\""))
         val apiLookup = getApiLookup(output, temporaryFolder.newFolder())

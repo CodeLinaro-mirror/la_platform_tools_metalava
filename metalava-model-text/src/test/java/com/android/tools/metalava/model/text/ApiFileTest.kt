@@ -116,7 +116,11 @@ class ApiFileTest : BaseTextCodebaseTest() {
 
             // Make sure the stub Throwable is used in the throws types.
             val exception =
-                codebase.assertClass("test.pkg.Foo").assertMethod("foo", "").throwsTypes().first()
+                codebase
+                    .assertClass("test.pkg.Foo")
+                    .assertMethod("foo", emptyList())
+                    .throwsTypes()
+                    .first()
             assertSame(throwable, exception.erasedClass)
         }
     }
@@ -151,7 +155,11 @@ class ApiFileTest : BaseTextCodebaseTest() {
 
             // Make sure the stub Throwable is used in the throws types.
             val exception =
-                codebase.assertClass("test.pkg.Foo").assertMethod("foo", "").throwsTypes().first()
+                codebase
+                    .assertClass("test.pkg.Foo")
+                    .assertMethod("foo", emptyList())
+                    .throwsTypes()
+                    .first()
             assertSame(error, exception.erasedClass)
         }
     }
@@ -176,7 +184,11 @@ class ApiFileTest : BaseTextCodebaseTest() {
 
             // Make sure the stub Throwable is used in the throws types.
             val exception =
-                codebase.assertClass("test.pkg.Foo").assertMethod("foo", "").throwsTypes().first()
+                codebase
+                    .assertClass("test.pkg.Foo")
+                    .assertMethod("foo", emptyList())
+                    .throwsTypes()
+                    .first()
             assertSame(throwable, exception.erasedClass)
         }
     }
@@ -211,7 +223,11 @@ class ApiFileTest : BaseTextCodebaseTest() {
 
             // Make sure the stub UnknownException is used in the throws types.
             val exception =
-                codebase.assertClass("test.pkg.Foo").assertMethod("foo", "").throwsTypes().first()
+                codebase
+                    .assertClass("test.pkg.Foo")
+                    .assertMethod("foo", emptyList())
+                    .throwsTypes()
+                    .first()
             assertSame(unknownExceptionClass, exception.erasedClass)
         }
     }
@@ -247,7 +263,11 @@ class ApiFileTest : BaseTextCodebaseTest() {
         // Make sure the UnknownException retrieved from the other codebase is used in the throws
         // types.
         val exception =
-            codebase.assertClass("test.pkg.Foo").assertMethod("foo", "").throwsTypes().first()
+            codebase
+                .assertClass("test.pkg.Foo")
+                .assertMethod("foo", emptyList())
+                .throwsTypes()
+                .first()
         assertSame(unknownExceptionClass, exception.erasedClass)
     }
 
@@ -795,36 +815,37 @@ class ApiFileTest : BaseTextCodebaseTest() {
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
 
-            val noTargetsListed = fooClass.assertMethod("noTargetsListed", "")
+            val noTargetsListed = fooClass.assertMethod("noTargetsListed", emptyList())
             assertThat(noTargetsListed.targetLanguages).isEqualTo(TargetLanguageSet.ALL)
             assertThat(noTargetsListed.annotationNames()).isEmpty()
 
-            val bytecodeOnly = fooClass.assertMethod("bytecodeOnly", "")
+            val bytecodeOnly = fooClass.assertMethod("bytecodeOnly", emptyList())
             assertThat(bytecodeOnly.targetLanguages).isEqualTo(TargetLanguageSet.BYTECODE_ONLY)
             assertThat(bytecodeOnly.annotationNames()).isEmpty()
 
-            val kotlinOnly = fooClass.assertMethod("kotlinOnly", "")
+            val kotlinOnly = fooClass.assertMethod("kotlinOnly", emptyList())
             assertThat(kotlinOnly.targetLanguages).isEqualTo(TargetLanguageSet.KOTLIN_ONLY)
             assertThat(kotlinOnly.annotationNames()).isEmpty()
 
-            val inaccessibleFromJava = fooClass.assertMethod("inaccessibleFromJava", "")
+            val inaccessibleFromJava = fooClass.assertMethod("inaccessibleFromJava", emptyList())
             assertThat(inaccessibleFromJava.targetLanguages).isEqualTo(TargetLanguageSet.NOT_JAVA)
             assertThat(inaccessibleFromJava.annotationNames()).isEmpty()
 
-            val inaccessibleFromKotlin = fooClass.assertMethod("inaccessibleFromKotlin", "")
+            val inaccessibleFromKotlin =
+                fooClass.assertMethod("inaccessibleFromKotlin", emptyList())
             assertThat(inaccessibleFromKotlin.targetLanguages)
                 .isEqualTo(TargetLanguageSet.NOT_KOTLIN)
             assertThat(inaccessibleFromKotlin.annotationNames()).isEmpty()
 
             val noTargetsWithOtherAnnotation =
-                fooClass.assertMethod("noTargetsWithOtherAnnotation", "")
+                fooClass.assertMethod("noTargetsWithOtherAnnotation", emptyList())
             assertThat(noTargetsWithOtherAnnotation.targetLanguages)
                 .isEqualTo(TargetLanguageSet.ALL)
             assertThat(noTargetsWithOtherAnnotation.annotationNames())
                 .containsExactly("androidx.annotation.OtherAnnotation")
 
             val bytecodeOnlyWithOtherAnnotation =
-                fooClass.assertMethod("bytecodeOnlyWithOtherAnnotation", "")
+                fooClass.assertMethod("bytecodeOnlyWithOtherAnnotation", emptyList())
             assertThat(bytecodeOnlyWithOtherAnnotation.targetLanguages)
                 .isEqualTo(TargetLanguageSet.BYTECODE_ONLY)
             assertThat(bytecodeOnlyWithOtherAnnotation.annotationNames())
@@ -848,7 +869,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
 
-            val bytecodeOnlyCtor = fooClass.assertConstructor("")
+            val bytecodeOnlyCtor = fooClass.assertConstructor(emptyList())
             assertThat(bytecodeOnlyCtor.targetLanguages).isEqualTo(TargetLanguageSet.BYTECODE_ONLY)
             assertThat(bytecodeOnlyCtor.annotationNames()).isEmpty()
         }

@@ -81,11 +81,11 @@ class CommonValueClassTest : BaseModelTest() {
             val valueClass = codebase.assertClass("test.pkg.ValueClass")
             assertEquals(valueClass.constructors().size, 2)
 
-            val primaryConstructor = valueClass.assertConstructor("int")
+            val primaryConstructor = valueClass.assertConstructor(listOf("int"))
             assertTrue(primaryConstructor.isPrimary)
             assertTrue(primaryConstructor.modifiers.isPublic())
 
-            val secondaryConstructor = valueClass.assertConstructor("int,int")
+            val secondaryConstructor = valueClass.assertConstructor(listOf("int", "int"))
             assertFalse(secondaryConstructor.isPrimary)
             assertTrue(secondaryConstructor.modifiers.isPublic())
         }
@@ -228,19 +228,30 @@ class CommonValueClassTest : BaseModelTest() {
             // Abstract APIs on interface
             assertTrue(interfaceClass.assertProperty("abstractVal").modifiers.isAbstract())
             assertTrue(
-                interfaceClass.assertMethod("getAbstractVal-RVb1_dM", "").modifiers.isAbstract()
+                interfaceClass
+                    .assertMethod("getAbstractVal-RVb1_dM", emptyList())
+                    .modifiers
+                    .isAbstract()
             )
             assertTrue(
-                interfaceClass.assertMethod("abstractFun-RVb1_dM", "").modifiers.isAbstract()
+                interfaceClass
+                    .assertMethod("abstractFun-RVb1_dM", emptyList())
+                    .modifiers
+                    .isAbstract()
             )
             // Default APIs on interface
             assertTrue(interfaceClass.assertProperty("defaultVal").modifiers.isDefault())
             // TODO(b/428221305): these are abstract in bytecode even though there are default
             // implementations, find out why.
             assertFalse(
-                interfaceClass.assertMethod("getDefaultVal-RVb1_dM", "").modifiers.isDefault()
+                interfaceClass
+                    .assertMethod("getDefaultVal-RVb1_dM", emptyList())
+                    .modifiers
+                    .isDefault()
             )
-            assertFalse(interfaceClass.assertMethod("defaultFun-RVb1_dM", "").modifiers.isDefault())
+            assertFalse(
+                interfaceClass.assertMethod("defaultFun-RVb1_dM", emptyList()).modifiers.isDefault()
+            )
         }
     }
 
@@ -320,13 +331,25 @@ class CommonValueClassTest : BaseModelTest() {
             // Abstract APIs on abstract class
             assertTrue(abstractClass.assertProperty("abstractVal").modifiers.isAbstract())
             assertTrue(
-                abstractClass.assertMethod("getAbstractVal-RVb1_dM", "").modifiers.isAbstract()
+                abstractClass
+                    .assertMethod("getAbstractVal-RVb1_dM", emptyList())
+                    .modifiers
+                    .isAbstract()
             )
-            assertTrue(abstractClass.assertMethod("abstractFun-RVb1_dM", "").modifiers.isAbstract())
+            assertTrue(
+                abstractClass
+                    .assertMethod("abstractFun-RVb1_dM", emptyList())
+                    .modifiers
+                    .isAbstract()
+            )
             // Final APIs on abstract class
             assertTrue(abstractClass.assertProperty("finalVal").modifiers.isFinal())
-            assertTrue(abstractClass.assertMethod("getFinalVal-RVb1_dM", "").modifiers.isFinal())
-            assertTrue(abstractClass.assertMethod("finalFun-RVb1_dM", "").modifiers.isFinal())
+            assertTrue(
+                abstractClass.assertMethod("getFinalVal-RVb1_dM", emptyList()).modifiers.isFinal()
+            )
+            assertTrue(
+                abstractClass.assertMethod("finalFun-RVb1_dM", emptyList()).modifiers.isFinal()
+            )
         }
     }
 }

@@ -32,7 +32,7 @@ interface TypeTransformer {
 
     fun transform(typeItem: VariableTypeItem): VariableTypeItem = typeItem
 
-    fun transform(typeItem: WildcardTypeItem): WildcardTypeItem = typeItem
+    fun transform(typeItem: WildcardTypeItem): TypeArgumentTypeItem = typeItem
 }
 
 /**
@@ -79,7 +79,7 @@ open class BaseTypeTransformer : TypeTransformer {
         )
     }
 
-    override fun transform(typeItem: WildcardTypeItem): WildcardTypeItem {
+    override fun transform(typeItem: WildcardTypeItem): TypeArgumentTypeItem {
         return typeItem.substitute(
             modifiers = transform(typeItem.modifiers),
             extendsBound = typeItem.extendsBound?.transform(this),

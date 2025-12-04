@@ -159,7 +159,8 @@ class StubsPackageInfoTest : AbstractStubsTest() {
                     """
                     )
                 ),
-            docStubs = true
+            docStubs = true,
+            filterBlankLinesFromStubFiles = false,
         )
     }
 

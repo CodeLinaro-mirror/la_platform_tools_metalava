@@ -109,7 +109,7 @@ open class ApiVisitor(
          * Updates the [filter] to also check that the [SelectableItem] has at least one of the
          * [targetLanguages].
          */
-        private fun addTargetLanguageCheck(
+        fun addTargetLanguageCheck(
             filter: FilterPredicate,
             targetLanguages: Set<TargetLanguage>
         ): FilterPredicate {

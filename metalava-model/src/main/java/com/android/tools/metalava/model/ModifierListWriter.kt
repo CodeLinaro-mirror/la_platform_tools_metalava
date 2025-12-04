@@ -98,8 +98,12 @@ private constructor(
     }
 
     /** Write the modifier list (possibly including annotations) to the supplied [writer]. */
-    fun write(item: Item, normalizeFinal: Boolean = false) {
-        writeAnnotations(item)
+    fun write(
+        item: Item,
+        normalizeFinal: Boolean = false,
+        skipRequiresPermission: Boolean = false
+    ) {
+        writeAnnotations(item, skipRequiresPermission)
         writeKeywords(item, normalizeFinal = normalizeFinal)
     }
 
@@ -215,7 +219,7 @@ private constructor(
         }
     }
 
-    private fun writeAnnotations(item: Item) {
+    private fun writeAnnotations(item: Item, skipRequiresPermission: Boolean) {
         // Generate annotations on separate lines in stub files for packages, classes and
         // methods and also for enum constants.
         val separateLines =
@@ -230,6 +234,14 @@ private constructor(
 
         val list = item.modifiers
         var annotations = list.annotations()
+        // b/442395516 RequiresPermission is not loaded consistently across codebases hence will be
+        // excluded for now
+        if (skipRequiresPermission) {
+            annotations =
+                annotations.filter { annotation ->
+                    !annotation.qualifiedName.contains("RequiresPermission")
+                }
+        }
 
         // Do not write deprecate or suppress compatibility annotations on a package.
         if (item !is PackageItem) {

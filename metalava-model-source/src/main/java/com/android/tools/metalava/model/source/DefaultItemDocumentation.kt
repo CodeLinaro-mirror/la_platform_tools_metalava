@@ -26,11 +26,15 @@ internal class DefaultItemDocumentation(
     text: String,
 ) : AbstractItemDocumentation(item) {
 
-    override var text: String = text
-        set(value) {
-            field = value
-            textChanged()
-        }
+    init {
+        // Initialize _text from the text constructor parameter.
+        _text = text
+    }
+
+    /** Should never be called as _text has been initialized above. */
+    override fun initializeTextBackingField() {
+        error("Internal Error: _text backing field is uninitialized")
+    }
 
     override fun duplicate(item: SelectableItem) = DefaultItemDocumentation(item, text)
 

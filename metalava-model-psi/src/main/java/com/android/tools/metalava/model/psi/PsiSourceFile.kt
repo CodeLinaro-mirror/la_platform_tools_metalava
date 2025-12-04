@@ -19,7 +19,7 @@ package com.android.tools.metalava.model.psi
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.Import
-import com.android.tools.metalava.model.SourceFile
+import com.android.tools.metalava.model.source.AbstractSourceFile
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiClassOwner
 import com.intellij.psi.PsiComment
@@ -43,7 +43,7 @@ internal class PsiSourceFile(
     val codebase: PsiBasedCodebase,
     val file: PsiFile,
     val uFile: UFile? = null
-) : SourceFile {
+) : AbstractSourceFile() {
     override fun getHeaderComments(): String? {
         if (uFile != null) {
             var comment: String? = null

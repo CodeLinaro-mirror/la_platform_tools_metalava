@@ -120,7 +120,7 @@ class CachingAnnotationValueProvider<I>(
      */
     override fun optionalTypeItem(): TypeItem? {
         val annotationClassItem = annotationClassItemProvider() ?: return null
-        val attributeMethodItem = annotationClassItem.findMethod(attributeName, "")
+        val attributeMethodItem = annotationClassItem.findBytecodeMethod(attributeName, "")
         return attributeMethodItem?.returnType()
     }
 }

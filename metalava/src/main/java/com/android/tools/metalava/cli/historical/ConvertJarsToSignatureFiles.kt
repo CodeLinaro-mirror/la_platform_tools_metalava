@@ -24,7 +24,7 @@ import com.android.tools.metalava.ProgressTracker
 import com.android.tools.metalava.apilevels.ApiVersion
 import com.android.tools.metalava.apilevels.PatternNode
 import com.android.tools.metalava.cli.common.DefaultSignatureFileLoader
-import com.android.tools.metalava.createReportFile
+import com.android.tools.metalava.createOutputFileFromCodebaseFragment
 import com.android.tools.metalava.jar.JarCodebaseLoader
 import com.android.tools.metalava.model.ANDROIDX_NONNULL
 import com.android.tools.metalava.model.ANDROIDX_NULLABLE
@@ -224,8 +224,12 @@ class ConvertJarsToSignatureFiles(
                 )
             }
 
-        createReportFile(progressTracker, outputCodebaseFragment, signatureFile, "API") {
-            printWriter ->
+        createOutputFileFromCodebaseFragment(
+            progressTracker,
+            outputCodebaseFragment,
+            signatureFile,
+            "API"
+        ) { printWriter ->
             SignatureWriter(
                 writer = printWriter,
                 fileFormat = fileFormat,
@@ -364,7 +368,7 @@ private fun Codebase.findMethod(
             ""
         }
     val methodName = if (node.name == "<init>") cls.simpleName() else node.name
-    val method = cls.findMethod(methodName, parameters)
+    val method = cls.findBytecodeMethod(methodName, parameters)
     return if (method != null && apiFilter.test(method)) {
         method
     } else {

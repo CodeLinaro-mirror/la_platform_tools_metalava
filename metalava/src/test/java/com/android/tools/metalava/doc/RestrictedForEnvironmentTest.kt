@@ -83,6 +83,7 @@ class RestrictedForEnvironmentTest : DriverTest() {
                             package test.pkg;
                             /**
                              * Javadoc for MyClass1
+                             *
                              * <br>
                              * Restricted for SDK Runtime environment in API level 14.
                              */
@@ -179,8 +180,10 @@ class RestrictedForEnvironmentTest : DriverTest() {
                             package test.pkg;
                             /**
                              * Javadoc for MyClass1
+                             *
                              * <br>
                              * Restricted for SDK Runtime environment in API level 14.
+                             *
                              * <br>
                              * Restricted for SDK Runtime environment in API level 16.
                              */

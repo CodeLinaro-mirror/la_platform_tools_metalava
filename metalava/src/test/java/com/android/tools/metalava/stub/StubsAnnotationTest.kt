@@ -534,7 +534,8 @@ class StubsAnnotationTest : AbstractStubsTest() {
                 public static @interface InnerAnnotation {
                 }
                 }
-                """
+                """,
+            filterBlankLinesFromStubFiles = false,
         )
     }
 
@@ -599,9 +600,7 @@ class StubsAnnotationTest : AbstractStubsTest() {
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Foo {
                     public Foo() { throw new RuntimeException("Stub!"); }
-                    /**
-                     * @deprecated Use checkPermission instead.
-                     */
+                    /** @deprecated Use checkPermission instead. */
                     @Deprecated
                     protected boolean inClass(java.lang.String name) { throw new RuntimeException("Stub!"); }
                     }

@@ -117,6 +117,7 @@ class CompatibilityCheck(
                             new,
                             allowNonNullToNullable,
                             allowNullableToNonNull,
+                            old
                         )
                     }
                 },
@@ -130,6 +131,7 @@ class CompatibilityCheck(
         context: Item,
         allowNonNullToNullable: Boolean,
         allowNullableToNonNull: Boolean,
+        oldContext: Item,
     ) {
         // Should not remove nullness information
         // Can't change information incompatibly
@@ -143,7 +145,8 @@ class CompatibilityCheck(
             report(
                 Issues.INVALID_NULL_CONVERSION,
                 context,
-                "Attempted to remove nullability from ${new.toTypeString()} (was $oldNullability) in ${describe(context)}"
+                "Attempted to remove nullability from ${new.toTypeString()} (was $oldNullability) in ${describe(context)}",
+                oldItem = oldContext
             )
         } else if (oldNullability != newNullability) {
             if (
@@ -170,6 +173,7 @@ class CompatibilityCheck(
                     context,
                     "Attempted to change nullability of ${new.toTypeString()} (from $oldNullability to $newNullability) in ${describe(context)}",
                     maximumSeverity = maximumSeverity,
+                    oldItem = oldContext,
                 )
             }
         }
@@ -182,7 +186,8 @@ class CompatibilityCheck(
             report(
                 Issues.OPERATOR_REMOVAL,
                 new,
-                "Cannot remove `operator` modifier from ${describe(new)}: Incompatible change"
+                "Cannot remove `operator` modifier from ${describe(new)}: Incompatible change",
+                oldItem = old,
             )
         }
 
@@ -190,7 +195,8 @@ class CompatibilityCheck(
             report(
                 Issues.INFIX_REMOVAL,
                 new,
-                "Cannot remove `infix` modifier from ${describe(new)}: Incompatible change"
+                "Cannot remove `infix` modifier from ${describe(new)}: Incompatible change",
+                oldItem = old,
             )
         }
 
@@ -198,7 +204,7 @@ class CompatibilityCheck(
             report(
                 Issues.BECAME_UNCHECKED,
                 old,
-                "Removed ${describe(old)} from compatibility checked API surface"
+                "Removed ${describe(old)} from compatibility checked API surface",
             )
         }
 
@@ -210,6 +216,7 @@ class CompatibilityCheck(
                     Issues.REMOVED_ANNOTATION,
                     new,
                     "Cannot remove @$annotation annotation from ${describe(old)}: Incompatible change",
+                    oldItem = old,
                 )
             } else if (!isOldAnnotated && newAnnotation != null) {
                 report(
@@ -217,6 +224,7 @@ class CompatibilityCheck(
                     new,
                     "Cannot add @$annotation annotation to ${describe(old)}: Incompatible change",
                     newAnnotation.fileLocation,
+                    oldItem = old,
                 )
             }
         }
@@ -227,7 +235,7 @@ class CompatibilityCheck(
     override fun compareSelectableItems(old: SelectableItem, new: SelectableItem) {
         // Adding target languages is allowed, removing is not
         val removedTargetLanguages = old.targetLanguages.minus(new.targetLanguages)
-        val item = Item.Companion.describe(new)
+        val item = describe(new)
         // Report issues on the old version of the item. If they were reported on the new version,
         // they wouldn't end up reported, since removing from bytecode is only binary breaking and
         // wouldn't be reported for the new item which only targets source (similarly for removing
@@ -235,6 +243,12 @@ class CompatibilityCheck(
         for (removedTargetLanguage in removedTargetLanguages) {
             when (removedTargetLanguage) {
                 TargetLanguage.BYTECODE -> {
+                    // Check if there's still a version of this method with the same erased
+                    // signature which can be used from bytecode.
+                    if (old is MethodItem) {
+                        if (findCompatibleBytecodeOverload(old, new.containingClass()) != null)
+                            continue
+                    }
                     report(
                         Issues.REMOVED_FROM_BYTECODE,
                         old,
@@ -257,6 +271,17 @@ class CompatibilityCheck(
                     )
                 }
                 TargetLanguage.JAVA -> {
+                    // Check if there's still a version of this method with the same erased
+                    // signature which can be used from Java.
+                    if (old is MethodItem) {
+                        val newCompatibleOverload =
+                            findCompatibleBytecodeOverload(old, new.containingClass())
+                        if (
+                            newCompatibleOverload != null &&
+                                newCompatibleOverload.targetLanguages.contains(TargetLanguage.JAVA)
+                        )
+                            continue
+                    }
                     report(
                         Issues.REMOVED_FROM_JAVA,
                         old,
@@ -265,6 +290,18 @@ class CompatibilityCheck(
                 }
             }
         }
+    }
+
+    /**
+     * Checks if there is an erased-signature match for the [original] in the [newContainingClass].
+     */
+    private fun findCompatibleBytecodeOverload(
+        original: MethodItem,
+        newContainingClass: ClassItem?,
+    ): MethodItem? {
+        val erasedSignature =
+            original.parameters().joinToString(",") { it.type().toErasedTypeString() }
+        return newContainingClass?.findBytecodeMethod(original.name(), erasedSignature)
     }
 
     /**
@@ -323,7 +360,7 @@ class CompatibilityCheck(
             return false
         // All parameters from the original need to be present on the candidate, initial check to
         // make sure there are at least as many parameters (check for if they match is below).
-        if (candidate.parameters().size <= original.parameters().size) return false
+        if (candidate.parameters().size < original.parameters().size) return false
         // All new parameters on the candidate need to be optional for calls to the original to
         // still work since they won't be providing these new parameters.
         val additionalParameters =
@@ -354,13 +391,15 @@ class CompatibilityCheck(
                 report(
                     Issues.PARAMETER_NAME_CHANGE,
                     new,
-                    "Attempted to remove parameter name from ${describe(new)}"
+                    "Attempted to remove parameter name from ${describe(new)}",
+                    oldItem = old,
                 )
             } else if (newName != prevName) {
                 report(
                     Issues.PARAMETER_NAME_CHANGE,
                     new,
-                    "Attempted to change parameter name from $prevName to $newName in ${describe(new.containingCallable())}"
+                    "Attempted to change parameter name from $prevName to $newName in ${describe(new.containingCallable())}",
+                    oldItem = old,
                 )
             }
         }
@@ -377,7 +416,8 @@ class CompatibilityCheck(
                 report(
                     Issues.DEFAULT_VALUE_CHANGE,
                     new,
-                    "Attempted to remove default value from ${describe(new)}"
+                    "Attempted to remove default value from ${describe(new)}",
+                    oldItem = old
                 )
             }
         }
@@ -395,7 +435,8 @@ class CompatibilityCheck(
                     new,
                     includeParameterTypes = true,
                     includeParameterNames = true
-                )}"
+                )}",
+                oldItem = old,
             )
         }
     }
@@ -412,7 +453,8 @@ class CompatibilityCheck(
             report(
                 Issues.CHANGED_CLASS,
                 new,
-                "${describe(new, capitalize = true)} changed class/interface declaration"
+                "${describe(new, capitalize = true)} changed class/interface declaration",
+                oldItem = old,
             )
             return // Avoid further warnings like "has changed abstract qualifier" which is implicit
             // in this change
@@ -424,7 +466,8 @@ class CompatibilityCheck(
                 report(
                     Issues.REMOVED_INTERFACE,
                     new,
-                    "${describe(old, capitalize = true)} no longer implements $iface"
+                    "${describe(old, capitalize = true)} no longer implements $iface",
+                    oldItem = old,
                 )
             }
         }
@@ -435,7 +478,8 @@ class CompatibilityCheck(
                 report(
                     Issues.ADDED_INTERFACE,
                     new,
-                    "Added interface $iface to class ${describe(old)}"
+                    "Added interface $iface to class ${describe(old)}",
+                    oldItem = old,
                 )
             }
         }
@@ -444,13 +488,15 @@ class CompatibilityCheck(
             report(
                 Issues.ADD_SEALED,
                 new,
-                "Cannot add 'sealed' modifier to ${describe(new)}: Incompatible change"
+                "Cannot add 'sealed' modifier to ${describe(new)}: Incompatible change",
+                oldItem = old,
             )
         } else if (old.isClass() && !oldModifiers.isAbstract() && newModifiers.isAbstract()) {
             report(
                 Issues.CHANGED_ABSTRACT,
                 new,
-                "${describe(new, capitalize = true)} changed 'abstract' qualifier"
+                "${describe(new, capitalize = true)} changed 'abstract' qualifier",
+                oldItem = old,
             )
         }
 
@@ -458,7 +504,8 @@ class CompatibilityCheck(
             report(
                 Issues.FUN_REMOVAL,
                 new,
-                "Cannot remove 'fun' modifier from ${describe(new)}: source incompatible change"
+                "Cannot remove 'fun' modifier from ${describe(new)}: source incompatible change",
+                oldItem = old,
             )
         }
 
@@ -478,13 +525,15 @@ class CompatibilityCheck(
                                 new,
                                 capitalize = true
                             )
-                        } added 'final' qualifier but was previously uninstantiable and therefore could not be subclassed"
+                        } added 'final' qualifier but was previously uninstantiable and therefore could not be subclassed",
+                        oldItem = old,
                     )
                 } else {
                     report(
                         Issues.ADDED_FINAL,
                         new,
-                        "${describe(new, capitalize = true)} added 'final' qualifier"
+                        "${describe(new, capitalize = true)} added 'final' qualifier",
+                        oldItem = old,
                     )
                 }
             }
@@ -495,7 +544,8 @@ class CompatibilityCheck(
                     report(
                         Issues.CHANGED_STATIC,
                         new,
-                        "${describe(new, capitalize = true)} changed 'static' qualifier"
+                        "${describe(new, capitalize = true)} changed 'static' qualifier",
+                        oldItem = old,
                     )
                 }
             }
@@ -513,7 +563,8 @@ class CompatibilityCheck(
             report(
                 Issues.CHANGED_SCOPE,
                 new,
-                "${describe(new, capitalize = true)} changed visibility from $oldVisibility to $newVisibility"
+                "${describe(new, capitalize = true)} changed visibility from $oldVisibility to $newVisibility",
+                oldItem = old,
             )
         }
 
@@ -524,7 +575,8 @@ class CompatibilityCheck(
                 "${describe(
                     new,
                     capitalize = true
-                )} has changed deprecation state ${old.effectivelyDeprecated} --> ${new.effectivelyDeprecated}"
+                )} has changed deprecation state ${old.effectivelyDeprecated} --> ${new.effectivelyDeprecated}",
+                oldItem = old,
             )
         }
 
@@ -537,7 +589,8 @@ class CompatibilityCheck(
                     "${describe(
                         new,
                         capitalize = true
-                    )} superclass changed from $oldSuperClassName to ${new.superClass()?.qualifiedName()}"
+                    )} superclass changed from $oldSuperClassName to ${new.superClass()?.qualifiedName()}",
+                    oldItem = old,
                 )
             }
         }
@@ -554,7 +607,8 @@ class CompatibilityCheck(
                             old,
                             capitalize = true
                         )
-                    } changed number of type parameters from $oldTypeParamsCount to $newTypeParamsCount"
+                    } changed number of type parameters from $oldTypeParamsCount to $newTypeParamsCount",
+                    oldItem = old,
                 )
             }
         }
@@ -567,7 +621,8 @@ class CompatibilityCheck(
                 Issues.REMOVED_JVM_DEFAULT_WITH_COMPATIBILITY,
                 new,
                 "Cannot remove @$JVM_DEFAULT_WITH_COMPATIBILITY annotation from " +
-                    "${describe(new)}: Incompatible change"
+                    "${describe(new)}: Incompatible change",
+                oldItem = old,
             )
         }
     }
@@ -586,7 +641,8 @@ class CompatibilityCheck(
             report(
                 Issues.CHANGED_TYPE,
                 new,
-                "${describe(new, capitalize = true)} has changed type from $oldTypeString to $newTypeString"
+                "${describe(new, capitalize = true)} has changed type from $oldTypeString to $newTypeString",
+                oldItem = old,
             )
         }
     }
@@ -646,7 +702,8 @@ class CompatibilityCheck(
                 report(
                     Issues.CHANGED_SCOPE,
                     new,
-                    "${describe(new, capitalize = true)} changed visibility from $oldVisibility to $newVisibility"
+                    "${describe(new, capitalize = true)} changed visibility from $oldVisibility to $newVisibility",
+                    oldItem = old,
                 )
             }
         }
@@ -658,7 +715,8 @@ class CompatibilityCheck(
                 "${describe(
                     new,
                     capitalize = true
-                )} has changed deprecation state ${old.effectivelyDeprecated} --> ${new.effectivelyDeprecated}"
+                )} has changed deprecation state ${old.effectivelyDeprecated} --> ${new.effectivelyDeprecated}",
+                oldItem = old,
             )
         }
 
@@ -673,7 +731,8 @@ class CompatibilityCheck(
                     report(
                         Issues.CHANGED_THROWS,
                         new,
-                        "${describe(new, capitalize = true)} no longer throws exception ${throwType.description()}"
+                        "${describe(new, capitalize = true)} no longer throws exception ${throwType.description()}",
+                        oldItem = old,
                     )
                 }
             }
@@ -689,7 +748,7 @@ class CompatibilityCheck(
                 if (!(old.name() == "finalize" && old.parameters().isEmpty())) {
                     val message =
                         "${describe(new, capitalize = true)} added thrown exception ${throwType.description()}"
-                    report(Issues.CHANGED_THROWS, new, message)
+                    report(Issues.CHANGED_THROWS, new, message, oldItem = old)
                 }
             }
         }
@@ -708,7 +767,7 @@ class CompatibilityCheck(
             val newTypeString = describeBounds(newReturnType)
             val message =
                 "${describe(new, capitalize = true)} has changed return type from $oldTypeString to $newTypeString"
-            report(Issues.CHANGED_TYPE, new, message)
+            report(Issues.CHANGED_TYPE, new, message, oldItem = old)
         }
 
         // Annotation methods
@@ -743,7 +802,7 @@ class CompatibilityCheck(
                 new.containingClass().isAnnotationType() && old.legacyDefaultValue().isEmpty()
 
             if (!annotationMethodAddingDefaultValue) {
-                report(Issues.CHANGED_VALUE, new, message)
+                report(Issues.CHANGED_VALUE, new, message, oldItem = old)
             }
         }
 
@@ -754,7 +813,8 @@ class CompatibilityCheck(
                 report(
                     Issues.CHANGED_ABSTRACT,
                     new,
-                    "${describe(new, capitalize = true)} has changed 'abstract' qualifier"
+                    "${describe(new, capitalize = true)} has changed 'abstract' qualifier",
+                    oldItem = old,
                 )
             }
         }
@@ -764,7 +824,8 @@ class CompatibilityCheck(
                 report(
                     Issues.CHANGED_DEFAULT,
                     new,
-                    "${describe(new, capitalize = true)} has changed 'default' qualifier"
+                    "${describe(new, capitalize = true)} has changed 'default' qualifier",
+                    oldItem = old,
                 )
             }
         }
@@ -773,7 +834,8 @@ class CompatibilityCheck(
             report(
                 Issues.CHANGED_NATIVE,
                 new,
-                "${describe(new, capitalize = true)} has changed 'native' qualifier"
+                "${describe(new, capitalize = true)} has changed 'native' qualifier",
+                oldItem = old,
             )
         }
 
@@ -795,13 +857,15 @@ class CompatibilityCheck(
                                 new,
                                 capitalize = true
                             )
-                        } added 'final' qualifier but containing ${old.containingClass().describe()} was previously uninstantiable and therefore could not be subclassed"
+                        } added 'final' qualifier but containing ${old.containingClass().describe()} was previously uninstantiable and therefore could not be subclassed",
+                        oldItem = old,
                     )
                 } else {
                     report(
                         Issues.ADDED_FINAL,
                         new,
-                        "${describe(new, capitalize = true)} has added 'final' qualifier"
+                        "${describe(new, capitalize = true)} has added 'final' qualifier",
+                        oldItem = old,
                     )
                 }
             } else if (old.isEffectivelyFinal() && !new.isEffectivelyFinal()) {
@@ -812,7 +876,8 @@ class CompatibilityCheck(
                 report(
                     Issues.REMOVED_FINAL_STRICT,
                     new,
-                    "${describe(new, capitalize = true)} has removed 'final' qualifier"
+                    "${describe(new, capitalize = true)} has removed 'final' qualifier",
+                    oldItem = old,
                 )
             }
         }
@@ -821,7 +886,8 @@ class CompatibilityCheck(
             report(
                 Issues.CHANGED_STATIC,
                 new,
-                "${describe(new, capitalize = true)} has changed 'static' qualifier"
+                "${describe(new, capitalize = true)} has changed 'static' qualifier",
+                oldItem = old,
             )
         }
 
@@ -840,7 +906,7 @@ class CompatibilityCheck(
                                 capitalize = true
                             )
                         } made type variable ${newTypes[i].name()} reified: incompatible change"
-                    report(Issues.ADDED_REIFIED, new, message)
+                    report(Issues.ADDED_REIFIED, new, message, oldItem = old)
                 }
             }
         }
@@ -877,7 +943,7 @@ class CompatibilityCheck(
             if (oldType != newType) {
                 val message =
                     "${describe(new, capitalize = true)} has changed type from $oldType to $newType"
-                report(Issues.CHANGED_TYPE, new, message)
+                report(Issues.CHANGED_TYPE, new, message, oldItem = old)
             } else if (!old.hasSameConstantValue(new)) {
                 val oldString = old.constantValue?.toValueString() ?: "nothing/not constant"
                 val newString = new.constantValue?.toValueString() ?: "nothing/not constant"
@@ -889,7 +955,7 @@ class CompatibilityCheck(
                         )
                     } has changed value from $oldString to $newString"
 
-                report(Issues.CHANGED_VALUE, new, message)
+                report(Issues.CHANGED_VALUE, new, message, oldItem = old)
             }
         }
 
@@ -906,7 +972,8 @@ class CompatibilityCheck(
                         new,
                         capitalize = true
                     )
-                    } changed visibility from $oldVisibility to $newVisibility"
+                    } changed visibility from $oldVisibility to $newVisibility",
+                    oldItem = old,
                 )
             }
         }
@@ -915,7 +982,8 @@ class CompatibilityCheck(
             report(
                 Issues.CHANGED_STATIC,
                 new,
-                "${describe(new, capitalize = true)} has changed 'static' qualifier"
+                "${describe(new, capitalize = true)} has changed 'static' qualifier",
+                oldItem = old,
             )
         }
 
@@ -923,7 +991,8 @@ class CompatibilityCheck(
             report(
                 Issues.ADDED_FINAL,
                 new,
-                "${describe(new, capitalize = true)} has added 'final' qualifier"
+                "${describe(new, capitalize = true)} has added 'final' qualifier",
+                oldItem = old,
             )
         } else if (
             // Final can't be removed if field is static with compile-time constant
@@ -935,7 +1004,8 @@ class CompatibilityCheck(
             report(
                 Issues.REMOVED_FINAL,
                 new,
-                "${describe(new, capitalize = true)} has removed 'final' qualifier"
+                "${describe(new, capitalize = true)} has removed 'final' qualifier",
+                oldItem = old,
             )
         }
 
@@ -943,7 +1013,8 @@ class CompatibilityCheck(
             report(
                 Issues.CHANGED_VOLATILE,
                 new,
-                "${describe(new, capitalize = true)} has changed 'volatile' qualifier"
+                "${describe(new, capitalize = true)} has changed 'volatile' qualifier",
+                oldItem = old,
             )
         }
 
@@ -954,7 +1025,8 @@ class CompatibilityCheck(
                 "${describe(
                     new,
                     capitalize = true
-                )} has changed deprecation state ${old.effectivelyDeprecated} --> ${new.effectivelyDeprecated}"
+                )} has changed deprecation state ${old.effectivelyDeprecated} --> ${new.effectivelyDeprecated}",
+                oldItem = old,
             )
         }
     }
@@ -1138,8 +1210,13 @@ class CompatibilityCheck(
         message: String,
         location: FileLocation = FileLocation.UNKNOWN,
         maximumSeverity: Severity = Severity.UNLIMITED,
+        oldItem: Item? = null,
     ) {
-        if (item.isCompatibilitySuppressed()) {
+        // If an item is currently compatibility suppressed, we don't want to raise compatibility
+        // issues. In addition, if the old version of the item being compared against is
+        // compatibility suppressed, we don't want to raise compatibility issues because
+        // incompatible changes should still be allowed from that version. See b/391848485
+        if (item.isCompatibilitySuppressed() || oldItem?.isCompatibilitySuppressed() == true) {
             // Long-term, we should consider allowing meta-annotations to specify a different
             // `configuration` so it can use a separate set of severities. For now, though, we'll
             // treat all issues for all unchecked items as `Severity.IGNORE`.

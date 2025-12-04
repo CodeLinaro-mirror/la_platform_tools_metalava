@@ -34,6 +34,7 @@ import com.android.tools.metalava.testing.kotlin
 import com.google.common.truth.Truth.assertThat
 import com.google.common.truth.Truth.assertWithMessage
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
@@ -104,14 +105,42 @@ class CommonClassItemTest : BaseModelTest() {
 
             // This should not find the method as `findMethod` splits parameters by `,` so it looks
             // for one parameter of type `java.util.Map<String` and one of type `Integer>`.
-            val foundMethod = fooClass.findMethod("foo", "java.util.Map<String, Integer>")
+            val foundMethod = fooClass.findBytecodeMethod("foo", "java.util.Map<String, Integer>")
             assertNull(
                 foundMethod,
                 message = "unexpectedly found method with multiple type parameters"
             )
 
             // This should find the method.
-            assertSame(fooMethod, fooClass.findMethod("foo", "java.util.Map"))
+            assertSame(fooMethod, fooClass.findBytecodeMethod("foo", "java.util.Map"))
+        }
+    }
+
+    @Test
+    fun `Find method by multiple erased types`() {
+        runCodebaseTest(
+            java(
+                """
+                package test.pkg;
+                import java.util.List;
+                import java.util.Map;
+                public class Foo {
+                    public void multipleSimpleParams(int i, float f, String s) {}
+                    public <T1, T2 extends Integer> void multipleVariableParams(T1 t1, T2 t2, List<T1> t1s, Map<T2, T1> map) {}
+                }
+                """
+            )
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+            assertNotNull(
+                fooClass.findBytecodeMethod("multipleSimpleParams", "int,float,java.lang.String")
+            )
+            assertNotNull(
+                fooClass.findBytecodeMethod(
+                    "multipleVariableParams",
+                    "java.lang.Object,java.lang.Integer,java.util.List,java.util.Map"
+                )
+            )
         }
     }
 

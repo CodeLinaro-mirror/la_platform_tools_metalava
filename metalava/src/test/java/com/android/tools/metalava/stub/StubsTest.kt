@@ -379,16 +379,19 @@ class StubsTest : AbstractStubsTest() {
                     /*
                     My header 1
                      */
+
                     /*
                     My header 2
                      */
+
                     // My third comment
                     package test.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class HeaderComments {
                     public HeaderComments() { throw new RuntimeException("Stub!"); }
                     }
-                    """
+                    """,
+            filterBlankLinesFromStubFiles = false,
         )
     }
 

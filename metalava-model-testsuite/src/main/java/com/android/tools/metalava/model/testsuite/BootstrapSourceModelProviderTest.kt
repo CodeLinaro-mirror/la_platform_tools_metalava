@@ -124,7 +124,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             ),
         ) {
             val testClass = codebase.assertClass("test.pkg.Test")
-            val methodItem = testClass.assertMethod("method", "")
+            val methodItem = testClass.assertMethod("method", emptyList())
             assertEquals("method", methodItem.name())
         }
     }
@@ -143,7 +143,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             ),
         ) {
             val testClass = codebase.assertClass("test.pkg.Test")
-            val constructorItem = testClass.assertConstructor("")
+            val constructorItem = testClass.assertConstructor(emptyList())
             assertEquals("Test", constructorItem.name())
         }
     }
@@ -556,21 +556,21 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             ),
         ) {
             val itfCls1 = codebase.assertClass("test.pkg.Interface1")
-            val itf1Mtd1 = itfCls1.assertMethod("method1", "")
-            val itf1Mtd2 = itfCls1.assertMethod("method2", "java.lang.Object")
+            val itf1Mtd1 = itfCls1.assertMethod("method1", emptyList())
+            val itf1Mtd2 = itfCls1.assertMethod("method2", listOf("T"))
 
             val itfCls2 = codebase.assertClass("test.pkg.Interface2")
-            val itf2Mtd1 = itfCls2.assertMethod("method1", "")
+            val itf2Mtd1 = itfCls2.assertMethod("method1", emptyList())
 
             val classItem1 = codebase.assertClass("test.pkg.Test1")
-            val cls1Mtd1 = classItem1.assertMethod("method1", "")
-            val cls1Mtd2 = classItem1.assertMethod("method2", "java.lang.Object")
+            val cls1Mtd1 = classItem1.assertMethod("method1", emptyList())
+            val cls1Mtd2 = classItem1.assertMethod("method2", listOf("Integer"))
 
             val classItem2 = codebase.assertClass("test.pkg.Test2")
-            val cls2Mtd1 = classItem2.assertMethod("method1", "")
+            val cls2Mtd1 = classItem2.assertMethod("method1", emptyList())
 
             val classItem3 = codebase.assertClass("test.pkg.Test3")
-            val cls3Mtd1 = classItem3.assertMethod("method1", "")
+            val cls3Mtd1 = classItem3.assertMethod("method1", emptyList())
 
             assertEquals(listOf(itf2Mtd1), cls1Mtd1.superMethods())
             assertEquals(listOf(itf2Mtd1, itf1Mtd1), cls1Mtd1.allSuperMethods().toList())
@@ -818,7 +818,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             ),
         ) {
             val testClass = codebase.assertClass("test.pkg.Test")
-            val methodItem = testClass.assertMethod("foo", "")
+            val methodItem = testClass.assertMethod("foo", emptyList())
             val testExceptionClass = codebase.assertClass("test.pkg.TestException")
 
             // This must only be available after resolving throwable types.

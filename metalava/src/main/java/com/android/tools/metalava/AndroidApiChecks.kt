@@ -26,6 +26,7 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.source.doc.containsWord
 import com.android.tools.metalava.model.value.asString
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.permission.getRequiresPermissionInfo
@@ -212,8 +213,7 @@ class AndroidApiChecks(val reporter: Reporter) {
             for (item in permissions) {
                 val perm = item.substringAfterLast('.')
                 // Search for the permission name as a whole word.
-                val regex = Regex("""\b\Q$perm\E\b""")
-                val mentioned = text.contains(regex)
+                val mentioned = text.containsWord(perm)
                 if (mentioned && !conditional) {
                     reporter.report(
                         Issues.REQUIRES_PERMISSION,

@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model
 
 import com.android.tools.metalava.reporter.FileLocation
+import java.io.PrintWriter
 
 /** A factory that will create an [ItemDocumentation] for a specific [SelectableItem]. */
 typealias ItemDocumentationFactory = (SelectableItem) -> ItemDocumentation
@@ -93,6 +94,14 @@ interface ItemDocumentation {
     fun hasBlockTagOfType(blockTagType: String): Boolean
 
     /**
+     * Print the documentation to [writer].
+     *
+     * The printed documentation will be suitable for use in a stub source file, i.e. references
+     * will, where possible, be fully qualified.
+     */
+    fun print(writer: PrintWriter)
+
+    /**
      * Looks up docs for the first instance of a specific javadoc tag having the (optionally)
      * provided value (e.g. parameter name).
      */
@@ -114,6 +123,15 @@ interface ItemDocumentation {
 
     /** Remove the `@deprecated` section, if any. */
     fun removeDeprecatedSection()
+
+    /**
+     * Adds a unique block tag section of [blockTagType] with some simple [text], i.e. no inline
+     * tags.
+     *
+     * @param blockTagType the type of the tag, e.g. `apiSince` for `@apiSince 27`.
+     * @param text the text description.
+     */
+    fun addUniqueBlockTagSectionWithSimpleText(blockTagType: String, text: String)
 
     companion object {
         /**
@@ -156,6 +174,9 @@ interface ItemDocumentation {
         // Empty documentation never has any tag sections.
         override fun hasBlockTagOfType(blockTagType: String) = false
 
+        // Empty documentation has nothing to print.
+        override fun print(writer: PrintWriter) {}
+
         override fun findTagDocumentation(tag: String, value: String?): String? = null
 
         override fun appendDocumentation(comment: String, tagSection: String?) {
@@ -165,5 +186,9 @@ interface ItemDocumentation {
         override fun findMainDocumentation() = ""
 
         override fun removeDeprecatedSection() {}
+
+        override fun addUniqueBlockTagSectionWithSimpleText(blockTagType: String, text: String) {
+            error("cannot modify documentation on an item that does not support documentation")
+        }
     }
 }

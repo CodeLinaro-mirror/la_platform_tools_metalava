@@ -216,37 +216,38 @@ class CommonDataClassTest : BaseModelTest() {
             )
         ) {
             val publicCtorClass = codebase.assertClass("test.pkg.PublicConstructor")
-            val publicCtor = publicCtorClass.assertConstructor("int")
+            val publicCtor = publicCtorClass.assertConstructor(listOf("int"))
             assertThat(publicCtor.modifiers.getVisibilityLevel()).isEqualTo(VisibilityLevel.PUBLIC)
-            val publicCtorCopy = publicCtorClass.assertMethod("copy", "int")
+            val publicCtorCopy = publicCtorClass.assertMethod("copy", listOf("int"))
             assertThat(publicCtorCopy.modifiers.getVisibilityLevel())
                 .isEqualTo(VisibilityLevel.PUBLIC)
 
             val internalCtorClass = codebase.assertClass("test.pkg.InternalConstructor")
-            val internalCtor = internalCtorClass.assertConstructor("int")
+            val internalCtor = internalCtorClass.assertConstructor(listOf("int"))
             assertThat(internalCtor.modifiers.getVisibilityLevel())
                 .isEqualTo(VisibilityLevel.INTERNAL)
-            val internalCtorCopy = internalCtorClass.assertMethod("copy", "int")
+            val internalCtorCopy = internalCtorClass.assertMethod("copy", listOf("int"))
             assertThat(internalCtorCopy.modifiers.getVisibilityLevel())
                 .isEqualTo(VisibilityLevel.PUBLIC)
 
             val internalPublishedCtorClass =
                 codebase.assertClass("test.pkg.InternalPublishedConstructor")
-            val internalPublishedCtor = internalPublishedCtorClass.assertConstructor("int")
+            val internalPublishedCtor = internalPublishedCtorClass.assertConstructor(listOf("int"))
             assertThat(internalPublishedCtor.modifiers.getVisibilityLevel())
                 .isEqualTo(VisibilityLevel.INTERNAL)
             assertThat(internalPublishedCtor.annotationNames()).contains("kotlin.PublishedApi")
-            val internalPublishedCtorCopy = internalPublishedCtorClass.assertMethod("copy", "int")
+            val internalPublishedCtorCopy =
+                internalPublishedCtorClass.assertMethod("copy", listOf("int"))
             assertThat(internalPublishedCtorCopy.modifiers.getVisibilityLevel())
                 .isEqualTo(VisibilityLevel.PUBLIC)
             assertThat(internalPublishedCtorCopy.annotationNames())
                 .doesNotContain("kotlin.PublishedApi")
 
             val privateCtorClass = codebase.assertClass("test.pkg.PrivateConstructor")
-            val privateCtor = privateCtorClass.assertConstructor("int")
+            val privateCtor = privateCtorClass.assertConstructor(listOf("int"))
             assertThat(privateCtor.modifiers.getVisibilityLevel())
                 .isEqualTo(VisibilityLevel.PRIVATE)
-            val privateCtorCopy = privateCtorClass.assertMethod("copy", "int")
+            val privateCtorCopy = privateCtorClass.assertMethod("copy", listOf("int"))
             assertThat(privateCtorCopy.modifiers.getVisibilityLevel())
                 .isEqualTo(VisibilityLevel.PUBLIC)
         }
@@ -271,14 +272,14 @@ class CommonDataClassTest : BaseModelTest() {
             )
         ) {
             val publicCtorClass = codebase.assertClass("test.pkg.PublicConstructor")
-            val publicCtor = publicCtorClass.assertConstructor("int")
+            val publicCtor = publicCtorClass.assertConstructor(listOf("int"))
             assertThat(publicCtor.modifiers.getVisibilityLevel()).isEqualTo(VisibilityLevel.PUBLIC)
-            val publicCtorCopy = publicCtorClass.assertMethod("copy", "int")
+            val publicCtorCopy = publicCtorClass.assertMethod("copy", listOf("int"))
             assertThat(publicCtorCopy.modifiers.getVisibilityLevel())
                 .isEqualTo(VisibilityLevel.PUBLIC)
 
             val internalCtorClass = codebase.assertClass("test.pkg.InternalConstructor")
-            val internalCtor = internalCtorClass.assertConstructor("int")
+            val internalCtor = internalCtorClass.assertConstructor(listOf("int"))
             assertThat(internalCtor.modifiers.getVisibilityLevel())
                 .isEqualTo(VisibilityLevel.INTERNAL)
             // The copy method gets a mangled name with K2 (copy$<module name>).
@@ -289,7 +290,7 @@ class CommonDataClassTest : BaseModelTest() {
 
             val internalPublishedCtorClass =
                 codebase.assertClass("test.pkg.InternalPublishedConstructor")
-            val internalPublishedCtor = internalPublishedCtorClass.assertConstructor("int")
+            val internalPublishedCtor = internalPublishedCtorClass.assertConstructor(listOf("int"))
             assertThat(internalPublishedCtor.modifiers.getVisibilityLevel())
                 .isEqualTo(VisibilityLevel.INTERNAL)
             assertThat(internalPublishedCtor.annotationNames()).contains("kotlin.PublishedApi")
@@ -304,10 +305,10 @@ class CommonDataClassTest : BaseModelTest() {
                 .doesNotContain("kotlin.PublishedApi")
 
             val privateCtorClass = codebase.assertClass("test.pkg.PrivateConstructor")
-            val privateCtor = privateCtorClass.assertConstructor("int")
+            val privateCtor = privateCtorClass.assertConstructor(listOf("int"))
             assertThat(privateCtor.modifiers.getVisibilityLevel())
                 .isEqualTo(VisibilityLevel.PRIVATE)
-            val privateCtorCopy = privateCtorClass.assertMethod("copy", "int")
+            val privateCtorCopy = privateCtorClass.assertMethod("copy", listOf("int"))
             assertThat(privateCtorCopy.modifiers.getVisibilityLevel())
                 .isEqualTo(VisibilityLevel.PRIVATE)
         }
@@ -332,37 +333,38 @@ class CommonDataClassTest : BaseModelTest() {
             )
         ) {
             val publicCtorClass = codebase.assertClass("test.pkg.PublicConstructor")
-            val publicCtor = publicCtorClass.assertConstructor("int")
+            val publicCtor = publicCtorClass.assertConstructor(listOf("int"))
             assertThat(publicCtor.modifiers.getVisibilityLevel()).isEqualTo(VisibilityLevel.PUBLIC)
-            val publicCtorCopy = publicCtorClass.assertMethod("copy", "int")
+            val publicCtorCopy = publicCtorClass.assertMethod("copy", listOf("int"))
             assertThat(publicCtorCopy.modifiers.getVisibilityLevel())
                 .isEqualTo(VisibilityLevel.PUBLIC)
 
             val internalCtorClass = codebase.assertClass("test.pkg.InternalConstructor")
-            val internalCtor = internalCtorClass.assertConstructor("int")
+            val internalCtor = internalCtorClass.assertConstructor(listOf("int"))
             assertThat(internalCtor.modifiers.getVisibilityLevel())
                 .isEqualTo(VisibilityLevel.INTERNAL)
-            val internalCtorCopy = internalCtorClass.assertMethod("copy", "int")
+            val internalCtorCopy = internalCtorClass.assertMethod("copy", listOf("int"))
             assertThat(internalCtorCopy.modifiers.getVisibilityLevel())
                 .isEqualTo(VisibilityLevel.PUBLIC)
 
             val internalPublishedCtorClass =
                 codebase.assertClass("test.pkg.InternalPublishedConstructor")
-            val internalPublishedCtor = internalPublishedCtorClass.assertConstructor("int")
+            val internalPublishedCtor = internalPublishedCtorClass.assertConstructor(listOf("int"))
             assertThat(internalPublishedCtor.modifiers.getVisibilityLevel())
                 .isEqualTo(VisibilityLevel.INTERNAL)
             assertThat(internalPublishedCtor.annotationNames()).contains("kotlin.PublishedApi")
-            val internalPublishedCtorCopy = internalPublishedCtorClass.assertMethod("copy", "int")
+            val internalPublishedCtorCopy =
+                internalPublishedCtorClass.assertMethod("copy", listOf("int"))
             assertThat(internalPublishedCtorCopy.modifiers.getVisibilityLevel())
                 .isEqualTo(VisibilityLevel.PUBLIC)
             assertThat(internalPublishedCtorCopy.annotationNames())
                 .doesNotContain("kotlin.PublishedApi")
 
             val privateCtorClass = codebase.assertClass("test.pkg.PrivateConstructor")
-            val privateCtor = privateCtorClass.assertConstructor("int")
+            val privateCtor = privateCtorClass.assertConstructor(listOf("int"))
             assertThat(privateCtor.modifiers.getVisibilityLevel())
                 .isEqualTo(VisibilityLevel.PRIVATE)
-            val privateCtorCopy = privateCtorClass.assertMethod("copy", "int")
+            val privateCtorCopy = privateCtorClass.assertMethod("copy", listOf("int"))
             assertThat(privateCtorCopy.modifiers.getVisibilityLevel())
                 .isEqualTo(VisibilityLevel.PUBLIC)
         }
@@ -382,18 +384,18 @@ class CommonDataClassTest : BaseModelTest() {
             )
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
-            val ctor = fooClass.assertConstructor("int,int")
+            val ctor = fooClass.assertConstructor(listOf("int", "int"))
             // The first constructor parameter is optional, the second is not.
             assertThat(ctor.parameters()[0].hasDefaultValue()).isTrue()
             assertThat(ctor.parameters()[1].hasDefaultValue()).isFalse()
 
             // This is the copy function generated by the constructor. All parameters are optional.
-            val generatedCopy = fooClass.assertMethod("copy", "int,int")
+            val generatedCopy = fooClass.assertMethod("copy", listOf("int", "int"))
             assertThat(generatedCopy.parameters()[0].hasDefaultValue()).isTrue()
             assertThat(generatedCopy.parameters()[1].hasDefaultValue()).isTrue()
 
             // This is a copy function defined in source, where the only parameter is not optional.
-            val manualCopy = fooClass.assertMethod("copy", "int")
+            val manualCopy = fooClass.assertMethod("copy", listOf("int"))
             assertThat(manualCopy.parameters().single().hasDefaultValue()).isFalse()
         }
     }

@@ -35,7 +35,7 @@ class CommonInlineMethodTest : BaseModelTest() {
             )
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
-            val reifiedInlineFun = fooClass.assertMethod("reifiedInlineFun", "")
+            val reifiedInlineFun = fooClass.assertMethod("reifiedInlineFun", emptyList())
             assertTrue(reifiedInlineFun.modifiers.isFinal())
         }
     }

@@ -24,7 +24,7 @@ import com.android.tools.metalava.SystemApiType
 import com.android.tools.metalava.columnSource
 import com.android.tools.metalava.lint.DefaultLintErrorMessage
 import com.android.tools.metalava.model.provider.Capability
-import com.android.tools.metalava.model.psi.trimDocIndent
+import com.android.tools.metalava.model.source.trimDocIndent
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.nonNullSource
 import com.android.tools.metalava.nullableSource
@@ -79,6 +79,7 @@ class DocAnalyzerTest : DriverTest() {
                     public Foo() { throw new RuntimeException("Stub!"); }
                     /**
                      * These are the docs for method1.
+                     *
                      * @param factor1 This value must never be {@code null}.
                      * @param factor2 This value must never be {@code null}.
                      * @return This value may be {@code null}.
@@ -87,6 +88,7 @@ class DocAnalyzerTest : DriverTest() {
                     public java.lang.Double method1(@androidx.annotation.NonNull java.lang.Double factor1, @androidx.annotation.NonNull java.lang.Double factor2) { throw new RuntimeException("Stub!"); }
                     /**
                      * These are the docs for method2. It can sometimes return null.
+                     *
                      * @param factor1 This value must never be {@code null}.
                      * @param factor2 This value must never be {@code null}.
                      */
@@ -336,30 +338,18 @@ class DocAnalyzerTest : DriverTest() {
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class PermissionTest {
                     public PermissionTest() { throw new RuntimeException("Stub!"); }
-                    /**
-                     * Requires {@link android.Manifest.permission#ACCESS_COARSE_LOCATION}
-                     */
+                    /** Requires {@link android.Manifest.permission#ACCESS_COARSE_LOCATION} */
                     public void test1() { throw new RuntimeException("Stub!"); }
-                    /**
-                     * Requires {@link android.Manifest.permission#ACCESS_COARSE_LOCATION}
-                     */
+                    /** Requires {@link android.Manifest.permission#ACCESS_COARSE_LOCATION} */
                     public void test2() { throw new RuntimeException("Stub!"); }
-                    /**
-                     * Requires {@link android.Manifest.permission#ACCESS_COARSE_LOCATION} or {@link android.Manifest.permission#ACCESS_FINE_LOCATION}
-                     */
+                    /** Requires {@link android.Manifest.permission#ACCESS_COARSE_LOCATION} or {@link android.Manifest.permission#ACCESS_FINE_LOCATION} */
                     public void test3() { throw new RuntimeException("Stub!"); }
-                    /**
-                     * Requires {@link android.Manifest.permission#ACCESS_COARSE_LOCATION} and {@link android.Manifest.permission#ACCOUNT_MANAGER}
-                     */
+                    /** Requires {@link android.Manifest.permission#ACCESS_COARSE_LOCATION} and {@link android.Manifest.permission#ACCOUNT_MANAGER} */
                     public void test4() { throw new RuntimeException("Stub!"); }
                     public void test5() { throw new RuntimeException("Stub!"); }
-                    /**
-                     * Requires {@link android.Manifest.permission#ACCESS_COARSE_LOCATION} or {@link android.telephony.TelephonyManager#hasCarrierPrivileges carrier privileges}
-                     */
+                    /** Requires {@link android.Manifest.permission#ACCESS_COARSE_LOCATION} or {@link android.telephony.TelephonyManager#hasCarrierPrivileges carrier privileges} */
                     public void test6() { throw new RuntimeException("Stub!"); }
-                    /**
-                     * Requires {@link android.Manifest.permission#ACCESS_COARSE_LOCATION} or "carier priviliges"
-                     */
+                    /** Requires {@link android.Manifest.permission#ACCESS_COARSE_LOCATION} or "carier priviliges" */
                     public void test6() { throw new RuntimeException("Stub!"); }
                     }
                     """
@@ -501,6 +491,7 @@ class DocAnalyzerTest : DriverTest() {
                     /**
                      * This method must be called on the thread that originally created
                      * this UI element. This is typically the main thread of your app.
+                     *
                      * <br>
                      * This method may take several seconds to complete, so it should
                      * only be called from a worker thread.
@@ -579,6 +570,7 @@ class DocAnalyzerTest : DriverTest() {
                      * <br>
                      * This method must be called on the thread that originally created
                      * this UI element. This is typically the main thread of your app.
+                     *
                      * @return blah blah blah
                      * @apiSince 24
                      */
@@ -587,7 +579,7 @@ class DocAnalyzerTest : DriverTest() {
                      * <br>
                      * This method must be called on the thread that originally created
                      * this UI element. This is typically the main thread of your app.
-                     * @apiSince 15
+                     * @apiSince 24
                      */
                     public int getCurrentContentInsetRight() { throw new RuntimeException("Stub!"); }
                     }
@@ -627,9 +619,7 @@ class DocAnalyzerTest : DriverTest() {
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class RangeTest {
                     public RangeTest() { throw new RuntimeException("Stub!"); }
-                    /**
-                     * Requires {@link test.pkg.RangeTest#ACCESS_COARSE_LOCATION}
-                     */
+                    /** Requires {@link test.pkg.RangeTest#ACCESS_COARSE_LOCATION} */
                     public void test1() { throw new RuntimeException("Stub!"); }
                     public static final java.lang.String ACCESS_COARSE_LOCATION = "android.permission.ACCESS_COARSE_LOCATION";
                     }
@@ -670,9 +660,7 @@ class DocAnalyzerTest : DriverTest() {
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class RangeTest {
                     public RangeTest() { throw new RuntimeException("Stub!"); }
-                    /**
-                     * Requires "MyPermission"
-                     */
+                    /** Requires "MyPermission" */
                     public void test1() { throw new RuntimeException("Stub!"); }
                     }
                     """
@@ -761,6 +749,7 @@ class DocAnalyzerTest : DriverTest() {
                     /**
                      * This is the existing documentation.
                      * Multiple lines of it.
+                     *
                      * <br>
                      * Requires {@link test.pkg.RangeTest#ACCESS_COARSE_LOCATION}
                      */
@@ -813,6 +802,7 @@ class DocAnalyzerTest : DriverTest() {
                      * This is the existing documentation.
                      * <br>
                      * Requires {@link test.pkg.RangeTest#ACCESS_COARSE_LOCATION}
+                     *
                      * @param parameter1 docs for parameter1
                      * @param parameter2 docs for parameter2
                      * @param parameter3 docs for parameter2
@@ -1181,8 +1171,7 @@ class DocAnalyzerTest : DriverTest() {
                         """
                     /**
                      * Some existing doc here.
-                     * @deprecated
-                     * <!-- comment -->
+                     * @deprecated <!-- comment -->
                      */
                     package android.pkg2;
                     """
@@ -1543,9 +1532,7 @@ class DocAnalyzerTest : DriverTest() {
                     java(
                         """
                     package test.pkg;
-                    /**
-                     * @deprecated Use Jetpack preference library
-                     */
+                    /** @deprecated Use Jetpack preference library */
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     @Deprecated
                     public final class Foo {
@@ -1555,7 +1542,10 @@ class DocAnalyzerTest : DriverTest() {
                     public void foo() { throw new RuntimeException("Stub!"); }
                     /**
                      * My description
+                     *
                      * @deprecated Existing deprecation message.
+                     *
+                     * <br>
                      * Blah blah blah 2
                      */
                     @Deprecated
@@ -1614,9 +1604,7 @@ class DocAnalyzerTest : DriverTest() {
                     java(
                         """
                     package test.pkg;
-                    /**
-                     * Documentation here
-                     */
+                    /** Documentation here */
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.SOURCE)
                     public @interface MyAnnotation {
@@ -1626,9 +1614,7 @@ class DocAnalyzerTest : DriverTest() {
                     java(
                         """
                     package test.pkg;
-                    /**
-                     * Other documentation here
-                     */
+                    /** Other documentation here */
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class OtherClass {
                     public OtherClass() { throw new RuntimeException("Stub!"); }
@@ -1677,9 +1663,7 @@ class DocAnalyzerTest : DriverTest() {
                     java(
                         """
                     package test.pkg;
-                    /**
-                     * Documentation 1 here
-                     */
+                    /** Documentation 1 here */
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS)
                     @test.pkg.MyAnnotation2
@@ -1690,9 +1674,7 @@ class DocAnalyzerTest : DriverTest() {
                     java(
                         """
                     package test.pkg;
-                    /**
-                     * Documentation 2 here
-                     */
+                    /** Documentation 2 here */
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS)
                     @test.pkg.MyAnnotation1
@@ -1757,21 +1739,13 @@ class DocAnalyzerTest : DriverTest() {
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class ColumnTest {
                     public ColumnTest() { throw new RuntimeException("Stub!"); }
-                    /**
-                     * This constant represents a column name that can be used with a {@link android.content.ContentProvider} through a {@link android.content.ContentValues} or {@link android.database.Cursor} object. The values stored in this column are {@link Cursor.NONEXISTENT}, and are read-only and cannot be mutated.
-                     */
+                    /** This constant represents a column name that can be used with a {@link android.content.ContentProvider} through a {@link android.content.ContentValues} or {@link android.database.Cursor} object. The values stored in this column are {@link Cursor.NONEXISTENT}, and are read-only and cannot be mutated. */
                     @android.provider.Column(readOnly=true, value=Cursor.NONEXISTENT) public static final java.lang.String BOGUS = "bogus";
-                    /**
-                     * This constant represents a column name that can be used with a {@link android.content.ContentProvider} through a {@link android.content.ContentValues} or {@link android.database.Cursor} object. The values stored in this column are {@link android.database.Cursor#FIELD_TYPE_STRING Cursor#FIELD_TYPE_STRING} .
-                     */
+                    /** This constant represents a column name that can be used with a {@link android.content.ContentProvider} through a {@link android.content.ContentValues} or {@link android.database.Cursor} object. The values stored in this column are {@link android.database.Cursor#FIELD_TYPE_STRING Cursor#FIELD_TYPE_STRING} . */
                     @android.provider.Column(android.database.Cursor.FIELD_TYPE_STRING) public static final java.lang.String DATA = "_data";
-                    /**
-                     * This constant represents a column name that can be used with a {@link android.content.ContentProvider} through a {@link android.content.ContentValues} or {@link android.database.Cursor} object. The values stored in this column are {@link android.database.Cursor#FIELD_TYPE_BLOB Cursor#FIELD_TYPE_BLOB} , and are read-only and cannot be mutated.
-                     */
+                    /** This constant represents a column name that can be used with a {@link android.content.ContentProvider} through a {@link android.content.ContentValues} or {@link android.database.Cursor} object. The values stored in this column are {@link android.database.Cursor#FIELD_TYPE_BLOB Cursor#FIELD_TYPE_BLOB} , and are read-only and cannot be mutated. */
                     @android.provider.Column(readOnly=true, value=android.database.Cursor.FIELD_TYPE_BLOB) public static final java.lang.String HASH = "_hash";
-                    /**
-                     * This constant represents a column name that can be used with a {@link android.content.ContentProvider} through a {@link android.content.ContentValues} or {@link android.database.Cursor} object. The values stored in this column are {@link android.database.Cursor#FIELD_TYPE_STRING Cursor#FIELD_TYPE_STRING} , and are read-only and cannot be mutated.
-                     */
+                    /** This constant represents a column name that can be used with a {@link android.content.ContentProvider} through a {@link android.content.ContentValues} or {@link android.database.Cursor} object. The values stored in this column are {@link android.database.Cursor#FIELD_TYPE_STRING Cursor#FIELD_TYPE_STRING} , and are read-only and cannot be mutated. */
                     @android.provider.Column(readOnly=true, value=android.database.Cursor.FIELD_TYPE_STRING) public static final java.lang.String TITLE = "title";
                     }
                     """
@@ -1841,6 +1815,7 @@ class DocAnalyzerTest : DriverTest() {
                             public Fun() { throw new RuntimeException("Stub!"); }
                             /**
                              * Separate comment
+                             *
                              * <br>
                              * Important {@link another.pkg.Bar#BAR}
                              * and here

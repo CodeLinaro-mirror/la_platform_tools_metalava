@@ -208,7 +208,7 @@ class CommonErasedTypeStringTest : BaseModelTest() {
             val fooClass = codebase.assertClass("test.pkg.Foo")
 
             val fooMethod = fooClass.methods().single()
-            val foundMethod = fooClass.findMethod("foo", parameters.searchParameters)
+            val foundMethod = fooClass.findBytecodeMethod("foo", parameters.searchParameters)
 
             if (foundMethod == null) {
                 Assert.fail(

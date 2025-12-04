@@ -121,6 +121,7 @@ Available Issues                             |  Category                        
   InternalError                              |  unknown                              |   error
   InternalField                              |  api_lint                             |   error
   InvalidFeatureEnforcement                  |  documentation                        |   error
+  InvalidHideDocTag                          |  documentation                        |   warning_error_when_new
   InvalidJavadoc                             |  documentation                        |   warning_error_when_new
   InvalidNullConversion                      |  source_compatibility_only            |   error
   InvalidNullabilityAnnotation               |  unknown                              |   error
@@ -219,6 +220,7 @@ Available Issues                             |  Category                        
   TypeParameterName                          |  api_lint                             |   warning_error_when_new
   TypeParseError                             |  unknown                              |   error
   UnavailableSymbol                          |  documentation                        |   warning
+  UnclosedInlineTag                          |  documentation                        |   error
   UnflaggedApi                               |  api_lint                             |   hidden
   UnhiddenSystemApi                          |  api_lint                             |   error
   UniqueKotlinOperator                       |  api_lint                             |   error

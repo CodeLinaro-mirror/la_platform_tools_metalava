@@ -69,10 +69,13 @@ class ExtractPublicApiLevelsTest : ApiGeneratorIntegrationTestBase() {
             output
                 .readText(Charsets.UTF_8)
                 // As this only provides a single MyTest class in the current codebase which is of
-                // version 36, the api-versions.xml generator will assume that all the other classes
+                // version 10000 (b/450531827), the api-versions.xml generator will assume that all
+                // the other classes
                 // it has seen have been removed. That is not true so remove those attributes.
-                .replace(" removed=\"36\"", "")
-        val nextVersion = currentVersion + 1
+                .replace(" removed=\"10000\"", "")
+        // TODO (b/450531827) : Until the next prospective SDK information is provided to Metalava,
+        // use 10,000 as a placeholder for the next sdk version
+        val nextVersion = 10000
         assertTrue(xml.contains("<class name=\"android/Manifest\$permission\" since=\"1\">"))
         assertTrue(
             xml.contains(

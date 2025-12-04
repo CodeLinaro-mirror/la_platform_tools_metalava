@@ -22,7 +22,8 @@ import com.android.tools.metalava.cli.common.cliError
 import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.newFile
 import com.android.tools.metalava.cli.common.progressTracker
-import com.android.tools.metalava.createReportFile
+import com.android.tools.metalava.createOutputFileFromCodebaseFragment
+import com.android.tools.metalava.model.CodebaseFragment
 import com.android.tools.metalava.model.text.ApiFile
 import com.android.tools.metalava.model.text.ApiParseException
 import com.android.tools.metalava.model.text.SignatureFile
@@ -85,21 +86,28 @@ class MergeSignaturesCommand :
 
         try {
             val codebase = ApiFile.parseApi(SignatureFile.fromFiles(files))
-            createReportFile(progressTracker, codebase, out, description = "Merged file") {
-                val fileFormat = signatureFormat.fileFormat
-                val signatureWriter =
-                    SignatureWriter(
-                        writer = it,
+            val fileFormat = signatureFormat.fileFormat
+            val codebaseFragment =
+                CodebaseFragment.create(codebase) { delegatedVisitor ->
+                    createFilteringVisitorForSignatures(
+                        delegate = delegatedVisitor,
                         fileFormat = fileFormat,
+                        apiType = ApiType.ALL,
+                        preFiltered = true,
+                        showUnannotated = false,
+                        apiPredicateConfig = ApiPredicate.Config(),
                     )
-
-                createFilteringVisitorForSignatures(
-                    delegate = signatureWriter,
+                }
+            createOutputFileFromCodebaseFragment(
+                progressTracker,
+                codebaseFragment,
+                out,
+                description = "Merged file"
+            ) {
+                val fileFormat = signatureFormat.fileFormat
+                SignatureWriter(
+                    writer = it,
                     fileFormat = fileFormat,
-                    apiType = ApiType.ALL,
-                    preFiltered = true,
-                    showUnannotated = false,
-                    apiPredicateConfig = ApiPredicate.Config(),
                 )
             }
         } catch (e: ApiParseException) {
