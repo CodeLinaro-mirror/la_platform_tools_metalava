@@ -303,10 +303,6 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
 
             // This implementation only annotation shouldn't be used by metalava at all.
             "dalvik.annotation.codegen.CovariantReturnType" -> return null
-
-            // TODO(b/399105459): remove this workaround once there is full support for typealias
-            //  annotations from the classpath
-            "kotlin.jvm.JvmRepeatable" -> return "java.lang.annotation.Repeatable"
             else -> {
                 // Some new annotations added to the platform: assume they are support
                 // annotations?
@@ -782,15 +778,25 @@ private class LazyAnnotationInfo(
         }
     }
 
+    private fun isDirectlyExperimental(qualifiedName: String): Boolean {
+        return qualifiedName == SUPPRESS_COMPATIBILITY_ANNOTATION_QUALIFIED ||
+            config.suppressCompatibilityMetaAnnotations.contains(qualifiedName)
+    }
+
     /**
      * If true then this annotation will suppress compatibility checking on annotated items.
      *
-     * This is true if this annotation is
+     * This is true if this annotation is directly annotated with a suppress annotation, or is
+     * annotated directly with an annotation that is annotated with a suppress annotation. It won't
+     * check more than 1 level up (see b/460835117).
      */
     override val suppressCompatibility by
         lazy(LazyThreadSafetyMode.NONE) {
-            qualifiedName == SUPPRESS_COMPATIBILITY_ANNOTATION_QUALIFIED ||
-                config.suppressCompatibilityMetaAnnotations.contains(qualifiedName) ||
-                checkResolvedAnnotationClass { it.hasSuppressCompatibilityMetaAnnotation() }
+            isDirectlyExperimental(qualifiedName) ||
+                checkResolvedAnnotationClass {
+                    it.modifiers.annotations().any { metaAnnotation ->
+                        isDirectlyExperimental(metaAnnotation.qualifiedName)
+                    }
+                }
         }
 }

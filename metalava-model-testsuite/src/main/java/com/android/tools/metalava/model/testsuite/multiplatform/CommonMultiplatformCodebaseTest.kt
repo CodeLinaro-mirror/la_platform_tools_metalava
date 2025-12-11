@@ -23,6 +23,7 @@ import com.android.tools.metalava.testing.createAndroidModuleDescription
 import com.android.tools.metalava.testing.createCommonModuleDescription
 import com.android.tools.metalava.testing.createNativeModuleDescription
 import com.android.tools.metalava.testing.createProjectDescription
+import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
@@ -236,6 +237,120 @@ class CommonMultiplatformCodebaseTest : BaseModelTest() {
                     commonInnerClass,
                     nativeInnerClass,
                 )
+        }
+    }
+
+    @Test
+    fun `Test resolving classes`() {
+        val commonSource =
+            kotlin(
+                "commonMain/src/test/pkg/Foo.kt",
+                """
+                package test.pkg
+                expect class Foo
+                """
+            )
+        val androidSource =
+            kotlin(
+                "androidMain/src/test/pkg/Foo_android.kt",
+                """
+                package test.pkg
+                actual class Foo
+                """
+            )
+        val nativeSource =
+            kotlin(
+                "nativeMain/src/test/pkg/Foo_native.kt",
+                """
+                package test.pkg
+                actual class Foo
+                """
+            )
+
+        runMultiplatformCodebaseTest(
+            inputSet(commonSource, androidSource, nativeSource),
+            projectDescription =
+                createProjectDescription(
+                    createCommonModuleDescription(arrayOf(commonSource)),
+                    createAndroidModuleDescription(arrayOf(androidSource)),
+                    createNativeModuleDescription(arrayOf(nativeSource)),
+                )
+        ) {
+            // Resolving a class from source
+            val fooClass = multiplatformCodebase.resolveClass("test.pkg.Foo")
+            assertThat(fooClass).isNotNull()
+
+            // Resolving a fake class should fail
+            val fakeClass = multiplatformCodebase.resolveClass("fake.pkg.Class")
+            assertThat(fakeClass).isNull()
+
+            // Resolving a classpath class which exists for all source sets
+            val stringClass = multiplatformCodebase.resolveClass("kotlin.String")
+            assertThat(stringClass).isNotNull()
+            stringClass!!.assertSourceSets("commonMain", "androidMain", "nativeMain")
+
+            // Resolving a classpath class which only exists for android
+            val jvmName = multiplatformCodebase.resolveClass("kotlin.jvm.JvmName")
+            assertThat(jvmName).isNotNull()
+            jvmName!!.assertSourceSets("androidMain")
+
+            val requiresOptInLevel =
+                multiplatformCodebase.resolveClass("kotlin.RequiresOptIn.Level")
+            assertThat(requiresOptInLevel).isNotNull()
+            requiresOptInLevel!!.assertSourceSets("commonMain", "androidMain", "nativeMain")
+        }
+    }
+
+    @Test
+    fun `Test Java source file`() {
+        val commonSource =
+            kotlin(
+                "commonMain/src/test/pkg/Foo.kt",
+                """
+                package test.pkg
+                expect class Foo
+                """
+            )
+        val androidSource =
+            arrayOf(
+                kotlin(
+                    "androidMain/src/test/pkg/Foo_android.kt",
+                    """
+                    package test.pkg
+                    actual class Foo
+                    """
+                ),
+                java(
+                    "androidMain/src/test/pkg/JavaClass.java",
+                    """
+                    package test.pkg;
+                    public class JavaClass {}
+                    """
+                )
+            )
+        val nativeSource =
+            kotlin(
+                "nativeMain/src/test/pkg/Foo_native.kt",
+                """
+                package test.pkg
+                actual class Foo
+                """
+            )
+
+        runMultiplatformCodebaseTest(
+            inputSet(commonSource, *androidSource, nativeSource),
+            projectDescription =
+                createProjectDescription(
+                    createCommonModuleDescription(arrayOf(commonSource)),
+                    createAndroidModuleDescription(androidSource),
+                    createNativeModuleDescription(arrayOf(nativeSource))
+                )
+        ) {
+            val fooClass = multiplatformCodebase.assertClass("test.pkg.Foo")
+            fooClass.assertSourceSets("commonMain", "androidMain", "nativeMain")
+
+            val javaClass = multiplatformCodebase.assertClass("test.pkg.JavaClass")
+            javaClass.assertSourceSets("androidMain")
         }
     }
 }

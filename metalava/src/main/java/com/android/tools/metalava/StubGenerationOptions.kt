@@ -17,6 +17,9 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.cli.common.MetalavaCliException
+import com.android.tools.metalava.cli.common.PreviouslyReleasedApi
+import com.android.tools.metalava.cli.common.existingFile
+import com.android.tools.metalava.cli.common.map
 import com.android.tools.metalava.cli.common.newDir
 import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.stub.StubGenerator
@@ -24,7 +27,10 @@ import com.android.tools.metalava.stub.StubWriterConfig
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import com.github.ajalt.clikt.parameters.options.convert
 import com.github.ajalt.clikt.parameters.options.flag
+import com.github.ajalt.clikt.parameters.options.multiple
 import com.github.ajalt.clikt.parameters.options.option
+import com.github.ajalt.clikt.parameters.types.file
+import java.io.File
 
 private const val STUB_GENERATION_GROUP = "Stub Generation"
 
@@ -36,6 +42,9 @@ const val ARG_FORCE_CONVERT_TO_WARNING_NULLABILITY_ANNOTATIONS =
     "--force-convert-to-warning-nullability-annotations"
 const val ARG_EXCLUDE_DOCUMENTATION_FROM_STUBS = "--exclude-documentation-from-stubs"
 const val ARG_ENHANCE_DOCUMENTATION = "--enhance-documentation"
+const val ARG_MIGRATE_NULLNESS = "--migrate-nullness"
+
+const val ARG_APPLY_API_LEVELS = "--apply-api-levels"
 
 class StubGenerationOptions :
     OptionGroup(
@@ -81,7 +90,7 @@ class StubGenerationOptions :
             )
             .newDir()
 
-    val includeAnnotations by
+    private val includeAnnotations by
         option(
                 ARG_INCLUDE_ANNOTATIONS,
                 help = "Include/exclude annotations such as @Nullable in/from the stub files.",
@@ -133,7 +142,36 @@ class StubGenerationOptions :
                 defaultForHelp = "do not enhance unless $ARG_DOC_STUBS is specified",
             )
 
-    val forceConvertToWarningNullabilityAnnotations by
+    /**
+     * A [PreviouslyReleasedApi] used to determine whether to convert nullability annotations to a
+     * special.
+     */
+    private val nullabilityConversionPreviouslyReleasedApi by
+        option(
+                ARG_MIGRATE_NULLNESS,
+                metavar = "<api-file>",
+                help =
+                    """
+                        Compare nullness information with the previous stable API
+                        and mark newly annotated APIs as recently added. That replaces the
+                        annotations with a special form of annotation that will cause the Kotlin
+                        compiler to treat nullability issues as warnings not errors. The intent is
+                        that this will make it possible to fix existing app code incrementally after
+                        a release rather than having to fix it all at once.
+                    """
+                        .trimIndent()
+            )
+            .existingFile()
+            .multiple()
+            .map {
+                PreviouslyReleasedApi.optionalPreviouslyReleasedApi(
+                    ARG_MIGRATE_NULLNESS,
+                    it,
+                    onlyUseLastForMainApiSurface = false
+                )
+            }
+
+    private val forceConvertToWarningNullabilityAnnotations by
         option(
                 ARG_FORCE_CONVERT_TO_WARNING_NULLABILITY_ANNOTATIONS,
                 metavar = "<package1:-package2:...>",
@@ -149,6 +187,21 @@ class StubGenerationOptions :
                         .trimIndent()
             )
             .convert { PackageFilter.parse(it) }
+
+    private val applyApiLevelsXmlFile: File? by
+        option(
+                ARG_APPLY_API_LEVELS,
+                metavar = "<api-versions.xml>",
+                help =
+                    """
+                        Reads an XML file containing API level descriptions and merges the
+                        information into the documentation.
+                    """
+                        .trimIndent()
+            )
+            // Existence cannot be verified at this time as it may reference a file that this
+            // invocation of Metalava will create. Instead, it must be verified when it is used.
+            .file(canBeDir = false)
 
     /** Construct a [StubGenerator.Config] based on these options. */
     internal fun generatorConfig(): StubGenerator.Config {
@@ -167,6 +220,15 @@ class StubGenerationOptions :
                 }
             }
 
+        // Check to make sure that the ARG_APPLY_API_LEVELS file exists before it is used.
+        val apiVersionsXmlFile =
+            applyApiLevelsXmlFile?.also { file ->
+                if (!file.exists() || !file.canRead())
+                    throw MetalavaCliException(
+                        "$ARG_APPLY_API_LEVELS file '$file' does not exist or is not readable"
+                    )
+            }
+
         return StubGenerator.Config(
             // Create configuration for StubWriter.
             stubWriterConfig =
@@ -182,6 +244,16 @@ class StubGenerationOptions :
 
             // Specify the stubs directory, may be null.
             stubsDir = stubsDir,
+
+            // Specify whether annotations should be included.
+            generateAnnotations = includeAnnotations,
+
+            // Provide config needed to migrate nullability information.
+            nullabilityConversionPreviouslyReleasedApi = nullabilityConversionPreviouslyReleasedApi,
+            nullabilityConversionPackageFilter = forceConvertToWarningNullabilityAnnotations,
+
+            // Provide config needed to apply API versions to the documentation.
+            apiVersionsXmlFile = apiVersionsXmlFile,
         )
     }
 }

@@ -16,11 +16,11 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.config.ApiFlagActionConfig.Mutability.IMMUTABLE
+import com.android.tools.metalava.config.ApiFlagActionConfig.Mutability.MUTABLE
+import com.android.tools.metalava.config.ApiFlagActionConfig.Status.DISABLED
+import com.android.tools.metalava.config.ApiFlagActionConfig.Status.ENABLED
 import com.android.tools.metalava.config.ApiFlagConfig
-import com.android.tools.metalava.config.ApiFlagConfig.Mutability.IMMUTABLE
-import com.android.tools.metalava.config.ApiFlagConfig.Mutability.MUTABLE
-import com.android.tools.metalava.config.ApiFlagConfig.Status.DISABLED
-import com.android.tools.metalava.config.ApiFlagConfig.Status.ENABLED
 import com.android.tools.metalava.config.ApiFlagsConfig
 import com.android.tools.metalava.model.api.flags.ApiFlag
 import com.android.tools.metalava.model.api.flags.ApiFlagAction
@@ -66,16 +66,16 @@ class ApiFlagsCreatorTest {
                     ),
             )
 
-        val apiFlags = ApiFlagsCreator.createFromConfig(apiFlagsConfig)
+        val apiFlags = ApiFlagsCreator.createFromConfig(apiFlagsConfig)!!
 
         val expected =
-            mapOf(
-                "test.pkg.flag1" to ApiFlag.getFlag(ApiFlagAction.KEEP),
-                // No test.pkg.flag2 as that is disabled and ApiFlags will default to disabled.
-                "test.pkg.flag3" to ApiFlag.getFlag(ApiFlagAction.KEEP),
-                "test.pkg.flag4" to ApiFlag.getFlag(ApiFlagAction.FINALIZE, false),
+            listOf(
+                ApiFlag("test.pkg.flag1", ApiFlagAction.KEEP),
+                ApiFlag("test.pkg.flag2", ApiFlagAction.REVERT),
+                ApiFlag("test.pkg.flag3", ApiFlagAction.KEEP),
+                ApiFlag("test.pkg.flag4", ApiFlagAction.FINALIZE, false),
             )
-        assertEquals(expected, apiFlags!!.byQualifiedName)
+        assertEquals(expected, apiFlags.allFlags.toList())
     }
 
     @Test

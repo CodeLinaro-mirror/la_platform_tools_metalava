@@ -231,14 +231,6 @@ class ExtractAnnotations(
                         )
                     }
 
-                    if (filterEmit.test(typeDefClass)) {
-                        reporter.report(
-                            Issues.ANNOTATION_EXTRACTION,
-                            typeDefClass,
-                            "This typedef annotation class should be marked @hide or should not be marked public"
-                        )
-                    }
-
                     classToAnnotationHolder[className] = typeDefAnnotation
                     addItem(item, typeDefAnnotation)
 

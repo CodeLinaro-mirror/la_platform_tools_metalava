@@ -16,16 +16,16 @@
 
 package com.android.tools.metalava.config
 
-import com.android.tools.metalava.config.ApiFlagConfig.Mutability.IMMUTABLE
-import com.android.tools.metalava.config.ApiFlagConfig.Mutability.MUTABLE
-import com.android.tools.metalava.config.ApiFlagConfig.Status.DISABLED
-import com.android.tools.metalava.config.ApiFlagConfig.Status.ENABLED
+import com.android.tools.metalava.config.ApiFlagActionConfig.Mutability.IMMUTABLE
+import com.android.tools.metalava.config.ApiFlagActionConfig.Mutability.MUTABLE
+import com.android.tools.metalava.config.ApiFlagActionConfig.Status.DISABLED
+import com.android.tools.metalava.config.ApiFlagActionConfig.Status.ENABLED
 import com.android.tools.metalava.testing.xml
 import org.junit.Test
 
 class ApiFlagsConfigTest : BaseConfigParserTest() {
     @Test
-    fun `Test simple`() {
+    fun `Test simple without defaults`() {
         roundTrip(
             Config(
                 apiFlags =
@@ -54,6 +54,40 @@ class ApiFlagsConfigTest : BaseConfigParserTest() {
                   <api-flags>
                     <api-flag package="test.pkg" name="flag_name" mutability="immutable" status="enabled" is-exported="true"/>
                     <api-flag package="test.pkg" name="other_flag_name" mutability="mutable" status="disabled" is-exported="false"/>
+                  </api-flags>
+                </config>
+            """
+        )
+    }
+
+    @Test
+    fun `Test simple with defaults`() {
+        roundTrip(
+            Config(
+                apiFlags =
+                    ApiFlagsConfig(
+                        unknownFlags =
+                            UnknownApiFlagsConfig(
+                                mutability = MUTABLE,
+                                status = DISABLED,
+                            ),
+                        flags =
+                            listOf(
+                                ApiFlagConfig(
+                                    pkg = "test.pkg",
+                                    name = "flag_name",
+                                    mutability = IMMUTABLE,
+                                    status = ENABLED,
+                                    isExported = true,
+                                ),
+                            )
+                    )
+            ),
+            """
+                <config xmlns="http://www.google.com/tools/metalava/config">
+                  <api-flags>
+                    <unknown-flags mutability="mutable" status="disabled"/>
+                    <api-flag package="test.pkg" name="flag_name" mutability="immutable" status="enabled" is-exported="true"/>
                   </api-flags>
                 </config>
             """

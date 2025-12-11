@@ -158,7 +158,7 @@ abstract class AbstractItemDocumentation(
         val field = resolveConstantFieldReference(flagFieldReference) ?: return false
         val flagName = (field.constantValue as? StringValue)?.underlyingValue ?: return false
         val apiFlags = item.codebase.config.apiFlags ?: return true
-        return apiFlags[flagName].description != ApiFlagAction.REVERT
+        return apiFlags[flagName].action != ApiFlagAction.REVERT
     }
 
     override val isHidden

@@ -58,7 +58,6 @@ const val ARG_REMOVE_MISSING_CLASS_REFERENCES_IN_API_LEVELS =
     "--remove-missing-class-references-in-api-levels"
 
 const val ARG_CURRENT_VERSION = "--current-version"
-const val ARG_FIRST_VERSION = "--first-version"
 const val ARG_CURRENT_CODENAME = "--current-codename"
 
 const val ARG_API_VERSION_FOR_SOURCES = "--api-version-for-sources"
@@ -120,7 +119,7 @@ class ApiLevelsGenerationOptions(
             )
             .newFile()
 
-    private val apiVersionForSources: ApiVersion? by
+    internal val apiVersionForSources: ApiVersion? by
         option(
                 ARG_API_VERSION_FOR_SOURCES,
                 metavar = "<api-version>",
@@ -155,24 +154,6 @@ class ApiLevelsGenerationOptions(
         ApiVersion.fromString(it)
     }
 
-    /**
-     * The first api version of the codebase; typically 1 but can be higher for example for the
-     * System API.
-     */
-    private val firstApiVersion: ApiVersion by
-        option(
-                ARG_FIRST_VERSION,
-                metavar = "<api-version>",
-                help =
-                    """
-                        Sets the first API version to include in the API history file. See
-                        $ARG_CURRENT_VERSION for acceptable `<api-version>`s.
-                    """
-                        .trimIndent()
-            )
-            .apiVersion()
-            .default(ApiVersion.fromLevel(1))
-
     /** Convert an option value to a [ClosedRange] of [ApiVersion]. */
     private fun OptionWithValues<String?, String, String>.apiVersionRange() = convert { text ->
         val parts = text.split(':')
@@ -196,7 +177,7 @@ class ApiLevelsGenerationOptions(
                         `<api-version>`s.
 
                         If unspecified then this currently falls back to a range from
-                        `--first-api-version` to `--current-version` (or `--api-version-for-sources`
+                        1 to `--current-version` (or `--api-version-for-sources`
                         if `--current-codename` is set to any value other than `REL`). However,
                         in future it will default to allowing every historical version.
                     """
@@ -455,6 +436,7 @@ class ApiLevelsGenerationOptions(
     ): List<MatchedPatternFile> {
         // Find all the historical files for versions within the required range.
         val patternNode = PatternNode.parsePatterns(patterns)
+        val firstApiVersion = ApiVersion.fromLevel(1)
         val versionRange = apiVersionRange ?: firstApiVersion.rangeTo(lastApiVersion)
         val sdkExtensionVersionRange =
             sdkExtensionVersionRange
@@ -826,15 +808,7 @@ class ApiLevelsGenerationOptions(
         versionedHistoricalApis: List<VersionedApi>
     ): ApiVersion? {
         val lastFinalizedVersion = versionedHistoricalApis.lastOrNull()?.apiVersion
-        if (apiVersionForSources != null) {
-            if (lastFinalizedVersion != null && apiVersionForSources!! <= lastFinalizedVersion) {
-                cliError(
-                    "Suspicious $ARG_API_VERSION_FOR_SOURCES $apiVersionForSources, expected a version greater than $lastFinalizedVersion"
-                )
-            }
-
-            return apiVersionForSources
-        }
+        if (apiVersionForSources != null) return apiVersionForSources
 
         optionalCurrentApiVersion?.let { currentApiVersion ->
             if (currentApiVersion.major <= 26) {

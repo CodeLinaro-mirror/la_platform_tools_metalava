@@ -26,6 +26,49 @@ class ExperimentalApiFileTest : DriverTest() {
 
     @RequiresCapabilities(Capability.KOTLIN)
     @Test
+    fun `Mark an annotation as experimental only if direct annotation or immediate meta-annotation is experimental`() {
+        check(
+            format = FileFormat.V4,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+
+                        @RequiresOptIn
+                        annotation class SuppressCompatHasRequiresOptIn
+
+                        @SuppressCompatHasRequiresOptIn
+                        annotation class SuppressCompatNoRequiresOptIn
+
+                        @OptIn(SuppressCompatHasRequiresOptIn::class)
+                        @SuppressCompatNoRequiresOptIn
+                        annotation class NotSuppressCompatHasOptIn
+
+                        @NotSuppressCompatHasOptIn
+                        annotation class NotSuppressCompat
+                        """
+                    )
+                ),
+            api =
+                """
+                package test.pkg {
+                  @test.pkg.NotSuppressCompatHasOptIn public @interface NotSuppressCompat {
+                  }
+                  @test.pkg.SuppressCompatNoRequiresOptIn public @interface NotSuppressCompatHasOptIn {
+                  }
+                  @SuppressCompatibility @kotlin.RequiresOptIn public @interface SuppressCompatHasRequiresOptIn {
+                  }
+                  @SuppressCompatibility @test.pkg.SuppressCompatHasRequiresOptIn public @interface SuppressCompatNoRequiresOptIn {
+                  }
+                }
+                    """,
+            suppressCompatibilityMetaAnnotations = arrayOf("kotlin.RequiresOptIn")
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
     fun `Don't annotate package as suppress compatibility when it contains a non-experimental class and an experimental package`() {
         check(
             format = FileFormat.V4,

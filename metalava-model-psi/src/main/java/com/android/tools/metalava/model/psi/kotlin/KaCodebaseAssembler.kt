@@ -39,10 +39,12 @@ import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeParameterListAndFactory
 import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.createImmutableModifiers
+import com.android.tools.metalava.model.createMutableModifiers
 import com.android.tools.metalava.model.item.CodebaseAssembler
 import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.item.DefaultCodebase
@@ -52,6 +54,7 @@ import com.android.tools.metalava.model.item.DefaultParameterItem
 import com.android.tools.metalava.model.item.PackageInfo
 import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
 import com.android.tools.metalava.model.psi.PsiBasedCodebase
+import com.android.tools.metalava.model.psi.PsiClassItem.Companion.isFileFacade
 import com.android.tools.metalava.model.psi.PsiFieldItem
 import com.android.tools.metalava.model.psi.PsiFileLocation
 import com.android.tools.metalava.model.psi.PsiItemDocumentation
@@ -92,6 +95,7 @@ import org.jetbrains.kotlin.analysis.api.symbols.name
 import org.jetbrains.kotlin.analysis.api.symbols.receiverType
 import org.jetbrains.kotlin.analysis.api.types.KaType
 import org.jetbrains.kotlin.asJava.toLightElements
+import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.psi.KtAnnotationEntry
 import org.jetbrains.kotlin.psi.KtElement
@@ -221,8 +225,46 @@ private constructor(
         analyze(kaModule) { findPackage(FqName(packageName)) != null }
 
     override fun createClassFromUnderlyingModel(qualifiedName: String): ClassItem? {
-        // TODO(b/407735063)
-        return null
+        // The search in a KaModule uses a ClassId, where packages are separated by "/" instead of
+        // ".". Class names are separated by "." for nested classes, but first try to find the class
+        // as top level.
+        val classIdString = qualifiedName.replace('.', '/')
+        val classItem =
+            analyze(kaModule) {
+                findClassLike(ClassId.fromString(classIdString))?.let { kaClassLikeSymbol ->
+                    val packageQualifiedName = qualifiedName.substringBeforeLast('.')
+                    val containingPackage = codebase.findOrCreatePackage(packageQualifiedName)
+                    when (kaClassLikeSymbol) {
+                        is KaNamedClassSymbol ->
+                            processNamedClass(
+                                kaClassLikeSymbol,
+                                containingPackage,
+                                containingClass = null,
+                                processIfClasspath = true
+                            )
+                        is KaTypeAliasSymbol ->
+                            processTypeAlias(kaClassLikeSymbol, containingPackage)
+                        else -> null
+                    }
+                }
+            }
+        // Return the top level class item if found.
+        if (classItem != null) {
+            return classItem
+        }
+
+        // See if this might be a nested class. If there are no qualifiers it can't be.
+        if (!qualifiedName.contains('.')) {
+            return null
+        }
+        // If a top level class was not found, try searching for this as a nested class. Attempt to
+        // create the containing class and locate the nested class inside of it.
+        val possibleContainingClassName = qualifiedName.substringBeforeLast('.')
+        val possibleContainingClass =
+            createClassFromUnderlyingModel(possibleContainingClassName) ?: return null
+        return possibleContainingClass.nestedClasses().firstOrNull {
+            it.qualifiedName() == qualifiedName
+        }
     }
 
     @OptIn(KaExperimentalApi::class)
@@ -309,11 +351,19 @@ private constructor(
                 is KaTypeParameterSymbol -> {}
             }
         }
-        for (callableSymbol in filterExpects(packageScope.callables)) {
+
+        // Only process top level functions and properties from sources, not from the classpath.
+        for (callableSymbol in
+            filterExpects(packageScope.callables.filter { it.origin != KaSymbolOrigin.LIBRARY })) {
             // For top-level callables, find their containing class in the codebase.
-            @OptIn(KaExperimentalApi::class)
-            val className = callableSymbol.containingJvmClassName ?: continue
-            val classItem = codebase.findClass(className) as? DefaultClassItem ?: continue
+            val classItem =
+                if (addingToPsiCodebase) {
+                    @OptIn(KaExperimentalApi::class)
+                    val className = callableSymbol.containingJvmClassName ?: continue
+                    codebase.findClassInCodebase(className) ?: continue
+                } else {
+                    findOrCreateFacadeClass(packageItem)
+                }
             val classTypeItemFactory =
                 KaTypeItemFactory(codebase, this@KaModuleProcessor, classItem)
             processCallable(callableSymbol, classItem, classTypeItemFactory)
@@ -325,22 +375,24 @@ private constructor(
         classifierSymbol: KaNamedClassSymbol,
         containingPackage: PackageItem,
         containingClass: DefaultClassItem? = null,
-    ) {
-        // Skip Java classes, these won't be kotlin-only.
-        if (classifierSymbol.psi?.isKotlin() == false) return
+        processIfClasspath: Boolean = false,
+    ): DefaultClassItem? {
+        // When adding to a psi codebase, skip Java classes as they won't be kotlin-only.
+        if (addingToPsiCodebase && classifierSymbol.psi?.isKotlin() == false) return null
         // Skip classes loaded from the classpath.
-        if (classifierSymbol.origin == KaSymbolOrigin.LIBRARY) return
+        if (!processIfClasspath && classifierSymbol.origin == KaSymbolOrigin.LIBRARY) return null
         // Skip private classes since these aren't part of the API surface
-        if (classifierSymbol.visibility == KaSymbolVisibility.PRIVATE) return
+        if (!processIfClasspath && classifierSymbol.visibility == KaSymbolVisibility.PRIVATE)
+            return null
 
         // Find the class in the codebase.
-        val className = classifierSymbol.classId?.asFqNameString() ?: return
+        val className = classifierSymbol.classId?.asFqNameString() ?: return null
         val classItem =
             if (addingToPsiCodebase) {
                 // When adding Kotlin-only elements to a PsiBasedCodebase, don't create any new
                 // classes. Some classes won't have been generated in the psi assembly because they
                 // don't have API visibility, so they shouldn't be created here.
-                codebase.findClassInCodebase(className) ?: return
+                codebase.findClassInCodebase(className) ?: return null
             } else {
                 findOrCreateClass(classifierSymbol, containingPackage, containingClass, className)
             }
@@ -366,7 +418,12 @@ private constructor(
         }
         for (nestedClassifierSymbol in
             memberScope.classifiers.filterIsInstance<KaNamedClassSymbol>()) {
-            processNamedClass(nestedClassifierSymbol, classItem.containingPackage(), classItem)
+            processNamedClass(
+                nestedClassifierSymbol,
+                classItem.containingPackage(),
+                classItem,
+                processIfClasspath = processIfClasspath
+            )
         }
 
         // Process callables defined through a delegate
@@ -374,6 +431,8 @@ private constructor(
         for (callableSymbol in filterExpects(delegateScope.callables)) {
             processCallable(callableSymbol, classItem, classTypeItemFactory)
         }
+
+        return classItem
     }
 
     /**
@@ -471,9 +530,46 @@ private constructor(
         }
     }
 
+    /**
+     * Finds or creates a fake facade class to hold the top level functions and properties of a
+     * package, for use when creating a multiplatform codebase.
+     *
+     * Facade classes are only created for the JVM, but in order to support top level functions and
+     * properties in the [Codebase] model this creates a fake class to hold the package-level items.
+     */
+    private fun findOrCreateFacadeClass(containingPackage: PackageItem): DefaultClassItem {
+        // Create a fake class name to contain the top level items.
+        val qualifiedName = containingPackage.qualifiedName() + ".\$TopLevelDeclarations"
+        codebase.findClassInCodebase(qualifiedName)?.let {
+            return it
+        }
+        val classItem =
+            itemFactory.createClassItem(
+                fileLocation = FileLocation.UNKNOWN,
+                targetLanguages = TargetLanguageSet.KOTLIN_ONLY,
+                modifiers = createMutableModifiers(VisibilityLevel.PUBLIC),
+                source = null,
+                classKind = ClassKind.CLASS,
+                containingPackage = containingPackage,
+                containingClass = null,
+                qualifiedName = qualifiedName,
+                typeParameterList = TypeParameterList.NONE,
+                // Top level functions and properties are loaded from sources, not the classpath.
+                origin = ClassOrigin.COMMAND_LINE,
+                superClassType = null,
+                interfaceTypes = emptyList(),
+                isFileFacade = true,
+            )
+        codebase.addTopLevelClassFromSource(classItem)
+        return classItem
+    }
+
     /** Creates a [DefaultClassItem] of kind type alias from the [typeAlias]. */
-    private fun processTypeAlias(typeAlias: KaTypeAliasSymbol, containingPackage: PackageItem) {
-        val qualifiedName = typeAlias.classId?.asFqNameString() ?: return
+    private fun processTypeAlias(
+        typeAlias: KaTypeAliasSymbol,
+        containingPackage: PackageItem
+    ): DefaultClassItem? {
+        val qualifiedName = typeAlias.classId?.asFqNameString() ?: return null
         val typeParameterListAndFactory =
             typeParameterListAndFactory(
                 kaTypeItemFactory,
@@ -481,7 +577,7 @@ private constructor(
                 typeAlias.typeParameters,
             )
 
-        itemFactory.createTypeAliasItem(
+        return itemFactory.createTypeAliasItem(
             fileLocation = PsiFileLocation.fromPsiElement(typeAlias.psi),
             modifiers = kaModifierFactory.createForDeclaration(typeAlias),
             aliasedType =
@@ -501,6 +597,12 @@ private constructor(
         constructorSymbol: KaConstructorSymbol,
         containingClass: ClassItem,
     ): Boolean {
+        // Deprecation level hidden items can't be resolved from source.
+        if (constructorSymbol.isDeprecatedHidden()) return false
+        // If this codebase is being created just from the KaModule, all other source constructors
+        // should be generated. Only skip constructors when adding to a PsiBasedCodebase.
+        if (!addingToPsiCodebase) return true
+
         // Value class primary constructors are always kotlin only.
         if (constructorSymbol.isPrimary && containingClass.modifiers.isValue()) return true
         // If a constructor has a corresponding UElement it generally shouldn't be created as kotlin
@@ -509,8 +611,6 @@ private constructor(
         // kotlin only.
         if (constructorSymbol.existsAsUElement() && !hasValueClassTypeParameter(constructorSymbol))
             return false
-        // Deprecation level hidden items can't be resolved from source.
-        if (constructorSymbol.isDeprecatedHidden()) return false
         return true
     }
 
@@ -592,8 +692,6 @@ private constructor(
     private fun KaSession.shouldGenerateMethod(functionSymbol: KaNamedFunctionSymbol): Boolean {
         // Don't generate hidden functions since they cannot be resolved from source.
         if (functionSymbol.isDeprecatedHidden()) return false
-        // Generate delegate functions.
-        if (functionSymbol.origin == KaSymbolOrigin.DELEGATED) return true
         // Skip generated equals and hashCode methods, when they aren't implemented in source.
         if (
             functionSymbol.origin == KaSymbolOrigin.SOURCE_MEMBER_GENERATED &&
@@ -602,6 +700,13 @@ private constructor(
                 } ?: false
         )
             return false
+
+        // If this codebase is being created just from the KaModule, all other source functions
+        // should be generated. Only skip functions when adding to a PsiBasedCodebase.
+        if (!addingToPsiCodebase) return true
+
+        // Generate delegate functions.
+        if (functionSymbol.origin == KaSymbolOrigin.DELEGATED) return true
 
         // Composable APIs will have a different signature in bytecode than in source, so the source
         // signature should be generated here as kotlin-only.

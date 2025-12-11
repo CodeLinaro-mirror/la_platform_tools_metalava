@@ -19,17 +19,7 @@ package com.android.tools.metalava.flag
 import com.android.tools.metalava.model.api.flags.ApiFlag
 
 /** Report about the flag status. */
-class ApiFlagReport(private val apiFlagByName: Map<String, ApiFlag?>) {
-    /** An individual flag's status. */
-    data class FlagStatus(
-        /** The qualified name of the flag. */
-        val qualifiedName: String,
-
-        /** The effect that the flag will have on the API. */
-        val apiFlag: ApiFlag?,
-    )
-
-    /** Get all the [FlagStatus]es for the flags, in order by [FlagStatus.qualifiedName]. */
-    val flagStatuses: List<FlagStatus>
-        get() = apiFlagByName.map { FlagStatus(it.key, it.value) }
-}
+class ApiFlagReport(
+    /** All the flags referenced from the signature files. */
+    val referencedFlags: List<ApiFlag>,
+)

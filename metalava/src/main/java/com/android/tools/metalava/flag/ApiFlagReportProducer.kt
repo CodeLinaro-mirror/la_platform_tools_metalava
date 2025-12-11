@@ -49,8 +49,7 @@ object ApiFlagReportProducer : BaseItemVisitor(visitParameterItems = false) {
         // Gather the names of all the flags used in this codebase.
         codebase.accept(this)
 
-        val flagStatusByName =
-            allFlagNames.sorted().associateWith { flagName -> apiFlags.byQualifiedName[flagName] }
-        return ApiFlagReport(flagStatusByName)
+        val referencedFlags = allFlagNames.sorted().map { flagName -> apiFlags[flagName] }
+        return ApiFlagReport(referencedFlags)
     }
 }
