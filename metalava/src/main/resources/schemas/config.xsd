@@ -157,7 +157,14 @@
                 The type of the `api-flags` element defined inside `config`.
             </xs:documentation>
         </xs:annotation>
-        <xs:choice>
+        <xs:sequence>
+            <xs:element name="unknown-flags" type="config:UnknownFlagsType" minOccurs="0" maxOccurs="1">
+                <xs:annotation>
+                    <xs:documentation>
+                        The type of the `unknown-flags` elements inside `api-flags`.
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
             <xs:element name="api-flag" type="config:ApiFlagType" minOccurs="0" maxOccurs="unbounded">
                 <xs:annotation>
                     <xs:documentation>
@@ -165,30 +172,25 @@
                     </xs:documentation>
                 </xs:annotation>
             </xs:element>
-        </xs:choice>
+        </xs:sequence>
     </xs:complexType>
 
-    <xs:complexType name="ApiFlagType">
+    <xs:complexType name="UnknownFlagsType">
         <xs:annotation>
             <xs:documentation>
-                The type of the `api-flag` element defined inside `ApiFlagsType`.
+                The type of the optional `defaults` element defined inside `ApiFlagsType`.
             </xs:documentation>
         </xs:annotation>
         <xs:choice/>
-        <xs:attribute name="package" type="config:ApiFlagPackageNameType" use="required">
-            <xs:annotation>
-                <xs:documentation>
-                    The required package of the flag.
-                </xs:documentation>
-            </xs:annotation>
-        </xs:attribute>
-        <xs:attribute name="name" type="config:ApiFlagNameType" use="required">
-            <xs:annotation>
-                <xs:documentation>
-                    The required name of the flag.
-                </xs:documentation>
-            </xs:annotation>
-        </xs:attribute>
+        <xs:attributeGroup ref="config:ApiFlagStateAttributes"/>
+    </xs:complexType>
+
+    <xs:attributeGroup name="ApiFlagStateAttributes">
+        <xs:annotation>
+            <xs:documentation>
+                The set of attributes that specify an API flag's state.
+            </xs:documentation>
+        </xs:annotation>
         <xs:attribute name="mutability" use="required">
             <xs:annotation>
                 <xs:documentation>
@@ -239,6 +241,30 @@
                 </xs:restriction>
             </xs:simpleType>
         </xs:attribute>
+    </xs:attributeGroup>
+
+    <xs:complexType name="ApiFlagType">
+        <xs:annotation>
+            <xs:documentation>
+                The type of the `api-flag` element defined inside `ApiFlagsType`.
+            </xs:documentation>
+        </xs:annotation>
+        <xs:choice/>
+        <xs:attribute name="package" type="config:ApiFlagPackageNameType" use="required">
+            <xs:annotation>
+                <xs:documentation>
+                    The required package of the flag.
+                </xs:documentation>
+            </xs:annotation>
+        </xs:attribute>
+        <xs:attribute name="name" type="config:ApiFlagNameType" use="required">
+            <xs:annotation>
+                <xs:documentation>
+                    The required name of the flag.
+                </xs:documentation>
+            </xs:annotation>
+        </xs:attribute>
+        <xs:attributeGroup ref="config:ApiFlagStateAttributes"/>
         <xs:attribute name="is-exported" type="xs:boolean" default="true">
             <xs:annotation>
                 <xs:documentation>

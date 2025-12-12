@@ -68,9 +68,10 @@ genrule {
     srcs: [
         "stub-annotations/src/main/java/**/*.java",
     ],
-    cmd: "($(location metalava) make-annotations-package-private " +
-        "tools/metalava/stub-annotations/src/main/java $(genDir)/private-stub-annotations) " +
-        "&& ($(location soong_zip) -o $(out) -C $(genDir) -D $(genDir))",
+    cmd: "DIR=$(genDir)/private-stub-annotations " +
+        "&& ($(location metalava) make-annotations-package-private " +
+        "tools/metalava/stub-annotations/src/main/java $$DIR) " +
+        "&& ($(location soong_zip) -o $(out) -C $$DIR -D $$DIR)",
     out: [
         "private-stub-annotations.srcjar",
     ],

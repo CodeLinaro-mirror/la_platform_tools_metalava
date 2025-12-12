@@ -106,7 +106,7 @@ class CommonCodebaseTest : BaseModelTest() {
 
     @Test
     fun `Test ApiFlags passed through to codebase config`() {
-        val apiFlags = ApiFlags(emptyMap())
+        val apiFlags = ApiFlags(emptyList())
         runSourceCodebaseTest(
             java(
                 """

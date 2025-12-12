@@ -74,7 +74,7 @@ class CommonMultiplatformPropertyItemTest : BaseModelTest() {
             val fooClass = multiplatformCodebase.assertClass("test.pkg.Foo")
             val fooProperty = fooClass.assertProperty("foo")
             fooProperty.assertSourceSets("commonMain", "androidMain", "nativeMain")
-            assertThat(fooProperty.containingClass).isEqualTo(fooClass)
+            assertThat(fooProperty.containingItem).isEqualTo(fooClass)
             assertThat(fooProperty.name).isEqualTo("foo")
             assertThat(fooProperty.receiver).isNull()
             assertThat(fooProperty.toString()).isEqualTo("multiplatform property test.pkg.Foo#foo")
@@ -114,7 +114,7 @@ class CommonMultiplatformPropertyItemTest : BaseModelTest() {
             val commonClass = multiplatformCodebase.assertClass("test.pkg.Common")
             val commonProperty = commonClass.assertProperty("common")
             commonProperty.assertSourceSets("commonMain", "androidMain")
-            assertThat(commonProperty.containingClass).isEqualTo(commonClass)
+            assertThat(commonProperty.containingItem).isEqualTo(commonClass)
             assertThat(commonProperty.name).isEqualTo("common")
             assertThat(commonProperty.receiver).isNull()
             assertThat(commonProperty.toString())
@@ -123,7 +123,7 @@ class CommonMultiplatformPropertyItemTest : BaseModelTest() {
             val androidClass = multiplatformCodebase.assertClass("test.pkg.Android")
             val androidProperty = androidClass.assertProperty("android")
             androidProperty.assertSourceSets("androidMain")
-            assertThat(androidProperty.containingClass).isEqualTo(androidClass)
+            assertThat(androidProperty.containingItem).isEqualTo(androidClass)
             assertThat(androidProperty.name).isEqualTo("android")
             assertThat(androidProperty.receiver).isNull()
             assertThat(androidProperty.toString())
@@ -175,7 +175,7 @@ class CommonMultiplatformPropertyItemTest : BaseModelTest() {
             val fooClass = multiplatformCodebase.assertClass("test.pkg.Foo")
             val fooProperty = fooClass.assertProperty("foo", "java.lang.String")
             fooProperty.assertSourceSets("commonMain", "androidMain", "nativeMain")
-            assertThat(fooProperty.containingClass).isEqualTo(fooClass)
+            assertThat(fooProperty.containingItem).isEqualTo(fooClass)
             assertThat(fooProperty.name).isEqualTo("foo")
             assertThat(fooProperty.receiver?.toTypeString()).isEqualTo("java.lang.String")
             assertThat(fooProperty.toString())
@@ -290,6 +290,67 @@ class CommonMultiplatformPropertyItemTest : BaseModelTest() {
             assertThat(fooProperties.size).isEqualTo(4)
             assertThat(fooProperties)
                 .containsExactly(stringNonNullable, stringNullable, listNonNullable, listNullable)
+        }
+    }
+
+    @Test
+    fun `Definition of top level expect actual extension property`() {
+        val commonSource =
+            kotlin(
+                "commonMain/src/test/pkg/Foo.kt",
+                """
+               package test.pkg
+               expect val Int.foo: Int
+               """
+            )
+        val androidSource =
+            kotlin(
+                "androidMain/src/test/pkg/Foo_android.kt",
+                """
+                   package test.pkg
+                   actual val Int.foo = 0
+                   val Int.android = 0
+                   """
+            )
+        val nativeSource =
+            kotlin(
+                "nativeMain/src/test/pkg/Foo_native.kt",
+                """
+                   package test.pkg
+                   actual val Int.foo = 0
+                   val Int.native = 0
+                   """
+            )
+
+        runMultiplatformCodebaseTest(
+            inputSet(commonSource, androidSource, nativeSource),
+            projectDescription =
+                createProjectDescription(
+                    createCommonModuleDescription(arrayOf(commonSource)),
+                    createAndroidModuleDescription(arrayOf(androidSource)),
+                    createNativeModuleDescription(arrayOf(nativeSource)),
+                ),
+        ) {
+            val testPkg = multiplatformCodebase.assertPackage("test.pkg")
+            testPkg.assertSourceSets("androidMain", "commonMain", "nativeMain")
+
+            val fooProperty = testPkg.assertProperty("foo", "int")
+            fooProperty.assertSourceSets("androidMain", "commonMain", "nativeMain")
+
+            val androidProperty = testPkg.assertProperty("android", "int")
+            androidProperty.assertSourceSets("androidMain")
+
+            val nativeProperty = testPkg.assertProperty("native", "int")
+            nativeProperty.assertSourceSets("nativeMain")
+
+            assertThat(testPkg.topLevelProperties).hasSize(3)
+            assertThat(testPkg.topLevelProperties)
+                .containsExactly(fooProperty, androidProperty, nativeProperty)
+
+            // Verify that the facade classes in the underlying model to hold the top level
+            // properties are not included in the multiplatform model.
+            assertThat(testPkg.topLevelClasses()).isEmpty()
+            assertThat(testPkg.allClasses().toList()).isEmpty()
         }
     }
 }

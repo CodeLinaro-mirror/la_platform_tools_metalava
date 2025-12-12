@@ -59,8 +59,6 @@ Options:
                                              annotation which is itself annotated with the given meta-annotation.
   --manifest <file>                          A manifest file, used to check permissions to cross check APIs and retrieve
                                              min_sdk_version. (default: no manifest)
-  --migrate-nullness <api file>              Compare nullness information with the previous stable API and mark newly
-                                             annotated APIs as under migration.
   --typedefs-in-signatures [none|ref|inline]
                                              Whether to include typedef annotations in signature files.
 
@@ -188,12 +186,6 @@ Extracting Annotations:
                                              If true, include source-retention annotations in the stub files. Does not
                                              apply to signature files. Source retention annotations are extracted into
                                              the external annotations files instead.
-
-
-Injecting API Levels:
---apply-api-levels <api-versions.xml>
-                                             Reads an XML file containing API level descriptions and merges the
-                                             information into the documentation
 
 
 Environment Variables:

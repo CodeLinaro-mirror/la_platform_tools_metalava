@@ -24,6 +24,67 @@ import org.junit.Test
 
 class ExperimentalCompatibilityCheckTest : DriverTest() {
 
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Ensure that breaking change is detected on element with experimental ancestor meta-annotation, but not itself experimental`() {
+        check(
+            expectedIssues =
+                """
+                src/test/pkg/SuppressCompatHasRequiresOptIn.kt:18: error: Binary breaking change: Method test.pkg.MyClass.myIncompatiblyChangedFunA has changed return type from int to java.lang.String [ChangedType]
+                src/test/pkg/SuppressCompatHasRequiresOptIn.kt:21: error: Binary breaking change: Method test.pkg.MyClass.myIncompatiblyChangedFunB has changed return type from int to java.lang.String [ChangedType]
+            """
+                    .trimIndent(),
+            checkCompatibilityApiReleased =
+                """
+                package test.pkg {
+                  public final class MyClass {
+                    ctor public MyClass();
+                    method @test.pkg.NotSuppressCompatHasOptIn public int myIncompatiblyChangedFunA();
+                    method @test.pkg.NotSuppressCompat public int myIncompatiblyChangedFunB();
+                  }
+                  @test.pkg.NotSuppressCompatHasOptIn public @interface NotSuppressCompat {
+                  }
+                  @test.pkg.SuppressCompatNoRequiresOptIn public @interface NotSuppressCompatHasOptIn {
+                  }
+                  @SuppressCompatibility @kotlin.RequiresOptIn public @interface SuppressCompatHasRequiresOptIn {
+                  }
+                  @SuppressCompatibility @test.pkg.SuppressCompatHasRequiresOptIn public @interface SuppressCompatNoRequiresOptIn {
+                  }
+                }
+                """,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+
+                        @RequiresOptIn
+                        annotation class SuppressCompatHasRequiresOptIn
+
+                        @SuppressCompatHasRequiresOptIn
+                        annotation class SuppressCompatNoRequiresOptIn
+
+                        @OptIn(SuppressCompatHasRequiresOptIn::class)
+                        @SuppressCompatNoRequiresOptIn
+                        annotation class NotSuppressCompatHasOptIn
+
+                        @NotSuppressCompatHasOptIn
+                        annotation class NotSuppressCompat
+
+                        class MyClass {
+                            @NotSuppressCompatHasOptIn
+                            fun myIncompatiblyChangedFunA(): String { return "1" }
+
+                            @NotSuppressCompat
+                            fun myIncompatiblyChangedFunB(): String { return "1" }
+                        }
+                        """
+                            .trimIndent()
+                    )
+                )
+        )
+    }
+
     @Test
     fun `Should raise compatibility error on added abstract to experimental method in non-experimental class`() {
         check(

@@ -24,7 +24,6 @@ import com.android.tools.metalava.ARG_API_VERSION_SIGNATURE_FILES
 import com.android.tools.metalava.ARG_API_VERSION_SIGNATURE_PATTERN
 import com.android.tools.metalava.ARG_CURRENT_CODENAME
 import com.android.tools.metalava.ARG_CURRENT_VERSION
-import com.android.tools.metalava.ARG_FIRST_VERSION
 import com.android.tools.metalava.ARG_GENERATE_API_LEVELS
 import com.android.tools.metalava.ARG_GENERATE_API_VERSION_HISTORY
 import com.android.tools.metalava.ARG_REMOVE_MISSING_CLASS_REFERENCES_IN_API_LEVELS
@@ -92,8 +91,6 @@ class ApiGeneratorTest : DriverTest() {
                     apiVersionsXml.path,
                     ARG_SDK_INFO_FILE,
                     sdkExtensionsInfo,
-                    ARG_FIRST_VERSION,
-                    "30",
                     ARG_CURRENT_VERSION,
                     "32",
                     ARG_CURRENT_CODENAME,
@@ -274,8 +271,6 @@ class ApiGeneratorTest : DriverTest() {
                     ARG_GENERATE_API_LEVELS,
                     apiVersionsXml.path,
                     ARG_REMOVE_MISSING_CLASS_REFERENCES_IN_API_LEVELS,
-                    ARG_FIRST_VERSION,
-                    "30",
                     ARG_CURRENT_VERSION,
                     "32",
                     ARG_CURRENT_CODENAME,
@@ -318,8 +313,6 @@ class ApiGeneratorTest : DriverTest() {
                     "system",
                     ARG_GENERATE_API_LEVELS,
                     apiVersionsXml.path,
-                    ARG_FIRST_VERSION,
-                    "30",
                     ARG_CURRENT_VERSION,
                     "32",
                     ARG_CURRENT_CODENAME,
@@ -357,8 +350,6 @@ class ApiGeneratorTest : DriverTest() {
                     arrayOf(
                         ARG_GENERATE_API_LEVELS,
                         apiVersionsXml.path,
-                        ARG_FIRST_VERSION,
-                        "30",
                         ARG_CURRENT_VERSION,
                         "32",
                         ARG_CURRENT_CODENAME,

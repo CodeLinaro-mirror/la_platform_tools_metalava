@@ -17,14 +17,21 @@
 package com.android.tools.metalava.model.multiplatform
 
 import com.android.tools.metalava.model.BaseModifierList
+import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.ConstructorItem
+import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.TypeParameterItem
+import com.android.tools.metalava.model.TypeParameterListOwner
 import com.android.tools.metalava.model.TypeStringConfiguration
 import java.util.Objects
 
@@ -64,13 +71,17 @@ class MultiplatformCodebase(sourceSetToCodebase: SourceSetDependent<Codebase>) :
     }
 
     /**
-     * Searches for the class with [qualifiedName]. If the class exists in any source set, returns a
-     * [MultiplatformClassItem]. If it does not exist in any source sets, returns null.
+     * Uses [getClassFromCodebase] to search for the class with [qualifiedName] in each [Codebase]
+     * of [sourceSetToElement]. If the class is found in any source sets, returns a
+     * [MultiplatformClassItem]. If it is not found in any, returns null.
      */
-    fun findClass(qualifiedName: String): MultiplatformClassItem? {
+    private fun getClass(
+        qualifiedName: String,
+        getClassFromCodebase: Codebase.() -> ClassItem?
+    ): MultiplatformClassItem? {
         val sourceSetToClass =
-            sourceSetToElement.mapValues { (_, codebase) -> codebase?.findClass(qualifiedName) }
-        return if (sourceSetToElement.values.any { it != null }) {
+            sourceSetToElement.transformValues { codebase -> codebase?.getClassFromCodebase() }
+        return if (sourceSetToClass.values.any { it != null }) {
             MultiplatformClassItem(
                 qualifiedName,
                 sourceSetToClass,
@@ -78,6 +89,23 @@ class MultiplatformCodebase(sourceSetToCodebase: SourceSetDependent<Codebase>) :
         } else {
             null
         }
+    }
+
+    /**
+     * Searches for the class with [qualifiedName]. If the class exists in any source set, returns a
+     * [MultiplatformClassItem]. If it does not exist in any source sets, returns null.
+     */
+    fun findClass(qualifiedName: String): MultiplatformClassItem? {
+        return getClass(qualifiedName) { findClass(qualifiedName) }
+    }
+
+    /**
+     * Searches for the class with [qualifiedName], including searching the classpath. If the class
+     * exists in any source set, returns a [MultiplatformClassItem]. If it does not exist in any
+     * source sets, returns null.
+     */
+    fun resolveClass(qualifiedName: String): MultiplatformClassItem? {
+        return getClass(qualifiedName) { resolveClass(qualifiedName) }
     }
 }
 
@@ -135,6 +163,32 @@ sealed class MultiplatformElement<E>(protected val sourceSetToElement: SourceSet
             multiplatformChildCreator(childIdentifier, sourceSetToChild)
         }
     }
+
+    /**
+     * Computes a list of the [MultiplatformElement] children with type [C] of this element, where
+     * the children are grouped based on their index. For instance, this can be used to list all
+     * value parameters of a callable or type parameters of a type parameter owner.
+     *
+     * @param childAccessor Lists the children for the element of one source set.
+     * @param multiplatformChildCreator Creates a [MultiplatformElement] for a child from the index
+     *   of the child and a mapping of source set to value of the child in that source set.
+     */
+    protected fun <C, M : MultiplatformElement<C>> aggregateIndexedChildren(
+        childAccessor: E.() -> List<C>,
+        multiplatformChildCreator: (Int, SourceSetDependent<C?>) -> M,
+    ): List<M> {
+        // Create a mapping from source set to the children that exist in that source set.
+        val sourceSetToChildren =
+            sourceSetToElement.transformValues { parent -> parent?.childAccessor() ?: emptyList() }
+        val numberOfChildren = sourceSetToChildren.values.maxOf { it.size }
+        // For each child index, find the child at that index in all source sets, and create a
+        // MultiplatformElement for it.
+        return (0..<numberOfChildren).map { childIndex ->
+            val sourceSetToChild =
+                sourceSetToChildren.transformValues { children -> children.getOrNull(childIndex) }
+            multiplatformChildCreator(childIndex, sourceSetToChild)
+        }
+    }
 }
 
 /** Wrapper for common functionality of [MultiplatformElement] with [Item] element types. */
@@ -154,7 +208,9 @@ class MultiplatformPackageItem(
     /** All the top-level (not nested) classes defined in this package in any source set. */
     fun topLevelClasses(): List<MultiplatformClassItem> {
         return aggregateChildren(
-            childAccessor = { topLevelClasses() },
+            // Do not include file facade classes. Their members will be listed in
+            // [topLevelFunctions] and [topLevelProperties].
+            childAccessor = { topLevelClasses().filter { !it.isFileFacade } },
             childIdentifier = { qualifiedName() },
             multiplatformChildCreator = { qualifiedName, sourceSetToClassItem ->
                 MultiplatformClassItem(qualifiedName, sourceSetToClassItem)
@@ -167,16 +223,69 @@ class MultiplatformPackageItem(
         return topLevelClasses().asSequence().flatMap { it.allClasses() }
     }
 
+    /**
+     * All the top-level functions defined in this package in any source set.
+     *
+     * In the underlying [Codebase] model, these functions are contained in file facade classes, but
+     * those are not included here because they are not real classes in the Kotlin API surface.
+     */
+    val topLevelFunctions: List<MultiplatformMethodItem> =
+        aggregateChildren(
+            childAccessor = {
+                topLevelClasses().filter { it.isFileFacade }.flatMap { it.methods() }
+            },
+            childIdentifier = { MultiplatformCallableItem.Identifier(this) },
+            multiplatformChildCreator = { identifier, sourceSetToMethodItem ->
+                MultiplatformMethodItem(this, identifier, sourceSetToMethodItem)
+            }
+        )
+
+    /**
+     * All the top-level properties defined in this package in any source set.
+     *
+     * In the underlying [Codebase] model, these properties are contained in file facade classes,
+     * but those are not included here because they are not real classes in the Kotlin API surface.
+     */
+    val topLevelProperties: List<MultiplatformPropertyItem> =
+        aggregateChildren(
+            childAccessor = {
+                topLevelClasses().filter { it.isFileFacade }.flatMap { it.properties() }
+            },
+            childIdentifier = { MultiplatformPropertyItem.Identifier(name(), receiver) },
+            multiplatformChildCreator = { identifier, sourceSetToPropertyItem ->
+                MultiplatformPropertyItem(this, identifier, sourceSetToPropertyItem)
+            }
+        )
+
     override fun toString(): String {
         return "multiplatform package $qualifiedName"
     }
+}
+
+/** A [MultiplatformItem] based on an [Item] that is a [TypeParameterListOwner]. */
+sealed class MultiplatformTypeParameterListOwner<E>(sourceSetToElement: SourceSetDependent<E?>) :
+    MultiplatformItem<E>(sourceSetToElement) where E : TypeParameterListOwner, E : Item {
+    /**
+     * The type parameters of this item, listed in order.
+     *
+     * For expect/actual items or items defined in a single source set, the source sets of the type
+     * parameters will be the same as the owning item. However, if two items with the same signature
+     * are defined in unrelated source sets, they could have different type parameters.
+     */
+    val typeParameterList: List<MultiplatformTypeParameterItem> =
+        aggregateIndexedChildren(
+            childAccessor = { typeParameterList },
+            multiplatformChildCreator = { typeParameterIndex, sourceSetToTypeParameter ->
+                MultiplatformTypeParameterItem(this, typeParameterIndex, sourceSetToTypeParameter)
+            }
+        )
 }
 
 /** A class named [qualifiedName] in a [MultiplatformCodebase]. */
 class MultiplatformClassItem(
     val qualifiedName: String,
     sourceSetToItem: SourceSetDependent<ClassItem?>
-) : MultiplatformItem<ClassItem>(sourceSetToItem) {
+) : MultiplatformTypeParameterListOwner<ClassItem>(sourceSetToItem) {
     /**
      * A mapping from source set where the [ClassItem] exists to the super class of the [ClassItem]
      * for that source set.
@@ -244,6 +353,26 @@ class MultiplatformClassItem(
             }
         )
 
+    /** The methods of this class which exist in any source set. */
+    val methods: List<MultiplatformMethodItem> =
+        aggregateChildren(
+            childAccessor = { methods() },
+            childIdentifier = { MultiplatformCallableItem.Identifier(this) },
+            multiplatformChildCreator = { identifier, sourceSetToMethodItem ->
+                MultiplatformMethodItem(this, identifier, sourceSetToMethodItem)
+            }
+        )
+
+    /** The constructors of this class which exist in any source set. */
+    val constructors: List<MultiplatformConstructorItem> =
+        aggregateChildren(
+            childAccessor = { constructors() },
+            childIdentifier = { MultiplatformCallableItem.Identifier(this) },
+            multiplatformChildCreator = { identifier, sourceSetToConstructorItem ->
+                MultiplatformConstructorItem(this, identifier, sourceSetToConstructorItem)
+            }
+        )
+
     override fun toString(): String {
         return "multiplatform class $qualifiedName"
     }
@@ -258,12 +387,30 @@ class MultiplatformClassItem(
     }
 }
 
-/** A property of the [containingClass], identified by [name] and optional [receiver] type. */
-class MultiplatformPropertyItem(
-    val containingClass: MultiplatformClassItem,
+/** A property of the [containingItem], identified by [name] and optional [receiver] type. */
+class MultiplatformPropertyItem
+private constructor(
+    /**
+     * The item which contains this property, either a class or a package (for a top level
+     * property).
+     */
+    val containingItem: MultiplatformItem<*>,
+    private val containingItemQualifiedName: String,
     private val identifier: Identifier,
     sourceSetToItem: SourceSetDependent<PropertyItem?>,
-) : MultiplatformItem<PropertyItem>(sourceSetToItem) {
+) : MultiplatformTypeParameterListOwner<PropertyItem>(sourceSetToItem) {
+    constructor(
+        containingClass: MultiplatformClassItem,
+        identifier: Identifier,
+        sourceSetToItem: SourceSetDependent<PropertyItem?>
+    ) : this(containingClass, containingClass.qualifiedName, identifier, sourceSetToItem)
+
+    constructor(
+        containingPackage: MultiplatformPackageItem,
+        identifier: Identifier,
+        sourceSetToItem: SourceSetDependent<PropertyItem?>
+    ) : this(containingPackage, containingPackage.qualifiedName, identifier, sourceSetToItem)
+
     /** The name of the property. */
     val name: String
         get() = identifier.name
@@ -282,17 +429,17 @@ class MultiplatformPropertyItem(
         val receiverString =
             receiver?.let { it.toTypeString(TypeStringConfiguration.DEFAULT_KOTLIN_NULLS) + "." }
                 ?: ""
-        return "multiplatform property ${containingClass.qualifiedName}#$receiverString$name"
+        return "multiplatform property $containingItemQualifiedName#$receiverString$name"
     }
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is MultiplatformPropertyItem) return false
-        return other.containingClass == containingClass && other.identifier == identifier
+        return other.containingItem == containingItem && other.identifier == identifier
     }
 
     override fun hashCode(): Int {
-        return Objects.hash(containingClass, identifier)
+        return Objects.hash(containingItem, identifier)
     }
 
     /**
@@ -313,5 +460,240 @@ class MultiplatformPropertyItem(
         override fun hashCode(): Int {
             return Objects.hash(name, receiver)
         }
+    }
+}
+
+/**
+ * A callable (method or constructor) of the [containingItem], identified by [parameterTypes] and
+ * name for methods.
+ */
+sealed class MultiplatformCallableItem<C : CallableItem>
+protected constructor(
+    /**
+     * The item which contains this property, either a class or a package (for a top level
+     * function).
+     */
+    open val containingItem: MultiplatformItem<*>,
+    protected val containingItemQualifiedName: String,
+    protected val identifier: Identifier,
+    sourceSetToItem: SourceSetDependent<C?>
+) : MultiplatformTypeParameterListOwner<C>(sourceSetToItem) {
+    constructor(
+        containingClass: MultiplatformClassItem,
+        identifier: Identifier,
+        sourceSetToItem: SourceSetDependent<C?>
+    ) : this(containingClass, containingClass.qualifiedName, identifier, sourceSetToItem)
+
+    constructor(
+        containingPackage: MultiplatformPackageItem,
+        identifier: Identifier,
+        sourceSetToItem: SourceSetDependent<C?>
+    ) : this(containingPackage, containingPackage.qualifiedName, identifier, sourceSetToItem)
+
+    /**
+     * The parameter types of the callable.
+     *
+     * The nullability of these type is significant, as it is possible to define two callables in
+     * Kotlin that differ only by parameter nullability. However, other modifiers (annotations) on
+     * the types are not significant and may differ by source set.
+     */
+    val parameterTypes: List<TypeItem>
+        get() = identifier.parameterTypes
+
+    /**
+     * The parameters of the callable, listed in order. All parameters will exist in the same set of
+     * source sets as the containing callable.
+     */
+    val parameters: List<MultiplatformParameterItem> =
+        aggregateIndexedChildren(
+            childAccessor = { parameters() },
+            multiplatformChildCreator = { parameterIndex, sourceSetToParameter ->
+                MultiplatformParameterItem(this, parameterIndex, sourceSetToParameter)
+            }
+        )
+
+    /**
+     * A mapping from source set where the [CallableItem] exists to the list of throws types for the
+     * callable in that source set.
+     */
+    val throwsTypes: SourceSetDependent<List<ExceptionTypeItem>> = sourceSetDependentValue {
+        it.throwsTypes()
+    }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is MultiplatformCallableItem<C>) return false
+        return other.containingItem == containingItem && other.identifier == identifier
+    }
+
+    override fun hashCode(): Int {
+        return Objects.hash(containingItem, identifier)
+    }
+
+    /**
+     * The combination of [name] and [parameterTypes] that uniquely identifies the [CallableItem]
+     * within a class. The nullability of the [parameterTypes] are significant but other modifiers
+     * (annotations) are not.
+     */
+    class Identifier(val name: String, val parameterTypes: List<TypeItem>) {
+        constructor(
+            callableItem: CallableItem
+        ) : this(callableItem.name(), callableItem.parameters().map { it.type() })
+
+        fun parameterDescription(): String {
+            return "(" +
+                parameterTypes.joinToString {
+                    it.toTypeString(TypeStringConfiguration.DEFAULT_KOTLIN_NULLS)
+                } +
+                ")"
+        }
+
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (other !is Identifier) return false
+            return name == other.name &&
+                parameterTypes.size == other.parameterTypes.size &&
+                parameterTypes.zip(other.parameterTypes).all { (t1, t2) ->
+                    t1.equalToType(t2, includeNullability = true)
+                }
+        }
+
+        override fun hashCode(): Int {
+            return Objects.hash(name, parameterTypes)
+        }
+    }
+}
+
+/** A method of the [containingItem], identified by [parameterTypes] and [name]. */
+class MultiplatformMethodItem
+private constructor(
+    containingItem: MultiplatformItem<*>,
+    containingItemQualifiedName: String,
+    identifier: Identifier,
+    sourceSetToItem: SourceSetDependent<MethodItem?>
+) :
+    MultiplatformCallableItem<MethodItem>(
+        containingItem,
+        containingItemQualifiedName,
+        identifier,
+        sourceSetToItem
+    ) {
+    constructor(
+        containingClass: MultiplatformClassItem,
+        identifier: Identifier,
+        sourceSetToItem: SourceSetDependent<MethodItem?>
+    ) : this(containingClass, containingClass.qualifiedName, identifier, sourceSetToItem)
+
+    constructor(
+        containingPackage: MultiplatformPackageItem,
+        identifier: Identifier,
+        sourceSetToItem: SourceSetDependent<MethodItem?>
+    ) : this(containingPackage, containingPackage.qualifiedName, identifier, sourceSetToItem)
+
+    /** The name of the method. */
+    val name: String
+        get() = identifier.name
+
+    override fun toString(): String {
+        return "multiplatform method $containingItemQualifiedName#${identifier.name}" +
+            identifier.parameterDescription()
+    }
+}
+
+/**
+ * A constructor of the [containingItem] (which must be a class), identified by [parameterTypes].
+ */
+class MultiplatformConstructorItem(
+    override val containingItem: MultiplatformClassItem,
+    identifier: Identifier,
+    sourceSetToItem: SourceSetDependent<ConstructorItem?>
+) : MultiplatformCallableItem<ConstructorItem>(containingItem, identifier, sourceSetToItem) {
+    override fun toString(): String {
+        return "multiplatform constructor $containingItemQualifiedName" +
+            identifier.parameterDescription()
+    }
+}
+
+/** A parameter of the [containingCallable], identified by [parameterIndex]. */
+class MultiplatformParameterItem(
+    val containingCallable: MultiplatformCallableItem<*>,
+    val parameterIndex: Int,
+    sourceSetToItem: SourceSetDependent<ParameterItem?>
+) : MultiplatformItem<ParameterItem>(sourceSetToItem) {
+    /**
+     * A mapping from source set where the [ParameterItem] exists to the public name of the
+     * parameter in that source set.
+     *
+     * Expect/actuals must have the same parameter names, but if callables are defined with the same
+     * signature in unrelated source sets, they could have different parameter names.
+     */
+    val publicName: SourceSetDependent<String?> = sourceSetDependentValue { it.publicName() }
+
+    /**
+     * A mapping from source set where the [ParameterItem] exists to whether the parameter has a
+     * default value in that source set.
+     *
+     * Actual parameters inherit default values from expects, but if callables are defined with the
+     * same signature in unrelated source sets, they could have different parameter default values.
+     */
+    val hasDefaultValue: SourceSetDependent<Boolean> = sourceSetDependentValue {
+        it.hasDefaultValue()
+    }
+
+    override fun toString(): String {
+        return "multiplatform parameter #$parameterIndex of $containingCallable"
+    }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is MultiplatformParameterItem) return false
+        return containingCallable == other.containingCallable &&
+            parameterIndex == other.parameterIndex
+    }
+
+    override fun hashCode(): Int {
+        return Objects.hash(containingCallable, parameterIndex)
+    }
+}
+
+/** A type parameter of [owner], identified by [typeParameterIndex]. */
+class MultiplatformTypeParameterItem(
+    val owner: MultiplatformTypeParameterListOwner<*>,
+    val typeParameterIndex: Int,
+    sourceSetToItem: SourceSetDependent<TypeParameterItem?>
+) : MultiplatformElement<TypeParameterItem>(sourceSetToItem) {
+    /**
+     * A mapping from source set where this type parameter exists to the modifiers of the type
+     * parameter in that source set.
+     */
+    val modifiers: SourceSetDependent<BaseModifierList> = sourceSetDependentValue { it.modifiers }
+
+    /**
+     * A mapping from source set where this type parameter exists to the name of the type parameter
+     * in that source set.
+     *
+     * The compiler allows an expect/actual type parameter to have different names between the
+     * expect and actual.
+     */
+    val name: SourceSetDependent<String> = sourceSetDependentValue { it.name() }
+
+    /**
+     * A mapping from source set where this type parameter exists to whether the type parameter is
+     * reified in that source set.
+     */
+    val isReified: SourceSetDependent<Boolean> = sourceSetDependentValue { it.isReified() }
+
+    override fun toString(): String {
+        return "multiplatform type parameter #$typeParameterIndex of $owner"
+    }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is MultiplatformTypeParameterItem) return false
+        return owner == other.owner && typeParameterIndex == other.typeParameterIndex
+    }
+
+    override fun hashCode(): Int {
+        return Objects.hash(owner, typeParameterIndex)
     }
 }

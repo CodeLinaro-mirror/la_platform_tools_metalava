@@ -18,9 +18,9 @@ package com.android.tools.metalava
 
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.cli.common.ARG_HIDE
+import com.android.tools.metalava.config.ApiFlagActionConfig.Mutability.IMMUTABLE
+import com.android.tools.metalava.config.ApiFlagActionConfig.Status.ENABLED
 import com.android.tools.metalava.config.ApiFlagConfig
-import com.android.tools.metalava.config.ApiFlagConfig.Mutability.IMMUTABLE
-import com.android.tools.metalava.config.ApiFlagConfig.Status.ENABLED
 import com.android.tools.metalava.config.ApiFlagsConfig
 import com.android.tools.metalava.config.Config
 import com.android.tools.metalava.config.writeTo

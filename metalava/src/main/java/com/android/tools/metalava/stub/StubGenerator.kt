@@ -18,12 +18,14 @@ package com.android.tools.metalava.stub
 
 import com.android.tools.metalava.MarkPackagesAsRecent
 import com.android.tools.metalava.NullnessMigration
-import com.android.tools.metalava.Options
 import com.android.tools.metalava.PROGRAM_NAME
 import com.android.tools.metalava.ProgressTracker
 import com.android.tools.metalava.SignatureFileCache
+import com.android.tools.metalava.apilevels.ApiVersion
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.cli.common.PreviouslyReleasedApi
+import com.android.tools.metalava.doc.ApiVersionFilter
+import com.android.tools.metalava.doc.ApiVersionLabelProvider
 import com.android.tools.metalava.doc.DocAnalyzer
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.CodebaseFragment
@@ -36,15 +38,14 @@ import java.io.File
 import java.util.concurrent.TimeUnit.SECONDS
 
 /** Generates stubs from [codebase]. */
-internal class StubGenerator
-private constructor(
+internal class StubGenerator(
     private val config: Config,
-    private val options: Options,
     private val codebase: Codebase,
     private val progressTracker: ProgressTracker,
     private val executionEnvironment: ExecutionEnvironment,
     private val reporter: Reporter,
     private val signatureFileCache: SignatureFileCache,
+    private val apiPredicateConfig: ApiPredicate.Config,
 ) {
     data class Config(
         /** Configuration needed by [StubWriter]. */
@@ -63,10 +64,39 @@ private constructor(
          * effects, e.g. reporting errors.
          */
         val stubsDir: File? = null,
+
+        /** Determines whether the annotations will be included in the stubs. */
+        val generateAnnotations: Boolean = false,
+
+        /**
+         * An optional [PreviouslyReleasedApi] that is used to determine whether a nullability
+         * annotation was added recently and so requires converting to warning nullability.
+         */
+        val nullabilityConversionPreviouslyReleasedApi: PreviouslyReleasedApi? = null,
+
+        /**
+         * An optional [PackageFilter] that matches packages whose nullability annotations all need
+         * to be converted to warning nullability.
+         */
+        val nullabilityConversionPackageFilter: PackageFilter? = null,
+
+        /**
+         * Optional `api-versions.xml` file that if specified will be applied to the documentation.
+         */
+        val apiVersionsXmlFile: File? = null,
+
+        /**
+         * Maps from [ApiVersion] to the form to use in the documentation, which may be a symbolic
+         * name.
+         */
+        val apiVersionLabelProvider: ApiVersionLabelProvider = ApiVersion::toString,
+
+        /** Determines whether an [ApiVersion] should be included in the documentation. */
+        val includeApiLevelInDocumentation: ApiVersionFilter = { true }
     )
 
     /** Generate the stubs. */
-    private fun generateStubs() {
+    fun generateStubs() {
         // Use information from various sources to enhance the documentation, if required.
         if (config.enhanceDocumentation) {
             enhanceCodebaseDocumentationFromOptions()
@@ -77,8 +107,8 @@ private constructor(
         // but the documentation needs to show the correct nullability.
         if (!config.isDocStubs) {
             convertToWarningNullabilityAnnotations(
-                options.migrateNullsFrom,
-                options.forceConvertToWarningNullabilityAnnotations,
+                config.nullabilityConversionPreviouslyReleasedApi,
+                config.nullabilityConversionPackageFilter,
             )
         }
 
@@ -98,12 +128,14 @@ private constructor(
                 executionEnvironment,
                 codebase,
                 reporter,
-                options.apiVersionLabelProvider,
-                options.includeApiLevelInDocumentation,
-                options.apiPredicateConfig,
+                config.apiVersionLabelProvider,
+                config.includeApiLevelInDocumentation,
+                apiPredicateConfig,
             )
         docAnalyzer.enhance()
-        val applyApiLevelsXmlFile = options.applyApiLevelsXmlFile
+
+        // If provided apply information in the api-versions.xml to the documentation.
+        val applyApiLevelsXmlFile = config.apiVersionsXmlFile
         if (applyApiLevelsXmlFile != null) {
             progressTracker.progress("Applying API levels")
             docAnalyzer.applyApiVersions(applyApiLevelsXmlFile)
@@ -125,7 +157,7 @@ private constructor(
                     delegate = delegate,
                     isDocStubs = isDocStubs,
                     preFiltered = codebase.preFiltered,
-                    apiPredicateConfig = options.apiPredicateConfig,
+                    apiPredicateConfig = apiPredicateConfig,
                 )
             }
 
@@ -140,7 +172,7 @@ private constructor(
                             delegate = delegate,
                             isDocStubs = isDocStubs,
                             preFiltered = codebase.preFiltered,
-                            apiPredicateConfig = options.apiPredicateConfig,
+                            apiPredicateConfig = apiPredicateConfig,
                             ignoreEmit = true,
                         )
                     },
@@ -152,8 +184,7 @@ private constructor(
             if (codebaseFragment.codebase.preFiltered) {
                 FilterPredicate { true }
             } else {
-                val apiPredicateConfigIgnoreShown =
-                    options.apiPredicateConfig.copy(ignoreShown = true)
+                val apiPredicateConfigIgnoreShown = apiPredicateConfig.copy(ignoreShown = true)
                 ApiPredicate(ignoreRemoved = false, config = apiPredicateConfigIgnoreShown)
             }
         val stubConstructorManager = StubConstructorManager(codebaseFragment.codebase)
@@ -162,9 +193,9 @@ private constructor(
         val stubWriter =
             StubWriter(
                 stubsDir = stubDir,
-                generateAnnotations = options.generateAnnotations,
+                generateAnnotations = config.generateAnnotations,
                 isDocStubs = isDocStubs,
-                reporter = options.reporter,
+                reporter = reporter,
                 config = config.stubWriterConfig,
                 stubConstructorManager = stubConstructorManager,
             )
@@ -213,30 +244,6 @@ private constructor(
             // a reference of nullable type). The way to communicate this to kotlinc is to mark
             // these APIs as RecentlyNullable/RecentlyNonNull
             codebase.accept(MarkPackagesAsRecent(filter))
-        }
-    }
-
-    companion object {
-        /** Generate stubs if necessary based on the [options]. */
-        fun generateStubs(
-            config: Config,
-            options: Options,
-            codebase: Codebase,
-            progressTracker: ProgressTracker,
-            executionEnvironment: ExecutionEnvironment,
-            reporter: Reporter,
-            signatureFileCache: SignatureFileCache,
-        ) {
-            StubGenerator(
-                    config,
-                    options,
-                    codebase,
-                    progressTracker,
-                    executionEnvironment,
-                    reporter,
-                    signatureFileCache,
-                )
-                .generateStubs()
         }
     }
 }

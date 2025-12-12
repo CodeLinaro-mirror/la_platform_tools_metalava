@@ -188,7 +188,7 @@ Usage: metalava help historical-api-patterns
   * `version` - Mandatory property that stores the version of a matched file.
 
   Apart from the {version:extension} all placeholders for this will ignore versions that fall outside the range
-  --first-version and --current-version, if provided.
+  --api-version-range, if provided.
 
   * `library` - Optional property that stores the name of a library.
 

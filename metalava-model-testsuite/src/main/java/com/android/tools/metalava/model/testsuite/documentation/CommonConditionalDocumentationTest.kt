@@ -137,12 +137,12 @@ class CommonConditionalDocumentationTest : BaseModelTest() {
                 TestFixture(
                     apiFlags =
                         ApiFlags(
-                            mapOf(
-                                "flag" to
-                                    ApiFlag.getFlag(
-                                        ApiFlagAction.REVERT,
-                                        isExported = true,
-                                    )
+                            listOf(
+                                ApiFlag(
+                                    "flag",
+                                    ApiFlagAction.REVERT,
+                                    isExported = true,
+                                )
                             )
                         )
                 ),
@@ -194,12 +194,12 @@ class CommonConditionalDocumentationTest : BaseModelTest() {
                 TestFixture(
                     apiFlags =
                         ApiFlags(
-                            mapOf(
-                                "flag" to
-                                    ApiFlag.getFlag(
-                                        ApiFlagAction.KEEP,
-                                        isExported = true,
-                                    )
+                            listOf(
+                                ApiFlag(
+                                    "flag",
+                                    ApiFlagAction.KEEP,
+                                    isExported = true,
+                                )
                             )
                         )
                 ),

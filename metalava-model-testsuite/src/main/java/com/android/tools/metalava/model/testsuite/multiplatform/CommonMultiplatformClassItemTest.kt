@@ -635,4 +635,126 @@ class CommonMultiplatformClassItemTest : BaseModelTest() {
                 )
         }
     }
+
+    @Test
+    fun `Test listing methods of a class`() {
+        val commonSource =
+            kotlin(
+                "commonMain/src/test/pkg/Foo.kt",
+                """
+                package test.pkg
+                expect class Foo {
+                    fun commonMethod(i: Int, s: String): Unit
+                    fun commonMethod(i: Int, s: String?): Unit
+                }
+                """
+            )
+        val androidSource =
+            kotlin(
+                "androidMain/src/test/pkg/Foo_android.kt",
+                """
+                package test.pkg
+                actual class Foo {
+                    actual fun commonMethod(i: Int, s: String) = Unit
+                    actual fun commonMethod(i: Int, s: String?) = Unit
+                    fun androidMethod(s: String?) = Unit
+                }
+                """
+            )
+        val nativeSource =
+            kotlin(
+                "nativeMain/src/test/pkg/Foo_native.kt",
+                """
+                package test.pkg
+                actual class Foo {
+                    actual fun commonMethod(i: Int, s: String) = Unit
+                    actual fun commonMethod(i: Int, s: String?) = Unit
+                    fun nativeMethod(s: String?) = Unit
+                }
+                """
+            )
+        runMultiplatformCodebaseTest(
+            inputSet(commonSource, androidSource, nativeSource),
+            projectDescription =
+                createProjectDescription(
+                    createCommonModuleDescription(arrayOf(commonSource)),
+                    createAndroidModuleDescription(arrayOf(androidSource)),
+                    createNativeModuleDescription(arrayOf(nativeSource)),
+                )
+        ) {
+            val fooClass = multiplatformCodebase.assertClass("test.pkg.Foo")
+
+            val commonNonNull =
+                fooClass.assertMethod("commonMethod", listOf("int", "java.lang.String"))
+            commonNonNull.assertSourceSets("commonMain", "androidMain", "nativeMain")
+            val commonNullable =
+                fooClass.assertMethod("commonMethod", listOf("int", "java.lang.String?"))
+            commonNullable.assertSourceSets("commonMain", "androidMain", "nativeMain")
+            assertThat(commonNonNull).isNotEqualTo(commonNullable)
+
+            val androidMethod = fooClass.assertMethod("androidMethod", listOf("java.lang.String?"))
+            androidMethod.assertSourceSets("androidMain")
+
+            val nativeMethod = fooClass.assertMethod("nativeMethod", listOf("java.lang.String?"))
+            nativeMethod.assertSourceSets("nativeMain")
+
+            assertThat(fooClass.methods)
+                .containsExactly(commonNonNull, commonNullable, androidMethod, nativeMethod)
+        }
+    }
+
+    @Test
+    fun `Test listing constructors of a class`() {
+        val commonSource =
+            kotlin(
+                "commonMain/src/test/pkg/Foo.kt",
+                """
+                package test.pkg
+                expect class Foo(i: Int, s: String)
+                """
+            )
+        val androidSource =
+            kotlin(
+                "androidMain/src/test/pkg/Foo_android.kt",
+                """
+                package test.pkg
+                actual class Foo actual constructor(i: Int, s: String) {
+                    constructor(s: String?): this(0, s)
+                }
+                """
+            )
+        val nativeSource =
+            kotlin(
+                "nativeMain/src/test/pkg/Foo_native.kt",
+                """
+                package test.pkg
+                actual class Foo actual constructor(i: Int, s: String) {
+                    constructor(i: Int, s: String?) : this(i, s ?: "")
+                }
+                """
+            )
+        runMultiplatformCodebaseTest(
+            inputSet(commonSource, androidSource, nativeSource),
+            projectDescription =
+                createProjectDescription(
+                    createCommonModuleDescription(arrayOf(commonSource)),
+                    createAndroidModuleDescription(arrayOf(androidSource)),
+                    createNativeModuleDescription(arrayOf(nativeSource)),
+                )
+        ) {
+            val fooClass = multiplatformCodebase.assertClass("test.pkg.Foo")
+
+            val commonCtor = fooClass.assertConstructor(listOf("int", "java.lang.String"))
+            commonCtor.assertSourceSets("commonMain", "androidMain", "nativeMain")
+
+            val androidCtor = fooClass.assertConstructor(listOf("java.lang.String?"))
+            androidCtor.assertSourceSets("androidMain")
+
+            val nativeCtor = fooClass.assertConstructor(listOf("int", "java.lang.String?"))
+            nativeCtor.assertSourceSets("nativeMain")
+            assertThat(commonCtor).isNotEqualTo(nativeCtor)
+
+            assertThat(fooClass.constructors).containsExactly(commonCtor, androidCtor, nativeCtor)
+        }
+    }
 }

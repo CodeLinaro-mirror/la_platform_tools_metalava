@@ -18,7 +18,6 @@ package com.android.tools.metalava.apilevels
 
 import com.android.tools.metalava.ARG_ANDROID_JAR_PATTERN
 import com.android.tools.metalava.ARG_CURRENT_VERSION
-import com.android.tools.metalava.ARG_FIRST_VERSION
 import com.android.tools.metalava.ARG_GENERATE_API_LEVELS
 import com.android.tools.metalava.ARG_SDK_INFO_FILE
 import com.android.tools.metalava.doc.getApiLookup
@@ -43,8 +42,6 @@ class ExtractSystemApiLevelsTest : ApiGeneratorIntegrationTestBase() {
                     "${extensionSdkJars.path}/{version:extension}/system/{module}.jar",
                     ARG_SDK_INFO_FILE,
                     createSdkExtensionInfoFile().path,
-                    ARG_FIRST_VERSION,
-                    "21",
                     ARG_CURRENT_VERSION,
                     "33"
                 )
