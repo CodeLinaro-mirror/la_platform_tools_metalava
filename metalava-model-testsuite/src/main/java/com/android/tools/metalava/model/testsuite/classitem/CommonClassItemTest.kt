@@ -23,6 +23,8 @@ import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.VariableTypeItem
+import com.android.tools.metalava.model.provider.Capability
+import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.testing.testTypeString
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.KnownSourceFiles.notTypeUseNonNullSource
@@ -1820,6 +1822,71 @@ class CommonClassItemTest : BaseModelTest() {
             // Make sure that a class defined excluded by a package filter can be resolved but is
             // not emitted.
             codebase.assertResolvedClass("test.excluded.pkg.Excluded")
+        }
+    }
+
+    @RequiresCapabilities(Capability.JAVA)
+    @Test
+    fun `Test class location (java)`() {
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    public class Test {
+                        private Test() {}
+                    }
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            assertEquals(
+                "MAIN_SRC/src/test/pkg/Test.java:3",
+                removeTestSpecificDirectories(testClass.fileLocation.toString())
+            )
+        }
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Test class location (kotlin)`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                    package test.pkg
+
+                    class Test private constructor() {
+                    }
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            assertEquals(
+                "MAIN_SRC/src/test/pkg/Test.kt:3",
+                removeTestSpecificDirectories(testClass.fileLocation.toString())
+            )
+        }
+    }
+
+    @RequiresCapabilities(Capability.SIGNATURE)
+    @Test
+    fun `Test class location (signature)`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Test {
+                      }
+                    }
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            assertEquals(
+                "MAIN_SRC/api.txt:3",
+                removeTestSpecificDirectories(testClass.fileLocation.toString())
+            )
         }
     }
 

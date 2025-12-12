@@ -27,6 +27,9 @@ enum class Capability {
     /** Can parse kotlin files. */
     KOTLIN,
 
+    /** Can parse signature files. */
+    SIGNATURE,
+
     /** Has access to the method body. */
     METHOD_BODY,
 

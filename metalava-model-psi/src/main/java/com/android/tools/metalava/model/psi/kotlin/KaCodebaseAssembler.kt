@@ -124,7 +124,7 @@ internal class KaCodebaseAssembler(
 
     /** Analyze the [ktFiles] to add type aliases to the codebase for the [mainModule]. */
     fun createTypeAliases() {
-        mainModuleProcessor.createTypeAliases(packages)
+        mainModuleProcessor.createTypeAliases()
     }
 
     /**
@@ -277,17 +277,16 @@ private constructor(
         return childPackages(rootPackageSymbol)
     }
 
-    /** Analyze the [packages] to add type aliases to the codebase for this [kaModule]. */
-    fun createTypeAliases(packages: List<FqName>) {
+    /** Analyze all packages in the [kaModule] to add type aliases to the codebase. */
+    fun createTypeAliases() {
         analyze(kaModule) {
-            for (packageName in packages) {
-                findPackage(packageName)?.let { packageSymbol ->
-                    val packageItem = codebase.findOrCreatePackage(packageName.asString())
-                    val packageScope = packageSymbol.packageScope
-                    for (typeAliasSymbol in
-                        packageScope.classifiers.filterIsInstance<KaTypeAliasSymbol>()) {
-                        processTypeAlias(typeAliasSymbol, packageItem)
-                    }
+            for (packageSymbol in allPackages()) {
+                val packageName = packageSymbol.fqName.asString()
+                val packageItem = codebase.findOrCreatePackage(packageName)
+                val packageScope = packageSymbol.packageScope
+                for (typeAliasSymbol in
+                    packageScope.classifiers.filterIsInstance<KaTypeAliasSymbol>()) {
+                    processTypeAlias(typeAliasSymbol, packageItem)
                 }
             }
         }

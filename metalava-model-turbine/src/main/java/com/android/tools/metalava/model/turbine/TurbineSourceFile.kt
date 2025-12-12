@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.JavaImport
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.item.AbstractSourceFile
 import com.android.tools.metalava.model.item.DefaultCodebase
+import com.android.tools.metalava.model.source.doc.characterOffsetFor
 import com.android.tools.metalava.model.source.filterImports
 import com.google.turbine.diag.LineMap
 import com.google.turbine.tree.Tree.CompUnit
@@ -120,4 +121,11 @@ internal class TurbineSourceFile(
      * [com.google.turbine.tree.Tree.position].
      */
     fun lineForPosition(position: Int) = lineMap.lineNumber(position)
+
+    /**
+     * Get the character position for [position] which was retrieved from
+     * [com.google.turbine.tree.Tree.position].
+     */
+    fun characterPositionForPosition(position: Int) =
+        compUnit.source().source().characterOffsetFor(position) + 1
 }

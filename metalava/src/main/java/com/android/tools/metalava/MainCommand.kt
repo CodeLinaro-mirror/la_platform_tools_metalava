@@ -24,15 +24,12 @@ import com.android.tools.metalava.cli.common.LegacyHelpFormatter
 import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.cli.common.MetalavaLocalization
 import com.android.tools.metalava.cli.common.SourceOptions
-import com.android.tools.metalava.cli.common.cliError
 import com.android.tools.metalava.cli.common.executionEnvironment
 import com.android.tools.metalava.cli.common.progressTracker
 import com.android.tools.metalava.cli.common.registerPostCommandAction
 import com.android.tools.metalava.cli.common.stderr
 import com.android.tools.metalava.cli.common.stdout
 import com.android.tools.metalava.cli.common.terminal
-import com.android.tools.metalava.cli.compatibility.ARG_CHECK_COMPATIBILITY_API_RELEASED
-import com.android.tools.metalava.cli.compatibility.ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED
 import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions
 import com.android.tools.metalava.cli.lint.ApiLintOptions
 import com.android.tools.metalava.cli.signature.SignatureFormatOptions
@@ -219,8 +216,6 @@ class MainCommand(
         @Suppress("DEPRECATION")
         options = optionGroup
 
-        checkOptionConsistency()
-
         val sourceModelProvider =
             // Use the [SourceModelProvider] specified by the [TestEnvironment], if any.
             executionEnvironment.testEnvironment?.sourceModelProvider
@@ -254,17 +249,6 @@ class MainCommand(
 
             // Make sure that the process exits with an error code.
             throw MetalavaCliException(exitCode = -1)
-        }
-    }
-
-    private fun checkOptionConsistency() {
-        val config = configFileOptions.config
-        if (config.apiFlags != null) {
-            if (compatibilityCheckOptions.previouslyReleasedApi == null) {
-                cliError(
-                    "Inconsistent options: API flags are provided in a $ARG_CONFIG_FILE but no previously released API is provided via $ARG_CHECK_COMPATIBILITY_API_RELEASED or $ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED"
-                )
-            }
         }
     }
 

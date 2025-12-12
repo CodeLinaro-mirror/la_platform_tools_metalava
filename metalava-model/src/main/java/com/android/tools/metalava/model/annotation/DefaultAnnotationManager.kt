@@ -65,6 +65,9 @@ import com.android.tools.metalava.model.computeTypeNullability
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.isNonNullAnnotation
 import com.android.tools.metalava.model.isNullableAnnotation
+import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.reporter.Reporter
+import com.android.tools.metalava.reporter.ThrowingReporter
 
 /** The type of lambda that can construct a key from an [AnnotationItem] */
 typealias KeyFactory = (annotationItem: AnnotationItem) -> String
@@ -72,6 +75,7 @@ typealias KeyFactory = (annotationItem: AnnotationItem) -> String
 class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnnotationManager() {
 
     data class Config(
+        val reporter: Reporter = ThrowingReporter.INSTANCE,
         val passThroughAnnotations: Set<String> = emptySet(),
         val allShowAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),
         val showAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),
@@ -643,11 +647,17 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
      *
      * Searches the previously released API (if available).
      */
-    private fun findRevertItem(item: SelectableItem): SelectableItem? {
-        return previouslyReleasedCodebase?.let { codebase ->
-            item.findCorrespondingItemIn(codebase)
+    private fun findRevertItem(item: SelectableItem) =
+        previouslyReleasedCodebase.let { codebase ->
+            if (codebase == null) {
+                config.reporter.report(
+                    Issues.NO_PREVIOUSLY_RELEASED_API,
+                    item,
+                    "Cannot revert $item (or any other API item) as no previously released API has been provided"
+                )
+                null
+            } else item.findCorrespondingItemIn(codebase)
         }
-    }
 
     override val typedefMode: TypedefMode = config.typedefMode
 }

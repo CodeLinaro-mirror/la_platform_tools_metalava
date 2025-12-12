@@ -63,4 +63,32 @@ class CommonValueTest : BaseModelTest() {
             )
         }
     }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Test class value reference for class with type parameters from kotlin`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                package test.pkg
+                import kotlin.reflect.KClass
+                class ClassWithTypeParam<T>
+
+                annotation class AnnotationUsingClass(val classValue: KClass<*>)
+                @JvmInline
+                value class IntValue(val value: Int) {
+                    @AnnotationUsingClass(classValue = ClassWithTypeParam::class)
+                    fun foo() = Unit
+                }
+                """
+            )
+        ) {
+            val intValueClass = codebase.assertClass("test.pkg.IntValue")
+            val fooMethod = intValueClass.assertMethod("foo", emptyList())
+            val anno = fooMethod.modifiers.annotations().single()
+            val classValue = anno.attributes.single()
+            assertEquals(classValue.name, "classValue")
+            assertEquals(classValue.value.toValueString(), "test.pkg.ClassWithTypeParam.class")
+        }
+    }
 }

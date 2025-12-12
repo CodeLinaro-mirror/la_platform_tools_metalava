@@ -17,6 +17,7 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.cli.common.ARG_STUB_PACKAGES
+import com.android.tools.metalava.lint.DefaultLintErrorMessage
 import com.android.tools.metalava.model.ANDROID_FLAGGED_API
 import com.android.tools.metalava.model.ANDROID_SYSTEM_API
 import com.android.tools.metalava.testing.java
@@ -52,8 +53,12 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
                     ),
                     flaggedApiSource
                 ),
-            expectedFail =
-                "Aborting: Inconsistent options: API flags are provided in a --config-file but no previously released API is provided via --check-compatibility:api:released or --check-compatibility:removed:released",
+            expectedFail = DefaultLintErrorMessage,
+            expectedIssues =
+                """
+                    src/test/pkg/Test.java:5: error: Cannot revert class test.pkg.Test (or any other API item) as no previously released API has been provided [NoPreviouslyReleasedApi]
+                    src/test/pkg/Test.java:6: error: Cannot revert constructor test.pkg.Test.Test() (or any other API item) as no previously released API has been provided [NoPreviouslyReleasedApi]
+                """,
         )
     }
 

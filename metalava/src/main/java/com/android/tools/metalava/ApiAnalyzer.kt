@@ -870,17 +870,26 @@ class ApiAnalyzer(
             .forEach { cantStripThis(it, filter, notStrippable, cl, "as nested class") }
         // blow open super class and interfaces
         // TODO: Consider using val superClass = cl.filteredSuperclass(filter)
-        val superItems = cl.allInterfaces().toMutableSet()
-        cl.superClass()?.let { superClass -> superItems.add(superClass) }
+        val allSuperItems = cl.allInterfaces().toMutableSet()
+        val directSuperItems = cl.interfaceTypes().map { it.qualifiedName }.toMutableSet()
+        cl.superClass()?.let { superClass ->
+            allSuperItems.add(superClass)
+            directSuperItems.add(superClass.qualifiedName())
+        }
 
-        for (superItem in superItems) {
+        for (superItem in allSuperItems) {
             // allInterfaces includes cl itself if cl is an interface
             if (superItem.isHiddenOrRemoved() && superItem != cl) {
-                // cl is a public class declared as extending a hidden superclass.
+                // cl is a public class declared as extending a hidden superclass or implementing
+                // a hidden interface.
                 // this is not a desired practice, but it's happened, so we deal
                 // with it by finding the first super class which passes checkLevel for purposes of
                 // generating the doc & stub information, and proceeding normally.
-                if (superItem.origin != ClassOrigin.CLASS_PATH) {
+                if (
+                    // Make sure the parent element is either the superclass or an interface
+                    // that cl is implementing directly (as opposed to indirectly via parent class)
+                    superItem.qualifiedName() in directSuperItems
+                ) {
                     reporter.report(
                         Issues.HIDDEN_SUPERCLASS,
                         cl,
