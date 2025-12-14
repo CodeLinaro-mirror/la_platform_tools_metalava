@@ -332,6 +332,7 @@ class Options(
     private val annotationManager: AnnotationManager by lazy {
         DefaultAnnotationManager(
             DefaultAnnotationManager.Config(
+                reporter = reporter,
                 passThroughAnnotations = passThroughAnnotations,
                 allShowAnnotations = allShowAnnotations,
                 showAnnotations = apiSelectionOptions.showAnnotations,

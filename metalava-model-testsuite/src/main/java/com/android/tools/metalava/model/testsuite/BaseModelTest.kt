@@ -31,8 +31,6 @@ import com.android.tools.metalava.model.source.DEFAULT_JAVA_LANGUAGE_LEVEL
 import com.android.tools.metalava.model.testing.CodebaseCreatorConfig
 import com.android.tools.metalava.model.testing.CodebaseCreatorConfigAware
 import com.android.tools.metalava.reporter.RecordingReporter
-import com.android.tools.metalava.reporter.Reporter
-import com.android.tools.metalava.reporter.ThrowingReporter
 import com.android.tools.metalava.testing.TemporaryFolderOwner
 import java.io.File
 import javax.annotation.CheckReturnValue
@@ -244,8 +242,17 @@ abstract class BaseModelTest() :
          */
         val allowReadingComments: Boolean = true,
 
-        /** The [AnnotationManager] to use when creating a [Codebase]. */
-        val annotationManager: AnnotationManager = DefaultAnnotationManager(),
+        /**
+         * The [AnnotationManager] to use when creating a [Codebase], if `null` then will use
+         * [annotationManagerFactory].
+         */
+        val annotationManager: AnnotationManager? = null,
+
+        /**
+         * The [AnnotationManager] factory to use when creating a [Codebase], if `null` then will
+         * create a [DefaultAnnotationManager].
+         */
+        val annotationManagerFactory: (TestFixture.() -> AnnotationManager)? = null,
 
         /** The [ApiFlags] to use in conditional javadoc. */
         val apiFlags: ApiFlags? = null,
@@ -259,24 +266,36 @@ abstract class BaseModelTest() :
         /** The set of [ApiSurfaces] used in the test. */
         val apiSurfaces: ApiSurfaces = ApiSurfaces.DEFAULT,
 
-        /** The [Reporter] to use for issues found creating the [Codebase]. */
-        val reporter: Reporter? = null,
-
         /** Additional jar files to add to the class path. */
         val additionalClassPath: List<File> = emptyList(),
 
         /** The Java language level. */
         val javaLanguageLevel: String = DEFAULT_JAVA_LANGUAGE_LEVEL,
     ) {
+        /** The [RecordingReporter] used by the test. */
+        val recordingReporter = RecordingReporter()
+
         /** The [Codebase.Config] to use when creating a [Codebase] to test. */
-        val codebaseConfig =
-            Codebase.Config(
-                allowReadingComments = allowReadingComments,
-                annotationManager = annotationManager,
-                apiFlags = apiFlags,
-                apiSurfaces = apiSurfaces,
-                reporter = reporter ?: ThrowingReporter.INSTANCE,
-            )
+        val codebaseConfig
+            get() =
+                Codebase.Config(
+                    allowReadingComments = allowReadingComments,
+                    annotationManager =
+                        // Use supplied annotation manager first, if available.
+                        annotationManager
+                            // Otherwise, use the factory, if available.
+                            ?: annotationManagerFactory?.invoke(this)
+                            // Finally, create a default manager.
+                            ?: DefaultAnnotationManager(
+                                DefaultAnnotationManager.Config(
+                                    apiFlags = apiFlags,
+                                    reporter = recordingReporter,
+                                )
+                            ),
+                    apiFlags = apiFlags,
+                    apiSurfaces = apiSurfaces,
+                    reporter = recordingReporter,
+                )
     }
 
     /**
@@ -310,11 +329,7 @@ abstract class BaseModelTest() :
 
             val additionalSourceDir = inputSet.additionalTestFiles?.let { sourceDir(it) }
 
-            val recordingReporter = RecordingReporter()
-            if (testFixture.reporter != null) {
-                error("Cannot set reporter in test")
-            }
-            val updatedTestFixture = testFixture.copy(reporter = recordingReporter)
+            val recordingReporter = testFixture.recordingReporter
 
             val inputs =
                 ModelSuiteRunner.TestInputs(
@@ -322,7 +337,7 @@ abstract class BaseModelTest() :
                     modelOptions = codebaseCreatorConfig.modelOptions,
                     mainSourceDir = mainSourceDir,
                     additionalMainSourceDir = additionalSourceDir,
-                    testFixture = updatedTestFixture,
+                    testFixture = testFixture,
                     projectDescription = projectDescriptionFile,
                     compiledSourceJar = compiledSourceJar,
                 )

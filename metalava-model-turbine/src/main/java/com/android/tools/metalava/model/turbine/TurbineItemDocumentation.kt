@@ -54,7 +54,13 @@ internal class TurbineItemDocumentation(
             if (sourceFile == null) {
                 FileLocation.UNKNOWN
             } else {
-                TurbineFileLocation(sourceFile, turbineJavadoc.startPosition())
+                TurbineFileLocation(
+                    sourceFile,
+                    turbineJavadoc.startPosition(),
+                    // Report character position for documentation locations as that is consistent
+                    // across models (because it is computed by Metalava not the underlying models).
+                    reportCharacterPosition = true,
+                )
             }
     }
 

@@ -30,6 +30,106 @@ import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
 
 class ApiAnalyzerTest : DriverTest() {
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Don't flag indirect implementor of super-interface marked with RestrictTo(LIBRARY_GROUP_PREFIX)`() {
+        check(
+            apiLint = "", // enabled
+            expectedIssues =
+                """
+                src/test/pkg/RestrictedParentInterface.kt:7: warning: Public class test.pkg.PublicChildInterface stripped of unavailable superclass test.pkg.RestrictedParentInterface [HiddenSuperclass]
+            """
+                    .trimIndent(),
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                    package test.pkg
+                    import androidx.annotation.RestrictTo
+                    import androidx.annotation.RestrictTo.Scope.LIBRARY_GROUP_PREFIX
+
+                    @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP_PREFIX)
+                    public interface RestrictedParentInterface {}
+                    public interface PublicChildInterface : RestrictedParentInterface {}
+                    public class PublicGrandchildClass : PublicChildInterface {}
+                    """
+                    ),
+                    restrictToSource,
+                ),
+            extraArguments =
+                arrayOf(
+                    ARG_HIDE_ANNOTATION,
+                    "androidx.annotation.RestrictTo(androidx.annotation.RestrictTo.Scope.LIBRARY_GROUP_PREFIX)"
+                ),
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Don't flag indirect descendant of superclass marked with RestrictTo(LIBRARY_GROUP_PREFIX)`() {
+        check(
+            apiLint = "", // enabled
+            expectedIssues =
+                """
+                    src/test/pkg/RestrictedParentClass.kt:7: warning: Public class test.pkg.PublicChildClass stripped of unavailable superclass test.pkg.RestrictedParentClass [HiddenSuperclass]
+                """,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                    package test.pkg
+                    import androidx.annotation.RestrictTo
+                    import androidx.annotation.RestrictTo.Scope.LIBRARY_GROUP_PREFIX
+
+                    @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP_PREFIX)
+                    public open class RestrictedParentClass {}
+                    public open class PublicChildClass : RestrictedParentClass() {}
+                    public class PublicGrandchildClass : PublicChildClass() {}
+                    """
+                    ),
+                    restrictToSource,
+                ),
+            extraArguments =
+                arrayOf(
+                    ARG_HIDE_ANNOTATION,
+                    "androidx.annotation.RestrictTo(androidx.annotation.RestrictTo.Scope.LIBRARY_GROUP_PREFIX)"
+                ),
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Flag superclasses that are marked with RestrictTo(LIBRARY_GROUP_PREFIX)`() {
+        check(
+            apiLint = "", // enabled
+            expectedIssues =
+                """
+                    src/test/pkg/RestrictedParentClass.kt:7: warning: Public class test.pkg.PublicChildClass stripped of unavailable superclass test.pkg.RestrictedParentClass [HiddenSuperclass]
+                """,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                    package test.pkg
+                    import androidx.annotation.RestrictTo
+                    import androidx.annotation.RestrictTo.Scope.LIBRARY_GROUP_PREFIX
+
+                    @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP_PREFIX)
+                    public open class RestrictedParentClass {}
+                    public class PublicChildClass : RestrictedParentClass() {}
+                    """
+                    ),
+                    restrictToSource,
+                ),
+            extraArguments =
+                arrayOf(
+                    ARG_HIDE_ANNOTATION,
+                    "androidx.annotation.RestrictTo(androidx.annotation.RestrictTo.Scope.LIBRARY_GROUP_PREFIX)"
+                ),
+        )
+    }
+
     @Test
     fun `Hidden abstract method with show @SystemApi`() {
         check(

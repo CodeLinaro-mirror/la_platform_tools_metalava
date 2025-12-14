@@ -158,6 +158,7 @@ Available Issues                             |  Category                        
   MutableBareField                           |  api_lint                             |   error
   NoByteOrShort                              |  api_lint                             |   warning
   NoClone                                    |  api_lint                             |   error
+  NoPreviouslyReleasedApi                    |  api_lint                             |   error
   NoSettingsProvider                         |  api_lint                             |   hidden
   NotCloseable                               |  api_lint                             |   warning
   Nullable                                   |  documentation                        |   hidden

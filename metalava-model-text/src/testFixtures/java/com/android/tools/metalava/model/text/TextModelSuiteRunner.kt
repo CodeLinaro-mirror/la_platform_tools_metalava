@@ -36,7 +36,10 @@ class TextModelSuiteRunner : ModelSuiteRunner {
 
     override val supportedInputFormats = setOf(InputFormat.SIGNATURE)
 
-    override val capabilities: Set<Capability> = setOf()
+    override val capabilities: Set<Capability> =
+        setOf(
+            Capability.SIGNATURE,
+        )
 
     override fun createCodebaseAndRun(
         inputs: ModelSuiteRunner.TestInputs,

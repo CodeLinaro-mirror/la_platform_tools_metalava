@@ -65,7 +65,12 @@ internal class KaValueFactory(
                 )
             is KaAnnotationValue.ClassLiteralValue ->
                 createClassObjectValue(
-                    globalTypeItemFactory.getClassReferenceType(kaAnnotationValue.type),
+                    // If a class has type parameters, K2 models the type with unbounded wildcards
+                    // for the type arguments. However, the value creation enforces that there are
+                    // no type arguments on a class value.
+                    globalTypeItemFactory
+                        .getClassReferenceType(kaAnnotationValue.type)
+                        .substitute(arguments = emptyList()),
                     // The sourceExpression is only used for legacy value formatting, so it isn't
                     // important to include it here.
                     sourceExpression = null,
