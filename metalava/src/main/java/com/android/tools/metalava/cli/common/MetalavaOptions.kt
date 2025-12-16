@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.cli.common
 
+import com.android.SdkConstants
 import com.github.ajalt.clikt.completion.CompletionCandidates
 import com.github.ajalt.clikt.core.GroupableOption
 import com.github.ajalt.clikt.core.ParameterHolder
@@ -31,7 +32,9 @@ import com.github.ajalt.clikt.parameters.options.OptionWithValues
 import com.github.ajalt.clikt.parameters.options.RawOption
 import com.github.ajalt.clikt.parameters.options.convert
 import com.github.ajalt.clikt.parameters.options.default
+import com.github.ajalt.clikt.parameters.options.multiple
 import com.github.ajalt.clikt.parameters.options.option
+import com.github.ajalt.clikt.parameters.options.split
 import com.github.ajalt.clikt.parameters.types.choice
 import java.io.File
 import kotlin.properties.ReadOnlyProperty
@@ -57,6 +60,16 @@ fun RawOption.existingDir(): NullableOption<File, File> {
 /** Convert the argument to a [File] that represents an existing directory. */
 fun RawArgument.existingDir(): ProcessedArgument<File, File> {
     return fileConversion(::stringToExistingDir)
+}
+
+/** Convert the option to a [File] that represents an existing directory or a file. */
+fun RawOption.existingDirOrFile(): NullableOption<File, File> {
+    return fileConversion(::stringToExistingDirOrFile)
+}
+
+/** Convert the option to a [File] that represents an existing directory or a jar file. */
+fun RawOption.existingDirOrJar(): NullableOption<File, File> {
+    return fileConversion(::stringToExistingDirOrJar)
 }
 
 /** Convert the option to a [File] that represents a new file. */
@@ -110,7 +123,6 @@ fun RawArgument.fileConversion(conversion: (String) -> File): ProcessedArgument<
  * Converts a path to a [File] that represents the absolute path, with the following special
  * behavior:
  * - "~" will be expanded into the home directory path.
- * - If the given path starts with "@", it'll be converted into "@" + [file's absolute path]
  */
 internal fun fileForPathInner(path: String): File {
     // java.io.File doesn't automatically handle ~/ -> home directory expansion.
@@ -120,8 +132,6 @@ internal fun fileForPathInner(path: String): File {
     if (path.startsWith("~/")) {
         val home = System.getProperty("user.home") ?: return File(path)
         return File(home + path.substring(1))
-    } else if (path.startsWith("@")) {
-        return File("@" + File(path.substring(1)).absolutePath)
     }
 
     return File(path).absoluteFile
@@ -137,6 +147,35 @@ internal fun stringToExistingDir(value: String): File {
     val file = fileForPathInner(value)
     if (!file.isDirectory) {
         cliError("$file is not a directory")
+    }
+    return file
+}
+
+/**
+ * Convert a string representing an existing directory or a file to a [File].
+ *
+ * This will fail if:
+ * * The file does not exist.
+ */
+internal fun stringToExistingDirOrFile(value: String): File {
+    val file = fileForPathInner(value)
+    if (!file.exists()) {
+        cliError("$file does not exist")
+    }
+    return file
+}
+
+/**
+ * Convert a string representing an existing directory or a jar file to a [File].
+ *
+ * This will fail if neither of the following is satisfied:
+ * * The file is not a regular directory.
+ * * The file is not a jar file.
+ */
+internal fun stringToExistingDirOrJar(value: String): File {
+    val file = fileForPathInner(value)
+    if (!file.isDirectory && !(file.path.endsWith(SdkConstants.DOT_JAR) && file.isFile)) {
+        cliError("$file is not a jar or directory")
     }
     return file
 }
@@ -233,6 +272,18 @@ internal fun stringToNewOrExistingFile(value: String): File {
     }
     return file
 }
+
+/**
+ * Allows multiple options to be supplied, each of which is split into a list based on [delimiter]
+ * and then concatenates the resulting lists together into a single list.
+ */
+fun <EachT : Any, ValueT> NullableOption<EachT, ValueT>.splitMultiple(delimiter: String) =
+    // Split each option into a list separated by delimiter
+    split(delimiter)
+        // Allow multiple options to be specified producing a list of lists.
+        .multiple()
+        // Flatten the list of lists into a single list.
+        .map { it.flatten() }
 
 // Unicode Next Line (NEL) character which forces Clikt to insert a new line instead of just
 // collapsing the `\n` into adjacent spaces. Acts like an HTML <br/>.

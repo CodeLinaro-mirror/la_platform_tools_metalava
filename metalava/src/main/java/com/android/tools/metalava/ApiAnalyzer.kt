@@ -99,7 +99,10 @@ class ApiAnalyzer(
         val allShowAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),
 
         /** Configuration for any [ApiPredicate] instances this needs to create. */
-        val apiPredicateConfig: ApiPredicate.Config = ApiPredicate.Config()
+        val apiPredicateConfig: ApiPredicate.Config = ApiPredicate.Config(),
+
+        /** Configuration for [AnnotationsMerger] instances this needs to create. */
+        val annotationsMergerConfig: AnnotationsMerger.Config = AnnotationsMerger.Config(),
     )
 
     /** All packages in the API */
@@ -441,7 +444,7 @@ class ApiAnalyzer(
         }
     }
 
-    /** Apply package filters listed in [Options.skipEmitPackages] */
+    /** Apply package filters listed in [Config.skipEmitPackages] */
     private fun skipEmitPackages() {
         for (pkgName in config.skipEmitPackages) {
             val pkg = codebase.findPackage(pkgName) ?: continue
@@ -477,7 +480,7 @@ class ApiAnalyzer(
     fun mergeExternalQualifierAnnotations() {
         val mergeQualifierAnnotations = config.mergeQualifierAnnotations
         if (mergeQualifierAnnotations.isNotEmpty()) {
-            AnnotationsMerger(sourceParser, codebase, reporter)
+            AnnotationsMerger(sourceParser, codebase, reporter, config.annotationsMergerConfig)
                 .mergeQualifierAnnotationsFromFiles(mergeQualifierAnnotations)
         }
     }
@@ -486,7 +489,7 @@ class ApiAnalyzer(
     fun mergeExternalInclusionAnnotations() {
         val mergeInclusionAnnotations = config.mergeInclusionAnnotations
         if (mergeInclusionAnnotations.isNotEmpty()) {
-            AnnotationsMerger(sourceParser, codebase, reporter)
+            AnnotationsMerger(sourceParser, codebase, reporter, config.annotationsMergerConfig)
                 .mergeInclusionAnnotationsFromFiles(mergeInclusionAnnotations)
         }
     }

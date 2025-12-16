@@ -17,19 +17,20 @@
 package com.android.tools.metalava.cli.common
 
 import com.android.tools.metalava.ProgressTracker
-import com.android.tools.metalava.testing.TemporaryFolderOwner
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.subcommands
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
 import org.junit.Assert.fail
-import org.junit.Rule
 import org.junit.Test
-import org.junit.rules.TemporaryFolder
 
-class MetalavaCommandTest : TemporaryFolderOwner {
-
-    @get:Rule override val temporaryFolder = TemporaryFolder()
+class MetalavaCommandTest :
+    BaseCommandTest<MetalavaCommand>({ executionEnvironment ->
+        MetalavaCommand(
+            executionEnvironment = executionEnvironment,
+            progressTracker = ProgressTracker(),
+        )
+    }) {
 
     /**
      * Ensure that the [CommonOptions.terminal] can be accessed before the options has been
@@ -165,6 +166,16 @@ $separator
     private class FailCommand : CliktCommand() {
         override fun run() {
             cliError("fail")
+        }
+    }
+
+    @Test
+    fun `Test version`() {
+        commandTest {
+            args += listOf(ARG_NO_COLOR, "--version")
+
+            expectedStderr = ""
+            expectedStdout = "metalava version: 1.0.0-alpha14"
         }
     }
 }

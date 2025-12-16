@@ -29,6 +29,8 @@ import com.android.tools.metalava.testing.createModuleDescription
 import com.android.tools.metalava.testing.createProjectDescription
 import com.android.tools.metalava.testing.defaultJvmPlatforms
 import com.android.tools.metalava.testing.kotlin
+import com.android.tools.metalava.testing.standardProjectXmlClasspath
+import kotlin.test.assertEquals
 import org.junit.Test
 
 /** Base class to collect test inputs whose behaviors (API/lint) vary depending on UAST versions. */
@@ -3137,5 +3139,212 @@ abstract class UastTestBase : DriverTest() {
                 }
                 """
         )
+    }
+
+    @Test
+    fun `Additional usage of expect actual typealias from classpath in a common module`() {
+        // Listing all packages from the KaModuleProcessor doesn't pick up this typealias, it is
+        // necessary to list all packages from psi instead.
+        val commonSource =
+            kotlin(
+                "commonMain/src/test/pkg/Common.kt",
+                """
+                package test.pkg
+                interface Common {
+                    fun foo(): kotlin.coroutines.cancellation.CancellationException
+                }
+                """
+            )
+        val androidSource =
+            kotlin(
+                "androidMain/src/test/pkg/Android.kt",
+                """
+                package test.pkg
+                class Android
+                """
+            )
+        check(
+            sourceFiles = arrayOf(commonSource, androidSource),
+            projectDescription =
+                createProjectDescription(
+                    createCommonModuleDescription(arrayOf(commonSource)),
+                    createAndroidModuleDescription(arrayOf(androidSource)),
+                ),
+            api =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public final class Android {
+                    ctor public Android();
+                  }
+                  public interface Common {
+                    method public java.util.concurrent.CancellationException foo();
+                  }
+                }
+                """
+        )
+    }
+
+    @Test
+    fun `Test usage of expect actual typealias with unbounded type argument`() {
+        val commonSource =
+            kotlin(
+                "commonMain/src/test/pkg/Common.kt",
+                """
+                package test.pkg
+                expect class ExpectActualTypealias<T>
+                interface Common {
+                    fun foo(): ExpectActualTypealias<*>
+                }
+                """
+            )
+        val androidSource =
+            kotlin(
+                "androidMain/src/test/pkg/Android.kt",
+                """
+                package test.pkg
+                actual typealias ExpectActualTypealias<T> = List<T>
+                """
+            )
+        check(
+            sourceFiles = arrayOf(commonSource, androidSource),
+            projectDescription =
+                createProjectDescription(
+                    createCommonModuleDescription(arrayOf(commonSource)),
+                    createAndroidModuleDescription(arrayOf(androidSource)),
+                ),
+            api =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public interface Common {
+                    method public java.util.List<? extends java.lang.Object?> foo();
+                  }
+                  public typealias ExpectActualTypealias<T> = java.util.List<T>;
+                }
+                """
+        )
+    }
+
+    @Test
+    fun `Resolution of class with conflicting definitions in different source sets classpaths`() {
+        val commonSource =
+            kotlin(
+                "commonMain/src/test/pkg/Common.kt",
+                """
+                package test.pkg
+                class Common
+                """
+            )
+        val androidSource =
+            kotlin(
+                "androidMain/src/test/pkg/Android.kt",
+                """
+                package test.pkg
+                class Android
+                """
+            )
+        val jvmSource =
+            kotlin(
+                "jvmMain/src/test/pkg/Jvm.kt",
+                """
+                package test.pkg
+                class Jvm
+                """
+            )
+
+        /*
+        Jar created from the following test file:
+           package other.pkg
+           class ConflictingClass {
+               fun android() = Unit
+           }
+        */
+        val androidClasspathJar =
+            base64gzip(
+                "androidClasspath.jar",
+                // kotlinc version info: kotlinc-jvm 1.9.23 (JRE 21.0.8+9-LTS)
+                "" +
+                    "H4sIAAAAAAAA/wvwZmYRYeDg4GBgYFBkQAYiDCwMvq4hjrqefm76vo5+nm6u" +
+                    "wSF6vm7/TjEwfPY9c9rHW1fvIq+3rta5M+c3BxlcMX7wtEjPy1fH0/di6aot" +
+                    "QR+8dAu1vM6c0Q77cE7/5Mkzj58+esrEEODNzrFeWHO9JdACcyAOwGm9AhDn" +
+                    "l2SkFukXZKfrO+fnpeVkJpdk5qU75yQWF+slg8jSQF//2w4CtZv9ZAy2WNSY" +
+                    "LtnyfJtHqcMcBkVHlSUhmdpbQ/Usc5PMdQrLtN+zFZ7Jfyhf4PSoQanvj8aR" +
+                    "HIfQ1itT/6Tdk97/8c2Pfw+fiR3Quyf86tjcNNdP6RYes9z+nwu9r2mb8ezS" +
+                    "La4Ogfkni2c+CeKf9H7v5jXvtTg4HjZeOiUr1MQvb92todwT4NQaULT8lJDZ" +
+                    "7f/5u/1XeMwVc1vaklWdEbOu5JNpsdFUv6LQnnPMcv02Z6oZGtvWxGucl5qz" +
+                    "9HbL2pcqfS6+Lkrz/JQMnwsHzvYrc2nuO10+XfGyfqLMFdfFT3Stn0iv3SPz" +
+                    "/POFjzd8J6e1LN126eb2jyumi+5P0U9P3Zn7y+j9CafKfzpu9md3vEhXPzW5" +
+                    "Vz757RWN1xqrd1Qt2Vp4SXOx7jbFCu1/HP+M9DsLmyMf6R/Z+OelVHH45qK5" +
+                    "hnM6mfIlxefHHbBR6gvV+WOaf/bbwfPeyR/6J87rZZptvOah7HHba3/PV111" +
+                    "vXDotdi0qI7ApyKnddckbOXeFHG4Sjy1+8SjXteMjQdOKoPi9NHF331tjAwM" +
+                    "xkz44lQaiOFJKjcxM08vO78kJzMvPjc/pTQnNTkhISENiFmS/Ng0ApIuJDGA" +
+                    "08tXpT17hYE6JcDphZFJhAFhOnJaAiVYVIAr+aKbgux6BRQT6olIheimIbtX" +
+                    "GsW0YCa8/g/wZmUDKWMGwrtAej0TiAcAlMOEEqIDAAA="
+            )
+
+        /*
+        Jar created from the following test file:
+           package other.pkg
+           class ConflictingClass {
+               fun jvm() = Unit
+           }
+        */
+        val jvmClasspathJar =
+            base64gzip(
+                "jvmClasspath.jar",
+                // kotlinc version info: kotlinc-jvm 1.9.23 (JRE 21.0.8+9-LTS)
+                "" +
+                    "H4sIAAAAAAAA/wvwZmYRYeDg4GBgYFBkQAYiDCwMvq4hjrqefm76vo5+nm6u" +
+                    "wSF6vm7/TjEwfPY9c9rHW1fvIq+3rta5M+c3BxlcMX7wtEjPy1fH0/di6aot" +
+                    "QR+8dAu1vM6c0Q77cE7/5Mkzj58+esrEEODNzrFeWHO9JdACcyAOwGm9AhDn" +
+                    "l2SkFukXZKfrO+fnpeVkJpdk5qU75yQWF+slg8jSQF9vZUeB2quTfUr+zFqx" +
+                    "+9iPwjjRORrzYgTLmJ1UtFY8mRSsPrN3rk+Vyl1Ouc/Rf9jntdh6fHjRH7XN" +
+                    "qqsj4fCeVd+z4nxLz57ev9+fgW+Dp8ayb2rv3LffLQvx+zrfxXTtpbdFSr0n" +
+                    "GzkS3flSp3jc7dOTmrsjs/gDx7+Jl07JCe+Rj94amfKQ/YSC+4kb0qkcr6+u" +
+                    "v/0vJTz9hvKT1XevqHm5p2+cqpupGu6S/+JjxpOEW4wcV1L/+lmGPVqz1f2G" +
+                    "ZP8hBxEXhUMfNQSC9QRbP2bET3lR/u3nvfSqV+1xgVOMzm3yX3fx0vPAst3T" +
+                    "3PWWr52xISDUyk7+i1Th/ygzoTCx1ZnBaqY3w/v2dx4MtXph/lj46YlXTx2i" +
+                    "r3Znn9JY9++S1dZLq0Kk3zh+cLsj+Cc1TuCx1uYTsR3JZb8Fg/knF028OL+D" +
+                    "Kbtn83r9BCnG4zZp985aT6798Pnmi1qDS7MDE2qbWHMKbFLu/l2x02oP1zPt" +
+                    "iBUKLvOCdcI2tDy1OvFAet/1iaYcPGE8Nc2Sfv+YQfG5ekrwwiZGBgZ9Jnzx" +
+                    "KQ3E8OSUm5iZp5edX5KTmRefm59SmpOanJCQkAbELEl+bBoBSReSGMBp5avS" +
+                    "nr3CQJ0S4LTCyCTCgDAdOR2BEisqwJV00U1Bdr0Cign1RKRAdNOQ3SuNYpo/" +
+                    "E17/B3izsoGUMQPhXSC9mgnEAwBT27kcngMAAA=="
+            )
+
+        check(
+            sourceFiles = arrayOf(commonSource, androidSource, jvmSource),
+            classpath = arrayOf(androidClasspathJar, jvmClasspathJar),
+            projectDescription =
+                createProjectDescription(
+                    createCommonModuleDescription(arrayOf(commonSource)),
+                    createModuleDescription(
+                        moduleName = "androidMain",
+                        android = true,
+                        kotlinPlatforms = defaultJvmPlatforms,
+                        sourceFiles = arrayOf(androidSource),
+                        classpathXml =
+                            standardProjectXmlClasspath +
+                                "<classpath file=\"${androidClasspathJar.targetRelativePath}\"/>",
+                    ),
+                    createModuleDescription(
+                        moduleName = "jvmMain",
+                        android = false,
+                        kotlinPlatforms = defaultJvmPlatforms,
+                        sourceFiles = arrayOf(jvmSource),
+                        classpathXml =
+                            standardProjectXmlClasspath +
+                                "<classpath file=\"${jvmClasspathJar.targetRelativePath}\"/>",
+                    ),
+                ),
+        ) {
+            // This class exists on the classpath for both androidMain and jvmMain. Each definition
+            // has a different method name. The codebase created should be based on the androidMain
+            // source set, so the resolved class here should be the android version.
+            val conflictingClass = codebase.assertResolvedClass("other.pkg.ConflictingClass")
+            val method = conflictingClass.methods().single()
+            assertEquals(method.name(), "android")
+        }
     }
 }

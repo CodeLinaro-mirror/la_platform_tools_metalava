@@ -25,8 +25,6 @@ import com.android.tools.metalava.cli.common.SOURCE_OPTIONS_HELP
 import com.android.tools.metalava.cli.compatibility.COMPATIBILITY_CHECK_OPTIONS_HELP
 import com.android.tools.metalava.cli.lint.API_LINT_OPTIONS_HELP
 import com.android.tools.metalava.cli.signature.SIGNATURE_FORMAT_OPTIONS_HELP
-import com.android.tools.metalava.model.source.DEFAULT_JAVA_LANGUAGE_LEVEL
-import com.android.tools.metalava.model.source.DEFAULT_KOTLIN_LANGUAGE_LEVEL
 import java.io.File
 import org.junit.Assert
 import org.junit.Test
@@ -41,36 +39,16 @@ class MainCommandTest :
 
     private val EXPECTED_HELP =
         """
-Usage: metalava main [options] [flags]...
+Usage: metalava main [options] [source-files]...
 
   The default sub-command that is run if no sub-command is specified.
 
 Options:
-  --api-class-resolution [api|api:classpath]
-                                             Determines how class resolution is performed when loading API signature
-                                             files. Any classes that cannot be found will be treated as empty.",
-
-                                             api - will only look for classes in the API signature files.
-
-                                             api:classpath (default) - will look for classes in the API signature files
-                                             first and then in the classpath.
-  --suppress-compatibility-meta-annotation <meta-annotation class>
-                                             Suppress compatibility checks for any elements within the scope of an
-                                             annotation which is itself annotated with the given meta-annotation.
-  --manifest <file>                          A manifest file, used to check permissions to cross check APIs and retrieve
-                                             min_sdk_version. (default: no manifest)
-  --typedefs-in-signatures [none|ref|inline]
-                                             Whether to include typedef annotations in signature files.
-
-                                             none (default) - will not include typedef annotations in signature.
-
-                                             ref - will include just a reference to the typedef class, which is not
-                                             itself part of the API and is not included as a class
-
-                                             inline - will include the constants themselves into each usage site
   -h, --help                                 Show this message and exit
 
 $SOURCE_OPTIONS_HELP
+
+$NULLABILITY_VALIDATION_HELP
 
 $ISSUE_REPORTING_OPTIONS_HELP
 
@@ -86,16 +64,7 @@ $API_LINT_OPTIONS_HELP
 
 $COMPATIBILITY_CHECK_OPTIONS_HELP
 
-Signature File Output:
-
-  Options controlling the signature file output. The format of the generated file is determined by the options in the
-  `Signature Format Output` section.
-
-  --api <file>                               Output file into which the API signature will be generated. If this is not
-                                             specified then no API signature file will be created.
-  --removed-api <file>                       Output file into which the API signatures for removed APIs will be
-                                             generated. If this is not specified then no removed API signature file will
-                                             be created.
+$SIGNATURE_FILE_OPTIONS_HELP
 
 $SIGNATURE_FORMAT_OPTIONS_HELP
 
@@ -103,94 +72,10 @@ $STUB_GENERATION_OPTIONS_HELP
 
 $API_LEVELS_GENERATION_OPTIONS_HELP
 
+$MISCELLANEOUS_OPTIONS_HELP
+
 Arguments:
-  flags                                      See below.
-
-
-API sources:
---source-files <files>
-                                             A comma separated list of source files to be parsed. Can also be @ followed
-                                             by a path to a text file containing paths to the full set of files to
-                                             parse.
---classpath <paths>
-                                             One or more directories or jars (separated by `:`) containing classes that
-                                             should be on the classpath when parsing the source files
---project <xmlfile>
-                                             Project description written in XML according to Lint's project model.
---merge-qualifier-annotations <file>
-                                             An external annotations file to merge and overlay the sources, or a
-                                             directory of such files. Should be used for annotations intended for
-                                             inclusion in the API to be written out, e.g. nullability. Formats supported
-                                             are: IntelliJ's external annotations database format, .jar or .zip files
-                                             containing those, Android signature files, and Java stub files.
---merge-inclusion-annotations <file>
-                                             An external annotations file to merge and overlay the sources, or a
-                                             directory of such files. Should be used for annotations which determine
-                                             inclusion in the API to be written out, i.e. show and hide. The only format
-                                             supported is Java stub files.
---validate-nullability-from-merged-stubs
-                                             Triggers validation of nullability annotations for any class where
-                                             --merge-qualifier-annotations includes a Java stub file.
---validate-nullability-from-list
-                                             Triggers validation of nullability annotations for any class listed in the
-                                             named file (one top-level class per line, # prefix for comment line).
---nullability-warnings-txt <file>
-                                             Specifies where to write warnings encountered during validation of
-                                             nullability annotations. (Does not trigger validation by itself.)
---nullability-errors-non-fatal
-                                             Specifies that errors encountered during validation of nullability
-                                             annotations should not be treated as errors. They will be written out to
-                                             the file specified in --nullability-warnings-txt instead.
---java-source <level>
-                                             Sets the source level for Java source files; default is ${DEFAULT_JAVA_LANGUAGE_LEVEL}.
---kotlin-source <level>
-                                             Sets the source level for Kotlin source files; default is ${DEFAULT_KOTLIN_LANGUAGE_LEVEL}.
---compile-sdk-version <api>
-                                             Use the given API level
---ignore-classes-on-classpath
-                                             Prevents references to classes on the classpath from being added to the
-                                             generated stub files.
---ignore-comments
-                                             Ignore any comments in source files.
-
-
-Extracting Signature Files:
---proguard <file>
-                                             Write a ProGuard keep file for the API
---sdk-values <dir>
-                                             Write SDK values files to the given directory
-
-
-Generating Stubs:
---pass-through-annotation <annotation classes>
-                                             A comma separated list of fully qualified names of annotation classes that
-                                             must be passed through unchanged.
---exclude-annotation <annotation classes>
-                                             A comma separated list of fully qualified names of annotation classes that
-                                             must be stripped from metalava's outputs.
-
-
-Extracting Annotations:
---extract-annotations <zipfile>
-                                             Extracts source annotations from the source files and writes them into the
-                                             given zip file
---include-source-retention
-                                             If true, include source-retention annotations in the stub files. Does not
-                                             apply to signature files. Source retention annotations are extracted into
-                                             the external annotations files instead.
-
-
-Environment Variables:
-METALAVA_DUMP_ARGV
-                                             Set to true to have metalava emit all the arguments it was invoked with.
-                                             Helpful when debugging or reproducing under a debugger what the build
-                                             system is doing.
-METALAVA_PREPEND_ARGS
-                                             One or more arguments (concatenated by space) to insert into the command
-                                             line, before the documentation flags.
-METALAVA_APPEND_ARGS
-                                             One or more arguments (concatenated by space) to append to the end of the
-                                             command line, after the generate documentation flags.
+  source-files                               Additional source files to append to --source-files
         """
             .trimIndent()
 
@@ -243,7 +128,7 @@ $EXPECTED_HELP
                 fun normalize(f: File): String = f.relativeTo(dir).path
                 Assert.assertEquals(
                     files.map { normalize(it) },
-                    command.optionGroup.sources.map { normalize(it) }
+                    command.sourceOptions.sourceFiles.map { normalize(it) }
                 )
             }
         }

@@ -43,6 +43,14 @@ class NullabilityAnnotationsValidator(
     private val nullabilityErrorsFatal: Boolean,
     private val nullabilityWarningsTxt: File?,
     private val apiPredicateConfig: ApiPredicate.Config,
+
+    /**
+     * An optional [File] containing a list of top level classes whose contents should be checked by
+     * this.
+     *
+     * The file contains one top-level class per line, and lines starting with # are skipped.
+     */
+    private val topLevelClassListFile: File?,
 ) {
 
     private enum class ErrorType {
@@ -120,14 +128,14 @@ class NullabilityAnnotationsValidator(
     }
 
     /**
-     * As [validateAll], reading the list of class names from [topLevelClassesList]. The file names
-     * one top-level class per line, and lines starting with # are skipped. Does nothing if
-     * [topLevelClassesList] is null.
+     * As [validateAll], reading the list of class names from [topLevelClassListFile].
+     *
+     * Does nothing if [topLevelClassListFile] is null.
      */
-    fun validateAllFrom(codebase: Codebase, topLevelClassesList: File?) {
-        if (topLevelClassesList != null) {
+    fun validateExplicitlySpecifiedClasses(codebase: Codebase) {
+        if (topLevelClassListFile != null) {
             val classes =
-                topLevelClassesList
+                topLevelClassListFile
                     .readLines()
                     .filterNot { it.isBlank() }
                     .map { it.trim() }

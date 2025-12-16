@@ -39,7 +39,7 @@ class ConfigFilesTest : DriverTest() {
                     ),
                 ),
         ) {
-            assertThat(options.configFileOptions.config).isEqualTo(Config())
+            assertThat(driver.configFileOptions.config).isEqualTo(Config())
         }
     }
 
@@ -82,7 +82,7 @@ class ConfigFilesTest : DriverTest() {
                     ),
                 ),
         ) {
-            assertThat(options.configFileOptions.config).isEqualTo(Config())
+            assertThat(driver.configFileOptions.config).isEqualTo(Config())
         }
     }
 }

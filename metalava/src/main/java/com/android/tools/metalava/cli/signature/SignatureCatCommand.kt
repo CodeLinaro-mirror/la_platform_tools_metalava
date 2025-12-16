@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.cli.signature
 
-import com.android.tools.metalava.OptionsDelegate
 import com.android.tools.metalava.cli.common.MetalavaSubCommand
 import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.newOrExistingFile
@@ -80,10 +79,6 @@ class SignatureCatCommand :
             .newOrExistingFile()
 
     override fun run() {
-        // Make sure that none of the code called by this command accesses the global `options`
-        // property.
-        OptionsDelegate.disallowAccess()
-
         val outputFormat = formatOptions.fileFormat
 
         val signatureFiles =

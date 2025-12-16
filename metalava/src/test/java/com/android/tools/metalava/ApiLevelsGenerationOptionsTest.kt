@@ -36,8 +36,9 @@ Api Levels Generation:
   Options controlling the API levels file, e.g. `api-versions.xml` file.
 
   --generate-api-levels <xmlfile>            Reads android.jar SDK files and generates an XML file recording the API
-                                             level for each class, method and field. The --current-version must also be
-                                             provided and must be greater than or equal to 27.
+                                             level for each class, method and field. if --api-version-for-sources is
+                                             provided, sources will also be included in the file with the api level
+                                             --api-version-for-sources
   --api-version-for-sources <api-version>    Sets the API version of unfinalized apis in the current source code. This
                                              supports a single integer level, `major.minor`, `major.minor.patch` and
                                              `major.minor.patch-quality` formats. Where `major`, `minor` and `patch` are
@@ -50,12 +51,11 @@ Api Levels Generation:
   --api-version-range <api-version>:<api-version>
                                              The optional range of historical versions that can be included in the API
                                              version history. The `from` and `to` parts of the range are separated by a
-                                             `:` and are both inclusive. See --current-version for acceptable
+                                             `:` and are both inclusive. See --api-version-for-sources for acceptable
                                              `<api-version>`s.
 
-                                             If unspecified then this currently falls back to a range from 1 to
-                                             `--current-version` (or `--api-version-for-sources`). However, in future it
-                                             will default to allowing every historical version.
+                                             If unspecified, version history will default to include every historical
+                                             version.
   --sdk-extension-version-range <api-version>:<api-version>
                                              The optional range of historical sdk extensions versions that can be
                                              included in the API version history. The `from` and `to` parts of the range
@@ -63,16 +63,12 @@ Api Levels Generation:
                                              --api-version-for-sources for acceptable `<api-version>`s.
 
                                              If unspecified then allow every historical version.
-  --current-version <api-version>            Sets the current API version of the current source code. This supports a
-                                             single integer level, `major.minor`, `major.minor.patch` and
-                                             `major.minor.patch-quality` formats. Where `major`, `minor` and `patch` are
-                                             all non-negative integers and `quality` is an alphanumeric string.
   --api-version-label <api-version>:<label>  Specifies a label to use in place of the `<api-version>` when augmenting
                                              the Javadoc to include information about the history of an API item, e.g.
                                              in `@apiSince` and `@deprecatedSince` doc tags. This can be specified
                                              multiple times to provide labels for multiple different versions.
 
-                                             See --current-version for acceptable `<api-version>`s.
+                                             See --api-version-for-sources for acceptable `<api-version>`s.
 
                                              This only has an effect when generating doc stubs, or enhancing the javadoc
                                              of normal stubs. It has no effect on the generation of the API history.

@@ -26,9 +26,14 @@ import com.android.tools.lint.checks.infrastructure.TestFiles.java
 import com.android.tools.lint.checks.infrastructure.TestFiles.kotlin
 import com.android.tools.lint.checks.infrastructure.stripComments
 import com.android.tools.lint.client.api.LintClient
+import com.android.tools.metalava.cli.common.ARG_API_CLASS_RESOLUTION
+import com.android.tools.metalava.cli.common.ARG_CLASS_PATH
 import com.android.tools.metalava.cli.common.ARG_COMPILED_SOURCES
 import com.android.tools.metalava.cli.common.ARG_HIDE
+import com.android.tools.metalava.cli.common.ARG_MERGE_INCLUSION_ANNOTATIONS
+import com.android.tools.metalava.cli.common.ARG_MERGE_QUALIFIER_ANNOTATIONS
 import com.android.tools.metalava.cli.common.ARG_NO_COLOR
+import com.android.tools.metalava.cli.common.ARG_PROJECT
 import com.android.tools.metalava.cli.common.ARG_QUIET
 import com.android.tools.metalava.cli.common.ARG_REPEAT_ERRORS_MAX
 import com.android.tools.metalava.cli.common.ARG_SOURCE_PATH
@@ -165,7 +170,7 @@ abstract class DriverTest :
                     reporterEnvironment = reporterEnvironment,
                     testEnvironment = testEnvironment,
                 )
-            val exitCode = run(executionEnvironment, args)
+            val exitCode = Driver.run(executionEnvironment, args)
             if (exitCode == 0) {
                 assertTrue(
                     "Test expected to fail but didn't. Expected failure: $expectedFail",
@@ -366,7 +371,6 @@ abstract class DriverTest :
         } ?: BaselineCheck("", emptyArray(), null, "")
     }
 
-    @Suppress("DEPRECATION")
     protected fun check(
         configFiles: Array<TestFile> = emptyArray(),
         /** Any jars to add to the class path */
@@ -1013,19 +1017,9 @@ abstract class DriverTest :
         // Run optional additional setup steps on the project directory
         projectSetup?.invoke(project)
 
-        // Make sure that the options is initialized. Just in case access was disallowed by another
-        // test. The global option will be overridden by the test.
-        options = Options()
-
         val args =
             arrayOf(
                 ARG_NO_COLOR,
-
-                // Tell metalava where to store temp folder: place them under the
-                // test root folder such that we clean up the output strings referencing
-                // paths to the temp folder
-                "--temp-folder",
-                getOrCreateFolder("temp").path,
 
                 // Annotation generation temporarily turned off by default while integrating with
                 // SDK builds; tests need these

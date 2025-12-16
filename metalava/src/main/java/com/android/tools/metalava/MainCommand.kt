@@ -16,15 +16,18 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.cli.common.ARG_SOURCE_FILES
 import com.android.tools.metalava.cli.common.CommonBaselineOptions
 import com.android.tools.metalava.cli.common.CommonOptions
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.cli.common.IssueReportingOptions
-import com.android.tools.metalava.cli.common.LegacyHelpFormatter
 import com.android.tools.metalava.cli.common.MetalavaCliException
+import com.android.tools.metalava.cli.common.MetalavaHelpFormatter
 import com.android.tools.metalava.cli.common.MetalavaLocalization
 import com.android.tools.metalava.cli.common.SourceOptions
+import com.android.tools.metalava.cli.common.commonOptions
 import com.android.tools.metalava.cli.common.executionEnvironment
+import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.progressTracker
 import com.android.tools.metalava.cli.common.registerPostCommandAction
 import com.android.tools.metalava.cli.common.stderr
@@ -34,15 +37,15 @@ import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions
 import com.android.tools.metalava.cli.lint.ApiLintOptions
 import com.android.tools.metalava.cli.signature.SignatureFormatOptions
 import com.android.tools.metalava.model.utils.extractSimpleName
+import com.android.tools.metalava.reporter.Baseline
 import com.android.tools.metalava.reporter.DEFAULT_BASELINE_NAME
-import com.android.tools.metalava.reporter.DefaultReporter
+import com.android.tools.metalava.reporter.Reporter
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.context
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.arguments.multiple
 import com.github.ajalt.clikt.parameters.groups.provideDelegate
 import java.io.File
-import java.io.PrintWriter
 import java.util.Locale
 
 /**
@@ -55,7 +58,6 @@ class MainCommand(
 ) :
     CliktCommand(
         help = "The default sub-command that is run if no sub-command is specified.",
-        treatUnknownOptionsAsArgs = true,
     ) {
 
     init {
@@ -69,26 +71,29 @@ class MainCommand(
 
             // Override the help formatter to add in documentation for the legacy flags.
             helpFormatter =
-                LegacyHelpFormatter(
+                MetalavaHelpFormatter(
                     { terminal },
                     localization,
-                    OptionsHelp::getUsage,
                 )
         }
     }
 
     /** Property into which all the arguments (and unknown options) are gathered. */
-    private val flags by
+    private val additionalSourceFiles by
         argument(
-                name = "flags",
-                help = "See below.",
+                name = "source-files",
+                help = "Additional source files to append to $ARG_SOURCE_FILES",
             )
+            .existingFile()
             .multiple()
 
-    private val sourceOptions by
+    internal val sourceOptions: SourceOptions by
         SourceOptions(
             executionEnvironment = executionEnvironment,
+            additionalSourceFilesProvider = { additionalSourceFiles },
         )
+
+    internal val nullabilityValidationOptions by NullabilityValidationOptions()
 
     /** Issue reporter configuration. */
     private val issueReportingOptions by IssueReportingOptions(commonOptions)
@@ -113,7 +118,7 @@ class MainCommand(
         ApiSelectionOptions(
             apiSurfacesConfigProvider = { configFileOptions.config.apiSurfaces },
             checkSurfaceConsistencyProvider = {
-                val sources = optionGroup.sources
+                val sources = sourceOptions.sourceFiles
                 // The --show-unannotated and --show*-annotation options affect the ApiSurfaces that
                 // is used. As do the --api-surface and API surfaces defined in a config file. In
                 // the long term the former will be discarded in favor of the latter but during the
@@ -167,57 +172,39 @@ class MainCommand(
             apiSurfacesProvider = { apiSelectionOptions.apiSurfaces },
         )
 
-    /**
-     * Add [Options] (an [OptionGroup]) so that any Clikt defined properties will be processed by
-     * Clikt.
-     */
-    internal val optionGroup by
-        Options(
-            executionEnvironment = executionEnvironment,
-            commonOptions = commonOptions,
-            sourceOptions = sourceOptions,
-            issueReportingOptions = issueReportingOptions,
-            generalReportingOptions = generalReportingOptions,
-            configFileOptions = configFileOptions,
-            apiSelectionOptions = apiSelectionOptions,
-            apiLintOptions = apiLintOptions,
-            compatibilityCheckOptions = compatibilityCheckOptions,
-            signatureFileOptions = signatureFileOptions,
-            signatureFormatOptions = signatureFormatOptions,
+    /** Miscellaneous options. */
+    internal val miscellaneousOptions by
+        MiscellaneousOptions(
+            reporterSupplier = { reporterManager.reporter },
         )
+
+    /** Manages the [Reporter]s and [Baseline]s. */
+    val reporterManager by
+        lazy(LazyThreadSafetyMode.NONE) {
+            ReporterManager(
+                executionEnvironment.reporterEnvironment,
+                apiLintOptions,
+                compatibilityCheckOptions,
+                generalReportingOptions,
+                issueReportingOptions,
+                sourceOptions,
+            )
+        }
 
     override fun run() {
         // Make sure to flush out the baseline files, close files and write any final messages.
         registerPostCommandAction {
-            // Update and close all baseline files.
-            optionGroup.allBaselines.forEach { baseline ->
-                if (optionGroup.verbose) {
-                    baseline.dumpStats(optionGroup.stdout)
-                }
-                if (baseline.close()) {
-                    if (!optionGroup.quiet) {
-                        stdout.println(
-                            "$PROGRAM_NAME wrote updated baseline to ${baseline.updateFile}"
-                        )
-                    }
-                }
-            }
+            // Close all the baselines.
+            reporterManager.closeAllBaselines(commonOptions.verbosity, stdout)
 
             issueReportingOptions.reporterConfig.reportEvenIfSuppressedWriter?.close()
 
             // Show failure messages, if any.
-            optionGroup.allReporters.forEach { it.writeErrorMessage(stderr) }
+            reporterManager.writeErrorMessages(stderr)
         }
 
-        // Get any remaining arguments/options that were not handled by Clikt.
-        val remainingArgs = flags.toTypedArray()
-
-        // Parse any remaining arguments
-        optionGroup.parse(remainingArgs)
-
-        // Update the global options.
-        @Suppress("DEPRECATION")
-        options = optionGroup
+        // Perform any necessary initialization.
+        initializeOptionGroups()
 
         val sourceModelProvider =
             // Use the [SourceModelProvider] specified by the [TestEnvironment], if any.
@@ -228,32 +215,49 @@ class MainCommand(
         try {
             sourceModelProvider
                 .createEnvironmentManager(executionEnvironment.disableStderrDumping())
-                .use {
-                    processFlags(
-                        executionEnvironment,
-                        it,
-                        progressTracker,
-                        optionGroup,
-                        apiLevelsGenerationOptions,
-                        sourceOptions,
-                        stubGenerationOptions,
-                    )
+                .use { environmentManager ->
+                    val driver =
+                        Driver(
+                            executionEnvironment,
+                            progressTracker,
+                            environmentManager,
+                            reporterManager.reporter,
+                            commonOptions.verbosity,
+                            miscellaneousOptions,
+                            apiLevelsGenerationOptions,
+                            apiLintOptions,
+                            apiSelectionOptions,
+                            compatibilityCheckOptions,
+                            configFileOptions,
+                            issueReportingOptions,
+                            nullabilityValidationOptions,
+                            signatureFileOptions,
+                            signatureFormatOptions,
+                            sourceOptions,
+                            stubGenerationOptions,
+                        )
+                    driver.processFlags()
                 }
         } finally {
             // Write all saved reports. Do this even if the previous code threw an exception.
-            optionGroup.allReporters.forEach { it.writeSavedReports() }
+            reporterManager.writeSavedReports()
         }
 
-        val allReporters = optionGroup.allReporters
-        if (allReporters.any { it.hasErrors() } && !commonBaselineOptions.passBaselineUpdates) {
+        if (reporterManager.hasAnyErrors() && !commonBaselineOptions.passBaselineUpdates) {
             // Repeat the errors at the end to make it easy to find the actual problems.
             if (issueReportingOptions.repeatErrorsMax > 0) {
-                repeatErrors(stderr, allReporters, issueReportingOptions.repeatErrorsMax)
+                reporterManager.repeatErrors(stderr, issueReportingOptions.repeatErrorsMax)
             }
 
             // Make sure that the process exits with an error code.
             throw MetalavaCliException(exitCode = -1)
         }
+    }
+
+    /** Initialize any option groups that require it. */
+    private fun initializeOptionGroups() {
+        // Make sure that any config files are processed.
+        configFileOptions.config
     }
 
     /**
@@ -288,22 +292,5 @@ class MainCommand(
         } else {
             return null
         }
-    }
-}
-
-private fun repeatErrors(writer: PrintWriter, reporters: List<DefaultReporter>, max: Int) {
-    writer.println("Error: $PROGRAM_NAME detected the following problems:")
-    val totalErrors = reporters.sumOf { it.errorCount }
-    var remainingCap = max
-    var totalShown = 0
-    reporters.forEach {
-        val numShown = it.printErrors(writer, remainingCap)
-        remainingCap -= numShown
-        totalShown += numShown
-    }
-    if (totalShown < totalErrors) {
-        writer.println(
-            "${totalErrors - totalShown} more error(s) omitted. Search the log for 'error:' to find all of them."
-        )
     }
 }

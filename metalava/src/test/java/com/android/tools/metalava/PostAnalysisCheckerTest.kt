@@ -67,7 +67,10 @@ class PostAnalysisCheckerTest : DriverTest() {
                 ),
         ) {
             // Check that the options is provided.
-            assertTrue(options.showUnannotated, message = "options.showUnannotated")
+            assertTrue(
+                driver.apiSelectionOptions.showUnannotated,
+                message = "options.showUnannotated"
+            )
 
             // Check that the codebase is provided.
             assertEquals(

@@ -64,6 +64,7 @@ Available Issues                             |  Category                        
   CallbackMethodName                         |  api_lint                             |   error
   CallbackName                               |  api_lint                             |   warning
   ChangedAbstract                            |  binary_and_source_compatibility      |   error
+  ChangedAnnotationRetention                 |  other_compatibility                  |   hidden
   ChangedClass                               |  binary_and_source_compatibility      |   error
   ChangedDefault                             |  binary_and_source_compatibility      |   error
   ChangedDeprecated                          |  source_compatibility_only            |   hidden
@@ -145,6 +146,7 @@ Available Issues                             |  Category                        
   MethodNameTense                            |  api_lint                             |   warning
   MethodNameUnits                            |  api_lint                             |   error
   MinMaxConstant                             |  api_lint                             |   warning
+  MissingAnnotationsXmlItem                  |  api_lint                             |   hidden
   MissingBuildMethod                         |  api_lint                             |   warning
   MissingColumn                              |  documentation                        |   warning
   MissingEnvironmentsValue                   |  api_lint                             |   error

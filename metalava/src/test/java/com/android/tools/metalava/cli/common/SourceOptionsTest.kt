@@ -29,6 +29,22 @@ Sources:
 
   --source-path <path>                       A : separated list of directories containing source files (organized in a
                                              standard Java package hierarchy).
+  --source-files <files>                     A comma separated list of source files to be parsed. Can also be @ followed
+                                             by a path to a text file containing paths to the full set of files to
+                                             parse.,
+  --java-source <level>                      Sets the source level for Java source files. (default: 1.8)
+  --kotlin-source <level>                    Sets the source level for Kotlin source files. (default: 1.9)
+  --classpath <paths>                        One or more directories or jars (separated by `:`) containing classes that
+                                             should be on the classpath when parsing the source files.
+  --api-class-resolution [api|api:classpath]
+                                             Determines how class resolution is performed when loading API signature
+                                             files. Any classes that cannot be found will be treated as empty.
+
+                                             api - will only look for classes in the API signature files.
+
+                                             api:classpath (default) - will look for classes in the API signature files
+                                             first and then in the classpath.
+  --project <xmlfile>                        Project description written in XML according to Lint's project model.
   --stub-packages <package-list>             List of packages (separated by :) which will be used to filter out
                                              irrelevant classes. If specified, only classes in these packages will be
                                              included in signature files, stubs, etc.. This is not limited to just the
@@ -40,6 +56,19 @@ Sources:
                                              APIs.
   --jdk-home <dir>                           If set, add the Java APIs from the given JDK to the classpath.
   --sdk-home <dir>                           If set, locate the `android.jar` file from the given Android SDK.
+  --compile-sdk-version <api>                Use the given API level.
+  --merge-qualifier-annotations <file-or-dir>
+                                             An external annotations file to merge and overlay the sources, or a
+                                             directory of such files. Should be used for annotations intended for
+                                             inclusion in the API to be written out, e.g. nullability. Formats supported
+                                             are: IntelliJ's external annotations database format, .jar or .zip files
+                                             containing those, Android signature files, and Java stub files.
+  --merge-inclusion-annotations <file-or-dir>
+                                             An external annotations file to merge and overlay the sources, or a
+                                             directory of such files. Should be used for annotations which determine
+                                             inclusion in the API to be written out, i.e. show and hide. The only format
+                                             supported is Java stub files.
+  --ignore-comments                          Ignore any comments in source files.
   --Xuse-k1-uast                             Specifies whether the K1 compiler is used. (default: K1)
   --Xuse-k2-uast                             Specifies whether the K2 compiler is used. (default: K1)
     """

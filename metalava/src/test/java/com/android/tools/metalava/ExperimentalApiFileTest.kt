@@ -598,7 +598,8 @@ class ExperimentalApiFileTest : DriverTest() {
 
                         class MyOuterClass {
                             @ExperimentalFeature
-                            const val a: Int = 0
+                            @JvmField
+                            val a: Int = 0
 
                             @ExperimentalFeature
                             companion object {
@@ -616,7 +617,7 @@ class ExperimentalApiFileTest : DriverTest() {
                   }
                   public final class MyOuterClass {
                     ctor public MyOuterClass();
-                    property @SuppressCompatibility @test.pkg.ExperimentalFeature public static int a;
+                    property @SuppressCompatibility @test.pkg.ExperimentalFeature public int a;
                     field @SuppressCompatibility @test.pkg.ExperimentalFeature public static final test.pkg.MyOuterClass.Companion Companion;
                     field @SuppressCompatibility @test.pkg.ExperimentalFeature public final int a;
                     field @SuppressCompatibility @test.pkg.ExperimentalFeature public static final int b = 0; // 0x0
@@ -625,7 +626,7 @@ class ExperimentalApiFileTest : DriverTest() {
                     property @SuppressCompatibility @test.pkg.ExperimentalFeature public static int b;
                   }
                 }
-                    """,
+                """,
             suppressCompatibilityMetaAnnotations = arrayOf("test.pkg.ExperimentalFeature")
         )
     }
@@ -647,15 +648,18 @@ class ExperimentalApiFileTest : DriverTest() {
 
                         class MyOuterClass {
                             @ExperimentalFeature
-                            const val a: Int = 0
+                            @JvmField
+                            val a: Int = 0
 
                             @ExperimentalFeature
                             class MyInnerClass { }
 
-                            const val c: MyInnerClass = null
+                            @JvmField
+                            val c: MyInnerClass? = null
 
                             @ExperimentalFeature
-                            const val myField: MyClassField = null
+                            @JvmField
+                            val myField: MyClassField? = null
 
                             @ExperimentalFeature
                             companion object MyCompObjectWithNonDefaultName {
@@ -676,14 +680,14 @@ class ExperimentalApiFileTest : DriverTest() {
                   }
                   public final class MyOuterClass {
                     ctor public MyOuterClass();
-                    property @SuppressCompatibility @test.pkg.ExperimentalFeature public static int a;
-                    property public static test.pkg.MyOuterClass.MyInnerClass c;
-                    property @SuppressCompatibility @test.pkg.ExperimentalFeature public static test.pkg.MyClassField myField;
+                    property @SuppressCompatibility @test.pkg.ExperimentalFeature public int a;
+                    property public test.pkg.MyOuterClass.MyInnerClass? c;
+                    property @SuppressCompatibility @test.pkg.ExperimentalFeature public test.pkg.MyClassField? myField;
                     field @SuppressCompatibility @test.pkg.ExperimentalFeature public static final test.pkg.MyOuterClass.MyCompObjectWithNonDefaultName MyCompObjectWithNonDefaultName;
                     field @SuppressCompatibility @test.pkg.ExperimentalFeature public final int a;
                     field @SuppressCompatibility @test.pkg.ExperimentalFeature public static final int b = 0; // 0x0
-                    field public final test.pkg.MyOuterClass.MyInnerClass c;
-                    field @SuppressCompatibility @test.pkg.ExperimentalFeature public final test.pkg.MyClassField myField;
+                    field public final test.pkg.MyOuterClass.MyInnerClass? c;
+                    field @SuppressCompatibility @test.pkg.ExperimentalFeature public final test.pkg.MyClassField? myField;
                   }
                   @SuppressCompatibility @test.pkg.ExperimentalFeature public static final class MyOuterClass.MyCompObjectWithNonDefaultName {
                     property @SuppressCompatibility @test.pkg.ExperimentalFeature public static int b;
@@ -692,7 +696,7 @@ class ExperimentalApiFileTest : DriverTest() {
                     ctor public MyOuterClass.MyInnerClass();
                   }
                 }
-                    """,
+                """,
             suppressCompatibilityMetaAnnotations = arrayOf("test.pkg.ExperimentalFeature")
         )
     }

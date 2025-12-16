@@ -44,6 +44,7 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeStringConfiguration
 import com.android.tools.metalava.model.VariableTypeItem
+import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiType
 import com.android.tools.metalava.reporter.FileLocation
@@ -459,12 +460,37 @@ class CompatibilityCheck(
         }
     }
 
+    private fun compareAnnotations(old: ClassItem, new: ClassItem) {
+        // Check if retention markers exist on the annotations. We don't want to perform this
+        // compatibility check if either the old or new annotation doesn't have a retention marked
+        if (
+            old.modifiers.findAnnotation { it.isRetention() } != null &&
+                new.modifiers.findAnnotation { it.isRetention() } != null
+        ) {
+            val oldRet = old.annotationClass.retention
+            val newRet = new.annotationClass.retention
+
+            if (!oldRet.equivalentTo(newRet)) {
+                report(
+                    Issues.CHANGED_ANNOTATION_RETENTION,
+                    new,
+                    "${new.describe(capitalize = true)} incompatibly changed its retention from $oldRet to $newRet",
+                    oldItem = old,
+                )
+            }
+        }
+    }
+
     override fun compareClassItems(old: ClassItem, new: ClassItem) {
         // Perform different comparisons for typealiases.
         // TODO(b/458733676): add error for converting from class to typealias or vice versa.
         if (old.classKind == ClassKind.TYPEALIAS && new.classKind == ClassKind.TYPEALIAS) {
             compareTypeAliasItems(old, new)
             return
+        }
+
+        if (old.isAnnotationType() && new.isAnnotationType()) {
+            compareAnnotations(old, new)
         }
 
         val oldModifiers = old.modifiers

@@ -19,7 +19,6 @@ package com.android.tools.metalava.cli.flag
 import com.android.tools.metalava.ARG_CONFIG_FILE
 import com.android.tools.metalava.ApiFlagsCreator
 import com.android.tools.metalava.ConfigFileOptions
-import com.android.tools.metalava.OptionsDelegate
 import com.android.tools.metalava.cli.common.DefaultSignatureFileLoader
 import com.android.tools.metalava.cli.common.MetalavaSubCommand
 import com.android.tools.metalava.cli.common.cliError
@@ -49,10 +48,6 @@ class FlagReportCommand :
             .multiple(required = true)
 
     override fun run() {
-        // Make sure that none of the code called by this command accesses the global `options`
-        // property.
-        OptionsDelegate.disallowAccess()
-
         val apiFlagsConfig =
             configFileOptions.config.apiFlags
                 ?: cliError(

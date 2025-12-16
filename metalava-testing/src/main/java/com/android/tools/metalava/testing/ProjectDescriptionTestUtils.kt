@@ -31,13 +31,17 @@ val defaultCommonKotlinPlatforms =
 val defaultJvmPlatforms = JvmPlatforms.defaultJvmPlatform.serializeComponentPlatforms()
 val defaultNativePlatforms = NativePlatforms.unspecifiedNativePlatform.serializeComponentPlatforms()
 
-/** The XML string for one module of a project (using the [standardProjectXmlClasspath]). */
+/**
+ * The XML string for one module of a project (using the [standardProjectXmlClasspath] unless a
+ * different [classpathXml] is provided).
+ */
 fun createModuleDescription(
     moduleName: String,
     android: Boolean,
     kotlinPlatforms: String,
     sourceFiles: Array<TestFile>,
     dependsOn: List<String> = listOf("commonMain"),
+    classpathXml: String = standardProjectXmlClasspath,
 ): String {
     val sourceLines = sourceFiles.joinToString("\n") { "<src file=\"${it.targetRelativePath}\" />" }
     val dependsOnLines = dependsOn.joinToString("\n") { "<dep module=\"$it\" kind=\"dependsOn\"/>" }
@@ -45,7 +49,7 @@ fun createModuleDescription(
         <module name="$moduleName" android="$android" kotlinPlatforms="$kotlinPlatforms">
           $dependsOnLines
           $sourceLines
-          $standardProjectXmlClasspath
+          $classpathXml
         </module>
         """
 }
