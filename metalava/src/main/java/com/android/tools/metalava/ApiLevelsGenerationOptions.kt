@@ -58,7 +58,6 @@ const val ARG_REMOVE_MISSING_CLASS_REFERENCES_IN_API_LEVELS =
     "--remove-missing-class-references-in-api-levels"
 
 const val ARG_CURRENT_VERSION = "--current-version"
-const val ARG_CURRENT_CODENAME = "--current-codename"
 
 const val ARG_API_VERSION_FOR_SOURCES = "--api-version-for-sources"
 
@@ -177,8 +176,7 @@ class ApiLevelsGenerationOptions(
                         `<api-version>`s.
 
                         If unspecified then this currently falls back to a range from
-                        1 to `--current-version` (or `--api-version-for-sources`
-                        if `--current-codename` is set to any value other than `REL`). However,
+                        1 to `--current-version` (or `--api-version-for-sources`). However,
                         in future it will default to allowing every historical version.
                     """
                         .trimIndent()
@@ -212,9 +210,7 @@ class ApiLevelsGenerationOptions(
      * This is one more than [optionalCurrentApiVersion] if this is a developer preview build.
      */
     private val lastApiVersion
-        get() =
-            (optionalCurrentApiVersion ?: ApiVersion.fromLevel(10_000)) +
-                if (isDeveloperPreviewBuild) 1 else 0
+        get() = (optionalCurrentApiVersion ?: ApiVersion.fromLevel(10_000))
 
     /**
      * The [ApiVersion] of the codebase, or null if not known/specified (TODO: b/454050901 avoid
@@ -234,22 +230,6 @@ class ApiLevelsGenerationOptions(
                         .trimIndent(),
             )
             .apiVersion()
-
-    /**
-     * The codename of the codebase: non-null string if this is a developer preview build, null if
-     * this is a release build.
-     */
-    private val currentCodeName: String? by
-        option(
-                ARG_CURRENT_CODENAME,
-                metavar = "<version-codename>",
-                help =
-                    """
-                        Sets the code name for the current source code.
-                    """
-                        .trimIndent(),
-            )
-            .map { if (it == "REL") null else it }
 
     /** Convert an option value to a [Pair] of [ApiVersion] and [String]. */
     private fun OptionWithValues<String?, String, String>.apiVersionToLabel() = convert { text ->
@@ -284,15 +264,6 @@ class ApiLevelsGenerationOptions(
             .apiVersionToLabel()
             .multiple(default = emptyList())
             .map { it.toMap() }
-
-    /**
-     * True if [currentCodeName] is specified, false otherwise.
-     *
-     * If this is `true` then the API defined in the sources will be added to the API levels file
-     * with an API level of [optionalCurrentApiVersion]` - 1`.
-     */
-    private val isDeveloperPreviewBuild
-        get() = currentCodeName != null
 
     /** The list of patterns used to find matching jars in the set of files visible to Metalava. */
     private val androidJarPatterns: List<String> by
@@ -390,20 +361,10 @@ class ApiLevelsGenerationOptions(
      * Get label for [version].
      *
      * Checks the [apiVersionToLabel] map first and if a label was found for [version] then returns
-     * it. Otherwise, if a codename has been specified and [version] is greater than the current API
-     * version (which defaults to `null` when not set) then use the codename as the label, otherwise
-     * use [version]'s [ApiVersion.toString] value.
+     * it. Otherwise, use [version]'s [ApiVersion.toString] value.
      */
-    fun getApiVersionLabel(version: ApiVersion): String {
-        // Check the apiVersionToLabel map first.
-        apiVersionToLabel[version]?.let {
-            return it
-        }
-        val codename = currentCodeName
-        val current = optionalCurrentApiVersion
-        return if (current == null || codename == null || version <= current) version.toString()
-        else codename
-    }
+    fun getApiVersionLabel(version: ApiVersion): String =
+        apiVersionToLabel[version] ?: version.toString()
 
     /**
      * Check whether [version] should be included in documentation.
@@ -418,7 +379,6 @@ class ApiLevelsGenerationOptions(
      * Otherwise, it is a release build so ignore any [ApiVersion]s after the current one.
      */
     fun includeApiVersionInDocumentation(version: ApiVersion): Boolean {
-        if (isDeveloperPreviewBuild) return true
         val current = optionalCurrentApiVersion ?: return true
         return version <= current
     }
@@ -817,13 +777,6 @@ class ApiLevelsGenerationOptions(
         }
 
         return when {
-            // The current codebase is a developer preview so use the next, in the
-            // process of being finalized version.
-            // b/454053322 --current-version will eventually be deprecated,
-            // --api-version-for-sources should be used instead. Placeholder value has been added in
-            // the meantime
-            isDeveloperPreviewBuild -> ApiVersion.fromString("10000")
-
             // If no finalized versions were provided or the last finalized version is less
             // than the current version then use the current version as the version of the
             // codebase.

@@ -28,6 +28,7 @@ import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.SUPPORT_TYPE_USE_ANNOTATIONS
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.VariableTypeItem
+import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
@@ -41,6 +42,7 @@ class NullabilityAnnotationsValidator(
     private val reporter: Reporter,
     private val nullabilityErrorsFatal: Boolean,
     private val nullabilityWarningsTxt: File?,
+    private val apiPredicateConfig: ApiPredicate.Config,
 ) {
 
     private enum class ErrorType {
@@ -97,7 +99,7 @@ class NullabilityAnnotationsValidator(
             topLevelClass.accept(
                 object :
                     ApiVisitor(
-                        apiPredicateConfig = @Suppress("DEPRECATION") options.apiPredicateConfig,
+                        apiPredicateConfig = apiPredicateConfig,
                     ) {
 
                     override fun visitMethod(method: MethodItem) {

@@ -17,8 +17,7 @@
 package com.android.tools.metalava.apilevels
 
 import com.android.tools.metalava.ARG_ANDROID_JAR_PATTERN
-import com.android.tools.metalava.ARG_CURRENT_CODENAME
-import com.android.tools.metalava.ARG_CURRENT_VERSION
+import com.android.tools.metalava.ARG_API_VERSION_FOR_SOURCES
 import com.android.tools.metalava.ARG_GENERATE_API_LEVELS
 import com.android.tools.metalava.ARG_SDK_INFO_FILE
 import com.android.tools.metalava.doc.getApiLookup
@@ -46,10 +45,8 @@ class ExtractPublicApiLevelsTest : ApiGeneratorIntegrationTestBase() {
                     "${extensionSdkJars.path}/{version:extension}/public/{module}.jar",
                     ARG_SDK_INFO_FILE,
                     createSdkExtensionInfoFile().path,
-                    ARG_CURRENT_CODENAME,
-                    "Z",
-                    ARG_CURRENT_VERSION,
-                    currentVersion.toString() // not real api level of Z
+                    ARG_API_VERSION_FOR_SOURCES,
+                    currentVersion.toString()
                 ),
             sourceFiles =
                 arrayOf(
@@ -65,17 +62,9 @@ class ExtractPublicApiLevelsTest : ApiGeneratorIntegrationTestBase() {
 
         assertTrue(output.isFile)
 
-        val xml =
-            output
-                .readText(Charsets.UTF_8)
-                // As this only provides a single MyTest class in the current codebase which is of
-                // version 10000 (b/450531827), the api-versions.xml generator will assume that all
-                // the other classes
-                // it has seen have been removed. That is not true so remove those attributes.
-                .replace(" removed=\"10000\"", "")
-        // TODO (b/450531827) : Until the next prospective SDK information is provided to Metalava,
-        // use 10,000 as a placeholder for the next sdk version
-        val nextVersion = 10000
+        val xml = output.readText(Charsets.UTF_8)
+
+        val nextVersion = 35
         assertTrue(xml.contains("<class name=\"android/Manifest\$permission\" since=\"1\">"))
         assertTrue(
             xml.contains(

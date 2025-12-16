@@ -33,6 +33,7 @@ import com.android.tools.metalava.model.doc.DocContentPredicate
 import com.android.tools.metalava.model.source.doc.DocContentPredicates
 import com.android.tools.metalava.model.source.doc.containsWord
 import com.android.tools.metalava.model.value.asString
+import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.permission.getRequiresPermissionInfo
 import com.android.tools.metalava.reporter.Issues
@@ -47,7 +48,10 @@ import java.util.regex.Pattern
  * for them to do anything. So, this whole check is disabled when
  * [Codebase.Config.allowReadingComments] is `false`.
  */
-class AndroidApiChecks(val reporter: Reporter) {
+class AndroidApiChecks(
+    private val reporter: Reporter,
+    private val apiPredicateConfig: ApiPredicate.Config,
+) {
     fun check(codebase: Codebase) {
         for (packageItem in codebase.getPackages().packages) {
             // Get the package name with a trailing `.` to simplify prefix checking below. Without
@@ -65,7 +69,7 @@ class AndroidApiChecks(val reporter: Reporter) {
         packageItem.accept(
             object :
                 ApiVisitor(
-                    apiPredicateConfig = @Suppress("DEPRECATION") options.apiPredicateConfig,
+                    apiPredicateConfig = apiPredicateConfig,
                 ) {
 
                 override fun visitSelectableItem(item: SelectableItem) {

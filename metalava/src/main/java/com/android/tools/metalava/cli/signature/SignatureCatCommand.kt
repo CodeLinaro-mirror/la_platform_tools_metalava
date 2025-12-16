@@ -24,7 +24,6 @@ import com.android.tools.metalava.cli.common.stderr
 import com.android.tools.metalava.cli.common.stdin
 import com.android.tools.metalava.cli.common.stdout
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.text.ApiFile
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.SignatureFile
@@ -105,7 +104,6 @@ class SignatureCatCommand :
         ApiFile.parseApi(
             signatureFiles,
             Codebase.Config(
-                annotationManager = noOpAnnotationManager,
                 reporter = BasicReporter(stderr),
             ),
         )

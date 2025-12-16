@@ -54,9 +54,8 @@ Api Levels Generation:
                                              `<api-version>`s.
 
                                              If unspecified then this currently falls back to a range from 1 to
-                                             `--current-version` (or `--api-version-for-sources` if `--current-codename`
-                                             is set to any value other than `REL`). However, in future it will default
-                                             to allowing every historical version.
+                                             `--current-version` (or `--api-version-for-sources`). However, in future it
+                                             will default to allowing every historical version.
   --sdk-extension-version-range <api-version>:<api-version>
                                              The optional range of historical sdk extensions versions that can be
                                              included in the API version history. The `from` and `to` parts of the range
@@ -68,7 +67,6 @@ Api Levels Generation:
                                              single integer level, `major.minor`, `major.minor.patch` and
                                              `major.minor.patch-quality` formats. Where `major`, `minor` and `patch` are
                                              all non-negative integers and `quality` is an alphanumeric string.
-  --current-codename <version-codename>      Sets the code name for the current source code.
   --api-version-label <api-version>:<label>  Specifies a label to use in place of the `<api-version>` when augmenting
                                              the Javadoc to include information about the history of an API item, e.g.
                                              in `@apiSince` and `@deprecatedSince` doc tags. This can be specified
@@ -157,21 +155,21 @@ class ApiLevelsGenerationOptionsTest :
         forAndroidConfig(SignatureFileLoader.THROWING) { error("no codebase fragment") }
 
     @Test
-    fun `Test current version supports major-minor`() {
+    fun `Test api version for sources supports major-minor`() {
         runTest(ARG_API_VERSION_FOR_SOURCES, "1.2") {
             assertThat(options.apiVersionForSources.toString()).isEqualTo("1.2")
         }
     }
 
     @Test
-    fun `Test current version supports major-minor-patch`() {
+    fun `Test api version for sources supports major-minor-patch`() {
         runTest(ARG_API_VERSION_FOR_SOURCES, "1.2.3") {
             assertThat(options.apiVersionForSources.toString()).isEqualTo("1.2.3")
         }
     }
 
     @Test
-    fun `Test current version supports major-minor-patch-preRelease`() {
+    fun `Test api version for sources supports major-minor-patch-preRelease`() {
         runTest(ARG_API_VERSION_FOR_SOURCES, "1.2.3-beta01") {
             assertThat(options.apiVersionForSources.toString()).isEqualTo("1.2.3-beta01")
         }

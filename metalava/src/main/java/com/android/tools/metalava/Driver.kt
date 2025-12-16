@@ -26,6 +26,7 @@ import com.android.tools.metalava.cli.common.EarlyOptions
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.cli.common.MetalavaCommand
 import com.android.tools.metalava.cli.common.SignatureFileLoader
+import com.android.tools.metalava.cli.common.SourceOptions
 import com.android.tools.metalava.cli.common.VersionCommand
 import com.android.tools.metalava.cli.common.cliError
 import com.android.tools.metalava.cli.common.commonOptions
@@ -48,7 +49,6 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.CodebaseFragment
 import com.android.tools.metalava.model.DelegatedVisitor
 import com.android.tools.metalava.model.ItemVisitor
-import com.android.tools.metalava.model.ModelOptions
 import com.android.tools.metalava.model.psi.PsiModelOptions
 import com.android.tools.metalava.model.snapshot.NonFilteringDelegatingVisitor
 import com.android.tools.metalava.model.source.EnvironmentManager
@@ -143,19 +143,20 @@ internal fun processFlags(
     progressTracker: ProgressTracker,
     options: Options,
     apiLevelsGenerationOptions: ApiLevelsGenerationOptions,
+    sourceOptions: SourceOptions,
     stubGenerationOptions: StubGenerationOptions,
 ) {
     val stopwatch = Stopwatch.createStarted()
     val reporter = options.reporter
     val codebaseConfig = options.codebaseConfig
-    val modelOptions = createModelOptions(options, executionEnvironment)
+    val modelOptions = sourceOptions.modelOptions
     val sourceParser =
         environmentManager.createSourceParser(
             codebaseConfig = codebaseConfig,
             javaLanguageLevel = options.javaLanguageLevelAsString,
             kotlinLanguageLevel = options.kotlinLanguageLevelAsString,
             modelOptions = modelOptions,
-            jdkHome = options.jdkHome,
+            jdkHome = sourceOptions.jdkHome,
         )
 
     val signatureFileCache = options.signatureFileCache
@@ -176,6 +177,7 @@ internal fun processFlags(
     val codebase =
         createCodebaseFromOptions(
             options,
+            sourceOptions,
             classPathResolverProvider,
             signatureFileCache,
             actionContext,
@@ -423,27 +425,10 @@ fun createCodeFragmentForSignatureFile(
     return codebaseFragment
 }
 
-/** Create [ModelOptions] object from option flags */
-private fun createModelOptions(
-    options: Options,
-    executionEnvironment: ExecutionEnvironment
-): ModelOptions {
-    // If the option was specified on the command line then use [ModelOptions] created from that
-    return options.useK2Uast?.let { useK2Uast ->
-        ModelOptions.build("from command line") { this[PsiModelOptions.useK2Uast] = useK2Uast }
-    }
-        // Otherwise, use the [ModelOptions] specified in the [TestEnvironment] if any.
-        ?: executionEnvironment.testEnvironment?.modelOptions?.apply {
-            // Make sure that the [options.useK2Uast] matches the test environment.
-            options.useK2Uast = this[PsiModelOptions.useK2Uast]
-        }
-        // Otherwise, use the default
-        ?: ModelOptions.empty
-}
-
 /** Create [Codebase] object from option flags */
 private fun createCodebaseFromOptions(
     options: Options,
+    sourceOptions: SourceOptions,
     classPathResolverProvider: ClassPathResolverProvider,
     signatureFileCache: SignatureFileCache,
     actionContext: ActionContext
@@ -466,7 +451,12 @@ private fun createCodebaseFromOptions(
     } else if (sources.size == 1 && sources[0].path.endsWith(DOT_JAR)) {
         return actionContext.loadFromJarFile(sources[0], options.apiAnalyzerConfig)
     } else if (sources.isNotEmpty() || options.sourcePath.isNotEmpty()) {
-        return actionContext.loadFromSources(options, signatureFileCache, classPathResolverProvider)
+        return actionContext.loadFromSources(
+            options,
+            sourceOptions,
+            signatureFileCache,
+            classPathResolverProvider,
+        )
     }
 
     return null
@@ -609,6 +599,8 @@ private fun ActionContext.checkCompatibility(
         options.issueConfiguration,
         options.apiCompatAnnotations,
         apiName,
+        options.apiPredicateConfig,
+        options.showUnannotated,
     )
 }
 
@@ -663,6 +655,7 @@ internal var fastPathCheckResult: Boolean? = null
 
 private fun ActionContext.loadFromSources(
     options: Options,
+    sourceOptions: SourceOptions,
     signatureFileCache: SignatureFileCache,
     classPathResolverProvider: ClassPathResolverProvider,
 ): Codebase? {
@@ -724,7 +717,7 @@ private fun ActionContext.loadFromSources(
     // General API documentation checks for Android APIs.
     // They are pointless if Javadoc comments are not being read.
     if (codebase.config.allowReadingComments) {
-        AndroidApiChecks(reporterApiLint).check(codebase)
+        AndroidApiChecks(reporterApiLint, options.apiPredicateConfig).check(codebase)
     }
 
     runApiChecksFromOptions(
@@ -739,9 +732,12 @@ private fun ActionContext.loadFromSources(
             codebase,
             previouslyReleasedCodebase,
             reporter,
-            options.manifest,
             options.apiPredicateConfig,
-            options.apiLintOptions.allowedAcronyms,
+            ApiLint.Config(
+                manifest = options.manifest,
+                allowedAcronyms = options.apiLintOptions.allowedAcronyms,
+                useK2Uast = sourceOptions.modelOptions[PsiModelOptions.useK2Uast],
+            ),
         )
     }
 
@@ -790,7 +786,13 @@ private fun extractAnnotations(
 ) {
     val localTimer = Stopwatch.createStarted()
 
-    ExtractAnnotations(codebase, options.reporter, outputFile).extractAnnotations()
+    ExtractAnnotations(
+            codebase,
+            options.reporter,
+            outputFile,
+            options.apiPredicateConfig,
+        )
+        .extractAnnotations()
     if (options.verbose) {
         progressTracker.progress(
             "$PROGRAM_NAME extracted annotations into $outputFile in ${localTimer.elapsed(SECONDS)} seconds\n"

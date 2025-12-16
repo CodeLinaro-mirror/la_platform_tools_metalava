@@ -47,6 +47,7 @@ import com.android.tools.metalava.model.value.Value
 import com.android.tools.metalava.model.value.ValueStringConfiguration
 import com.android.tools.metalava.model.value.asDouble
 import com.android.tools.metalava.model.value.asLong
+import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
@@ -65,9 +66,10 @@ class ExtractAnnotations(
     private val codebase: Codebase,
     private val reporter: Reporter,
     private val outputFile: File,
+    private val apiPredicateConfig: ApiPredicate.Config,
 ) :
     ApiVisitor(
-        apiPredicateConfig = @Suppress("DEPRECATION") options.apiPredicateConfig,
+        apiPredicateConfig = apiPredicateConfig,
     ) {
     // Used linked hash map for order such that we always emit parameters after their surrounding
     // method etc

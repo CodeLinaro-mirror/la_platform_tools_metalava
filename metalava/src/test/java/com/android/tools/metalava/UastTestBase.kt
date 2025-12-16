@@ -1418,7 +1418,7 @@ abstract class UastTestBase : DriverTest() {
                 // NB: better tracking non-deprecated accessors (thanks to better use-site handling)
                 """
                     package test.pkg {
-                      @kotlin.annotation.Target(allowedTargets={kotlin.annotation.AnnotationTarget.PROPERTY, kotlin.annotation.AnnotationTarget.PROPERTY_GETTER, kotlin.annotation.AnnotationTarget.PROPERTY_SETTER}) public @interface MyAnnotation {
+                      @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) @kotlin.annotation.Target(allowedTargets={kotlin.annotation.AnnotationTarget.PROPERTY, kotlin.annotation.AnnotationTarget.PROPERTY_GETTER, kotlin.annotation.AnnotationTarget.PROPERTY_SETTER}) public @interface MyAnnotation {
                       }
                       public interface TestInterface {
                         method @BytecodeOnly @Deprecated public int getPOld_deprecatedOnGetter();
@@ -1515,7 +1515,7 @@ abstract class UastTestBase : DriverTest() {
             } else {
                 """
                     package test.pkg {
-                      @kotlin.annotation.Target(allowedTargets={kotlin.annotation.AnnotationTarget.PROPERTY, kotlin.annotation.AnnotationTarget.PROPERTY_GETTER, kotlin.annotation.AnnotationTarget.PROPERTY_SETTER}) public @interface MyAnnotation {
+                      @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) @kotlin.annotation.Target(allowedTargets={kotlin.annotation.AnnotationTarget.PROPERTY, kotlin.annotation.AnnotationTarget.PROPERTY_GETTER, kotlin.annotation.AnnotationTarget.PROPERTY_SETTER}) public @interface MyAnnotation {
                       }
                       public interface TestInterface {
                         method @BytecodeOnly @Deprecated public int getPOld_deprecatedOnGetter();
@@ -2684,7 +2684,7 @@ abstract class UastTestBase : DriverTest() {
             api =
                 """
                 package test.pkg {
-                  @java.lang.annotation.Repeatable(AnnotationCanRepeat.Entries::class) public @interface AnnotationCanRepeat {
+                  @java.lang.annotation.Repeatable(AnnotationCanRepeat.Entries::class) @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface AnnotationCanRepeat {
                     ctor @KotlinOnly public AnnotationCanRepeat(int value);
                     method @InaccessibleFromKotlin public abstract int value();
                     property public abstract int value;

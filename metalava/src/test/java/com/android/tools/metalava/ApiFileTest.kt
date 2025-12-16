@@ -2701,13 +2701,13 @@ class ApiFileTest : DriverTest() {
                 arrayOf(
                     java(
                         """
-                    package test.pkg;
-                    public class MyClass {
-                        public <T> MyClass(Class<T> klass) { }
-                        public <U> void method1(Function<U> func) { }
-                    }
-                    """
-                    )
+                            package test.pkg;
+                            public class MyClass {
+                                public <T> MyClass(Class<T> klass) { }
+                                public <U> void method1(java.util.function.Consumer<U> func) { }
+                            }
+                        """
+                    ),
                 ),
             expectedIssues = "",
             api =
@@ -2715,10 +2715,10 @@ class ApiFileTest : DriverTest() {
                     package test.pkg {
                       public class MyClass {
                         ctor public <T> MyClass(Class<T>);
-                        method public <U> void method1(Function<U>);
+                        method public <U> void method1(java.util.function.Consumer<U>);
                       }
                     }
-            """
+                """,
         )
     }
 
@@ -4394,7 +4394,7 @@ class ApiFileTest : DriverTest() {
                   @SuppressCompatibility @test.pkg.InLibraryExperimentalAnnotation public final class ClassUsingInLibraryExperimentalApi {
                     ctor public ClassUsingInLibraryExperimentalApi();
                   }
-                  @SuppressCompatibility @kotlin.RequiresOptIn public @interface InLibraryExperimentalAnnotation {
+                  @SuppressCompatibility @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) @kotlin.RequiresOptIn public @interface InLibraryExperimentalAnnotation {
                   }
                 }
                 """,
@@ -4470,7 +4470,7 @@ class ApiFileTest : DriverTest() {
                   @SuppressCompatibility @test.pkg.InLibraryExperimentalAnnotation public final class ClassUsingInLibraryExperimentalApi {
                     ctor public ClassUsingInLibraryExperimentalApi();
                   }
-                  @SuppressCompatibility @kotlin.RequiresOptIn public @interface InLibraryExperimentalAnnotation {
+                  @SuppressCompatibility @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) @kotlin.RequiresOptIn public @interface InLibraryExperimentalAnnotation {
                   }
                 }
             """,
@@ -5920,14 +5920,14 @@ class ApiFileTest : DriverTest() {
             api =
                 """
                 package test.pkg {
-                  @kotlin.annotation.Repeatable public @interface RequiresExtension {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) @kotlin.annotation.Repeatable public @interface RequiresExtension {
                     ctor @KotlinOnly public RequiresExtension(@IntRange(from=1L) int extension, @IntRange(from=1L) int version);
                     method @InaccessibleFromKotlin public abstract int extension();
                     method @InaccessibleFromKotlin public abstract int version();
                     property public abstract int extension;
                     property public abstract int version;
                   }
-                  @kotlin.annotation.Repeatable public static @interface RequiresExtension.Container {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) @kotlin.annotation.Repeatable public static @interface RequiresExtension.Container {
                     method public abstract test.pkg.RequiresExtension[] value();
                   }
                 }
@@ -6639,7 +6639,7 @@ class ApiFileTest : DriverTest() {
                         ctor public Foo();
                         method public java.util.List<java.lang.String?>! foo(Number?, Number!);
                       }
-                      @kotlin.annotation.Target(allowedTargets=kotlin.annotation.AnnotationTarget.TYPE) public @interface NullableType {
+                      @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) @kotlin.annotation.Target(allowedTargets=kotlin.annotation.AnnotationTarget.TYPE) public @interface NullableType {
                       }
                     }
                 """

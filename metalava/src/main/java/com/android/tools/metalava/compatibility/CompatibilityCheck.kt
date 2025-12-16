@@ -44,8 +44,8 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeStringConfiguration
 import com.android.tools.metalava.model.VariableTypeItem
+import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiType
-import com.android.tools.metalava.options
 import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.IssueConfiguration
 import com.android.tools.metalava.reporter.Issues
@@ -1424,7 +1424,6 @@ class CompatibilityCheck(
     }
 
     companion object {
-        @Suppress("DEPRECATION")
         fun checkCompatibility(
             newCodebase: Codebase,
             oldCodebase: Codebase,
@@ -1433,13 +1432,15 @@ class CompatibilityCheck(
             issueConfiguration: IssueConfiguration,
             apiCompatAnnotations: Set<String>,
             apiName: String?,
+            apiPredicateConfig: ApiPredicate.Config,
+            showUnannotated: Boolean,
         ) {
             val filter =
                 apiType
-                    .getReferenceFilter(options.apiPredicateConfig)
-                    .or(apiType.getEmitFilter(options.apiPredicateConfig))
-                    .or(ApiType.PUBLIC_API.getReferenceFilter(options.apiPredicateConfig))
-                    .or(ApiType.PUBLIC_API.getEmitFilter(options.apiPredicateConfig))
+                    .getReferenceFilter(apiPredicateConfig)
+                    .or(apiType.getEmitFilter(apiPredicateConfig))
+                    .or(ApiType.PUBLIC_API.getReferenceFilter(apiPredicateConfig))
+                    .or(ApiType.PUBLIC_API.getEmitFilter(apiPredicateConfig))
 
             val checker =
                 CompatibilityCheck(
@@ -1451,7 +1452,7 @@ class CompatibilityCheck(
                 )
 
             val oldFullCodebase =
-                if (options.showUnannotated && apiType == ApiType.PUBLIC_API) {
+                if (showUnannotated && apiType == ApiType.PUBLIC_API) {
                     MergedCodebase(listOf(oldCodebase))
                 } else {
                     // To avoid issues with partial oldCodeBase we fill gaps with newCodebase, the

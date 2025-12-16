@@ -65,7 +65,7 @@ class ApiAnalyzer(
     /** The code to analyze */
     private val codebase: Codebase,
     private val reporter: Reporter,
-    private val config: Config = Config(),
+    private val config: Config,
 ) {
 
     data class Config(
@@ -610,7 +610,7 @@ class ApiAnalyzer(
         codebase.accept(
             object :
                 ApiVisitor(
-                    apiPredicateConfig = @Suppress("DEPRECATION") options.apiPredicateConfig,
+                    apiPredicateConfig = config.apiPredicateConfig,
                     // Don't run checks on elements that only exist in bytecode.
                     targetLanguages = TargetLanguageSet.SOURCE,
                 ) {

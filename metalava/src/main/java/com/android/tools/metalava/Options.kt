@@ -19,6 +19,8 @@ package com.android.tools.metalava
 import com.android.SdkConstants
 import com.android.SdkConstants.FN_FRAMEWORK_LIBRARY
 import com.android.tools.lint.detector.api.isJdkFolder
+import com.android.tools.metalava.cli.common.ARG_JDK_HOME
+import com.android.tools.metalava.cli.common.ARG_SDK_HOME
 import com.android.tools.metalava.cli.common.CommonOptions
 import com.android.tools.metalava.cli.common.DefaultSignatureFileLoader
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
@@ -156,8 +158,6 @@ const val ARG_MANIFEST = "--manifest"
 const val ARG_SUPPRESS_COMPATIBILITY_META_ANNOTATION = "--suppress-compatibility-meta-annotation"
 const val ARG_JAVA_SOURCE = "--java-source"
 const val ARG_KOTLIN_SOURCE = "--kotlin-source"
-const val ARG_SDK_HOME = "--sdk-home"
-const val ARG_JDK_HOME = "--jdk-home"
 const val ARG_COMPILE_SDK_VERSION = "--compile-sdk-version"
 const val ARG_INCLUDE_SOURCE_RETENTION = "--include-source-retention"
 const val ARG_PASS_THROUGH_ANNOTATION = "--pass-through-annotation"
@@ -165,8 +165,6 @@ const val ARG_EXCLUDE_ANNOTATION = "--exclude-annotation"
 const val ARG_DELETE_EMPTY_REMOVED_SIGNATURES = "--delete-empty-removed-signatures"
 const val ARG_TYPEDEFS_IN_SIGNATURES = "--typedefs-in-signatures"
 const val ARG_IGNORE_CLASSES_ON_CLASSPATH = "--ignore-classes-on-classpath"
-const val ARG_USE_K2_UAST = "--Xuse-k2-uast"
-const val ARG_USE_K1_UAST = "--Xuse-k1-uast"
 const val ARG_PROJECT = "--project"
 
 class Options(
@@ -219,7 +217,8 @@ class Options(
                 NullabilityAnnotationsValidator(
                     reporter,
                     nullabilityErrorsFatal,
-                    nullabilityWarningsTxt
+                    nullabilityWarningsTxt,
+                    apiPredicateConfig,
                 )
             } else null
         )
@@ -296,9 +295,6 @@ class Options(
     val showUnannotated
         get() = apiSelectionOptions.showUnannotated
 
-    val apiSurfaces
-        get() = apiSelectionOptions.apiSurfaces
-
     /** Packages to include in the API (if null, include all) */
     val apiPackages: PackageFilter? by sourceOptions::apiPackages
 
@@ -361,7 +357,7 @@ class Options(
                 allowReadingComments = allowReadingComments,
                 annotationManager = annotationManager,
                 apiFlags = apiFlags,
-                apiSurfaces = apiSurfaces,
+                apiSurfaces = apiSelectionOptions.apiSurfaces,
                 reporter = reporter,
             )
         }
@@ -514,19 +510,6 @@ class Options(
     var kotlinLanguageLevelAsString: String = DEFAULT_KOTLIN_LANGUAGE_LEVEL
 
     /**
-     * The JDK to use as a platform, if set with [ARG_JDK_HOME]. This is only set when metalava is
-     * used for non-Android projects.
-     */
-    var jdkHome: File? = null
-
-    /**
-     * The JDK to use as a platform, if set with [ARG_SDK_HOME]. If this is set along with
-     * [ARG_COMPILE_SDK_VERSION], metalava will automatically add the platform's android.jar file to
-     * the classpath if it does not already find the android.jar file in the classpath.
-     */
-    private var sdkHome: File? = null
-
-    /**
      * The compileSdkVersion, set by [ARG_COMPILE_SDK_VERSION]. For example, for R it would be "29".
      * For R preview, it would be "R".
      */
@@ -548,18 +531,6 @@ class Options(
     /** Temporary folder to use instead of the JDK default, if any */
     private var tempFolder: File? = null
 
-    /**
-     * Whether to use the K2 compiler, controlled by [ARG_USE_K2_UAST] and [ARG_USE_K1_UAST]. If
-     * neither option is provided, the default is K1.
-     */
-    var useK2Uast: Boolean? = null
-        set(value) {
-            if (field != null && field != value) {
-                cliError("Cannot specify both $ARG_USE_K1_UAST and $ARG_USE_K2_UAST")
-            }
-            field = value
-        }
-
     fun parse(args: Array<String>) {
         var index = 0
         while (index < args.size) {
@@ -575,12 +546,7 @@ class Options(
                         mutableSources.addAll(stringToExistingFiles(path))
                     }
                 }
-
-                // TODO: Remove the legacy --merge-annotations flag once it's no longer used to
-                // update P docs
-                ARG_MERGE_QUALIFIER_ANNOTATIONS,
-                "--merge-zips",
-                "--merge-annotations" ->
+                ARG_MERGE_QUALIFIER_ANNOTATIONS ->
                     mutableMergeQualifierAnnotations.addAll(
                         stringToExistingDirsOrFiles(getValue(args, ++index))
                     )
@@ -624,17 +590,9 @@ class Options(
                     val value = getValue(args, ++index)
                     kotlinLanguageLevelAsString = value
                 }
-                ARG_JDK_HOME -> {
-                    jdkHome = stringToExistingDir(getValue(args, ++index))
-                }
-                ARG_SDK_HOME -> {
-                    sdkHome = stringToExistingDir(getValue(args, ++index))
-                }
                 ARG_COMPILE_SDK_VERSION -> {
                     compileSdkVersion = getValue(args, ++index)
                 }
-                ARG_USE_K2_UAST -> useK2Uast = true
-                ARG_USE_K1_UAST -> useK2Uast = false
                 ARG_PROJECT -> {
                     projectDescription = stringToExistingFile(getValue(args, ++index))
                 }
@@ -739,8 +697,8 @@ class Options(
 
     /** Update the classpath to insert android.jar or JDK classpath elements if necessary */
     private fun updateClassPath() {
-        val sdkHome = sdkHome
-        val jdkHome = jdkHome
+        val sdkHome = sourceOptions.sdkHome
+        val jdkHome = sourceOptions.jdkHome
 
         if (
             sdkHome != null &&
@@ -879,16 +837,8 @@ object OptionsHelp {
                 "Sets the source level for Java source files; default is $DEFAULT_JAVA_LANGUAGE_LEVEL.",
                 "$ARG_KOTLIN_SOURCE <level>",
                 "Sets the source level for Kotlin source files; default is $DEFAULT_KOTLIN_LANGUAGE_LEVEL.",
-                ARG_USE_K1_UAST,
-                "Specifies that the K1 compiler should be used (K1 is the default).",
-                ARG_USE_K2_UAST,
-                "Specifies that the K2 compiler should be used (K1 is the default).",
-                "$ARG_SDK_HOME <dir>",
-                "If set, locate the `android.jar` file from the given Android SDK",
                 "$ARG_COMPILE_SDK_VERSION <api>",
                 "Use the given API level",
-                "$ARG_JDK_HOME <dir>",
-                "If set, add the Java APIs from the given JDK to the classpath",
                 ARG_IGNORE_CLASSES_ON_CLASSPATH,
                 "Prevents references to classes on the classpath from being added to " +
                     "the generated stub files.",

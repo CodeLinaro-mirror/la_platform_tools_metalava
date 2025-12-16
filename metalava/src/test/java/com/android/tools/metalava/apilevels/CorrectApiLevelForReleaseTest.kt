@@ -17,8 +17,7 @@
 package com.android.tools.metalava.apilevels
 
 import com.android.tools.metalava.ARG_ANDROID_JAR_PATTERN
-import com.android.tools.metalava.ARG_CURRENT_CODENAME
-import com.android.tools.metalava.ARG_CURRENT_VERSION
+import com.android.tools.metalava.ARG_API_VERSION_FOR_SOURCES
 import com.android.tools.metalava.ARG_GENERATE_API_LEVELS
 import com.android.tools.metalava.doc.getApiLookup
 import com.android.tools.metalava.testing.java
@@ -37,9 +36,7 @@ class CorrectApiLevelForReleaseTest : ApiGeneratorIntegrationTestBase() {
                     outputPath,
                     ARG_ANDROID_JAR_PATTERN,
                     androidPublicJarsPattern,
-                    ARG_CURRENT_CODENAME,
-                    "REL",
-                    ARG_CURRENT_VERSION,
+                    ARG_API_VERSION_FOR_SOURCES,
                     MAGIC_VERSION_STR // not real api level
                 ),
             sourceFiles =
@@ -55,7 +52,6 @@ class CorrectApiLevelForReleaseTest : ApiGeneratorIntegrationTestBase() {
         )
 
         assertTrue(output.isFile)
-        // Anything with a REL codename is in the current API level
         val xml = output.readText(Charsets.UTF_8)
         assertTrue(xml.contains("<class name=\"android/pkg/MyTest\" since=\"$MAGIC_VERSION_STR\""))
         val apiLookup = getApiLookup(output, temporaryFolder.newFolder())
