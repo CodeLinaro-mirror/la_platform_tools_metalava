@@ -46,6 +46,24 @@ Api Selection:
                                              certain kinds of output such as stubs, but not in others, such as the
                                              signature file and API lint.
   --hide-annotation <annotation-filter>      Treat any elements annotated with the given annotation as hidden.
+  --exclude-annotation <annotation-classes>  A comma separated list of fully qualified names of annotation classes that
+                                             must be stripped from metalava's outputs.
+  --pass-through-annotation <annotation-classes>
+                                             A comma separated list of fully qualified names of annotation classes that
+                                             must be passed through unchanged.
+  --suppress-compatibility-meta-annotation <meta-annotation-class>
+                                             Suppress compatibility checks for any elements within the scope of an
+                                             annotation which is itself annotated with the given
+                                             `meta-annotation-class`.
+  --typedefs-in-signatures [none|ref|inline]
+                                             Whether to include typedef annotations in signature files.
+
+                                             none (default) - will not include typedef annotations in signature.
+
+                                             ref - will include just a reference to the typedef class, which is not
+                                             itself part of the API and is not included as a class
+
+                                             inline - will include the constants themselves into each usage site
     """
         .trimIndent()
 

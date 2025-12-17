@@ -52,6 +52,7 @@ import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.createMutableModifiers
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.isNullnessAnnotation
+import com.android.tools.metalava.model.isRetention
 import com.intellij.psi.PsiAnnotation
 import com.intellij.psi.PsiAnnotationMemberValue
 import com.intellij.psi.PsiArrayInitializerMemberValue
@@ -525,6 +526,7 @@ internal object PsiModifierItem {
                             !it.isKotlinNullabilityAnnotation
                     }
                     .mapNotNull { UAnnotationItem.create(codebase, it) }
+                    .toMutableList()
 
             if (!isPrimitiveVariable) {
                 if (psiAnnotations.isNotEmpty() && annotations.none { it.isNullnessAnnotation() }) {
@@ -534,14 +536,22 @@ internal object PsiModifierItem {
                         }
                     ktNullAnnotation?.let {
                         PsiAnnotationItem.create(codebase, it)?.let { annotationItem ->
-                            annotations =
-                                annotations.toMutableList().run {
-                                    add(annotationItem)
-                                    toList()
-                                }
+                            annotations.add(annotationItem)
                         }
                     }
                 }
+            }
+
+            // if there are no retention annotations defined for this annotation class, we should
+            // add one so that it can be explicitly written in signature files
+            if (
+                (element as? UClass)?.isAnnotationType == true &&
+                    annotations.none { it.isRetention() }
+            ) {
+                psiAnnotations
+                    .firstOrNull { isRetention(it.qualifiedName) }
+                    ?.let { psiAnnotation -> PsiAnnotationItem.create(codebase, psiAnnotation) }
+                    ?.let { annotationItem -> annotations.add(annotationItem) }
             }
 
             createMutableModifiers(flags, annotations)

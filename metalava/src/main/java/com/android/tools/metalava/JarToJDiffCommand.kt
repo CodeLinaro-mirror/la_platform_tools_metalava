@@ -66,10 +66,6 @@ class JarToJDiffCommand :
             .newFile()
 
     override fun run() {
-        // Make sure that none of the code called by this command accesses the global `options`
-        // property.
-        OptionsDelegate.disallowAccess()
-
         StandaloneJarCodebaseLoader.create(
                 executionEnvironment.disableStderrDumping(),
                 progressTracker,

@@ -182,7 +182,7 @@ interface Codebase : ClassPathResolver, AnnotationContext {
         val allowReadingComments: Boolean = true,
 
         /** Determines how annotations will affect the [Codebase]. */
-        val annotationManager: AnnotationManager,
+        val annotationManager: AnnotationManager = noOpAnnotationManager,
 
         /**
          * The [ApiFlags] to use in conditional javadoc.
@@ -202,10 +202,7 @@ interface Codebase : ClassPathResolver, AnnotationContext {
              * A [Config] containing a [noOpAnnotationManager], [ApiSurfaces.DEFAULT] and no
              * reporter.
              */
-            val NOOP =
-                Config(
-                    annotationManager = noOpAnnotationManager,
-                )
+            val NOOP = Config()
         }
     }
 

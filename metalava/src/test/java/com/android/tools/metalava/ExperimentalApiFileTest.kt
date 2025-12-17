@@ -53,13 +53,13 @@ class ExperimentalApiFileTest : DriverTest() {
             api =
                 """
                 package test.pkg {
-                  @test.pkg.NotSuppressCompatHasOptIn public @interface NotSuppressCompat {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) @test.pkg.NotSuppressCompatHasOptIn public @interface NotSuppressCompat {
                   }
-                  @test.pkg.SuppressCompatNoRequiresOptIn public @interface NotSuppressCompatHasOptIn {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) @test.pkg.SuppressCompatNoRequiresOptIn public @interface NotSuppressCompatHasOptIn {
                   }
-                  @SuppressCompatibility @kotlin.RequiresOptIn public @interface SuppressCompatHasRequiresOptIn {
+                  @SuppressCompatibility @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) @kotlin.RequiresOptIn public @interface SuppressCompatHasRequiresOptIn {
                   }
-                  @SuppressCompatibility @test.pkg.SuppressCompatHasRequiresOptIn public @interface SuppressCompatNoRequiresOptIn {
+                  @SuppressCompatibility @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) @test.pkg.SuppressCompatHasRequiresOptIn public @interface SuppressCompatNoRequiresOptIn {
                   }
                 }
                     """,
@@ -136,7 +136,7 @@ class ExperimentalApiFileTest : DriverTest() {
             api =
                 """
                 package @SuppressCompatibility test.pkg {
-                  @SuppressCompatibility @kotlin.RequiresOptIn public @interface ExperimentalAnnotation {
+                  @SuppressCompatibility @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) @kotlin.RequiresOptIn public @interface ExperimentalAnnotation {
                   }
                 }
                 package @SuppressCompatibility test.pkg.sub {
@@ -176,7 +176,7 @@ class ExperimentalApiFileTest : DriverTest() {
             api =
                 """
                 package test.pkg {
-                  @SuppressCompatibility @kotlin.RequiresOptIn public @interface ExperimentalAnnotation {
+                  @SuppressCompatibility @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) @kotlin.RequiresOptIn public @interface ExperimentalAnnotation {
                   }
                 }
                 package test.pkg.sub {
@@ -598,7 +598,8 @@ class ExperimentalApiFileTest : DriverTest() {
 
                         class MyOuterClass {
                             @ExperimentalFeature
-                            const val a: Int = 0
+                            @JvmField
+                            val a: Int = 0
 
                             @ExperimentalFeature
                             companion object {
@@ -616,16 +617,16 @@ class ExperimentalApiFileTest : DriverTest() {
                   }
                   public final class MyOuterClass {
                     ctor public MyOuterClass();
-                    property @SuppressCompatibility @test.pkg.ExperimentalFeature public static int a;
+                    property @SuppressCompatibility @test.pkg.ExperimentalFeature public int a;
                     field @SuppressCompatibility @test.pkg.ExperimentalFeature public static final test.pkg.MyOuterClass.Companion Companion;
-                    field @SuppressCompatibility @test.pkg.ExperimentalFeature public final int a = 0; // 0x0
+                    field @SuppressCompatibility @test.pkg.ExperimentalFeature public final int a;
                     field @SuppressCompatibility @test.pkg.ExperimentalFeature public static final int b = 0; // 0x0
                   }
                   @SuppressCompatibility @test.pkg.ExperimentalFeature public static final class MyOuterClass.Companion {
                     property @SuppressCompatibility @test.pkg.ExperimentalFeature public static int b;
                   }
                 }
-                    """,
+                """,
             suppressCompatibilityMetaAnnotations = arrayOf("test.pkg.ExperimentalFeature")
         )
     }
@@ -647,15 +648,18 @@ class ExperimentalApiFileTest : DriverTest() {
 
                         class MyOuterClass {
                             @ExperimentalFeature
-                            const val a: Int = 0
+                            @JvmField
+                            val a: Int = 0
 
                             @ExperimentalFeature
                             class MyInnerClass { }
 
-                            const val c: MyInnerClass = null
+                            @JvmField
+                            val c: MyInnerClass? = null
 
                             @ExperimentalFeature
-                            const val myField: MyClassField = null
+                            @JvmField
+                            val myField: MyClassField? = null
 
                             @ExperimentalFeature
                             companion object MyCompObjectWithNonDefaultName {
@@ -676,14 +680,14 @@ class ExperimentalApiFileTest : DriverTest() {
                   }
                   public final class MyOuterClass {
                     ctor public MyOuterClass();
-                    property @SuppressCompatibility @test.pkg.ExperimentalFeature public static int a;
-                    property public static test.pkg.MyOuterClass.MyInnerClass c;
-                    property @SuppressCompatibility @test.pkg.ExperimentalFeature public static test.pkg.MyClassField myField;
+                    property @SuppressCompatibility @test.pkg.ExperimentalFeature public int a;
+                    property public test.pkg.MyOuterClass.MyInnerClass? c;
+                    property @SuppressCompatibility @test.pkg.ExperimentalFeature public test.pkg.MyClassField? myField;
                     field @SuppressCompatibility @test.pkg.ExperimentalFeature public static final test.pkg.MyOuterClass.MyCompObjectWithNonDefaultName MyCompObjectWithNonDefaultName;
-                    field @SuppressCompatibility @test.pkg.ExperimentalFeature public final int a = 0; // 0x0
+                    field @SuppressCompatibility @test.pkg.ExperimentalFeature public final int a;
                     field @SuppressCompatibility @test.pkg.ExperimentalFeature public static final int b = 0; // 0x0
-                    field public final test.pkg.MyOuterClass.MyInnerClass c;
-                    field @SuppressCompatibility @test.pkg.ExperimentalFeature public final test.pkg.MyClassField myField;
+                    field public final test.pkg.MyOuterClass.MyInnerClass? c;
+                    field @SuppressCompatibility @test.pkg.ExperimentalFeature public final test.pkg.MyClassField? myField;
                   }
                   @SuppressCompatibility @test.pkg.ExperimentalFeature public static final class MyOuterClass.MyCompObjectWithNonDefaultName {
                     property @SuppressCompatibility @test.pkg.ExperimentalFeature public static int b;
@@ -692,7 +696,7 @@ class ExperimentalApiFileTest : DriverTest() {
                     ctor public MyOuterClass.MyInnerClass();
                   }
                 }
-                    """,
+                """,
             suppressCompatibilityMetaAnnotations = arrayOf("test.pkg.ExperimentalFeature")
         )
     }
@@ -1087,7 +1091,7 @@ class ExperimentalApiFileTest : DriverTest() {
             api =
                 """
                 package test.pkg {
-                  @SuppressCompatibility @kotlin.RequiresOptIn public @interface ExperimentalFeature {
+                  @SuppressCompatibility @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) @kotlin.RequiresOptIn public @interface ExperimentalFeature {
                   }
                   public final class Foo {
                     method @InaccessibleFromKotlin @SuppressCompatibility @test.pkg.ExperimentalFeature public int getRegularProperty();

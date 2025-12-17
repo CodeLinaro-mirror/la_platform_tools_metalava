@@ -111,8 +111,9 @@ internal class PsiFieldItem(
             val couldHaveConstantValue =
                 when (psiField.sourceLanguage) {
                     // In Kotlin the `const` modifier is what determines whether the field could
-                    // have a constant value.
-                    SourceLanguage.KOTLIN -> modifiers.isConst()
+                    // have a constant value. However, it also needs to be static as a const
+                    // instance field cannot be treated as a constant by code outside the class.
+                    SourceLanguage.KOTLIN -> modifiers.isConst() && modifiers.isStatic()
                     // In Java fields have to be static and final in order for them to have a
                     // constant value but that is not sufficient.
                     else -> modifiers.isStatic() && modifiers.isFinal()

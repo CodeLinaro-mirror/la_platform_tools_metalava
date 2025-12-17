@@ -480,7 +480,7 @@ class BinaryCompatibilityInterfaceMethodsTest : DriverTest() {
             signatureSource =
                 """
                 package test.pkg {
-                  public @interface Foo {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) public @interface Foo {
                     method public int bar(int) default 0;
                   }
                 }
@@ -488,7 +488,7 @@ class BinaryCompatibilityInterfaceMethodsTest : DriverTest() {
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
-                  public @interface Foo {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) public @interface Foo {
                     method public int bar(int);
                   }
                 }
@@ -510,7 +510,7 @@ class BinaryCompatibilityInterfaceMethodsTest : DriverTest() {
             signatureSource =
                 """
                 package test.pkg {
-                  public @interface Foo {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) public @interface Foo {
                     method public int bar(int) default 1;
                   }
                 }
@@ -518,7 +518,7 @@ class BinaryCompatibilityInterfaceMethodsTest : DriverTest() {
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
-                  public @interface Foo {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) public @interface Foo {
                     method public int bar(int) default 0;
                   }
                 }
@@ -536,7 +536,7 @@ class BinaryCompatibilityInterfaceMethodsTest : DriverTest() {
             signatureSource =
                 """
                 package test.pkg {
-                  public @interface Foo {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) public @interface Foo {
                     method public int bar(int);
                   }
                 }
@@ -544,7 +544,7 @@ class BinaryCompatibilityInterfaceMethodsTest : DriverTest() {
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
-                  public @interface Foo {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) public @interface Foo {
                     method public int bar(int) default 0;
                   }
                 }

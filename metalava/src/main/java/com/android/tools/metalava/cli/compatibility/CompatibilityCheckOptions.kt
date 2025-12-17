@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.cli.compatibility
 
+import com.android.tools.metalava.Driver
 import com.android.tools.metalava.cli.common.BaselineOptionsMixin
 import com.android.tools.metalava.cli.common.CommonBaselineOptions
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
@@ -194,6 +195,21 @@ class CompatibilityCheckOptions(
     ) {
         /** The last signature file, if any, defining the previously released API. */
         val lastSignatureFile by previouslyReleasedApi::lastSignatureFile
+
+        /**
+         * Used to store whether the fast path check in [Driver.checkCompatibility] succeeded or not
+         * that can be checked by tests.
+         *
+         * It is initialized to `null`. Then if the fast path check is run it will set it a non-null
+         * to indicate whether the fast path was taken or not. The test can then differentiate
+         * between the following states:
+         * * `null` - the fast path check was not performed.
+         * * `false` - the fast path check was performed and the fast path was not taken.
+         * * `true` - the fast path check was performed and the fast path was taken.
+         *
+         * This is used because there is no nice way to test this code in isolation.
+         */
+        internal var fastPathCheckResult: Boolean? = null
 
         companion object {
             /** Create a [CheckRequest] if [files] is not empty, otherwise return `null`. */

@@ -243,7 +243,7 @@ internal class StubGenerator(
             // their callers make incorrect nullness assumptions (for example, calling a function on
             // a reference of nullable type). The way to communicate this to kotlinc is to mark
             // these APIs as RecentlyNullable/RecentlyNonNull
-            codebase.accept(MarkPackagesAsRecent(filter))
+            codebase.accept(MarkPackagesAsRecent(filter, apiPredicateConfig))
         }
     }
 }

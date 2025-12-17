@@ -33,4 +33,9 @@ enum class AnnotationRetention {
             return if (isKotlin) RUNTIME else CLASS
         }
     }
+
+    fun equivalentTo(other: AnnotationRetention): Boolean {
+        // CLASS retention in Java is the equivalent of BINARY in Kotlin
+        return this == other || this == CLASS && other == BINARY || this == BINARY && other == CLASS
+    }
 }

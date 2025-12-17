@@ -44,8 +44,9 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeStringConfiguration
 import com.android.tools.metalava.model.VariableTypeItem
+import com.android.tools.metalava.model.findAnnotation
+import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiType
-import com.android.tools.metalava.options
 import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.IssueConfiguration
 import com.android.tools.metalava.reporter.Issues
@@ -459,12 +460,37 @@ class CompatibilityCheck(
         }
     }
 
+    private fun compareAnnotations(old: ClassItem, new: ClassItem) {
+        // Check if retention markers exist on the annotations. We don't want to perform this
+        // compatibility check if either the old or new annotation doesn't have a retention marked
+        if (
+            old.modifiers.findAnnotation { it.isRetention() } != null &&
+                new.modifiers.findAnnotation { it.isRetention() } != null
+        ) {
+            val oldRet = old.annotationClass.retention
+            val newRet = new.annotationClass.retention
+
+            if (!oldRet.equivalentTo(newRet)) {
+                report(
+                    Issues.CHANGED_ANNOTATION_RETENTION,
+                    new,
+                    "${new.describe(capitalize = true)} incompatibly changed its retention from $oldRet to $newRet",
+                    oldItem = old,
+                )
+            }
+        }
+    }
+
     override fun compareClassItems(old: ClassItem, new: ClassItem) {
         // Perform different comparisons for typealiases.
         // TODO(b/458733676): add error for converting from class to typealias or vice versa.
         if (old.classKind == ClassKind.TYPEALIAS && new.classKind == ClassKind.TYPEALIAS) {
             compareTypeAliasItems(old, new)
             return
+        }
+
+        if (old.isAnnotationType() && new.isAnnotationType()) {
+            compareAnnotations(old, new)
         }
 
         val oldModifiers = old.modifiers
@@ -1424,7 +1450,6 @@ class CompatibilityCheck(
     }
 
     companion object {
-        @Suppress("DEPRECATION")
         fun checkCompatibility(
             newCodebase: Codebase,
             oldCodebase: Codebase,
@@ -1433,13 +1458,15 @@ class CompatibilityCheck(
             issueConfiguration: IssueConfiguration,
             apiCompatAnnotations: Set<String>,
             apiName: String?,
+            apiPredicateConfig: ApiPredicate.Config,
+            showUnannotated: Boolean,
         ) {
             val filter =
                 apiType
-                    .getReferenceFilter(options.apiPredicateConfig)
-                    .or(apiType.getEmitFilter(options.apiPredicateConfig))
-                    .or(ApiType.PUBLIC_API.getReferenceFilter(options.apiPredicateConfig))
-                    .or(ApiType.PUBLIC_API.getEmitFilter(options.apiPredicateConfig))
+                    .getReferenceFilter(apiPredicateConfig)
+                    .or(apiType.getEmitFilter(apiPredicateConfig))
+                    .or(ApiType.PUBLIC_API.getReferenceFilter(apiPredicateConfig))
+                    .or(ApiType.PUBLIC_API.getEmitFilter(apiPredicateConfig))
 
             val checker =
                 CompatibilityCheck(
@@ -1451,7 +1478,7 @@ class CompatibilityCheck(
                 )
 
             val oldFullCodebase =
-                if (options.showUnannotated && apiType == ApiType.PUBLIC_API) {
+                if (showUnannotated && apiType == ApiType.PUBLIC_API) {
                     MergedCodebase(listOf(oldCodebase))
                 } else {
                     // To avoid issues with partial oldCodeBase we fill gaps with newCodebase, the

@@ -18,7 +18,6 @@ package com.android.tools.metalava.cli.historical
 
 import com.android.tools.metalava.ARG_CONFIG_FILE
 import com.android.tools.metalava.ConfigFileOptions
-import com.android.tools.metalava.OptionsDelegate
 import com.android.tools.metalava.apiSurfacesFromConfig
 import com.android.tools.metalava.apilevels.ApiVersion
 import com.android.tools.metalava.cli.common.MetalavaSubCommand
@@ -105,10 +104,6 @@ class AndroidJarsToSignaturesCommand :
             .map { list -> list?.distinct() ?: listOf("public") }
 
     override fun run() {
-        // Make sure that none of the code called by this command accesses the global `options`
-        // property.
-        OptionsDelegate.disallowAccess()
-
         // Create a self-consistent set of ApiSurfaces that either need to be converted or
         // contribute to a surface that needs to be converted.
         val apiSurfaces =

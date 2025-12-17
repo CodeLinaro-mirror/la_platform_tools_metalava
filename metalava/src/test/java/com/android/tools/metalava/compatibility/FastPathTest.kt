@@ -19,14 +19,13 @@ package com.android.tools.metalava.compatibility
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.lint.checks.infrastructure.TestFiles
 import com.android.tools.metalava.DriverTest
-import com.android.tools.metalava.fastPathCheckResult
+import com.android.tools.metalava.cli.common.CheckerFunction
+import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.stripBlankLines
 import com.android.tools.metalava.model.visitors.ApiType
-import com.android.tools.metalava.testing.getAndroidJar
 import com.android.tools.metalava.testing.java
-import org.junit.Assert
-import org.junit.Ignore
+import org.junit.Assert.fail
 import org.junit.Test
 
 /** The exact signature contents that would be written out for the [SOURCE_FILE_CONTENTS]. */
@@ -97,41 +96,43 @@ class FastPathTest : DriverTest() {
         val releaseSignatureFilePath = signatureFile.path
         val sourceFiles = arrayOf(sourceFile)
 
-        checkFastPath(expectedFastPathResult = expectedFastPathResult) {
-            when (apiType) {
-                ApiType.PUBLIC_API ->
-                    check(
-                        format = format,
-                        api = strippedContents,
-                        checkCompatibilityApiReleased = releaseSignatureFilePath,
-                        sourceFiles = sourceFiles,
-                    )
-                ApiType.REMOVED ->
-                    check(
-                        format = format,
-                        removedApi = strippedContents,
-                        checkCompatibilityRemovedApiReleased = releaseSignatureFilePath,
-                        sourceFiles = sourceFiles,
-                    )
-                else -> error("unsupported $apiType")
-            }
+        // Save away a reference to the CompatibilityCheckOptions.
+        var compatibilityCheckOptions: CompatibilityCheckOptions? = null
+        val postAnalysisChecker: CheckerFunction = {
+            compatibilityCheckOptions = driver.compatibilityCheckOptions
         }
-    }
 
-    private fun checkFastPath(
-        expectedFastPathResult: Boolean?,
-        test: () -> Unit,
-    ) {
-        // Set the global variable to `null` to detect whether the fast path check was made.
-        fastPathCheckResult = null
+        // Perform the check.
+        when (apiType) {
+            ApiType.PUBLIC_API ->
+                check(
+                    format = format,
+                    api = strippedContents,
+                    checkCompatibilityApiReleased = releaseSignatureFilePath,
+                    sourceFiles = sourceFiles,
+                    postAnalysisChecker = postAnalysisChecker,
+                )
+            ApiType.REMOVED ->
+                check(
+                    format = format,
+                    removedApi = strippedContents,
+                    checkCompatibilityRemovedApiReleased = releaseSignatureFilePath,
+                    sourceFiles = sourceFiles,
+                    postAnalysisChecker = postAnalysisChecker,
+                )
+            else -> error("unsupported $apiType")
+        }
 
-        test()
-
+        // Check the result.
+        val checkRequest =
+            compatibilityCheckOptions?.compatibilityChecks?.singleOrNull { it.apiType == apiType }
+                ?: error("Could not find check request for $apiType")
+        val fastPathCheckResult = checkRequest.fastPathCheckResult
         if (expectedFastPathResult != fastPathCheckResult) {
             when (fastPathCheckResult) {
-                null -> Assert.fail("fast path check not performed")
-                false -> Assert.fail("fast path check failed")
-                true -> Assert.fail("fast path check did not fail")
+                null -> fail("fast path check not performed")
+                false -> fail("fast path check failed")
+                true -> fail("fast path check did not fail")
             }
         }
     }
@@ -177,23 +178,5 @@ class FastPathTest : DriverTest() {
             // An expected result of `null` indicates that it was not actually checked.
             expectedFastPathResult = false,
         )
-    }
-
-    @Ignore("b/308154836")
-    @Test
-    fun `Check fast path android jar`() {
-        // Loading the current codebase from an android.jar and the previously released "signature"
-        // from the same android.jar will cause an OOM error because the fast path check tries to
-        // load the previously released android.jar as a UTF-8 string which seems to cause
-        // pathological heap growth compared to the size of the file being read. Having the other
-        // codebase in memory is enough to push the test over the 512MB heap size.
-        val androidJar = getAndroidJar()
-        checkFastPath(expectedFastPathResult = false) {
-            check(
-                format = FileFormat.V2,
-                checkCompatibilityApiReleased = androidJar.path,
-                apiJar = androidJar,
-            )
-        }
     }
 }

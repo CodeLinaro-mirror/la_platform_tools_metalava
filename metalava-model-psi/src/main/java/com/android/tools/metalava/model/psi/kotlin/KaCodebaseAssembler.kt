@@ -64,6 +64,8 @@ import com.android.tools.metalava.model.type.MethodFingerprint
 import com.android.tools.metalava.model.value.ArrayValue
 import com.android.tools.metalava.model.value.ClassObjectValue
 import com.android.tools.metalava.reporter.FileLocation
+import com.intellij.psi.JavaPsiFacade
+import com.intellij.psi.PsiClass
 import java.io.File
 import org.jetbrains.kotlin.analysis.api.KaExperimentalApi
 import org.jetbrains.kotlin.analysis.api.KaSession
@@ -122,9 +124,14 @@ internal class KaCodebaseAssembler(
     /** All packages to analyze from the input files. */
     private val packages = ktFiles.map { it.packageFqName }.toSet().sortedBy { it.asString() }
 
-    /** Analyze the [ktFiles] to add type aliases to the codebase for the [mainModule]. */
-    fun createTypeAliases() {
-        mainModuleProcessor.createTypeAliases()
+    /**
+     * Add type aliases to the codebase for the [mainModule].
+     *
+     * If [allPackages] is provided, that is the set of packages which will be processed. If it is
+     * not provided, the packages represented by [ktFiles] will be processed.
+     */
+    fun createTypeAliases(allPackages: Set<String>?) {
+        mainModuleProcessor.createTypeAliases(allPackages?.map { FqName(it) } ?: packages)
     }
 
     /**
@@ -133,6 +140,14 @@ internal class KaCodebaseAssembler(
      */
     fun assemble() {
         mainModuleProcessor.assemble(packages)
+    }
+
+    /**
+     * Searches for a class named [qualifiedName] within the context of the main analysis module for
+     * the project.
+     */
+    fun findClassInModule(finder: JavaPsiFacade, qualifiedName: String): PsiClass? {
+        return analyze(mainModule) { finder.findClass(qualifiedName, analysisScope) }
     }
 
     companion object {
@@ -277,16 +292,17 @@ private constructor(
         return childPackages(rootPackageSymbol)
     }
 
-    /** Analyze all packages in the [kaModule] to add type aliases to the codebase. */
-    fun createTypeAliases() {
+    /** Analyze all packages from [allPackageNames] to add type aliases to the codebase. */
+    fun createTypeAliases(allPackageNames: List<FqName>) {
         analyze(kaModule) {
-            for (packageSymbol in allPackages()) {
-                val packageName = packageSymbol.fqName.asString()
-                val packageItem = codebase.findOrCreatePackage(packageName)
-                val packageScope = packageSymbol.packageScope
-                for (typeAliasSymbol in
-                    packageScope.classifiers.filterIsInstance<KaTypeAliasSymbol>()) {
-                    processTypeAlias(typeAliasSymbol, packageItem)
+            for (packageName in allPackageNames) {
+                findPackage(packageName)?.let { packageSymbol ->
+                    val packageItem = codebase.findOrCreatePackage(packageName.asString())
+                    val packageScope = packageSymbol.packageScope
+                    for (typeAliasSymbol in
+                        packageScope.classifiers.filterIsInstance<KaTypeAliasSymbol>()) {
+                        processTypeAlias(typeAliasSymbol, packageItem)
+                    }
                 }
             }
         }
