@@ -42,13 +42,26 @@ internal object DocCommentParser {
     /** The index of the group in [BLOCK_TAG_TYPE_GROUP_INDEX] that contains the block tag type. */
     private const val BLOCK_TAG_TYPE_GROUP_INDEX = 2
 
-    fun parseText(text: String, reporter: DocumentationIssueReporter): DocComment {
+    fun parseText(
+        context: DocCommentContext,
+        text: String,
+        reporter: DocumentationIssueReporter,
+    ): DocComment {
         val length = text.length
 
         // Trim any whitespace from the start as well as the start token `/**` (if any).
         val commentBodyStartInclusive = skipDocCommentStartToken(text)
+
+        // The comment does not exist if skipping forwards over whitespace reaches the end of the
+        // text. An empty comment (e.g. `/** */`) would stop at the end token.
         if (commentBodyStartInclusive == length) {
-            return DefaultDocComment(DocDescription.EMPTY, emptyList())
+            // There was no comment so return an empty DocComment immediately to save time.
+            return DefaultDocComment(
+                context,
+                ContentSupplier.NULL,
+                emptyList(),
+                noComment = true,
+            )
         }
 
         // Trim the end token (`*/`) as well as any whitespace that precedes or follows it.
@@ -69,7 +82,7 @@ internal object DocCommentParser {
 
         // The type of the previous block tag, null if there was none. This is set when matching a
         // block tag but used on the next iteration where the block tag is added to the list.
-        var blockTagType: String? = null
+        var blockTagType: TagType<*>? = null
 
         // The start of the description of the previous block tag, -1 if there was none. This is set
         // when matching a block tag but used on the next iteration where the block tag is added to
@@ -103,13 +116,20 @@ internal object DocCommentParser {
             if (blockTagType != null) {
                 val blockTagDescriptionEndExclusive = matchStart
                 val blockTagDescription =
-                    LazyDocDescription(
+                    LazyContentSupplier(
+                        context,
+                        reporter,
                         text,
                         blockTagDescriptionStartInclusive,
                         blockTagDescriptionEndExclusive,
-                        reporter,
                     )
-                blockTagSections.add(DefaultBlockTagSection(blockTagType, blockTagDescription))
+                val blockTagSection =
+                    DefaultBlockTagSection(
+                        context,
+                        blockTagType,
+                        blockTagDescription,
+                    )
+                blockTagSections.add(blockTagSection)
             }
 
             if (matchStart == commentBodyEndExclusive) {
@@ -117,11 +137,13 @@ internal object DocCommentParser {
                 break
             } else {
                 // A block tag was found so record the block tag type and start of the description
-                // for use in the next iteration of the loop. Intern it as the number of different
-                // types will be small and interning will ensure faster checking later.
-                blockTagType = matcher.group(BLOCK_TAG_TYPE_GROUP_INDEX)!!.intern()
+                // for use in the next iteration of the loop.
+                val tagTypeName = matcher.group(BLOCK_TAG_TYPE_GROUP_INDEX)!!
 
-                if (!foundHide && blockTagType == "hide") {
+                // Map it to a [TagType].
+                blockTagType = BlockTagTypes.tagTypeOf(tagTypeName)
+
+                if (!foundHide && blockTagType == BlockTagTypes.HIDE) {
                     foundHide = true
                 }
 
@@ -154,15 +176,21 @@ internal object DocCommentParser {
         // Create the description, from the start of the comment body to the start of the first
         // block tag, if present, or the end of the comment body, otherwise.
         val description =
-            LazyDocDescription(
+            LazyContentSupplier(
+                context,
+                reporter,
                 text,
                 commentBodyStartInclusive,
                 descriptionEndExclusive,
-                reporter,
             )
 
         // Create the doc comment.
-        return DefaultDocComment(description, blockTagSections.toList())
+        return DefaultDocComment(
+            context,
+            description,
+            blockTagSections.toList(),
+            noComment = false,
+        )
     }
 
     /**

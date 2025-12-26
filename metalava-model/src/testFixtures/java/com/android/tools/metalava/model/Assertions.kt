@@ -18,6 +18,8 @@ package com.android.tools.metalava.model
 
 import com.android.tools.metalava.model.testing.testTypeString
 import com.google.common.truth.Truth.assertThat
+import java.io.PrintWriter
+import java.io.StringWriter
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
@@ -63,6 +65,13 @@ interface Assertions {
     /** Get the package from the [Codebase], failing if it does not exist. */
     fun Codebase.assertPackage(pkgName: String): PackageItem {
         val packageItem = findPackage(pkgName)
+        assertNotNull(packageItem, message = "Expected $pkgName to be defined")
+        return packageItem
+    }
+
+    /** Resolve the package from the [Codebase], failing if it does not exist. */
+    fun Codebase.assertResolvedPackage(pkgName: String): PackageItem {
+        val packageItem = resolvePackage(pkgName)
         assertNotNull(packageItem, message = "Expected $pkgName to be defined")
         return packageItem
     }
@@ -223,6 +232,30 @@ interface Assertions {
             explicitlyDeprecated = false,
             implicitlyDeprecated = true,
         )
+    }
+
+    /** Make sure that [this] contains a [TypeParameterItem] called [name], returning it. */
+    fun TypeParameterListOwner.assertTypeParameter(name: String): TypeParameterItem {
+        val found = typeParameterList.find { it.name() == name }
+        assertNotNull(
+            found,
+            message =
+                "Expected $this to have type parameter $name but had ${typeParameterList.joinToString()}"
+        )
+        return found
+    }
+
+    /** Make sure when the documentation for [this] is printed that it matches [expectedOutput]. */
+    fun SelectableItem.assertPrintedDocumentation(expectedOutput: String, message: String? = null) {
+        val stringWriter = StringWriter()
+        PrintWriter(stringWriter).use { documentation.print(it) }
+        val actualOutput = stringWriter.toString()
+        assertEquals("$expectedOutput\n".trimIndent(), actualOutput, message)
+    }
+
+    /** Make sure the documentation text for [this] matches [expectedOutput]. */
+    fun SelectableItem.assertDocumentationText(expectedOutput: String, message: String? = null) {
+        assertEquals(expectedOutput.trimIndent(), documentation.text.trim(), message)
     }
 
     /**

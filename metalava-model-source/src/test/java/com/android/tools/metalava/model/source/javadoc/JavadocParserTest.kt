@@ -18,74 +18,26 @@ package com.android.tools.metalava.model.source.javadoc
 
 import com.android.tools.metalava.model.source.doc.BaseDocCommentTest
 import com.android.tools.metalava.model.source.doc.DocComment
-import com.android.tools.metalava.model.source.doc.DocDescription
-import kotlin.test.assertEquals
 import org.junit.Test
 
 class JavadocParserTest : BaseDocCommentTest() {
     /** Check that [text] is parsed correctly by [JavadocParser]. */
     private fun checkParse(
         text: String,
-        descriptionGetter: (DocComment) -> DocDescription = { docComment ->
-            docComment.description
-        },
+        contentGetter: (DocComment) -> JavadocContent? = { docComment -> docComment.description },
         expectedStructure: String,
         expectedJavadocIssues: String = "",
     ) {
         val docComment = createTestDocComment(text)
 
         // Parse the main description
-        val description = descriptionGetter(docComment)
-        var content = description.content
+        var content = contentGetter(docComment)
 
         // Make sure that no unexpected JavadocParser issues were found.
-        assertEquals(
-            expectedJavadocIssues.trimIndent(),
-            reporter.toString().trim(),
-            message = "javadoc parser issues"
-        )
+        reporter.assertJavadocParserIssues(expectedJavadocIssues)
 
-        // Generate a string representation of the model structure.
-        val actualStructure = buildString {
-            content?.accept(
-                object : JavadocContentVisitor {
-                    private var indent = ""
-
-                    private fun appendPrefix() {
-                        append(indent)
-                    }
-
-                    private inline fun indent(body: () -> Unit) {
-                        val oldIndent = indent
-                        indent += "  "
-                        body()
-                        indent = oldIndent
-                    }
-
-                    override fun visit(list: JavadocContentList) {
-                        list.visitContents(this)
-                    }
-
-                    override fun visit(inlineTag: JavadocInlineTag) {
-                        appendPrefix()
-                        append("inlineTag: ")
-                        append(inlineTag.tagType)
-                        append("\n")
-                        inlineTag.content?.let { nestedContent ->
-                            indent { nestedContent.accept(this) }
-                        }
-                    }
-
-                    override fun visit(text: JavadocText) {
-                        appendPrefix()
-                        append("text: '")
-                        append(text.text.replace("\n", "\\n"))
-                        append("'\n")
-                    }
-                }
-            )
-        }
-        assertEquals(expectedStructure.trimIndent(), actualStructure.trimEnd())
+        // Check the model structure.
+        content.assertStructure(expectedStructure.trimIndent())
     }
 
     @Test
@@ -133,8 +85,7 @@ class JavadocParserTest : BaseDocCommentTest() {
             """,
             expectedStructure =
                 """
-                    inlineTag: link
-                      text: 'Class'
+                    inlineTag: link LinkTagData(sourceReference=Class, resolvedReference=null)
                 """,
         )
     }
@@ -150,8 +101,7 @@ class JavadocParserTest : BaseDocCommentTest() {
             expectedStructure =
                 """
                     text: 'Text before link '
-                    inlineTag: link
-                      text: 'Class'
+                    inlineTag: link LinkTagData(sourceReference=Class, resolvedReference=null)
                     text: ' and some text after.'
                 """,
         )
@@ -170,8 +120,7 @@ class JavadocParserTest : BaseDocCommentTest() {
             expectedStructure =
                 """
                     text: 'Text before link\n '
-                    inlineTag: link
-                      text: 'Class'
+                    inlineTag: link LinkTagData(sourceReference=Class, resolvedReference=null)
                     text: '\n and some text after.'
                 """,
         )
@@ -204,10 +153,84 @@ class JavadocParserTest : BaseDocCommentTest() {
             expectedStructure =
                 """
                     inlineTag: code
-                      text: 'some '
-                      inlineTag: code
-                        text: 'nested'
-                      text: ' inline tags'
+                      text: 'some {@code nested} inline tags'
+                """,
+        )
+    }
+
+    @Test
+    fun `Test inline tag nested within code tag`() {
+        // Make sure that the BAR_TAG_TYPE is registered.
+        TestTagTypes.BAR_TAG_TYPE
+        checkParse(
+            """
+                /**
+                 * {@code cannot contain inline {@bar tag}}.
+                 */
+            """,
+            expectedStructure =
+                """
+                    inlineTag: code
+                      text: 'cannot contain inline {@bar tag}'
+                    text: '.'
+                """,
+        )
+    }
+
+    @Test
+    fun `Test inline tag nested within literal tag`() {
+        // Make sure that the BAR_TAG_TYPE is registered.
+        TestTagTypes.BAR_TAG_TYPE
+        checkParse(
+            """
+                /**
+                 * {@literal cannot contain inline {@bar tag}}.
+                 */
+            """,
+            expectedStructure =
+                """
+                    inlineTag: literal
+                      text: 'cannot contain inline {@bar tag}'
+                    text: '.'
+                """,
+        )
+    }
+
+    @Test
+    fun `Test inline tag nested within link tag`() {
+        // Make sure that the BAR_TAG_TYPE is registered.
+        TestTagTypes.BAR_TAG_TYPE
+        checkParse(
+            """
+                /**
+                 * {@link String cannot contain inline {@bar
+                 * tag}}.
+                 */
+            """,
+            expectedStructure =
+                """
+                    inlineTag: link LinkTagData(sourceReference=String, resolvedReference=null)
+                      text: 'cannot contain inline {@bar\n tag}'
+                    text: '.'
+                """,
+        )
+    }
+
+    @Test
+    fun `Test inline tag nested within linkplain tag`() {
+        // Make sure that the BAR_TAG_TYPE is registered.
+        TestTagTypes.BAR_TAG_TYPE
+        checkParse(
+            """
+                /**
+                 * {@linkplain String cannot contain inline {@bar tag}}.
+                 */
+            """,
+            expectedStructure =
+                """
+                    inlineTag: linkplain LinkTagData(sourceReference=String, resolvedReference=null)
+                      text: 'cannot contain inline {@bar tag}'
+                    text: '.'
                 """,
         )
     }
@@ -312,11 +335,11 @@ class JavadocParserTest : BaseDocCommentTest() {
                  * @param p A block tag with */ inside
                  */
             """,
-            descriptionGetter = { docComment -> docComment.blockTagSections.single().description },
+            contentGetter = { docComment -> docComment.blockTagSections.single().description },
             expectedStructure =
                 // Error recovery ignores the */ and everything after it.
                 """
-                    text: 'p A block tag with'
+                    text: 'A block tag with'
                 """,
             expectedJavadocIssues =
                 """
@@ -370,6 +393,98 @@ class JavadocParserTest : BaseDocCommentTest() {
             expectedStructure =
                 """
                     text: 'Summary line.\n\n <pre>\n Text before multiple blank lines.\n\n\n Text after multiple blank lines.\n </pre>'
+                """,
+        )
+    }
+
+    @Test
+    fun `Test inline tag data`() {
+        // Make sure that the BAR_TAG_TYPE is registered.
+        TestTagTypes.BAR_TAG_TYPE
+        checkParse(
+            """
+                /**
+                 * outside before {@bar inline inside} outside after
+                 */
+            """,
+            expectedStructure =
+                """
+                    text: 'outside before '
+                    inlineTag: bar BarTagData(identifier=inline)
+                      text: 'inside'
+                    text: ' outside after'
+                """,
+            expectedJavadocIssues =
+                """
+                    2:25: @bar tag cannot contain 'e' or 'o' in the identifier [InvalidJavadoc]
+                """,
+        )
+    }
+
+    @Test
+    fun `Test inline tag split across lines - nested content starts with text`() {
+        checkParse(
+            """
+                /**
+                 * {@code some
+                 * text}
+                 */
+            """,
+            expectedStructure =
+                """
+                    inlineTag: code
+                      text: 'some\n text'
+                """,
+        )
+    }
+
+    @Test
+    fun `Test inline tag split across lines - nested content starts with whitespace`() {
+        checkParse(
+            """
+                /**
+                 * {@code
+                 * some text}
+                 * {@code
+                 * some text}
+                 */
+            """,
+            expectedStructure =
+                """
+                    inlineTag: code
+                      text: '\n some text'
+                    text: '\n '
+                    inlineTag: code
+                      text: '\n some text'
+                """,
+        )
+    }
+
+    @Test
+    fun `Test inline tag split across lines - tag with data`() {
+        // Make sure that the BAR_TAG_TYPE is registered.
+        TestTagTypes.BAR_TAG_TYPE
+        checkParse(
+            """
+                /**
+                 * {@bar some
+                 * text}
+                    * {@bar
+                 * some text}
+                 */
+            """,
+            expectedStructure =
+                """
+                    inlineTag: bar BarTagData(identifier=some)
+                      text: 'text'
+                    text: '\n '
+                    inlineTag: bar BarTagData(identifier=some)
+                      text: 'text'
+                """,
+            expectedJavadocIssues =
+                """
+                    2:10: @bar tag cannot contain 'e' or 'o' in the identifier [InvalidJavadoc]
+                    4:12: @bar tag cannot contain 'e' or 'o' in the identifier [InvalidJavadoc]
                 """,
         )
     }

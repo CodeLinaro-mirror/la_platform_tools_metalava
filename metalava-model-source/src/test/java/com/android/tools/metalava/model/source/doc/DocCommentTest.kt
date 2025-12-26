@@ -16,11 +16,16 @@
 
 package com.android.tools.metalava.model.source.doc
 
-import kotlin.test.assertFalse
-import kotlin.test.assertTrue
+import com.android.tools.metalava.model.source.javadoc.toOptionalJavadocContent
+import kotlin.test.assertEquals
 import org.junit.Test
 
 class DocCommentTest : BaseDocCommentTest() {
+    /** Add a block tag section for [tagTypeName] containing [text]. */
+    private fun DocComment.addBlockTagSection(tagTypeName: String, text: String) {
+        addBlockTagSection(tagTypeName, text.toOptionalJavadocContent())
+    }
+
     @Test
     fun `Test removeBlockTagSections`() {
         val docComment =
@@ -43,27 +48,36 @@ class DocCommentTest : BaseDocCommentTest() {
                     /**
                      * Some text.
                      *
-                     * @singleLine single line tag.
                      * @multipleLine a block tag
                      * that is spread across multiple lines.
+                     * @singleLine single line tag.
                      * @singleLine another single line tag.
                      */
                 """,
             message = "before mutations"
         )
 
-        // Try and remove a block tag that is not present.
-        assertFalse(
-            docComment.removeBlockTagSections { it.tagType == "unknown" },
+        val countBeforeRemoval = docComment.blockTagSections.size
+        assertEquals(3, countBeforeRemoval, message = "count before removal")
+
+        // Try and remove a block tag that is not present. Verify that it does not change the size
+        // of block tags.
+        docComment.removeBlockTagSections { it.tagType.name == "unknown" }
+        assertEquals(
+            countBeforeRemoval,
+            docComment.blockTagSections.size,
             message = "remove unknown"
         )
 
-        // Remove all singleLine block tag sections.
-        assertTrue(
-            docComment.removeBlockTagSections { it.tagType == "singleLine" },
+        // Remove all singleLine block tag sections. Verify that it removes 2 block tags.
+        docComment.removeBlockTagSections { it.tagType.name == "singleLine" }
+        assertEquals(
+            countBeforeRemoval - 2,
+            docComment.blockTagSections.size,
             message = "remove singleLine"
         )
 
+        // Make sure that the removal is reflected in the printed output.
         checkPrintOutput(
             docComment,
             expectedPrintOutput =
@@ -78,9 +92,11 @@ class DocCommentTest : BaseDocCommentTest() {
             message = "after remove @singleLine block tag sections"
         )
 
-        // Remove all block tag sections.
-        assertTrue(docComment.removeBlockTagSections { true }, message = "remove all")
+        // Remove all block tag sections. Verify that there are none left.
+        docComment.removeBlockTagSections { true }
+        assertEquals(0, docComment.blockTagSections.size, message = "remove all")
 
+        // Make sure that the removal is reflected in the printed output.
         checkPrintOutput(
             docComment,
             expectedPrintOutput =
@@ -102,7 +118,7 @@ class DocCommentTest : BaseDocCommentTest() {
                 """
             )
 
-        docComment.addBlockTagSection("custom", LazyDocDescription("a custom block tag", reporter))
+        docComment.addBlockTagSection("custom", "a custom block tag")
 
         checkPrintOutput(
             docComment,
@@ -116,10 +132,7 @@ class DocCommentTest : BaseDocCommentTest() {
             message = "after adding custom tag"
         )
 
-        docComment.addBlockTagSection(
-            "custom",
-            LazyDocDescription("another custom block tag", reporter)
-        )
+        docComment.addBlockTagSection("custom", "another custom block tag")
 
         checkPrintOutput(
             docComment,

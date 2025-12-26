@@ -41,6 +41,13 @@ interface Codebase : ClassResolver, AnnotationContext {
     /** [Reporter] to which any issues found within the [Codebase] can be reported. */
     val reporter: Reporter
 
+    /**
+     * Whether this [Codebase] is set up as Kotlin Multiplatform (KMP).
+     *
+     * See https://kotlinlang.org/docs/multiplatform.html
+     */
+    val isMultiplatform: Boolean
+
     /** The [ApiSurfaces] that will be tracked in this [Codebase]. */
     val apiSurfaces: ApiSurfaces
 
@@ -82,8 +89,20 @@ interface Codebase : ClassResolver, AnnotationContext {
      */
     override fun resolveClass(erasedName: String): ClassItem?
 
+    /** The root [PackageItem]. */
+    val rootPackage
+        get() = resolvePackage("")
+
     /** Returns a package identified by fully qualified name, if in the codebase */
     fun findPackage(pkgName: String): PackageItem?
+
+    /**
+     * Resolve a package identified by fully qualified name.
+     *
+     * This does everything it can to retrieve a suitable package, e.g. searching classpath (if
+     * available).
+     */
+    fun resolvePackage(pkgName: String): PackageItem?
 
     /** Returns a typealias identified by fully qualified name, if in the codebase */
     fun findTypeAlias(typeAliasName: String): TypeAliasItem?

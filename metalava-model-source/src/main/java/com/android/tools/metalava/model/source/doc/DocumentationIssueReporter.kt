@@ -69,5 +69,34 @@ internal interface DocumentationIssueReporter {
      * @param charOffset is the 0-based index of the character within the line where the issue
      *   occurred. If this is `-1` then no character position is reported.
      */
-    fun report(issue: Issue, message: String, lineOffset: Int, charOffset: Int)
+    fun report(issue: Issue, message: String, lineOffset: Int = 0, charOffset: Int = 0)
+
+    companion object {
+        /**
+         * A special [DocumentationIssueReporter] that will immediately throw an error for the first
+         * issue reported.
+         */
+        val THROWING =
+            object : DocumentationIssueReporter {
+                override fun report(
+                    issue: Issue,
+                    message: String,
+                    lineOffset: Int,
+                    charOffset: Int
+                ) {
+                    error("${lineOffset + 1}:${charOffset + 1}: $message [${issue.name}]")
+                }
+            }
+
+        /** A special [DocumentationIssueReporter] that will ignore all the issues. */
+        val NULL =
+            object : DocumentationIssueReporter {
+                override fun report(
+                    issue: Issue,
+                    message: String,
+                    lineOffset: Int,
+                    charOffset: Int
+                ) {}
+            }
+    }
 }

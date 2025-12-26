@@ -44,23 +44,68 @@ com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTe
 com.android.tools.metalava.model.testsuite.classitem.CommonDataClassTest
   Test data class copy method visibility with ConsistentCopyVisibility[psi,kotlin,k1]
 
-com.android.tools.metalava.model.testsuite.classitem.CommonDuplicateClassItemTest
-  Test duplicate classes[turbine]
-
 com.android.tools.metalava.model.testsuite.codebase.CommonCodebaseTest
   Test getTopLevelClassesFromSource[psi,java,k1]
   Test getTopLevelClassesFromSource[psi,java,k2]
   Test getTopLevelClassesFromSource[turbine]
 
 com.android.tools.metalava.model.testsuite.documentation.CommonItemDocumentationTest
-  Test ItemDocumentation appendDocumentation[turbine]
-  Test appending to Javadoc with errors[turbine]
   Test fully qualifying links that wrap on multiple lines[turbine]
-  Test javadoc error locations[turbine]
-  Test javadoc locations[turbine]
 
-com.android.tools.metalava.model.testsuite.documentation.CommonParameterizedDocumentationTest
-  Documentation fully qualified[turbine,doc comment with link - java]
+com.android.tools.metalava.model.testsuite.documentation.CommonParameterizedDocReferenceTest
+  Documentation text[turbine,@link,Imported#Imported()]
+  Documentation text[turbine,@link,Imported#Imported(int p)]
+  Documentation text[turbine,@link,Imported#Imported(int)]
+  Documentation text[turbine,@link,Imported#field]
+  Documentation text[turbine,@link,Imported#intMethod(int p)]
+  Documentation text[turbine,@link,Imported#intMethod(int)]
+  Documentation text[turbine,@link,Imported#noParamsMethod()]
+  Documentation text[turbine,@link,Imported#noParamsMethod]
+  Documentation text[turbine,@link,Other#Other()]
+  Documentation text[turbine,@link,Other#Other(int p)]
+  Documentation text[turbine,@link,Other#Other(int)]
+  Documentation text[turbine,@link,Other#field]
+  Documentation text[turbine,@link,Other#intMethod(int p)]
+  Documentation text[turbine,@link,Other#intMethod(int)]
+  Documentation text[turbine,@link,Other#noParamsMethod()]
+  Documentation text[turbine,@link,Other#noParamsMethod]
+  Documentation text[turbine,@linkplain,Imported#Imported()]
+  Documentation text[turbine,@linkplain,Imported#Imported(int p)]
+  Documentation text[turbine,@linkplain,Imported#Imported(int)]
+  Documentation text[turbine,@linkplain,Imported#field]
+  Documentation text[turbine,@linkplain,Imported#intMethod(int p)]
+  Documentation text[turbine,@linkplain,Imported#intMethod(int)]
+  Documentation text[turbine,@linkplain,Imported#noParamsMethod()]
+  Documentation text[turbine,@linkplain,Imported#noParamsMethod]
+  Documentation text[turbine,@linkplain,Other#Other()]
+  Documentation text[turbine,@linkplain,Other#Other(int p)]
+  Documentation text[turbine,@linkplain,Other#Other(int)]
+  Documentation text[turbine,@linkplain,Other#field]
+  Documentation text[turbine,@linkplain,Other#intMethod(int p)]
+  Documentation text[turbine,@linkplain,Other#intMethod(int)]
+  Documentation text[turbine,@linkplain,Other#noParamsMethod()]
+  Documentation text[turbine,@linkplain,Other#noParamsMethod]
+  Documentation text[turbine,@see,Imported#Imported()]
+  Documentation text[turbine,@see,Imported#Imported(int p)]
+  Documentation text[turbine,@see,Imported#Imported(int)]
+  Documentation text[turbine,@see,Imported#field]
+  Documentation text[turbine,@see,Imported#intMethod(int p)]
+  Documentation text[turbine,@see,Imported#intMethod(int)]
+  Documentation text[turbine,@see,Imported#noParamsMethod()]
+  Documentation text[turbine,@see,Imported#noParamsMethod]
+  Documentation text[turbine,@see,Imported.Nested]
+  Documentation text[turbine,@see,Other#Other()]
+  Documentation text[turbine,@see,Other#Other(int p)]
+  Documentation text[turbine,@see,Other#Other(int)]
+  Documentation text[turbine,@see,Other#field]
+  Documentation text[turbine,@see,Other#intMethod(int p)]
+  Documentation text[turbine,@see,Other#intMethod(int)]
+  Documentation text[turbine,@see,Other#noParamsMethod()]
+  Documentation text[turbine,@see,Other#noParamsMethod]
+  Documentation text[turbine,@see,Other.Nested]
+  Documentation text[turbine,@see,String]
+  Documentation text[turbine,@see,Test.Nested]
+  Documentation text[turbine,@see,Test]
 
 com.android.tools.metalava.model.testsuite.fielditem.CommonFieldItemTest
   Test implicit nullability of constant field initialized from @NonNull method[turbine]
@@ -79,6 +124,11 @@ com.android.tools.metalava.model.testsuite.packageitem.CommonPackageItemTest
   Test @hide in package info processed last[psi,java,k1]
   Test @hide in package info processed last[psi,java,k2]
   Test @hide in package info processed last[turbine]
+
+com.android.tools.metalava.model.testsuite.sourcefile.CommonParameterizedImportTest
+  Test imports[psi,java,k1,static java.util.Map.*]
+  Test imports[psi,java,k2,static java.util.Map.*]
+  Test imports[turbine,static java.util.Map.*]
 
 com.android.tools.metalava.model.testsuite.typeitem.CommonIsAssignableFromTest
   Test assignability without unboxing[psi,java,k1,boxedInt to primitiveInt]

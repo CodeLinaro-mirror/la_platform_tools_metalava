@@ -17,7 +17,7 @@
 package com.android.tools.metalava.model
 
 @MetalavaApi
-interface TypeParameterItem {
+interface TypeParameterItem : ReferencableItem {
     /** Return the modifiers of this class */
     @MetalavaApi val modifiers: ModifierList
 

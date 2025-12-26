@@ -34,7 +34,7 @@ import org.jetbrains.uast.toUElement
 /** Creates [Value]s from [KaAnnotationValue]s and optionally psi [ValueArgument]s. */
 internal class KaValueFactory(
     private val codebase: PsiBasedCodebase,
-    private val assembler: KaCodebaseAssembler,
+    private val processor: KaModuleProcessor,
     private val globalTypeItemFactory: KaTypeItemFactory,
 ) : ValueFactory, ImplementationValueToModelFactory<Pair<KaAnnotationValue, ValueArgument?>> {
     /**
@@ -99,7 +99,7 @@ internal class KaValueFactory(
                     }
                 }
             is KaAnnotationValue.NestedAnnotationValue ->
-                assembler.createAnnotation(kaAnnotationValue.annotation)?.let {
+                processor.createAnnotation(kaAnnotationValue.annotation)?.let {
                     createAnnotationValue(it)
                 }
             is KaAnnotationValue.UnsupportedValue -> error("Unsupported value $implementationValue")

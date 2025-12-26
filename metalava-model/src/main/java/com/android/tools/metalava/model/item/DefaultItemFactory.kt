@@ -45,11 +45,6 @@ import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.value.OptionalValueProvider
 import com.android.tools.metalava.reporter.FileLocation
 
-/**
- * A lambda that when passed the [Item] will return the public name, or null if there is not one.
- */
-typealias PublicNameProvider = (Item) -> String?
-
 /** A factory for creating [Item] instances suitable for use by many models. */
 class DefaultItemFactory(
     /** The [DefaultCodebase] to which returned [Item]s will belong. */
@@ -119,6 +114,7 @@ class DefaultItemFactory(
             origin,
             superClassType,
             interfaceTypes,
+            isFileFacade = false,
         )
 
     /** Create a [ConstructorItem]. */
@@ -227,11 +223,11 @@ class DefaultItemFactory(
         sourceLanguage: SourceLanguage = defaultSourceLanguage,
         modifiers: BaseModifierList,
         name: String,
-        publicNameProvider: PublicNameProvider,
+        publicName: String?,
         containingCallable: CallableItem,
         parameterIndex: Int,
         type: TypeItem,
-        defaultValueFactory: ParameterDefaultValueFactory,
+        hasDefaultValue: Boolean,
     ): ParameterItem =
         DefaultParameterItem(
             codebase,
@@ -239,11 +235,11 @@ class DefaultItemFactory(
             sourceLanguage,
             modifiers,
             name,
-            publicNameProvider,
+            publicName,
             containingCallable,
             parameterIndex,
             type,
-            defaultValueFactory,
+            hasDefaultValue,
         )
 
     /** Create a [PropertyItem]. */

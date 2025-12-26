@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlin.test.assertSame
 import org.junit.Test
 
@@ -67,6 +68,28 @@ class CommonCodebaseTest : BaseModelTest() {
             val entryClass = codebase.assertResolvedClass("java.util.Map.Entry")
             val mapClass = codebase.assertResolvedClass("java.util.Map")
             assertSame(entryClass.containingClass(), mapClass)
+        }
+    }
+
+    @Test
+    fun `Test resolve package`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    public class Test {}
+                """
+            ),
+        ) {
+            // Make sure that the `java` package has not been created yet.
+            assertNull(codebase.findPackage("java"), message = "find java package")
+
+            // Resolve and create the `java` package.
+            codebase.assertResolvedPackage("java")
+
+            // Make sure that resolving an unknown package does not create it.
+            assertNull(codebase.resolvePackage("unknown"), message = "resolve unknown package")
         }
     }
 }

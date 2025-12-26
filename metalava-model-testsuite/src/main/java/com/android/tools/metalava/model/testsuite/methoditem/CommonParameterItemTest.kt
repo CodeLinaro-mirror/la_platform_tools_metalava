@@ -25,6 +25,7 @@ import com.android.tools.metalava.testing.kotlin
 import com.google.common.truth.Truth.assertWithMessage
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /** Common tests for implementations of [ParameterItem]. */
@@ -667,6 +668,25 @@ class CommonParameterItemTest : BaseModelTest() {
             val parameter =
                 codebase.assertClass("test.pkg.Foo").methods().single().parameters().single()
             assertEquals("hasDefaultValue", true, parameter.hasDefaultValue())
+        }
+    }
+
+    @Test
+    fun `Test varargs modifier on kotlin parameter`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                package test.pkg
+                class Foo {
+                    @JvmSynthetic
+                    fun foo(vararg ints: Int) = Unit
+                }
+                """
+            )
+        ) {
+            val parameterItem =
+                codebase.assertClass("test.pkg.Foo").methods().single().parameters().single()
+            assertTrue(parameterItem.modifiers.isVarArg())
         }
     }
 }

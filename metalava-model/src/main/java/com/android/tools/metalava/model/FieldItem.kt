@@ -16,12 +16,13 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.scope.ReferencableNameScope
 import com.android.tools.metalava.model.value.ConstantValue
 import com.android.tools.metalava.model.value.asAny
 import java.io.PrintWriter
 
 @MetalavaApi
-interface FieldItem : MemberItem, InheritableItem {
+interface FieldItem : MemberItem, InheritableItem, ReferencableNameScope {
     /** The property this field backs; inverse of [PropertyItem.backingField] */
     val property: PropertyItem?
         get() = null

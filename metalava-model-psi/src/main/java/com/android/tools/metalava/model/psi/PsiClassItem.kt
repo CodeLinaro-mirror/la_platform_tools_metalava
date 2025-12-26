@@ -34,8 +34,6 @@ import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiCompiledFile
 import org.jetbrains.kotlin.asJava.classes.KtLightClassForFacade
 import org.jetbrains.uast.UClass
-import org.jetbrains.uast.UFile
-import org.jetbrains.uast.getParentOfType
 
 internal class PsiClassItem
 internal constructor(
@@ -69,6 +67,7 @@ internal constructor(
         origin = origin,
         superClassType = superClassType,
         interfaceTypes = interfaceTypes,
+        isFileFacade = isFileFacade(psiClass),
     ),
     ClassItem,
     PsiItem {
@@ -92,14 +91,7 @@ internal constructor(
             return null
         }
 
-        val uFile =
-            if (psiClass is UClass) {
-                psiClass.getParentOfType(UFile::class.java)
-            } else {
-                null
-            }
-
-        return PsiSourceFile(psiCodebase, containingFile, uFile)
+        return psiCodebase.sourceFileCache.psiSourceFile(containingFile)
     }
 
     /** Creates a constructor in this class */
@@ -107,13 +99,16 @@ internal constructor(
         return PsiConstructorItem.createDefaultConstructor(psiCodebase, this, psiClass, visibility)
     }
 
-    override fun isFileFacade(): Boolean {
-        return psiClass.isKotlin() &&
-            psiClass is UClass &&
-            psiClass.javaPsi is KtLightClassForFacade
-    }
-
     override fun isMultiFileClass(): Boolean {
         return ((psiClass as? UClass)?.javaPsi as? KtLightClassForFacade)?.multiFileClass ?: false
+    }
+
+    companion object {
+        /** Whether the [psiClass] is a file-facade class. See [ClassItem.isFileFacade]. */
+        fun isFileFacade(psiClass: PsiClass): Boolean {
+            return psiClass.isKotlin() &&
+                psiClass is UClass &&
+                psiClass.javaPsi is KtLightClassForFacade
+        }
     }
 }

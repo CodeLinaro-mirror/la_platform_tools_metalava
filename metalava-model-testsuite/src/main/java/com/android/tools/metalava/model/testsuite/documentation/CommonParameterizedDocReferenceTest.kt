@@ -1,0 +1,423 @@
+/*
+ * Copyright (C) 2025 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.android.tools.metalava.model.testsuite.documentation
+
+import com.android.tools.metalava.model.testsuite.BaseModelTest
+import com.android.tools.metalava.model.testsuite.value.ValueExample
+import com.android.tools.metalava.testing.EntryPoint
+import com.android.tools.metalava.testing.EntryPointCallerRule
+import com.android.tools.metalava.testing.EntryPointCallerTracker
+import com.android.tools.metalava.testing.java
+import org.junit.Rule
+import org.junit.Test
+import org.junit.runners.Parameterized
+
+/** Common tests for tags that handle all references. */
+class CommonParameterizedDocReferenceTest : BaseModelTest() {
+
+    /** Set of tags that handle the references. */
+    enum class TestTagType {
+        LINK {
+            override fun commentForReference(reference: String, linkLabel: String?) =
+                "/** {@link $reference${linkLabelSuffix(linkLabel)}} */\n"
+        },
+        LINKPLAIN {
+            override fun commentForReference(reference: String, linkLabel: String?) =
+                "/** {@linkplain $reference${linkLabelSuffix(linkLabel)}} */\n"
+        },
+        SEE {
+            override fun commentForReference(reference: String, linkLabel: String?) =
+                "/** @see $reference */\n"
+        };
+
+        /**
+         * Create a suffix to add to the `@link` or `@linkplain` tags to specify the label, if any.
+         */
+        protected fun linkLabelSuffix(linkLabel: String?) =
+            if (linkLabel == null) "" else " $linkLabel"
+
+        /** Construct a comment containing the [reference] with the optional [linkLabel]. */
+        abstract fun commentForReference(reference: String, linkLabel: String?): String
+
+        override fun toString() = "@${name.lowercase()}"
+    }
+
+    @Parameterized.Parameter(0) lateinit var testTagType: TestTagType
+
+    @Parameterized.Parameter(1) lateinit var params: TestParams
+
+    /**
+     * Will try and rewrite the stack trace of any test failures to refer to the location where the
+     * [ValueExample] that is currently being tested was created.
+     */
+    @get:Rule val entryPointCallerRule = EntryPointCallerRule { params.entryPointCallerTracker }
+
+    data class TestParams
+    @EntryPoint
+    constructor(
+        val name: String,
+        /**
+         * The reference to resolve.
+         *
+         * Defaults to [name].
+         */
+        val reference: String = name,
+
+        /** The expected resolved reference of resolving [reference]. */
+        val expectedResolvedReference: String,
+
+        /**
+         * The expected label that will be added, `null` if it does not add a label.
+         *
+         * Defaults to [reference] with `#` replaced with `.`.
+         */
+        val expectedLinkLabel: String? = reference.replace('#', '.'),
+    ) {
+        /**
+         * Record the stack trace of the creation of this which can be used to provide a stack trace
+         * to the creator of this instance in the event of a test failure.
+         */
+        val entryPointCallerTracker = EntryPointCallerTracker()
+
+        override fun toString(): String {
+            return name
+        }
+    }
+
+    companion object {
+        private val params =
+            listOf(
+                TestParams(
+                    name = "String",
+                    expectedResolvedReference = "java.lang.String",
+                ),
+                TestParams(
+                    name = "java.lang.String",
+                    expectedResolvedReference = "java.lang.String",
+                    expectedLinkLabel = null,
+                ),
+
+                // Package references
+                TestParams(
+                    name = "java.lang",
+                    expectedResolvedReference = "java.lang",
+                    expectedLinkLabel = null,
+                ),
+                TestParams(
+                    name = "test.pkg",
+                    expectedResolvedReference = "test.pkg",
+                    expectedLinkLabel = null,
+                ),
+
+                // Type parameter reference
+                TestParams(
+                    name = "T",
+                    expectedResolvedReference = "T",
+                    expectedLinkLabel = null,
+                ),
+
+                // Reference a member of the current class.
+                //
+                // They look as though they are not changed at all. However, they are resolved to
+                // their fully qualified reference and then simplified to the shortest reference
+                // needed to resolve to the qualified reference without any imports. For these that
+                // means they are effectively unchanged.
+                TestParams(
+                    name = "#field",
+                    expectedResolvedReference = "#field",
+                    expectedLinkLabel = null,
+                ),
+                TestParams(
+                    name = "#Test",
+                    // TODO(b/447588621): Resolve it to a constructor, e.g. `#Test()`
+                    expectedResolvedReference = "#Test",
+                    expectedLinkLabel = null,
+                ),
+                TestParams(
+                    name = "#Test()",
+                    expectedResolvedReference = "#Test()",
+                    expectedLinkLabel = null,
+                ),
+                TestParams(
+                    name = "#Test(int)",
+                    expectedResolvedReference = "#Test(int)",
+                    expectedLinkLabel = null,
+                ),
+                TestParams(
+                    name = "#Test(int p)",
+                    expectedResolvedReference = "#Test(int p)",
+                    expectedLinkLabel = null,
+                ),
+                TestParams(
+                    name = "#noParamsMethod",
+                    expectedResolvedReference = "#noParamsMethod",
+                    expectedLinkLabel = null,
+                ),
+                TestParams(
+                    name = "#noParamsMethod()",
+                    expectedResolvedReference = "#noParamsMethod()",
+                    expectedLinkLabel = null,
+                ),
+                TestParams(
+                    name = "#intMethod(int)",
+                    expectedResolvedReference = "#intMethod(int)",
+                    expectedLinkLabel = null,
+                ),
+                TestParams(
+                    name = "#intMethod(int p)",
+                    expectedResolvedReference = "#intMethod(int p)",
+                    expectedLinkLabel = null,
+                ),
+                TestParams(
+                    name = "Test", // Reference self.
+                    expectedResolvedReference = "test.pkg.Test",
+                ),
+                TestParams(
+                    name = "Test.Nested",
+                    expectedResolvedReference = "test.pkg.Test.Nested",
+                ),
+
+                // Reference a member of another class in the same package.
+                TestParams(
+                    name = "Other#field",
+                    expectedResolvedReference = "test.pkg.Other#field",
+                ),
+                /* TODO(b/447588621): uncomment and fix flaky behavior.
+                TestParams(
+                    name = "Other#Other",
+                    // TODO(b/447588621): Resolve it to a constructor, e.g. `test.pkg.Other#Other()`
+                    expectedResolvedReference = "test.pkg.Other#Other",
+                ),
+                */
+                TestParams(
+                    name = "Other#Other()",
+                    expectedResolvedReference = "test.pkg.Other#Other()",
+                ),
+                TestParams(
+                    name = "Other#Other(int)",
+                    expectedResolvedReference = "test.pkg.Other#Other(int)",
+                ),
+                TestParams(
+                    name = "Other#Other(int p)",
+                    expectedResolvedReference = "test.pkg.Other#Other(int p)",
+                ),
+                TestParams(
+                    name = "Other#noParamsMethod",
+                    expectedResolvedReference = "test.pkg.Other#noParamsMethod",
+                ),
+                TestParams(
+                    name = "Other#noParamsMethod()",
+                    expectedResolvedReference = "test.pkg.Other#noParamsMethod()",
+                ),
+                TestParams(
+                    name = "Other#intMethod(int)",
+                    expectedResolvedReference = "test.pkg.Other#intMethod(int)",
+                ),
+                TestParams(
+                    name = "Other#intMethod(int p)",
+                    expectedResolvedReference = "test.pkg.Other#intMethod(int p)",
+                ),
+                TestParams(
+                    name = "Other.Nested",
+                    expectedResolvedReference = "test.pkg.Other.Nested",
+                ),
+
+                // Reference a member of an imported class.
+                TestParams(
+                    name = "Imported#field",
+                    expectedResolvedReference = "another.pkg.Imported#field",
+                ),
+                /* TODO(b/447588621): uncomment and fix flaky behavior.
+                TestParams(
+                    name = "Imported#Imported",
+                    // TODO(b/447588621): Resolve it to a constructor, e.g. `another.pkg.Imported#Imported()`
+                    expectedResolvedReference = "another.pkg.Imported#Imported",
+                ),
+                */
+                TestParams(
+                    name = "Imported#Imported()",
+                    expectedResolvedReference = "another.pkg.Imported#Imported()",
+                ),
+                TestParams(
+                    name = "Imported#Imported(int)",
+                    expectedResolvedReference = "another.pkg.Imported#Imported(int)",
+                ),
+                TestParams(
+                    name = "Imported#Imported(int p)",
+                    expectedResolvedReference = "another.pkg.Imported#Imported(int p)",
+                ),
+                TestParams(
+                    name = "Imported#noParamsMethod",
+                    expectedResolvedReference = "another.pkg.Imported#noParamsMethod",
+                ),
+                TestParams(
+                    name = "Imported#noParamsMethod()",
+                    expectedResolvedReference = "another.pkg.Imported#noParamsMethod()",
+                ),
+                TestParams(
+                    name = "Imported#intMethod(int)",
+                    expectedResolvedReference = "another.pkg.Imported#intMethod(int)",
+                ),
+                TestParams(
+                    name = "Imported#intMethod(int p)",
+                    expectedResolvedReference = "another.pkg.Imported#intMethod(int p)",
+                ),
+                TestParams(
+                    name = "Imported.Nested",
+                    expectedResolvedReference = "another.pkg.Imported.Nested",
+                ),
+
+                // Reference a member of a fully qualified class.
+                TestParams(
+                    name = "other.pkg.Another#field",
+                    expectedResolvedReference = "other.pkg.Another#field",
+                    expectedLinkLabel = null,
+                ),
+                TestParams(
+                    name = "other.pkg.Another#Another",
+                    // TODO(b/447588621): Resolve it to a constructor, e.g.
+                    // `other.pkg.Another#Another()`
+                    expectedResolvedReference = "other.pkg.Another#Another",
+                    expectedLinkLabel = null,
+                ),
+                TestParams(
+                    name = "other.pkg.Another#Another()",
+                    expectedResolvedReference = "other.pkg.Another#Another()",
+                    expectedLinkLabel = null,
+                ),
+                TestParams(
+                    name = "other.pkg.Another#Another(int)",
+                    expectedResolvedReference = "other.pkg.Another#Another(int)",
+                    expectedLinkLabel = null,
+                ),
+                TestParams(
+                    name = "other.pkg.Another#Another(int p)",
+                    expectedResolvedReference = "other.pkg.Another#Another(int p)",
+                    expectedLinkLabel = null,
+                ),
+                TestParams(
+                    name = "other.pkg.Another#noParamsMethod",
+                    expectedResolvedReference = "other.pkg.Another#noParamsMethod",
+                    expectedLinkLabel = null,
+                ),
+                TestParams(
+                    name = "other.pkg.Another#noParamsMethod()",
+                    expectedResolvedReference = "other.pkg.Another#noParamsMethod()",
+                    expectedLinkLabel = null,
+                ),
+                TestParams(
+                    name = "other.pkg.Another#intMethod(int)",
+                    expectedResolvedReference = "other.pkg.Another#intMethod(int)",
+                    expectedLinkLabel = null,
+                ),
+                TestParams(
+                    name = "other.pkg.Another#intMethod(int p)",
+                    expectedResolvedReference = "other.pkg.Another#intMethod(int p)",
+                    expectedLinkLabel = null,
+                ),
+                TestParams(
+                    name = "other.pkg.Another.Nested",
+                    expectedResolvedReference = "other.pkg.Another.Nested",
+                    expectedLinkLabel = null,
+                ),
+            )
+
+        @JvmStatic
+        @Parameterized.Parameters(name = "{0} -> {1}")
+        /** Compute the cross product of [TestTagType] and [params]. */
+        fun params() =
+            TestTagType.entries.flatMap { testTagType ->
+                params.map { p -> arrayOf(testTagType, p) }
+            }
+    }
+
+    @Test
+    fun `Documentation text`() {
+        val comment = testTagType.commentForReference(params.reference, null)
+        runSourceCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+                        import another.pkg.Imported;
+                        ${comment}
+                        public class Test<T> {
+                            public int field;
+                            public Test() {}
+                            public Test(int p) {}
+                            public void noParamsMethod() {}
+                            public void intMethod(int p) {}
+
+                            public class Nested {}
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        public class Other {
+                            public int field;
+                            public Other() {}
+                            public Other(int p) {}
+                            public void noParamsMethod() {}
+                            public void intMethod(int p) {}
+
+                            public class Nested {}
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package other.pkg;
+                        public class Another {
+                            public int field;
+                            public Another() {}
+                            public Another(int p) {}
+                            public void noParamsMethod() {}
+                            public void intMethod(int p) {}
+
+                            public class Nested {}
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package another.pkg;
+                        public class Imported {
+                            public int field;
+                            public Imported() {}
+                            public Imported(int p) {}
+                            public void noParamsMethod() {}
+                            public void intMethod(int p) {}
+
+                            public class Nested {}
+                        }
+                    """
+                ),
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+
+            val expectedComment =
+                testTagType.commentForReference(
+                    params.expectedResolvedReference,
+                    params.expectedLinkLabel
+                )
+            testClass.assertPrintedDocumentation(expectedComment)
+        }
+    }
+}

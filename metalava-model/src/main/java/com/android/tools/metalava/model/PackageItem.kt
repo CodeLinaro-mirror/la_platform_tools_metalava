@@ -17,8 +17,9 @@
 package com.android.tools.metalava.model
 
 import com.android.tools.metalava.model.item.ResourceFile
+import com.android.tools.metalava.model.scope.ReferencableNameScope
 
-interface PackageItem : SelectableItem {
+interface PackageItem : SelectableItem, ReferencableItem, ReferencableNameScope {
     /**
      * The overview documentation associated with the package; retrieved from an `overview.html`
      * file listed in the source files.
@@ -64,6 +65,10 @@ interface PackageItem : SelectableItem {
 
     override fun parent(): PackageItem? =
         if (qualifiedName().isEmpty()) null else containingPackage()
+
+    fun addChildPackage(pkg: PackageItem)
+
+    fun childPackages(): List<PackageItem>
 
     override val effectivelyDeprecated: Boolean
         get() = originallyDeprecated

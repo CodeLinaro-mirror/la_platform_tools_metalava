@@ -45,7 +45,6 @@ import com.android.tools.metalava.model.item.DefaultParameterItem
 import com.android.tools.metalava.model.item.DefaultPropertyItem
 import com.android.tools.metalava.model.item.DefaultTypeAliasItem
 import com.android.tools.metalava.model.item.DefaultTypeParameterItem
-import com.android.tools.metalava.model.item.ParameterDefaultValue
 import com.android.tools.metalava.model.psi.PsiBasedCodebase
 import com.android.tools.metalava.model.psi.PsiFieldItem
 import com.android.tools.metalava.model.psi.PsiFileLocation
@@ -62,6 +61,7 @@ import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.analysis.api.annotations.KaAnnotated
 import org.jetbrains.kotlin.analysis.api.annotations.KaAnnotation
 import org.jetbrains.kotlin.analysis.api.annotations.KaAnnotationValue
+import org.jetbrains.kotlin.analysis.api.projectStructure.KaModule
 import org.jetbrains.kotlin.analysis.api.symbols.KaCallableSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaConstructorSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaFunctionSymbol
@@ -76,30 +76,52 @@ import org.jetbrains.kotlin.analysis.api.symbols.KaSymbolVisibility
 import org.jetbrains.kotlin.analysis.api.symbols.KaTypeAliasSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaTypeParameterSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaValueParameterSymbol
-import org.jetbrains.kotlin.analysis.api.symbols.psi
 import org.jetbrains.kotlin.analysis.api.symbols.receiverType
 import org.jetbrains.kotlin.analysis.api.types.KaType
 import org.jetbrains.kotlin.asJava.toLightElements
+import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.psi.KtAnnotationEntry
 import org.jetbrains.kotlin.psi.KtElement
 import org.jetbrains.kotlin.psi.KtFile
 
 /**
  * Adds items to the [codebase] by using the kotlin analysis API to process elements from the
- * [kaModule] which only have kotlin as a target language.
+ * [PsiBasedCodebase.mainAnalysisModule] which only have kotlin as a target language.
  */
 internal class KaCodebaseAssembler(
     ktFiles: List<KtFile>,
     val codebase: PsiBasedCodebase,
 ) {
     // TODO(b/407735063): analyze all modules for KMP projects
-    val kaModule =
+    private val mainModule =
         codebase.mainAnalysisModule
             ?: error("No main analysis module found for project with Kotlin files")
+
+    private val mainModuleProcessor = KaModuleProcessor(mainModule, codebase)
 
     /** All packages to analyze from the input files. */
     private val packages = ktFiles.map { it.packageFqName }.toSet().sortedBy { it.asString() }
 
+    /** Analyze the [ktFiles] to add type aliases to the codebase for the [mainModule]. */
+    fun createTypeAliases() {
+        mainModuleProcessor.createTypeAliases(packages)
+    }
+
+    /**
+     * Analyze the [ktFiles] to add items to the codebase for the [mainModule] (except type aliases,
+     * which are added by [createTypeAliases]).
+     */
+    fun assemble() {
+        mainModuleProcessor.assemble(packages)
+    }
+}
+
+/**
+ * Processor for a single [kaModule] (a regular project has just one module, a KMP projects has
+ * several like androidMain, commonMain, etc.) to update the [codebase] based on the kotlin APIs in
+ * the module.
+ */
+internal class KaModuleProcessor(val kaModule: KaModule, val codebase: PsiBasedCodebase) {
     private val kaTypeItemFactory =
         KaTypeItemFactory(
             codebase,
@@ -109,8 +131,8 @@ internal class KaCodebaseAssembler(
     private val kaValueFactory = KaValueFactory(codebase, this, kaTypeItemFactory)
     private val kaModifierFactory = KaModifierFactory(this)
 
-    /** Analyze the [ktFiles] to add type aliases to the codebase for this [kaModule]. */
-    fun createTypeAliases() {
+    /** Analyze the [packages] to add type aliases to the codebase for this [kaModule]. */
+    fun createTypeAliases(packages: List<FqName>) {
         analyze(kaModule) {
             for (packageName in packages) {
                 findPackage(packageName)?.let { packageSymbol ->
@@ -125,10 +147,10 @@ internal class KaCodebaseAssembler(
     }
 
     /**
-     * Analyze the [ktFiles] to add items to the codebase for this [kaModule] (except type aliases,
+     * Analyze the [packages] to add items to the codebase for this [kaModule] (except type aliases,
      * which are added by [createTypeAliases]).
      */
-    fun assemble() {
+    fun assemble(packages: List<FqName>) {
         analyze(kaModule) {
             for (packageName in packages) {
                 val packageSymbol = findPackage(packageName)
@@ -149,7 +171,7 @@ internal class KaCodebaseAssembler(
             val className = callableSymbol.containingJvmClassName ?: continue
             val classItem = codebase.findClass(className) as? DefaultClassItem ?: continue
             val classTypeItemFactory =
-                KaTypeItemFactory(codebase, this@KaCodebaseAssembler, classItem)
+                KaTypeItemFactory(codebase, this@KaModuleProcessor, classItem)
             processCallable(callableSymbol, classItem, classTypeItemFactory)
         }
     }
@@ -166,7 +188,7 @@ internal class KaCodebaseAssembler(
         // Find the class in the codebase.
         val className = classifierSymbol.classId?.asFqNameString() ?: return
         val classItem = codebase.findClass(className) as? DefaultClassItem ?: return
-        val classTypeItemFactory = KaTypeItemFactory(codebase, this@KaCodebaseAssembler, classItem)
+        val classTypeItemFactory = KaTypeItemFactory(codebase, this@KaModuleProcessor, classItem)
 
         // The combined declared member scope contains both static and non-static members.
         val memberScope = classifierSymbol.combinedDeclaredMemberScope
@@ -599,6 +621,12 @@ internal class KaCodebaseAssembler(
                 null
             }
 
+        val modifiers =
+            kaModifierFactory.createForProperty(
+                propertySymbol,
+                containingClass,
+            )
+        kaModifierFactory.updatePropertyAccessors(modifiers, getter, setter, backingField)
         val propertyItem =
             DefaultPropertyItem(
                 codebase = codebase,
@@ -606,13 +634,7 @@ internal class KaCodebaseAssembler(
                 sourceLanguage = SourceLanguage.KOTLIN,
                 documentationFactory = propertySymbol.getDocumentation(),
                 variantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY,
-                modifiers =
-                    kaModifierFactory.createForProperty(
-                        propertySymbol,
-                        containingClass,
-                        getter,
-                        setter
-                    ),
+                modifiers = modifiers,
                 name = propertySymbol.name.identifier,
                 containingClass = containingClass,
                 type = type,
@@ -656,13 +678,13 @@ internal class KaCodebaseAssembler(
                     codebase = codebase,
                     fileLocation = PsiFileLocation.fromPsiElement(it.psi),
                     sourceLanguage = SourceLanguage.KOTLIN,
-                    modifiers = kaModifierFactory.createForParameter(it),
+                    modifiers = kaModifierFactory.createForReceiverParameter(it),
                     name = "receiver",
-                    publicNameProvider = { null },
+                    publicName = null,
                     containingCallable = containingCallable,
                     parameterIndex = 0,
                     type = type,
-                    defaultValueFactory = { ParameterDefaultValue.NONE },
+                    hasDefaultValue = false,
                 )
             }
         val regularParameters =
@@ -683,19 +705,13 @@ internal class KaCodebaseAssembler(
                     codebase = codebase,
                     fileLocation = PsiFileLocation.fromPsiElement(parameterSymbol.psi),
                     sourceLanguage = SourceLanguage.KOTLIN,
-                    modifiers = kaModifierFactory.createForParameter(parameterSymbol),
+                    modifiers = kaModifierFactory.createForValueParameter(parameterSymbol),
                     name = parameterSymbol.name.identifier,
-                    publicNameProvider = { parameterSymbol.name.identifierOrNullIfSpecial },
+                    publicName = parameterSymbol.name.identifierOrNullIfSpecial,
                     containingCallable = containingCallable,
                     parameterIndex = index,
                     type = type,
-                    defaultValueFactory = {
-                        if (parameterSymbol.hasDefaultValue) {
-                            ParameterDefaultValue.UNKNOWN
-                        } else {
-                            ParameterDefaultValue.NONE
-                        }
-                    },
+                    hasDefaultValue = parameterSymbol.hasDefaultValue,
                 )
             }
 
@@ -710,11 +726,11 @@ internal class KaCodebaseAssembler(
                     modifiers =
                         createImmutableModifiers(VisibilityLevel.PACKAGE_PRIVATE, emptyList()),
                     name = "\$completion",
-                    publicNameProvider = { null },
+                    publicName = null,
                     containingCallable = containingCallable,
                     parameterIndex = index,
                     type = enclosingTypeItemFactory.createContinuationType(returnType),
-                    defaultValueFactory = { ParameterDefaultValue.NONE },
+                    hasDefaultValue = false,
                 )
             } else {
                 null

@@ -170,6 +170,13 @@ sealed class PatternNode {
          */
         val apiVersionFilter: ((ApiVersion) -> Boolean)? = null,
 
+        /**
+         * An optional filter which, if specified, will limit the sdk extension versions that will
+         * be returned. This is provided when scanning, instead of just filtering afterward, to save
+         * time when scanning by ignoring version directories that are not accepted by the filter.
+         */
+        val sdkExtensionVersionFilter: ((ApiVersion) -> Boolean)? = null,
+
         /** Provides access to [File]s. */
         val fileProvider: FileProvider = WholeFileSystemProvider(),
 
@@ -186,8 +193,8 @@ sealed class PatternNode {
      * Scan the [ScanConfig.dir] using this pattern node as the guide.
      *
      * Returns a list of [MatchedPatternFile] objects, ordered such that the files are ordered by:
-     * * [MatchedPatternFile.extension], i.e. primary API (i.e. when [MatchedPatternFile.extension]
-     *   is `false`) come before those for extensions.
+     * * [MatchedPatternFile.isExtension], i.e. primary API (i.e. when
+     *   [MatchedPatternFile.isExtension] is `false`) come before those for extensions.
      * * [MatchedPatternFile.module], i.e. those for which this is `null` come before everything
      *   else, and they are sorted alphabetically.
      * * [MatchedPatternFile.version], i.e. from lowest to highest.
@@ -427,18 +434,15 @@ sealed class PatternNode {
                 // Extract the API version from the value.
                 val version = ApiVersion.fromString(value)
 
-                val extension = placeholder == Placeholder.VERSION_EXTENSION
+                val isExtension = placeholder == Placeholder.VERSION_EXTENSION
 
                 // Make sure that it is accepted by the filter (if one was specified). If it is not
-                // then ignore this file and all its contents by returning an empty sequence. The
-                // filter does not apply to extension versions, all extension versions are used.
-                if (!extension) {
-                    config.apiVersionFilter?.let { apiVersionFilter ->
-                        if (!apiVersionFilter(version)) return null
-                    }
-                }
+                // then ignore this file and all its contents by returning an empty sequence.
+                val versionFilter =
+                    if (isExtension) config.sdkExtensionVersionFilter else config.apiVersionFilter
+                versionFilter?.let { versionFilter -> if (!versionFilter(version)) return null }
 
-                return state.copy(version = version, extension = extension)
+                return state.copy(version = version, isExtension = isExtension)
             }
         },
 
@@ -854,7 +858,7 @@ internal data class PatternFileState(
     val version: ApiVersion? = null,
 
     /** Indicates whether the file is for an SDK extension module. */
-    val extension: Boolean = false,
+    val isExtension: Boolean = false,
 
     /** The optional module that was extracted from the path. */
     val module: String? = null,
@@ -877,7 +881,7 @@ internal data class PatternFileState(
             MatchedPatternFile(
                 file = file,
                 version = version,
-                extension = extension,
+                isExtension = isExtension,
                 module = module,
                 surface = surface,
                 library = library,
@@ -910,7 +914,7 @@ data class MatchedPatternFile(
     val version: ApiVersion,
 
     /** True if this represents a file from an extension module. */
-    val extension: Boolean = false,
+    val isExtension: Boolean = false,
 
     /** The optional module that was extracted from the [File] path. */
     val module: String? = null,
@@ -935,8 +939,8 @@ data class MatchedPatternFile(
             append(file.path)
             append(", version=")
             append(version)
-            if (extension) {
-                append(", extension=true")
+            if (isExtension) {
+                append(", isExtension=true")
             }
             if (module != null) {
                 append(", module='")
@@ -966,7 +970,7 @@ private val matchedPatternFileComparator: Comparator<MatchedPatternFile> =
     // If any of the selectors return `null` that will compare before any other value.
     compareBy(
         // Group into those that are for the primary API and those that are for an extension.
-        { it.extension },
+        { it.isExtension },
         // Group into those without modules and then by those with module, in order.
         { it.module },
         // Then sort them from the lowest version to the highest version.

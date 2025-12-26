@@ -32,6 +32,8 @@ import com.android.tools.metalava.model.item.DefaultCodebaseFactory
 import com.android.tools.metalava.model.item.DefaultItemFactory
 import com.android.tools.metalava.model.item.DefaultPackageItem
 import com.android.tools.metalava.model.item.PackageDocs
+import com.android.tools.metalava.model.utils.extractOptionalQualifierName
+import com.android.tools.metalava.model.utils.extractPossiblyEmptyQualifierName
 import java.io.File
 
 internal class TextCodebaseAssembler(
@@ -57,6 +59,10 @@ internal class TextCodebaseAssembler(
         // Make sure that it has a root package.
         codebase.packageTracker.createInitialPackages(PackageDocs.EMPTY)
     }
+
+    override fun createPackageFromUnderlyingModel(qualifiedName: String) =
+        // There are no additional packages available when processing signature files.
+        null
 
     override fun createClassFromUnderlyingModel(qualifiedName: String) =
         getOrCreateClass(qualifiedName)
@@ -156,7 +162,7 @@ internal class TextCodebaseAssembler(
             if (fullName.contains('.')) {
                 // We created a new nested class stub. We need to fully initialize it with outer
                 // classes, themselves possibly stubs
-                val outerName = qualifiedName.substring(0, qualifiedName.lastIndexOf('.'))
+                val outerName = qualifiedName.extractOptionalQualifierName()!!
                 val outerClass = getOrCreateClass(outerName, isOuterClassOfClassInThisCodebase)
 
                 // As outerClass and stubClass are from the same codebase the outerClass must be a
@@ -170,9 +176,8 @@ internal class TextCodebaseAssembler(
         // Find/create package
         val pkg =
             if (outerClass == null) {
-                val endIndex = qualifiedName.lastIndexOf('.')
-                val pkgPath = if (endIndex != -1) qualifiedName.substring(0, endIndex) else ""
-                codebase.findOrCreatePackage(pkgPath)
+                val pkgName = qualifiedName.extractPossiblyEmptyQualifierName()
+                codebase.findOrCreatePackage(pkgName)
             } else {
                 outerClass.containingPackage() as DefaultPackageItem
             }
@@ -210,6 +215,7 @@ internal class TextCodebaseAssembler(
                             trustedApi = true,
                             supportsDocumentation = false,
                             assembler = assembler,
+                            isMultiplatform = false,
                         )
                     },
                     classResolver = classResolver,

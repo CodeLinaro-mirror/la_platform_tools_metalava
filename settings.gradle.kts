@@ -16,13 +16,28 @@
 
 pluginManagement {
     repositories {
-        maven("../../prebuilts/androidx/external")
+        // For CI builds, it is important to use prebuilts because maven central throttles requests
+        // for artifacts. The `DOWNLOAD_DEPENDENCIES` flag allows building locally in repos which do
+        // not include the AndroidX prebuilts repo.
+        if (System.getenv("DOWNLOAD_DEPENDENCIES") == "true") {
+            // Prefer mavenCentral as that has signed artifacts
+            mavenCentral()
+            gradlePluginPortal()
+            google()
+        } else {
+            maven("../../prebuilts/androidx/external")
+        }
     }
 }
 
 dependencyResolutionManagement {
     repositories {
-        maven("../../prebuilts/androidx/external")
+        if (System.getenv("DOWNLOAD_DEPENDENCIES") == "true") {
+            google()
+            mavenCentral()
+        } else {
+            maven("../../prebuilts/androidx/external")
+        }
         val customLintRepo = System.getenv("LINT_REPO")
         if (customLintRepo != null) {
             logger.warn("Building using custom $customLintRepo maven repository")

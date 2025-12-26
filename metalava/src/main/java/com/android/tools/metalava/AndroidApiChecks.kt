@@ -24,8 +24,12 @@ import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.doc.DocContent
+import com.android.tools.metalava.model.doc.DocContentPredicate
+import com.android.tools.metalava.model.source.doc.DocContentPredicates
 import com.android.tools.metalava.model.source.doc.containsWord
 import com.android.tools.metalava.model.value.asString
 import com.android.tools.metalava.model.visitors.ApiVisitor
@@ -71,7 +75,7 @@ class AndroidApiChecks(val reporter: Reporter) {
                 override fun visitMethod(method: MethodItem) {
                     checkVariable(
                         method,
-                        "@return",
+                        method.documentation.blockTagDescription("return"),
                         "Return value of '" + method.name() + "'",
                         method.returnType()
                     )
@@ -81,13 +85,18 @@ class AndroidApiChecks(val reporter: Reporter) {
                     if (field.name().contains("ACTION")) {
                         checkIntentAction(field)
                     }
-                    checkVariable(field, null, "Field '" + field.name() + "'", field.type())
+                    checkVariable(
+                        field,
+                        field.documentation.mainDescription,
+                        "Field '" + field.name() + "'",
+                        field.type()
+                    )
                 }
 
                 override fun visitParameter(parameter: ParameterItem) {
                     checkVariable(
                         parameter,
-                        parameter.name(),
+                        parameter.description,
                         "Parameter '" +
                             parameter.name() +
                             "' of '" +
@@ -100,110 +109,14 @@ class AndroidApiChecks(val reporter: Reporter) {
         )
     }
 
-    private var cachedDocumentation: String = ""
-    private var cachedDocumentationItem: Item? = null
-    private var cachedDocumentationTag: String? = null
-
-    // Cache around findDocumentation
-    private fun getDocumentation(item: Item, tag: String?): String {
-        return if (item === cachedDocumentationItem && cachedDocumentationTag == tag) {
-            cachedDocumentation
-        } else {
-            cachedDocumentationItem = item
-            cachedDocumentationTag = tag
-            cachedDocumentation = findDocumentation(item, tag)
-            cachedDocumentation
-        }
-    }
-
-    private fun findDocumentation(item: Item, tag: String?): String {
-        if (item is ParameterItem) {
-            return findDocumentation(item.containingCallable(), item.name())
-        }
-
-        val doc = item.documentation.text
-        if (doc.isBlank()) {
-            return ""
-        }
-
-        if (tag == null) {
-            return doc
-        }
-
-        var begin: Int
-        if (tag == "@return") {
-            // return tag
-            begin = doc.indexOf("@return")
-        } else {
-            begin = 0
-            while (true) {
-                begin = doc.indexOf(tag, begin)
-                if (begin == -1) {
-                    return ""
-                } else {
-                    // See if it's prefixed by @param
-                    // Scan backwards and allow whitespace and *
-                    var ok = false
-                    for (i in begin - 1 downTo 0) {
-                        val c = doc[i]
-                        if (c != '*' && !Character.isWhitespace(c)) {
-                            if (c == 'm' && doc.startsWith("@param", i - 5, true)) {
-                                begin = i - 5
-                                ok = true
-                            }
-                            break
-                        }
-                    }
-                    if (ok) {
-                        // found beginning
-                        break
-                    }
-                }
-                begin += tag.length
-            }
-        }
-
-        if (begin == -1) {
-            return ""
-        }
-
-        // Find end
-        // This is the first block tag on a new line
-        var isLinePrefix = false
-        var end = doc.length
-        for (i in begin + 1 until doc.length) {
-            val c = doc[i]
-
-            if (
-                c == '@' &&
-                    (isLinePrefix ||
-                        doc.startsWith("@param", i, true) ||
-                        doc.startsWith("@return", i, true))
-            ) {
-                // Found it
-                end = i
-                break
-            } else if (c == '\n') {
-                isLinePrefix = true
-            } else if (c != '*' && !Character.isWhitespace(c)) {
-                isLinePrefix = false
-            }
-        }
-
-        return doc.substring(begin, end)
-    }
-
-    private fun checkTodos(item: Item) {
-        if (
-            item.documentation.text.contains("TODO:") || item.documentation.text.contains("TODO(")
-        ) {
+    private fun checkTodos(item: SelectableItem) {
+        if (item.documentation.check(CONTAINS_TODO_PREDICATE)) {
             reporter.report(Issues.TODO, item, "Documentation mentions 'TODO'")
         }
     }
 
     private fun checkRequiresPermission(callable: CallableItem) {
         val documentation = callable.documentation
-        val text = documentation.text
 
         val annotation = callable.modifiers.findAnnotation("androidx.annotation.RequiresPermission")
         val requiresPermissionInfo = annotation?.getRequiresPermissionInfo()
@@ -213,7 +126,7 @@ class AndroidApiChecks(val reporter: Reporter) {
             for (item in permissions) {
                 val perm = item.substringAfterLast('.')
                 // Search for the permission name as a whole word.
-                val mentioned = text.containsWord(perm)
+                val mentioned = documentation.containsWord(perm)
                 if (mentioned && !conditional) {
                     reporter.report(
                         Issues.REQUIRES_PERMISSION,
@@ -232,9 +145,7 @@ class AndroidApiChecks(val reporter: Reporter) {
                     )
                 }
             }
-        } else if (
-            text.contains("android.Manifest.permission") || text.contains("android.permission.")
-        ) {
+        } else if (documentation.check(CONTAINS_PERMISSION_NAME_OR_FIELD_PREDICATE)) {
             reporter.report(
                 Issues.REQUIRES_PERMISSION,
                 callable,
@@ -257,12 +168,8 @@ class AndroidApiChecks(val reporter: Reporter) {
             field.modifiers.findAnnotation("android.annotation.SdkConstant") != null
 
         val documentation = field.documentation
-        val text = documentation.text
 
-        if (
-            text.contains("Broadcast Action:") ||
-                text.contains("protected intent") && text.contains("system")
-        ) {
+        if (documentation.check(CONTAINS_BROADCAST_ACTION_OR_SYSTEM_PREDICATE)) {
             if (!hasBehavior) {
                 reporter.report(
                     Issues.BROADCAST_BEHAVIOR,
@@ -281,7 +188,7 @@ class AndroidApiChecks(val reporter: Reporter) {
             }
         }
 
-        if (text.contains("Activity Action:")) {
+        if (documentation.check(CONTAINS_ACTIVITY_ACTION_PREDICATE)) {
             if (!hasSdkConstant) {
                 reporter.report(
                     Issues.SDK_CONSTANT,
@@ -294,11 +201,24 @@ class AndroidApiChecks(val reporter: Reporter) {
         }
     }
 
-    private fun checkVariable(item: Item, tag: String?, ident: String, type: TypeItem?) {
+    /**
+     * Check to see if this [TypeItem] is a [PrimitiveTypeItem] of [PrimitiveTypeItem.Primitive.INT]
+     * kind.
+     */
+    private fun TypeItem.isIntType() =
+        this is PrimitiveTypeItem && kind == PrimitiveTypeItem.Primitive.INT
+
+    /**
+     * Checks to make sure that the documentation and type are consistent with respect to use of
+     * `null` annotations and `@IntDef` annotations.
+     */
+    private fun checkVariable(item: Item, content: DocContent?, ident: String, type: TypeItem?) {
+        // Nothing to do if the type is null or there is no content.
         type ?: return
-        if (
-            type.toString() == "int" && constantPattern.matcher(getDocumentation(item, tag)).find()
-        ) {
+        content ?: return
+
+        // Check to see if it mentions a constant name that could/should be an IntDef.
+        if (type.isIntType() && content.check(CONTAINS_CONSTANT_NAME_PREDICATE)) {
             var foundTypeDef = false
             for (annotation in item.modifiers.annotations()) {
                 val cls = annotation.resolve() ?: continue
@@ -322,10 +242,9 @@ class AndroidApiChecks(val reporter: Reporter) {
             }
         }
 
-        if (
-            nullPattern.matcher(getDocumentation(item, tag)).find() &&
-                item.type()?.modifiers?.isPlatformNullability == true
-        ) {
+        // Check to make sure that if the documentation mentions `null` that it also uses the
+        // correct nullability annotations.
+        if (type.modifiers.isPlatformNullability == true && content.containsNullWord()) {
             reporter.report(
                 Issues.NULLABLE,
                 item,
@@ -335,8 +254,54 @@ class AndroidApiChecks(val reporter: Reporter) {
     }
 
     companion object {
-        val constantPattern: Pattern = Pattern.compile("[A-Z]{3,}_([A-Z]{3,}|\\*)")
-        @Suppress("SpellCheckingInspection")
-        val nullPattern: Pattern = Pattern.compile("\\bnull\\b")
+        /** Pattern that looks for constants of the form `BAR_FOO` or wildcards like `BAR_*`. */
+        private val constantPattern = Pattern.compile("[A-Z]{3,}_([A-Z]{3,}|\\*)")
+
+        /**
+         * A [DocContentPredicate] that will check for the presence of [constantPattern] in the
+         * documentation.
+         */
+        private val CONTAINS_CONSTANT_NAME_PREDICATE =
+            DocContentPredicates.textContainsAny { text ->
+                // Check to make sure the text is long enough before trying to apply the pattern.
+                // Applying a pattern has a small overhead so it is worth avoiding that on short
+                // strings that could never match.
+                text.length >= 5 && constantPattern.matcher(text).find()
+            }
+
+        /**
+         * A [DocContentPredicate] that will check for the presence of `TO-DO`s in the
+         * documentation.
+         */
+        private val CONTAINS_TODO_PREDICATE =
+            DocContentPredicates.textContainsAny { text ->
+                text.contains("TODO:") || text.contains("TODO(")
+            }
+
+        /**
+         * A [DocContentPredicate] that will check for the presence of `Broadcast Action:` or
+         * `protected intent` and `system` in the documentation.
+         */
+        private val CONTAINS_BROADCAST_ACTION_OR_SYSTEM_PREDICATE =
+            DocContentPredicates.textContainsAny { text ->
+                text.contains("Broadcast Action:") ||
+                    (text.contains("protected intent") && text.contains("system"))
+            }
+
+        /**
+         * A [DocContentPredicate] that will check for the presence of `Activity Action:` in the
+         * documentation.
+         */
+        private val CONTAINS_ACTIVITY_ACTION_PREDICATE =
+            DocContentPredicates.textContainsAny { text -> text.contains("Activity Action:") }
+
+        /**
+         * A [DocContentPredicate] that will check for the presence of permission names or fields in
+         * the documentation.
+         */
+        private val CONTAINS_PERMISSION_NAME_OR_FIELD_PREDICATE =
+            DocContentPredicates.textContainsAny { text ->
+                text.contains("android.Manifest.permission") || text.contains("android.permission.")
+            }
     }
 }

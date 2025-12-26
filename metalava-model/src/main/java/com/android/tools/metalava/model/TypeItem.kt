@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.utils.extractSimpleName
 import java.util.Objects
 
 /**
@@ -1248,14 +1249,7 @@ interface ClassTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Exception
 
     companion object {
         /** Computes the simple name of a class from a qualified class name. */
-        fun computeClassName(qualifiedName: String): String {
-            val lastDotIndex = qualifiedName.lastIndexOf('.')
-            return if (lastDotIndex == -1) {
-                qualifiedName
-            } else {
-                qualifiedName.substring(lastDotIndex + 1)
-            }
-        }
+        fun computeClassName(qualifiedName: String) = qualifiedName.extractSimpleName()
     }
 }
 

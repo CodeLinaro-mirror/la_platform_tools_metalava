@@ -15,6 +15,9 @@
  */
 package com.android.tools.metalava.model.source.javadoc
 
+import com.android.tools.metalava.model.source.doc.TagData
+import com.android.tools.metalava.model.source.doc.TagType
+
 /**
  * An inline tag within a block of Javadoc.
  *
@@ -22,20 +25,12 @@ package com.android.tools.metalava.model.source.javadoc
  * @property content the optional content, e.g. for `{@link ref}` it would be the reference, for
  *   `{@inheritDoc}` it would be `null`.
  */
-internal class JavadocInlineTag(val tagType: String, val content: JavadocContent?) :
-    JavadocContent {
-    /**
-     * An inline tag occupies multiple lines if the nested content, if present, occupies multiple
-     * lines.
-     */
-    override fun isMultiLine() = content?.isMultiLine() == true
-
-    /** An inline tag does not start with a newline. */
-    override fun startsWithNewline() = false
-
-    override fun accept(visitor: JavadocContentVisitor) {
-        visitor.visit(this)
-    }
+internal class JavadocInlineTag(
+    override val tagType: TagType<*>,
+    override val tagData: TagData?,
+    override val content: JavadocContent?,
+) : JavadocContent, DocTag {
+    override fun <R> accept(visitor: JavadocContentVisitor<R>) = visitor.visit(this)
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

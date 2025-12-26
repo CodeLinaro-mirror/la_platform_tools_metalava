@@ -1953,7 +1953,7 @@ private constructor(
         }
 
         val hasDefaultConstructor =
-            cls.hasImplicitDefaultConstructor() ||
+            cls.constructors().any { it.isImplicitConstructor() } ||
                 run {
                     if (constructors.count() == 1) {
                         val constructor = constructors.first()

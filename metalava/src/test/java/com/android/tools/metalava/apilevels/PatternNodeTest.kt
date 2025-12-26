@@ -432,8 +432,8 @@ class PatternNodeTest : TemporaryFolderOwner {
         val files = node.scan(PatternNode.ScanConfig(rootDir, apiVersionFilter = range::contains))
         files.assertMatchedPatternFiles(
             """
-                MatchedPatternFile(file=TESTROOT/1/api.txt, version=1, extension=true, module='api')
-                MatchedPatternFile(file=TESTROOT/2/api.txt, version=2, extension=true, module='api')
+                MatchedPatternFile(file=TESTROOT/1/api.txt, version=1, isExtension=true, module='api')
+                MatchedPatternFile(file=TESTROOT/2/api.txt, version=2, isExtension=true, module='api')
             """
         )
     }
@@ -462,11 +462,11 @@ class PatternNodeTest : TemporaryFolderOwner {
         val files = node.scan(PatternNode.ScanConfig(rootDir))
         files.assertMatchedPatternFiles(
             """
-                MatchedPatternFile(file=TESTROOT/extensions/1/module-one.txt, version=1, extension=true, module='module-one')
-                MatchedPatternFile(file=TESTROOT/extensions/3/module-one.txt, version=3, extension=true, module='module-one')
-                MatchedPatternFile(file=TESTROOT/extensions/2/module-two.txt, version=2, extension=true, module='module-two')
-                MatchedPatternFile(file=TESTROOT/extensions/3/module-two.txt, version=3, extension=true, module='module-two')
-                MatchedPatternFile(file=TESTROOT/extensions/2/module.three.txt, version=2, extension=true, module='module.three')
+                MatchedPatternFile(file=TESTROOT/extensions/1/module-one.txt, version=1, isExtension=true, module='module-one')
+                MatchedPatternFile(file=TESTROOT/extensions/3/module-one.txt, version=3, isExtension=true, module='module-one')
+                MatchedPatternFile(file=TESTROOT/extensions/2/module-two.txt, version=2, isExtension=true, module='module-two')
+                MatchedPatternFile(file=TESTROOT/extensions/3/module-two.txt, version=3, isExtension=true, module='module-two')
+                MatchedPatternFile(file=TESTROOT/extensions/2/module.three.txt, version=2, isExtension=true, module='module.three')
             """
         )
     }
@@ -532,7 +532,7 @@ class PatternNodeTest : TemporaryFolderOwner {
         files.assertMatchedPatternFiles(
             """
                 MatchedPatternFile(file=TESTROOT/1.7/module.txt.txt, version=1.7, module='module.txt')
-                MatchedPatternFile(file=TESTROOT/extensions/1/module.txt.txt, version=1, extension=true, module='module.txt')
+                MatchedPatternFile(file=TESTROOT/extensions/1/module.txt.txt, version=1, isExtension=true, module='module.txt')
             """
         )
     }

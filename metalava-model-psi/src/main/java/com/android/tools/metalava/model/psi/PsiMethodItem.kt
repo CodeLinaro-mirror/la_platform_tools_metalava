@@ -40,12 +40,15 @@ import com.android.tools.metalava.reporter.FileLocation
 import com.intellij.psi.PsiAnnotationMethod
 import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiParameter
+import org.jetbrains.kotlin.psi.KtAnnotated
 import org.jetbrains.kotlin.psi.KtParameter
 import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
 import org.jetbrains.kotlin.psi.psiUtil.isExtensionDeclaration
+import org.jetbrains.uast.UAnnotation
 import org.jetbrains.uast.UAnnotationMethod
 import org.jetbrains.uast.UMethod
+import org.jetbrains.uast.toUElementOfType
 
 internal class PsiMethodItem(
     override val psiCodebase: PsiBasedCodebase,
@@ -159,7 +162,19 @@ internal class PsiMethodItem(
             targetLanguages: Set<TargetLanguage> = containingClass.targetLanguages,
         ): PsiMethodItem {
             assert(!psiMethod.isConstructor)
-            val name = psiMethod.name
+            // TODO(b/457844210): work around a UAST issue where the accessor methods of internal
+            //  PublishedApi properties have mangled names even though the compiler does not mangle
+            //  their names.
+            val name =
+                if (
+                    psiMethod.name.contains("$") &&
+                        isKotlinProperty(psiMethod) &&
+                        sourcePropertyOrParameter(psiMethod)?.hasPublishedApiAnnotation() == true
+                ) {
+                    psiMethod.name.substringBefore("$")
+                } else {
+                    psiMethod.name
+                }
             val modifiers = PsiModifierItem.create(codebase, psiMethod)
 
             if (containingClass.classKind == ClassKind.INTERFACE) {
@@ -219,6 +234,7 @@ internal class PsiMethodItem(
                             psiMethod,
                             containingCallable as PsiCallableItem,
                             methodTypeItemFactory,
+                            modifiers,
                             psiParameters,
                         )
                     },
@@ -238,6 +254,26 @@ internal class PsiMethodItem(
                     psiMethod.sourcePsi is KtPropertyAccessor ||
                     psiMethod.sourcePsi is KtParameter &&
                         (psiMethod.sourcePsi as KtParameter).hasValOrVar())
+        }
+
+        /**
+         * For property accessor [psiMethod], returns the [KtProperty] or [KtParameter] which is the
+         * source of the method.
+         */
+        private fun sourcePropertyOrParameter(psiMethod: PsiMethod): KtAnnotated? {
+            return when (val sourcePsi = (psiMethod as? UMethod)?.sourcePsi) {
+                is KtProperty -> sourcePsi
+                is KtParameter -> sourcePsi
+                is KtPropertyAccessor -> sourcePsi.property
+                else -> null
+            }
+        }
+
+        /** Returns whether the element is annotated with @PublishedApi. */
+        private fun KtAnnotated.hasPublishedApiAnnotation(): Boolean {
+            return annotationEntries.any {
+                it.toUElementOfType<UAnnotation>()?.qualifiedName == "kotlin.PublishedApi"
+            }
         }
     }
 }

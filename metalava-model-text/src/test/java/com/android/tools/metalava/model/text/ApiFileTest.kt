@@ -66,10 +66,9 @@ class ApiFileTest : BaseTextCodebaseTest() {
                 """
             ),
         ) {
-            assertThat(reportedIssues)
-                .isEqualTo(
-                    "MAIN_SRC/file2.txt:1: error: Preceding file MAIN_SRC/file1.txt has different setting of kotlin-style-nulls which may cause issues [SignatureFileError]"
-                )
+            assertAndRemoveReportedIssues(
+                "MAIN_SRC/file2.txt:1: error: Preceding file MAIN_SRC/file1.txt has different setting of kotlin-style-nulls which may cause issues [SignatureFileError]"
+            )
 
             codebase.assertClass("test.pkg.Foo")
             codebase.assertClass("test.pkg.Bar")
@@ -591,19 +590,17 @@ class ApiFileTest : BaseTextCodebaseTest() {
                 """
             ),
         ) {
-            assertThat(reportedIssues)
-                .isEqualTo(
-                    """
-                        MAIN_SRC/api.txt:3: error: Type starts with "?" but doesn't appear to be wildcard: ? blah1 [TypeParseError]
-                        MAIN_SRC/api.txt:4: error: Format does not support Kotlin-style null type syntax: int? [TypeParseError]
-                        MAIN_SRC/api.txt:4: error: Invalid nullability suffix on primitive: int? [TypeParseError]
-                        MAIN_SRC/api.txt:5: error: Could not parse type `Comparable<test.pkg.Foo>blah2`. Found unexpected string after type parameters: blah2 [TypeParseError]
-                        MAIN_SRC/api.txt:6: error: Format does not support Kotlin-style null type syntax: int? [TypeParseError]
-                        MAIN_SRC/api.txt:6: error: Invalid nullability suffix on primitive: int? [TypeParseError]
-                        MAIN_SRC/api.txt:8: error: Type starts with "?" but doesn't appear to be wildcard: ? blah1 [TypeParseError]
-                    """
-                        .trimIndent()
-                )
+            assertAndRemoveReportedIssues(
+                """
+                    MAIN_SRC/api.txt:3: error: Type starts with "?" but doesn't appear to be wildcard: ? blah1 [TypeParseError]
+                    MAIN_SRC/api.txt:4: error: Format does not support Kotlin-style null type syntax: int? [TypeParseError]
+                    MAIN_SRC/api.txt:4: error: Invalid nullability suffix on primitive: int? [TypeParseError]
+                    MAIN_SRC/api.txt:5: error: Could not parse type `Comparable<test.pkg.Foo>blah2`. Found unexpected string after type parameters: blah2 [TypeParseError]
+                    MAIN_SRC/api.txt:6: error: Format does not support Kotlin-style null type syntax: int? [TypeParseError]
+                    MAIN_SRC/api.txt:6: error: Invalid nullability suffix on primitive: int? [TypeParseError]
+                    MAIN_SRC/api.txt:8: error: Type starts with "?" but doesn't appear to be wildcard: ? blah1 [TypeParseError]
+                """
+            )
 
             val fooClass = codebase.assertClass("test.pkg.Foo")
             val barClass = codebase.assertClass("test.pkg.Bar")
@@ -633,10 +630,9 @@ class ApiFileTest : BaseTextCodebaseTest() {
                 """
             ),
         ) {
-            assertThat(reportedIssues)
-                .isEqualTo(
-                    "MAIN_SRC/api.txt:4: error: Invalid nullability suffix on primitive: int? [TypeParseError]"
-                )
+            assertAndRemoveReportedIssues(
+                "MAIN_SRC/api.txt:4: error: Invalid nullability suffix on primitive: int? [TypeParseError]"
+            )
 
             val fooClass = codebase.assertClass("test.pkg.Foo")
 
@@ -684,14 +680,12 @@ class ApiFileTest : BaseTextCodebaseTest() {
                 """
             ),
         ) {
-            assertThat(reportedIssues)
-                .isEqualTo(
-                    """
-                        MAIN_SRC/api.txt:4: error: Field FIELD1 in class test.pkg.Foo has a value of `1` but is not `static` and `final`; ignoring value [SignatureFileError]
-                        MAIN_SRC/api.txt:5: error: Field FIELD2 in class test.pkg.Foo has a value of `2` but is not `static` and `final`; ignoring value [SignatureFileError]
-                    """
-                        .trimIndent()
-                )
+            assertAndRemoveReportedIssues(
+                """
+                    MAIN_SRC/api.txt:4: error: Field FIELD1 in class test.pkg.Foo has a value of `1` but is not `static` and `final`; ignoring value [SignatureFileError]
+                    MAIN_SRC/api.txt:5: error: Field FIELD2 in class test.pkg.Foo has a value of `2` but is not `static` and `final`; ignoring value [SignatureFileError]
+                """
+            )
 
             val fooClass = codebase.assertClass("test.pkg.Foo")
 

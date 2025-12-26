@@ -520,4 +520,27 @@ class CommonFieldItemTest : BaseModelTest() {
             }
         }
     }
+
+    @Test
+    fun `Test private const in interface companion`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                package test.pkg
+                interface Foo {
+                    companion object {
+                        const val PUBLIC_CONST = "CONST"
+                        private const val PRIVATE_CONST = "CONST"
+                    }
+                }
+                """
+            )
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+            val publicConst = fooClass.assertField("PUBLIC_CONST")
+            assertEquals(publicConst.modifiers.getVisibilityModifiers(), "public")
+            val privateConst = fooClass.assertField("PRIVATE_CONST")
+            assertEquals(privateConst.modifiers.getVisibilityModifiers(), "private")
+        }
+    }
 }

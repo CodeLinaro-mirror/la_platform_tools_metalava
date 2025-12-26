@@ -34,6 +34,7 @@ import com.google.common.truth.Truth.assertThat
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertSame
 import org.junit.Test
 
 /**
@@ -724,19 +725,18 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             ),
         ) {
             val testClass = codebase.assertClass("test.pkg.Test")
-            assertEquals(false, testClass.hasImplicitDefaultConstructor())
             assertEquals(2, testClass.constructors().count())
             val constructorItem = testClass.constructors().first()
             assertEquals("Test", constructorItem.name())
             assertEquals(testClass.type(), constructorItem.returnType())
-            assertEquals(false, testClass.hasImplicitDefaultConstructor())
+            assertEquals(false, constructorItem.isImplicitConstructor())
 
             val testClass1 = codebase.assertClass("test.pkg.Test.Test1")
             val constructorItem1 = testClass1.constructors().single()
             assertEquals("Test1", constructorItem1.name())
             assertEquals("test.pkg.Test.Test1", constructorItem1.returnType().toString())
             assertEquals(testClass1.type(), constructorItem1.returnType())
-            assertEquals(true, testClass1.hasImplicitDefaultConstructor())
+            assertEquals(true, constructorItem1.isImplicitConstructor())
         }
     }
 
@@ -941,24 +941,20 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             val methodComment =
                 """
                     /**
-                         * Method documentation
-                         * Multiple
-                         * Lines
-                         */
+                     * Method documentation
+                     * Multiple
+                     * Lines
+                     */
                 """
                     .trimIndent()
-            assertEquals(
-                sourceFile,
-                innerClassItem.sourceFile(),
-                message = "inner class sourceFile"
-            )
+            assertSame(sourceFile, innerClassItem.sourceFile(), message = "inner class sourceFile")
             assertEquals(headerComment, sourceFile.getHeaderComments())
-            assertEquals(methodComment, methodItem.documentation.text)
-            assertEquals("/** Class documentation */", classItem.documentation.text)
-            assertEquals("/** Field Doc */", fieldItem.documentation.text)
-            assertEquals("", fieldItem1.documentation.text)
-            assertEquals("", pkgItem.documentation.text)
-            assertEquals(classItem.sourceFile(), classItem1.sourceFile())
+            methodItem.assertDocumentationText(methodComment, message = "method")
+            classItem.assertDocumentationText("/** Class documentation */", message = "class")
+            fieldItem.assertDocumentationText("/** Field Doc */", message = "field")
+            fieldItem1.assertDocumentationText("", message = "field1")
+            pkgItem.assertDocumentationText("", message = "package")
+            assertSame(classItem.sourceFile(), classItem1.sourceFile())
         }
     }
 

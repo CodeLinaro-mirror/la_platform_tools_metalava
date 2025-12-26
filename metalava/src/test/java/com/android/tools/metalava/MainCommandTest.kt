@@ -157,10 +157,6 @@ API sources:
                                              Use the given API level
 --jdk-home <dir>
                                              If set, add the Java APIs from the given JDK to the classpath
---subtract-api <api file>
-                                             Subtracts the API in the given signature or jar file from the current API
-                                             being emitted via --api, --stubs, --doc-stubs, etc. Note that the
-                                             subtraction only applies to classes; it does not subtract members.
 --ignore-classes-on-classpath
                                              Prevents references to classes on the classpath from being added to the
                                              generated stub files.

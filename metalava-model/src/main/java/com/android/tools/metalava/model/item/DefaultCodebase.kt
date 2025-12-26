@@ -21,6 +21,7 @@ import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.TypeAliasItem
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.reporter.Issues
@@ -39,6 +40,7 @@ open class DefaultCodebase(
     private val trustedApi: Boolean,
     private val supportsDocumentation: Boolean,
     val assembler: CodebaseAssembler,
+    override val isMultiplatform: Boolean,
 ) : Codebase {
 
     final override val annotationManager: AnnotationManager = config.annotationManager
@@ -190,6 +192,13 @@ open class DefaultCodebase(
             externalClassesByName[erasedName] = created
         }
         return created
+    }
+
+    final override fun resolvePackage(pkgName: String): PackageItem? {
+        findPackage(pkgName)?.let {
+            return it
+        }
+        return assembler.createPackageFromUnderlyingModel(pkgName)
     }
 
     override fun createAnnotation(

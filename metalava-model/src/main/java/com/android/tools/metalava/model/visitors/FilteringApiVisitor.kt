@@ -24,6 +24,7 @@ import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DelegatedVisitor
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.FieldItem
+import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemVisitor
 import com.android.tools.metalava.model.MethodItem
@@ -186,6 +187,9 @@ class FilteringApiVisitor(
     private inner class FilteringSourceFile(val delegate: SourceFile) : SourceFile by delegate {
 
         override fun getImports() = delegate.getImports(filterReference)
+
+        override fun getImports(predicate: FilterPredicate) =
+            delegate.getImports(predicate.and(filterReference))
     }
 
     /**

@@ -150,6 +150,7 @@ class PsiPropertyItemTest : BaseModelTest() {
 
                     class Foo {
                         @ExperimentalFooApi
+                        @field:ExperimentalFooApi
                         var withField: String = "42"
                             get() { return field }
                             set(value) { field = "v=" + value }

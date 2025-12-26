@@ -16,17 +16,36 @@
 
 package com.android.tools.metalava.model.source.doc
 
+import com.android.tools.metalava.model.source.javadoc.JavadocContent
 import com.android.tools.metalava.model.source.javadoc.JavadocContentList
 import com.android.tools.metalava.model.source.javadoc.JavadocContentVisitor
 import com.android.tools.metalava.model.source.javadoc.JavadocInlineTag
 import com.android.tools.metalava.model.source.javadoc.JavadocText
+import com.android.tools.metalava.model.source.javadoc.TextStartsWithVisitor
 import java.io.PrintWriter
+import kotlin.text.iterator
 
-/** Prints [DocDescription] instances to [writer]. */
-internal class DocDescriptionPrinter(private val writer: PrintWriter) : JavadocContentVisitor {
-    /** Prints [description] as part of a Javadoc comment to [writer]. */
-    fun print(description: DocDescription) {
-        description.content?.accept(this)
+/** Prints [JavadocContent] instances to [writer]. */
+internal class JavadocContentPrinter(internal val writer: PrintWriter) :
+    JavadocContentVisitor<Unit> {
+    /**
+     * Prints [content] as part of a Javadoc comment to [writer].
+     *
+     * @param content the content to print, if `null` this returns immediately.
+     * @param addLeadingSpaceIfNeeded determines whether a leading space should be written before
+     *   the content is written. This has no effect if [content] is `null` or if it starts with a
+     *   newline. Otherwise, this will cause a space to be printed before the content.
+     */
+    fun print(content: JavadocContent?, addLeadingSpaceIfNeeded: Boolean = false) {
+        content ?: return
+
+        if (addLeadingSpaceIfNeeded) {
+            if (!content.matches(STARTS_WITH_NEWLINE_CHECKER)) {
+                writer.print(" ")
+            }
+        }
+
+        content.accept(this)
     }
 
     override fun visit(list: JavadocContentList) {
@@ -36,18 +55,13 @@ internal class DocDescriptionPrinter(private val writer: PrintWriter) : JavadocC
     override fun visit(inlineTag: JavadocInlineTag) {
         writer.print("{@")
         writer.print(inlineTag.tagType)
-        inlineTag.content?.let { nestedContent ->
-            if (!nestedContent.startsWithNewline()) {
-                writer.print(" ")
-            }
-            nestedContent.accept(this)
-        }
+        inlineTag.printTagContents(this)
         writer.print("}")
     }
 
     override fun visit(text: JavadocText) {
         var previousChar = '\u0000'
-        for (c in text.text) {
+        for (c in text.contents) {
             if (previousChar == '\n' && c != '/') {
                 writer.print(" *")
             }
@@ -57,6 +71,13 @@ internal class DocDescriptionPrinter(private val writer: PrintWriter) : JavadocC
 
         if (previousChar == '\n') {
             writer.print(" *")
+        }
+    }
+
+    companion object {
+        /** Check to see whether [JavadocContent] starts with a newline character. */
+        private val STARTS_WITH_NEWLINE_CHECKER = TextStartsWithVisitor { string ->
+            string[0] == '\n'
         }
     }
 }

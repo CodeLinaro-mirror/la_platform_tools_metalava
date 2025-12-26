@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.psi
 
+import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.type.MethodFingerprint
@@ -33,16 +34,18 @@ internal interface PsiCallableItem : CallableItem, PsiItem {
         /**
          * Create a list of [PsiParameterItem]s.
          *
-         * The [codebase] and [psiMethod] parameters are added here, rather than retrieving from
-         * [containingCallable]'s [PsiCallableItem.codebase] and [PsiCallableItem.psi] properties
-         * respectively, because at the time this is called [containingCallable] is in the process
-         * of being initialized and those properties have not yet been initialized.
+         * The [codebase], [psiMethod], and [containingCallableModifiers] parameters are added here,
+         * rather than retrieving from [containingCallable]'s [PsiCallableItem.codebase],
+         * [PsiCallableItem.psi], and [PsiCallableItem.modifiers] properties respectively, because
+         * at the time this is called [containingCallable] is in the process of being initialized
+         * and those properties have not yet been initialized.
          */
         internal fun parameterList(
             codebase: PsiBasedCodebase,
             psiMethod: PsiMethod,
             containingCallable: PsiCallableItem,
             enclosingTypeItemFactory: PsiTypeItemFactory,
+            containingCallableModifiers: BaseModifierList,
             psiParameters: List<PsiParameter> = psiMethod.psiParameters,
         ): List<PsiParameterItem> {
             val fingerprint = MethodFingerprint(containingCallable.name(), psiParameters.size)
@@ -53,7 +56,9 @@ internal interface PsiCallableItem : CallableItem, PsiItem {
                     fingerprint,
                     parameter,
                     index,
-                    enclosingTypeItemFactory
+                    enclosingTypeItemFactory,
+                    psiMethod,
+                    containingCallableModifiers
                 )
             }
         }

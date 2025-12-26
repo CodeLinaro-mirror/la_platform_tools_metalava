@@ -24,7 +24,6 @@ import com.android.tools.metalava.SystemApiType
 import com.android.tools.metalava.columnSource
 import com.android.tools.metalava.lint.DefaultLintErrorMessage
 import com.android.tools.metalava.model.provider.Capability
-import com.android.tools.metalava.model.source.trimDocIndent
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.nonNullSource
 import com.android.tools.metalava.nullableSource
@@ -34,7 +33,6 @@ import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import com.android.tools.metalava.uiThreadSource
 import com.android.tools.metalava.workerThreadSource
-import org.junit.Assert
 import org.junit.Test
 
 /** Tests for the [DocAnalyzer] which enhances the docs */
@@ -102,8 +100,8 @@ class DocAnalyzerTest : DriverTest() {
                     @androidx.annotation.Nullable
                     public java.lang.Double method3(@androidx.annotation.NonNull java.lang.Double factor1, @androidx.annotation.NonNull java.lang.Double factor2) { throw new RuntimeException("Stub!"); }
                     /**
-                     * @param factor2 Don't pass null here please.
                      * @param factor1 This value must never be {@code null}.
+                     * @param factor2 Don't pass null here please.
                      * @return This value may be {@code null}.
                      */
                     @androidx.annotation.Nullable
@@ -491,7 +489,6 @@ class DocAnalyzerTest : DriverTest() {
                     /**
                      * This method must be called on the thread that originally created
                      * this UI element. This is typically the main thread of your app.
-                     *
                      * <br>
                      * This method may take several seconds to complete, so it should
                      * only be called from a worker thread.
@@ -576,7 +573,6 @@ class DocAnalyzerTest : DriverTest() {
                      */
                     public int getCurrentContentInsetEnd() { throw new RuntimeException("Stub!"); }
                     /**
-                     * <br>
                      * This method must be called on the thread that originally created
                      * this UI element. This is typically the main thread of your app.
                      * @apiSince 24
@@ -749,7 +745,6 @@ class DocAnalyzerTest : DriverTest() {
                     /**
                      * This is the existing documentation.
                      * Multiple lines of it.
-                     *
                      * <br>
                      * Requires {@link test.pkg.RangeTest#ACCESS_COARSE_LOCATION}
                      */
@@ -814,21 +809,6 @@ class DocAnalyzerTest : DriverTest() {
                     """
                     )
                 )
-        )
-    }
-
-    @Test
-    fun `test documentation trim utility`() {
-        Assert.assertEquals(
-            "/**\n * This is a comment\n * This is a second comment\n */",
-            trimDocIndent(
-                """/**
-         * This is a comment
-         * This is a second comment
-         */
-                """
-                    .trimIndent()
-            )
         )
     }
 
@@ -1542,11 +1522,7 @@ class DocAnalyzerTest : DriverTest() {
                     public void foo() { throw new RuntimeException("Stub!"); }
                     /**
                      * My description
-                     *
                      * @deprecated Existing deprecation message.
-                     *
-                     * <br>
-                     * Blah blah blah 2
                      */
                     @Deprecated
                     public int hashCode() { throw new RuntimeException("Stub!"); }
@@ -1814,8 +1790,7 @@ class DocAnalyzerTest : DriverTest() {
                              */
                             public Fun() { throw new RuntimeException("Stub!"); }
                             /**
-                             * Separate comment
-                             *
+                             * Separate comment.
                              * <br>
                              * Important {@link another.pkg.Bar#BAR}
                              * and here

@@ -169,6 +169,12 @@ internal class PsiCodebaseAssembler(
         )
     }
 
+    override fun createPackageFromUnderlyingModel(qualifiedName: String): PackageItem? {
+        // Make sure that the underlying package exists before creating one.
+        findPsiPackage(qualifiedName) ?: return null
+        return codebase.findOrCreatePackage(qualifiedName)
+    }
+
     override fun createClassFromUnderlyingModel(qualifiedName: String) =
         findOrCreateClass(qualifiedName)
 

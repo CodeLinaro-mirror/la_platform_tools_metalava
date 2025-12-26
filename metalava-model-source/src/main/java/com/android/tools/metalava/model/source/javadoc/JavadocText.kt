@@ -16,17 +16,17 @@
 
 package com.android.tools.metalava.model.source.javadoc
 
-/** A block of text in a Javadoc comment. */
-internal class JavadocText(val text: String) : JavadocContent {
-    /** A block of text occupies multiple lines if it contains a newline. */
-    override fun isMultiLine() = text.contains('\n')
-
-    /** A block of text starts with a newline if the first character is a newline. */
-    override fun startsWithNewline() = text[0] == '\n'
-
-    override fun accept(visitor: JavadocContentVisitor) {
-        visitor.visit(this)
+/**
+ * A block of text in a Javadoc comment.
+ *
+ * @param text a non-empty string.
+ */
+internal class JavadocText(val contents: String) : JavadocContent {
+    init {
+        require(contents.isNotEmpty()) { "contents must contain at least one character" }
     }
+
+    override fun <R> accept(visitor: JavadocContentVisitor<R>) = visitor.visit(this)
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -34,10 +34,11 @@ internal class JavadocText(val text: String) : JavadocContent {
 
         other as JavadocText
 
-        return text == other.text
+        return contents == other.contents
     }
 
-    override fun hashCode() = text.hashCode()
+    override fun hashCode() = contents.hashCode()
 
-    override fun toString() = "JavadocText(\"${text.replace("\n", "\\n").replace("\"", "\\\"")}\")"
+    override fun toString() =
+        "JavadocText(\"${contents.replace("\n", "\\n").replace("\"", "\\\"")}\")"
 }

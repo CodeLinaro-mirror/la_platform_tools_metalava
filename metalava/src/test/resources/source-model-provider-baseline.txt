@@ -16,7 +16,6 @@ com.android.tools.metalava.ApiFileTest
 
 com.android.tools.metalava.CoreApiTest
   Hidden with --hide-annotation[turbine]
-  Hidden with package javadoc and hiding default constructor explicitly[turbine]
 
 com.android.tools.metalava.DuplicateClassTest
   Test duplicate classes[turbine]
@@ -25,7 +24,6 @@ com.android.tools.metalava.ExtractAnnotationsTest
   Check warning about unexpected returns from typedef method[turbine]
 
 com.android.tools.metalava.FlaggedApiEdgeCasesTest
-  Test javadoc for flagged class includes @apiSince[turbine]
   Test unresolvable flag field[turbine]
 
 com.android.tools.metalava.Java9LanguageFeaturesTest
@@ -40,11 +38,8 @@ com.android.tools.metalava.JavadocTest
   Rewrite parameter list 2[turbine]
   Rewrite parameter list[turbine]
   Rewrite relative documentation links in doc-stubs 3[turbine]
-  Rewrite relative documentation links in doc-stubs 4[turbine]
   Rewrite relative documentation links in doc-stubs but preserve custom link text[turbine]
   Rewrite relative documentation links in doc-stubs[turbine]
-  Test multiple javadoc issues with baseline[turbine]
-  Test non-block @hide tag[turbine]
   Warn about unresolved[turbine]
 
 com.android.tools.metalava.KeepFileTest
@@ -60,16 +55,8 @@ com.android.tools.metalava.PolymorphicMethodsTest
 
 com.android.tools.metalava.RequiresFeatureTest
   Check RequiresFeature handling - custom enforcement[turbine]
-  Check RequiresFeature handling - hidden feature[turbine]
   Check RequiresFeature handling - invalid enforcement[turbine]
   Check RequiresFeature handling - missing feature[turbine]
-  Check RequiresFeature handling[turbine]
-
-com.android.tools.metalava.ShowAnnotationTest
-  Testing parsing an annotation whose attribute references the annotated class[turbine]
-
-com.android.tools.metalava.SyntaxErrorTest
-  Invalid syntax[turbine]
 
 com.android.tools.metalava.TypeUseAnnotationFilteringTest
   Keep type use annotations[turbine]
@@ -90,46 +77,11 @@ com.android.tools.metalava.compatibility.CompatibilityCheckTest
   No issues using the same classpath class twice[turbine]
   Removed method from classpath[turbine]
 
-com.android.tools.metalava.doc.DocAnalyzerRangeTest
-  Add new parameter when doc exists but no param doc[turbine]
-  Add new parameter when no doc exists[turbine]
-  Add new parameter, sorted correctly between existing ones[turbine]
-  Add new return value[turbine]
-  Add to existing parameter[turbine]
-  Add to existing return value (ensuring it appears last)[turbine]
-  Document ranges[turbine]
-  Test different values[turbine]
-  Typedefs combined with ranges[turbine]
-  Typedefs[turbine]
-
 com.android.tools.metalava.doc.DocAnalyzerTest
   @sdkExtSince (finalized, no codename)[turbine]
   @sdkExtSince (not finalized)[turbine]
-  Add to existing multi-line method documentation[turbine]
-  Add to existing single-line method documentation[turbine]
-  Add to method when there are existing parameter docs and appear before these[turbine]
-  Api levels around current and preview[turbine]
-  Basic documentation generation test[turbine]
-  Create method documentation from nothing[turbine]
-  Document Permissions[turbine]
-  Generate overview html docs[turbine]
-  Merge Multiple sections[turbine]
-  Merging in documentation snippets from annotation memberDoc and classDoc[turbine]
   Test Column annotation[turbine]
-  Warn about missing field[turbine]
-  Warn about multiple threading annotations[turbine]
   memberDoc crash[turbine]
-
-com.android.tools.metalava.doc.RequiresApiTest
-  Check RequiresApi handling of full version code[turbine]
-  Check RequiresApi handling[turbine]
-
-com.android.tools.metalava.doc.RestrictedForEnvironmentTest
-  Check RestrictedForEnvironment handling for SDK_SANDBOX env - android[turbine]
-  Check RestrictedForEnvironment handling for SDK_SANDBOX env - androidx[turbine]
-  Check RestrictedForEnvironment handling for fully nested SDK_SANDBOX env - androidx[turbine]
-  Check RestrictedForEnvironment handling for multiple annotations - androidx[turbine]
-  Check RestrictedForEnvironment handling for partial nested SDK_SANDBOX env - androidx[turbine]
 
 com.android.tools.metalava.jar.StandaloneJarCodebaseLoaderTest
   Test jar loader does not freeze codebase[turbine]
@@ -149,7 +101,6 @@ com.android.tools.metalava.lint.FlaggedApiLintTest
 
 com.android.tools.metalava.stub.StubsAnnotationTest
   Pass through libcore annotations[turbine]
-  Rewrite unknown nullability annotations as doc stubs[turbine]
 
 com.android.tools.metalava.stub.StubsConstructorTest
   Arguments to super constructors with showAnnotations[turbine]
@@ -167,8 +118,6 @@ com.android.tools.metalava.stub.StubsInterfaceTest
 
 com.android.tools.metalava.stub.StubsPackageInfoTest
   Check writing package info file[turbine]
-  Test package-info documentation in doc stubs[turbine]
-  Test package-info documentation in stubs[turbine]
 
 com.android.tools.metalava.stub.StubsTest
   Arrays in type arguments[turbine]

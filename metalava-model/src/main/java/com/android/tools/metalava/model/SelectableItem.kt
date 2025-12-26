@@ -19,6 +19,8 @@ package com.android.tools.metalava.model
 import com.android.tools.metalava.model.api.surface.ApiVariant
 import com.android.tools.metalava.model.api.surface.ApiVariantSet
 import com.android.tools.metalava.model.api.surface.MutableApiVariantSet
+import com.android.tools.metalava.model.doc.DocContent
+import com.android.tools.metalava.model.doc.DocContentOwner
 
 /**
  * An [Item] that can be selected to be a part of an API in its own right.
@@ -112,4 +114,18 @@ interface SelectableItem : Item {
     ): SelectableItem?
 
     override var targetLanguages: Set<TargetLanguage>
+
+    /**
+     * The javadoc/KDoc comment for this code element, if any. This is the original content of the
+     * documentation, including lexical tokens to begin, continue and end the comment (such as /+*).
+     * See [ItemDocumentation.fullyQualifiedDocumentation] to look up the documentation with fully
+     * qualified references to classes.
+     */
+    val documentation: ItemDocumentation
+
+    override val description: DocContent?
+        get() = documentation.mainDescription
+
+    override val descriptionOwner: DocContentOwner
+        get() = documentation.mainDescriptionOwner
 }
