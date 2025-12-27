@@ -33,6 +33,9 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterListOwner
 import com.android.tools.metalava.model.TypeStringConfiguration
+import com.android.tools.metalava.reporter.BaselineKey
+import com.android.tools.metalava.reporter.FileLocation
+import com.android.tools.metalava.reporter.Reportable
 import java.util.Objects
 
 /**
@@ -52,6 +55,10 @@ fun <V, T> SourceSetDependent<V>.transformValues(transform: (V) -> T): SourceSet
  */
 class MultiplatformCodebase(sourceSetToCodebase: SourceSetDependent<Codebase>) :
     MultiplatformElement<Codebase>(sourceSetToCodebase) {
+    fun accept(visitor: MultiplatformItemVisitor) {
+        visitor.visit(this)
+    }
+
     /** A list of all the packages which exist in any source set of the codebase. */
     val packages: List<MultiplatformPackageItem> =
         aggregateChildren(
@@ -193,11 +200,30 @@ sealed class MultiplatformElement<E>(protected val sourceSetToElement: SourceSet
 
 /** Wrapper for common functionality of [MultiplatformElement] with [Item] element types. */
 sealed class MultiplatformItem<I : Item>(sourceSetToItem: SourceSetDependent<I?>) :
-    MultiplatformElement<I>(sourceSetToItem) {
+    MultiplatformElement<I>(sourceSetToItem), Reportable {
     /**
      * A mapping from source set where the [Item] to the modifiers of the [Item] in that source set.
      */
     val modifiers: SourceSetDependent<BaseModifierList> = sourceSetDependentValue { it.modifiers }
+
+    abstract fun accept(visitor: MultiplatformItemVisitor)
+
+    override fun suppressedIssues(): Set<String> {
+        // Aggregate suppressions from all versions of the item.
+        return sourceSetToElement.values.flatMap { it?.suppressedIssues() ?: emptyList() }.toSet()
+    }
+
+    // Pick one known file location.
+    override val fileLocation: FileLocation =
+        sourceSetDependentValue { it.fileLocation }
+            .values
+            .firstOrNull { it != FileLocation.UNKNOWN } ?: FileLocation.UNKNOWN
+
+    /** The element ID for the [baselineKey] of this item. */
+    abstract fun elementId(): String
+
+    override val baselineKey: BaselineKey
+        get() = BaselineKey.forElementId(elementId())
 }
 
 /** A package named [qualifiedName] in a [MultiplatformCodebase]. */
@@ -205,6 +231,10 @@ class MultiplatformPackageItem(
     val qualifiedName: String,
     sourceSetToItem: SourceSetDependent<PackageItem?>,
 ) : MultiplatformItem<PackageItem>(sourceSetToItem) {
+    override fun accept(visitor: MultiplatformItemVisitor) {
+        visitor.visit(this)
+    }
+
     /** All the top-level (not nested) classes defined in this package in any source set. */
     fun topLevelClasses(): List<MultiplatformClassItem> {
         return aggregateChildren(
@@ -256,6 +286,10 @@ class MultiplatformPackageItem(
                 MultiplatformPropertyItem(this, identifier, sourceSetToPropertyItem)
             }
         )
+
+    override fun elementId(): String {
+        return qualifiedName
+    }
 
     override fun toString(): String {
         return "multiplatform package $qualifiedName"
@@ -373,6 +407,14 @@ class MultiplatformClassItem(
             }
         )
 
+    override fun accept(visitor: MultiplatformItemVisitor) {
+        visitor.visit(this)
+    }
+
+    override fun elementId(): String {
+        return qualifiedName
+    }
+
     override fun toString(): String {
         return "multiplatform class $qualifiedName"
     }
@@ -425,11 +467,19 @@ private constructor(
     val receiver: TypeItem?
         get() = identifier.receiver
 
-    override fun toString(): String {
+    override fun accept(visitor: MultiplatformItemVisitor) {
+        visitor.visit(this)
+    }
+
+    override fun elementId(): String {
         val receiverString =
             receiver?.let { it.toTypeString(TypeStringConfiguration.DEFAULT_KOTLIN_NULLS) + "." }
                 ?: ""
-        return "multiplatform property $containingItemQualifiedName#$receiverString$name"
+        return "$containingItemQualifiedName#$receiverString$name"
+    }
+
+    override fun toString(): String {
+        return "multiplatform property ${elementId()}"
     }
 
     override fun equals(other: Any?): Boolean {
@@ -594,9 +644,16 @@ private constructor(
     val name: String
         get() = identifier.name
 
+    override fun accept(visitor: MultiplatformItemVisitor) {
+        visitor.visit(this)
+    }
+
+    override fun elementId(): String {
+        return "$containingItemQualifiedName#${identifier.name}${identifier.parameterDescription()}"
+    }
+
     override fun toString(): String {
-        return "multiplatform method $containingItemQualifiedName#${identifier.name}" +
-            identifier.parameterDescription()
+        return "multiplatform method ${elementId()}"
     }
 }
 
@@ -608,9 +665,16 @@ class MultiplatformConstructorItem(
     identifier: Identifier,
     sourceSetToItem: SourceSetDependent<ConstructorItem?>
 ) : MultiplatformCallableItem<ConstructorItem>(containingItem, identifier, sourceSetToItem) {
+    override fun accept(visitor: MultiplatformItemVisitor) {
+        visitor.visit(this)
+    }
+
+    override fun elementId(): String {
+        return "$containingItemQualifiedName${identifier.parameterDescription()}"
+    }
+
     override fun toString(): String {
-        return "multiplatform constructor $containingItemQualifiedName" +
-            identifier.parameterDescription()
+        return "multiplatform constructor ${elementId()}"
     }
 }
 
@@ -638,6 +702,14 @@ class MultiplatformParameterItem(
      */
     val hasDefaultValue: SourceSetDependent<Boolean> = sourceSetDependentValue {
         it.hasDefaultValue()
+    }
+
+    override fun accept(visitor: MultiplatformItemVisitor) {
+        visitor.visit(this)
+    }
+
+    override fun elementId(): String {
+        return "${containingCallable.elementId()} parameter #$parameterIndex"
     }
 
     override fun toString(): String {

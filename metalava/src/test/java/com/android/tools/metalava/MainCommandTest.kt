@@ -21,6 +21,7 @@ import com.android.tools.metalava.cli.common.BaseCommandTest
 import com.android.tools.metalava.cli.common.COMMON_BASELINE_OPTIONS_HELP
 import com.android.tools.metalava.cli.common.CommonOptions
 import com.android.tools.metalava.cli.common.ISSUE_REPORTING_OPTIONS_HELP
+import com.android.tools.metalava.cli.common.MULTIPLATFORM_OPTIONS_HELP
 import com.android.tools.metalava.cli.common.SOURCE_OPTIONS_HELP
 import com.android.tools.metalava.cli.compatibility.COMPATIBILITY_CHECK_OPTIONS_HELP
 import com.android.tools.metalava.cli.lint.API_LINT_OPTIONS_HELP
@@ -61,6 +62,8 @@ $CONFIG_FILE_OPTIONS_HELP
 $API_SELECTION_OPTIONS_HELP
 
 $API_LINT_OPTIONS_HELP
+
+$MULTIPLATFORM_OPTIONS_HELP
 
 $COMPATIBILITY_CHECK_OPTIONS_HELP
 

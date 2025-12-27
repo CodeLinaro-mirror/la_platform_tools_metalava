@@ -173,6 +173,6 @@ class ParameterizedDocReferenceValidationTest {
 
     @Test
     fun `Test validation`() {
-        assertEquals(params.valid, LinkTagType.validateReference(params.reference))
+        assertEquals(params.valid, LabeledRefTagType.validateReference(params.reference))
     }
 }

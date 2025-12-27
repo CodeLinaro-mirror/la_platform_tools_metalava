@@ -64,7 +64,7 @@ class JavadocParserTest : BaseJavadocTest() {
             """,
             expectedStructure =
                 """
-                    inlineTag: link LinkTagData(sourceReference=Class, resolvedReference=null)
+                    inlineTag: link LabeledRefTagData(sourceReference=Class, resolvedReference=ClassReference(qualifiedName=resolved.Class))
                 """,
         )
     }
@@ -80,7 +80,7 @@ class JavadocParserTest : BaseJavadocTest() {
             expectedStructure =
                 """
                     text: 'Text before link '
-                    inlineTag: link LinkTagData(sourceReference=Class, resolvedReference=null)
+                    inlineTag: link LabeledRefTagData(sourceReference=Class, resolvedReference=ClassReference(qualifiedName=resolved.Class))
                     text: ' and some text after.'
                 """,
         )
@@ -99,7 +99,7 @@ class JavadocParserTest : BaseJavadocTest() {
             expectedStructure =
                 """
                     text: 'Text before link\n '
-                    inlineTag: link LinkTagData(sourceReference=Class, resolvedReference=null)
+                    inlineTag: link LabeledRefTagData(sourceReference=Class, resolvedReference=ClassReference(qualifiedName=resolved.Class))
                     text: '\n and some text after.'
                 """,
         )
@@ -188,7 +188,7 @@ class JavadocParserTest : BaseJavadocTest() {
             """,
             expectedStructure =
                 """
-                    inlineTag: link LinkTagData(sourceReference=String, resolvedReference=null)
+                    inlineTag: link LabeledRefTagData(sourceReference=String, resolvedReference=ClassReference(qualifiedName=resolved.String))
                       text: 'cannot contain inline {@bar\n tag}'
                     text: '.'
                 """,
@@ -207,7 +207,7 @@ class JavadocParserTest : BaseJavadocTest() {
             """,
             expectedStructure =
                 """
-                    inlineTag: linkplain LinkTagData(sourceReference=String, resolvedReference=null)
+                    inlineTag: linkplain LabeledRefTagData(sourceReference=String, resolvedReference=ClassReference(qualifiedName=resolved.String))
                       text: 'cannot contain inline {@bar tag}'
                     text: '.'
                 """,

@@ -20,8 +20,8 @@ import com.android.tools.metalava.model.source.javadoc.JavadocContent
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.LocationSpecificReporter
 
-/** [TagType] for `@link` and `@linkplain` inline tags. */
-internal class LinkTagType(name: String) : TagType<LinkTagData>(name) {
+/** [TagType] for labeled reference tags, e.g. `@link` and `@linkplain` inline tags. */
+internal class LabeledRefTagType(name: String) : TagType<LabeledRefTagData>(name) {
     /** Link tags can only contain */
     override val containsTextOnly: Boolean
         get() = true
@@ -31,7 +31,7 @@ internal class LinkTagType(name: String) : TagType<LinkTagData>(name) {
         context: DocCommentContext,
         reporter: LocationSpecificReporter,
         text: CharSequence
-    ): ExtractDataResult<LinkTagData>? {
+    ): ExtractDataResult<LabeledRefTagData>? {
         val referenceStart = text.skipForwardsOverLeadingWhitespace(0)
         val referenceEndExclusive = text.findEndOfReference(referenceStart)
         if (referenceEndExclusive == 0) return null
@@ -57,7 +57,7 @@ internal class LinkTagType(name: String) : TagType<LinkTagData>(name) {
             }
 
         return ExtractDataResult(
-            LinkTagData(sourceReference, resolvedReference),
+            LabeledRefTagData(sourceReference, resolvedReference),
             // The source reference and any following whitespace must be removed from the content as
             // they are part of [LinkTagData].
             consumedContent = text.skipForwardsOverLeadingWhitespace(referenceEndExclusive)
@@ -156,8 +156,8 @@ internal fun CharSequence.findEndOfReference(startInclusive: Int): Int {
     return length
 }
 
-/** Encapsulates information about the `@link` and `@linkplain` tags. */
-internal data class LinkTagData(
+/** Encapsulates information about a labeled reference tag, e.g. `@link` and `@linkplain` tags. */
+internal data class LabeledRefTagData(
     /** The reference from the source; used as the label if necessary. */
     val sourceReference: String,
     /** The resolved reference, subclasses identify the specific part of the API it references. */

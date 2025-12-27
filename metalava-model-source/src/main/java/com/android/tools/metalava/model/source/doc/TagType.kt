@@ -216,8 +216,8 @@ internal object InlineTagTypes : BaseTagTypes() {
     val INHERIT_DOC = tagTypeOf("inheritDoc")
 
     init {
-        register(LinkTagType("link"))
-        register(LinkTagType("linkplain"))
+        register(LabeledRefTagType("link"))
+        register(LabeledRefTagType("linkplain"))
 
         register(TextOnlyInlineTagType("code"))
         register(TextOnlyInlineTagType("literal"))

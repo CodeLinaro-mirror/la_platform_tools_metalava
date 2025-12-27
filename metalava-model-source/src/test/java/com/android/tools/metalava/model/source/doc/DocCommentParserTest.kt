@@ -20,7 +20,7 @@ import com.android.tools.metalava.model.source.javadoc.BarTagData
 import com.android.tools.metalava.model.source.javadoc.JavadocText
 import com.android.tools.metalava.model.source.javadoc.TestTagTypes
 import com.android.tools.metalava.model.source.javadoc.TextContainsAnyVisitor
-import com.android.tools.metalava.model.source.javadoc.assertStructure
+import com.android.tools.metalava.model.source.javadoc.dumpContentStructure
 import junit.framework.TestCase.assertFalse
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -33,12 +33,14 @@ class DocCommentParserTest : BaseDocCommentTest() {
     /** Create a [DocComment] from [input], compare it against the [expectedString] */
     private fun checkDocComment(
         input: String,
+        referenceResolver: ((String) -> ResolvedReference?)? = null,
         expectedString: String? = null,
         expectedPrintOutput: String? = null,
         expectedIssues: String = "",
         checker: DocCommentContext.() -> Unit = {},
     ) {
-        var docComment = createTestDocComment(input, expectedIssues)
+        if (referenceResolver != null) context.referenceResolver = referenceResolver
+        val docComment = createTestDocComment(input, expectedIssues)
         if (expectedString != null) {
             assertEquals(expectedString.trimIndent(), docComment.toString())
         }
@@ -48,6 +50,28 @@ class DocCommentParserTest : BaseDocCommentTest() {
         }
 
         DocCommentContext(docComment).checker()
+    }
+
+    /** Dump the internal structure of this [DocComment]. */
+    private fun DocComment.dumpStructure(): String = buildString {
+        description?.let { append(it.dumpContentStructure()) }
+        for (section in blockTagSections) {
+            append("blockTag: ")
+            append(section.tagType)
+            section.tagData?.let { tagData ->
+                append(" ")
+                append(tagData)
+            }
+            append("\n")
+            section.description?.let { append(it.dumpContentStructure().prependIndent("  ")) }
+        }
+    }
+
+    /** Check the model structure of this [DocComment]. */
+    internal fun DocComment.assertStructure(expected: String, message: String? = null) {
+        // Generate a string representation of the model structure.
+        val actualStructure = dumpStructure()
+        assertEquals(expected.trimIndent(), actualStructure.trimEnd(), message)
     }
 
     @Test
@@ -135,7 +159,17 @@ class DocCommentParserTest : BaseDocCommentTest() {
                      * @see other thing
                      */
                 """,
-        )
+        ) {
+            docComment.assertStructure(
+                """
+                    text: 'Some text'
+                    blockTag: see
+                      text: 'something'
+                      blockTag: see
+                      text: 'other thing'
+                """
+            )
+        }
     }
 
     @Test
@@ -236,6 +270,31 @@ class DocCommentParserTest : BaseDocCommentTest() {
                      */
                 """,
         )
+    }
+
+    @Test
+    fun `Test @throws block tag`() {
+        checkDocComment(
+            input =
+                """
+                    /**
+                     * @throws SomeException reason
+                     */
+                """,
+            expectedString =
+                """
+                    description: <<>>
+                    @throws <<SomeException reason>>
+                """,
+            expectedPrintOutput = "/** @throws SomeException reason */",
+        ) {
+            docComment.assertStructure(
+                """
+                    blockTag: throws ThrowsTagData(throwableType=ClassReference(qualifiedName=SomeException))
+                      text: 'reason'
+                """
+            )
+        }
     }
 
     @Test
@@ -708,7 +767,7 @@ class DocCommentParserTest : BaseDocCommentTest() {
                     /** some {@code text} to append */
                 """,
             )
-            docComment.description.assertStructure(
+            docComment.assertStructure(
                 """
                     text: 'some '
                     inlineTag: code
@@ -746,7 +805,7 @@ class DocCommentParserTest : BaseDocCommentTest() {
                      */
                 """,
             )
-            docComment.description.assertStructure(
+            docComment.assertStructure(
                 """
                     text: 'existing'
                     text: '.'
@@ -804,6 +863,112 @@ class DocCommentParserTest : BaseDocCommentTest() {
                 """,
         ) {
             assertFalse(docComment.check(wallyPredicate))
+        }
+    }
+
+    @Test
+    fun `Test @see HTML a tag`() {
+        checkDocComment(
+            input =
+                """
+                    /**
+                     * @see <a href="link.html">Label</a>
+                     */
+                """,
+            referenceResolver = { error("should never be called") },
+            expectedString =
+                """
+                    description: <<>>
+                    @see <<<a href="link.html">Label</a>>>
+                """,
+            expectedPrintOutput = """/** @see <a href="link.html">Label</a> */"""
+        ) {
+            docComment.assertStructure(
+                """
+                    blockTag: see
+                      text: '<a href="link.html">Label</a>'
+                """
+            )
+        }
+    }
+
+    @Test
+    fun `Test @see literal string`() {
+        checkDocComment(
+            input =
+                """
+                    /**
+                     * @see "literal string"
+                     */
+                """,
+            referenceResolver = { error("should never be called") },
+            expectedString =
+                """
+                    description: <<>>
+                    @see <<"literal string">>
+                """,
+            expectedPrintOutput = """/** @see "literal string" */""",
+        ) {
+            docComment.assertStructure(
+                """
+                    blockTag: see
+                      text: '"literal string"'
+                """
+            )
+        }
+    }
+
+    @Test
+    fun `Test @see reference without label`() {
+        checkDocComment(
+            input =
+                """
+                    /**
+                     * @see Reference
+                     */
+                """,
+            // TODO(b/447588621): Resolve references in @see tag so this will have an effect.
+            referenceResolver = { ClassReference("resolved.$it") },
+            expectedString =
+                """
+                    description: <<>>
+                    @see <<Reference>>
+                """,
+            expectedPrintOutput = """/** @see Reference */""",
+        ) {
+            docComment.assertStructure(
+                """
+                    blockTag: see
+                      text: 'Reference'
+                """
+            )
+        }
+    }
+
+    @Test
+    fun `Test @see reference with label`() {
+        checkDocComment(
+            input =
+                """
+                    /**
+                     * @see Reference Label
+                     */
+                """,
+            // TODO(b/447588621): Resolve references in @see tag so this will have an effect.
+            referenceResolver = { ClassReference("resolved.$it") },
+            expectedString =
+                """
+                    description: <<>>
+                    @see <<Reference Label>>
+                """,
+            expectedPrintOutput = """/** @see Reference Label */""",
+        ) {
+            docComment.assertStructure(
+                """
+                    blockTag: see
+                      text: 'Reference Label'
+                """
+            )
         }
     }
 }

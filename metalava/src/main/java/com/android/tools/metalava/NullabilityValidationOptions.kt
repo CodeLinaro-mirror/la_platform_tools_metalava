@@ -19,9 +19,13 @@ package com.android.tools.metalava
 import com.android.tools.metalava.cli.common.ARG_MERGE_QUALIFIER_ANNOTATIONS
 import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.newFile
+import com.android.tools.metalava.model.visitors.ApiPredicate
+import com.android.tools.metalava.reporter.Reporter
+import com.android.tools.metalava.reporter.ThrowingReporter
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
+import java.util.Optional
 
 const val ARG_VALIDATE_NULLABILITY_FROM_MERGED_STUBS = "--validate-nullability-from-merged-stubs"
 const val ARG_VALIDATE_NULLABILITY_FROM_LIST = "--validate-nullability-from-list"
@@ -31,7 +35,10 @@ const val ARG_NULLABILITY_ERRORS_NON_FATAL = "--nullability-errors-non-fatal"
 /** The name of the group, can be used in help text to refer to the options in this group. */
 const val NULLABILITY_VALIDATION_OPTIONS_GROUP = "Nullability Validation"
 
-class NullabilityValidationOptions() :
+class NullabilityValidationOptions(
+    private val reporterSupplier: () -> Reporter = { ThrowingReporter.INSTANCE },
+    private val apiPredicateConfigSupplier: () -> ApiPredicate.Config = { ApiPredicate.Config() },
+) :
     OptionGroup(
         NULLABILITY_VALIDATION_OPTIONS_GROUP,
         help = "Options control nullability validation."
@@ -51,14 +58,14 @@ class NullabilityValidationOptions() :
             )
             .flag()
 
-    internal val nullabilityErrorsFatal
+    private val nullabilityErrorsFatal
         get() = !nullabilityErrorsNonFatal
 
     /**
      * A file to write non-fatal nullability validation issues to. If null, all issues are treated
      * as fatal or else logged as warnings, depending on the value of [nullabilityErrorsFatal].
      */
-    internal val nullabilityWarningsTxt by
+    private val nullabilityWarningsTxt by
         option(
                 ARG_NULLABILITY_WARNINGS_TXT,
                 metavar = "<file>",
@@ -75,7 +82,7 @@ class NullabilityValidationOptions() :
      * Whether to validate nullability for all the classes where we are merging annotations from
      * external java stub files.
      */
-    val validateNullabilityFromMergedStubs by
+    private val validateNullabilityFromMergedStubs by
         option(
                 ARG_VALIDATE_NULLABILITY_FROM_MERGED_STUBS,
                 help =
@@ -88,7 +95,7 @@ class NullabilityValidationOptions() :
             .flag()
 
     /** A file containing a list of classes whose nullability annotations should be validated. */
-    internal val validateNullabilityFromList by
+    private val validateNullabilityFromList by
         option(
                 ARG_VALIDATE_NULLABILITY_FROM_LIST,
                 help =
@@ -99,4 +106,37 @@ class NullabilityValidationOptions() :
                         .trimIndent(),
             )
             .existingFile()
+
+    /**
+     * Underlying [NullabilityAnnotationsValidator].
+     *
+     * This uses [Optional] to wrap the value as [lazy] cannot handle nullable values as it uses
+     * `null` as a special value.
+     *
+     * Creates [NullabilityAnnotationsValidator] lazily as it depends on a number of different
+     * options which may be supplied in different orders.
+     */
+    private val optionalNullabilityAnnotationsValidator by lazy {
+        Optional.ofNullable(
+            if (validateNullabilityFromMergedStubs || validateNullabilityFromList != null) {
+                val reporter = reporterSupplier()
+                var apiPredicateConfig = apiPredicateConfigSupplier()
+                NullabilityAnnotationsValidator(
+                    reporter,
+                    nullabilityErrorsFatal,
+                    nullabilityWarningsTxt,
+                    apiPredicateConfig,
+                    validateNullabilityFromList,
+                )
+            } else null
+        )
+    }
+
+    /** Validator for nullability annotations in sources, if validation is enabled. */
+    val validatorForSources: NullabilityAnnotationsValidator?
+        get() = optionalNullabilityAnnotationsValidator.orElse(null)
+
+    /** Validator for nullability annotations for merging, if validation is enabled. */
+    val validatorForMerging
+        get() = if (validateNullabilityFromMergedStubs) validatorForSources else null
 }

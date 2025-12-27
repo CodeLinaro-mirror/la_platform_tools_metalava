@@ -36,7 +36,6 @@ import com.android.tools.metalava.cli.common.SignatureFileLoader
 import com.android.tools.metalava.cli.common.cliError
 import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.fileForPathInner
-import com.android.tools.metalava.cli.common.map
 import com.android.tools.metalava.cli.common.newFile
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.CodebaseFragment
@@ -60,7 +59,6 @@ const val ARG_REMOVE_MISSING_CLASS_REFERENCES_IN_API_LEVELS =
 const val ARG_API_VERSION_FOR_SOURCES = "--api-version-for-sources"
 
 const val ARG_API_VERSION_RANGE = "--api-version-range"
-const val ARG_API_VERSION_LABEL = "--api-version-label"
 
 const val ARG_API_VERSION_FOR_SDK_EXTENSION = "--api-version-for-sdk-extension"
 const val ARG_SDK_EXTENSION_VERSION_RANGE = "--sdk-extension-version-range"
@@ -200,40 +198,6 @@ class ApiLevelsGenerationOptions(
             )
             .apiVersionRange()
 
-    /** Convert an option value to a [Pair] of [ApiVersion] and [String]. */
-    private fun OptionWithValues<String?, String, String>.apiVersionToLabel() = convert { text ->
-        // Split the value at the first `:` only.
-        val parts = text.split(':', limit = 2)
-        if (parts.size != 2) {
-            error("Must be of the form <version>:<label> but found '$text'")
-        }
-        val (version, label) = parts
-        ApiVersion.fromString(version) to label
-    }
-
-    /** A map from [ApiVersion] to a [String] label. */
-    private val apiVersionToLabel by
-        option(
-                ARG_API_VERSION_LABEL,
-                metavar = "<api-version>:<label>",
-                help =
-                    """
-                        Specifies a label to use in place of the `<api-version>` when augmenting the
-                        Javadoc to include information about the history of an API item, e.g. in
-                        `@apiSince` and `@deprecatedSince` doc tags. This can be specified multiple
-                        times to provide labels for multiple different versions.
-
-                        See $ARG_API_VERSION_FOR_SOURCES for acceptable `<api-version>`s.
-
-                        This only has an effect when generating doc stubs, or enhancing the javadoc
-                        of normal stubs. It has no effect on the generation of the API history.
-                    """
-                        .trimIndent(),
-            )
-            .apiVersionToLabel()
-            .multiple(default = emptyList())
-            .map { it.toMap() }
-
     /** The list of patterns used to find matching jars in the set of files visible to Metalava. */
     private val androidJarPatterns: List<String> by
         option(
@@ -325,28 +289,6 @@ class ApiLevelsGenerationOptions(
                         .trimIndent(),
             )
             .apiVersion()
-
-    /**
-     * Get label for [version].
-     *
-     * Checks the [apiVersionToLabel] map first and if a label was found for [version] then returns
-     * it. Otherwise, use [version]'s [ApiVersion.toString] value.
-     */
-    fun getApiVersionLabel(version: ApiVersion): String =
-        apiVersionToLabel[version] ?: version.toString()
-
-    /**
-     * Check whether [version] should be included in documentation.
-     *
-     * If no [apiVersionForSources] has been provided then allow any [ApiVersion] level as there is
-     * no way to determine whether the [ApiVersion] is a future API or not.
-     *
-     * Otherwise, it is a release build so ignore any [ApiVersion]s after the current one.
-     */
-    fun includeApiVersionInDocumentation(version: ApiVersion): Boolean {
-        val current = apiVersionForSources ?: return true
-        return version <= current
-    }
 
     /**
      * Find all historical files that matches the patterns in [patterns] and are in the range from

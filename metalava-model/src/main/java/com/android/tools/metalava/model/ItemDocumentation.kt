@@ -150,17 +150,6 @@ interface ItemDocumentation {
      */
     fun requiresSourceComment(): Boolean
 
-    /**
-     * Returns the [text], but with fully qualified links (except for the same package, and when
-     * turning a relative reference into a fully qualified reference, use the javadoc syntax for
-     * continuing to display the relative text, e.g. instead of {@link java.util.List}, use {@link
-     * java.util.List List}.
-     */
-    fun fullyQualifiedDocumentation(): String = fullyQualifiedDocumentation(text)
-
-    /** Expands the given documentation comment in the current name context */
-    fun fullyQualifiedDocumentation(documentation: String): String = documentation
-
     /** Remove the `@deprecated` section, if any. */
     fun removeDeprecatedSection()
 

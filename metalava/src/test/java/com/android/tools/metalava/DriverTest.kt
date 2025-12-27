@@ -53,6 +53,7 @@ import com.android.tools.metalava.cli.lint.ARG_API_LINT_PREVIOUS_API
 import com.android.tools.metalava.cli.lint.ARG_BASELINE_API_LINT
 import com.android.tools.metalava.cli.lint.ARG_ERROR_MESSAGE_API_LINT
 import com.android.tools.metalava.cli.lint.ARG_UPDATE_BASELINE_API_LINT
+import com.android.tools.metalava.cli.multiplatform.ARG_MULTIPLATFORM_ENABLED
 import com.android.tools.metalava.cli.signature.ARG_FORMAT
 import com.android.tools.metalava.model.ANDROIDX_ANNOTATION_PACKAGE
 import com.android.tools.metalava.model.ANDROID_ANNOTATION_PACKAGE
@@ -543,6 +544,8 @@ abstract class DriverTest :
         compiledSourceJar: TestFile? = null,
         /** [ARG_REPEAT_ERRORS_MAX] */
         repeatErrorsMax: Int = 0,
+        /** Whether to create a multiplatform codebase. Only supported with K2 psi. */
+        enableMultiplatform: Boolean = false,
         /**
          * Called on a [CheckerContext] after the analysis phase in the metalava main command.
          *
@@ -1014,6 +1017,18 @@ abstract class DriverTest :
                 emptyArray()
             }
 
+        val multiplatformOptions =
+            if (enableMultiplatform) {
+                if (Capability.MULTIPLATFORM !in codebaseCreatorConfig.creator.capabilities) {
+                    error(
+                        "Provider ${codebaseCreatorConfig.providerName} does not support KMP; please add `@RequiresCapabilities(Capability.MULTIPLATFORM)` to the test"
+                    )
+                }
+                arrayOf(ARG_MULTIPLATFORM_ENABLED)
+            } else {
+                emptyArray()
+            }
+
         // Run optional additional setup steps on the project directory
         projectSetup?.invoke(project)
 
@@ -1062,6 +1077,7 @@ abstract class DriverTest :
                 *errorMessageApiLintArgs,
                 *errorMessageCheckCompatibilityReleasedArgs,
                 *repeatErrorsMaxArgs,
+                *multiplatformOptions,
                 // Must always be last as this can consume a following argument, breaking the test.
                 *apiLintArgs,
             ) +

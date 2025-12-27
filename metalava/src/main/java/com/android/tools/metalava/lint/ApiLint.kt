@@ -373,7 +373,12 @@ private constructor(
         checkGoogle(cls, methods, fields)
         checkManager(cls, methods, constructors)
         checkStaticUtils(cls, methods, constructors, fields)
-        checkCallbackHandlers(cls, callables, superClass)
+        // suspend funs are assumed to follow the rules of structured concurrency by default:
+        // any callbacks supplied to a suspend fun will not be called (nor references to them held)
+        // after the call returns. The calling CoroutineContext generally contains a
+        // ContinuationInterceptor/CoroutineDispatcher which provides a default analog to an
+        // Executor; the ExecutorRegistration lint check is not necessary for suspend funs.
+        checkCallbackHandlers(cls, callables.filterNot { it.modifiers.isSuspend() }, superClass)
         checkGenericCallbacks(cls, methods, constructors, fields)
         checkResourceNames(cls, fields)
         checkFiles(callables)

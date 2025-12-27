@@ -36,6 +36,7 @@ import com.android.tools.metalava.cli.help.HelpCommand
 import com.android.tools.metalava.cli.historical.AndroidJarsToSignaturesCommand
 import com.android.tools.metalava.cli.internal.MakeAnnotationsPackagePrivateCommand
 import com.android.tools.metalava.cli.lint.ApiLintOptions
+import com.android.tools.metalava.cli.multiplatform.MultiplatformOptions
 import com.android.tools.metalava.cli.signature.MergeSignaturesCommand
 import com.android.tools.metalava.cli.signature.SignatureCatCommand
 import com.android.tools.metalava.cli.signature.SignatureFormatOptions
@@ -53,6 +54,7 @@ import com.android.tools.metalava.model.CodebaseFragment
 import com.android.tools.metalava.model.DelegatedVisitor
 import com.android.tools.metalava.model.ItemVisitor
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
+import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
 import com.android.tools.metalava.model.psi.PsiModelOptions
 import com.android.tools.metalava.model.snapshot.NonFilteringDelegatingVisitor
 import com.android.tools.metalava.model.source.EnvironmentManager
@@ -77,7 +79,6 @@ import java.io.IOException
 import java.io.PrintWriter
 import java.io.StringWriter
 import java.util.Arrays
-import java.util.Optional
 import java.util.concurrent.TimeUnit.SECONDS
 import kotlin.system.exitProcess
 
@@ -96,6 +97,7 @@ class Driver(
     internal val compatibilityCheckOptions: CompatibilityCheckOptions,
     internal val configFileOptions: ConfigFileOptions,
     private val issueReportingOptions: IssueReportingOptions,
+    private val multiplatformOptions: MultiplatformOptions,
     private val nullabilityValidationOptions: NullabilityValidationOptions,
     private val signatureFileOptions: SignatureFileOptions,
     private val signatureFormatOptions: SignatureFormatOptions,
@@ -255,36 +257,6 @@ class Driver(
         }
     }
 
-    /**
-     * Backing property for [nullabilityAnnotationsValidator]
-     *
-     * This uses [Optional] to wrap the value as [lazy] cannot handle nullable values as it uses
-     * `null` as a special value.
-     *
-     * Creates [NullabilityAnnotationsValidator] lazily as it depends on a number of different
-     * options which may be supplied in different orders.
-     */
-    private val optionalNullabilityAnnotationsValidator by lazy {
-        Optional.ofNullable(
-            if (
-                nullabilityValidationOptions.validateNullabilityFromMergedStubs ||
-                    nullabilityValidationOptions.validateNullabilityFromList != null
-            ) {
-                NullabilityAnnotationsValidator(
-                    reporter,
-                    nullabilityValidationOptions.nullabilityErrorsFatal,
-                    nullabilityValidationOptions.nullabilityWarningsTxt,
-                    apiPredicateConfig,
-                    nullabilityValidationOptions.validateNullabilityFromList,
-                )
-            } else null
-        )
-    }
-
-    /** Validator for nullability annotations, if validation is enabled. */
-    private val nullabilityAnnotationsValidator: NullabilityAnnotationsValidator?
-        get() = optionalNullabilityAnnotationsValidator.orElse(null)
-
     /** The configuration options for the [ApiAnalyzer] class. */
     private val apiAnalyzerConfig by lazy {
         val skipEmitPackages = executionEnvironment.testEnvironment?.skipEmitPackages ?: emptyList()
@@ -303,9 +275,7 @@ class Driver(
                     classpath = sourceOptions.classpath,
                     apiPackageFilter = sourceOptions.apiPackageFilter,
                     nullabilityAnnotationsValidator =
-                        if (nullabilityValidationOptions.validateNullabilityFromMergedStubs)
-                            nullabilityAnnotationsValidator
-                        else null,
+                        nullabilityValidationOptions.validatorForMerging,
                 ),
         )
     }
@@ -322,10 +292,13 @@ class Driver(
 
         val codebase = createCodebaseFromOptions() ?: return
 
+        // Create a multiplatform codebase if requested.
+        val multiplatformCodebase = createOptionalMultiplatformCodebase()
+
         // If provided by a test, run some additional checks on the internal state of this.
         executionEnvironment.testEnvironment?.let { testEnvironment ->
             testEnvironment.postAnalysisChecker?.let { function ->
-                val context = CheckerContext(this, codebase)
+                val context = CheckerContext(this, codebase, multiplatformCodebase)
                 context.function()
             }
         }
@@ -386,19 +359,7 @@ class Driver(
 
         // Generate the stubs. This must be done as the last operation in this method as it can
         // modify the [codebase].
-        val generatorConfig =
-            stubGenerationOptions
-                .generatorConfig()
-                // Copy some additional config from the [apiLevelsGenerationOptions]. This is
-                // necessary as the config cannot be initialized in `generatorConfig()` as they are
-                // tightly coupled with legacy options in [apiLevelsGenerationOptions]. Once that
-                // has been cleaned up then they should be able to be moved.
-                // TODO(b/464226866): Move the initialization of these into generatorConfig().
-                .copy(
-                    apiVersionLabelProvider = apiLevelsGenerationOptions::getApiVersionLabel,
-                    includeApiLevelInDocumentation =
-                        apiLevelsGenerationOptions::includeApiVersionInDocumentation,
-                )
+        val generatorConfig = stubGenerationOptions.generatorConfig()
         StubGenerator(
                 generatorConfig,
                 codebase,
@@ -547,6 +508,13 @@ class Driver(
         }
 
         return null
+    }
+
+    private fun createOptionalMultiplatformCodebase(): MultiplatformCodebase? {
+        if (!multiplatformOptions.enabled) return null
+        return sourceOptions.projectDescription?.let { projectDescription ->
+            sourceParser.createMultiplatformCodebase(projectDescription)
+        } ?: error("Project description is required to create multiplatform codebase from sources.")
     }
 
     /** write api history to files specified by option flags (e.g. api-versions.xml) */
@@ -732,7 +700,7 @@ class Driver(
 
         analyzer.mergeExternalQualifierAnnotations()
 
-        nullabilityAnnotationsValidator?.let { validator ->
+        nullabilityValidationOptions.validatorForSources?.let { validator ->
             // Validate any explicitly specified classes.
             validator.validateExplicitlySpecifiedClasses(codebase)
 

@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.apilevels.ApiVersion
 import com.android.tools.metalava.cli.common.BaseOptionGroupTest
 import com.android.tools.metalava.cli.common.MetalavaCliException
 import kotlin.test.assertEquals
@@ -67,6 +68,15 @@ Stub Generation:
                                              See `metalava help package-filters` for more information.
   --apply-api-levels <api-versions.xml>      Reads an XML file containing API level descriptions and merges the
                                              information into the documentation.
+  --api-version-label <api-version>:<label>  Specifies a label to use in place of the `<api-version>` when augmenting
+                                             the Javadoc to include information about the history of an API item, e.g.
+                                             in `@apiSince` and `@deprecatedSince` doc tags. This can be specified
+                                             multiple times to provide labels for multiple different versions.
+
+                                             See --api-version-for-sources for acceptable `<api-version>`s.
+
+                                             This only has an effect when generating doc stubs, or enhancing the javadoc
+                                             of normal stubs. It has no effect on the generation of the API history.
     """
         .trimIndent()
 
@@ -104,6 +114,34 @@ class StubGenerationOptionsTest :
                 "--apply-api-levels file 'TESTROOT/non-existent/api-versions.xml' does not exist or is not readable",
                 cleanupString(exception.message!!)
             )
+        }
+    }
+
+    @Test
+    fun `Test invalid --api-version-label`() {
+        runTest(
+            ARG_API_VERSION_LABEL,
+            "9",
+        ) {
+            assertEquals("", stdout)
+            assertEquals(
+                """Invalid value for "--api-version-label": Must be of the form <version>:<label> but found '9'""",
+                stderr
+            )
+        }
+    }
+
+    @Test
+    fun `Test --api-version-label`() {
+        runTest(
+            ARG_API_VERSION_LABEL,
+            "1:First",
+            ARG_API_VERSION_LABEL,
+            "2.2:Other",
+        ) {
+            assertEquals("First", options.getApiVersionLabel(ApiVersion.fromLevel(1)))
+            assertEquals("Other", options.getApiVersionLabel(ApiVersion.fromMajorMinor(2, 2)))
+            assertEquals("3.1", options.getApiVersionLabel(ApiVersion.fromMajorMinor(3, 1)))
         }
     }
 }
