@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.testsuite.multiplatform
 import com.android.tools.metalava.model.testing.FilterAction.EXCLUDE
 import com.android.tools.metalava.model.testing.FilterByProvider
 import com.android.tools.metalava.model.testsuite.BaseModelTest
+import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.testing.createAndroidModuleDescription
 import com.android.tools.metalava.testing.createCommonModuleDescription
 import com.android.tools.metalava.testing.createNativeModuleDescription
@@ -351,6 +352,163 @@ class CommonMultiplatformCodebaseTest : BaseModelTest() {
 
             val javaClass = multiplatformCodebase.assertClass("test.pkg.JavaClass")
             javaClass.assertSourceSets("androidMain")
+        }
+    }
+
+    @Test
+    fun `Test baseline keys`() {
+        val commonSource =
+            kotlin(
+                "commonMain/src/test/pkg/Foo.kt",
+                """
+                package test.pkg
+                class Foo {
+                    fun foo(s: String?) = Unit
+                    val foo = 0
+                    val String?.foo
+                        get() = 0
+                }
+                fun foo(s: String) = Unit
+                val foo = 0
+                val String.foo
+                    get() = 0
+                """
+            )
+        runMultiplatformCodebaseTest(
+            inputSet(commonSource),
+            projectDescription =
+                createProjectDescription(
+                    createCommonModuleDescription(arrayOf(commonSource)),
+                )
+        ) {
+            val fooPackage = multiplatformCodebase.assertPackage("test.pkg")
+            assertThat(fooPackage.baselineKey.elementId()).isEqualTo("test.pkg")
+            val fooClass = multiplatformCodebase.assertClass("test.pkg.Foo")
+            assertThat(fooClass.baselineKey.elementId()).isEqualTo("test.pkg.Foo")
+            val fooMethod = fooClass.assertMethod("foo", listOf("java.lang.String?"))
+            assertThat(fooMethod.baselineKey.elementId())
+                .isEqualTo("test.pkg.Foo#foo(java.lang.String?)")
+            val fooMethodParameter = fooMethod.parameters.single()
+            assertThat(fooMethodParameter.baselineKey.elementId())
+                .isEqualTo("test.pkg.Foo#foo(java.lang.String?) parameter #0")
+            val fooProperty = fooClass.assertProperty("foo")
+            assertThat(fooProperty.baselineKey.elementId()).isEqualTo("test.pkg.Foo#foo")
+            val fooExtensionProperty = fooClass.assertProperty("foo", "java.lang.String?")
+            assertThat(fooExtensionProperty.baselineKey.elementId())
+                .isEqualTo("test.pkg.Foo#java.lang.String?.foo")
+            val fooTopLevelMethod = fooPackage.assertMethod("foo", listOf("java.lang.String"))
+            assertThat(fooTopLevelMethod.baselineKey.elementId())
+                .isEqualTo("test.pkg#foo(java.lang.String)")
+            val fooTopLevelMethodParameter = fooTopLevelMethod.parameters.single()
+            assertThat(fooTopLevelMethodParameter.baselineKey.elementId())
+                .isEqualTo("test.pkg#foo(java.lang.String) parameter #0")
+            val fooTopLevelProperty = fooPackage.assertProperty("foo")
+            assertThat(fooTopLevelProperty.baselineKey.elementId()).isEqualTo("test.pkg#foo")
+            val fooTopLevelExtensionProperty = fooPackage.assertProperty("foo", "java.lang.String")
+            assertThat(fooTopLevelExtensionProperty.baselineKey.elementId())
+                .isEqualTo("test.pkg#java.lang.String.foo")
+        }
+    }
+
+    @Test
+    fun `Test suppressed issues`() {
+        val commonSource =
+            kotlin(
+                "commonMain/src/test/pkg/Foo.kt",
+                """
+                package test.pkg
+                @Suppress("CommonIssue")
+                expect class Foo
+                """
+            )
+        val androidSource =
+            kotlin(
+                "androidMain/src/test/pkg/Foo_android.kt",
+                """
+                package test.pkg
+                @Suppress("AndroidIssue")
+                actual class Foo
+                """
+            )
+        val nativeSource =
+            kotlin(
+                "nativeMain/src/test/pkg/Foo_native.kt",
+                """
+                package test.pkg
+                @Suppress("NativeIssue")
+                actual class Foo
+                """
+            )
+        runMultiplatformCodebaseTest(
+            inputSet(commonSource, androidSource, nativeSource),
+            projectDescription =
+                createProjectDescription(
+                    createCommonModuleDescription(arrayOf(commonSource)),
+                    createAndroidModuleDescription(arrayOf(androidSource)),
+                    createNativeModuleDescription(arrayOf(nativeSource)),
+                )
+        ) {
+            val fooClass = multiplatformCodebase.assertClass("test.pkg.Foo")
+            assertThat(fooClass.suppressedIssues())
+                .containsExactly("CommonIssue", "AndroidIssue", "NativeIssue")
+        }
+    }
+
+    @Test
+    fun `Test file locations`() {
+        val commonSource =
+            kotlin(
+                "commonMain/src/test/pkg/Foo.kt",
+                """
+                package test.pkg
+                class Foo {
+                    fun foo(s: String?) = Unit
+                    val foo = 0
+                    val String?.foo
+                        get() = 0
+                }
+                fun foo(s: String) = Unit
+                val foo = 0
+                val String.foo
+                    get() = 0
+                """
+            )
+        runMultiplatformCodebaseTest(
+            inputSet(commonSource),
+            projectDescription =
+                createProjectDescription(
+                    createCommonModuleDescription(arrayOf(commonSource)),
+                )
+        ) {
+            val fooPackage = multiplatformCodebase.assertPackage("test.pkg")
+            assertThat(fooPackage.fileLocation).isEqualTo(FileLocation.UNKNOWN)
+            val fooClass = multiplatformCodebase.assertClass("test.pkg.Foo")
+            assertThat(fooClass.fileLocation.toString())
+                .endsWith("commonMain/src/test/pkg/Foo.kt:2")
+            val fooMethod = fooClass.assertMethod("foo", listOf("java.lang.String?"))
+            assertThat(fooMethod.fileLocation.toString())
+                .endsWith("commonMain/src/test/pkg/Foo.kt:3")
+            val fooMethodParameter = fooMethod.parameters.single()
+            assertThat(fooMethodParameter.fileLocation.toString())
+                .endsWith("commonMain/src/test/pkg/Foo.kt:3")
+            val fooProperty = fooClass.assertProperty("foo")
+            assertThat(fooProperty.fileLocation.toString())
+                .endsWith("commonMain/src/test/pkg/Foo.kt:4")
+            val fooExtensionProperty = fooClass.assertProperty("foo", "java.lang.String?")
+            assertThat(fooExtensionProperty.fileLocation.toString())
+                .endsWith("commonMain/src/test/pkg/Foo.kt:5")
+            val fooTopLevelMethod = fooPackage.assertMethod("foo", listOf("java.lang.String"))
+            assertThat(fooTopLevelMethod.fileLocation.toString())
+                .endsWith("commonMain/src/test/pkg/Foo.kt:8")
+            val fooTopLevelMethodParameter = fooTopLevelMethod.parameters.single()
+            assertThat(fooTopLevelMethodParameter.fileLocation.toString())
+                .endsWith("commonMain/src/test/pkg/Foo.kt:8")
+            val fooTopLevelProperty = fooPackage.assertProperty("foo")
+            assertThat(fooTopLevelProperty.fileLocation.toString())
+                .endsWith("commonMain/src/test/pkg/Foo.kt:9")
+            val fooTopLevelExtensionProperty = fooPackage.assertProperty("foo", "java.lang.String")
+            assertThat(fooTopLevelExtensionProperty.fileLocation.toString())
+                .endsWith("commonMain/src/test/pkg/Foo.kt:10")
         }
     }
 }

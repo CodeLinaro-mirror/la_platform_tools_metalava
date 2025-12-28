@@ -57,6 +57,10 @@ internal class PsiEnvironmentManager(
      */
     private var closed = false
 
+    /** The first environment created by the manager. */
+    var initialEnvironment: UastEnvironment? = null
+        private set
+
     /** The list of available environments. */
     private val uastEnvironments = mutableListOf<UastEnvironment>()
 
@@ -86,6 +90,9 @@ internal class PsiEnvironmentManager(
 
         val environment = UastEnvironment.create(config)
         uastEnvironments.add(environment)
+        if (initialEnvironment == null) {
+            initialEnvironment = environment
+        }
 
         if (disableStderrDumping) {
             DefaultLogger.disableStderrDumping(environment.ideaProject)
@@ -144,6 +151,7 @@ internal class PsiEnvironmentManager(
             }
         }
         uastEnvironments.clear()
+        initialEnvironment = null
 
         // Only dispose of the application environment if this is the final environment to close.
         // If it was not then there is no point in checking to make sure that [Disposer] is empty

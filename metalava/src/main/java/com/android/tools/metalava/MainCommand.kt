@@ -35,6 +35,7 @@ import com.android.tools.metalava.cli.common.stdout
 import com.android.tools.metalava.cli.common.terminal
 import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions
 import com.android.tools.metalava.cli.lint.ApiLintOptions
+import com.android.tools.metalava.cli.multiplatform.MultiplatformOptions
 import com.android.tools.metalava.cli.signature.SignatureFormatOptions
 import com.android.tools.metalava.model.utils.extractSimpleName
 import com.android.tools.metalava.reporter.Baseline
@@ -93,7 +94,10 @@ class MainCommand(
             additionalSourceFilesProvider = { additionalSourceFiles },
         )
 
-    internal val nullabilityValidationOptions by NullabilityValidationOptions()
+    internal val nullabilityValidationOptions by
+        NullabilityValidationOptions(
+            reporterSupplier = { reporterManager.reporter },
+        )
 
     /** Issue reporter configuration. */
     private val issueReportingOptions by IssueReportingOptions(commonOptions)
@@ -147,6 +151,9 @@ class MainCommand(
             executionEnvironment = executionEnvironment,
             commonBaselineOptions = commonBaselineOptions,
         )
+
+    /** Multiplatform codebase options. */
+    private val multiplatformOptions by MultiplatformOptions()
 
     /** Compatibility check options. */
     private val compatibilityCheckOptions by
@@ -230,6 +237,7 @@ class MainCommand(
                             compatibilityCheckOptions,
                             configFileOptions,
                             issueReportingOptions,
+                            multiplatformOptions,
                             nullabilityValidationOptions,
                             signatureFileOptions,
                             signatureFormatOptions,

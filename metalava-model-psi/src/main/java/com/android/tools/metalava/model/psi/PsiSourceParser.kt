@@ -195,10 +195,16 @@ internal class PsiSourceParser(
     override fun createMultiplatformCodebase(projectDescription: File): MultiplatformCodebase {
         if (!useK2Uast) error("Multiplatform codebase creation requires K2 UAST.")
 
-        val config = UastEnvironment.Configuration.create(useFirUast = true)
-        config.javaLanguageLevel = javaLanguageLevel
-        configureUastEnvironmentFromProjectDescription(config, projectDescription)
-        val environment = psiEnvironmentManager.createEnvironment(config)
+        // If an environment was already created to create a regular Codebase, reuse it since
+        // creating an environment is expensive.
+        val environment =
+            psiEnvironmentManager.initialEnvironment
+                ?: run {
+                    val config = UastEnvironment.Configuration.create(useFirUast = true)
+                    config.javaLanguageLevel = javaLanguageLevel
+                    configureUastEnvironmentFromProjectDescription(config, projectDescription)
+                    psiEnvironmentManager.createEnvironment(config)
+                }
 
         return KaCodebaseAssembler.assembleMultiplatform(
             environment.findAllSourceModules(),

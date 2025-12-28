@@ -22,7 +22,6 @@ import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import java.util.EnumSet
-import kotlin.test.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TestRule
@@ -175,12 +174,8 @@ class CommonParameterizedDocumentationTest : BaseModelTest() {
             )
         ) {
             val testClass = codebase.assertClass("test.pkg.Test")
-            val documentation = testClass.requiredDocumentation
 
-            assertEquals(
-                params.expectedFullyQualified,
-                documentation.fullyQualifiedDocumentation().trimEnd()
-            )
+            testClass.assertPrintedDocumentation(params.expectedFullyQualified + "\n")
         }
     }
 }

@@ -470,7 +470,7 @@ class CompatibilityCheck(
             val oldRet = old.annotationClass.retention
             val newRet = new.annotationClass.retention
 
-            if (!oldRet.equivalentTo(newRet)) {
+            if (newRet.isMoreRestrictiveThan(oldRet)) {
                 report(
                     Issues.CHANGED_ANNOTATION_RETENTION,
                     new,

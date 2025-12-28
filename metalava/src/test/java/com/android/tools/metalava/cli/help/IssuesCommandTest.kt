@@ -64,7 +64,7 @@ Available Issues                             |  Category                        
   CallbackMethodName                         |  api_lint                             |   error
   CallbackName                               |  api_lint                             |   warning
   ChangedAbstract                            |  binary_and_source_compatibility      |   error
-  ChangedAnnotationRetention                 |  other_compatibility                  |   hidden
+  ChangedAnnotationRetention                 |  other_compatibility                  |   error
   ChangedClass                               |  binary_and_source_compatibility      |   error
   ChangedDefault                             |  binary_and_source_compatibility      |   error
   ChangedDeprecated                          |  source_compatibility_only            |   hidden

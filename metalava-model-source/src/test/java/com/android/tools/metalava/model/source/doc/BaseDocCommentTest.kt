@@ -119,5 +119,7 @@ class TestDocCommentContext : DocCommentContext, DocCommentMutationListener {
     override fun resolveThrowableType(reporter: LocationSpecificReporter, typeName: String) =
         ClassReference(typeName)
 
-    override fun resolveReference(sourceReference: String) = null
+    var referenceResolver: (String) -> ResolvedReference? = { null }
+
+    override fun resolveReference(sourceReference: String) = referenceResolver(sourceReference)
 }
