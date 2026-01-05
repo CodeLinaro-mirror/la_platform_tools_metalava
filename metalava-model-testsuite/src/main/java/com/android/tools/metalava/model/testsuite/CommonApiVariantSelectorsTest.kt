@@ -23,11 +23,14 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.Showability
+import com.android.tools.metalava.model.provider.Capability
+import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.testing.java
 import kotlin.test.assertEquals
 import org.junit.Test
 
 /** Common tests for [ApiVariantSelectors]. */
+@RequiresCapabilities(Capability.API_VARIANT_SELECTORS)
 class CommonApiVariantSelectorsTest : BaseModelTest() {
 
     /**

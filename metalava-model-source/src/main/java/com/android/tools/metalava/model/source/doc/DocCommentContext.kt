@@ -22,6 +22,7 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TypeParameterItem
+import com.android.tools.metalava.model.source.javadoc.ExprContext
 import com.android.tools.metalava.reporter.LocationSpecificReporter
 
 /**
@@ -32,7 +33,7 @@ import com.android.tools.metalava.reporter.LocationSpecificReporter
  * that created at different levels within the [DocComment] whereas this applies to the whole
  * [DocComment].
  */
-internal interface DocCommentContext {
+internal interface DocCommentContext : ExprContext {
     /**
      * The [DocCommentMutationListener] whose [DocCommentMutationListener.docCommentMutated] must be
      * invoked when the [DocComment] is changed.

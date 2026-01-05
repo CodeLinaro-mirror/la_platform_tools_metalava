@@ -35,6 +35,7 @@ import com.android.tools.metalava.testing.signature
 import java.io.PrintWriter
 import java.io.StringWriter
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import org.junit.ClassRule
 import org.junit.Rule
 import org.junit.Test
@@ -132,10 +133,9 @@ class ApiUpdateConsistencyTest : DriverTest() {
                     sourceSet,
                     "version $version",
                     classPath,
-                    apiPackages = null,
-                    projectDescription = null,
-                    compiledSourceJar = null,
                 )
+
+            assertNotNull(codebase, message = "Codebase was not created")
 
             val codebaseFragment = CodebaseFragment.create(codebase, ::EmittableDelegatingVisitor)
             VersionedSourceApi({ codebaseFragment }, version)

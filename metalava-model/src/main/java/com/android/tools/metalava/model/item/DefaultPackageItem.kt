@@ -25,11 +25,10 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ReferencableItem
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TargetLanguage
-import com.android.tools.metalava.model.TypeAliasItem
 import com.android.tools.metalava.model.scope.ReferencableNameScope
 import com.android.tools.metalava.reporter.FileLocation
 
-open class DefaultPackageItem(
+class DefaultPackageItem(
     codebase: Codebase,
     fileLocation: FileLocation,
     sourceLanguage: SourceLanguage,
@@ -65,9 +64,9 @@ open class DefaultPackageItem(
 
     private val childPackages = mutableListOf<PackageItem>()
 
-    final override fun qualifiedName(): String = qualifiedName
+    override fun qualifiedName(): String = qualifiedName
 
-    final override fun topLevelClasses(): List<ClassItem> =
+    override fun topLevelClasses(): List<ClassItem> =
         // Return a copy to avoid a ConcurrentModificationException.
         topClasses.toList()
 
@@ -112,7 +111,7 @@ open class DefaultPackageItem(
     // N.A. a package cannot be contained in a class
     override fun containingClass(): ClassItem? = null
 
-    final override fun containingPackage(): PackageItem? {
+    override fun containingPackage(): PackageItem? {
         return containingPackage
     }
 
@@ -126,15 +125,5 @@ open class DefaultPackageItem(
 
     override fun childPackages(): List<PackageItem> {
         return childPackages.toList()
-    }
-
-    private val typeAliases = mutableListOf<TypeAliasItem>()
-
-    internal fun addTypeAlias(typeAlias: DefaultTypeAliasItem) {
-        typeAliases += typeAlias
-    }
-
-    override fun typeAliases(): List<TypeAliasItem> {
-        return typeAliases.toList()
     }
 }

@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.source
 
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.provider.FilterableCodebaseCreator
 import com.android.tools.metalava.model.provider.InputFormat
@@ -43,7 +44,7 @@ class SourceModelSuiteRunner(private val sourceModelProvider: SourceModelProvide
 
     override fun createCodebaseAndRun(
         inputs: ModelSuiteRunner.TestInputs,
-        test: (Codebase) -> Unit
+        test: (Codebase?) -> Unit
     ) {
         // Skip tests that require using compiled sources if the provider does not support it
         if (
@@ -68,21 +69,45 @@ class SourceModelSuiteRunner(private val sourceModelProvider: SourceModelProvide
                 )
 
             // If available, transform the codebase for testing, otherwise use the one provided.
-            val transformedCodebase = CodebaseTransformer.transformIfAvailable(codebase)
+            val transformedCodebase = codebase?.let { CodebaseTransformer.transformIfAvailable(it) }
 
             test(transformedCodebase)
         }
+    }
+
+    override fun createMultiplatformCodebaseAndRun(
+        inputs: ModelSuiteRunner.TestInputs,
+        test: (MultiplatformCodebase?) -> Unit
+    ) {
+        if (Capability.MULTIPLATFORM !in capabilities) return
+        return inputs.projectDescription?.let { projectDescription ->
+            // Make sure that the input files have been created.
+            sourceSet(inputs.mainSourceDir, inputs.additionalMainSourceDir)
+
+            val environmentManager = sourceModelProvider.createEnvironmentManager(forTesting = true)
+            val testFixture = inputs.testFixture
+            val sourceParser =
+                environmentManager.createSourceParser(
+                    codebaseConfig = testFixture.codebaseConfig,
+                    javaLanguageLevel = testFixture.javaLanguageLevel,
+                    modelOptions = inputs.modelOptions,
+                )
+
+            val codebase = sourceParser.createMultiplatformCodebase(projectDescription)
+            test(codebase)
+        } ?: error("Project description file is required to create multiplatform codebase.")
     }
 
     private fun createTestCodebase(
         environmentManager: EnvironmentManager,
         inputs: ModelSuiteRunner.TestInputs,
         classPath: List<File>,
-    ): Codebase {
+    ): Codebase? {
         val testFixture = inputs.testFixture
         val sourceParser =
             environmentManager.createSourceParser(
                 codebaseConfig = testFixture.codebaseConfig,
+                javaLanguageLevel = testFixture.javaLanguageLevel,
                 modelOptions = inputs.modelOptions,
             )
         return sourceParser.parseSources(

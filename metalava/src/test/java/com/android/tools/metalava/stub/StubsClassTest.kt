@@ -355,7 +355,7 @@ class StubsClassTest : AbstractStubsTest() {
                         """
                     package test.pkg;
 
-                    public class PublicInterface {
+                    public interface PublicInterface {
                     }
                     """
                     ),
@@ -410,8 +410,7 @@ class StubsClassTest : AbstractStubsTest() {
                     method public test.pkg.HiddenType getHiddenType();
                     method public test.pkg.HiddenType4 getHiddenType4();
                   }
-                  public class PublicInterface {
-                    ctor public PublicInterface();
+                  public interface PublicInterface {
                   }
                 }
                 """,
@@ -432,8 +431,7 @@ class StubsClassTest : AbstractStubsTest() {
                         """
                     package test.pkg;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
-                    public class PublicInterface {
-                    public PublicInterface() { throw new RuntimeException("Stub!"); }
+                    public interface PublicInterface {
                     }
                     """
                     )

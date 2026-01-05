@@ -50,7 +50,6 @@ class CommonTypeParameterItemTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             )
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
@@ -85,7 +84,6 @@ class CommonTypeParameterItemTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             )
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
@@ -122,7 +120,6 @@ class CommonTypeParameterItemTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             )
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
@@ -149,7 +146,6 @@ class CommonTypeParameterItemTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             ),
             java(
                 """
@@ -201,7 +197,6 @@ class CommonTypeParameterItemTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             ),
             java(
                 """
@@ -247,7 +242,6 @@ class CommonTypeParameterItemTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             ),
             java(
                 """
@@ -287,7 +281,6 @@ class CommonTypeParameterItemTest : BaseModelTest() {
                     import java.util.Map;
                     public class Foo<T extends Map<Integer, String>> {}
                 """
-                    .trimIndent()
             ),
             signature(
                 """
@@ -297,7 +290,6 @@ class CommonTypeParameterItemTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             )
         ) {
             val clazz = codebase.assertClass("test.pkg.Foo")
@@ -326,7 +318,6 @@ class CommonTypeParameterItemTest : BaseModelTest() {
                         inline fun <reified T: List<String>> foo(): T {}
                     }
                 """
-                    .trimIndent()
             ),
             signature(
                 """
@@ -338,7 +329,6 @@ class CommonTypeParameterItemTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             )
         ) {
             val method = codebase.assertClass("test.pkg.Foo").methods().single()
@@ -357,7 +347,6 @@ class CommonTypeParameterItemTest : BaseModelTest() {
                     package test.pkg;
                     public class Foo<T extends Object, U extends Object & Comparable<U>> {}
                 """
-                    .trimIndent()
             ),
             signature(
                 """
@@ -367,7 +356,6 @@ class CommonTypeParameterItemTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             )
         ) {
             val clazz = codebase.assertClass("test.pkg.Foo")
@@ -413,7 +401,6 @@ class CommonTypeParameterItemTest : BaseModelTest() {
                       }
                     }
                 """
-                    .trimIndent()
             )
         ) {
             val method = codebase.assertClass("test.pkg.Foo").assertMethod("foo", emptyList())

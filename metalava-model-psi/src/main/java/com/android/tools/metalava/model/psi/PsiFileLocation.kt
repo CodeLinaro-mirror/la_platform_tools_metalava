@@ -113,19 +113,26 @@ class PsiFileLocation(private val psiElement: PsiElement) : FileLocation() {
                 return
             }
 
-        // Unwrap UAST for accurate Kotlin line numbers (UAST synthesizes text offsets sometimes)
-        val sourceElement = (psiElement as? UElement)?.sourcePsi ?: psiElement
+        val range =
+            if (psiElement is PsiFile) {
+                // No point looking for a line number.
+                null
+            } else {
+                // Unwrap UAST for accurate Kotlin line numbers (UAST synthesizes text offsets
+                // sometimes)
+                val sourceElement = (psiElement as? UElement)?.sourcePsi ?: psiElement
 
-        // Skip doc comments for classes, methods and fields by pointing at the line where the
-        // element's name is or falling back to the first line of its modifier list (which may
-        // include annotations) or lastly to the start of the element itself
-        val rangeElement =
-            (sourceElement as? PsiNameIdentifierOwner)?.nameIdentifier
-                ?: (sourceElement as? KtModifierListOwner)?.modifierList
-                ?: (sourceElement as? PsiModifierListOwner)?.modifierList
-                ?: sourceElement
+                // Skip doc comments for classes, methods and fields by pointing at the line where
+                // the element's name is or falling back to the first line of its modifier list
+                // (which may include annotations) or lastly to the start of the element itself
+                val rangeElement =
+                    (sourceElement as? PsiNameIdentifierOwner)?.nameIdentifier
+                        ?: (sourceElement as? KtModifierListOwner)?.modifierList
+                        ?: (sourceElement as? PsiModifierListOwner)?.modifierList
+                        ?: sourceElement
 
-        val range = getTextRange(rangeElement)
+                getTextRange(rangeElement)
+            }
 
         // Update the line number.
         if (range == null) {

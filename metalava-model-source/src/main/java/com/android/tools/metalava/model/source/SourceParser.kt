@@ -16,20 +16,26 @@
 
 package com.android.tools.metalava.model.source
 
-import com.android.tools.metalava.model.ClassResolver
+import com.android.tools.metalava.model.ClassPathResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.PackageFilter
+import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
 import java.io.File
 
 /** Provides support for creating [Codebase] related objects from source files (including jars). */
 interface SourceParser {
-
     /**
-     * Get a [ClassResolver] instance that will resolve classes provided by jars on the [classPath].
+     * Get a [com.android.tools.metalava.model.ClassPathResolver] instance that will resolve items
+     * provided by jars on the [classPath].
      *
      * @param classPath a list of jar [File]s.
      */
-    fun getClassResolver(classPath: List<File>): ClassResolver
+    fun getClassPathResolver(classPath: List<File>): ClassPathResolver =
+        parseSources(
+            sourceSet = SourceSet.empty(),
+            description = "Codebase from classpath",
+            classPath = classPath,
+        ) ?: error("Could not create resolver from $classPath")
 
     /**
      * Parse a set of sources into a [Codebase].
@@ -50,10 +56,10 @@ interface SourceParser {
         sourceSet: SourceSet,
         description: String,
         classPath: List<File>,
-        apiPackages: PackageFilter?,
-        projectDescription: File?,
-        compiledSourceJar: File?,
-    ): Codebase
+        apiPackages: PackageFilter? = null,
+        projectDescription: File? = null,
+        compiledSourceJar: File? = null,
+    ): Codebase?
 
     /**
      * Load a [Codebase] from a single jar.
@@ -63,4 +69,12 @@ interface SourceParser {
      *   referenced by [apiJar].
      */
     fun loadFromJar(apiJar: File, classPath: List<File>): Codebase
+
+    /**
+     * Creates a multiplatform codebase based on the [projectDescription] file, which is a lint
+     * project model that can describe project structures in detail.
+     *
+     * Only supported by the PSI model.
+     */
+    fun createMultiplatformCodebase(projectDescription: File): MultiplatformCodebase
 }

@@ -84,6 +84,9 @@ fun addApisFromCodebase(
                             newClass.updateInterface(annotationClass, updater)
                         }
                     }
+                    // Typealiases aren't like regular classes and don't have a super class or
+                    // interfaces.
+                    ClassKind.TYPEALIAS -> {}
                 }
 
                 for (interfaceType in cls.interfaceTypes()) {

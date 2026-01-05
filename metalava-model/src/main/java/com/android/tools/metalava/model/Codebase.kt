@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.api.flags.ApiFlags
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.reporter.ThrowingReporter
@@ -25,7 +26,7 @@ import java.io.File
  * Represents a complete unit of code -- typically in the form of a set of source trees, but also
  * potentially backed by .jar files or even signature files
  */
-interface Codebase : ClassResolver, AnnotationContext {
+interface Codebase : ClassPathResolver, AnnotationContext {
     /** Description of what this codebase is (useful during debugging) */
     val description: String
 
@@ -40,13 +41,6 @@ interface Codebase : ClassResolver, AnnotationContext {
 
     /** [Reporter] to which any issues found within the [Codebase] can be reported. */
     val reporter: Reporter
-
-    /**
-     * Whether this [Codebase] is set up as Kotlin Multiplatform (KMP).
-     *
-     * See https://kotlinlang.org/docs/multiplatform.html
-     */
-    val isMultiplatform: Boolean
 
     /** The [ApiSurfaces] that will be tracked in this [Codebase]. */
     val apiSurfaces: ApiSurfaces
@@ -95,17 +89,6 @@ interface Codebase : ClassResolver, AnnotationContext {
 
     /** Returns a package identified by fully qualified name, if in the codebase */
     fun findPackage(pkgName: String): PackageItem?
-
-    /**
-     * Resolve a package identified by fully qualified name.
-     *
-     * This does everything it can to retrieve a suitable package, e.g. searching classpath (if
-     * available).
-     */
-    fun resolvePackage(pkgName: String): PackageItem?
-
-    /** Returns a typealias identified by fully qualified name, if in the codebase */
-    fun findTypeAlias(typeAliasName: String): TypeAliasItem?
 
     /** Returns true if this codebase supports documentation. */
     fun supportsDocumentation(): Boolean
@@ -189,8 +172,24 @@ interface Codebase : ClassResolver, AnnotationContext {
      * options.
      */
     data class Config(
+        /**
+         * Whether to allow reading comments from the sources.
+         *
+         * If `true` then source comments will be read and [SelectableItem.documentation] will not
+         * be `null` (unless the [SelectableItem] is `private`). If `false` then
+         * [SelectableItem.documentation] will always be `null`.
+         */
+        val allowReadingComments: Boolean = true,
+
         /** Determines how annotations will affect the [Codebase]. */
         val annotationManager: AnnotationManager,
+
+        /**
+         * The [ApiFlags] to use in conditional javadoc.
+         *
+         * If set to `null` then it behaves as if all flags are enabled.
+         */
+        val apiFlags: ApiFlags? = null,
 
         /** The [ApiSurfaces] that will be tracked in the [Codebase]. */
         val apiSurfaces: ApiSurfaces = ApiSurfaces.DEFAULT,

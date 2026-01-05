@@ -77,8 +77,8 @@ class TargetLanguageCompatibilityTest : DriverTest() {
                 """,
             expectedIssues =
                 """
-                load-api.txt:4: error: Source breaking change: Attempted to remove parameter name from parameter arg1 in test.pkg.Foo.allLanguages [ParameterNameChange]
-                load-api.txt:6: error: Source breaking change: Attempted to remove parameter name from parameter arg1 in test.pkg.Foo.kotlinOnly [ParameterNameChange]
+                load-api.txt:4: error: Source breaking change: Attempted to remove parameter name from parameter arg1 in test.pkg.Foo.allLanguages(int arg1) [ParameterNameChange]
+                load-api.txt:6: error: Source breaking change: Attempted to remove parameter name from parameter arg1 in test.pkg.Foo.kotlinOnly(int arg1) [ParameterNameChange]
                 """,
         )
     }

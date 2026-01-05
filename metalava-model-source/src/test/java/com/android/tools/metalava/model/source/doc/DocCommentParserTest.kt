@@ -281,10 +281,6 @@ class DocCommentParserTest : BaseDocCommentTest() {
                 """
                     /** An invalid block tag at the end of the text. @hide */
                 """,
-            expectedIssues =
-                """
-                    2:49: Invalid @hide syntax, it is ignored as it must be a block tag [InvalidHideDocTag]
-                """,
         )
     }
 
@@ -310,10 +306,6 @@ class DocCommentParserTest : BaseDocCommentTest() {
                      * @deprecated for some reason. @hide
                      */
                 """,
-            expectedIssues =
-                """
-                    3:33: Invalid @hide syntax, it is ignored as it must be a block tag [InvalidHideDocTag]
-                """,
         )
     }
 
@@ -333,10 +325,6 @@ class DocCommentParserTest : BaseDocCommentTest() {
             expectedPrintOutput =
                 """
                     /** An inline tag at the end of some text {@hide reason why hidden} */
-                """,
-            expectedIssues =
-                """
-                    2:43: Invalid @hide syntax, it is ignored as it must be a block tag [InvalidHideDocTag]
                 """,
         )
     }
@@ -365,10 +353,6 @@ class DocCommentParserTest : BaseDocCommentTest() {
                      * @see Something
                      * {@hide}
                      */
-                """,
-            expectedIssues =
-                """
-                    4:5: Invalid @hide syntax, it is ignored as it must be a block tag [InvalidHideDocTag]
                 """,
         )
     }

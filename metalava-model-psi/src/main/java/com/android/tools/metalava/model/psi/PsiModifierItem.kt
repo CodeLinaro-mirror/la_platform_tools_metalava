@@ -103,7 +103,11 @@ internal object PsiModifierItem {
             } else {
                 createFromPsiElement(codebase, element)
             }
-
+        // Set exhaustivity as true until proven otherwise either by an inaccessible subclass
+        // or by a "nonexhaustive" keyword when parsing signature files.
+        if (modifiers.isSealed()) {
+            modifiers.setExhaustive(true)
+        }
         // Sometimes Psi/Kotlin interoperation goes a little awry and adds nullability annotations
         // that it should not, so this removes them.
         if (shouldRemoveNullnessAnnotations(modifiers)) {

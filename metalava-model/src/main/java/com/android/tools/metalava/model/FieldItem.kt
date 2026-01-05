@@ -27,6 +27,13 @@ interface FieldItem : MemberItem, InheritableItem, ReferencableNameScope {
     val property: PropertyItem?
         get() = null
 
+    override fun describe(capitalize: Boolean) =
+        if (isEnumConstant()) {
+            "${if (capitalize) "Enum" else "enum"} constant ${containingClass().qualifiedName()}.${name()}"
+        } else {
+            "${if (capitalize) "Field" else "field"} ${containingClass().qualifiedName()}.${name()}"
+        }
+
     /** The type of this field */
     @MetalavaApi override fun type(): TypeItem
 

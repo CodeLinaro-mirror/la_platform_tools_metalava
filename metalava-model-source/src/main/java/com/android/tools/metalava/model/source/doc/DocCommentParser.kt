@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model.source.doc
 
-import com.android.tools.metalava.reporter.Issues
 import java.util.regex.Pattern
 import kotlin.text.isWhitespace
 
@@ -89,8 +88,6 @@ internal object DocCommentParser {
         // the list.
         var blockTagDescriptionStartInclusive = -1
 
-        var foundHide = false
-
         // Create a matcher for finding the start of block tags or the end of the content. Restrict
         // it to the main body of the comment so it does not have to deal with the doc start/end
         // tokens.
@@ -143,33 +140,9 @@ internal object DocCommentParser {
                 // Map it to a [TagType].
                 blockTagType = BlockTagTypes.tagTypeOf(tagTypeName)
 
-                if (!foundHide && blockTagType == BlockTagTypes.HIDE) {
-                    foundHide = true
-                }
-
                 // The start of the block tag description is the end of the match (which excludes
                 // any white space after the block tag name).
                 blockTagDescriptionStartInclusive = matcher.end()
-            }
-        }
-
-        // If no block tag `@hide` was found then just look for an `@hide` anywhere in the comment.
-        // That matches the legacy behavior which some downstream clients rely upon.
-        if (!foundHide) {
-            // TODO(b/429965593): Remove warning.
-            // Search through the input for `@hide`.
-            //
-            // If a `@hide` was found then report it as an error.
-            val hideIndex = text.indexOf("@hide")
-            if (hideIndex > 0) {
-                val lineOffset = text.lineOffsetFor(hideIndex)
-                val charOffset = text.characterOffsetFor(hideIndex)
-                reporter.report(
-                    Issues.INVALID_HIDE_DOC_TAG,
-                    "Invalid @hide syntax, it is ignored as it must be a block tag",
-                    lineOffset,
-                    charOffset,
-                )
             }
         }
 

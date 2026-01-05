@@ -162,7 +162,7 @@ class CommonCopyFieldItemTest : CommonCopyMemberItemTest<FieldItem>() {
                           public class Source {
                             field public int field;
                           }
-                          @Deprecated public class Target implements test.pkg.Source {
+                          @Deprecated public class Target extends test.pkg.Source {
                           }
                         }
                     """
@@ -186,7 +186,7 @@ class CommonCopyFieldItemTest : CommonCopyMemberItemTest<FieldItem>() {
 
                         /** @deprecated */
                         @Deprecated
-                        public final class Target implements Source {}
+                        public final class Target extends Source {}
                     """
                 ),
             ),
@@ -214,7 +214,7 @@ class CommonCopyFieldItemTest : CommonCopyMemberItemTest<FieldItem>() {
                           @Deprecated public class Source {
                             field public int field;
                           }
-                          public class Target implements test.pkg.Source {
+                          public class Target extends test.pkg.Source {
                           }
                         }
                     """
@@ -238,7 +238,7 @@ class CommonCopyFieldItemTest : CommonCopyMemberItemTest<FieldItem>() {
                     """
                         package test.pkg;
 
-                        public final class Target implements Source {}
+                        public final class Target extends Source {}
                     """
                 ),
             ),
@@ -289,7 +289,7 @@ class CommonCopyFieldItemTest : CommonCopyMemberItemTest<FieldItem>() {
                     """
                         package test.pkg;
 
-                        public final class Target implements Source {}
+                        public final class Target extends Source {}
                     """
                 ),
             ),

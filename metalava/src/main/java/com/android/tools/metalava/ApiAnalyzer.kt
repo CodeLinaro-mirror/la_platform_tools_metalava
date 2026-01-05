@@ -835,9 +835,7 @@ class ApiAnalyzer(
             reporter.report(
                 Issues.REFERENCES_HIDDEN,
                 from,
-                "Class ${cl.qualifiedName()} is ${if (cl.isHiddenOrRemoved()) "hidden" else "not public"} but was referenced ($usage) from public ${from.describe(
-                    false
-                )}"
+                "Class ${cl.qualifiedName()} is ${if (cl.isHiddenOrRemoved()) "hidden" else "not public"} but was referenced ($usage) from public ${from.describe()}"
             )
         }
 
@@ -1070,6 +1068,7 @@ private fun SelectableItem.isApiCandidate(): Boolean {
  * also looks at any inherited documentation.
  */
 private fun SelectableItem.documentationContainsDeprecated(): Boolean {
+    val documentation = this.documentation ?: return false
     if (documentation.hasBlockTagOfType("deprecated")) return true
     if (this !is MethodItem) return false
     if (!documentation.requiresSourceComment() || documentation.containsInheritDocTag()) {

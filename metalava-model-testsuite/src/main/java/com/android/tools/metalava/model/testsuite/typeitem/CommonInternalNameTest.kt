@@ -153,7 +153,7 @@ class CommonInternalNameTest : BaseModelTest() {
                 ),
                 TestParams(
                     javaType = "java.util.List<java.lang.Number>[]",
-                    kotlinType = "Array<java.util.List<java.lang.Number>[]>",
+                    kotlinType = "Array<java.util.List<java.lang.Number>>",
                     internalName = "[Ljava/util/List;",
                 ),
             )

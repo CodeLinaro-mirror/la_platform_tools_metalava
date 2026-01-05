@@ -530,9 +530,6 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
         return ANNOTATION_EXTERNAL
     }
 
-    override fun isShowAnnotationName(annotationName: String): Boolean =
-        config.allShowAnnotations.matchesAnnotationName(annotationName)
-
     /** Check whether this has been configured in a way that could cause items to be reverted. */
     private fun couldRevertItems(): Boolean = config.apiFlags != null
 
@@ -600,7 +597,7 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
 
         // If the item is to be reverted then find the [Item] to which it will be reverted, if any,
         // and incorporate that into the [Showability].
-        if (itemShowability == REVERT_UNSTABLE_API) {
+        if (itemShowability.revertUnstableApi()) {
             val revertItem = findRevertItem(item)
 
             // If the [revertItem] cannot be found then there is no need to modify the item

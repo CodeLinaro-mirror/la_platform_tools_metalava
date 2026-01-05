@@ -33,6 +33,7 @@ import com.intellij.psi.PsiDocCommentOwner
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiJavaCodeReferenceElement
 import com.intellij.psi.PsiMember
+import com.intellij.psi.PsiPackageStatement
 import com.intellij.psi.PsiReference
 import com.intellij.psi.PsiTypeParameter
 import com.intellij.psi.PsiWhiteSpace
@@ -40,9 +41,11 @@ import com.intellij.psi.impl.source.SourceTreeToPsiMap
 import com.intellij.psi.impl.source.javadoc.PsiDocMethodOrFieldRef
 import com.intellij.psi.impl.source.tree.CompositePsiElement
 import com.intellij.psi.impl.source.tree.JavaDocElementType
+import com.intellij.psi.javadoc.PsiDocComment
 import com.intellij.psi.javadoc.PsiDocTag
 import com.intellij.psi.javadoc.PsiDocToken
 import com.intellij.psi.javadoc.PsiInlineDocTag
+import com.intellij.psi.util.PsiTreeUtil
 import org.jetbrains.kotlin.psi.KtDeclaration
 import org.jetbrains.uast.UElement
 
@@ -51,12 +54,10 @@ internal class PsiItemDocumentation(
     item: SelectableItem,
     private val codebase: PsiBasedCodebase,
     private val psi: PsiElement,
-    private val extraDocs: String?,
 ) : AbstractItemDocumentation(item) {
 
     override fun initializeTextBackingField() {
         initializeFromPsiElement(psi)
-        if (extraDocs != null) _text = "$_text\n$extraDocs"
     }
 
     private var psiComment: PsiComment? = null
@@ -113,6 +114,19 @@ internal class PsiItemDocumentation(
                     }
                 }
             }
+            is PsiPackageStatement -> {
+                val docComment =
+                    PsiTreeUtil.getPrevSiblingOfType(element, PsiDocComment::class.java)
+                if (docComment != null) {
+                    val text = docComment.text
+                    // Make sure that the text is a doc comment, i.e. starts with /**.
+                    if (text.startsWith("/**")) {
+                        _text = text
+                        psiComment = docComment
+                        return
+                    }
+                }
+            }
         }
 
         _text = ""
@@ -120,8 +134,8 @@ internal class PsiItemDocumentation(
     }
 
     override fun duplicate(item: SelectableItem) =
-        if (item is PsiItem) PsiItemDocumentation(item, codebase, psi, extraDocs)
-        else text.toItemDocumentationFactory()(item)
+        if (item is PsiItem) PsiItemDocumentation(item, codebase, psi)
+        else text.toItemDocumentationFactory().create(item)!!
 
     override fun snapshot(item: SelectableItem) = this
 
@@ -608,9 +622,8 @@ internal class PsiItemDocumentation(
          * Get an [ItemDocumentationFactory] for the [psi].
          *
          * If [PsiBasedCodebase.allowReadingComments] is `true` then this will return a factory that
-         * creates a [PsiItemDocumentation] instance. If [extraDocs] is not-null then this will
-         * return a factory that will create an [ItemDocumentation] wrapper around [extraDocs],
-         * otherwise it will return [ItemDocumentation.NONE_FACTORY].
+         * creates a [PsiItemDocumentation] instance, otherwise it will return
+         * [ItemDocumentation.NONE_FACTORY].
          *
          * @param psi the underlying element from which the documentation will be retrieved.
          *   Although this is usually accessible through the [PsiItem.psi] property, that is not
@@ -620,18 +633,13 @@ internal class PsiItemDocumentation(
         internal fun factory(
             psi: PsiElement,
             codebase: PsiBasedCodebase,
-            extraDocs: String? = null,
         ) =
-            if (codebase.allowReadingComments) {
+            if (codebase.config.allowReadingComments) {
                 // When reading comments provide full access to them.
-                { item -> PsiItemDocumentation(item, codebase, psi, extraDocs) }
+                ItemDocumentationFactory { item -> PsiItemDocumentation(item, codebase, psi) }
             } else {
-                // If extraDocs are provided then they most likely contain documentation for the
-                // package from a `package-info.java` or `package.html` file. Make sure that they
-                // are included in the `ItemDocumentation`, otherwise package hiding will not work.
-                extraDocs?.toItemDocumentationFactory()
-                    // Otherwise, there is no documentation to use.
-                    ?: ItemDocumentation.NONE_FACTORY
+                // Otherwise, there is no documentation to use.
+                ItemDocumentation.NONE_FACTORY
             }
     }
 }

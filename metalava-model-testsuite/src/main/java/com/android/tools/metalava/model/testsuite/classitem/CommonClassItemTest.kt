@@ -918,14 +918,12 @@ class CommonClassItemTest : BaseModelTest() {
                         package test.pkg;
                         public class Parent<M, N> {}
                     """
-                        .trimIndent()
                 ),
                 java(
                     """
                         package test.pkg;
                         public class Child<X, Y> extends Parent<X, Y> {}
                     """
-                        .trimIndent()
                 )
             ),
             inputSet(
@@ -939,7 +937,6 @@ class CommonClassItemTest : BaseModelTest() {
                           }
                         }
                     """
-                        .trimIndent()
                 )
             ),
             inputSet(
@@ -949,7 +946,6 @@ class CommonClassItemTest : BaseModelTest() {
                         open class Parent<M, N>
                         class Child<X, Y> : Parent<X, Y>()
                     """
-                        .trimIndent()
                 )
             )
         ) {
@@ -980,28 +976,24 @@ class CommonClassItemTest : BaseModelTest() {
                         package test.pkg;
                         public class Class4<I> {}
                     """
-                        .trimIndent()
                 ),
                 java(
                     """
                         package test.pkg;
                         public class Class3<G, H> extends Class4<G> {}
                     """
-                        .trimIndent()
                 ),
                 java(
                     """
                         package test.pkg;
                         public class Class2<D, E, F> extends Class3<D, F> {}
                     """
-                        .trimIndent()
                 ),
                 java(
                     """
                         package test.pkg;
                         public class Class1<A, B, C> extends Class2<B, C, A> {}
                     """
-                        .trimIndent()
                 )
             ),
             inputSet(
@@ -1019,7 +1011,6 @@ class CommonClassItemTest : BaseModelTest() {
                           }
                         }
                     """
-                        .trimIndent()
                 )
             ),
             inputSet(
@@ -1031,7 +1022,6 @@ class CommonClassItemTest : BaseModelTest() {
                         open class Class2<D, E, F> : Class3<D, F>
                         class Class1<A, B, C> : Class2<B, C, A>
                     """
-                        .trimIndent()
                 )
             )
         ) {
@@ -1078,21 +1068,18 @@ class CommonClassItemTest : BaseModelTest() {
                         package test.pkg;
                         public class Grandparent<A, B> {}
                     """
-                        .trimIndent()
                 ),
                 java(
                     """
                         package test.pkg;
                         public class Parent<T> extends Grandparent<T, Parent<T>> {}
                     """
-                        .trimIndent()
                 ),
                 java(
                     """
                         package test.pkg;
                         public class Child extends Parent<Child> {}
                     """
-                        .trimIndent()
                 )
             ),
             inputSet(
@@ -1108,7 +1095,6 @@ class CommonClassItemTest : BaseModelTest() {
                           }
                         }
                     """
-                        .trimIndent()
                 )
             ),
             inputSet(
@@ -1119,7 +1105,6 @@ class CommonClassItemTest : BaseModelTest() {
                         open class Parent<T> : Grandparent<T, Parent<T>>
                         class Child : Parent<Child>
                     """
-                        .trimIndent()
                 )
             )
         ) {
@@ -1161,28 +1146,24 @@ class CommonClassItemTest : BaseModelTest() {
                         package test.pkg;
                         public interface Interface3<G, H> {}
                     """
-                        .trimIndent()
                 ),
                 java(
                     """
                         package test.pkg;
                         public interface Interface2<E, F> extends Interface3<E, F> {}
                     """
-                        .trimIndent()
                 ),
                 java(
                     """
                         package test.pkg;
                         public interface Interface1<C, D> {}
                     """
-                        .trimIndent()
                 ),
                 java(
                     """
                         package test.pkg;
                         public class Class<A, B> implements Interface1<A, B>, Interface2<B, A>{}
                     """
-                        .trimIndent()
                 )
             ),
             inputSet(
@@ -1200,7 +1181,6 @@ class CommonClassItemTest : BaseModelTest() {
                           }
                         }
                     """
-                        .trimIndent()
                 )
             ),
             inputSet(
@@ -1212,7 +1192,6 @@ class CommonClassItemTest : BaseModelTest() {
                         interface Interface1<C, D>
                         class Class<A, B> : Interface1<A, B>, Interface2<B, A>
                     """
-                        .trimIndent()
                 )
             )
         ) {
@@ -1255,28 +1234,24 @@ class CommonClassItemTest : BaseModelTest() {
                         package test.pkg;
                         public interface Root<T> {}
                     """
-                        .trimIndent()
                 ),
                 java(
                     """
                         package test.pkg;
                         public interface Interface1<T1> extends Root<T1> {}
                     """
-                        .trimIndent()
                 ),
                 java(
                     """
                         package test.pkg;
                         public interface Interface2<T2> extends Root<T2> {}
                     """
-                        .trimIndent()
                 ),
                 java(
                     """
                         package test.pkg;
                         public class Child<X, Y> implements Interface1<X>, Interface2<Y> {}
                     """
-                        .trimIndent()
                 )
             ),
             inputSet(
@@ -1294,7 +1269,6 @@ class CommonClassItemTest : BaseModelTest() {
                           }
                         }
                     """
-                        .trimIndent()
                 )
             ),
             inputSet(
@@ -1306,7 +1280,6 @@ class CommonClassItemTest : BaseModelTest() {
                         interface Interface2<T2> : Root<T2>
                         class Child<X, Y> : Interface1<X>, Interface2<Y>
                     """
-                        .trimIndent()
                 )
             )
         ) {
@@ -1847,6 +1820,189 @@ class CommonClassItemTest : BaseModelTest() {
             // Make sure that a class defined excluded by a package filter can be resolved but is
             // not emitted.
             codebase.assertResolvedClass("test.excluded.pkg.Excluded")
+        }
+    }
+
+    /**
+     * This test is to make sure that older signature files without any exhaustivity modifiers are
+     * read as non-exhaustive.
+     */
+    @Test
+    fun `modifiers show nonexhaustive when no exhaustivity modifier is present in signature`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public abstract sealed class SealedClass {
+                      }
+                      public sealed interface SealedInterface {
+                      }
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+
+                    public sealed class SealedClass {}
+                    private class PrivateChildClass : SealedClass()
+                    public sealed interface SealedInterface {}
+                    private class PrivateInterfaceImplementor : SealedInterface
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.SealedClass")
+            assertEquals(false, testClass.modifiers.isExhaustive())
+
+            val testInterface = codebase.assertClass("test.pkg.SealedInterface")
+            assertEquals(false, testInterface.modifiers.isExhaustive())
+        }
+    }
+
+    @Test
+    fun `modifiers show exhaustive when class or interface is marked as exhaustive in signature`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public abstract sealed exhaustive class SealedClass {
+                      }
+                      public sealed exhaustive interface SealedInterface {
+                      }
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+
+                    public sealed class SealedClass {}
+                    public sealed interface SealedInterface {}
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.SealedClass")
+            assertEquals(true, testClass.modifiers.isExhaustive())
+
+            val testInterface = codebase.assertClass("test.pkg.SealedInterface")
+            assertEquals(true, testInterface.modifiers.isExhaustive())
+        }
+    }
+
+    @Test
+    fun `modifiers show nonexhaustive when class or interface is marked as nonexhaustive in signature`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public abstract sealed nonexhaustive class SealedClass {
+                      }
+                      public sealed nonexhaustive interface SealedInterface {
+                      }
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+
+                    public sealed class SealedClass {}
+                    private class PrivateChildClass : SealedClass()
+
+                    public sealed interface SealedInterface
+                    private class PrivateInterfaceImplementor : SealedInterface
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.SealedClass")
+            assertEquals(false, testClass.modifiers.isExhaustive())
+        }
+    }
+
+    @Test
+    fun `subclasses are populated correctly for sealed classes and interfaces, and indirect subclasses aren't tracked`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 4.0
+                    package test.pkg {
+                      public final class MyIndirectInterfaceImplementor extends test.pkg.MyInterfaceImplementorA {
+                        ctor public MyIndirectInterfaceImplementor();
+                      }
+                      public final class MyIndirectSubclass extends test.pkg.MySubclassA {
+                        ctor public MyIndirectSubclass();
+                      }
+                      public abstract sealed exhaustive class MyInterfaceImplementorA implements test.pkg.ParentInterface {
+                      }
+                      public final class MyInterfaceImplementorB implements test.pkg.ParentInterface {
+                        ctor public MyInterfaceImplementorB();
+                      }
+                      public abstract sealed exhaustive class MySubclassA extends test.pkg.ParentClass {
+                      }
+                      public final class MySubclassB extends test.pkg.ParentClass {
+                        ctor public MySubclassB();
+                      }
+                      public abstract sealed exhaustive class ParentClass {
+                      }
+                      public sealed exhaustive interface ParentInterface {
+                      }
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+
+                    sealed class ParentClass
+                    sealed class MySubclassA : ParentClass()
+                    class MySubclassB : ParentClass()
+                    class MyIndirectSubclass : MySubclassA()
+
+                    sealed interface ParentInterface
+                    sealed class MyInterfaceImplementorA : ParentInterface
+                    class MyInterfaceImplementorB : ParentInterface
+                    class MyIndirectInterfaceImplementor : MyInterfaceImplementorA()
+                """
+            )
+        ) {
+            val testClass = codebase.assertClass("test.pkg.ParentClass")
+            assertEquals(2, testClass.sealedClassDirectSubclasses().size)
+            assertTrue(
+                "test.pkg.MySubclassA" in
+                    testClass.sealedClassDirectSubclasses().map { it.qualifiedName() }
+            )
+            assertTrue(
+                "test.pkg.MySubclassB" in
+                    testClass.sealedClassDirectSubclasses().map { it.qualifiedName() }
+            )
+
+            val testInterface = codebase.assertClass("test.pkg.ParentInterface")
+            assertEquals(2, testInterface.sealedClassDirectSubclasses().size)
+            assertTrue(
+                "test.pkg.MyInterfaceImplementorA" in
+                    testInterface.sealedClassDirectSubclasses().map { it.qualifiedName() }
+            )
+            assertTrue(
+                "test.pkg.MyInterfaceImplementorB" in
+                    testInterface.sealedClassDirectSubclasses().map { it.qualifiedName() }
+            )
+
+            val subClass = codebase.assertClass("test.pkg.MySubclassA")
+            assertEquals(1, subClass.sealedClassDirectSubclasses().size)
+            assertTrue(
+                "test.pkg.MyIndirectSubclass" in
+                    subClass.sealedClassDirectSubclasses().map { it.qualifiedName() }
+            )
+
+            val ifaceImplementor = codebase.assertClass("test.pkg.MyInterfaceImplementorA")
+            assertEquals(1, ifaceImplementor.sealedClassDirectSubclasses().size)
+            assertTrue(
+                "test.pkg.MyIndirectInterfaceImplementor" in
+                    ifaceImplementor.sealedClassDirectSubclasses().map { it.qualifiedName() }
+            )
         }
     }
 }

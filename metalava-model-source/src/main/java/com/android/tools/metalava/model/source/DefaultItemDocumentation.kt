@@ -40,7 +40,9 @@ internal class DefaultItemDocumentation(
 }
 
 /** Wrap a [String] in an [ItemDocumentationFactory]. */
-fun String.toItemDocumentationFactory(): ItemDocumentationFactory = { toItemDocumentation(it) }
+fun String.toItemDocumentationFactory(): ItemDocumentationFactory = ItemDocumentationFactory {
+    toItemDocumentation(it)
+}
 
 /** Wrap a [String] in an [ItemDocumentation] instance. */
 private fun String.toItemDocumentation(item: SelectableItem): ItemDocumentation =

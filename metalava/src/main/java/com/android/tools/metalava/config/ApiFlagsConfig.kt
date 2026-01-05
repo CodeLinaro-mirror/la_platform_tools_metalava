@@ -51,6 +51,10 @@ data class ApiFlagConfig(
      * for which the API is being built.
      */
     @field:JacksonXmlProperty(isAttribute = true) val status: Status,
+
+    /** Whether the flag is exported */
+    @field:JacksonXmlProperty(isAttribute = true, localName = "is-exported")
+    val isExported: Boolean,
 ) {
     enum class Mutability {
         MUTABLE,

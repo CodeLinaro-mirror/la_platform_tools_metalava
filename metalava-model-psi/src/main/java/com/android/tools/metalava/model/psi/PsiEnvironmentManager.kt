@@ -20,7 +20,6 @@ import com.android.tools.lint.UastEnvironment
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ModelOptions
 import com.android.tools.metalava.model.source.EnvironmentManager
-import com.android.tools.metalava.model.source.SourceParser
 import com.intellij.core.CoreApplicationEnvironment
 import com.intellij.openapi.diagnostic.DefaultLogger
 import com.intellij.openapi.util.Disposer
@@ -32,7 +31,7 @@ import kotlin.io.path.createTempDirectory
 import org.jetbrains.kotlin.config.CommonConfigurationKeys
 
 /** Manages the [UastEnvironment] objects created when processing sources. */
-class PsiEnvironmentManager(
+internal class PsiEnvironmentManager(
     private val disableStderrDumping: Boolean = false,
     private val forTesting: Boolean = false,
 ) : EnvironmentManager {
@@ -123,16 +122,14 @@ class PsiEnvironmentManager(
         javaLanguageLevel: String,
         kotlinLanguageLevel: String,
         modelOptions: ModelOptions,
-        allowReadingComments: Boolean,
         jdkHome: File?,
-    ): SourceParser {
+    ): PsiSourceParser {
         return PsiSourceParser(
             psiEnvironmentManager = this,
             codebaseConfig = codebaseConfig,
             javaLanguageLevel = javaLanguageLevelFromString(javaLanguageLevel),
             kotlinLanguageLevel = kotlinLanguageVersionSettings(kotlinLanguageLevel),
             useK2Uast = modelOptions[PsiModelOptions.useK2Uast],
-            allowReadingComments = allowReadingComments,
             jdkHome = jdkHome,
         )
     }
@@ -162,19 +159,6 @@ class PsiEnvironmentManager(
     }
 
     companion object {
-        fun javaLanguageLevelFromString(value: String): LanguageLevel {
-            val level = LanguageLevel.parse(value)
-            when {
-                level == null ->
-                    throw IllegalStateException(
-                        "$value is not a valid or supported Java language level"
-                    )
-                level.isLessThan(LanguageLevel.JDK_1_7) ->
-                    throw IllegalStateException("$value must be at least 1.7")
-                else -> return level
-            }
-        }
-
         /**
          * Track how many open [PsiEnvironmentManager]s exist. This is so that when the final
          * manager is closed, it can ensure that everything has been disposed.
@@ -184,3 +168,14 @@ class PsiEnvironmentManager(
 }
 
 private const val METALAVA_SYNTHETIC_SUFFIX = "metalava_module"
+
+private fun javaLanguageLevelFromString(value: String): LanguageLevel {
+    val level = LanguageLevel.parse(value)
+    when {
+        level == null ->
+            throw IllegalStateException("$value is not a valid or supported Java language level")
+        level.isLessThan(LanguageLevel.JDK_1_7) ->
+            throw IllegalStateException("$value must be at least 1.7")
+        else -> return level
+    }
+}

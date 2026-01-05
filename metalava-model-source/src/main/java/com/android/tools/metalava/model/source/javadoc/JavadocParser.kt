@@ -17,13 +17,13 @@
 package com.android.tools.metalava.model.source.javadoc
 
 import com.android.tools.metalava.model.source.doc.DocCommentContext
-import com.android.tools.metalava.model.source.doc.DocumentationFragmentIssueReporter
 import com.android.tools.metalava.model.source.doc.DocumentationIssueReporter
 import com.android.tools.metalava.model.source.doc.InlineTagTypes
 import com.android.tools.metalava.model.source.doc.skipBackwardsOverTrailingWhitespace
 import com.android.tools.metalava.model.source.doc.skipForwardsOverLeadingWhitespace
 import com.android.tools.metalava.reporter.Issues
 import java.nio.CharBuffer
+import org.antlr.v4.runtime.ANTLRErrorListener
 import org.antlr.v4.runtime.BaseErrorListener
 import org.antlr.v4.runtime.CodePointBuffer
 import org.antlr.v4.runtime.CodePointCharStream
@@ -65,12 +65,17 @@ private constructor(
         ): JavadocContent? {
             var fileName = "<unknown>"
             val errorListener = JavadocErrorListener(reporter)
+
+            // Create the ANTLR lexer.
             val charStream = charStreamFromStringRange(text, startInclusive, endExclusive, fileName)
             val lexer = AntlrJavadocLexer(charStream)
+            lexer.setErrorListener(errorListener)
+
+            // Create the ANTLR parser.
             val tokenStream = CommonTokenStream(lexer)
             val antlrParser = AntlrJavadocParser(tokenStream)
-            antlrParser.removeErrorListeners()
-            antlrParser.addErrorListener(errorListener)
+            antlrParser.setErrorListener(errorListener)
+
             val parser = JavadocParser(antlrParser, context, reporter)
             return parser.parse()
         }
@@ -93,6 +98,12 @@ private constructor(
             codePointBufferBuilder.append(cb)
             return CodePointCharStream.fromBuffer(codePointBufferBuilder.build(), fileName)
         }
+
+        /** Remove any default listeners and add [listener] as the only one. */
+        private fun Recognizer<*, *>.setErrorListener(listener: ANTLRErrorListener) {
+            removeErrorListeners()
+            addErrorListener(listener)
+        }
     }
 
     private fun parse(): JavadocContent? {
@@ -110,50 +121,70 @@ internal class JavadocErrorListener(
         offendingSymbol: Any?,
         line: Int,
         charPositionInLine: Int,
-        msg: String?,
+        msg: String,
         e: RecognitionException?
     ) {
         // Construct a full message that includes lots of debug information about the nature of the
-        // problem. This is not intended to report issues for developers to
-        val fullMsg =
-            e?.expectedTokens?.let { expectedTokens ->
-                buildString {
-                    append(msg)
-                    append("\n")
-                    append("  Expected:\n")
-                    val vocabulary = recognizer?.vocabulary
-                    for (interval in expectedTokens.intervals) {
-                        for (tokenTypeIndex in interval.a.rangeTo(interval.b)) {
-                            append("    ${vocabulary?.getSymbolicName(tokenTypeIndex)}\n")
-                        }
-                    }
-                    val offendingToken = e.offendingToken
-                    val tokens = recognizer?.inputStream as? TokenStream
-                    if (e is NoViableAltException && tokens != null) {
-                        append("  No viable alternative found for sequence:\n")
-                        for (tokenIndex in
-                            e.startToken.tokenIndex.rangeTo(offendingToken.tokenIndex)) {
-                            val token = tokens[tokenIndex]
-                            append(
-                                "    ${vocabulary?.getSymbolicName(token.type)} \"${token.text}\"\n"
-                            )
-                        }
-                    } else {
-                        append("  Found:\n")
-                        append(
-                            "    ${vocabulary?.getSymbolicName(offendingToken.type)} \"${offendingToken.text}\"\n"
-                        )
-                    }
+        // problem. This is not intended to report issues for developers to handle.
+        val fullMsg = appendExpectedTokens(e, msg, recognizer) ?: msg
+
+        // line is 1-based but lineOffset is 0-based so subtract 1 from the former to create the
+        // latter.
+        val lineOffset = line - 1
+        // charPositionInLine is 0-based and so is charOffset so the former can be used as the
+        // latter directly.
+        val charOffset = charPositionInLine
+        reporter.report(Issues.INVALID_JAVADOC, fullMsg, lineOffset, charOffset)
+    }
+
+    /**
+     * Append information about expected tokens in [e] (if any) from [recognizer], from [e] to the
+     * [msg], or return `null` if the original [msg] is to be used unchanged.
+     */
+    private fun appendExpectedTokens(
+        e: RecognitionException?,
+        msg: String,
+        recognizer: Recognizer<*, *>?
+    ): String? {
+        // If there is no exception then return immediately.
+        e ?: return null
+
+        // If there is no recognizer then there is no way to create meaningful descriptions of any
+        // expected tokens so return immediately.
+        recognizer ?: return null
+
+        // Work around a problem where calling expectedTokens does not work if [recognizer] has
+        // never entered a valid state.
+        if (e.offendingState == -1) return null
+
+        // If the exception does not have any expected tokens then return immediately.
+        val expectedTokens = e.expectedTokens ?: return null
+
+        // Otherwise, append the expected token information to `msg`.
+        return buildString {
+            append(msg)
+            append("\n")
+            append("  Expected:\n")
+            val vocabulary = recognizer.vocabulary
+            for (interval in expectedTokens.intervals) {
+                for (tokenTypeIndex in interval.a.rangeTo(interval.b)) {
+                    append("    ${vocabulary.getSymbolicName(tokenTypeIndex)}\n")
                 }
-            } ?: msg
-        if (fullMsg != null) {
-            // line is 1-based but lineOffset is 0-based so subtract 1 from the former to create the
-            // latter.
-            val lineOffset = line - 1
-            // charPositionInLine is 0-based and so is charOffset so the former can be used as the
-            // latter directly.
-            val charOffset = charPositionInLine
-            reporter.report(Issues.INVALID_JAVADOC, fullMsg, lineOffset, charOffset)
+            }
+            val offendingToken = e.offendingToken
+            val tokens = recognizer.inputStream as? TokenStream
+            if (e is NoViableAltException && tokens != null) {
+                append("  No viable alternative found for sequence:\n")
+                for (tokenIndex in e.startToken.tokenIndex.rangeTo(offendingToken.tokenIndex)) {
+                    val token = tokens[tokenIndex]
+                    append("    ${vocabulary?.getSymbolicName(token.type)} \"${token.text}\"\n")
+                }
+            } else {
+                append("  Found:\n")
+                append(
+                    "    ${vocabulary?.getSymbolicName(offendingToken.type)} \"${offendingToken.text}\"\n"
+                )
+            }
         }
     }
 }
@@ -165,6 +196,18 @@ private class JavadocContentBuilder(
 ) : AntlrJavadocParserBaseVisitor<Unit>() {
     /** A [DocumentationIssueReporter] that can be used to report issues with a [Token]. */
     private val tokenIssueReporter = TokenIssueReporter(reporter)
+
+    /** Backing field for [exprBuilder], lazily initialized when [exprBuilder] is accessed. */
+    private lateinit var _exprBuilder: ExprBuilder
+
+    /** Get the [ExprBuilder] to use to construct [Expr] for conditional javadoc processing. */
+    private val exprBuilder: ExprBuilder
+        get() {
+            if (!::_exprBuilder.isInitialized) {
+                _exprBuilder = ExprBuilder(tokenIssueReporter)
+            }
+            return _exprBuilder
+        }
 
     /**
      * Determines whether whitespace should be trimmed from the start of the content.
@@ -382,7 +425,7 @@ private class JavadocContentBuilder(
         return content
     }
 
-    override fun visitDescriptionLineText(ctx: AntlrJavadocParser.DescriptionLineTextContext) {
+    override fun visitTextContent(ctx: AntlrJavadocParser.TextContentContext) {
         // Add the text to the text buffer.
         appendText(ctx.text)
     }
@@ -391,6 +434,33 @@ private class JavadocContentBuilder(
         // This matches a newline possible following by white space and then a `*` (but not '*/').
         // However, the white space and `*` are not considered part of the comment so are ignored.
         appendNewline()
+    }
+
+    override fun visitInlineIfTag(ctx: AntlrJavadocParser.InlineIfTagContext) {
+        // Convert the expression into an Expr object.
+        val exprRule =
+            ctx.expr()
+                ?: run {
+                    tokenIssueReporter.report(
+                        ctx.INLINE_IF_TAG_START().symbol,
+                        Issues.INVALID_IF_TAG,
+                        "missing <expr>"
+                    )
+                    return
+                }
+        val expr = exprBuilder.buildExpr(exprRule)
+
+        // Evaluate the expression to get a boolean result.
+        val result = expr.evaluate(context)
+
+        // Select the content to use based on the value of the expression.
+        if (result) {
+            // The content to use when true is always provided.
+            ctx.braceExpression(0).braceContent().forEach { it.accept(this) }
+        } else {
+            // The else content is optional.
+            ctx.braceExpression(1)?.braceContent()?.forEach { it.accept(this) }
+        }
     }
 
     override fun visitInlineTag(ctx: AntlrJavadocParser.InlineTagContext) {
@@ -403,18 +473,17 @@ private class JavadocContentBuilder(
         // from the start of the inline tag content.
         trimLeadingWhitespace = false
 
-        val tagTypeName = ctx.inlineTagName().NAME().text
+        val tagTypeName = ctx.INLINE_TAG_NAME().text
         val tagType = InlineTagTypes.tagTypeOf(tagTypeName)
 
         // If a BRACE_CLOSE token was not found then the inline tag was not closed properly so
         // report the issue.
         if (ctx.BRACE_CLOSE() == null) {
-            tokenIssueReporter.reportAtToken(ctx.INLINE_TAG_START().symbol) {
-                tokenIssueReporter.report(
-                    Issues.UNCLOSED_INLINE_TAG,
-                    "unclosed inline '@${tagTypeName}' tag",
-                )
-            }
+            tokenIssueReporter.report(
+                ctx.INLINE_TAG_START().symbol,
+                Issues.UNCLOSED_INLINE_TAG,
+                "unclosed inline '@${tagTypeName}' tag",
+            )
         }
 
         // Split the nested content, if any, into separate data and remaining content.
@@ -462,45 +531,6 @@ private class JavadocContentBuilder(
         appendText("{")
         super.visitBraceExpression(ctx)
         appendText("}")
-    }
-
-    override fun visitBraceText(ctx: AntlrJavadocParser.BraceTextContext) {
-        // Brace text is just a set of possible different blocks of text so just add them into the
-        // buffer.
-        appendText(ctx.text)
-    }
-
-    /** A [DocumentationIssueReporter] that reports issues for a [Token]. */
-    class TokenIssueReporter(reporter: DocumentationIssueReporter) :
-        DocumentationFragmentIssueReporter(reporter) {
-        /** The [Token] on which the issues will be reported. */
-        private var token: Token? = null
-
-        /**
-         * The line offset of [token] from the beginning of the content parsed by [JavadocParser].
-         */
-        override val lineOffsetFromContainer: Int
-            get() =
-                // The token's `line` property is 1-based but this is 0-based so convert the former
-                // to the latter.
-                token!!.line - 1
-
-        /** The character offset of [token] from the beginning of the line containing it. */
-        override val firstLineCharacterOffset: Int
-            get() =
-                // The token's `charPositionInLine` is already 0-based like this.
-                token!!.charPositionInLine
-
-        /** Treat any issues reported by [body] as if they were reported on [token]. */
-        inline fun <R> reportAtToken(token: Token, body: () -> R): R {
-            val oldToken = token
-            this.token = token
-            try {
-                return body()
-            } finally {
-                this.token = oldToken
-            }
-        }
     }
 
     companion object {

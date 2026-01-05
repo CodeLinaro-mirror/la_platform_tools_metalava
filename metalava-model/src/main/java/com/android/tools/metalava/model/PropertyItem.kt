@@ -16,7 +16,7 @@
 
 package com.android.tools.metalava.model
 
-interface PropertyItem : MemberItem {
+interface PropertyItem : MemberItem, TypeParameterListOwner {
     /** The getter for this property, if it exists; inverse of [MethodItem.property] */
     val getter: MethodItem?
         get() = null
@@ -36,6 +36,8 @@ interface PropertyItem : MemberItem {
     val constructorParameter: ParameterItem?
         get() = null
 
+    override fun describe(capitalize: Boolean) = toString()
+
     /** The type of this property */
     override fun type(): TypeItem
 
@@ -43,7 +45,7 @@ interface PropertyItem : MemberItem {
     val receiver: TypeItem?
 
     /** The type parameters of this property. */
-    val typeParameterList: TypeParameterList
+    override val typeParameterList: TypeParameterList
 
     override fun findCorrespondingItemIn(
         codebase: Codebase,

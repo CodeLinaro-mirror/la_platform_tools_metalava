@@ -23,6 +23,8 @@ import com.android.tools.metalava.cli.common.ARG_ERROR
 import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.lint.DefaultLintErrorMessage
 import com.android.tools.metalava.model.provider.Capability
+import com.android.tools.metalava.model.testing.FilterAction
+import com.android.tools.metalava.model.testing.FilterByProvider
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.FileFormat.OverloadedMethodOrder
@@ -33,6 +35,7 @@ import com.android.tools.metalava.testing.createCommonModuleDescription
 import com.android.tools.metalava.testing.createProjectDescription
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
+import com.android.tools.metalava.testing.source
 import org.junit.Test
 
 class ApiFileTest : DriverTest() {
@@ -71,6 +74,205 @@ class ApiFileTest : DriverTest() {
         that we skip interfaces if their implementation methods are marked @hide?
       - Test recursive package filtering.
     */
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Correctly mark sealed class and interface as nonexhaustive even when private subclass is declared before sealed parent class`() {
+        check(
+            format = FileFormat.V4,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+
+                        private class PrivateSubclassOfSealedClass: ParentNonExhaustiveSealedClass()
+                        private class PrivateSubclassOfSealedInterface: ParentNonExhaustiveSealedInterface
+                        """
+                            .trimIndent()
+                    ),
+                    kotlin(
+                        """
+                        package test.pkg
+
+                        public sealed class ParentNonExhaustiveSealedClass
+                        public sealed interface ParentNonExhaustiveSealedInterface
+                        """
+                    ),
+                    kotlin(
+                        """
+                        package test.pkg
+
+                        public class PublicSubclassOfSealedClass : ParentNonExhaustiveSealedClass()
+                        public class PublicSubclassOfSealedInterface : ParentNonExhaustiveSealedInterface
+                        """
+                            .trimIndent()
+                    )
+                ),
+            api =
+                """
+                package test.pkg {
+                  public abstract sealed nonexhaustive class ParentNonExhaustiveSealedClass {
+                  }
+                  public sealed nonexhaustive interface ParentNonExhaustiveSealedInterface {
+                  }
+                  public final class PublicSubclassOfSealedClass extends test.pkg.ParentNonExhaustiveSealedClass {
+                    ctor public PublicSubclassOfSealedClass();
+                  }
+                  public final class PublicSubclassOfSealedInterface implements test.pkg.ParentNonExhaustiveSealedInterface {
+                    ctor public PublicSubclassOfSealedInterface();
+                  }
+                }
+                """
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Mark a sealed class and interface as exhaustive if no non-accessible classes inherit from it - basic case`() {
+        check(
+            format = FileFormat.V4,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+
+                        public sealed class ExhaustiveSealedClass
+                        public class PublicSealedClassChild1 : ExhaustiveSealedClass()
+                        public class PublicSealedClassChild2 : ExhaustiveSealedClass()
+
+                        public sealed interface ExhaustiveSealedInterface
+                        public class PublicSealedInterfaceImplementor1 : ExhaustiveSealedInterface
+                        public class PublicSealedInterfaceImplementor2 : ExhaustiveSealedInterface
+                        """
+                    )
+                ),
+            api =
+                """
+                package test.pkg {
+                  public abstract sealed exhaustive class ExhaustiveSealedClass {
+                  }
+                  public sealed exhaustive interface ExhaustiveSealedInterface {
+                  }
+                  public final class PublicSealedClassChild1 extends test.pkg.ExhaustiveSealedClass {
+                    ctor public PublicSealedClassChild1();
+                  }
+                  public final class PublicSealedClassChild2 extends test.pkg.ExhaustiveSealedClass {
+                    ctor public PublicSealedClassChild2();
+                  }
+                  public final class PublicSealedInterfaceImplementor1 implements test.pkg.ExhaustiveSealedInterface {
+                    ctor public PublicSealedInterfaceImplementor1();
+                  }
+                  public final class PublicSealedInterfaceImplementor2 implements test.pkg.ExhaustiveSealedInterface {
+                    ctor public PublicSealedInterfaceImplementor2();
+                  }
+                }
+                """
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Mark a sealed class and interface as exhaustive even if sealed subclass is nonexhaustive`() {
+        check(
+            format = FileFormat.V4,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+
+                        public sealed class SealedExhaustiveParentClass
+                        public class PublicChildOfSealedParentClass : SealedExhaustiveParentClass()
+
+                        public sealed interface SealedExhaustiveParentInterface
+                        public class PublicChildOfSealedParentInterface : SealedExhaustiveParentInterface
+                        """
+                    ),
+                    kotlin(
+                        """
+                        package test.pkg
+
+                        public sealed class SealedNonExhaustiveChildClass : SealedExhaustiveParentClass()
+                        public class PublicChildOfSealedChildClass: SealedNonExhaustiveChildClass()
+                        private class PrivateChildOfSealedChildClass : SealedNonExhaustiveChildClass()
+
+                        public sealed interface SealedNonExhaustiveChildInterface : SealedExhaustiveParentInterface
+                        public class PublicChildOfSealedChildInterface: SealedNonExhaustiveChildInterface
+                        private class PrivateChildOfSealedChildInterface : SealedNonExhaustiveChildInterface
+                        """
+                            .trimIndent()
+                    )
+                ),
+            api =
+                """
+                package test.pkg {
+                  public final class PublicChildOfSealedChildClass extends test.pkg.SealedNonExhaustiveChildClass {
+                    ctor public PublicChildOfSealedChildClass();
+                  }
+                  public final class PublicChildOfSealedChildInterface implements test.pkg.SealedNonExhaustiveChildInterface {
+                    ctor public PublicChildOfSealedChildInterface();
+                  }
+                  public final class PublicChildOfSealedParentClass extends test.pkg.SealedExhaustiveParentClass {
+                    ctor public PublicChildOfSealedParentClass();
+                  }
+                  public final class PublicChildOfSealedParentInterface implements test.pkg.SealedExhaustiveParentInterface {
+                    ctor public PublicChildOfSealedParentInterface();
+                  }
+                  public abstract sealed exhaustive class SealedExhaustiveParentClass {
+                  }
+                  public sealed exhaustive interface SealedExhaustiveParentInterface {
+                  }
+                  public abstract sealed nonexhaustive class SealedNonExhaustiveChildClass extends test.pkg.SealedExhaustiveParentClass {
+                  }
+                  public sealed nonexhaustive interface SealedNonExhaustiveChildInterface extends test.pkg.SealedExhaustiveParentInterface {
+                  }
+                }
+                """
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Mark a sealed class and interface as nonexhaustive if a private subclass inherits from it`() {
+        check(
+            format = FileFormat.V4,
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+                        class AnOuterClass {
+                            private class InnerClassA : SealedParentClass()
+                            private class InnerClassB : SealedParentInterface
+                        }
+                        """
+                            .trimIndent()
+                    ),
+                    kotlin(
+                        """
+                        package test.pkg
+
+                        public sealed class SealedParentClass
+                        public sealed interface SealedParentInterface
+                        """
+                    )
+                ),
+            api =
+                """
+                package test.pkg {
+                  public final class AnOuterClass {
+                    ctor public AnOuterClass();
+                  }
+                  public abstract sealed nonexhaustive class SealedParentClass {
+                  }
+                  public sealed nonexhaustive interface SealedParentInterface {
+                  }
+                }
+                """
+        )
+    }
 
     @RequiresCapabilities(Capability.KOTLIN)
     @Test
@@ -4419,7 +4621,7 @@ class ApiFileTest : DriverTest() {
                 """
                 // Signature format: 4.0
                 package test.pkg {
-                  public abstract sealed class MyClass {
+                  public abstract sealed exhaustive class MyClass {
                     method @InaccessibleFromKotlin public final int getFirstConstructorProperty();
                     method @InaccessibleFromKotlin public final String getNonConstructorProperty();
                     method @InaccessibleFromKotlin public final boolean getSecondConstructorProperty();
@@ -5682,7 +5884,7 @@ class ApiFileTest : DriverTest() {
             api =
                 """
                 package test.pkg {
-                  @Deprecated public sealed interface LazyInfo {
+                  @Deprecated public sealed exhaustive interface LazyInfo {
                     method @InaccessibleFromKotlin @Deprecated public int getIndex();
                     method @InaccessibleFromKotlin @Deprecated public int getKey();
                     property @Deprecated public abstract int index;
@@ -6398,7 +6600,7 @@ class ApiFileTest : DriverTest() {
                     method @InaccessibleFromKotlin public S getCurrentState();
                     property public S currentState;
                   }
-                  public abstract sealed class TransitionState<S> {
+                  public abstract sealed exhaustive class TransitionState<S> {
                     method @InaccessibleFromKotlin public abstract S getCurrentState();
                     property public abstract S currentState;
                   }
@@ -6566,6 +6768,38 @@ class ApiFileTest : DriverTest() {
                   }
                 }
                 """
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    // K1 does not have full typealias support.
+    @FilterByProvider("psi", "k1", action = FilterAction.EXCLUDE)
+    @Test
+    fun `Test typealiases from classpath are not listed`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        // The kotlin package is used here to make it so built-in kotlin typealiases
+                        // are also processed.
+                        """
+                        package kotlin
+                        """,
+                    ),
+                    kotlin(
+                        """
+                        package test.pkg
+                        typealias Foo = String
+                        """
+                    ),
+                ),
+            api =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public typealias Foo = String;
+                }
+                """,
         )
     }
 }

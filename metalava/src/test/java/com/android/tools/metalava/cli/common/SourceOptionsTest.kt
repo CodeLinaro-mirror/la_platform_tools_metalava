@@ -16,6 +16,9 @@
 
 package com.android.tools.metalava.cli.common
 
+import com.google.common.truth.Truth.assertThat
+import org.junit.Test
+
 val SOURCE_OPTIONS_HELP =
     """
 Sources:
@@ -42,4 +45,18 @@ class SourceOptionsTest :
     ) {
 
     override fun createOptions() = SourceOptions()
+
+    @Test
+    fun `Test source model provider - psi`() {
+        runTest(ARG_SOURCE_MODEL_PROVIDER, "psi") {
+            assertThat(options.sourceModelProvider.providerName).isEqualTo("psi")
+        }
+    }
+
+    @Test
+    fun `Test source model provider - turbine`() {
+        runTest(ARG_SOURCE_MODEL_PROVIDER, "turbine") {
+            assertThat(options.sourceModelProvider.providerName).isEqualTo("turbine")
+        }
+    }
 }

@@ -46,4 +46,9 @@ enum class ClassKind(
     CLASS(
         supportsInitializerBlock = true,
     ),
+
+    /** A typealias */
+    TYPEALIAS(
+        supportsInitializerBlock = false,
+    ),
 }

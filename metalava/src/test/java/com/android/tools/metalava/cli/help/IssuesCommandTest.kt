@@ -47,6 +47,7 @@ Available Issues                             |  Category                        
   AddedMethod                                |  other_compatibility                  |   hidden
   AddedPackage                               |  other_compatibility                  |   hidden
   AddedReified                               |  binary_compatibility_only            |   error
+  AddedSubclassToSealedClass                 |  source_compatibility_only            |   error
   AllUpper                                   |  api_lint                             |   error
   AndroidUri                                 |  api_lint                             |   error
   AnnotationExtraction                       |  unknown                              |   error
@@ -120,9 +121,11 @@ Available Issues                             |  Category                        
   InternalClasses                            |  api_lint                             |   error
   InternalError                              |  unknown                              |   error
   InternalField                              |  api_lint                             |   error
+  InvalidBlockTagUse                         |  documentation                        |   error
   InvalidFeatureEnforcement                  |  documentation                        |   error
-  InvalidHideDocTag                          |  documentation                        |   warning_error_when_new
+  InvalidIfTag                               |  documentation                        |   error
   InvalidJavadoc                             |  documentation                        |   warning_error_when_new
+  InvalidJavadocExpr                         |  documentation                        |   error
   InvalidNullConversion                      |  source_compatibility_only            |   error
   InvalidNullabilityAnnotation               |  unknown                              |   error
   InvalidNullabilityAnnotationWarning        |  unknown                              |   warning
@@ -203,6 +206,7 @@ Available Issues                             |  Category                        
   ReturningUnexpectedConstant                |  unknown                              |   warning
   SamShouldBeLast                            |  api_lint                             |   warning
   SdkConstant                                |  documentation                        |   error
+  SealedClassExhaustivityChanged             |  source_compatibility_only            |   error
   ServiceName                                |  api_lint                             |   error
   SetterReturnsThis                          |  api_lint                             |   warning
   ShowingMemberInHiddenClass                 |  api_lint                             |   error
@@ -222,6 +226,7 @@ Available Issues                             |  Category                        
   TypeParseError                             |  unknown                              |   error
   UnavailableSymbol                          |  documentation                        |   warning
   UnclosedInlineTag                          |  documentation                        |   error
+  UnexportedFlaggedApi                       |  api_lint                             |   warning_error_when_new
   UnflaggedApi                               |  api_lint                             |   hidden
   UnhiddenSystemApi                          |  api_lint                             |   error
   UniqueKotlinOperator                       |  api_lint                             |   error

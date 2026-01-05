@@ -50,6 +50,7 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TypedefMode
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
 import com.android.tools.metalava.model.source.DEFAULT_JAVA_LANGUAGE_LEVEL
@@ -63,16 +64,12 @@ import com.android.tools.metalava.reporter.IssueConfiguration
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reportable
 import com.android.tools.metalava.reporter.Reporter
-import com.android.tools.metalava.stub.StubWriterConfig
 import com.android.utils.SdkUtils.wrap
 import com.github.ajalt.clikt.core.NoSuchOption
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
-import com.github.ajalt.clikt.parameters.options.default
-import com.github.ajalt.clikt.parameters.options.deprecated
 import com.github.ajalt.clikt.parameters.options.multiple
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.unique
-import com.github.ajalt.clikt.parameters.types.choice
 import com.github.ajalt.clikt.parameters.types.file
 import java.io.File
 import java.io.PrintWriter
@@ -156,12 +153,9 @@ const val ARG_VALIDATE_NULLABILITY_FROM_MERGED_STUBS = "--validate-nullability-f
 const val ARG_VALIDATE_NULLABILITY_FROM_LIST = "--validate-nullability-from-list"
 const val ARG_NULLABILITY_WARNINGS_TXT = "--nullability-warnings-txt"
 const val ARG_NULLABILITY_ERRORS_NON_FATAL = "--nullability-errors-non-fatal"
-const val ARG_DOC_STUBS = "--doc-stubs"
 /** Used by Firebase, see b/116185431#comment15, not used by Android Platform or AndroidX */
 const val ARG_PROGUARD = "--proguard"
 const val ARG_EXTRACT_ANNOTATIONS = "--extract-annotations"
-const val ARG_EXCLUDE_DOCUMENTATION_FROM_STUBS = "--exclude-documentation-from-stubs"
-const val ARG_ENHANCE_DOCUMENTATION = "--enhance-documentation"
 const val ARG_SKIP_READING_COMMENTS = "--ignore-comments"
 const val ARG_MANIFEST = "--manifest"
 const val ARG_MIGRATE_NULLNESS = "--migrate-nullness"
@@ -181,7 +175,6 @@ const val ARG_IGNORE_CLASSES_ON_CLASSPATH = "--ignore-classes-on-classpath"
 const val ARG_USE_K2_UAST = "--Xuse-k2-uast"
 const val ARG_USE_K1_UAST = "--Xuse-k1-uast"
 const val ARG_PROJECT = "--project"
-const val ARG_SOURCE_MODEL_PROVIDER = "--source-model-provider"
 
 class Options(
     private val executionEnvironment: ExecutionEnvironment = ExecutionEnvironment(),
@@ -196,7 +189,7 @@ class Options(
     private val compatibilityCheckOptions: CompatibilityCheckOptions = CompatibilityCheckOptions(),
     signatureFileOptions: SignatureFileOptions = SignatureFileOptions(),
     signatureFormatOptions: SignatureFormatOptions = SignatureFormatOptions(),
-    stubGenerationOptions: StubGenerationOptions = StubGenerationOptions(),
+    val stubGenerationOptions: StubGenerationOptions = StubGenerationOptions(),
     internal val apiLevelsGenerationOptions: ApiLevelsGenerationOptions =
         ApiLevelsGenerationOptions(),
 ) : OptionGroup() {
@@ -268,24 +261,13 @@ class Options(
     var validateNullabilityFromList: File? = null
 
     /**
-     * Whether to include element documentation (javadoc and KDoc) is in the generated stubs.
-     * (Copyright notices are not affected by this, they are always included. Documentation stubs
-     * (--doc-stubs) are not affected.)
+     * Whether to allow reading comments from the sources.
+     *
+     * If `true` then source comments will be read and [SelectableItem.documentation] will not be
+     * `null` (unless the [SelectableItem] is `private`). If `false` then
+     * [SelectableItem.documentation] will always be `null`.
      */
-    private var includeDocumentationInStubs = true
-
-    /**
-     * Enhance documentation in various ways, for example auto-generating documentation based on
-     * source annotations present in the code. This is implied by --doc-stubs.
-     */
-    var enhanceDocumentation = false
-
-    /**
-     * Whether to allow reading comments If false, any attempts by Metalava to read a PSI comment
-     * will return "" This can help callers to be sure that comment-only changes shouldn't affect
-     * Metalava output
-     */
-    var allowReadingComments = true
+    private var allowReadingComments = true
 
     /** The list of source roots */
     val sourcePath: List<File> by sourceOptions::sourcePath
@@ -353,6 +335,10 @@ class Options(
     val skipEmitPackages
         get() = executionEnvironment.testEnvironment?.skipEmitPackages ?: emptyList()
 
+    private val apiFlags by lazy {
+        ApiFlagsCreator.createFromConfig(configFileOptions.config.apiFlags)
+    }
+
     private val annotationManager: AnnotationManager by lazy {
         DefaultAnnotationManager(
             DefaultAnnotationManager.Config(
@@ -369,7 +355,7 @@ class Options(
                 previouslyReleasedCodebaseProvider = {
                     previouslyReleasedApi?.load { signatureFileCache.load(it) }
                 },
-                apiFlags = ApiFlagsCreator.createFromConfig(configFileOptions.config.apiFlags),
+                apiFlags = apiFlags,
             )
         )
     }
@@ -381,7 +367,9 @@ class Options(
     internal val codebaseConfig by
         lazy(LazyThreadSafetyMode.NONE) {
             Codebase.Config(
+                allowReadingComments = allowReadingComments,
                 annotationManager = annotationManager,
+                apiFlags = apiFlags,
                 apiSurfaces = apiSurfaces,
                 reporter = reporter,
             )
@@ -453,22 +441,9 @@ class Options(
     val verbose: Boolean
         get() = verbosity.verbose
 
-    internal val stubWriterConfig by lazy {
-        StubWriterConfig(
-            includeDocumentationInStubs = includeDocumentationInStubs,
-        )
-    }
-
-    val stubsDir by stubGenerationOptions::stubsDir
     val forceConvertToWarningNullabilityAnnotations by
         stubGenerationOptions::forceConvertToWarningNullabilityAnnotations
     val generateAnnotations by stubGenerationOptions::includeAnnotations
-
-    /**
-     * If set, a directory to write documentation stub files to. Corresponds to the --stubs/-stubs
-     * flag.
-     */
-    var docStubsDir: File? = null
 
     /** Proguard Keep list file to write */
     var proguard: File? = null
@@ -484,7 +459,7 @@ class Options(
      * If set, a file to write extracted annotations to. Corresponds to the --extract-annotations
      * flag.
      */
-    var externalAnnotations: File? = null
+    var externalAnnotationsFile: File? = null
 
     /** An optional manifest [File]. */
     private val manifestFile by
@@ -629,18 +604,6 @@ class Options(
             field = value
         }
 
-    val sourceModelProvider by
-        option(
-                ARG_SOURCE_MODEL_PROVIDER,
-                hidden = true,
-            )
-            .choice("psi", "turbine")
-            .default("psi")
-            .deprecated(
-                """WARNING: The turbine model is under work and not usable for now. Eventually this option can be used to set the source model provider to either turbine or psi. The default is psi. """
-                    .trimIndent()
-            )
-
     fun parse(args: Array<String>) {
         var index = 0
         while (index < args.size) {
@@ -679,9 +642,6 @@ class Options(
                     nullabilityWarningsTxt = stringToNewFile(getValue(args, ++index))
                 ARG_NULLABILITY_ERRORS_NON_FATAL -> nullabilityErrorsFatal = false
                 ARG_SDK_VALUES -> sdkValueDir = stringToNewDir(getValue(args, ++index))
-                ARG_DOC_STUBS -> docStubsDir = stringToNewDir(getValue(args, ++index))
-                ARG_EXCLUDE_DOCUMENTATION_FROM_STUBS -> includeDocumentationInStubs = false
-                ARG_ENHANCE_DOCUMENTATION -> enhanceDocumentation = true
                 ARG_SKIP_READING_COMMENTS -> allowReadingComments = false
                 ARG_PASS_THROUGH_ANNOTATION -> {
                     val annotations = getValue(args, ++index)
@@ -699,7 +659,7 @@ class Options(
                 }
                 ARG_DELETE_EMPTY_REMOVED_SIGNATURES -> deleteEmptyRemovedSignatures = true
                 ARG_EXTRACT_ANNOTATIONS ->
-                    externalAnnotations = stringToNewFile(getValue(args, ++index))
+                    externalAnnotationsFile = stringToNewFile(getValue(args, ++index))
 
                 // Extracting API levels
                 ARG_APPLY_API_LEVELS -> {
@@ -999,26 +959,12 @@ object OptionsHelp {
                 "Write SDK values files to the given directory",
                 "",
                 "Generating Stubs:",
-                "$ARG_DOC_STUBS <dir>",
-                "Generate documentation stub source files for the API. Documentation stub " +
-                    "files are similar to regular stub files, but there are some differences. For example, in " +
-                    "the stub files, we'll use special annotations like @RecentlyNonNull instead of @NonNull to " +
-                    "indicate that an element is recently marked as non null, whereas in the documentation stubs we'll " +
-                    "just list this as @NonNull. Another difference is that @doconly elements are included in " +
-                    "documentation stubs, but not regular stubs, etc.",
                 "$ARG_PASS_THROUGH_ANNOTATION <annotation classes>",
                 "A comma separated list of fully qualified names of " +
                     "annotation classes that must be passed through unchanged.",
                 "$ARG_EXCLUDE_ANNOTATION <annotation classes>",
                 "A comma separated list of fully qualified names of " +
                     "annotation classes that must be stripped from metalava's outputs.",
-                ARG_ENHANCE_DOCUMENTATION,
-                "Enhance documentation in various ways, for example auto-generating documentation based on source " +
-                    "annotations present in the code. This is implied by --doc-stubs.",
-                ARG_EXCLUDE_DOCUMENTATION_FROM_STUBS,
-                "Exclude element documentation (javadoc and kdoc) " +
-                    "from the generated stubs. (Copyright notices are not affected by this, they are always included. " +
-                    "Documentation stubs (--doc-stubs) are not affected.)",
                 "",
                 "Extracting Annotations:",
                 "$ARG_EXTRACT_ANNOTATIONS <zipfile>",

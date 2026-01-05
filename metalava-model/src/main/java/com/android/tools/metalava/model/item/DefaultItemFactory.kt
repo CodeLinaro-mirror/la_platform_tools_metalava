@@ -39,7 +39,6 @@ import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TargetLanguageSet
-import com.android.tools.metalava.model.TypeAliasItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.value.OptionalValueProvider
@@ -65,11 +64,13 @@ class DefaultItemFactory(
         containingPackage: PackageItem?,
         overviewDocumentation: ResourceFile?,
         targetLanguages: Set<TargetLanguage> = TargetLanguageSet.ALL,
-    ): DefaultPackageItem {
+    ): PackageItem {
         return DefaultPackageItem(
             codebase,
             fileLocation,
-            defaultSourceLanguage,
+            // Treat all packages as being Java as Kotlin does not currently provide an equivalent
+            // to `package-info.java`.
+            SourceLanguage.JAVA,
             targetLanguages,
             modifiers,
             documentationFactory,
@@ -80,7 +81,7 @@ class DefaultItemFactory(
         )
     }
 
-    /** Create a [ConstructorItem]. */
+    /** Create a [ClassItem]. */
     fun createClassItem(
         fileLocation: FileLocation,
         sourceLanguage: SourceLanguage = defaultSourceLanguage,
@@ -96,6 +97,7 @@ class DefaultItemFactory(
         origin: ClassOrigin,
         superClassType: ClassTypeItem?,
         interfaceTypes: List<ClassTypeItem>,
+        optionalAliasedType: TypeItem? = null,
     ) =
         DefaultClassItem(
             codebase,
@@ -115,6 +117,7 @@ class DefaultItemFactory(
             superClassType,
             interfaceTypes,
             isFileFacade = false,
+            optionalAliasedType = optionalAliasedType,
         )
 
     /** Create a [ConstructorItem]. */
@@ -276,17 +279,18 @@ class DefaultItemFactory(
             typeParameterList,
         )
 
-    /** Create a [TypeAliasItem]. */
+    /** Create a [ClassItem] which is a typealias. */
     fun createTypeAliasItem(
         fileLocation: FileLocation,
         modifiers: BaseModifierList,
         qualifiedName: String,
-        containingPackage: DefaultPackageItem,
+        containingPackage: PackageItem,
         aliasedType: TypeItem,
         typeParameterList: TypeParameterList,
+        origin: ClassOrigin,
         documentationFactory: ItemDocumentationFactory = ItemDocumentation.NONE_FACTORY,
-    ): TypeAliasItem =
-        DefaultTypeAliasItem(
+    ): ClassItem =
+        DefaultClassItem.createTypeAlias(
             codebase,
             fileLocation,
             modifiers,
@@ -295,7 +299,8 @@ class DefaultItemFactory(
             aliasedType,
             qualifiedName,
             typeParameterList,
-            containingPackage
+            containingPackage,
+            origin,
         )
 
     /**

@@ -5,32 +5,6 @@ com.android.tools.metalava.model.testsuite.BootstrapSourceModelProviderTest
   260 - test doconly members[psi,java,k2]
   260 - test doconly members[turbine]
 
-com.android.tools.metalava.model.testsuite.CommonApiVariantSelectorsTest
-  Test accessible[psi,java,k1]
-  Test accessible[psi,java,k2]
-  Test accessible[turbine]
-  Test docOnly[psi,java,k1]
-  Test docOnly[psi,java,k2]
-  Test docOnly[turbine]
-  Test not docOnly[psi,java,k1]
-  Test not docOnly[psi,java,k2]
-  Test not docOnly[turbine]
-  Test not hidden[psi,java,k1]
-  Test not hidden[psi,java,k2]
-  Test not hidden[turbine]
-  Test not removed[psi,java,k1]
-  Test not removed[psi,java,k2]
-  Test not removed[turbine]
-  Test originallyHidden hidden[psi,java,k1]
-  Test originallyHidden hidden[psi,java,k2]
-  Test originallyHidden hidden[turbine]
-  Test removed[psi,java,k1]
-  Test removed[psi,java,k2]
-  Test removed[turbine]
-  Test toString[psi,java,k1]
-  Test toString[psi,java,k2]
-  Test toString[turbine]
-
 com.android.tools.metalava.model.testsuite.CommonModifierListWriterTest
   modifiers public explicitly final method in final class[psi,java,k1]
   modifiers public explicitly final method in final class[psi,java,k2]
@@ -44,10 +18,17 @@ com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTe
 com.android.tools.metalava.model.testsuite.classitem.CommonDataClassTest
   Test data class copy method visibility with ConsistentCopyVisibility[psi,kotlin,k1]
 
+com.android.tools.metalava.model.testsuite.classitem.CommonValueClassTest
+  Usage of value class with type parameter[psi,kotlin,k1]
+  Usage of value class with type parameter[psi,kotlin,k2]
+
 com.android.tools.metalava.model.testsuite.codebase.CommonCodebaseTest
   Test getTopLevelClassesFromSource[psi,java,k1]
   Test getTopLevelClassesFromSource[psi,java,k2]
   Test getTopLevelClassesFromSource[turbine]
+
+com.android.tools.metalava.model.testsuite.constructoritem.CommonConstructorModifierTest
+  Test varargs[turbine]
 
 com.android.tools.metalava.model.testsuite.documentation.CommonItemDocumentationTest
   Test fully qualifying links that wrap on multiple lines[turbine]
@@ -110,25 +91,17 @@ com.android.tools.metalava.model.testsuite.documentation.CommonParameterizedDocR
 com.android.tools.metalava.model.testsuite.fielditem.CommonFieldItemTest
   Test implicit nullability of constant field initialized from @NonNull method[turbine]
 
+com.android.tools.metalava.model.testsuite.methoditem.CommonMethodModifierTest
+  Test final method in final class[text]
+  Test final method in final class[turbine]
+  Test varargs[turbine]
+
 com.android.tools.metalava.model.testsuite.methoditem.CommonParameterItemTest
   Test publicName reports correct name when called on binary class - Object#equals[turbine]
   Test publicName reports correct name when called on binary class - ViewGroup#onLayout[turbine]
 
-com.android.tools.metalava.model.testsuite.packageitem.CommonPackageItemTest
-  Test @hide in package html[psi,java,k1]
-  Test @hide in package html[psi,java,k2]
-  Test @hide in package html[turbine]
-  Test @hide in package info processed first[psi,java,k1]
-  Test @hide in package info processed first[psi,java,k2]
-  Test @hide in package info processed first[turbine]
-  Test @hide in package info processed last[psi,java,k1]
-  Test @hide in package info processed last[psi,java,k2]
-  Test @hide in package info processed last[turbine]
-
-com.android.tools.metalava.model.testsuite.sourcefile.CommonParameterizedImportTest
-  Test imports[psi,java,k1,static java.util.Map.*]
-  Test imports[psi,java,k2,static java.util.Map.*]
-  Test imports[turbine,static java.util.Map.*]
+com.android.tools.metalava.model.testsuite.methoditem.CommonParameterModifierTest
+  Test varargs[turbine]
 
 com.android.tools.metalava.model.testsuite.typeitem.CommonIsAssignableFromTest
   Test assignability without unboxing[psi,java,k1,boxedInt to primitiveInt]

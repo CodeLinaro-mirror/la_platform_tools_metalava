@@ -386,7 +386,7 @@ class AnnotationsMergerTest : DriverTest() {
                     java(
                         """
                     package test.pkg;
-                    /** @hide */
+                    /** */
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public interface ForTesting {
                     public void foo();

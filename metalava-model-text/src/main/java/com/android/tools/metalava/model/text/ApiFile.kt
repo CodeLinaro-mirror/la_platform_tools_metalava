@@ -24,7 +24,7 @@ import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassOrigin
-import com.android.tools.metalava.model.ClassResolver
+import com.android.tools.metalava.model.ClassPathResolver
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
@@ -37,6 +37,7 @@ import com.android.tools.metalava.model.JAVA_LANG_OBJECT
 import com.android.tools.metalava.model.MetalavaApi
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.MutableModifierList
+import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.SelectableItem
@@ -55,10 +56,8 @@ import com.android.tools.metalava.model.createImmutableModifiers
 import com.android.tools.metalava.model.createMutableModifiers
 import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.item.DefaultCodebase
-import com.android.tools.metalava.model.item.DefaultPackageItem
 import com.android.tools.metalava.model.item.DefaultTypeParameterItem
-import com.android.tools.metalava.model.item.MutablePackageDoc
-import com.android.tools.metalava.model.item.PackageDocs
+import com.android.tools.metalava.model.item.PackageInfo
 import com.android.tools.metalava.model.parser.FileLocationTracker
 import com.android.tools.metalava.model.parser.TokenPurpose
 import com.android.tools.metalava.model.parser.Tokenizer
@@ -311,7 +310,7 @@ private constructor(
             signatureFiles: List<SignatureFile>,
             codebaseConfig: Codebase.Config = Codebase.Config.NOOP,
             description: String? = null,
-            classResolver: ClassResolver? = null,
+            classPathResolver: ClassPathResolver? = null,
             formatForLegacyFiles: FileFormat? = null,
             // Provides the called with access to the ApiFile.
             apiStatsConsumer: (Stats) -> Unit = {},
@@ -328,7 +327,7 @@ private constructor(
                     location = signatureFiles[0].file,
                     description = actualDescription,
                     codebaseConfig = codebaseConfig,
-                    classResolver = classResolver,
+                    classPathResolver = classPathResolver,
                 )
             val parser = ApiFile(assembler, formatForLegacyFiles)
             val apiSurfaces = codebaseConfig.apiSurfaces
@@ -349,7 +348,6 @@ private constructor(
             parser.performAnyDeferredMerges()
 
             apiStatsConsumer(parser.stats)
-
             return assembler.codebase
         }
 
@@ -535,32 +533,64 @@ private constructor(
         }
     }
 
+    /**
+     * Find an existing package called [name] or create a new one.
+     *
+     * If an existing package exists then this makes sure that its annotations match [annotations].
+     */
+    private fun findOrCreatePackage(
+        tokenizer: Tokenizer,
+        name: String,
+        annotations: List<AnnotationItem>
+    ): PackageItem {
+        // Check to see if the package already exists, if it does then return it.
+        codebase.findPackage(name)?.let { existing ->
+            // If the same package showed up multiple times, make sure they have the same modifiers.
+            // (Packages can't have public/private/etc., but they can have annotations, which are
+            // part of ModifierList.)
+            var existingAnnotations = existing.modifiers.annotations()
+            if (annotations != existingAnnotations) {
+                throw ApiParseException(
+                    String.format(
+                        "Contradicting declaration of package %s." +
+                            " Previously seen with annotations \"%s\", but now with \"%s\"",
+                        name,
+                        existingAnnotations,
+                        annotations
+                    ),
+                    tokenizer,
+                )
+            }
+
+            return existing
+        }
+
+        // Wrap the file location and annotations in a PackageInfo.
+        val packageInfo =
+            PackageInfo(
+                fileLocation = tokenizer.fileLocation(),
+                annotations = annotations,
+                // Packages loaded from signature files have [SelectableItem.documentation] set to
+                // `null`. That is not a problem as it is only needed when creating stubs containing
+                // enhanced documentation which cannot be created from signature files.
+                commentFactory = ItemDocumentation.NONE_FACTORY,
+            )
+
+        // Create the package. This relies on containing packages always being processed before any
+        // contained package which is guaranteed by the signature file order.
+        return codebase.packageTracker.createPackage(name, packageInfo)
+    }
+
     private fun parsePackage(tokenizer: Tokenizer) {
         var token: String = tokenizer.requireToken()
 
         // Metalava: including annotations in file now
         val annotations = getAnnotations(tokenizer, token)
-        val modifiers = createModifiers(VisibilityLevel.PUBLIC, annotations)
         token = tokenizer.current
         tokenizer.assertIdent(token)
         val name: String = token
 
-        // Wrap the modifiers and file location in a PackageDocs so that findOrCreatePackage(...)
-        // will create a package with them and will check to make sure that an existing package, if
-        // any, has matching modifiers.
-        val packageDoc =
-            MutablePackageDoc(
-                name,
-                fileLocation = tokenizer.fileLocation(),
-                modifiers = modifiers,
-            )
-        val packageDocs = PackageDocs(mapOf(name to packageDoc))
-        val pkg =
-            try {
-                codebase.findOrCreatePackage(name, packageDocs)
-            } catch (e: IllegalStateException) {
-                throw ApiParseException(e.message!!, tokenizer)
-            }
+        val pkg = findOrCreatePackage(tokenizer, name, annotations)
 
         // Make sure that the package records the ApiVariants to which it belongs.
         pkg.markSelectedApiVariant()
@@ -589,7 +619,7 @@ private constructor(
      * typealias line.
      */
     private fun parseTypeAlias(
-        pkg: DefaultPackageItem,
+        pkg: PackageItem,
         tokenizer: Tokenizer,
         modifiers: MutableModifierList,
         location: FileLocation
@@ -636,10 +666,12 @@ private constructor(
             containingPackage = pkg,
             aliasedType = type,
             typeParameterList = typeParameterList,
+            // All signature files have to be explicitly specified.
+            origin = ClassOrigin.COMMAND_LINE,
         )
     }
 
-    private fun parseClass(pkg: DefaultPackageItem, tokenizer: Tokenizer, startingToken: String) {
+    private fun parseClass(pkg: PackageItem, tokenizer: Tokenizer, startingToken: String) {
         var token = startingToken
         var classKind = ClassKind.CLASS
         var superClassType: ClassTypeItem? = null
@@ -978,7 +1010,7 @@ private constructor(
      * If the qualified name matches an existing class then return its information.
      */
     private fun parseDeclaredClassType(
-        pkg: DefaultPackageItem,
+        pkg: PackageItem,
         declaredClassType: String,
         classFileLocation: FileLocation,
     ): DeclaredClassTypeComponents {
@@ -1503,6 +1535,24 @@ private constructor(
                     }
                     "sealed" -> {
                         modifiers.setSealed(true)
+                        // When reading in a sealed class, for backwards compatibility we want
+                        // to label it as non-exhaustive (for more details on what this means,
+                        // see b/447143803) in case the signature file doesn't have one of
+                        // "exhaustive" or "nonexhaustive" after the "sealed" modifier. This
+                        // allows compatibility checks to not raise unnecessary errors for
+                        // sealed classes without an exhaustivity modifier. If the class is indeed
+                        // labeled with an exhaustivity modifier in the signature file, the class's
+                        // exhaustivity will be adjusted accordingly in the following match
+                        // statements.
+                        modifiers.setExhaustive(false)
+                        tokenizer.requireToken()
+                    }
+                    "exhaustive" -> {
+                        modifiers.setExhaustive(true)
+                        tokenizer.requireToken()
+                    }
+                    "nonexhaustive" -> {
+                        modifiers.setExhaustive(false)
                         tokenizer.requireToken()
                     }
                     "default" -> {

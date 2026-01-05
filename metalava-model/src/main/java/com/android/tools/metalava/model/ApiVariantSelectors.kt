@@ -264,7 +264,7 @@ sealed class ApiVariantSelectors {
                     // The item is originally hidden if the javadoc contains @hide or similar, or
                     // it is tagged with a hide annotation. That is true even if the hide annotation
                     // is superseded by a show annotation.
-                    item.documentation.isHidden || item.hasHideAnnotation()
+                    item.documentation?.isHidden == true || item.hasHideAnnotation()
                 }
 
         override var inheritableHidden: Boolean
@@ -314,14 +314,14 @@ sealed class ApiVariantSelectors {
             get() =
                 lazyGet(DOCONLY_BIT_MASK) {
                     (item.parent()?.variantSelectors?.docOnly == true) ||
-                        item.documentation.isDocOnly
+                        item.documentation?.isDocOnly == true
                 }
 
         override var removed: Boolean
             get() =
                 lazyGet(REMOVED_BIT_MASK) {
                     (item.parent()?.variantSelectors?.removed == true) ||
-                        item.documentation.isRemoved
+                        item.documentation?.isRemoved == true
                 }
             // This is only used for testing.
             set(value) {
@@ -380,13 +380,7 @@ sealed class ApiVariantSelectors {
             }
 
             // Inheritance is only done on a few Item types, ignore the rest.
-            if (
-                item !is ClassItem &&
-                    item !is CallableItem &&
-                    item !is FieldItem &&
-                    item !is TypeAliasItem
-            )
-                return
+            if (item !is ClassItem && item !is CallableItem && item !is FieldItem) return
 
             if (item is ClassItem) {
                 // Workaround: we're pulling in .aidl files from .jar files. These are
@@ -411,10 +405,9 @@ sealed class ApiVariantSelectors {
                 // always unhide this item.
                 hidden = false
 
-                if (item is ClassItem || item is TypeAliasItem) {
+                if (item is ClassItem) {
                     // Make containing package non-hidden if it contains a show-annotation class.
-                    // Both ClassItem and TypeAliasItem have a non-null containingPackage return.
-                    val containingPackageSelectors = item.containingPackage()!!.variantSelectors
+                    val containingPackageSelectors = item.containingPackage().variantSelectors
                     // Only unhide the package, do not affect anything that might inherit from that
                     // package.
                     (containingPackageSelectors as Mutable).hidden = false
@@ -443,12 +436,11 @@ sealed class ApiVariantSelectors {
                     } else if (containingClassSelectors.inheritableHidden) {
                         inheritableHidden = true
                     }
-                } else if (item is ClassItem || item is TypeAliasItem) {
+                } else if (item is ClassItem) {
                     // This will only be executed for top level classes, i.e. containing class is
                     // null, and type aliases which are always top-level. They inherit their
                     // properties from the containing package.
-                    // Both ClassItem and TypeAliasItem have a non-null containingPackage return.
-                    val containingPackageSelectors = item.containingPackage()!!.variantSelectors
+                    val containingPackageSelectors = item.containingPackage().variantSelectors
                     if (containingPackageSelectors.inheritableHidden) {
                         inheritableHidden = true
                     }

@@ -197,43 +197,14 @@ internal class TurbineTypeItemFactory(
         isVarArg: Boolean,
         contextNullability: ContextNullability,
     ): TypeItem {
-        // For Turbine's ArrayTy, due to a bug in Turbine, the annotations for multidimensional
-        // arrays are in the wrong order so this works around the issue.
+        // Create a component type item from the Turbine element type, using a special context
+        // nullability for it.
+        val componentTypeItem = getType(type.elementType(), contextNullability.forComponentType())
 
-        // First, traverse from the outermost array to the innermost component type and add the
-        // [AnnoInfo]s to the list. Ending up with the innermost component type. Due to the bug the
-        // list contains [AnnoInfo]s from the innermost component type to the outermost types.
-        val annosList = mutableListOf<List<AnnoInfo>>()
-        var curr: Type = type
-        while (curr.tyKind() == Type.TyKind.ARRAY_TY) {
-            curr as Type.ArrayTy
-            annosList.add(curr.annos())
-            curr = curr.elementType()
-        }
-
-        // Then, get the type for the innermost component, it has the correct annotations. Pass
-        // in the [ContextNullability.forComponentType] just in case this is the return type of an
-        // annotation method, or in other words the type of an annotation attribute.
-        val componentType = getType(curr, contextNullability.forComponentType())
-
-        // Finally, traverse over the annotations from the innermost component type to the outermost
-        // array and construct a [DefaultArrayTypeItem] around the inner component type using its
-        // `List<AnnoInfo>`. The last `List<AnnoInfo>` is for the outermost array, and it needs to
-        // be tagged with the [isVarArg] value and [contextNullability].
-        val lastIndex = annosList.size - 1
-        return annosList.foldIndexed(componentType) { index, typeItem, annos ->
-            val (arrayContextNullability, arrayVarArg) =
-                if (index == lastIndex) {
-                    // Outermost array. Should be called with correct value of isVarArg and
-                    // the contextual nullability.
-                    Pair(contextNullability, isVarArg)
-                } else {
-                    Pair(ContextNullability.none, false)
-                }
-
-            val modifiers = createModifiers(annos, arrayContextNullability)
-            DefaultArrayTypeItem(modifiers, typeItem, arrayVarArg)
-        }
+        // Create an array type item from the Turbine array type using the supplied isVarArg and
+        // contextual nullability.
+        val modifiers = createModifiers(type.annos(), contextNullability)
+        return DefaultArrayTypeItem(modifiers, componentTypeItem, isVarArg)
     }
 
     /**
