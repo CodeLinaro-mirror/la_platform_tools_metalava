@@ -228,7 +228,7 @@ internal open class DescriptionOwner(
          * `{@inheritDoc}` inline tag to insert when modifying a comment that does not exist in the
          * sources and is attached to an overriding method.
          */
-        private val INHERIT_DOC_CONTENT = JavadocInlineTag(InlineTagTypes.INHERIT_DOC, null, null)
+        private val INHERIT_DOC_CONTENT = JavadocInlineTag(TagTypes.INHERIT_DOC, null, null)
 
         /**
          * Blank line to add between [INHERIT_DOC_CONTENT] and the content being added to maintain

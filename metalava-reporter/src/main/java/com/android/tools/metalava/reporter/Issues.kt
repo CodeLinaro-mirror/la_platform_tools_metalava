@@ -96,6 +96,7 @@ object Issues {
     val INVALID_JAVADOC_EXPR by Issue(Severity.ERROR, Category.DOCUMENTATION)
     val MALFORMED_DOC_REFERENCE by Issue(Severity.WARNING_ERROR_WHEN_NEW, Category.DOCUMENTATION)
     val INVALID_BLOCK_TAG_USE by Issue(Severity.ERROR, Category.DOCUMENTATION)
+    val INVALID_TAG_FORM by Issue(Severity.WARNING_ERROR_WHEN_NEW, Category.DOCUMENTATION)
     val UNCLOSED_INLINE_TAG by Issue(Severity.ERROR, Category.DOCUMENTATION)
     val UNRESOLVED_LINK by Issue(Severity.WARNING_ERROR_WHEN_NEW, Category.DOCUMENTATION)
     val UNAVAILABLE_SYMBOL by Issue(Severity.WARNING, Category.DOCUMENTATION)
@@ -277,6 +278,14 @@ object Issues {
     // TODO(b/165356974): set this to error once AndroidX selectively opts-in for projects that
     // target Java
     val FACADE_CLASS_JVM_NAME by Issue(Severity.HIDDEN, Category.API_LINT)
+
+    val KMP_DEPRECATION_MISMATCH by Issue(Severity.ERROR, Category.API_LINT)
+    val KMP_VISIBILITY_MISMATCH by Issue(Severity.ERROR, Category.API_LINT)
+    val KMP_MODIFIER_MISMATCH by Issue(Severity.ERROR, Category.API_LINT)
+    val KMP_HIDE_SHOW_ANNOTATION_MISMATCH by Issue(Severity.ERROR, Category.API_LINT)
+    val KMP_EXPERIMENTAL_MISMATCH by Issue(Severity.ERROR, Category.API_LINT)
+    val KMP_REIFIED_MISMATCH by Issue(Severity.ERROR, Category.API_LINT)
+    val KMP_ORIGIN_MISMATCH by Issue(Severity.ERROR, Category.API_LINT)
 
     fun findIssueById(id: String?): Issue? {
         return nameToIssue[id]

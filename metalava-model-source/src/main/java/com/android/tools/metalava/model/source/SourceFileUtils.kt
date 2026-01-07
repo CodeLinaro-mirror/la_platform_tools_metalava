@@ -22,7 +22,7 @@ import com.android.tools.metalava.model.Import
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TraversingVisitor
-import com.android.tools.metalava.model.source.doc.containsWord
+import com.android.tools.metalava.model.source.doc.DocContentPredicates
 import java.util.TreeSet
 
 /**
@@ -59,15 +59,17 @@ fun filterImports(
                         // that its child items are so make sure to visit them.
                         return TraversalAction.CONTINUE
                     }
-                    val doc = item.documentation?.text
-                    if (doc != null && doc.isNotBlank()) {
+                    val doc = item.documentation
+                    if (doc != null) {
                         // Scan the documentation text to see if it contains any of the
                         // short names imported. It does not check whether the names
                         // are actually used as part of a link, so they could just be in
                         // as text but having extra imports should not be an issue.
                         var found: MutableList<String>? = null
                         for (name in remainingImports.keys) {
-                            if (doc.containsWord(name)) {
+                            val typeReferencePrefix =
+                                DocContentPredicates.containsPossiblyImportedTypeReference(name)
+                            if (doc.check(typeReferencePrefix)) {
                                 if (found == null) {
                                     found = mutableListOf()
                                 }

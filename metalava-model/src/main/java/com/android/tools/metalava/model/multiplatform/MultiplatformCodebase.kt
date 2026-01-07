@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
+import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
@@ -341,6 +342,12 @@ class MultiplatformClassItem(
      * that source set.
      */
     val classKind: SourceSetDependent<ClassKind> = sourceSetDependentValue { it.classKind }
+
+    /**
+     * A mapping from source set where the [ClassItem] exists to the origin of the [ClassItem] for
+     * that source set.
+     */
+    val origin: SourceSetDependent<ClassOrigin> = sourceSetDependentValue { it.origin }
 
     /**
      * The nested classes of this class which exist in any source set.

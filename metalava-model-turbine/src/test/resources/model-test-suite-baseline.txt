@@ -48,7 +48,6 @@ com.android.tools.metalava.model.testsuite.documentation.CommonParameterizedDocR
   Documentation text[@see,Imported#intMethod(int)]
   Documentation text[@see,Imported#noParamsMethod()]
   Documentation text[@see,Imported#noParamsMethod]
-  Documentation text[@see,Imported.Nested]
   Documentation text[@see,Other#Other()]
   Documentation text[@see,Other#Other(int p)]
   Documentation text[@see,Other#Other(int)]
@@ -57,10 +56,6 @@ com.android.tools.metalava.model.testsuite.documentation.CommonParameterizedDocR
   Documentation text[@see,Other#intMethod(int)]
   Documentation text[@see,Other#noParamsMethod()]
   Documentation text[@see,Other#noParamsMethod]
-  Documentation text[@see,Other.Nested]
-  Documentation text[@see,String]
-  Documentation text[@see,Test.Nested]
-  Documentation text[@see,Test]
 
 com.android.tools.metalava.model.testsuite.fielditem.CommonFieldItemTest
   Test implicit nullability of constant field initialized from @NonNull method

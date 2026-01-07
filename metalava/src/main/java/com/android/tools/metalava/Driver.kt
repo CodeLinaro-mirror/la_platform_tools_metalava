@@ -47,6 +47,7 @@ import com.android.tools.metalava.compatibility.CompatibilityCheck
 import com.android.tools.metalava.jar.JarCodebaseLoader
 import com.android.tools.metalava.lint.ApiLint
 import com.android.tools.metalava.lint.FlaggedApiLint
+import com.android.tools.metalava.lint.MultiplatformLint
 import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ClassPathResolver
 import com.android.tools.metalava.model.Codebase
@@ -371,6 +372,9 @@ class Driver(
             )
             .generateStubs()
 
+        // Run additional operations on the multiplatform codebase, if it exists.
+        multiplatformCodebase?.let { runMultiplatformCodebaseChecks(multiplatformCodebase) }
+
         val packageCount = codebase.size()
         progressTracker.progress(
             "$PROGRAM_NAME finished handling $packageCount packages in ${stopwatch.elapsed(SECONDS)} seconds\n"
@@ -515,6 +519,12 @@ class Driver(
         return sourceOptions.projectDescription?.let { projectDescription ->
             sourceParser.createMultiplatformCodebase(projectDescription)
         } ?: error("Project description is required to create multiplatform codebase from sources.")
+    }
+
+    private fun runMultiplatformCodebaseChecks(multiplatformCodebase: MultiplatformCodebase) {
+        if (apiLintOptions.apiLintEnabled) {
+            MultiplatformLint(reporter).check(multiplatformCodebase)
+        }
     }
 
     /** write api history to files specified by option flags (e.g. api-versions.xml) */

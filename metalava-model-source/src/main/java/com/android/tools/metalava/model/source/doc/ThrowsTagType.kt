@@ -20,7 +20,7 @@ import com.android.tools.metalava.model.source.javadoc.JavadocContent
 import com.android.tools.metalava.reporter.LocationSpecificReporter
 
 /** [TagType] for `@throws` block tag. */
-internal class ThrowsTagType() : TagType<ThrowsTagData>("throws") {
+internal class ThrowsTagType() : TagType<ThrowsTagData>("throws", TagTypeForm.BLOCK) {
     override fun extractData(
         context: DocCommentContext,
         reporter: LocationSpecificReporter,

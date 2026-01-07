@@ -33,22 +33,36 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
     enum class TestTagType {
         LINK {
             override fun commentForReference(reference: String, linkLabel: String?) =
-                "/** {@link $reference${linkLabelSuffix(linkLabel)}} */\n"
+                "/** {@link ${referenceAndLabel(reference, linkLabel)}} */\n"
         },
         LINKPLAIN {
             override fun commentForReference(reference: String, linkLabel: String?) =
-                "/** {@linkplain $reference${linkLabelSuffix(linkLabel)}} */\n"
+                "/** {@linkplain ${referenceAndLabel(reference, linkLabel)}} */\n"
         },
         SEE {
             override fun commentForReference(reference: String, linkLabel: String?) =
-                "/** @see $reference */\n"
+                "/** @see ${referenceAndLabel(reference, linkLabel)} */\n"
         };
 
-        /**
-         * Create a suffix to add to the `@link` or `@linkplain` tags to specify the label, if any.
-         */
-        protected fun linkLabelSuffix(linkLabel: String?) =
-            if (linkLabel == null) "" else " $linkLabel"
+        /** Determine whether a link label is expected. */
+        private fun requiresLinkLabel(reference: String, linkLabel: String?) =
+            when {
+                linkLabel == null -> false
+                // Ignore link labels for @see references to members. Needed because neither the
+                // model independent resolving, nor the model specific resolving (where implemented)
+                // currently adds link labels for @see references to members.
+                this == SEE && reference.contains("#") -> false
+                else -> true
+            }
+
+        /** Combine [reference] and the optional [linkLabel]. */
+        protected fun referenceAndLabel(reference: String, linkLabel: String?) = buildString {
+            append(reference)
+            if (requiresLinkLabel(reference, linkLabel)) {
+                append(" ")
+                append(linkLabel)
+            }
+        }
 
         /** Construct a comment containing the [reference] with the optional [linkLabel]. */
         abstract fun commentForReference(reference: String, linkLabel: String?): String
