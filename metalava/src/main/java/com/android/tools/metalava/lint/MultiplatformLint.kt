@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.lint
 
+import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.multiplatform.BaseMultiplatformItemVisitor
 import com.android.tools.metalava.model.multiplatform.MultiplatformClassItem
@@ -33,6 +34,7 @@ import com.android.tools.metalava.reporter.Issues.KMP_HIDE_SHOW_ANNOTATION_MISMA
 import com.android.tools.metalava.reporter.Issues.KMP_MODIFIER_MISMATCH
 import com.android.tools.metalava.reporter.Issues.KMP_ORIGIN_MISMATCH
 import com.android.tools.metalava.reporter.Issues.KMP_REIFIED_MISMATCH
+import com.android.tools.metalava.reporter.Issues.KMP_SIGNATURE_CLASH
 import com.android.tools.metalava.reporter.Issues.KMP_VISIBILITY_MISMATCH
 import com.android.tools.metalava.reporter.Reporter
 
@@ -117,7 +119,9 @@ class MultiplatformLint(val reporter: Reporter) : BaseMultiplatformItemVisitor()
             KMP_DEPRECATION_MISMATCH,
         )
 
-        val visibilityByPlatform = item.modifiers.valueToSourceSet { it.getVisibilityLevel() }
+        // Use the effective visibility to avoid reporting an issue if one version just doesn't have
+        // an explicit visibility modifier.
+        val visibilityByPlatform = item.effectiveVisibility.valueToSourceSet { it }
         if (visibilityByPlatform.size > 1) {
             val visibilityDescriptions =
                 visibilityByPlatform.entries.joinToString { (visibility, sourceSets) ->
@@ -126,7 +130,7 @@ class MultiplatformLint(val reporter: Reporter) : BaseMultiplatformItemVisitor()
             reporter.report(
                 KMP_VISIBILITY_MISMATCH,
                 item,
-                "Multiplatform $item has different visibilities in different source sets: $visibilityDescriptions"
+                "$item has different visibilities in different source sets: $visibilityDescriptions"
             )
         }
 
@@ -161,12 +165,46 @@ class MultiplatformLint(val reporter: Reporter) : BaseMultiplatformItemVisitor()
     }
 
     override fun visitClassItem(classItem: MultiplatformClassItem) {
-        checkTrueFalseMismatch(
-            classItem.modifiers.valueToSourceSet { it.isFinal() },
-            classItem,
-            "final",
-            KMP_MODIFIER_MISMATCH,
-        )
+        checkClassFinalModifier(classItem)
+        checkNonExpectActualClash(classItem)
+    }
+
+    private fun checkClassFinalModifier(classItem: MultiplatformClassItem) {
+        // Skip typealiases for the final mismatch check because typealiases themselves can't be
+        // modified as final/open.
+        val nonTypeAliasModifiers =
+            classItem.modifiers.filterKeys { sourceSet ->
+                classItem.classKind[sourceSet] != ClassKind.TYPEALIAS
+            }
+        if (nonTypeAliasModifiers.keys.size > 1) {
+            checkTrueFalseMismatch(
+                nonTypeAliasModifiers.valueToSourceSet { it.isFinal() },
+                classItem,
+                "final",
+                KMP_MODIFIER_MISMATCH,
+            )
+        }
+    }
+
+    private fun checkNonExpectActualClash(item: MultiplatformClassItem) {
+        // Find items which are not expect/actual.
+        val nonExpectActual =
+            item.modifiers
+                .filter { (_, modifiers) -> !modifiers.isExpect() && !modifiers.isActual() }
+                .keys
+        if (nonExpectActual.isNotEmpty()) {
+            // Find all files where this item is defined. Only report an issue if there is more than
+            // one location (a non expect/actual item defined in common will appear in all source
+            // sets, but will have the same common location for all those instances).
+            val locations = item.fileLocations.filterKeys { it in nonExpectActual }.values.toSet()
+            if (locations.size > 1) {
+                reporter.report(
+                    KMP_SIGNATURE_CLASH,
+                    item,
+                    "$item is not an expect/actual and is defined with the same signature in unrelated source sets (${nonExpectActual})"
+                )
+            }
+        }
     }
 
     override fun visitMethodItem(methodItem: MultiplatformMethodItem) {

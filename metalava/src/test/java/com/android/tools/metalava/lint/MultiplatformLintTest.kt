@@ -206,8 +206,54 @@ class MultiplatformLintTest : DriverTest() {
                 ),
             expectedIssues =
                 """
-                commonMain/src/test/pkg/Foo.kt:3: error: Multiplatform multiplatform method test.pkg.Foo#foo() has different visibilities in different source sets: internal in [commonMain], public in [androidMain], protected in [nativeMain] [KmpVisibilityMismatch]
+                commonMain/src/test/pkg/Foo.kt:3: error: multiplatform method test.pkg.Foo#foo() has different visibilities in different source sets: internal in [commonMain], public in [androidMain], protected in [nativeMain] [KmpVisibilityMismatch]
                 """,
+        )
+    }
+
+    @Test
+    fun `Test elements of internal class without explicit visibility`() {
+        checkLint(
+            commonSource =
+                arrayOf(
+                    kotlin(
+                        "commonMain/src/test/pkg/InternalClass.kt",
+                        """
+                        package test.pkg
+                        internal expect class InternalClass internal constructor() {
+                            internal fun internalClassFun(): Unit
+                            internal val internalClassVal: Int
+                        }
+                        """
+                    )
+                ),
+            androidSource =
+                arrayOf(
+                    kotlin(
+                        "androidMain/src/test/pkg/InternalClass_android.kt",
+                        """
+                        package test.pkg
+                        internal actual class InternalClass internal actual constructor() {
+                            internal actual fun internalClassFun() = Unit
+                            internal actual val internalClassVal: Int = 0
+                        }
+                        """
+                    )
+                ),
+            nativeSource =
+                arrayOf(
+                    kotlin(
+                        "nativeMain/src/test/pkg/InternalClass_native.kt",
+                        """
+                        package test.pkg
+                        internal actual class InternalClass actual constructor() {
+                            actual fun internalClassFun() = Unit
+                            actual val internalClassVal: Int = 0
+                        }
+                        """
+                    )
+                ),
+            expectedIssues = null,
         )
     }
 
@@ -392,6 +438,43 @@ class MultiplatformLintTest : DriverTest() {
                 """
                 commonMain/src/test/pkg/Foo.kt:2: error: multiplatform class test.pkg.Foo is final in source sets [commonMain, nativeMain] but not final in source sets [androidMain] [KmpModifierMismatch]
                 """,
+        )
+    }
+
+    @Test
+    fun `Test final lint check for typealias`() {
+        checkLint(
+            commonSource =
+                arrayOf(
+                    kotlin(
+                        "commonMain/src/test/pkg/Foo.kt",
+                        """
+                        package test.pkg
+                        expect class Foo
+                        """
+                    )
+                ),
+            androidSource =
+                arrayOf(
+                    kotlin(
+                        "androidMain/src/test/pkg/Foo_android.kt",
+                        """
+                        package test.pkg
+                        actual typealias Foo = String
+                        """
+                    )
+                ),
+            nativeSource =
+                arrayOf(
+                    kotlin(
+                        "nativeMain/src/test/pkg/Foo_native.kt",
+                        """
+                        package test.pkg
+                        actual class Foo
+                        """
+                    )
+                ),
+            expectedIssues = null,
         )
     }
 
@@ -614,5 +697,45 @@ class MultiplatformLintTest : DriverTest() {
         ) {
             multiplatformCodebase!!.resolveClass("test.pkg.Mismatch")
         }
+    }
+
+    @Test
+    fun `Test signature clash in unrelated platforms`() {
+        checkLint(
+            commonSource =
+                arrayOf(
+                    kotlin(
+                        "commonMain/src/test/pkg/Common.kt",
+                        """
+                        package test.pkg
+                        class Common
+                        """
+                    )
+                ),
+            androidSource =
+                arrayOf(
+                    kotlin(
+                        "androidMain/src/test/pkg/Clash_android.kt",
+                        """
+                        package test.pkg
+                        class Clash
+                        """
+                    )
+                ),
+            nativeSource =
+                arrayOf(
+                    kotlin(
+                        "nativeMain/src/test/pkg/Clash_native.kt",
+                        """
+                        package test.pkg
+                        class Clash
+                        """
+                    )
+                ),
+            expectedIssues =
+                """
+                androidMain/src/test/pkg/Clash_android.kt:2: error: multiplatform class test.pkg.Clash is not an expect/actual and is defined with the same signature in unrelated source sets ([androidMain, nativeMain]) [KmpSignatureClash]
+                """
+        )
     }
 }

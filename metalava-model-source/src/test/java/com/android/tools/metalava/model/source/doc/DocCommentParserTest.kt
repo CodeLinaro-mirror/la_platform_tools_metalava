@@ -501,6 +501,7 @@ class DocCommentParserTest : BaseDocCommentTest() {
                      * @unknown
                      */
                 """,
+            expectedIssues = "11:5: Cannot use 'inheritDoc' as a block tag [InvalidTagForm]",
         )
     }
 

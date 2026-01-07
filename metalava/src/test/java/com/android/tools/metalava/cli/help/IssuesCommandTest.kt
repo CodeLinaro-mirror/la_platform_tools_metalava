@@ -141,6 +141,7 @@ Available Issues                             |  Category                        
   KmpModifierMismatch                        |  api_lint                             |   error
   KmpOriginMismatch                          |  api_lint                             |   error
   KmpReifiedMismatch                         |  api_lint                             |   error
+  KmpSignatureClash                          |  api_lint                             |   error
   KmpVisibilityMismatch                      |  api_lint                             |   error
   KotlinDefaultParameterOrder                |  api_lint                             |   error
   KotlinKeyword                              |  api_lint                             |   error
