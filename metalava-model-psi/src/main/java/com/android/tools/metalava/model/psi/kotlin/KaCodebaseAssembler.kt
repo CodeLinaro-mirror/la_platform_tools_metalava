@@ -153,15 +153,21 @@ internal class KaCodebaseAssembler(
     companion object {
         /**
          * Creates a [MultiplatformCodebase], with one [Codebase] created for each source set from
-         * the list of [modules].
+         * the list of [modules] which is common (does not depend on other modules) or a leaf (not
+         * depended on by any other module).
          */
         fun assembleMultiplatform(
             modules: List<KaSourceModule>,
             location: File,
             config: Codebase.Config,
         ): MultiplatformCodebase {
+            val commonModules = modules.filter { it.directDependsOnDependencies.isEmpty() }
+            val leafModules =
+                modules.filter { potentialEdgeModule ->
+                    modules.none { potentialEdgeModule in it.directDependsOnDependencies }
+                }
             return MultiplatformCodebase(
-                modules.associateBy(
+                (commonModules + leafModules).associateBy(
                     { kaModule -> kaModule.name },
                     { kaModule ->
                         val processor =
@@ -179,7 +185,7 @@ internal class KaCodebaseAssembler(
                         processor.assemble()
                         processor.codebase
                     }
-                )
+                ),
             )
         }
     }

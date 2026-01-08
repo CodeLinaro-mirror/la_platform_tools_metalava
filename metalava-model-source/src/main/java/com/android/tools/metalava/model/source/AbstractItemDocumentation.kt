@@ -32,7 +32,6 @@ import com.android.tools.metalava.model.doc.DocContentOwner
 import com.android.tools.metalava.model.doc.DocContentPredicate
 import com.android.tools.metalava.model.scope.ReferencableNameScope
 import com.android.tools.metalava.model.source.doc.BlockTagSection
-import com.android.tools.metalava.model.source.doc.BlockTagTypes
 import com.android.tools.metalava.model.source.doc.ClassReference
 import com.android.tools.metalava.model.source.doc.DocComment
 import com.android.tools.metalava.model.source.doc.DocCommentContext
@@ -42,6 +41,7 @@ import com.android.tools.metalava.model.source.doc.DocumentationIssueReporter
 import com.android.tools.metalava.model.source.doc.JavaSummaryTruncationWorkaround
 import com.android.tools.metalava.model.source.doc.PackageReference
 import com.android.tools.metalava.model.source.doc.ResolvedReference
+import com.android.tools.metalava.model.source.doc.TagTypes
 import com.android.tools.metalava.model.source.doc.TypeParameterReference
 import com.android.tools.metalava.model.source.doc.TypeReference
 import com.android.tools.metalava.model.source.javadoc.ExprContext
@@ -397,7 +397,7 @@ abstract class AbstractItemDocumentation(
 
     /** Find the block tag section for `@param` of [name]. */
     private fun findParamTagSection(name: String): BlockTagSection? =
-        docComment.blockTagSections.find { it.typeSafeTagData(BlockTagTypes.PARAM)?.name == name }
+        docComment.blockTagSections.find { it.typeSafeTagData(TagTypes.PARAM)?.name == name }
 
     override fun check(predicate: DocContentPredicate) =
         docComment.check(predicate as DocCommentPredicate)
@@ -407,7 +407,7 @@ abstract class AbstractItemDocumentation(
 
     override fun removeDeprecatedSection() {
         // Try and remove all the `@deprecated` sections.
-        docComment.removeBlockTagSections { it.tagType == BlockTagTypes.DEPRECATED }
+        docComment.removeBlockTagSections { it.tagType == TagTypes.DEPRECATED }
     }
 
     override fun addUniqueBlockTagSectionWithSimpleText(tagTypeName: String, text: String) {

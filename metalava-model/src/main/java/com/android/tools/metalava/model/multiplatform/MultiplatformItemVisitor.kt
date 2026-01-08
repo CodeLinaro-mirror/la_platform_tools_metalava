@@ -45,6 +45,8 @@ open class BaseMultiplatformItemVisitor : MultiplatformItemVisitor {
     }
 
     final override fun visit(packageItem: MultiplatformPackageItem) {
+        if (skip(packageItem)) return
+
         visitItem(packageItem)
         visitSelectableItem(packageItem)
         visitPackageItem(packageItem)
@@ -61,6 +63,8 @@ open class BaseMultiplatformItemVisitor : MultiplatformItemVisitor {
     }
 
     final override fun visit(classItem: MultiplatformClassItem) {
+        if (skip(classItem)) return
+
         visitItem(classItem)
         visitSelectableItem(classItem)
         visitClassItem(classItem)
@@ -80,6 +84,8 @@ open class BaseMultiplatformItemVisitor : MultiplatformItemVisitor {
     }
 
     final override fun visit(constructorItem: MultiplatformConstructorItem) {
+        if (skip(constructorItem)) return
+
         visitItem(constructorItem)
         visitSelectableItem(constructorItem)
         visitCallableItem(constructorItem)
@@ -91,6 +97,8 @@ open class BaseMultiplatformItemVisitor : MultiplatformItemVisitor {
     }
 
     final override fun visit(methodItem: MultiplatformMethodItem) {
+        if (skip(methodItem)) return
+
         visitItem(methodItem)
         visitSelectableItem(methodItem)
         visitCallableItem(methodItem)
@@ -102,15 +110,21 @@ open class BaseMultiplatformItemVisitor : MultiplatformItemVisitor {
     }
 
     final override fun visit(parameterItem: MultiplatformParameterItem) {
+        if (skip(parameterItem)) return
+
         visitItem(parameterItem)
         visitParameterItem(parameterItem)
     }
 
     final override fun visit(propertyItem: MultiplatformPropertyItem) {
+        if (skip(propertyItem)) return
+
         visitItem(propertyItem)
         visitSelectableItem(propertyItem)
         visitPropertyItem(propertyItem)
     }
+
+    open fun skip(item: MultiplatformItem<*>): Boolean = false
 
     open fun visitItem(item: MultiplatformItem<*>) = Unit
 

@@ -139,8 +139,6 @@ class JavadocParserTest : BaseJavadocTest() {
 
     @Test
     fun `Test inline tag nested within code tag`() {
-        // Make sure that the BAR_TAG_TYPE is registered.
-        TestTagTypes.BAR_TAG_TYPE
         checkParse(
             """
                 /**
@@ -158,8 +156,6 @@ class JavadocParserTest : BaseJavadocTest() {
 
     @Test
     fun `Test inline tag nested within literal tag`() {
-        // Make sure that the BAR_TAG_TYPE is registered.
-        TestTagTypes.BAR_TAG_TYPE
         checkParse(
             """
                 /**
@@ -177,8 +173,6 @@ class JavadocParserTest : BaseJavadocTest() {
 
     @Test
     fun `Test inline tag nested within link tag`() {
-        // Make sure that the BAR_TAG_TYPE is registered.
-        TestTagTypes.BAR_TAG_TYPE
         checkParse(
             """
                 /**
@@ -197,8 +191,6 @@ class JavadocParserTest : BaseJavadocTest() {
 
     @Test
     fun `Test inline tag nested within linkplain tag`() {
-        // Make sure that the BAR_TAG_TYPE is registered.
-        TestTagTypes.BAR_TAG_TYPE
         checkParse(
             """
                 /**
@@ -216,8 +208,6 @@ class JavadocParserTest : BaseJavadocTest() {
 
     @Test
     fun `Test inline tag nested within tag that supports nested inline tags`() {
-        // Make sure that the BAR_TAG_TYPE is registered.
-        TestTagTypes.BAR_TAG_TYPE
         checkParse(
             """
                 /**
@@ -354,8 +344,6 @@ class JavadocParserTest : BaseJavadocTest() {
 
     @Test
     fun `Test inline tag data`() {
-        // Make sure that the BAR_TAG_TYPE is registered.
-        TestTagTypes.BAR_TAG_TYPE
         checkParse(
             """
                 /**
@@ -417,8 +405,6 @@ class JavadocParserTest : BaseJavadocTest() {
 
     @Test
     fun `Test inline tag split across lines - tag with data`() {
-        // Make sure that the BAR_TAG_TYPE is registered.
-        TestTagTypes.BAR_TAG_TYPE
         checkParse(
             """
                 /**

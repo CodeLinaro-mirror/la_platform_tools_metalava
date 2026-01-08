@@ -16,8 +16,19 @@
 
 package com.android.tools.metalava.model.source.doc
 
-/** A [TagType] for inline tags that can only contain text, e.g. `{@code}`, `{@literal}`. */
-internal class TextOnlyInlineTagType(name: String) : TagType<TagData>(name, TagTypeForm.INLINE) {
-    override val containsTextOnly: Boolean
-        get() = true
+import com.android.tools.metalava.reporter.LocationSpecificReporter
+
+/** [TagType] for `@throws` block tag. */
+internal class SeeTagType() : LabeledRefTagType("see", TagTypeForm.BLOCK) {
+
+    override fun extractData(
+        context: DocCommentContext,
+        reporter: LocationSpecificReporter,
+        text: CharSequence
+    ): ExtractDataResult<LabeledRefTagData>? {
+        val c = text[0]
+        if (c == '"' || c == '<') return null
+
+        return super.extractData(context, reporter, text)
+    }
 }

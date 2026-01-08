@@ -121,7 +121,7 @@ class CommonSourceFileTest : BaseModelTest() {
                     """
                         package test.pkg;
 
-                        import static test.pkg2.Test1.FIELD;
+                        import static test.pkg2.Test1.TEST1_FIELD;
                         import static test.pkg2.Test1.method;
                         import test.pkg1.*;
                         import test.Test.Inner;
@@ -130,9 +130,9 @@ class CommonSourceFileTest : BaseModelTest() {
                         import test.pkg1.Test2;
                         import java.util.*;
 
-                        /** {@link method} {@link Inner} {@link Test}*/
+                        /** {@link #method()} {@link Inner#method} {@link Test}*/
                         public class Test {
-                            /** {@link FIELD} */
+                            /** {@link #TEST1_FIELD} */
                             public static int FIELD;
                         }
 
@@ -146,7 +146,7 @@ class CommonSourceFileTest : BaseModelTest() {
                         package test.pkg2;
 
                         class Test1 {
-                            public static final int FIELD = 7;
+                            public static final int TEST1_FIELD = 7;
 
                             public static void method1(int a) {}
                             public static int method() { return 7;}
@@ -173,7 +173,9 @@ class CommonSourceFileTest : BaseModelTest() {
 
                         /** @hide */
                         public class Test {
-                            class Inner {}
+                            public class Inner {
+                                public void method() {}
+                            }
                         }
                     """
                 ),
@@ -200,10 +202,13 @@ class CommonSourceFileTest : BaseModelTest() {
             // Only class imports that are referenced in documentation are included.
             // The wildcard imports are always included (except for empty packages and packages from
             // classpath).
-            // Method and Field imports don't seem to resolve and are not included.
+            // Method and Field static imports are not included.
             val allImports = sourceFile.getImports()
             assertEquals(
-                setOf(classImport, innerClassImport, packageImport),
+                setOf(
+                    innerClassImport,
+                    packageImport,
+                ),
                 allImports,
                 message = "unfiltered imports"
             )
@@ -221,10 +226,11 @@ class CommonSourceFileTest : BaseModelTest() {
                     """
                         package test.pkg;
 
+                        import java.util.Collection;
                         import java.util.List;
                         import java.util.Set;
 
-                        /** {@link List} {@link Set}*/
+                        /** {@link List#addAll(int, Collection)} } {@link Set}*/
                         public class Foo {
                             public static List<String> LIST_FIELD;
                             public static Set<String> SET_FIELD;
@@ -241,15 +247,18 @@ class CommonSourceFileTest : BaseModelTest() {
             val allImports = sourceFile.getImports()
 
             // Create the Import objects that are expected.
+            val collectionClassItem = codebase.assertResolvedClass("java.util.Collection")
+            val collectionClassImport = Import(collectionClassItem)
+
             val listClassItem = codebase.assertResolvedClass("java.util.List")
             val listClassImport = Import(listClassItem)
 
-            val setClassItem = codebase.assertResolvedClass("java.util.Set")
-            val setClassImport = Import(setClassItem)
-
             // Makes sure that classes from the classpath are included in the imports.
             assertEquals(
-                setOf(listClassImport, setClassImport),
+                setOf(
+                    collectionClassImport,
+                    listClassImport,
+                ),
                 allImports,
                 message = "unfiltered imports"
             )

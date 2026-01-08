@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
+import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
@@ -33,6 +34,7 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterListOwner
 import com.android.tools.metalava.model.TypeStringConfiguration
+import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.reporter.BaselineKey
 import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.Reportable
@@ -202,9 +204,17 @@ sealed class MultiplatformElement<E>(protected val sourceSetToElement: SourceSet
 sealed class MultiplatformItem<I : Item>(sourceSetToItem: SourceSetDependent<I?>) :
     MultiplatformElement<I>(sourceSetToItem), Reportable {
     /**
-     * A mapping from source set where the [Item] to the modifiers of the [Item] in that source set.
+     * A mapping from source set where the [Item] is defined to the modifiers of the [Item] in that
+     * source set.
      */
     val modifiers: SourceSetDependent<BaseModifierList> = sourceSetDependentValue { it.modifiers }
+
+    /**
+     * A mapping from source set where the [Item] is defined to the [Item.effectiveVisibility] in
+     * that source set.
+     */
+    val effectiveVisibility: SourceSetDependent<VisibilityLevel>
+        get() = sourceSetDependentValue { it.effectiveVisibility() }
 
     abstract fun accept(visitor: MultiplatformItemVisitor)
 
@@ -213,11 +223,16 @@ sealed class MultiplatformItem<I : Item>(sourceSetToItem: SourceSetDependent<I?>
         return sourceSetToElement.values.flatMap { it?.suppressedIssues() ?: emptyList() }.toSet()
     }
 
+    /**
+     * A mapping from source set where this item is defined and has a known file location to that
+     * known file location.
+     */
+    val fileLocations =
+        sourceSetDependentValue { it.fileLocation }.filter { it.value != FileLocation.UNKNOWN }
+
     // Pick one known file location.
     override val fileLocation: FileLocation =
-        sourceSetDependentValue { it.fileLocation }
-            .values
-            .firstOrNull { it != FileLocation.UNKNOWN } ?: FileLocation.UNKNOWN
+        fileLocations.values.firstOrNull() ?: FileLocation.UNKNOWN
 
     /** The element ID for the [baselineKey] of this item. */
     abstract fun elementId(): String
@@ -341,6 +356,12 @@ class MultiplatformClassItem(
      * that source set.
      */
     val classKind: SourceSetDependent<ClassKind> = sourceSetDependentValue { it.classKind }
+
+    /**
+     * A mapping from source set where the [ClassItem] exists to the origin of the [ClassItem] for
+     * that source set.
+     */
+    val origin: SourceSetDependent<ClassOrigin> = sourceSetDependentValue { it.origin }
 
     /**
      * The nested classes of this class which exist in any source set.
@@ -768,4 +789,15 @@ class MultiplatformTypeParameterItem(
     override fun hashCode(): Int {
         return Objects.hash(owner, typeParameterIndex)
     }
+}
+
+/**
+ * The effective visibility an item, which may be lower than the defined visibility if it is
+ * contained in a less visible class. For instance, elements of an internal class may have a public
+ * visibility modifier, but they are effectively internal.
+ */
+fun Item.effectiveVisibility(): VisibilityLevel {
+    return containingClass()?.let { containingClass ->
+        minOf(containingClass.effectiveVisibility(), modifiers.getVisibilityLevel())
+    } ?: modifiers.getVisibilityLevel()
 }

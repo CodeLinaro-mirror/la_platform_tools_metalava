@@ -155,7 +155,6 @@ class JavadocTest : DriverTest() {
             source =
                 """
                     package test.pkg1;
-                    import java.io.IOException;
                     import test.pkg2.OtherClass;
                     /**
                      * Blah blah {@link test.pkg2.OtherClass OtherClass} blah blah.
@@ -166,7 +165,7 @@ class JavadocTest : DriverTest() {
                      *  Here's an already fully qualified reference: {@link test.pkg2.OtherClass}.
                      *  And here's one in the same package: {@link test.pkg1.LocalClass LocalClass}.
                      *
-                     * @see test.pkg2.OtherClass
+                     * @see test.pkg2.OtherClass OtherClass
                      * @see test.pkg2.OtherClass#bar(int, boolean)
                      * @deprecated For some reason
                      */
@@ -366,7 +365,6 @@ class JavadocTest : DriverTest() {
             source =
                 """
                 package test.pkg1;
-                import java.io.IOException;
                 import test.pkg2.OtherClass;
                 /**
                  * Blah blah {@link test.pkg2.OtherClass OtherClass} blah blah.
@@ -377,7 +375,7 @@ class JavadocTest : DriverTest() {
                  *  Here's an already fully qualified reference: {@link test.pkg2.OtherClass}.
                  *  And here's one in the same package: {@link test.pkg1.LocalClass LocalClass}.
                  *
-                 * @see test.pkg2.OtherClass
+                 * @see test.pkg2.OtherClass OtherClass
                  * @see test.pkg2.OtherClass#bar(int, boolean)
                  * @deprecated For some reason
                  */
@@ -712,7 +710,6 @@ class JavadocTest : DriverTest() {
             source =
                 """
                 package android.content;
-                import android.os.OperationCanceledException;
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public abstract class AsyncTaskLoader<D> {
                 public AsyncTaskLoader() { throw new RuntimeException("Stub!"); }
@@ -1199,11 +1196,10 @@ class JavadocTest : DriverTest() {
                     java(
                         """
                     package test.pkg;
-                    import test.pkg.bar.Bar;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Foo {
                     public Foo() { throw new RuntimeException("Stub!"); }
-                    /** @see test.pkg.bar.Bar */
+                    /** @see test.pkg.bar.Bar Bar */
                     public void bar() { throw new RuntimeException("Stub!"); }
                     }
                     """
@@ -1211,14 +1207,12 @@ class JavadocTest : DriverTest() {
                     java(
                         """
                     package test.pkg.bar;
-                    import test.pkg.Foo;
-                    import test.pkg.baz.Baz;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Bar {
                     public Bar() { throw new RuntimeException("Stub!"); }
-                    /** @see test.pkg.baz.Baz */
+                    /** @see test.pkg.baz.Baz Baz */
                     public void baz(test.pkg.baz.Baz baz) { throw new RuntimeException("Stub!"); }
-                    /** @see test.pkg.Foo */
+                    /** @see test.pkg.Foo Foo */
                     public void foo(test.pkg.Foo foo) { throw new RuntimeException("Stub!"); }
                     }
                     """
