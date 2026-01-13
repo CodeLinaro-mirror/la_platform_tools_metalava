@@ -16,12 +16,17 @@
 
 package com.android.tools.metalava.model.source.doc
 
+import com.android.tools.metalava.model.FieldItem
+import com.android.tools.metalava.model.ReferencableItem
 import com.android.tools.metalava.model.source.javadoc.ExprContext
 import com.android.tools.metalava.model.source.javadoc.TestTagTypes
+import com.android.tools.metalava.model.value.Value
 import com.android.tools.metalava.reporter.Issues.Issue
 import com.android.tools.metalava.reporter.LocationSpecificReporter
 import kotlin.test.assertEquals
 import org.junit.Before
+import org.mockito.kotlin.doReturn
+import org.mockito.kotlin.mock
 
 abstract class BaseDocCommentTest {
     val reporter = CollatingDocumentationIssueReporter()
@@ -120,8 +125,14 @@ class TestDocCommentContext : DocCommentContext, DocCommentMutationListener {
     /** A map from flage name to enabled status. */
     var flags: Map<String, Boolean> = emptyMap()
 
+    override fun resolveItemReference(sourceReference: String): ReferencableItem {
+        return mock<FieldItem>(stubOnly = true) {
+            on { constantValue } doReturn Value.createLiteralValue(null, sourceReference)
+        }
+    }
+
     /** Implements [ExprContext.isFlagEnabled]. */
-    override fun isFlagEnabled(flagFieldReference: String) = flags[flagFieldReference] ?: false
+    override fun isFlagEnabled(flagName: String) = flags[flagName] ?: false
 
     override fun ordinalInParamsList(name: String) = 0
 

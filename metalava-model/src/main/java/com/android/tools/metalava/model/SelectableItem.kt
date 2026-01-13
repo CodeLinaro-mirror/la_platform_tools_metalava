@@ -21,6 +21,7 @@ import com.android.tools.metalava.model.api.surface.ApiVariantSet
 import com.android.tools.metalava.model.api.surface.MutableApiVariantSet
 import com.android.tools.metalava.model.doc.DocContent
 import com.android.tools.metalava.model.doc.DocContentOwner
+import com.android.tools.metalava.model.scope.ReferencableNameScope
 
 /**
  * An [Item] that can be selected to be a part of an API in its own right.
@@ -32,7 +33,7 @@ import com.android.tools.metalava.model.doc.DocContentOwner
  * Conversely, a [ParameterItem] is not selectable because it cannot be selected on its own, it is
  * an indivisible part of the [ParameterItem.containingCallable].
  */
-interface SelectableItem : Item {
+interface SelectableItem : Item, ReferencableNameScope {
     /** The [ApiVariant]s for which this [Item] has been selected. */
     var selectedApiVariants: ApiVariantSet
 

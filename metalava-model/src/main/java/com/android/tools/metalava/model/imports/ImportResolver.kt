@@ -64,15 +64,6 @@ value class ResolvedImport private constructor(private val text: String) {
                 .indexOf('#')
                 .takeUnless { index -> index == -1 }
                 ?.let { index -> text.substring(index + 1) }
-
-    /**
-     * Treat this whole [ResolvedImport] as it referred to a [ClassItem]. If [memberName] is not
-     * null then assume it is a nested class inside [qualifiedClassName].
-     */
-    fun treatAsQualifiedClassName(): String {
-        val nestedClassName = memberName ?: return text
-        return "$qualifiedClassName.$nestedClassName"
-    }
 }
 
 /**

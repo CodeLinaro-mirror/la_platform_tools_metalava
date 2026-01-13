@@ -117,6 +117,41 @@ class SnapshotDeltaMakerTest : BaseTextCodebaseTest() {
                         """,
                 ),
                 TestParams(
+                    name = "class - interface types",
+                    baseSignature =
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public interface BaseInterface {
+                              }
+                              public class Foo implements test.pkg.BaseInterface {
+                              }
+                            }
+                        """,
+                    extendsSignature =
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public interface ExtendsInterface extends test.pkg.BaseInterface {
+                              }
+                              public class Foo implements test.pkg.ExtendsInterface {
+                              }
+                            }
+                        """,
+                    combinedSignature =
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public interface BaseInterface {
+                              }
+                              public interface ExtendsInterface extends test.pkg.BaseInterface {
+                              }
+                              public class Foo implements test.pkg.ExtendsInterface {
+                              }
+                            }
+                        """,
+                ),
+                TestParams(
                     name = "class - different annotations",
                     baseSignature =
                         """
@@ -148,6 +183,31 @@ class SnapshotDeltaMakerTest : BaseTextCodebaseTest() {
                               }
                               @test.pkg.BaseAnnotation @test.pkg.ExtendsAnnotation public class Foo {
                               }
+                            }
+                        """,
+                ),
+                TestParams(
+                    name = "class - changed to typealias",
+                    baseSignature =
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public class Foo {
+                              }
+                            }
+                        """,
+                    extendsSignature =
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public typealias Foo = String;
+                            }
+                        """,
+                    combinedSignature =
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public typealias Foo = String;
                             }
                         """,
                 ),

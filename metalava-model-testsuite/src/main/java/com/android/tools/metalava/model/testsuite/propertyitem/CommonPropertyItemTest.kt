@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.testsuite.propertyitem
 import com.android.tools.lint.checks.infrastructure.TestFiles.base64gzip
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.PropertyItem
+import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.testing.testTypeString
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.kotlin
@@ -1172,6 +1173,65 @@ class CommonPropertyItemTest : BaseModelTest() {
             fooProperty.type().assertClassTypeItem {
                 assertThat(qualifiedName).isEqualTo("java.lang.Integer")
             }
+        }
+    }
+
+    @Test
+    fun `Test setter visibility`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                package test.pkg
+                open class Foo {
+                    val noSet = 0
+                    var publicSet = 0
+                    var protectedSetOnPublic = 0
+                        protected set
+                    var privateSetOnPublic = 0
+                        private set
+                    protected var protectedSet = 0
+                    protected var internalSetOnProtected = 0
+                        internal set
+                    @PublishedApi
+                    internal var internalSet = 0
+                }
+                """
+            )
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+
+            val noSet = fooClass.assertProperty("noSet")
+            assertThat(noSet.modifiers.getVisibilityLevel()).isEqualTo(VisibilityLevel.PUBLIC)
+            assertThat(noSet.setterVisibility).isNull()
+
+            val publicSet = fooClass.assertProperty("publicSet")
+            assertThat(publicSet.modifiers.getVisibilityLevel()).isEqualTo(VisibilityLevel.PUBLIC)
+            assertThat(publicSet.setterVisibility).isEqualTo(VisibilityLevel.PUBLIC)
+
+            val protectedSetOnPublic = fooClass.assertProperty("protectedSetOnPublic")
+            assertThat(protectedSetOnPublic.modifiers.getVisibilityLevel())
+                .isEqualTo(VisibilityLevel.PUBLIC)
+            assertThat(protectedSetOnPublic.setterVisibility).isEqualTo(VisibilityLevel.PROTECTED)
+
+            val privateSetOnPublic = fooClass.assertProperty("privateSetOnPublic")
+            assertThat(privateSetOnPublic.modifiers.getVisibilityLevel())
+                .isEqualTo(VisibilityLevel.PUBLIC)
+            assertThat(privateSetOnPublic.setterVisibility).isEqualTo(VisibilityLevel.PRIVATE)
+
+            val protectedSet = fooClass.assertProperty("protectedSet")
+            assertThat(protectedSet.modifiers.getVisibilityLevel())
+                .isEqualTo(VisibilityLevel.PROTECTED)
+            assertThat(protectedSet.setterVisibility).isEqualTo(VisibilityLevel.PROTECTED)
+
+            val internalSetOnProtected = fooClass.assertProperty("internalSetOnProtected")
+            assertThat(internalSetOnProtected.modifiers.getVisibilityLevel())
+                .isEqualTo(VisibilityLevel.PROTECTED)
+            assertThat(internalSetOnProtected.setterVisibility).isEqualTo(VisibilityLevel.INTERNAL)
+
+            val internalSet = fooClass.assertProperty("internalSet")
+            assertThat(internalSet.modifiers.getVisibilityLevel())
+                .isEqualTo(VisibilityLevel.INTERNAL)
+            assertThat(internalSet.setterVisibility).isEqualTo(VisibilityLevel.INTERNAL)
         }
     }
 }

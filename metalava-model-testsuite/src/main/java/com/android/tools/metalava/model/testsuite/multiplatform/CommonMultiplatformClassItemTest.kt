@@ -302,7 +302,7 @@ class CommonMultiplatformClassItemTest : BaseModelTest() {
             fooClass.superClassType
                 .transformValues { it?.qualifiedName }
                 .assertSourceSetValues(
-                    "commonMain" to "java.lang.Object",
+                    "commonMain" to "kotlin.Any",
                     "androidMain" to "test.pkg.AndroidSuperclass",
                     "nativeMain" to "test.pkg.NativeSuperclass",
                 )
@@ -500,8 +500,8 @@ class CommonMultiplatformClassItemTest : BaseModelTest() {
             common.optionalAliasedType
                 .transformValues { it?.toTypeString() }
                 .assertSourceSetValues(
-                    "commonMain" to "java.lang.String",
-                    "androidMain" to "java.lang.String",
+                    "commonMain" to "kotlin.String",
+                    "androidMain" to "kotlin.String",
                 )
 
             val android = multiplatformCodebase.assertClass("test.pkg.Android")
@@ -512,7 +512,7 @@ class CommonMultiplatformClassItemTest : BaseModelTest() {
             android.optionalAliasedType
                 .transformValues { it?.toTypeString() }
                 .assertSourceSetValues(
-                    "androidMain" to "java.util.List<java.lang.Integer>",
+                    "androidMain" to "kotlin.collections.List<kotlin.Int>",
                 )
         }
     }
@@ -564,8 +564,8 @@ class CommonMultiplatformClassItemTest : BaseModelTest() {
                 .transformValues { it?.toTypeString() }
                 .assertSourceSetValues(
                     "commonMain" to null,
-                    "androidMain" to "java.lang.String",
-                    "nativeMain" to "java.util.List<java.lang.Integer>",
+                    "androidMain" to "kotlin.String",
+                    "nativeMain" to "kotlin.collections.List<kotlin.Int>",
                 )
         }
     }
@@ -611,13 +611,13 @@ class CommonMultiplatformClassItemTest : BaseModelTest() {
             val fooClass = multiplatformCodebase.assertClass("test.pkg.Foo")
             val commonNoReceiver = fooClass.assertProperty("common")
             commonNoReceiver.assertSourceSets("commonMain", "androidMain")
-            val commonStringReceiver = fooClass.assertProperty("common", "java.lang.String")
+            val commonStringReceiver = fooClass.assertProperty("common", "kotlin.String")
             commonStringReceiver.assertSourceSets("commonMain", "androidMain")
             assertThat(commonNoReceiver).isNotEqualTo(commonStringReceiver)
 
             val androidNoReceiver = fooClass.assertProperty("android")
             androidNoReceiver.assertSourceSets("androidMain")
-            val androidStringReceiver = fooClass.assertProperty("android", "java.lang.String")
+            val androidStringReceiver = fooClass.assertProperty("android", "kotlin.String")
             androidStringReceiver.assertSourceSets("androidMain")
             val androidVariableReceiver = fooClass.assertProperty("android", "T")
             androidVariableReceiver.assertSourceSets("androidMain")
@@ -685,17 +685,17 @@ class CommonMultiplatformClassItemTest : BaseModelTest() {
             val fooClass = multiplatformCodebase.assertClass("test.pkg.Foo")
 
             val commonNonNull =
-                fooClass.assertMethod("commonMethod", listOf("int", "java.lang.String"))
+                fooClass.assertMethod("commonMethod", listOf("kotlin.Int", "kotlin.String"))
             commonNonNull.assertSourceSets("commonMain", "androidMain", "nativeMain")
             val commonNullable =
-                fooClass.assertMethod("commonMethod", listOf("int", "java.lang.String?"))
+                fooClass.assertMethod("commonMethod", listOf("kotlin.Int", "kotlin.String?"))
             commonNullable.assertSourceSets("commonMain", "androidMain", "nativeMain")
             assertThat(commonNonNull).isNotEqualTo(commonNullable)
 
-            val androidMethod = fooClass.assertMethod("androidMethod", listOf("java.lang.String?"))
+            val androidMethod = fooClass.assertMethod("androidMethod", listOf("kotlin.String?"))
             androidMethod.assertSourceSets("androidMain")
 
-            val nativeMethod = fooClass.assertMethod("nativeMethod", listOf("java.lang.String?"))
+            val nativeMethod = fooClass.assertMethod("nativeMethod", listOf("kotlin.String?"))
             nativeMethod.assertSourceSets("nativeMain")
 
             assertThat(fooClass.methods)
@@ -744,13 +744,13 @@ class CommonMultiplatformClassItemTest : BaseModelTest() {
         ) {
             val fooClass = multiplatformCodebase.assertClass("test.pkg.Foo")
 
-            val commonCtor = fooClass.assertConstructor(listOf("int", "java.lang.String"))
+            val commonCtor = fooClass.assertConstructor(listOf("kotlin.Int", "kotlin.String"))
             commonCtor.assertSourceSets("commonMain", "androidMain", "nativeMain")
 
-            val androidCtor = fooClass.assertConstructor(listOf("java.lang.String?"))
+            val androidCtor = fooClass.assertConstructor(listOf("kotlin.String?"))
             androidCtor.assertSourceSets("androidMain")
 
-            val nativeCtor = fooClass.assertConstructor(listOf("int", "java.lang.String?"))
+            val nativeCtor = fooClass.assertConstructor(listOf("kotlin.Int", "kotlin.String?"))
             nativeCtor.assertSourceSets("nativeMain")
             assertThat(commonCtor).isNotEqualTo(nativeCtor)
 

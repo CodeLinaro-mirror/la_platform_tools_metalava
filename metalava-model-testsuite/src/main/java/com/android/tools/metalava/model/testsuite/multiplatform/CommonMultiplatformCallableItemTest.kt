@@ -70,17 +70,17 @@ class CommonMultiplatformCallableItemTest : BaseModelTest() {
         ) {
             val fooClass = multiplatformCodebase.assertClass("test.pkg.Foo")
 
-            val commonConstructor = fooClass.assertConstructor(listOf("int"))
+            val commonConstructor = fooClass.assertConstructor(listOf("kotlin.Int"))
             commonConstructor.assertSourceSets("androidMain", "commonMain", "nativeMain")
             assertThat(commonConstructor.containingItem).isEqualTo(fooClass)
             assertThat(commonConstructor.toString())
-                .isEqualTo("multiplatform constructor test.pkg.Foo(int)")
+                .isEqualTo("multiplatform constructor test.pkg.Foo(kotlin.Int)")
 
-            val nativeConstructor = fooClass.assertConstructor(listOf("int", "int"))
+            val nativeConstructor = fooClass.assertConstructor(listOf("kotlin.Int", "kotlin.Int"))
             nativeConstructor.assertSourceSets("nativeMain")
             assertThat(nativeConstructor.containingItem).isEqualTo(fooClass)
             assertThat(nativeConstructor.toString())
-                .isEqualTo("multiplatform constructor test.pkg.Foo(int, int)")
+                .isEqualTo("multiplatform constructor test.pkg.Foo(kotlin.Int, kotlin.Int)")
         }
     }
 
@@ -130,28 +130,25 @@ class CommonMultiplatformCallableItemTest : BaseModelTest() {
         ) {
             val fooClass = multiplatformCodebase.assertClass("test.pkg.Foo")
 
-            val commonMethod = fooClass.assertMethod("commonMethod", listOf("java.lang.String"))
+            val commonMethod = fooClass.assertMethod("commonMethod", listOf("kotlin.String"))
             commonMethod.assertSourceSets("androidMain", "commonMain", "nativeMain")
             assertThat(commonMethod.containingItem).isEqualTo(fooClass)
             assertThat(commonMethod.toString())
-                .isEqualTo("multiplatform method test.pkg.Foo#commonMethod(java.lang.String)")
+                .isEqualTo("multiplatform method test.pkg.Foo#commonMethod(kotlin.String)")
 
-            val androidMethod = fooClass.assertMethod("androidMethod", listOf("java.lang.String?"))
+            val androidMethod = fooClass.assertMethod("androidMethod", listOf("kotlin.String?"))
             androidMethod.assertSourceSets("androidMain")
             assertThat(androidMethod.containingItem).isEqualTo(fooClass)
             assertThat(androidMethod.toString())
-                .isEqualTo("multiplatform method test.pkg.Foo#androidMethod(java.lang.String?)")
+                .isEqualTo("multiplatform method test.pkg.Foo#androidMethod(kotlin.String?)")
 
             val nativeMethod =
-                fooClass.assertMethod(
-                    "nativeMethod",
-                    listOf("java.lang.String", "java.lang.String?")
-                )
+                fooClass.assertMethod("nativeMethod", listOf("kotlin.String", "kotlin.String?"))
             nativeMethod.assertSourceSets("nativeMain")
             assertThat(nativeMethod.containingItem).isEqualTo(fooClass)
             assertThat(nativeMethod.toString())
                 .isEqualTo(
-                    "multiplatform method test.pkg.Foo#nativeMethod(java.lang.String, java.lang.String?)"
+                    "multiplatform method test.pkg.Foo#nativeMethod(kotlin.String, kotlin.String?)"
                 )
         }
     }
@@ -197,10 +194,10 @@ class CommonMultiplatformCallableItemTest : BaseModelTest() {
         ) {
             val fooClass = multiplatformCodebase.assertClass("test.pkg.Foo")
 
-            val clashingConstructor = fooClass.assertConstructor(listOf("int"))
+            val clashingConstructor = fooClass.assertConstructor(listOf("kotlin.Int"))
             clashingConstructor.assertSourceSets("androidMain", "nativeMain")
 
-            val clashingMethod = fooClass.assertMethod("clashingMethod", listOf("java.lang.String"))
+            val clashingMethod = fooClass.assertMethod("clashingMethod", listOf("kotlin.String"))
             clashingMethod.assertSourceSets("androidMain", "nativeMain")
         }
     }
@@ -239,7 +236,7 @@ class CommonMultiplatformCallableItemTest : BaseModelTest() {
                 ),
         ) {
             val fooClass = multiplatformCodebase.assertClass("test.pkg.Foo")
-            val fooMethod = fooClass.assertMethod("foo", listOf("java.lang.String"))
+            val fooMethod = fooClass.assertMethod("foo", listOf("kotlin.String"))
             fooMethod.throwsTypes
                 .transformValues { throwsTypes ->
                     throwsTypes.map { throwsType -> throwsType.toTypeString() }
@@ -302,14 +299,14 @@ class CommonMultiplatformCallableItemTest : BaseModelTest() {
         ) {
             val fooClass = multiplatformCodebase.assertClass("test.pkg.Foo")
 
-            val commonMethod = fooClass.assertMethod("commonMethod", listOf("java.lang.String"))
+            val commonMethod = fooClass.assertMethod("commonMethod", listOf("kotlin.String"))
             val commonParameter = commonMethod.parameters.single()
             commonParameter.assertSourceSets("commonMain", "androidMain", "nativeMain")
             assertThat(commonParameter.containingCallable).isEqualTo(commonMethod)
             assertThat(commonParameter.parameterIndex).isEqualTo(0)
             assertThat(commonParameter.toString())
                 .isEqualTo(
-                    "multiplatform parameter #0 of multiplatform method test.pkg.Foo#commonMethod(java.lang.String)"
+                    "multiplatform parameter #0 of multiplatform method test.pkg.Foo#commonMethod(kotlin.String)"
                 )
             commonParameter.publicName.assertSourceSetValues(
                 "commonMain" to "optionalString",
@@ -326,7 +323,7 @@ class CommonMultiplatformCallableItemTest : BaseModelTest() {
             val nativeMethod =
                 fooClass.assertMethod(
                     "nativeMethod",
-                    listOf("java.lang.String", "java.lang.String?", "java.lang.String")
+                    listOf("kotlin.String", "kotlin.String?", "kotlin.String")
                 )
             assertThat(nativeMethod.parameters).hasSize(3)
             for ((index, parameter) in nativeMethod.parameters.withIndex()) {
@@ -335,7 +332,7 @@ class CommonMultiplatformCallableItemTest : BaseModelTest() {
                 assertThat(parameter.parameterIndex).isEqualTo(index)
                 assertThat(parameter.toString())
                     .isEqualTo(
-                        "multiplatform parameter #$index of multiplatform method test.pkg.Foo#nativeMethod(java.lang.String, java.lang.String?, java.lang.String)"
+                        "multiplatform parameter #$index of multiplatform method test.pkg.Foo#nativeMethod(kotlin.String, kotlin.String?, kotlin.String)"
                     )
                 parameter.publicName.assertSourceSetValues("nativeMain" to "s$index")
                 parameter.hasDefaultValue.assertSourceSetValues("nativeMain" to false)
@@ -376,7 +373,7 @@ class CommonMultiplatformCallableItemTest : BaseModelTest() {
                 )
         ) {
             val fooClass = multiplatformCodebase.assertClass("test.pkg.Foo")
-            val fooMethod = fooClass.assertMethod("foo", listOf("java.lang.String"))
+            val fooMethod = fooClass.assertMethod("foo", listOf("kotlin.String"))
             val stringParameter = fooMethod.parameters.single()
             stringParameter.assertSourceSets("androidMain", "commonMain")
             assertThat(stringParameter.containingCallable).isEqualTo(fooMethod)
@@ -430,7 +427,7 @@ class CommonMultiplatformCallableItemTest : BaseModelTest() {
                 )
         ) {
             val fooClass = multiplatformCodebase.assertClass("test.pkg.Foo")
-            val clashingMethod = fooClass.assertMethod("clashingMethod", listOf("java.lang.String"))
+            val clashingMethod = fooClass.assertMethod("clashingMethod", listOf("kotlin.String"))
             val clashingParameter = clashingMethod.parameters.single()
             clashingParameter.assertSourceSets("androidMain", "nativeMain")
             assertThat(clashingParameter.containingCallable).isEqualTo(clashingMethod)
@@ -487,13 +484,13 @@ class CommonMultiplatformCallableItemTest : BaseModelTest() {
             val testPkg = multiplatformCodebase.assertPackage("test.pkg")
             testPkg.assertSourceSets("androidMain", "commonMain", "nativeMain")
 
-            val fooMethod = testPkg.assertMethod("foo", listOf("int"))
+            val fooMethod = testPkg.assertMethod("foo", listOf("kotlin.Int"))
             fooMethod.assertSourceSets("androidMain", "commonMain", "nativeMain")
 
-            val androidMethod = testPkg.assertMethod("androidMethod", listOf("java.lang.String"))
+            val androidMethod = testPkg.assertMethod("androidMethod", listOf("kotlin.String"))
             androidMethod.assertSourceSets("androidMain")
 
-            val nativeMethod = testPkg.assertMethod("nativeMethod", listOf("java.lang.String"))
+            val nativeMethod = testPkg.assertMethod("nativeMethod", listOf("kotlin.String"))
             nativeMethod.assertSourceSets("nativeMain")
 
             assertThat(testPkg.topLevelFunctions).hasSize(3)
@@ -504,6 +501,30 @@ class CommonMultiplatformCallableItemTest : BaseModelTest() {
             // functions are not included in the multiplatform model.
             assertThat(testPkg.topLevelClasses()).isEmpty()
             assertThat(testPkg.allClasses().toList()).isEmpty()
+        }
+    }
+
+    @Test
+    fun `Definition of suspend function`() {
+        val commonSource =
+            kotlin(
+                "commonMain/src/test/pkg/Foo.kt",
+                """
+                package test.pkg
+                suspend fun foo(int: Int) = Unit
+                """
+            )
+        runMultiplatformCodebaseTest(
+            inputSet(commonSource),
+            projectDescription =
+                createProjectDescription(createCommonModuleDescription(arrayOf(commonSource))),
+        ) {
+            val testPkg = multiplatformCodebase.assertPackage("test.pkg")
+            val fooFunction = testPkg.assertMethod("foo", listOf("kotlin.Int"))
+            fooFunction.assertSourceSets("commonMain")
+            fooFunction.modifiers
+                .transformValues { it.isSuspend() }
+                .assertSourceSetValues("commonMain" to true)
         }
     }
 }

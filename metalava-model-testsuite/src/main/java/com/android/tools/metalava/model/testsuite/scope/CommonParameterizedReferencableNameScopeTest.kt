@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.testsuite.scope
 
 import com.android.tools.metalava.model.Assertions
+import com.android.tools.metalava.model.InvalidReferencableItem
 import com.android.tools.metalava.model.ReferencableItem
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.scope.ReferencableNameScope
@@ -27,6 +28,8 @@ import com.android.tools.metalava.testing.EntryPoint
 import com.android.tools.metalava.testing.EntryPointCallerRule
 import com.android.tools.metalava.testing.EntryPointCallerTracker
 import com.android.tools.metalava.testing.java
+import kotlin.test.assertEquals
+import kotlin.test.assertIs
 import kotlin.test.assertSame
 import org.junit.Rule
 import org.junit.Test
@@ -57,6 +60,10 @@ class CommonParameterizedReferencableNameScopeTest : BaseModelTest() {
          * resolved.
          */
         val expectedItemGetter: CodebaseContext.() -> ReferencableItem?,
+        /**
+         * The expected error message; should only be set if [expectedItemGetter] returns `null`.
+         */
+        val expectedErrorMessage: String? = "",
     ) {
         /**
          * Record the stack trace of the creation of this which can be used to provide a stack trace
@@ -83,7 +90,8 @@ class CommonParameterizedReferencableNameScopeTest : BaseModelTest() {
                     name = "PackageItem - not relative package",
                     scopeGetter = { codebase.assertResolvedPackage("java.lang") },
                     referencableName = "annotation",
-                    expectedItemGetter = { null }
+                    expectedItemGetter = { null },
+                    expectedErrorMessage = "Could not resolve 'annotation' in 'package java.lang'",
                 ),
                 TestParams(
                     name = "PackageItem - absolute class",
@@ -105,7 +113,7 @@ class CommonParameterizedReferencableNameScopeTest : BaseModelTest() {
                     expectedItemGetter = { codebase.assertResolvedClass("java.io.IOException") }
                 ),
                 TestParams(
-                    name = "SourceFile - resolve imported",
+                    name = "SourceFile - resolve imported class",
                     imports =
                         """
                             import java.io.IOException;
@@ -115,7 +123,7 @@ class CommonParameterizedReferencableNameScopeTest : BaseModelTest() {
                     expectedItemGetter = { codebase.assertResolvedClass("java.io.IOException") }
                 ),
                 TestParams(
-                    name = "SourceFile - resolve static imported",
+                    name = "SourceFile - resolve static imported class",
                     imports =
                         """
                             import static java.util.Map.Entry;
@@ -123,6 +131,18 @@ class CommonParameterizedReferencableNameScopeTest : BaseModelTest() {
                     scopeGetter = { codebase.assertClass("test.pkg.Test").sourceFile()!! },
                     referencableName = "Entry",
                     expectedItemGetter = { codebase.assertResolvedClass("java.util.Map.Entry") }
+                ),
+                TestParams(
+                    name = "SourceFile - resolve static imported field",
+                    imports =
+                        """
+                            import static java.lang.System.out;
+                        """,
+                    scopeGetter = { codebase.assertClass("test.pkg.Test").sourceFile()!! },
+                    referencableName = "out",
+                    expectedItemGetter = {
+                        codebase.assertResolvedClass("java.lang.System").assertField("out")
+                    }
                 ),
                 TestParams(
                     name = "SourceFile - resolve class in same file",
@@ -230,6 +250,22 @@ class CommonParameterizedReferencableNameScopeTest : BaseModelTest() {
                     expectedItemGetter = {
                         codebase.assertClass("test.pkg.Test.Nested").assertTypeParameter("S")
                     }
+                ),
+                TestParams(
+                    name = "ClassItem - resolve simple field reference",
+                    scopeGetter = { codebase.assertClass("test.pkg.Test") },
+                    referencableName = "field",
+                    expectedItemGetter = {
+                        codebase.assertClass("test.pkg.Test").assertField("field")
+                    },
+                ),
+                TestParams(
+                    name = "ClassItem - resolve qualified field reference",
+                    scopeGetter = { codebase.assertClass("test.pkg.Test") },
+                    referencableName = "Test.field",
+                    expectedItemGetter = {
+                        codebase.assertClass("test.pkg.Test").assertField("field")
+                    },
                 ),
 
                 // ConstructorItem related tests.
@@ -373,8 +409,13 @@ class CommonParameterizedReferencableNameScopeTest : BaseModelTest() {
             // resolved.
             val expectedItemGetter = params.expectedItemGetter
             val expectedItem = expectedItemGetter()
-
-            assertSame(expectedItem, resolvedItem)
+            if (expectedItem == null) {
+                val error = assertIs<InvalidReferencableItem>(resolvedItem)
+                assertEquals(params.expectedErrorMessage, error.message)
+            } else {
+                assertSame(expectedItem, resolvedItem)
+                assertEquals(params.expectedErrorMessage, "")
+            }
         }
     }
 }

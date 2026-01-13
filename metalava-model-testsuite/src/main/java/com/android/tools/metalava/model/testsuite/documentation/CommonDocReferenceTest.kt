@@ -36,6 +36,7 @@ class CommonDocReferenceTest : BaseModelTest() {
                     """
                         package test.pkg;
                         import java.util.ConcurrentModificationException;
+                        import static java.lang.System.err;
                         public class Test<X extends Throwable> {
                             /**
                              * @throws X because reason 1.
@@ -45,6 +46,7 @@ class CommonDocReferenceTest : BaseModelTest() {
                              * @throws java.io.IOException because reason 5.
                              * @throws ConcurrentModificationException because reason 6.
                              * @throws UnknownException because reason 7.
+                             * @throws err because reason 8.
                              */
                             public <Y extends Throwable> void method() throws X, Y, java.io.IOException {}
 
@@ -63,6 +65,7 @@ class CommonDocReferenceTest : BaseModelTest() {
                          * @throws UnknownException because reason 7.
                          * @throws X because reason 1.
                          * @throws Y because reason 2.
+                         * @throws err because reason 8.
                          * @throws java.io.IOException because reason 5.
                          * @throws java.lang.IllegalArgumentException because reason 4.
                          * @throws java.util.ConcurrentModificationException because reason 6.
@@ -79,7 +82,10 @@ class CommonDocReferenceTest : BaseModelTest() {
             )
 
             assertAndRemoveReportedIssues(
-                "MAIN_SRC/src/test/pkg/Test.java:11:16: warning: Could not resolve UnknownException (ErrorWhenNew) [UnresolvedLink]"
+                """
+                    MAIN_SRC/src/test/pkg/Test.java:12:16: warning: Could not resolve 'UnknownException' in 'method test.pkg.Test.method()' (ErrorWhenNew) [UnresolvedLink]
+                    MAIN_SRC/src/test/pkg/Test.java:13:16: error: Invalid @throws type 'err': it should reference a class but it resolves to field System.err [InvalidDocThrowsType]
+                """
             )
         }
     }

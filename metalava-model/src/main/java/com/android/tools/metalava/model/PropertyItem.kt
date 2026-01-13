@@ -47,6 +47,12 @@ interface PropertyItem : MemberItem, TypeParameterListOwner {
     /** The type parameters of this property. */
     override val typeParameterList: TypeParameterList
 
+    /**
+     * The visibility of the property's setter, or null if the property has no setter (or the
+     * visibility is unknown).
+     */
+    val setterVisibility: VisibilityLevel?
+
     override fun findCorrespondingItemIn(
         codebase: Codebase,
         superMethods: Boolean,

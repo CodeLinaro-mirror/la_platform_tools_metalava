@@ -17,6 +17,7 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JVM_FIELD
@@ -27,6 +28,8 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TargetLanguage
+import com.android.tools.metalava.model.TargetLanguageSet
+import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
@@ -44,6 +47,7 @@ class KotlinInteropChecks(val reporter: Reporter) {
         if (isKotlin) {
             ensureDefaultParamsHaveJvmOverloads(method)
             ensureCompanionJvmStatic(method)
+            disallowValueClassUsageWithoutJvmName(method)
         } else {
             ensureMethodNameNotKeyword(method)
             ensureParameterNamesNotKeywords(method)
@@ -66,8 +70,15 @@ class KotlinInteropChecks(val reporter: Reporter) {
         }
     }
 
+    fun checkConstructor(constructor: ConstructorItem, isKotlin: Boolean = constructor.isKotlin()) {
+        if (isKotlin) {
+            disallowValueClassUsageInConstructorParameters(constructor)
+        }
+    }
+
     fun checkProperty(property: PropertyItem) {
         ensureCompanionJvmField(property)
+        disallowValueClassUsageWithoutJvmName(property)
     }
 
     private fun ensureLambdaLastParameter(method: MethodItem) {
@@ -319,6 +330,83 @@ class KotlinInteropChecks(val reporter: Reporter) {
                 cls,
                 "Use `@file:JvmName` to provide a name for this file facade class for Java callers"
             )
+        }
+    }
+
+    private fun disallowValueClassUsageWithoutJvmName(property: PropertyItem) {
+        fun missingJvmName(accessor: MethodItem?): Boolean {
+            return accessor == null ||
+                (accessor.targetLanguages == TargetLanguageSet.BYTECODE_ONLY &&
+                    !accessor.effectivelyDeprecated)
+        }
+
+        val description =
+            if (property.type().isValueClassType()) {
+                "type"
+            } else if (property.receiver?.isValueClassType() == true) {
+                "receiver type"
+            } else {
+                return
+            }
+        if (missingJvmName(property.getter)) {
+            reporter.report(
+                Issues.VALUE_CLASS_USAGE_WITHOUT_JVM_NAME,
+                property,
+                "Property ${property.name()} with value class $description should use `@get:JvmName` to have a usable getter for Java clients"
+            )
+        }
+        val hasVisibleSetter =
+            property.setterVisibility?.let { it > VisibilityLevel.INTERNAL } ?: false
+        if (hasVisibleSetter && missingJvmName(property.setter)) {
+            reporter.report(
+                Issues.VALUE_CLASS_USAGE_WITHOUT_JVM_NAME,
+                property,
+                "Property ${property.name()} with value class $description should use `@set:JvmName` to have a usable setter for Java clients"
+            )
+        }
+    }
+
+    private fun disallowValueClassUsageWithoutJvmName(method: MethodItem) {
+        if (TargetLanguage.KOTLIN !in method.targetLanguages) return
+        if (method.modifiers.hasAnnotation { it.qualifiedName == JVM_NAME }) return
+
+        if (method.returnType().isValueClassType()) {
+            reporter.report(
+                Issues.VALUE_CLASS_USAGE_WITHOUT_JVM_NAME,
+                method,
+                "Method ${method.name()} returning value class type should use JvmName to be usable for Java clients"
+            )
+            // Don't need to also check parameters if the issue is already reported on the method.
+            return
+        }
+
+        for (parameter in method.parameters()) {
+            if (parameter.type().isValueClassType()) {
+                reporter.report(
+                    Issues.VALUE_CLASS_USAGE_WITHOUT_JVM_NAME,
+                    method,
+                    "Method ${method.name()} with parameter ${parameter.name()} of value class type should use JvmName to be usable for Java clients"
+                )
+                // Don't need to continue checking parameters if the issue is already reported on
+                // the method.
+                break
+            }
+        }
+    }
+
+    private fun disallowValueClassUsageInConstructorParameters(constructor: ConstructorItem) {
+        if (TargetLanguage.KOTLIN !in constructor.targetLanguages) return
+        for (parameter in constructor.parameters()) {
+            if (parameter.type().isValueClassType()) {
+                reporter.report(
+                    Issues.VALUE_CLASS_USAGE_FROM_CONSTRUCTOR,
+                    constructor,
+                    "Constructor of class ${constructor.name()} has parameter ${parameter.name()} of value class type which makes it unusable for Java clients"
+                )
+                // Don't need to continue checking parameters if the issue is already reported on
+                // the constructor.
+                break
+            }
         }
     }
 

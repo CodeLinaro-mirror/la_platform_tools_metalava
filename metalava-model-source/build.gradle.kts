@@ -73,5 +73,6 @@ dependencies {
     testImplementation(libs.junit4)
     testImplementation(libs.truth)
     testImplementation(libs.kotlinTest)
+    testImplementation(libs.mockitoKotlin)
     testImplementation(project(":metalava-testing"))
 }

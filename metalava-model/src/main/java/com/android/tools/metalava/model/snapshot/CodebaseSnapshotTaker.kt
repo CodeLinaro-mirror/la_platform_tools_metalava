@@ -417,7 +417,8 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
                     constructorParameter = property.constructorParameter,
                     backingField = property.backingField,
                     receiver = property.receiver?.snapshot(),
-                    typeParameterList = typeParameterList
+                    typeParameterList = typeParameterList,
+                    setterVisibility = property.setterVisibility,
                 )
             }
         newProperty.copySelectedApiVariants(propertyToSnapshot)

@@ -29,6 +29,8 @@ import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
+import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.model.scope.ReferencableNameScope
 import com.android.tools.metalava.reporter.FileLocation
 
 open class DefaultPropertyItem(
@@ -47,6 +49,7 @@ open class DefaultPropertyItem(
     override val backingField: FieldItem?,
     override val receiver: TypeItem?,
     override val typeParameterList: TypeParameterList,
+    override val setterVisibility: VisibilityLevel?,
 ) :
     DefaultMemberItem(
         codebase,
@@ -68,4 +71,16 @@ open class DefaultPropertyItem(
     final override fun setType(type: TypeItem) {
         this.type = type
     }
+
+    override val containingScope: ReferencableNameScope?
+        get() =
+            // Fallback to the containing class.
+            containingClass()
+
+    override fun resolveReferencableItemBySimpleName(
+        simpleName: String,
+        isFirstSimpleName: Boolean
+    ) =
+        // Property does not define a name scope.
+        null
 }

@@ -16,12 +16,11 @@
 
 package com.android.tools.metalava.model
 
-import com.android.tools.metalava.model.scope.ReferencableNameScope
 import java.util.Objects
 
 /** Common to [MethodItem] and [ConstructorItem]. */
 @MetalavaApi
-interface CallableItem : MemberItem, TypeParameterListOwner, ReferencableNameScope {
+interface CallableItem : MemberItem, TypeParameterListOwner {
 
     /** Whether this callable is a constructor or a method. */
     @MetalavaApi fun isConstructor(): Boolean

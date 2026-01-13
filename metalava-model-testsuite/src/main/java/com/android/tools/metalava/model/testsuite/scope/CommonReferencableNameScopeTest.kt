@@ -18,11 +18,13 @@ package com.android.tools.metalava.model.testsuite.scope
 
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
+import com.android.tools.metalava.model.InvalidReferencableItem
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.scope.ReferencableNameScope
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
+import kotlin.test.assertEquals
 import kotlin.test.assertSame
 import org.junit.Test
 
@@ -52,6 +54,7 @@ class CommonReferencableNameScopeTest : BaseModelTest() {
         expectedUnderlyingClass: String?,
         // By default, the resolved class should match the underlying class.
         expectedResolvedClass: String? = expectedUnderlyingClass,
+        expectedErrorMessage: String = "",
     ) {
         val testClass = codebase.assertClass(scopeClass)
 
@@ -64,8 +67,13 @@ class CommonReferencableNameScopeTest : BaseModelTest() {
 
         // Verify that the resolution is correct.
         val resolved = testClass.resolveReferencableItem(simpleName)
-        val expectedResolvedClassItem = expectedResolvedClass?.let { codebase.resolveClass(it)!! }
-        assertSame(expectedResolvedClassItem, resolved, message = "resolved class")
+        if (expectedResolvedClass == null) {
+            val error = resolved as InvalidReferencableItem
+            assertEquals(expectedErrorMessage, error.message)
+        } else {
+            val expectedResolvedClassItem = codebase.resolveClass(expectedResolvedClass)!!
+            assertSame(expectedResolvedClassItem, resolved, message = "resolved class")
+        }
     }
 
     /**
@@ -268,6 +276,7 @@ class CommonReferencableNameScopeTest : BaseModelTest() {
                 "test.pkg.Derived",
                 "Foo",
                 expectedUnderlyingClass = null,
+                expectedErrorMessage = "Could not resolve 'Foo' in 'class test.pkg.Derived'",
             )
         }
     }
@@ -302,6 +311,7 @@ class CommonReferencableNameScopeTest : BaseModelTest() {
                 "test.pkg.Derived",
                 "Foo",
                 expectedUnderlyingClass = null,
+                expectedErrorMessage = "Could not resolve 'Foo' in 'class test.pkg.Derived'",
             )
         }
     }

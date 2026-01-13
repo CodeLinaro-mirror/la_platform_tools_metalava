@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.scope
 
+import com.android.tools.metalava.model.InvalidReferencableItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ReferencableItem
 
@@ -72,9 +73,9 @@ interface ReferencableNameScope {
      * @param referencableName may be for a package, class, type parameter, method or field. Can be
      *   a name (excluding package name) relative to this scope, or a fully qualified name
      *   (including package name) relative to the root package.
-     * @return the [ReferencableItem] corresponding to [referencableName], or `null` if no such
-     *   [ReferencableItem] could be found.
+     * @return the [ReferencableItem] corresponding to [referencableName], that will be an instance
+     *   of [InvalidReferencableItem] if [referencableName] could not be found.
      */
-    fun resolveReferencableItem(referencableName: String): ReferencableItem? =
+    fun resolveReferencableItem(referencableName: String) =
         ReferencableNameResolver.resolveReferencableItem(this, referencableName)
 }

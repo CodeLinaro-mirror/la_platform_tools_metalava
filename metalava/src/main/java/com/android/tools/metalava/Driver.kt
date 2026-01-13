@@ -524,6 +524,41 @@ class Driver(
     private fun runMultiplatformCodebaseChecks(multiplatformCodebase: MultiplatformCodebase) {
         if (apiLintOptions.apiLintEnabled) {
             MultiplatformLint(reporter).check(multiplatformCodebase)
+
+            // For the regular, non-multiplatform codebase operations, either the android or jvm
+            // source set was used. Find which one of these it was.
+            val (mainSourceSet, mainCodebase) =
+                multiplatformCodebase.sourceSetToCodebase.entries.singleOrNull {
+                    it.key == "androidMain"
+                }
+                    ?: multiplatformCodebase.sourceSetToCodebase.entries.singleOrNull {
+                        it.key == "jvmMain"
+                    }
+                    ?: error("Multiplatform codebase must have main android or jvm source set")
+
+            // Run regular API lint checks for each source set.
+            for ((sourceSet, codebase) in multiplatformCodebase.sourceSetToCodebase) {
+                // Skip checking the main source set, which will already have been checked through
+                // the non-multiplatform lint checks. Also skip checking common, since all APIs will
+                // be included in the checks for other source sets.
+                if (sourceSet == mainSourceSet || sourceSet == "commonMain") continue
+                runApiChecksFromOptions(codebase) { codebase, _ ->
+                    ApiLint.check(
+                        codebase,
+                        // By making the main android/jvm codebase the "oldCodebase", any issues
+                        // which have already been reported for the main codebase through the non-
+                        // multiplatform checks will be skipped.
+                        oldCodebase = mainCodebase,
+                        reporter,
+                        apiPredicateConfig,
+                        ApiLint.Config(
+                            manifest = miscellaneousOptions.manifest,
+                            allowedAcronyms = apiLintOptions.allowedAcronyms,
+                            useK2Uast = sourceOptions.modelOptions[PsiModelOptions.useK2Uast],
+                        ),
+                    )
+                }
+            }
         }
     }
 
