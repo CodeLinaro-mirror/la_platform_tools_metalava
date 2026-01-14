@@ -11,6 +11,8 @@ com.android.tools.metalava.model.testsuite.CommonModifierListWriterTest
 
 com.android.tools.metalava.model.testsuite.CommonTargetLanguageTest
   Test function in value class[psi,kotlin,k1]
+  Test properties of value class types with JvmName[psi,kotlin,k1]
+  Test properties of value class types with JvmName[psi,kotlin,k2]
 
 com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTest
   annotation with unknown field[turbine]

@@ -17,6 +17,7 @@
 package com.android.tools.metalava.multiplatform
 
 import com.android.tools.metalava.DriverTest
+import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.FilterAction
 import com.android.tools.metalava.model.testing.FilterByProvider
@@ -25,6 +26,7 @@ import com.android.tools.metalava.testing.createAndroidModuleDescription
 import com.android.tools.metalava.testing.createCommonModuleDescription
 import com.android.tools.metalava.testing.createNativeModuleDescription
 import com.android.tools.metalava.testing.createProjectDescription
+import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
@@ -81,6 +83,53 @@ class MultiplatformCodebaseTest : DriverTest() {
             assertThat(multiplatformCodebase).isNotNull()
             multiplatformCodebase!!.assertSourceSets("commonMain", "androidMain", "nativeMain")
             multiplatformCodebase.assertClass("test.pkg.Foo")
+        }
+    }
+
+    @Test
+    fun `Test nullability of annotated java type`() {
+        val commonSource =
+            kotlin(
+                "commonMain/src/test/pkg/Foo.kt",
+                """
+                package test.pkg
+                class Common
+                """
+            )
+        val androidSource =
+            java(
+                "androidMain/src/test/pkg/Foo.java",
+                """
+                package test.pkg;
+                import org.jspecify.annotations.NonNull;
+                public class Foo {
+                    public @NonNull String foo() { return ""; }
+                }
+                """
+            )
+        val jspecifyNonNull =
+            kotlin(
+                "androidMain/src/org/jspecify/annotations/NonNull.kt",
+                """
+                package org.jspecify.annotations
+                @Target(AnnotationTarget.TYPE)
+                annotation class NonNull
+                """
+            )
+        check(
+            sourceFiles = arrayOf(androidSource, commonSource, jspecifyNonNull),
+            projectDescription =
+                createProjectDescription(
+                    createCommonModuleDescription(arrayOf(commonSource)),
+                    createAndroidModuleDescription(arrayOf(androidSource, jspecifyNonNull)),
+                ),
+            enableMultiplatform = true,
+        ) {
+            val androidCodebase = multiplatformCodebase!!.sourceSetToCodebase["androidMain"]
+            val fooClass = androidCodebase!!.assertClass("test.pkg.Foo")
+            val fooMethod = fooClass.assertMethod("foo", emptyList())
+            assertThat(fooMethod.returnType().modifiers.nullability)
+                .isEqualTo(TypeNullability.NONNULL)
         }
     }
 }

@@ -891,7 +891,8 @@ class CommonTargetLanguageTest : BaseModelTest() {
                 assertThat(modifiers.isNonNull).isTrue()
             }
 
-            assertThat(fooClass.methods()).hasSize(7)
+            // The private method is not generated since it can't be part of the API surface.
+            assertThat(fooClass.methods()).hasSize(6)
         }
     }
 
@@ -1194,6 +1195,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
             val jvmNameOnGetGetter = fooClass.assertMethod("getJvmNameOnGet", emptyList())
             assertThat(jvmNameOnGetGetter.targetLanguages)
                 .containsExactlyElementsIn(TargetLanguageSet.NOT_KOTLIN)
+            assertThat(jvmNameOnGetGetter.property).isNotNull()
             val jvmNameOnGetSetter = fooClass.assertMethod("setJvmNameOnGet-Vxmw0xk", listOf("int"))
             assertThat(jvmNameOnGetSetter.targetLanguages).containsExactly(TargetLanguage.BYTECODE)
 
@@ -1202,13 +1204,16 @@ class CommonTargetLanguageTest : BaseModelTest() {
             val jvmNameOnSetSetter = fooClass.assertMethod("setJvmNameOnSet", listOf("int"))
             assertThat(jvmNameOnSetSetter.targetLanguages)
                 .containsExactlyElementsIn(TargetLanguageSet.NOT_KOTLIN)
+            assertThat(jvmNameOnSetSetter.property).isNotNull()
 
             val jvmNameOnBothGetter = fooClass.assertMethod("getJvmNameOnBoth", emptyList())
             assertThat(jvmNameOnBothGetter.targetLanguages)
                 .containsExactlyElementsIn(TargetLanguageSet.NOT_KOTLIN)
+            assertThat(jvmNameOnBothGetter.property).isNotNull()
             val jvmNameOnBothSetter = fooClass.assertMethod("setJvmNameOnBoth", listOf("int"))
             assertThat(jvmNameOnBothSetter.targetLanguages)
                 .containsExactlyElementsIn(TargetLanguageSet.NOT_KOTLIN)
+            assertThat(jvmNameOnBothSetter.property).isNotNull()
         }
     }
 

@@ -41,6 +41,7 @@ import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
+import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.value.OptionalValueProvider
 import com.android.tools.metalava.reporter.FileLocation
 
@@ -257,6 +258,7 @@ class DefaultItemFactory(
         type: TypeItem,
         receiver: TypeItem?,
         typeParameterList: TypeParameterList,
+        setterVisibility: VisibilityLevel?,
         getter: MethodItem? = null,
         setter: MethodItem? = null,
         constructorParameter: ParameterItem? = null,
@@ -278,6 +280,7 @@ class DefaultItemFactory(
             backingField,
             receiver,
             typeParameterList,
+            setterVisibility,
         )
 
     /** Create a [ClassItem] which is a typealias. */

@@ -646,6 +646,7 @@ private constructor(
                     typeParameterListAndFactory.factory
                 )
             }
+        val qualifiedClassName = pkg.qualifiedName() + "." + name
 
         token = tokenizer.requireToken()
         if ("=" != token) {
@@ -659,6 +660,24 @@ private constructor(
         }
 
         val type = typeItemFactory.getGeneralType(typeString)
+
+        // Check for the existing class from a previously parsed file. If it was found then use that
+        // and return. If it could not be found then drop through to create it.
+        val classCharacteristics =
+            ClassCharacteristics(
+                fileLocation = location,
+                qualifiedName = qualifiedClassName,
+                fullName = name,
+                classKind = ClassKind.TYPEALIAS,
+                modifiers = modifiers.toImmutable(),
+                superClassType = null,
+                interfaceTypes = emptySet(),
+                optionalAliasedType = type,
+            )
+        if (checkForExistingClass(classCharacteristics, tokenizer)) {
+            return
+        }
+
         itemFactory.createTypeAliasItem(
             fileLocation = location,
             modifiers = modifiers,
@@ -785,32 +804,18 @@ private constructor(
 
         // Check for the existing class from a previously parsed file. If it was found then use that
         // and return. If it could not be found then drop through to create it.
-        codebase.findClassInCodebase(qualifiedClassName)?.let { existingClass ->
-
-            // Parse the class body adding each member created to the existing class.
-            parseClassBody(tokenizer, existingClass, typeItemFactoryForClass(existingClass))
-
-            // Although the class was first defined in a separate file it is being modified in the
-            // current file so that may include it in the main API surface.
-            existingClass.markExistingClassForMainApiSurface()
-
-            // Get the characteristics of the class being added as they may be needed to compare
-            // against the characteristics of the same class from a previously processed signature
-            // file.
-            val newClassCharacteristics =
-                ClassCharacteristics(
-                    fileLocation = classPosition,
-                    qualifiedName = qualifiedClassName,
-                    fullName = fullName,
-                    classKind = classKind,
-                    modifiers = modifiers.toImmutable(),
-                    superClassType = superClassType,
-                )
-
-            // Perform any merge checks after loading all the files. That is needed because merging
-            // may resolve classes and doing that during parsing can lead to issues.
-            deferMergingIntoExistingClass(existingClass, newClassCharacteristics)
-
+        val classCharacteristics =
+            ClassCharacteristics(
+                fileLocation = classPosition,
+                qualifiedName = qualifiedClassName,
+                fullName = fullName,
+                classKind = classKind,
+                modifiers = modifiers.toImmutable(),
+                superClassType = superClassType,
+                interfaceTypes = interfaceTypes,
+                optionalAliasedType = null,
+            )
+        if (checkForExistingClass(classCharacteristics, tokenizer)) {
             return
         }
 
@@ -851,6 +856,37 @@ private constructor(
 
         // Parse the class body adding each member created to the class item being populated.
         parseClassBody(tokenizer, cl, typeItemFactory)
+    }
+
+    /**
+     * Checks to see if there is an existing class with the same qualified name as
+     * [classCharacteristics] already existing in the codebase. If there is, marks that the
+     * [classCharacteristics] should be merged into the existing class.
+     *
+     * Returns whether a matching class was found.
+     */
+    private fun checkForExistingClass(
+        classCharacteristics: ClassCharacteristics,
+        tokenizer: Tokenizer,
+    ): Boolean {
+        val existingClass =
+            codebase.findClassInCodebase(classCharacteristics.qualifiedName) ?: return false
+
+        // Parse the class body adding each member created to the existing class (typealiases do not
+        // have a class body).
+        if (classCharacteristics.classKind != ClassKind.TYPEALIAS) {
+            parseClassBody(tokenizer, existingClass, typeItemFactoryForClass(existingClass))
+        }
+
+        // Although the class was first defined in a separate file it is being modified in the
+        // current file so that may include it in the main API surface.
+        existingClass.markExistingClassForMainApiSurface()
+
+        // Perform any merge checks after loading all the files. That is needed because merging
+        // may resolve classes and doing that during parsing can lead to issues.
+        deferMergingIntoExistingClass(existingClass, classCharacteristics)
+
+        return true
     }
 
     /**
@@ -897,6 +933,15 @@ private constructor(
             )
         }
 
+        // Handle the transition to typealias (other class kind changes are not allowed)
+        if (
+            existingClass.classKind != ClassKind.TYPEALIAS &&
+                newClassCharacteristics.classKind == ClassKind.TYPEALIAS
+        ) {
+            existingClass.classKind = ClassKind.TYPEALIAS
+            existingClass.optionalAliasedType = newClassCharacteristics.optionalAliasedType
+        }
+
         // Add new annotations to the existing class
         val newClassAnnotations = newClassCharacteristics.modifiers.annotations().toSet()
         val existingClassAnnotations = existingCharacteristics.modifiers.annotations().toSet()
@@ -914,6 +959,16 @@ private constructor(
             // Duplicate class with conflicting superclass names are found. Since the class
             // definition found later should be prioritized, overwrite the superclass type.
             existingClass.setSuperClassType(newSuperClassType)
+        }
+
+        // If the interface types in the new definition are set, overwrite the original interface
+        // types since the later definition should be prioritized.
+        val newInterfaceTypes = newClassCharacteristics.interfaceTypes
+        if (
+            newInterfaceTypes.isNotEmpty() &&
+                newInterfaceTypes != existingCharacteristics.interfaceTypes
+        ) {
+            existingClass.setInterfaceTypes(newInterfaceTypes.toList())
         }
     }
 
@@ -1664,6 +1719,9 @@ private constructor(
                 type = type,
                 receiver = receiverNamePair.first,
                 typeParameterList = typeParameterList,
+                // There isn't any information about whether a setter exists or its visibility if it
+                // does in API files currently.
+                setterVisibility = null,
             )
         property.markForMainApiSurface()
         cl.addProperty(property)

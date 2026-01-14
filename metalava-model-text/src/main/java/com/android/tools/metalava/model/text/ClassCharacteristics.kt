@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ModifierList
+import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.reporter.FileLocation
 
 /**
@@ -51,7 +52,12 @@ internal data class ClassCharacteristics(
 
     /** The super class type . */
     val superClassType: ClassTypeItem?,
-    // TODO(b/323168612): Add interface type strings.
+
+    /** The interface types. */
+    val interfaceTypes: Set<ClassTypeItem>,
+
+    /** The aliased type. Should be non-null only when [classKind] is [ClassKind.TYPEALIAS]. */
+    val optionalAliasedType: TypeItem?,
 ) {
     /**
      * Checks if the [other] from different signature file can be merged with this
@@ -67,7 +73,8 @@ internal data class ClassCharacteristics(
         // TODO(b/323168612): Check super interface types and super class type of the two
         // TextClassItem
         return fullName == other.fullName &&
-            classKind == other.classKind &&
+            // Allow class kind changing to typealias, but no other changes.
+            (classKind == other.classKind || other.classKind == ClassKind.TYPEALIAS) &&
             modifiers.equivalentTo(null, other.modifiers)
     }
 
@@ -80,6 +87,8 @@ internal data class ClassCharacteristics(
                 classKind = classItem.classKind,
                 modifiers = classItem.modifiers,
                 superClassType = classItem.superClassType(),
+                interfaceTypes = classItem.interfaceTypes().toSet(),
+                optionalAliasedType = classItem.optionalAliasedType,
             )
     }
 }

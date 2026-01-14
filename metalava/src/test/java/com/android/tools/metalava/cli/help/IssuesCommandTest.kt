@@ -123,6 +123,7 @@ Available Issues                             |  Category                        
   InternalError                              |  unknown                              |   error
   InternalField                              |  api_lint                             |   error
   InvalidBlockTagUse                         |  documentation                        |   error
+  InvalidDocThrowsType                       |  documentation                        |   error
   InvalidFeatureEnforcement                  |  documentation                        |   error
   InvalidIfTag                               |  documentation                        |   error
   InvalidJavadoc                             |  documentation                        |   warning_error_when_new
@@ -251,6 +252,8 @@ Available Issues                             |  Category                        
   UserHandle                                 |  api_lint                             |   warning
   UserHandleName                             |  api_lint                             |   warning
   ValueClassDefinition                       |  api_lint                             |   error
+  ValueClassUsageFromConstructor             |  api_lint                             |   hidden
+  ValueClassUsageWithoutJvmName              |  api_lint                             |   hidden
   VarargRemoval                              |  binary_and_source_compatibility      |   error
   VisiblySynchronized                        |  api_lint                             |   error
 """

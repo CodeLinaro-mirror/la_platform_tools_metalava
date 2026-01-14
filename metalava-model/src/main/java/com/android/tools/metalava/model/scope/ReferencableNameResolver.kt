@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.scope
 
+import com.android.tools.metalava.model.InvalidReferencableItem
 import com.android.tools.metalava.model.ReferencableItem
 
 /** Implementation of [ReferencableNameScope.resolveReferencableItem]. */
@@ -31,8 +32,8 @@ internal object ReferencableNameResolver {
      *
      * Then as it unrolls each recursive call it will first check to see if the [ReferencableItem]
      * returned from the recursive call is a [ReferencableNameScope]. If it is not then it returns
-     * `null`. Otherwise, it will return the result of looking for the trailing simple name of
-     * [referencableName] in the [ReferencableNameScope].
+     * [InvalidReferencableItem]. Otherwise, it will return the result of looking for the trailing
+     * simple name of [referencableName] in the [ReferencableNameScope].
      *
      * e.g. if resolving `java.io.IOException` (from any [scope]) it will do the following:
      * * Call [resolveReferencableItem] with `java.io` and [scope].
@@ -46,25 +47,69 @@ internal object ReferencableNameResolver {
     fun resolveReferencableItem(
         scope: ReferencableNameScope,
         referencableName: String
-    ): ReferencableItem? {
-        // If the name contains a '.' then it must either be fully qualified or a nested class. The
-        // part before the '.' could be either a package or another class. If there is no '.' then
-        // it is a simple name.
-        val dotIndex = referencableName.lastIndexOf('.')
-        if (dotIndex == -1) {
-            return searchEnclosingScopes(scope, referencableName)
-        } else {
-            val containingPackageOrClassName = referencableName.substring(0, dotIndex)
-            val referencableNameScope =
-                resolveReferencableItem(scope, containingPackageOrClassName)
-                    as? ReferencableNameScope ?: return null
+    ): ReferencableItem {
+        val length = referencableName.length
 
-            val simpleName = referencableName.substring(dotIndex + 1)
-            return referencableNameScope.resolveReferencableItemBySimpleName(
-                simpleName,
-                isFirstSimpleName = false,
-            )
-            return null
+        // The scope being searched.
+        var currentScope = scope
+
+        // The start index of the next simple name to find.
+        var startIndex = 0
+
+        // Loop over all simple names within the possibly qualified referencableName, resolving each
+        // against the scope resulting from the resolving the previous name, starting with the
+        // supplied scope. Returns the result of resolving the last simple name.
+        while (true) {
+            // Find the '.' that terminates the next simple name, if any.
+            val dotIndex = referencableName.indexOf('.', startIndex)
+
+            // Compute the end of the next simple name.
+            val endIndex = if (dotIndex == -1) length else dotIndex
+
+            // Extract the next simple name. The implementation optimizes the case when the whole
+            // string will be returned so this does not have to do that.
+            val simpleName = referencableName.substring(startIndex, endIndex)
+
+            // Resolve the simple name against the current scope.
+            val resolved =
+                if (startIndex == 0) {
+                    // If this is the first name to be resolved then search all the enclosing scopes
+                    // of the current scope.
+                    searchEnclosingScopes(currentScope, simpleName)
+                } else {
+                    // Otherwise, only search the current scope for the simple name.
+                    currentScope.resolveReferencableItemBySimpleName(
+                        simpleName,
+                        isFirstSimpleName = false,
+                    )
+                }
+                    // If the simple name could not be found then it is an error.
+                    ?: return InvalidReferencableItem(
+                        unresolvedReferenceName = referencableName,
+                        failingScopeName = currentScope.toString(),
+                        failingSimpleName = simpleName,
+                        reason = InvalidReferencableItem.Reason.NOT_FOUND,
+                    )
+
+            // If that was the last simple name to search then return the result.
+            if (dotIndex == -1) {
+                return resolved
+            }
+
+            // Otherwise, if possible treat the resolved item as the next scope to search.
+            currentScope =
+                resolved as? QualifiedNameScope
+                    // It is an error for a containing name to resolve to something that cannot
+                    // resolve a qualified name.
+                    ?: return InvalidReferencableItem(
+                        unresolvedReferenceName = referencableName,
+                        failingScopeName = currentScope.toString(),
+                        failingSimpleName = simpleName,
+                        reason = InvalidReferencableItem.Reason.NOT_QUALIFIED_SCOPE,
+                    )
+
+            // Move onto the next simple name to find.
+            startIndex = endIndex + 1
         }
     }
 

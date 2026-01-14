@@ -51,7 +51,7 @@ open class DefaultClassItem(
     documentationFactory: ItemDocumentationFactory,
     variantSelectorsFactory: ApiVariantSelectorsFactory,
     private val source: SourceFile?,
-    final override val classKind: ClassKind,
+    classKind: ClassKind,
     private val containingClass: ClassItem?,
     private val containingPackage: PackageItem,
     private val qualifiedName: String,
@@ -64,7 +64,7 @@ open class DefaultClassItem(
      * If [classKind] is [ClassKind.TYPEALIAS], the [optionalAliasedType] must be specified.
      * Otherwise, it should be null.
      */
-    override val optionalAliasedType: TypeItem?,
+    optionalAliasedType: TypeItem?,
 ) :
     DefaultSelectableItem(
         codebase = codebase,
@@ -172,6 +172,18 @@ open class DefaultClassItem(
     private fun ensureNotFrozen() {
         if (frozen) error("Cannot modify frozen $this")
     }
+
+    final override var classKind: ClassKind = classKind
+        set(value) {
+            ensureNotFrozen()
+            field = value
+        }
+
+    final override var optionalAliasedType: TypeItem? = optionalAliasedType
+        set(value) {
+            ensureNotFrozen()
+            field = value
+        }
 
     final override fun mutateModifiers(mutator: MutableModifierList.() -> Unit) {
         ensureNotFrozen()
@@ -316,6 +328,8 @@ open class DefaultClassItem(
         else
         // Then check to see type parameters.
         typeParameterList.find { it.name() == simpleName }
+                // Then, check to see if it is a field of this class.
+                ?: mutableFields.find { it.name() == simpleName }
                 // Then, check to see if it matches a nested class and if it does then return that.
                 ?: mutableNestedClasses.find { it.simpleName() == simpleName }
                 // Then, check to see if it matches a class defined in a super class.

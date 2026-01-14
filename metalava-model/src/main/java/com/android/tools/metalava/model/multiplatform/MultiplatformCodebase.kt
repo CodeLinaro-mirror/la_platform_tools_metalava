@@ -55,7 +55,7 @@ fun <V, T> SourceSetDependent<V>.transformValues(transform: (V) -> T): SourceSet
  *
  * There is a [Codebase] for each source set of the multiplatform project.
  */
-class MultiplatformCodebase(sourceSetToCodebase: SourceSetDependent<Codebase>) :
+class MultiplatformCodebase(val sourceSetToCodebase: SourceSetDependent<Codebase>) :
     MultiplatformElement<Codebase>(sourceSetToCodebase) {
     fun accept(visitor: MultiplatformItemVisitor) {
         visitor.visit(this)
