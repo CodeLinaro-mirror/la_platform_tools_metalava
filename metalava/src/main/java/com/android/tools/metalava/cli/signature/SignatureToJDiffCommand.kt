@@ -158,7 +158,11 @@ class SignatureToJDiffCommand :
             if (baseFile != null) {
                 // Convert base on a diff
                 val baseApi = signatureFileLoader.load(SignatureFile.fromFiles(baseFile))
-                SnapshotDeltaMaker.createDelta(baseApi, signatureFragment)
+                SnapshotDeltaMaker.createDelta(
+                    baseApi,
+                    signatureFragment,
+                    checkMemberItemEquivalence = false,
+                )
             } else {
                 signatureFragment
             }

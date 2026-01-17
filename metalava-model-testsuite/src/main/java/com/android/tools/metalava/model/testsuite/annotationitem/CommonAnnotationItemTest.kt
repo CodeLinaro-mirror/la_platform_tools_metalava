@@ -193,7 +193,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
                     8:@test.pkg.SameLine("field")
                     8:field test.pkg.Foo.field
                     8:method test.pkg.Foo.getField()
-                    8:property Foo.field
+                    8:property test.pkg.Foo#field
                     9:@test.pkg.LineBefore("method")
                     10:@test.pkg.SameLine("method")
                     10:method test.pkg.Foo.method(int)

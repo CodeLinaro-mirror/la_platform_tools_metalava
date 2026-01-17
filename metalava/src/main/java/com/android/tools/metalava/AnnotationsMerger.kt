@@ -43,6 +43,7 @@ import com.android.tools.lint.annotations.Extractor.SUPPORT_NULLABLE
 import com.android.tools.lint.detector.api.getChildren
 import com.android.tools.metalava.cli.common.cliError
 import com.android.tools.metalava.model.ANDROIDX_INT_DEF
+import com.android.tools.metalava.model.ANDROIDX_INT_RANGE
 import com.android.tools.metalava.model.ANDROIDX_NONNULL
 import com.android.tools.metalava.model.ANDROIDX_NULLABLE
 import com.android.tools.metalava.model.ANDROIDX_STRING_DEF
@@ -566,7 +567,7 @@ class AnnotationsMerger(
                 val valName2 = valueElement2.getAttribute(ATTR_NAME)
                 val value2 = valueElement2.getAttribute(ATTR_VAL)
                 return codebase.createAnnotationFromAttributes(
-                    "androidx.annotation.IntRange",
+                    ANDROIDX_INT_RANGE,
                     listOf(
                         // Add "L" suffix to ensure that we don't for example interpret "-1" as
                         // an integer -1 and then end up recording it as "ffffffff" instead of

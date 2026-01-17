@@ -35,6 +35,7 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.MultipleTypeVisitor
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.StripJavaLangPrefix
@@ -1025,7 +1026,7 @@ class CompatibilityCheck(
                 val message =
                     "${new.describe(capitalize = true)} has changed type from $oldType to $newType"
                 report(Issues.CHANGED_TYPE, new, message, oldItem = old)
-            } else if (!old.hasSameConstantValue(new)) {
+            } else if (old.constantValue != new.constantValue) {
                 val oldString = old.constantValue?.toValueString() ?: "nothing/not constant"
                 val newString = new.constantValue?.toValueString() ?: "nothing/not constant"
                 val message =
@@ -1106,6 +1107,62 @@ class CompatibilityCheck(
                         capitalize = true
                     )
                 } has changed deprecation state ${old.effectivelyDeprecated} --> ${new.effectivelyDeprecated}",
+                oldItem = old,
+            )
+        }
+    }
+
+    override fun comparePropertyItems(old: PropertyItem, new: PropertyItem) {
+        val oldModifiers = old.modifiers
+        val newModifiers = new.modifiers
+
+        if (oldModifiers.getVisibilityLevel() != newModifiers.getVisibilityLevel()) {
+            report(
+                Issues.CHANGED_SCOPE,
+                new,
+                "${new.describe(capitalize = true)} changed visibility from ${oldModifiers.getVisibilityLevel()} to ${newModifiers.getVisibilityLevel()}"
+            )
+        }
+
+        // Report changes to abstract modifier for non-interfaces, changes to abstract status in an
+        // interface will be reported as a change to the default modifier below.
+        if (!new.containingClass().isInterface()) {
+            if (!oldModifiers.isAbstract() && newModifiers.isAbstract()) {
+                report(
+                    Issues.CHANGED_ABSTRACT,
+                    new,
+                    "${new.describe(capitalize = true)} has changed 'abstract' qualifier",
+                    oldItem = old,
+                )
+            }
+        } else {
+            if (oldModifiers.isDefault() && newModifiers.isAbstract()) {
+                report(
+                    Issues.CHANGED_DEFAULT,
+                    new,
+                    "${new.describe(capitalize = true)} has changed 'default' qualifier",
+                    oldItem = old,
+                )
+            }
+        }
+
+        // Only report an issue if the new property is actually final, not if it is effectively
+        // final, because a change in effectively final will be reported as an error on the
+        // containing class changing modifiers.
+        if (!old.isEffectivelyFinal() && newModifiers.isFinal()) {
+            report(
+                Issues.ADDED_FINAL,
+                new,
+                "${new.describe(capitalize = true)} has added 'final' qualifier",
+                oldItem = old,
+            )
+        }
+
+        if (old.effectivelyDeprecated != new.effectivelyDeprecated) {
+            report(
+                Issues.CHANGED_DEPRECATED,
+                new,
+                "${new.describe(capitalize = true)} has changed deprecation state ${old.effectivelyDeprecated} --> ${new.effectivelyDeprecated}",
                 oldItem = old,
             )
         }
@@ -1198,11 +1255,10 @@ class CompatibilityCheck(
                     .findMethod(new, includeSuperClasses = true, includeInterfaces = false)
             } else null
 
-        // It is ok to add a new abstract method to a class that has no public constructors
+        // It is ok to add a new abstract method to a class that cannot be extended externally
         if (
-            new.containingClass().isClass() &&
-                !new.containingClass().constructors().any { it.isPublic && !it.hidden } &&
-                new.modifiers.isAbstract()
+            new.modifiers.isAbstract() &&
+                new.containingClass().cannotContainExternallyOverridableAbstractMethods()
         ) {
             return
         }
@@ -1232,8 +1288,55 @@ class CompatibilityCheck(
         }
     }
 
+    /**
+     * Determines if it is possible for the class to have externally overridable abstract methods.
+     */
+    private fun ClassItem.cannotContainExternallyOverridableAbstractMethods(): Boolean {
+        // if the class is concrete then it cannot contain externally overridable abstract methods
+        if (!modifiers.isAbstract() && !isInterface()) {
+            return true
+        }
+
+        // if the class is directly publicly extensible (and not concrete) then it can contain
+        // externally overridable abstract methods
+        if (
+            !modifiers.isSealed() &&
+                ((isInterface() && isPublic) ||
+                    (isClass() &&
+                        constructors().any { (it.isPublic || it.isProtected) && !it.hidden }))
+        ) {
+            return false
+        }
+
+        // Special case for annotation classes. Java annotation classes can have methods
+        // and also be implemented, so we need to check for that case
+        if (isAnnotationType() && isPublic) {
+            return false
+        }
+
+        return sealedClassDirectSubclasses().all { cls: ClassItem ->
+            cls.cannotContainExternallyOverridableAbstractMethods()
+        }
+    }
+
     override fun addedFieldItem(new: FieldItem) {
         handleAdded(Issues.ADDED_FIELD, new)
+    }
+
+    override fun addedPropertyItem(new: PropertyItem) {
+        val issue =
+            // Report this as an added abstract property if external clients may now need to
+            // override the property. If it doesn't need to be externally overridden, use the normal
+            // added property issue.
+            if (
+                new.modifiers.isAbstract() &&
+                    !new.containingClass().cannotContainExternallyOverridableAbstractMethods()
+            ) {
+                Issues.ADDED_ABSTRACT_PROPERTY
+            } else {
+                Issues.ADDED_PROPERTY
+            }
+        handleAdded(issue, new)
     }
 
     override fun removedPackageItem(old: PackageItem, from: PackageItem?) {
@@ -1280,6 +1383,10 @@ class CompatibilityCheck(
                 else Issues.REMOVED_FIELD
             handleRemoved(error, old)
         }
+    }
+
+    override fun removedPropertyItem(old: PropertyItem, from: ClassItem) {
+        handleRemoved(Issues.REMOVED_PROPERTY, old)
     }
 
     /**

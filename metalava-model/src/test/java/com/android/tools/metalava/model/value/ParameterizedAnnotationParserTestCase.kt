@@ -44,6 +44,7 @@ class ParameterizedAnnotationParserTestCase {
     class TestCase(
         private val label: String,
         val input: String,
+        val unshorten: Boolean = false,
         val expected: AnnotationItem,
     ) {
         /**
@@ -200,6 +201,17 @@ class ParameterizedAnnotationParserTestCase {
                                 ),
                         ),
                 ),
+                TestCase(
+                    "do not unshorten Deprecation annotation",
+                    input = "@Deprecated",
+                    expected = annotationItem("Deprecated"),
+                ),
+                TestCase(
+                    "unshorten Deprecation annotation",
+                    input = "@Deprecated",
+                    unshorten = true,
+                    expected = annotationItem("java.lang.Deprecated"),
+                ),
             )
 
         /** Supply the list of test cases as the parameters for this test class. */
@@ -208,7 +220,8 @@ class ParameterizedAnnotationParserTestCase {
 
     @Test
     fun `Test parse`() {
-        val annotation = ValueParser.DEFAULT.parseAnnotationItem(testCase.input)!!
+        val annotation =
+            ValueParser.DEFAULT.parseAnnotationItem(testCase.input, testCase.unshorten)!!
 
         // Wrap in an AnnotationValue before comparing to use its equals(...) method which is
         // defined in terms of the qualified name and the attribute name/Value pairs, ignoring the

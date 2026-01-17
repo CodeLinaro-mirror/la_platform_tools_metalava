@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.source.javadoc
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.InvalidReferencableItem
 import com.android.tools.metalava.model.ReferencableItem
+import com.android.tools.metalava.model.scope.NameClassification
 import com.android.tools.metalava.model.value.StringValue
 import com.android.tools.metalava.model.value.Value
 import com.android.tools.metalava.reporter.Issues
@@ -63,7 +64,10 @@ internal interface ExprBuilderContext {
      *
      * Returns an [InvalidReferencableItem] if it could not be resolved.
      */
-    fun resolveItemReference(sourceReference: String): ReferencableItem
+    fun resolveItemReference(
+        sourceReference: String,
+        nameClassification: NameClassification
+    ): ReferencableItem
 }
 
 /** Builds [Expr] instances. */
@@ -98,7 +102,7 @@ internal class ExprBuilder(
         val fieldReference = fieldReferenceContext.text.replace(Regex("""\s+"""), "")
 
         // Resolve the field reference.
-        val resolved = context.resolveItemReference(fieldReference)
+        val resolved = context.resolveItemReference(fieldReference, NameClassification.AMBIGUOUS)
 
         // Get the Token to use for reporting errors in the flag reference.
         val fieldSymbol = fieldReferenceContext.IDENTIFIER(0).symbol

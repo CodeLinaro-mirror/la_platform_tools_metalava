@@ -927,7 +927,7 @@ class DocCommentParserTest : BaseDocCommentTest() {
                     description: <<>>
                     @see <<Reference>>
                 """,
-            expectedPrintOutput = """/** @see resolved.Reference Reference */""",
+            expectedPrintOutput = """/** @see resolved.Reference */""",
         ) {
             docComment.assertStructure(
                 """

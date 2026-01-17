@@ -54,7 +54,6 @@ import com.android.tools.metalava.model.item.DefaultParameterItem
 import com.android.tools.metalava.model.item.PackageInfo
 import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
 import com.android.tools.metalava.model.psi.PsiBasedCodebase
-import com.android.tools.metalava.model.psi.PsiClassItem.Companion.isFileFacade
 import com.android.tools.metalava.model.psi.PsiFieldItem
 import com.android.tools.metalava.model.psi.PsiFileLocation
 import com.android.tools.metalava.model.psi.PsiItemDocumentation
@@ -94,7 +93,6 @@ import org.jetbrains.kotlin.analysis.api.symbols.KaSymbolVisibility
 import org.jetbrains.kotlin.analysis.api.symbols.KaTypeAliasSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaTypeParameterSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaValueParameterSymbol
-import org.jetbrains.kotlin.analysis.api.symbols.name
 import org.jetbrains.kotlin.analysis.api.symbols.receiverType
 import org.jetbrains.kotlin.analysis.api.types.KaType
 import org.jetbrains.kotlin.asJava.toLightElements
@@ -149,6 +147,14 @@ internal class KaCodebaseAssembler(
      */
     fun findClassInModule(finder: JavaPsiFacade, qualifiedName: String): PsiClass? {
         return analyze(mainModule) { finder.findClass(qualifiedName, analysisScope) }
+    }
+
+    /**
+     * Analyzes the [classItem] to find any Kotlin properties (which can't be found through the psi
+     * directly) and add them to the class definition.
+     */
+    fun addPropertiesToClassFromClasspath(classItem: DefaultClassItem) {
+        mainModuleProcessor.addPropertiesToClassFromClasspath(classItem)
     }
 
     companion object {
@@ -865,6 +871,34 @@ private constructor(
         }
 
         containingClass.addMethod(methodItem)
+    }
+
+    /**
+     * Finds the symbol corresponding to the [classItem], if one exists, and adds any Kotlin
+     * properties defined for the class.
+     */
+    fun addPropertiesToClassFromClasspath(classItem: DefaultClassItem) {
+        analyze(kaModule) {
+            // The ClassId format is to have package names separated by slashes instead of dots.
+            val classIdString =
+                classItem.containingPackage().qualifiedName().replace(".", "/") +
+                    "/" +
+                    classItem.fullName()
+            (findClassLike(ClassId.fromString(classIdString)) as? KaNamedClassSymbol)?.let { symbol
+                ->
+                val properties = symbol.memberScope.callables.filterIsInstance<KaPropertySymbol>()
+                val typeItemFactory =
+                    KaTypeItemFactory(
+                        codebase,
+                        this@KaModuleProcessor,
+                        classItem,
+                        addingToPsiCodebase,
+                    )
+                for (property in properties) {
+                    processProperty(property, classItem, typeItemFactory)
+                }
+            }
+        }
     }
 
     /** Constructs a property from the [propertySymbol] and adds it to the [containingClass]. */

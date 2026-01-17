@@ -2498,7 +2498,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
                 ),
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
-            val fooProperty = fooClass.assertProperty("foo")
+            val fooProperty = fooClass.assertProperty("foo", receiverTypeString = "T")
             assertThat(fooProperty.targetLanguages)
                 .containsExactlyElementsIn(TargetLanguageSet.KOTLIN_ONLY)
 

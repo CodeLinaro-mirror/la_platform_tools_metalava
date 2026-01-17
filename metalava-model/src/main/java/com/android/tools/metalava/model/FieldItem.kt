@@ -86,42 +86,6 @@ interface FieldItem : MemberItem, InheritableItem, ReferencableItem {
 
     override fun toStringForItem() = "field ${containingClass().fullName()}.${name()}"
 
-    /**
-     * Check the declared value with a typed comparison, not a string comparison, to accommodate
-     * toolchains with different fp -> string conversions.
-     */
-    fun hasSameConstantValue(other: FieldItem): Boolean {
-        val thisConstant = constantValue
-        val otherConstant = other.constantValue
-        if (thisConstant == null != (otherConstant == null)) {
-            return false
-        }
-
-        // Null values are considered equal
-        if (thisConstant == null) {
-            return true
-        }
-
-        if (type() != other.type()) {
-            return false
-        }
-
-        if (thisConstant == otherConstant) {
-            return true
-        }
-
-        if (thisConstant.toValueString() == otherConstant?.toValueString()) {
-            // TODO(b/354633349): Add support for a special compare ignoring type that handles all
-            //   the conversions that the ValueFactory.createLiteralValue(...) handles.
-            // e.g. Integer(3) and Short(3) are the same; when comparing
-            // with signature files we sometimes don't have the right
-            // types from signatures
-            return true
-        }
-
-        return false
-    }
-
     companion object {
         val comparator: java.util.Comparator<FieldItem> = Comparator { a, b ->
             a.name().compareTo(b.name())

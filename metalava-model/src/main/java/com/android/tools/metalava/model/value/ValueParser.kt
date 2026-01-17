@@ -24,7 +24,6 @@ import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.FieldItem
-import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterScope
@@ -373,11 +372,16 @@ class ValueParser(
     }
 
     /** Parse [text] to produce an [AnnotationItem], if possible. */
-    fun parseAnnotationItem(text: String): AnnotationItem? {
+    fun parseAnnotationItem(text: String, unshorten: Boolean = false): AnnotationItem? {
         val tokenizer = tokenizerOf(text)
 
         // Parse the annotation item from the tokenizer.
-        val annotationItem = parseAnnotationItem(tokenizer)
+        val annotationItem =
+            parseAnnotationItem(
+                tokenizer,
+                tokenizer.requireToken(),
+                unshorten,
+            )
 
         // Make sure that all the significant text was consumed.
         tokenizer.getToken()?.let { token ->
@@ -392,15 +396,23 @@ class ValueParser(
     /**
      * Parse stream of tokens produced by [tokenizer] to create an [AnnotationItem], if possible.
      *
-     * On entry [tokenizer] next token must be the annotation's class name, optionally prefixed with
-     * an `@`. On exit, the next token will be the one after the annotation.
+     * On entry [startingToken] must be the annotation's class name, optionally prefixed with an
+     * `@`. On exit, the next token will be the one after the annotation, if any..
      */
-    private fun parseAnnotationItem(tokenizer: Tokenizer): AnnotationItem? {
-        // May start with an '@', the remainder is the annotation class name.
+    fun parseAnnotationItem(
+        tokenizer: Tokenizer,
+        startingToken: String,
+        unshorten: Boolean,
+    ): AnnotationItem? {
+        // May start with an '@', the remainder is the annotation class name which may have been
+        // shortened.
+        val possiblyShortenedAnnotationClassName =
+            if (startingToken[0] == '@') startingToken.substring(1) else startingToken
+
+        // Unshorten, if necessary.
         val annotationClassName =
-            tokenizer.requireToken().let { token ->
-                if (token[0] == '@') token.substring(1) else token
-            }
+            if (unshorten) AnnotationItem.unshortenAnnotation(possiblyShortenedAnnotationClassName)
+            else possiblyShortenedAnnotationClassName
 
         val token = tokenizer.getToken()
         val attributes =
@@ -410,6 +422,9 @@ class ValueParser(
                         require(tokenizer.current == ")") {
                             "Expected ')' but found ${tokenizer.current}"
                         }
+
+                        // Get the next token, if any, after the ')'.
+                        tokenizer.getToken()
                     }
                 }
                 else -> emptyList()

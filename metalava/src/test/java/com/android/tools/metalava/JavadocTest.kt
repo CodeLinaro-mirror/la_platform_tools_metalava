@@ -165,7 +165,7 @@ class JavadocTest : DriverTest() {
                      *  Here's an already fully qualified reference: {@link test.pkg2.OtherClass}.
                      *  And here's one in the same package: {@link test.pkg1.LocalClass LocalClass}.
                      *
-                     * @see test.pkg2.OtherClass OtherClass
+                     * @see test.pkg2.OtherClass
                      * @see test.pkg2.OtherClass#bar(int, boolean)
                      * @deprecated For some reason
                      */
@@ -375,7 +375,7 @@ class JavadocTest : DriverTest() {
                  *  Here's an already fully qualified reference: {@link test.pkg2.OtherClass}.
                  *  And here's one in the same package: {@link test.pkg1.LocalClass LocalClass}.
                  *
-                 * @see test.pkg2.OtherClass OtherClass
+                 * @see test.pkg2.OtherClass
                  * @see test.pkg2.OtherClass#bar(int, boolean)
                  * @deprecated For some reason
                  */
@@ -1199,7 +1199,7 @@ class JavadocTest : DriverTest() {
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Foo {
                     public Foo() { throw new RuntimeException("Stub!"); }
-                    /** @see test.pkg.bar.Bar Bar */
+                    /** @see test.pkg.bar.Bar */
                     public void bar() { throw new RuntimeException("Stub!"); }
                     }
                     """
@@ -1210,9 +1210,9 @@ class JavadocTest : DriverTest() {
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Bar {
                     public Bar() { throw new RuntimeException("Stub!"); }
-                    /** @see test.pkg.baz.Baz Baz */
+                    /** @see test.pkg.baz.Baz */
                     public void baz(test.pkg.baz.Baz baz) { throw new RuntimeException("Stub!"); }
-                    /** @see test.pkg.Foo Foo */
+                    /** @see test.pkg.Foo */
                     public void foo(test.pkg.Foo foo) { throw new RuntimeException("Stub!"); }
                     }
                     """

@@ -27,6 +27,8 @@ import com.android.tools.metalava.apilevels.ApiVersion
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.containsNullWord
 import com.android.tools.metalava.model.ANDROIDX_ANNOTATION_PREFIX
+import com.android.tools.metalava.model.ANDROIDX_FLOAT_RANGE
+import com.android.tools.metalava.model.ANDROIDX_INT_RANGE
 import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.CallableItem
@@ -227,8 +229,8 @@ class DocAnalyzer(
                     when (name) {
                         "androidx.annotation.RequiresPermission" ->
                             handleRequiresPermission(annotation, item)
-                        "androidx.annotation.IntRange",
-                        "androidx.annotation.FloatRange" -> handleRange(annotation, item)
+                        ANDROIDX_INT_RANGE,
+                        ANDROIDX_FLOAT_RANGE -> handleRange(annotation, item)
                         "androidx.annotation.IntDef",
                         "androidx.annotation.LongDef",
                         "androidx.annotation.StringDef" -> handleTypeDef(annotation, item)

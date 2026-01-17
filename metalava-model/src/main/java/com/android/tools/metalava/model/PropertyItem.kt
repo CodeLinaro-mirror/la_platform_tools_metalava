@@ -16,7 +16,9 @@
 
 package com.android.tools.metalava.model
 
-interface PropertyItem : MemberItem, TypeParameterListOwner {
+import java.util.Objects
+
+interface PropertyItem : MemberItem, TypeParameterListOwner, InheritableItem {
     /** The getter for this property, if it exists; inverse of [MethodItem.property] */
     val getter: MethodItem?
         get() = null
@@ -62,7 +64,11 @@ interface PropertyItem : MemberItem, TypeParameterListOwner {
             it.name() == name()
         }
 
-    override fun baselineElementId() = containingClass().qualifiedName() + "#" + name()
+    private fun receiverString(): String =
+        receiver?.let { it.toTypeString(TypeStringConfiguration.DEFAULT_KOTLIN_NULLS) + "." } ?: ""
+
+    override fun baselineElementId() =
+        containingClass().qualifiedName() + "#" + receiverString() + name()
 
     override fun accept(visitor: ItemVisitor) {
         visitor.visit(this)
@@ -72,14 +78,17 @@ interface PropertyItem : MemberItem, TypeParameterListOwner {
         if (this === other) return true
         if (other !is PropertyItem) return false
 
-        return name() == other.name() && containingClass() == other.containingClass()
+        return name() == other.name() &&
+            containingClass() == other.containingClass() &&
+            equalReceivers(receiver, other.receiver)
     }
 
     override fun hashCodeForItem(): Int {
-        return name().hashCode()
+        return Objects.hash(name(), receiver)
     }
 
-    override fun toStringForItem(): String = "property ${containingClass().fullName()}.${name()}"
+    override fun toStringForItem(): String =
+        "property ${containingClass().qualifiedName()}#${receiverString()}${name()}"
 
     // Inherit deprecation from the getter
     override val effectivelyDeprecated: Boolean
@@ -94,6 +103,13 @@ interface PropertyItem : MemberItem, TypeParameterListOwner {
     companion object {
         val comparator: java.util.Comparator<PropertyItem> = Comparator { a, b ->
             a.name().compareTo(b.name())
+        }
+
+        /** Returns whether the two types should be considered equal property receivers. */
+        fun equalReceivers(receiver1: TypeItem?, receiver2: TypeItem?): Boolean {
+            // Nullability is important for property receivers because kotlin allows defining
+            // properties which differ only in receiver nullability.
+            return receiver1?.equalToType(receiver2, true) ?: (receiver2 == null)
         }
     }
 }

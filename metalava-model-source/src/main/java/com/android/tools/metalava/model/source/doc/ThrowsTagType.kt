@@ -58,12 +58,13 @@ internal data class ThrowsTagData(
     override fun printTagContents(contentPrinter: JavadocContentPrinter, content: JavadocContent?) {
         val writer = contentPrinter.writer
         writer.print(" ")
-        writer.print(throwableType.displayName)
+        writer.print(throwableType.fullyQualifiedForm)
 
         // Print the remaining content. Always preceded by a space as any leading whitespace has
         // been trimmed from it.
         content?.printWithLeadingSpaceTo(contentPrinter)
     }
 
-    override fun textMatches(predicate: (String) -> Boolean) = predicate(throwableType.displayName)
+    override fun textMatches(predicate: (String) -> Boolean) =
+        predicate(throwableType.fullyQualifiedForm)
 }

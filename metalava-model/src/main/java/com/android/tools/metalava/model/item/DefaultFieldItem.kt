@@ -26,6 +26,7 @@ import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.duplicatingFactory
+import com.android.tools.metalava.model.scope.NameClassification
 import com.android.tools.metalava.model.scope.ReferencableNameScope
 import com.android.tools.metalava.model.value.ConstantValue
 import com.android.tools.metalava.model.value.OptionalValueProvider
@@ -95,6 +96,7 @@ open class DefaultFieldItem(
 
     override fun resolveReferencableItemBySimpleName(
         simpleName: String,
+        nameClassification: NameClassification,
         isFirstSimpleName: Boolean
     ) =
         // Field does not define a name scope.

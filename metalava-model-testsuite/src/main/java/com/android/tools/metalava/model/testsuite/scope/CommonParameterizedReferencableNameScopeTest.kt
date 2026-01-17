@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.Assertions
 import com.android.tools.metalava.model.InvalidReferencableItem
 import com.android.tools.metalava.model.ReferencableItem
 import com.android.tools.metalava.model.provider.Capability
+import com.android.tools.metalava.model.scope.NameClassification
 import com.android.tools.metalava.model.scope.ReferencableNameScope
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.testsuite.BaseModelTest
@@ -402,7 +403,8 @@ class CommonParameterizedReferencableNameScopeTest : BaseModelTest() {
             val scopeGetter = params.scopeGetter
             val scope = scopeGetter()
 
-            val resolvedItem = scope.resolveReferencableItem(params.referencableName)
+            val resolvedItem =
+                scope.resolveReferencableItem(params.referencableName, NameClassification.AMBIGUOUS)
 
             // Defer getting the expected Item until after resolving to ensure that resolving works
             // even on packages and classes that are not in the sources which have not yet been

@@ -192,10 +192,27 @@ interface Assertions {
         return constructors().assertCallable(simpleName(), parameters, requiredTargetLanguage)
     }
 
-    /** Get the property from the [ClassItem], failing if it does not exist. */
-    fun ClassItem.assertProperty(propertyName: String): PropertyItem {
-        val propertyItem = properties().firstOrNull { it.name() == propertyName }
-        assertNotNull(propertyItem, message = "Expected $propertyName to be defined")
+    /**
+     * Get the property from the [ClassItem], failing if it does not exist.
+     *
+     * [receiverTypeString] is expected to be formatted according to
+     * [TypeStringConfiguration.DEFAULT_KOTLIN_NULLS].
+     */
+    fun ClassItem.assertProperty(
+        propertyName: String,
+        receiverTypeString: String? = null,
+    ): PropertyItem {
+        val propertyItem =
+            properties().firstOrNull {
+                it.name() == propertyName &&
+                    it.receiver?.toTypeString(TypeStringConfiguration.DEFAULT_KOTLIN_NULLS) ==
+                        receiverTypeString
+            }
+        assertNotNull(
+            propertyItem,
+            message =
+                "Expected ${receiverTypeString?.let { "$it." } ?: "" }$propertyName to be defined"
+        )
         return propertyItem
     }
 
