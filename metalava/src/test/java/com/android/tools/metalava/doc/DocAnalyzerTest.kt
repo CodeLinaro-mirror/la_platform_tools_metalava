@@ -333,7 +333,6 @@ class DocAnalyzerTest : DriverTest() {
                     java(
                         """
                     package test.pkg;
-                    import android.Manifest;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class PermissionTest {
                     public PermissionTest() { throw new RuntimeException("Stub!"); }
@@ -616,7 +615,7 @@ class DocAnalyzerTest : DriverTest() {
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class RangeTest {
                     public RangeTest() { throw new RuntimeException("Stub!"); }
-                    /** Requires {@link test.pkg.RangeTest#ACCESS_COARSE_LOCATION} */
+                    /** Requires {@link #ACCESS_COARSE_LOCATION} */
                     public void test1() { throw new RuntimeException("Stub!"); }
                     public static final java.lang.String ACCESS_COARSE_LOCATION = "android.permission.ACCESS_COARSE_LOCATION";
                     }
@@ -699,7 +698,7 @@ class DocAnalyzerTest : DriverTest() {
                     /**
                      * This is the existing documentation.
                      * <br>
-                     * Requires {@link test.pkg.RangeTest#ACCESS_COARSE_LOCATION}
+                     * Requires {@link #ACCESS_COARSE_LOCATION}
                      */
                     public int test1() { throw new RuntimeException("Stub!"); }
                     public static final java.lang.String ACCESS_COARSE_LOCATION = "android.permission.ACCESS_COARSE_LOCATION";
@@ -747,7 +746,7 @@ class DocAnalyzerTest : DriverTest() {
                      * This is the existing documentation.
                      * Multiple lines of it.
                      * <br>
-                     * Requires {@link test.pkg.RangeTest#ACCESS_COARSE_LOCATION}
+                     * Requires {@link #ACCESS_COARSE_LOCATION}
                      */
                     public int test1() { throw new RuntimeException("Stub!"); }
                     public static final java.lang.String ACCESS_COARSE_LOCATION = "android.permission.ACCESS_COARSE_LOCATION";
@@ -797,7 +796,7 @@ class DocAnalyzerTest : DriverTest() {
                     /**
                      * This is the existing documentation.
                      * <br>
-                     * Requires {@link test.pkg.RangeTest#ACCESS_COARSE_LOCATION}
+                     * Requires {@link #ACCESS_COARSE_LOCATION}
                      *
                      * @param parameter1 docs for parameter1
                      * @param parameter2 docs for parameter2
@@ -1784,6 +1783,50 @@ class DocAnalyzerTest : DriverTest() {
                         """
                     )
                 )
+        )
+    }
+
+    @Test
+    fun `Invalid classDoc`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            /**
+                             * @classDoc {@code unclosed
+                             */
+                            public @interface Anno { }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            @Anno
+                            public class Test {
+                            }
+                        """
+                    )
+                ),
+            docStubs = true,
+            stubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            /** {@code unclosed} */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            @test.pkg.Anno
+                            public class Test {
+                            public Test() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    )
+                ),
+            expectedFail = DefaultLintErrorMessage,
+            expectedIssues =
+                "src/test/pkg/Anno.java:3: error: unclosed inline '@code' tag [UnclosedInlineTag]",
         )
     }
 }

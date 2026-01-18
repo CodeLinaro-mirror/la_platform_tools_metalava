@@ -1001,7 +1001,7 @@ class StubsTest : AbstractStubsTest() {
                 public Foo() { throw new RuntimeException("Stub!"); }
                 /**
                  * Method documentation.
-                 * @see java.util.List List
+                 * @see java.util.List
                  */
                 protected static void onCreate(java.util.List<java.lang.String> parameter1) { throw new RuntimeException("Stub!"); }
                 /** My field doc */

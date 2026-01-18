@@ -48,7 +48,29 @@ internal open class LabeledRefTagType(name: String, form: TagTypeForm) :
         // that whitespace is normalized consistently.
         val resolvedReference =
             if (validateReference(sourceReference)) {
-                context.resolveReference(sourceReference)
+                context.resolveReference(reporter, sourceReference)?.also { resolved ->
+
+                    // Resolving can handle references which are not valid, e.g. a qualified field
+                    // reference without a #. Make sure that the source reference is a valid form
+                    // for the resolved item.
+                    when (resolved) {
+                        is FieldReference -> {
+                            // Check if the source reference was qualified.
+                            val lastDotIndex = sourceReference.lastIndexOf('.')
+                            if (lastDotIndex > -1) {
+                                // The source reference was qualified so must have a '#'
+                                val hashIndex = sourceReference.indexOf('#', lastDotIndex)
+                                if (hashIndex == -1) {
+                                    reporter.report(
+                                        Issues.MALFORMED_DOC_REFERENCE,
+                                        "Malformed reference `$sourceReference`, missing '#', should be '${sourceReference.replaceRange(lastDotIndex, lastDotIndex + 1, "#")}"
+                                    )
+                                }
+                            }
+                        }
+                        else -> {}
+                    }
+                }
             } else {
                 reporter.report(
                     Issues.MALFORMED_DOC_REFERENCE,
@@ -58,7 +80,7 @@ internal open class LabeledRefTagType(name: String, form: TagTypeForm) :
             }
 
         return ExtractDataResult(
-            LabeledRefTagData(sourceReference, resolvedReference),
+            LabeledRefTagData(name, sourceReference, resolvedReference),
             // The source reference and any following whitespace must be removed from the content as
             // they are part of [LinkTagData].
             consumedContent = text.skipForwardsOverLeadingWhitespace(referenceEndExclusive)
@@ -162,13 +184,15 @@ internal fun CharSequence.findEndOfReference(startInclusive: Int): Int {
  * and `@see` block tag.
  */
 internal data class LabeledRefTagData(
+    /** The tag type for which this was created. */
+    private val tagType: String,
     /** The reference from the source; used as the label if necessary. */
     val sourceReference: String,
     /** The resolved reference, subclasses identify the specific part of the API it references. */
     val resolvedReference: ResolvedReference?,
 ) : TagData {
     /** Check whether the [sourceReference] was fully resolved. */
-    fun wasReferenceFullyResolved(): Boolean = resolvedReference == null
+    fun wasReferenceFullyResolved(): Boolean = resolvedReference != null
 
     /**
      * Print the tag contents which consists of the [sourceReference] and the [content] which is the
@@ -180,22 +204,85 @@ internal data class LabeledRefTagData(
     override fun printTagContents(contentPrinter: JavadocContentPrinter, content: JavadocContent?) {
         val writer = contentPrinter.writer
         writer.print(" ")
-        val resolvedText = resolvedReference?.displayName ?: sourceReference
-        writer.print(resolvedText)
+        val formattedReference =
+            resolvedReference?.formatForTagReference(contentPrinter.containingClassName)
+                ?: sourceReference
 
-        // The content is the label of the link tag so check it if exists.
-        if (content == null) {
-            // If the label is not specified and the resolved text is different to the source
-            // reference then use the source reference as the label to try and preserve the
-            // developer's original intent.
-            if (resolvedText != sourceReference) {
-                writer.print(" ")
-                writer.print(sourceReference)
-            }
-        } else {
+        writer.print(formattedReference)
+
+        // The content is the label of the link tag, print it if it exists.
+        if (content != null) {
             // Print the remaining content. Always preceded by a space as any leading whitespace has
             // been trimmed from it.
             content.printWithLeadingSpaceTo(contentPrinter)
+
+            // Return immediately.
+            return
+        }
+
+        // Do not add custom labels to @see tags. This matches the behavior of the Psi reference
+        // resolution code and keeping them consistent simplifies migration to this reference
+        // resolving code.
+        // TODO(b/447588621): Remove once this replaces the Psi reference resolving code completely.
+        if (tagType == "see") return
+
+        // Check to see whether it is necessary to add a label to try and preserve the developer's
+        // original intent.
+
+        // If the formatted reference is the same as the source reference then there is no point in
+        // duplicating the source reference as the label. This will also be the case if resolved
+        // reference is `null`. It is explicitly checked here to allow the remaining code to take
+        // advantage of smart casting.
+        if (formattedReference == sourceReference || resolvedReference == null) {
+            return
+        }
+
+        // If the fully qualified reference is the same as the source reference then there is no
+        // point in duplicating the source reference as the label. That is because if the formatted
+        // version is not the same as the source reference (checked above) but the fully qualified
+        // form is the same as the source reference then the formatted reference must be a shortened
+        // form of the source reference. The shortening rules implemented here are those mandated by
+        // Javadoc when determining how to display absolute references so the shortened form and the
+        // fully qualified form will have identical representation in the final documentation.
+        // e.g. if the source reference is `test.pkg.Class#FIELD` and it is in the `test.pkg.Class`
+        // then `{@link test.pkg.Class#FIELD}` and `{@link #FIELD}` are identical and will behave as
+        // `{@link test.pkg.Class#FIELD FIELD}`. Using the shorter version saves space and matches
+        // the legacy behavior of the Psi specific qualification process so reduces insignificant
+        // differences in the generated documentation making it easier to see any significant
+        // differences.
+        if (resolvedReference.fullyQualifiedForm == sourceReference) {
+            return
+        }
+
+        // If the source reference and formatted reference would evaluate to the same label then
+        // there is no point in using source reference as the label. This is needed as multiple
+        // references can map to the same label, e.g. `#field` and `field` both map to a label of
+        // `field`.
+        val sourceReferenceAsLabel = sourceReference.referenceAsLabel()
+        val formattedReferenceAsLabel = formattedReference.referenceAsLabel()
+        if (formattedReferenceAsLabel == sourceReferenceAsLabel) {
+            return
+        }
+
+        // Use the source reference as the label.
+        writer.print(" ")
+        writer.print(sourceReferenceAsLabel)
+    }
+
+    /**
+     * Convert a doc reference of the form `<type>?#<name>?(...)?` to a label.
+     *
+     * That involves:
+     * * If it does not contain a `#` then just use the reference directly.
+     * * If it starts with a `#` then remove it.
+     * * Otherwise, replace the first '#' with a `.`.
+     */
+    fun String.referenceAsLabel(): String {
+        val hashIndex = indexOf('#')
+        return when (hashIndex) {
+            -1 -> this
+            0 -> substring(1)
+            else -> "${substring(0, hashIndex)}.${substring(hashIndex + 1)}"
         }
     }
 
@@ -204,4 +291,7 @@ internal data class LabeledRefTagData(
      * the content.
      */
     override fun textMatches(predicate: (String) -> Boolean) = predicate(sourceReference)
+
+    override fun toString() =
+        "LabeledRefTagData(sourceReference=$sourceReference, resolvedReference=$resolvedReference)"
 }

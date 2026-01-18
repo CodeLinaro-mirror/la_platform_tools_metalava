@@ -229,9 +229,6 @@ constructor(
         /** All except Java. */
         private val notValidForJava = EnumSet.complementOf(EnumSet.of(InputFormat.JAVA))
 
-        /** Only Java. */
-        private val onlyValidForJava = EnumSet.of(InputFormat.JAVA)
-
         /**
          * The list of all [ValueExample]s that could be tested across [ProducerKind] and
          * [LegacyValueUseSite]s.
@@ -1549,9 +1546,7 @@ constructor(
                     kotlinType = "Int",
                     kotlinExpression =
                         "('_'.code shl 24) or ('P'.code shl 16) or ('N'.code shl 8) or 'G'.code",
-                    // TODO(b/354633349): Only valid for Java, Kotlin is inconsistent and signature
-                    //   files do not have complex expressions at all.
-                    validForInputFormats = onlyValidForJava,
+                    validForInputFormats = notValidForSignature,
                     expectedLegacySource =
                         expectations {
                             common = "1599098439"
@@ -1559,11 +1554,7 @@ constructor(
                             source { annotationToSource = "0x5f504e47" }
                         },
                     expectedKotlinLegacySource =
-                        expectations {
-                            source {
-                                annotationToSource = "0x5f000000 | 0x500000 | 0x4e00 | 'G'.code"
-                            }
-                        },
+                        expectations { source { annotationToSource = "0x5f504e47" } },
                     expectedValue =
                         expectations {
                             common = literalValue(1599098439, nonLiteralInSource = true)
@@ -1722,11 +1713,6 @@ constructor(
                     // Literal arrays are only allowed in annotations not fields.
                     suitableFor = allLegacyValueUseSitesExceptFields,
                     expectedLegacySource = expectations { common = "{}" },
-                    expectedKotlinLegacySource =
-                        expectations {
-                            // TODO(b/354633349): Fix this, it should not be an empty string.
-                            attributeDefaultValue = ""
-                        },
                     expectedValue = expectations { common = arrayValueFromAny() },
                 ),
                 ValueExample(

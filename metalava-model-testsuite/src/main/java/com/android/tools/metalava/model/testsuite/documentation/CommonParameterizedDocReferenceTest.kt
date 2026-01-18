@@ -22,6 +22,7 @@ import com.android.tools.metalava.testing.EntryPoint
 import com.android.tools.metalava.testing.EntryPointCallerRule
 import com.android.tools.metalava.testing.EntryPointCallerTracker
 import com.android.tools.metalava.testing.java
+import kotlin.test.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runners.Parameterized
@@ -30,35 +31,41 @@ import org.junit.runners.Parameterized
 class CommonParameterizedDocReferenceTest : BaseModelTest() {
 
     /** Set of tags that handle the references. */
-    enum class TestTagType {
-        LINK {
+    enum class TestTagType(
+        /**
+         * The prefix for issues that are reported with the link test. Needed because each tag type
+         * has a different prefix before the reference which results in a different character
+         * position being reported.
+         */
+        internal val issuePrefix: String,
+    ) {
+        LINK(issuePrefix = "MAIN_SRC/src/test/pkg/Test.java:3:12: ") {
             override fun commentForReference(reference: String, linkLabel: String?) =
                 "/** {@link ${referenceAndLabel(reference, linkLabel)}} */\n"
         },
-        LINKPLAIN {
+        LINKPLAIN(issuePrefix = "MAIN_SRC/src/test/pkg/Test.java:3:17: ") {
             override fun commentForReference(reference: String, linkLabel: String?) =
                 "/** {@linkplain ${referenceAndLabel(reference, linkLabel)}} */\n"
         },
-        SEE {
+        SEE(issuePrefix = "MAIN_SRC/src/test/pkg/Test.java:3:10: ") {
             override fun commentForReference(reference: String, linkLabel: String?) =
                 "/** @see ${referenceAndLabel(reference, linkLabel)} */\n"
         };
 
         /** Determine whether a link label is expected. */
-        private fun requiresLinkLabel(reference: String, linkLabel: String?) =
+        private fun requiresLinkLabel(linkLabel: String?) =
             when {
                 linkLabel == null -> false
-                // Ignore link labels for @see references to members. Needed because neither the
-                // model independent resolving, nor the model specific resolving (where implemented)
-                // currently adds link labels for @see references to members.
-                this == SEE && reference.contains("#") -> false
+                // Ignore link labels for @see references. That matches the Psi specific resolving
+                // behavior.
+                this == SEE -> false
                 else -> true
             }
 
         /** Combine [reference] and the optional [linkLabel]. */
         protected fun referenceAndLabel(reference: String, linkLabel: String?) = buildString {
             append(reference)
-            if (requiresLinkLabel(reference, linkLabel)) {
+            if (requiresLinkLabel(linkLabel)) {
                 append(" ")
                 append(linkLabel)
             }
@@ -100,6 +107,9 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
          * Defaults to [reference] with `#` replaced with `.`.
          */
         val expectedLinkLabel: String? = reference.replace('#', '.'),
+
+        /** The expected issues that will be reported. */
+        val expectedIssues: String = "",
     ) {
         /**
          * Record the stack trace of the creation of this which can be used to provide a stack trace
@@ -115,6 +125,7 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
     companion object {
         private val params =
             listOf(
+                // Class references
                 TestParams(
                     name = "String",
                     expectedResolvedReference = "java.lang.String",
@@ -203,6 +214,40 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                 TestParams(
                     name = "Test.Nested",
                     expectedResolvedReference = "test.pkg.Test.Nested",
+                ),
+
+                // The # is optional when referencing members of the current class. The following
+                // tests verify the behavior. Note, the result must have a leading # as that will
+                // ensure consistent behavior in tools that consume generated documentation stubs
+                // and may not handle a missing # correctly.
+                TestParams(
+                    name = "field",
+                    expectedResolvedReference = "#field",
+                    expectedLinkLabel = null,
+                ),
+
+                // Use invalid reference without a #. It will work but will be reported as an issue.
+                TestParams(
+                    name = "Other.field",
+                    expectedResolvedReference = "test.pkg.Other#field",
+                    expectedIssues =
+                        "warning: Malformed reference `Other.field`, missing '#', should be 'Other#field (ErrorWhenNew) [MalformedDocReference]",
+                ),
+
+                // Invalid reference qualifiers
+                TestParams(
+                    name = "Unknown#field",
+                    expectedResolvedReference = "Unknown#field",
+                    expectedLinkLabel = null,
+                    expectedIssues =
+                        "warning: Could not resolve 'Unknown' in 'class test.pkg.Test' (ErrorWhenNew) [UnresolvedLink]",
+                ),
+                TestParams(
+                    name = "Imported.field.other#member",
+                    expectedResolvedReference = "Imported.field.other#member",
+                    expectedLinkLabel = null,
+                    expectedIssues =
+                        "warning: Could not resolve 'Imported.field.other' as could not find a package or class called 'field' in 'class another.pkg.Imported' (ErrorWhenNew) [UnresolvedLink]",
                 ),
 
                 // Reference a member of another class in the same package.
@@ -432,6 +477,12 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                     params.expectedLinkLabel
                 )
             testClass.assertPrintedDocumentation(expectedComment)
+
+            // Verify that the reported issues, if any, are expected.
+            // First, remove the tag type specific prefixes.
+            val reportedIssues = removeReportedIssues().replace(testTagType.issuePrefix, "")
+            // Then, check the expected issues.
+            assertEquals(params.expectedIssues, reportedIssues)
         }
     }
 }

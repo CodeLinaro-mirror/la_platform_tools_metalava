@@ -154,8 +154,7 @@ class SourceFieldItemTest : BaseModelTest() {
             val classItem = codebase.assertClass("test.pkg.Test")
             val fieldItem = classItem.assertField("field")
 
-            // TODO(b/354633349): Class literals are not supported for fields as it is not clear
-            //  that is needed.
+            // Class literals are not supported for fields as they are not considered constants.
             assertNull(fieldItem.constantValue)
         }
     }
@@ -221,8 +220,7 @@ class SourceFieldItemTest : BaseModelTest() {
             val classItem = codebase.assertClass("test.pkg.Test")
             val fieldItem = classItem.assertField("field")
 
-            // TODO(b/354633349): Class literals are not supported for fields as it is not clear
-            //  that is needed.
+            // Class literals are not supported for fields as they are not considered constants.
             assertNull(fieldItem.constantValue)
         }
     }

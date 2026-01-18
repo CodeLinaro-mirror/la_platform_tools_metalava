@@ -71,10 +71,10 @@ class DocAnalyzerTypeDefTest : DriverTest() {
                             /**
                              * @param flags Value is either <code>0</code> or a combination of the following:
                              * <ul>
-                             *   <li>{@link test.pkg.TypedefTest#STYLE_NORMAL}</li>
-                             *   <li>{@link test.pkg.TypedefTest#STYLE_NO_TITLE}</li>
-                             *   <li>{@link test.pkg.TypedefTest#STYLE_NO_FRAME}</li>
-                             *   <li>{@link test.pkg.TypedefTest#STYLE_NO_INPUT}</li>
+                             *   <li>{@link #STYLE_NORMAL}</li>
+                             *   <li>{@link #STYLE_NO_TITLE}</li>
+                             *   <li>{@link #STYLE_NO_FRAME}</li>
+                             *   <li>{@link #STYLE_NO_INPUT}</li>
                              *   <li>2</li>
                              *   <li>4</li>
                              * <ul>
@@ -138,10 +138,10 @@ class DocAnalyzerTypeDefTest : DriverTest() {
                             /**
                              * @param style Value is one of the following:
                              * <ul>
-                             *   <li>{@link test.pkg.TypedefTest#STYLE_NORMAL}</li>
-                             *   <li>{@link test.pkg.TypedefTest#STYLE_NO_TITLE}</li>
-                             *   <li>{@link test.pkg.TypedefTest#STYLE_NO_FRAME}</li>
-                             *   <li>{@link test.pkg.TypedefTest#STYLE_NO_INPUT}</li>
+                             *   <li>{@link #STYLE_NORMAL}</li>
+                             *   <li>{@link #STYLE_NO_TITLE}</li>
+                             *   <li>{@link #STYLE_NO_FRAME}</li>
+                             *   <li>{@link #STYLE_NO_INPUT}</li>
                              * <ul>
                              */
                             public void setStyle(int style, int theme) { throw new RuntimeException("Stub!"); }
@@ -207,9 +207,9 @@ class DocAnalyzerTypeDefTest : DriverTest() {
                             /**
                              * @param style Value is one of the following:
                              * <ul>
-                             *   <li>{@link test.pkg.TypedefTest#STYLE_NORMAL}</li>
-                             *   <li>{@link test.pkg.TypedefTest#STYLE_NO_TITLE}</li>
-                             *   <li>{@link test.pkg.TypedefTest#STYLE_NO_FRAME}</li>
+                             *   <li>{@link #STYLE_NORMAL}</li>
+                             *   <li>{@link #STYLE_NO_TITLE}</li>
+                             *   <li>{@link #STYLE_NO_FRAME}</li>
                              * <ul>
                              */
                             public void setStyle(int style, int theme) { throw new RuntimeException("Stub!"); }
@@ -270,9 +270,9 @@ class DocAnalyzerTypeDefTest : DriverTest() {
                             /**
                              * @param style Value is one of the following:
                              * <ul>
-                             *   <li>{@link test.pkg.TypedefTest#STYLE_NORMAL}</li>
-                             *   <li>{@link test.pkg.TypedefTest#STYLE_NO_TITLE}</li>
-                             *   <li>{@link test.pkg.TypedefTest#STYLE_NO_FRAME}</li>
+                             *   <li>{@link #STYLE_NORMAL}</li>
+                             *   <li>{@link #STYLE_NO_TITLE}</li>
+                             *   <li>{@link #STYLE_NO_FRAME}</li>
                              * <ul>.
                              * <br>
                              * Value is 20 or greater

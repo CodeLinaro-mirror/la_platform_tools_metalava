@@ -229,7 +229,7 @@ internal class PsiCodebaseAssembler(
         psiClass: PsiClass,
         origin: ClassOrigin,
         modifiers: MutableModifierList = PsiModifierItem.create(psiCodebase, psiClass),
-    ): ClassItem {
+    ): PsiClassItem {
         if (psiClass.containingClass != null) error("$psiClass is not a top level class")
         return createClass(
             psiClass,
@@ -246,7 +246,7 @@ internal class PsiCodebaseAssembler(
         enclosingClassTypeItemFactory: PsiTypeItemFactory,
         origin: ClassOrigin,
         modifiers: MutableModifierList = PsiModifierItem.create(psiCodebase, psiClass),
-    ): ClassItem {
+    ): PsiClassItem {
         val packageName = getPackageName(psiClass)
 
         // If the package could not be found then report an error.
@@ -782,6 +782,9 @@ internal class PsiCodebaseAssembler(
                 )
             }
 
+        // Add any Kotlin properties to the class.
+        kaCodebaseAssembler?.addPropertiesToClassFromClasspath(createdClassItem)
+
         // Select the class item to return.
         return if (missingPsiClass == psiClass) {
             // The created class item was what was requested so just return it.
@@ -887,11 +890,9 @@ internal class PsiCodebaseAssembler(
         createInitialPackages(sourceSet)
 
         // Add type aliases.
+        val kotlinFiles = psiFiles.filterIsInstance<KtFile>()
         kaCodebaseAssembler =
-            psiFiles
-                .filterIsInstance<KtFile>()
-                .takeIf { it.isNotEmpty() }
-                ?.let { kotlinFiles -> KaCodebaseAssembler(kotlinFiles, psiCodebase) }
+            psiCodebase.mainAnalysisModule?.let { KaCodebaseAssembler(kotlinFiles, psiCodebase) }
         kaCodebaseAssembler?.let { kaCodebaseAssembler ->
             // Provide a list of all packages when all typealiases are needed in order to inline
             // usages. If that isn't necessary, just typealiases from source will be processed.

@@ -53,7 +53,7 @@ internal class FindPossiblyImportedTypeReferencesVisitor(private val importedTyp
             // @link, @linkplain and @see tags may contain references to imported types.
             // Only keep the imported name if the reference was not fully resolved.
             is LabeledRefTagData ->
-                wasReferenceFullyResolved() && sourceReference.containsWord(importedTypeName)
+                !wasReferenceFullyResolved() && sourceReference.containsWord(importedTypeName)
             // Parameter names should not cause an import of the same name to be kept as they are
             // not resolved against imported names.
             is ParamTagData -> false

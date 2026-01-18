@@ -18,8 +18,10 @@ package com.android.tools.metalava.model.source
 
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.InvalidReferencableItem
 import com.android.tools.metalava.model.ItemDocumentation
+import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ReferencableItem
@@ -30,6 +32,7 @@ import com.android.tools.metalava.model.api.flags.ApiFlagAction
 import com.android.tools.metalava.model.doc.DocContent
 import com.android.tools.metalava.model.doc.DocContentOwner
 import com.android.tools.metalava.model.doc.DocContentPredicate
+import com.android.tools.metalava.model.scope.NameClassification
 import com.android.tools.metalava.model.source.doc.BlockTagSection
 import com.android.tools.metalava.model.source.doc.ClassReference
 import com.android.tools.metalava.model.source.doc.DocComment
@@ -37,6 +40,7 @@ import com.android.tools.metalava.model.source.doc.DocCommentContext
 import com.android.tools.metalava.model.source.doc.DocCommentMutationListener
 import com.android.tools.metalava.model.source.doc.DocCommentPredicate
 import com.android.tools.metalava.model.source.doc.DocumentationIssueReporter
+import com.android.tools.metalava.model.source.doc.FieldReference
 import com.android.tools.metalava.model.source.doc.JavaSummaryTruncationWorkaround
 import com.android.tools.metalava.model.source.doc.PackageReference
 import com.android.tools.metalava.model.source.doc.ResolvedReference
@@ -150,8 +154,11 @@ abstract class AbstractItemDocumentation(
         _text = null
     }
 
-    override fun resolveItemReference(sourceReference: String): ReferencableItem {
-        return item.resolveReferencableItem(sourceReference)
+    override fun resolveItemReference(
+        sourceReference: String,
+        nameClassification: NameClassification
+    ): ReferencableItem {
+        return item.resolveReferencableItem(sourceReference, nameClassification)
     }
 
     /** Implements [ExprContext.isFlagEnabled]. */
@@ -214,16 +221,30 @@ abstract class AbstractItemDocumentation(
     /** Implements [DocCommentContext.fullyQualifyComment]. */
     override fun fullyQualifyComment(comment: String) = fullyQualifiedDocumentation(comment)
 
+    private fun PackageItem.toResolvedReference() = PackageReference(qualifiedName())
+
+    private fun ClassItem.toResolvedReference() = ClassReference(qualifiedName())
+
+    private fun TypeParameterItem.toResolvedReference() = TypeParameterReference(name())
+
+    private fun FieldItem.toResolvedReference() =
+        FieldReference(containingClass().qualifiedName(), name())
+
+    /** Report the information encapsulated within this [InvalidReferencableItem] to [reporter]. */
+    private fun InvalidReferencableItem.reportIssue(reporter: LocationSpecificReporter) {
+        reporter.report(Issues.UNRESOLVED_LINK, message)
+    }
+
     override fun resolveThrowableType(
         reporter: LocationSpecificReporter,
         typeName: String
     ): TypeReference? {
-        val resolved = item.resolveReferencableItem(typeName)
+        val resolved = item.resolveReferencableItem(typeName, NameClassification.AMBIGUOUS)
         return when (resolved) {
-            is ClassItem -> ClassReference(resolved.qualifiedName())
-            is TypeParameterItem -> TypeParameterReference(resolved.name())
+            is ClassItem -> resolved.toResolvedReference()
+            is TypeParameterItem -> resolved.toResolvedReference()
             is InvalidReferencableItem -> {
-                reporter.report(Issues.UNRESOLVED_LINK, resolved.message)
+                resolved.reportIssue(reporter)
                 null
             }
             else -> {
@@ -236,20 +257,66 @@ abstract class AbstractItemDocumentation(
         }
     }
 
-    override fun resolveReference(sourceReference: String): ResolvedReference? {
-        // Ignore references to members for now.
+    override fun resolveReference(
+        reporter: LocationSpecificReporter,
+        sourceReference: String
+    ): ResolvedReference? {
+        // Check to see if this is a member reference.
         val hashIndex = sourceReference.indexOf('#')
-        if (hashIndex != -1) return null
+        if (hashIndex != -1) {
+            // The reference is to a class member so first resolve the class.
+            val classItem =
+                if (hashIndex == 0) {
+                    // Use this documentation's containing class.
+                    containingClassItem
+                } else {
+                    // Else resolve the class reference.
+                    val classReference = sourceReference.substring(0, hashIndex)
+                    val resolved =
+                        item.resolveReferencableItem(classReference, NameClassification.AMBIGUOUS)
+                    when (resolved) {
+                        is ClassItem -> resolved
+                        is InvalidReferencableItem -> {
+                            resolved.reportIssue(reporter)
+                            null
+                        }
+                        // Ignore any non-class references.
+                        else -> null
+                    }
+                }
+            classItem ?: return null
+
+            var memberReference = sourceReference.substring(hashIndex + 1)
+            return resolveMember(classItem, memberReference)
+        }
 
         // Resolve the reference.
-        val resolved = item.resolveReferencableItem(sourceReference)
+        val resolved = item.resolveReferencableItem(sourceReference, NameClassification.AMBIGUOUS)
         return when (resolved) {
-            is ClassItem -> ClassReference(resolved.qualifiedName())
-            is PackageItem -> PackageReference(resolved.qualifiedName())
-            is TypeParameterItem -> TypeParameterReference(resolved.name())
+            is ClassItem -> resolved.toResolvedReference()
+            is PackageItem -> resolved.toResolvedReference()
+            is TypeParameterItem -> resolved.toResolvedReference()
+            is FieldItem -> resolved.toResolvedReference()
             else -> null
         }
     }
+
+    private fun resolveMember(classItem: ClassItem, memberReference: String): ResolvedReference? {
+        val openParenthesisIndex = memberReference.indexOf('(')
+
+        // Ignore methods and constructors for now.
+        if (openParenthesisIndex != -1) return null
+
+        return classItem.findField(memberReference)?.toResolvedReference()
+    }
+
+    override val containingClassItem: ClassItem?
+        get() =
+            when (item) {
+                is ClassItem -> item
+                is MemberItem -> item.containingClass()
+                else -> null
+            }
 
     override val isDocOnly
         get() = hasBlockTagOfType("doconly")

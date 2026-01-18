@@ -711,9 +711,11 @@ class ApiFileTest : BaseTextCodebaseTest() {
                         package test.pkg {
                             public class Foo {
                                 ctor public Foo();
+                                ctor public Foo(String notCurrent);
                                 method public void method(int notCurrent);
                                 method public void extensibleMethod(int parameter) throws Throwable;
                                 field public int field;
+                                property public int prop;
                             }
                             public class Outer {
                             }
@@ -731,9 +733,11 @@ class ApiFileTest : BaseTextCodebaseTest() {
                         package test.pkg {
                             public class Foo {
                                 ctor public Foo(int currentCtorParameter);
+                                ctor public Foo(String currentCtorParameter);
                                 method public void extensibleMethod(int parameter) throws Exception;
                                 method public void currentMethod(int currentMethodParameter);
                                 field public int currentField;
+                                property public int prop;
                             }
                             public class Outer.Middle.Inner {
                                 method public void currentInnerMethod();
@@ -763,7 +767,8 @@ class ApiFileTest : BaseTextCodebaseTest() {
                 classPathResolver = classPathResolver,
             )
 
-        val current = buildList {
+        // Check the parts of the codebase that will be emitted.
+        val currentEmit = buildList {
             codebase.accept(
                 object : BaseItemVisitor(visitParameterItems = false) {
                     override fun visitSelectableItem(item: SelectableItem) {
@@ -774,20 +779,56 @@ class ApiFileTest : BaseTextCodebaseTest() {
                 }
             )
         }
-
         assertEquals(
             """
                 package test.pkg
                 class test.pkg.Foo
+                constructor test.pkg.Foo.Foo(String)
                 constructor test.pkg.Foo.Foo(int)
                 method test.pkg.Foo.extensibleMethod(int)
                 method test.pkg.Foo.currentMethod(int)
+                property test.pkg.Foo#prop
                 field Foo.currentField
                 class test.pkg.Outer.Middle.Inner
                 method test.pkg.Outer.Middle.Inner.currentInnerMethod()
             """
                 .trimIndent(),
-            current.joinToString("\n")
+            currentEmit.joinToString("\n"),
+            "emittable items"
+        )
+
+        // Check the entire codebase, to make sure there are no incorrect elements that aren't part
+        // of the emittable codebase.
+        val currentAll = buildList {
+            codebase.accept(
+                object : BaseItemVisitor(visitParameterItems = false) {
+                    override fun visitSelectableItem(item: SelectableItem) {
+                        add(item)
+                    }
+                }
+            )
+        }
+        assertEquals(
+            """
+                package test.pkg
+                class test.pkg.Foo
+                constructor test.pkg.Foo.Foo()
+                constructor test.pkg.Foo.Foo(String)
+                constructor test.pkg.Foo.Foo(int)
+                method test.pkg.Foo.method(int)
+                method test.pkg.Foo.extensibleMethod(int)
+                method test.pkg.Foo.currentMethod(int)
+                property test.pkg.Foo#prop
+                field Foo.field
+                field Foo.currentField
+                class test.pkg.Outer
+                class test.pkg.Outer.Middle
+                class test.pkg.Outer.Middle.Inner
+                method test.pkg.Outer.Middle.Inner.currentInnerMethod()
+            """
+                .trimIndent(),
+            currentAll.joinToString("\n"),
+            "all items"
         )
     }
 

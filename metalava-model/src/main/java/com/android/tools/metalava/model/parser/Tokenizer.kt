@@ -133,6 +133,15 @@ class Tokenizer(
         return String(buffer, offset, position - offset)
     }
 
+    /**
+     * Append the contents of [buffer] from [offset] to [position] to [builder].
+     *
+     * @param offset an offset previously returned by [offset].
+     */
+    fun appendStringFromOffsetTo(builder: StringBuilder, offset: Int) {
+        builder.append(buffer, offset, position - offset)
+    }
+
     /** The current token. */
     lateinit var current: String
 

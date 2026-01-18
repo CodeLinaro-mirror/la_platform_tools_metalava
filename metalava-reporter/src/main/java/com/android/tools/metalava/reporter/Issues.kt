@@ -52,6 +52,7 @@ object Issues {
     // doesn't distinguish those cases.
     val ADDED_FIELD by Issue(Severity.HIDDEN, Category.OTHER_COMPATIBILITY)
     val ADDED_INTERFACE by Issue(Severity.HIDDEN, Category.OTHER_COMPATIBILITY)
+    val ADDED_PROPERTY by Issue(Severity.HIDDEN, Category.OTHER_COMPATIBILITY)
     // This refers to removing usage of an `--api-compat-annotation` (not removing a definition)
     val REMOVED_ANNOTATION by Issue(Severity.ERROR, Category.OTHER_COMPATIBILITY)
     val REMOVED_PACKAGE by Issue(Severity.ERROR, Category.BINARY_AND_SOURCE_COMPATIBILITY)
@@ -60,6 +61,7 @@ object Issues {
     val REMOVED_FIELD by Issue(Severity.ERROR, Category.BINARY_AND_SOURCE_COMPATIBILITY)
     val REMOVED_INTERFACE by Issue(Severity.ERROR, Category.BINARY_AND_SOURCE_COMPATIBILITY)
     val REMOVED_TYPE_ALIAS by Issue(Severity.ERROR, Category.SOURCE_COMPATIBILITY_ONLY)
+    val REMOVED_PROPERTY by Issue(Severity.ERROR, Category.SOURCE_COMPATIBILITY_ONLY)
     val CHANGED_STATIC by Issue(Severity.ERROR, Category.BINARY_AND_SOURCE_COMPATIBILITY)
     val ADDED_FINAL by Issue(Severity.ERROR, Category.BINARY_AND_SOURCE_COMPATIBILITY)
     val CHANGED_VOLATILE by Issue(Severity.ERROR, Category.OTHER_COMPATIBILITY)
@@ -83,6 +85,7 @@ object Issues {
     val REMOVED_DEPRECATED_METHOD by Issue(REMOVED_METHOD, Category.BINARY_AND_SOURCE_COMPATIBILITY)
     val REMOVED_DEPRECATED_FIELD by Issue(REMOVED_FIELD, Category.BINARY_AND_SOURCE_COMPATIBILITY)
     val ADDED_ABSTRACT_METHOD by Issue(Severity.ERROR, Category.BINARY_AND_SOURCE_COMPATIBILITY)
+    val ADDED_ABSTRACT_PROPERTY by Issue(Severity.ERROR, Category.SOURCE_COMPATIBILITY_ONLY)
     val ADDED_REIFIED by Issue(Severity.ERROR, Category.BINARY_COMPATIBILITY_ONLY)
     val REMOVED_JVM_DEFAULT_WITH_COMPATIBILITY by
         Issue(Severity.ERROR, Category.BINARY_COMPATIBILITY_ONLY)

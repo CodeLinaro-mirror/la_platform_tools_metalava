@@ -114,7 +114,7 @@ internal open class DescriptionOwner(
         PrintWriter(stringWriter).use { writer ->
             writer.print("/**\n")
             writer.print(" * ")
-            val printer = JavadocContentPrinter(writer)
+            val printer = JavadocContentPrinter(writer, context)
             printer.print(content)
             writer.print("\n */")
         }
@@ -134,7 +134,9 @@ internal open class DescriptionOwner(
             DocComment.createDocComment(
                 context,
                 qualified,
-                DocumentationIssueReporter.THROWING,
+                // Use the null reporter as any issues found in this block tag will have been
+                // reported elsewhere.
+                DocumentationIssueReporter.NULL,
             )
 
         // Return the main description as the comment.

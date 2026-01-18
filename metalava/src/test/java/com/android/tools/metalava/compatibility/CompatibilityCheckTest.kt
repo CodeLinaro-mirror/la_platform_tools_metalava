@@ -43,6 +43,124 @@ import org.junit.Test
 class CompatibilityCheckTest : DriverTest() {
 
     @Test
+    fun `Should raise issue when adding abstract method to non-effectively final explicitly sealed class`() {
+        check(
+            expectedIssues =
+                """
+                    load-api.txt:6: error: Binary breaking change: Added method test.pkg.MyNonFinalSealedClassWithNonSealedChild.myFun() [AddedAbstractMethod]
+                    load-api.txt:9: error: Binary breaking change: Added method test.pkg.MyNonFinalSealedClassWithNonSealedGrandchild.myFun() [AddedAbstractMethod]
+                """
+                    .trimIndent(),
+            checkCompatibilityApiReleased =
+                """
+                package test.pkg {
+                  public abstract sealed exhaustive class DirectChildClass extends test.pkg.MyNonFinalSealedClassWithNonSealedGrandchild {
+                  }
+                  public abstract sealed exhaustive class MyNonFinalSealedClassWithNonSealedChild {
+                  }
+                  public abstract sealed exhaustive class MyNonFinalSealedClassWithNonSealedGrandchild {
+                  }
+                  public abstract class NonSealedGrandchildClass extends test.pkg.DirectChildClass {
+                    ctor public NonSealedGrandchildClass();
+                  }
+                  public abstract class NotEffectivelySealedChildClass extends test.pkg.MyNonFinalSealedClassWithNonSealedChild {
+                    ctor public NotEffectivelySealedChildClass();
+                  }
+                }
+                """,
+            signatureSource =
+                """
+                package test.pkg {
+                  public abstract sealed exhaustive class DirectChildClass extends test.pkg.MyNonFinalSealedClassWithNonSealedGrandchild {
+                  }
+                  public abstract sealed exhaustive class MyNonFinalSealedClassWithNonSealedChild {
+                    method public abstract void myFun();
+                  }
+                  public abstract sealed exhaustive class MyNonFinalSealedClassWithNonSealedGrandchild {
+                    method public abstract void myFun();
+                  }
+                  public abstract class NonSealedGrandchildClass extends test.pkg.DirectChildClass {
+                    ctor public NonSealedGrandchildClass();
+                  }
+                  public abstract class NotEffectivelySealedChildClass extends test.pkg.MyNonFinalSealedClassWithNonSealedChild {
+                    ctor public NotEffectivelySealedChildClass();
+                  }
+                }
+                """
+        )
+    }
+
+    @Test
+    fun `Should raise issue when adding abstract method to non-effectively final effectively sealed class`() {
+        check(
+            expectedIssues =
+                """
+                    load-api.txt:6: error: Binary breaking change: Added method test.pkg.NonFinalAbstractEffectivelySealedClassWithNonSealedChild.myFun() [AddedAbstractMethod]
+                    load-api.txt:9: error: Binary breaking change: Added method test.pkg.NonFinalAbstractEffectivelySealedClassWithNonSealedGrandchild.myFun() [AddedAbstractMethod]
+                """
+                    .trimIndent(),
+            checkCompatibilityApiReleased =
+                """
+                package test.pkg {
+                  public abstract sealed exhaustive class DirectChildClass extends test.pkg.NonFinalAbstractEffectivelySealedClassWithNonSealedGrandchild {
+                  }
+                  public abstract class NonFinalAbstractEffectivelySealedClassWithNonSealedChild {
+                  }
+                  public abstract class NonFinalAbstractEffectivelySealedClassWithNonSealedGrandchild {
+                  }
+                  public abstract class NonSealedGrandchildClass extends test.pkg.DirectChildClass {
+                    ctor public NonSealedGrandchildClass();
+                  }
+                  public abstract class NotEffectivelySealedChildClass extends test.pkg.NonFinalAbstractEffectivelySealedClassWithNonSealedChild {
+                    ctor public NotEffectivelySealedChildClass();
+                  }
+                }
+                """,
+            signatureSource =
+                """
+                package test.pkg {
+                  public abstract sealed exhaustive class DirectChildClass extends test.pkg.NonFinalAbstractEffectivelySealedClassWithNonSealedGrandchild {
+                  }
+                  public abstract class NonFinalAbstractEffectivelySealedClassWithNonSealedChild {
+                    method public abstract void myFun();
+                  }
+                  public abstract class NonFinalAbstractEffectivelySealedClassWithNonSealedGrandchild {
+                    method public abstract void myFun();
+                  }
+                  public abstract class NonSealedGrandchildClass extends test.pkg.DirectChildClass {
+                    ctor public NonSealedGrandchildClass();
+                  }
+                  public abstract class NotEffectivelySealedChildClass extends test.pkg.NonFinalAbstractEffectivelySealedClassWithNonSealedChild {
+                    ctor public NotEffectivelySealedChildClass();
+                  }
+                }
+                """
+        )
+    }
+
+    @Test
+    fun `Should not raise issue when adding abstract method to non-effectively final effectively sealed interface`() {
+        check(
+            expectedIssues = "",
+            checkCompatibilityApiReleased =
+                """
+                package test.pkg {
+                  public sealed exhaustive interface SealedEffectivelyFinalInterface {
+                  }
+                }
+                """,
+            signatureSource =
+                """
+                package test.pkg {
+                  public sealed exhaustive interface SealedEffectivelyFinalInterface {
+                    method public void myFun();
+                  }
+                }
+                """
+        )
+    }
+
+    @Test
     fun `Should raise issue when adding private subclass to exhaustive sealed interface (sealed interface changes from exhaustive to nonexhaustive)`() {
         check(
             expectedIssues =
@@ -2623,6 +2741,7 @@ class CompatibilityCheckTest : DriverTest() {
                 package androidx.annotation {
                   @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) @java.lang.annotation.Target({java.lang.annotation.ElementType.ANNOTATION_TYPE, java.lang.annotation.ElementType.TYPE, java.lang.annotation.ElementType.METHOD, java.lang.annotation.ElementType.CONSTRUCTOR, java.lang.annotation.ElementType.FIELD, java.lang.annotation.ElementType.PACKAGE}) public @interface RestrictTo {
                     method @InaccessibleFromKotlin public abstract androidx.annotation.RestrictTo.Scope[] value();
+                    property public abstract androidx.annotation.RestrictTo.Scope[] value;
                   }
 
                   public enum RestrictTo.Scope {

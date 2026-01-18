@@ -279,8 +279,6 @@ private constructor(
         }
 
         if (annotations.isNotEmpty()) {
-            // Omit common packages in signature files.
-            val omitCommonPackages = target == AnnotationTarget.SIGNATURE_FILE
             var index = -1
             for (annotation in annotations) {
                 index++
@@ -323,13 +321,14 @@ private constructor(
                     }
                 }
 
-                val source = annotationFormatter.formatAnnotation(printAnnotation, item)
+                val source =
+                    annotationFormatter.formatAnnotation(
+                        printAnnotation,
+                        AnnotationPurpose.ITEM,
+                        item
+                    )
+                writer.write(source)
 
-                if (omitCommonPackages) {
-                    writer.write(AnnotationItem.shortenAnnotation(source))
-                } else {
-                    writer.write(source)
-                }
                 if (separateLines) {
                     writer.write("\n")
                 } else {
@@ -402,4 +401,4 @@ const val SUPPRESS_COMPATIBILITY_ANNOTATION = "SuppressCompatibility"
  * need to maintain compatibility.
  */
 val SUPPRESS_COMPATIBILITY_ANNOTATION_QUALIFIED =
-    AnnotationItem.unshortenAnnotation("@$SUPPRESS_COMPATIBILITY_ANNOTATION").substring(1)
+    AnnotationItem.unshortenAnnotation(SUPPRESS_COMPATIBILITY_ANNOTATION)

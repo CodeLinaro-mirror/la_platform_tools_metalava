@@ -69,7 +69,7 @@ class ParameterizedKeepImportTest : DriverTest() {
                 TestData(
                     name = "in @see reference",
                     classDoc = "@see ImportedName",
-                    expectedClassDoc = "@see other.pkg.ImportedName ImportedName",
+                    expectedClassDoc = "@see other.pkg.ImportedName",
                     shouldKeepImportedName = false,
                 ),
                 TestData(
@@ -115,7 +115,7 @@ class ParameterizedKeepImportTest : DriverTest() {
                     name = "in @link field reference",
                     classDoc = "{@link ImportedName#FIELD}",
                     expectedClassDoc = "{@link other.pkg.ImportedName#FIELD ImportedName.FIELD}",
-                    shouldKeepImportedName = true,
+                    shouldKeepImportedName = false,
                 ),
                 TestData(
                     name = "in @link method reference",

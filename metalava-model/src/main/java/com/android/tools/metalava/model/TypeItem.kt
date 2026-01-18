@@ -670,7 +670,7 @@ abstract class DefaultTypeItem(
             }
             val annotationFormatter = configuration.annotationFormatter
             annotations.forEachIndexed { index, annotation ->
-                annotationFormatter.appendFormatAnnotation(this, annotation)
+                annotationFormatter.appendFormatAnnotation(this, annotation, AnnotationPurpose.TYPE)
                 if (index != annotations.size - 1) {
                     append(' ')
                 }

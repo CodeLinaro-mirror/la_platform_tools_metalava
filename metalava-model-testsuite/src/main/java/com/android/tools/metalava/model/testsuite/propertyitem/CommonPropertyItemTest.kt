@@ -653,7 +653,11 @@ class CommonPropertyItemTest : BaseModelTest() {
             assertThat(fileFacadeClass.properties()).hasSize(1)
 
             // extension property has getter and setter, but no backing field
-            val stringExtension = fileFacadeClass.assertProperty("stringExtension")
+            val stringExtension =
+                fileFacadeClass.assertProperty(
+                    "stringExtension",
+                    receiverTypeString = "java.lang.String"
+                )
             assertThat(stringExtension.getter).isNotNull()
             assertThat(stringExtension.setter).isNotNull()
             assertThat(stringExtension.backingField).isNull()
@@ -734,7 +738,11 @@ class CommonPropertyItemTest : BaseModelTest() {
             assertThat(fileFacadeClass.properties()).hasSize(1)
 
             // extension property has getter and setter, but no backing field
-            val valueClassExtension = fileFacadeClass.assertProperty("valueClassExtension")
+            val valueClassExtension =
+                fileFacadeClass.assertProperty(
+                    "valueClassExtension",
+                    receiverTypeString = "test.pkg.IntValue"
+                )
             fileFacadeClass.assertMethod("getValueClassExtension-Vxmw0xk", listOf("int"))
             fileFacadeClass.assertMethod("setValueClassExtension-6VC4vj0", listOf("int", "int"))
             assertThat(valueClassExtension.backingField).isNull()
@@ -934,22 +942,33 @@ class CommonPropertyItemTest : BaseModelTest() {
 
             assertNull(fooClass.assertProperty("noReceiverProperty").receiver)
 
-            fooClass.assertProperty("intProperty").receiver.assertPrimitiveTypeItem {
-                assertEquals(kind, PrimitiveTypeItem.Primitive.INT)
-            }
+            fooClass
+                .assertProperty("intProperty", receiverTypeString = "int")
+                .receiver
+                .assertPrimitiveTypeItem { assertEquals(kind, PrimitiveTypeItem.Primitive.INT) }
 
-            fooClass.assertProperty("stringProperty").receiver.assertClassTypeItem {
-                assertTrue(isString())
-            }
+            fooClass
+                .assertProperty("stringProperty", receiverTypeString = "java.lang.String")
+                .receiver
+                .assertClassTypeItem { assertTrue(isString()) }
 
-            fooClass.assertProperty("stringArrayProperty").receiver.assertArrayTypeItem {
-                componentType.assertClassTypeItem { assertTrue(isString()) }
-            }
+            fooClass
+                .assertProperty("stringArrayProperty", receiverTypeString = "java.lang.String[]")
+                .receiver
+                .assertArrayTypeItem {
+                    componentType.assertClassTypeItem { assertTrue(isString()) }
+                }
 
-            fooClass.assertProperty("stringListProperty").receiver.assertClassTypeItem {
-                assertEquals(qualifiedName, "java.util.List")
-                arguments.single().assertClassTypeItem { assertTrue(isString()) }
-            }
+            fooClass
+                .assertProperty(
+                    "stringListProperty",
+                    receiverTypeString = "java.util.List<java.lang.String>"
+                )
+                .receiver
+                .assertClassTypeItem {
+                    assertEquals(qualifiedName, "java.util.List")
+                    arguments.single().assertClassTypeItem { assertTrue(isString()) }
+                }
         }
     }
 
@@ -1010,11 +1029,16 @@ class CommonPropertyItemTest : BaseModelTest() {
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
 
-            val noTypeParameterProperty = fooClass.assertProperty("noTypeParameterProperty")
+            val noTypeParameterProperty =
+                fooClass.assertProperty(
+                    "noTypeParameterProperty",
+                    receiverTypeString = "java.lang.String"
+                )
             assertThat(noTypeParameterProperty.typeParameterList).isEmpty()
 
             // val <T> T.oneTypeParameterReceiver
-            val oneTypeParameterReceiver = fooClass.assertProperty("oneTypeParameterReceiver")
+            val oneTypeParameterReceiver =
+                fooClass.assertProperty("oneTypeParameterReceiver", receiverTypeString = "T")
             val oneTypeParameterReceiverT = oneTypeParameterReceiver.typeParameterList.single()
             assertThat(oneTypeParameterReceiverT.name()).isEqualTo("T")
             assertThat(oneTypeParameterReceiverT.typeBounds()).isEmpty()
@@ -1025,7 +1049,10 @@ class CommonPropertyItemTest : BaseModelTest() {
 
             // val <T> List<T>.oneTypeParameterListReceiver
             val oneTypeParameterListReceiver =
-                fooClass.assertProperty("oneTypeParameterListReceiver")
+                fooClass.assertProperty(
+                    "oneTypeParameterListReceiver",
+                    receiverTypeString = "java.util.List<T>"
+                )
             val oneTypeParameterListReceiverT =
                 oneTypeParameterListReceiver.typeParameterList.single()
             assertThat(oneTypeParameterListReceiverT.name()).isEqualTo("T")
@@ -1040,7 +1067,10 @@ class CommonPropertyItemTest : BaseModelTest() {
 
             // val <T : String> T.oneTypeParameterWithBoundsReceiver
             val oneTypeParameterWithBoundsReceiver =
-                fooClass.assertProperty("oneTypeParameterWithBoundsReceiver")
+                fooClass.assertProperty(
+                    "oneTypeParameterWithBoundsReceiver",
+                    receiverTypeString = "T"
+                )
             val oneTypeParameterWithBoundsReceiverT =
                 oneTypeParameterWithBoundsReceiver.typeParameterList.single()
             assertThat(oneTypeParameterWithBoundsReceiverT.name()).isEqualTo("T")
@@ -1052,7 +1082,11 @@ class CommonPropertyItemTest : BaseModelTest() {
             }
 
             // val <T1, T2> Map<T1, T2>.twoTypeParameterMapReceiver
-            val twoTypeParameterMapReceiver = fooClass.assertProperty("twoTypeParameterMapReceiver")
+            val twoTypeParameterMapReceiver =
+                fooClass.assertProperty(
+                    "twoTypeParameterMapReceiver",
+                    receiverTypeString = "java.util.Map<T1,T2>"
+                )
             val twoTypeParameterMapReceiverT1 = twoTypeParameterMapReceiver.typeParameterList[0]
             assertThat(twoTypeParameterMapReceiverT1.name()).isEqualTo("T1")
             assertThat(twoTypeParameterMapReceiverT1.typeBounds()).isEmpty()
@@ -1074,7 +1108,10 @@ class CommonPropertyItemTest : BaseModelTest() {
 
             // val <T1 : String, T2 : List<T1>> Map<T1, T2>.twoTypeParameterWithBoundsMapReceiver
             val twoTypeParameterWithBoundsMapReceiver =
-                fooClass.assertProperty("twoTypeParameterWithBoundsMapReceiver")
+                fooClass.assertProperty(
+                    "twoTypeParameterWithBoundsMapReceiver",
+                    receiverTypeString = "java.util.Map<T1,T2>"
+                )
             val twoTypeParameterWithBoundsMapReceiverT1 =
                 twoTypeParameterWithBoundsMapReceiver.typeParameterList[0]
             assertThat(twoTypeParameterWithBoundsMapReceiverT1.name()).isEqualTo("T1")
@@ -1141,7 +1178,8 @@ class CommonPropertyItemTest : BaseModelTest() {
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
             // Verify that the type parameter list is also used for the property type
-            val typeParameterExtension = fooClass.assertProperty("typeParameterExtension")
+            val typeParameterExtension =
+                fooClass.assertProperty("typeParameterExtension", receiverTypeString = "T")
             val typeParameterExtensionT = typeParameterExtension.typeParameterList.single()
             assertThat(typeParameterExtensionT.name()).isEqualTo("T")
             assertThat(typeParameterExtensionT.typeBounds()).isEmpty()
@@ -1232,6 +1270,66 @@ class CommonPropertyItemTest : BaseModelTest() {
             assertThat(internalSet.modifiers.getVisibilityLevel())
                 .isEqualTo(VisibilityLevel.INTERNAL)
             assertThat(internalSet.setterVisibility).isEqualTo(VisibilityLevel.INTERNAL)
+        }
+    }
+
+    @Test
+    fun `Test equals, hashCode, toString, baselineKey for properties with and without receivers`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                package test.pkg
+                class Foo {
+                    val foo = 0
+                    val String.foo
+                        get() = 0
+                    val <T> T.foo
+                        get() = 0
+                }
+                """
+            ),
+            signature(
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public final class Foo {
+                    property public int foo;
+                    property public int String.foo;
+                    property public <T> int T.foo;
+                  }
+                }
+                """
+            ),
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+
+            val noReceiver = fooClass.assertProperty("foo")
+            assertThat(noReceiver).isEqualTo(noReceiver)
+            val noReceiverHashCode = noReceiver.hashCode()
+            assertThat(noReceiver.toString()).isEqualTo("property test.pkg.Foo#foo")
+            assertThat(noReceiver.baselineKey.elementId()).isEqualTo("test.pkg.Foo#foo")
+
+            val stringReceiver =
+                fooClass.assertProperty("foo", receiverTypeString = "java.lang.String")
+            assertThat(stringReceiver).isEqualTo(stringReceiver)
+            val stringReceiverHashCode = stringReceiver.hashCode()
+            assertThat(stringReceiver.toString())
+                .isEqualTo("property test.pkg.Foo#java.lang.String.foo")
+            assertThat(stringReceiver.baselineKey.elementId())
+                .isEqualTo("test.pkg.Foo#java.lang.String.foo")
+
+            val typeParamReceiver = fooClass.assertProperty("foo", receiverTypeString = "T")
+            assertThat(typeParamReceiver).isEqualTo(typeParamReceiver)
+            val typeParamReceiverHashCode = typeParamReceiver.hashCode()
+            assertThat(typeParamReceiver.toString()).isEqualTo("property test.pkg.Foo#T.foo")
+            assertThat(typeParamReceiver.baselineKey.elementId()).isEqualTo("test.pkg.Foo#T.foo")
+
+            assertThat(noReceiver).isNotEqualTo(stringReceiver)
+            assertThat(stringReceiver).isNotEqualTo(typeParamReceiver)
+            assertThat(typeParamReceiver).isNotEqualTo(noReceiver)
+
+            assertThat(noReceiverHashCode).isNotEqualTo(stringReceiverHashCode)
+            assertThat(stringReceiverHashCode).isNotEqualTo(typeParamReceiverHashCode)
         }
     }
 }

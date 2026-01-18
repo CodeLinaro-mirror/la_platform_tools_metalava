@@ -17,6 +17,8 @@
 package com.android.tools.metalava.model.annotation
 
 import com.android.tools.metalava.model.ANDROIDX_ANNOTATION_PREFIX
+import com.android.tools.metalava.model.ANDROIDX_FLOAT_RANGE
+import com.android.tools.metalava.model.ANDROIDX_INT_RANGE
 import com.android.tools.metalava.model.ANDROIDX_NONNULL
 import com.android.tools.metalava.model.ANDROIDX_NULLABLE
 import com.android.tools.metalava.model.ANDROID_ANNOTATION_PREFIX
@@ -226,8 +228,8 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
             "android.annotation.HalfFloat" -> return "androidx.annotation.HalfFloat"
 
             // Ranges and sizes
-            "android.annotation.FloatRange" -> return "androidx.annotation.FloatRange"
-            "android.annotation.IntRange" -> return "androidx.annotation.IntRange"
+            "android.annotation.FloatRange" -> return ANDROIDX_FLOAT_RANGE
+            "android.annotation.IntRange" -> return ANDROIDX_INT_RANGE
             "android.annotation.Size" -> return "androidx.annotation.Size"
             "android.annotation.Px" -> return "androidx.annotation.Px"
             "android.annotation.Dimension" -> return "androidx.annotation.Dimension"

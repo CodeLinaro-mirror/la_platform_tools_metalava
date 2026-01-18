@@ -27,6 +27,7 @@ class RequiresFeatureTest : DriverTest() {
         import: String = "import android.content.pm.PackageManager;",
         enforcement: String = "",
         expectedText: String,
+        expectedImport: String = import,
         expectedIssues: String = "",
     ) {
         val attributes =
@@ -73,14 +74,18 @@ class RequiresFeatureTest : DriverTest() {
                 arrayOf(
                     java(
                         """
-                        package test.pkg;
-                        $import
-                        /** $expectedText */
-                        @SuppressWarnings({"unchecked", "deprecation", "all"})
-                        public class FeatureUser {
-                        public FeatureUser() { throw new RuntimeException("Stub!"); }
-                        }
-                    """
+                            package test.pkg;
+                            $expectedImport
+                            /** $expectedText */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class FeatureUser {
+                            public FeatureUser() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                            .trimIndent()
+                            // Remove the blank line that would have been inserted if
+                            // [expectedImport] was "".
+                            .replace("\n\n", "\n")
                     ),
                 ),
             expectedFail = if (expectedIssues.isBlank()) "" else DefaultLintErrorMessage,
@@ -138,6 +143,7 @@ class RequiresFeatureTest : DriverTest() {
             enforcement = "invalid enforcement value",
             expectedText =
                 "Requires the {@link android.pkg.other.OtherFeatureManager#FEATURE_OTHER OtherFeatureManager#FEATURE_OTHER} feature which can be detected using {@link android.content.pm.PackageManager#hasSystemFeature(String) PackageManager.hasSystemFeature(String)}.",
+            expectedImport = "",
             expectedIssues =
                 "src/test/pkg/FeatureUser.java:6: error: Invalid 'enforcement' value 'invalid enforcement value', must be of the form <qualified-class>#<method-name>, using default [InvalidFeatureEnforcement]",
         )
