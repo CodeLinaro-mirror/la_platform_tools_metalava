@@ -83,8 +83,8 @@ class CommonDocReferenceTest : BaseModelTest() {
 
             assertAndRemoveReportedIssues(
                 """
-                    MAIN_SRC/src/test/pkg/Test.java:12:16: warning: Could not resolve 'UnknownException' in 'method test.pkg.Test.method()' (ErrorWhenNew) [UnresolvedLink]
-                    MAIN_SRC/src/test/pkg/Test.java:13:16: error: Invalid @throws type 'err': it should reference a class but it resolves to field System.err [InvalidDocThrowsType]
+                    MAIN_SRC/src/test/pkg/Test.java:12:16: warning: Could not resolve a class or type parameter called 'UnknownException' in 'method test.pkg.Test.method()' (ErrorWhenNew) [UnresolvedLink]
+                    MAIN_SRC/src/test/pkg/Test.java:13:16: warning: Could not resolve a class or type parameter called 'err' in 'method test.pkg.Test.method()' (ErrorWhenNew) [UnresolvedLink]
                 """
             )
         }

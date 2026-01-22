@@ -28,7 +28,7 @@ import org.junit.runners.Parameterized
 @RunWith(Parameterized::class)
 class ParameterizedDocReferenceValidationTest {
 
-    @Parameterized.Parameter(0) lateinit var params: TestParams
+    @Parameterized.Parameter(0) internal lateinit var params: TestParams
 
     /**
      * Will try and rewrite the stack trace of any test failures to refer to the location where the
@@ -36,12 +36,12 @@ class ParameterizedDocReferenceValidationTest {
      */
     @get:Rule val entryPointCallerRule = EntryPointCallerRule { params.entryPointCallerTracker }
 
-    data class TestParams
+    internal data class TestParams
     @EntryPoint
     constructor(
         val name: String,
         val reference: String = name,
-        val valid: Boolean = true,
+        val expectedParsed: ParsedReference? = null,
     ) {
         /**
          * Record the stack trace of the creation of this which can be used to provide a stack trace
@@ -60,119 +60,261 @@ class ParameterizedDocReferenceValidationTest {
                 // Packages
                 TestParams(
                     name = "java",
+                    expectedParsed = AmbiguousSourceReference(name = "java"),
                 ),
                 TestParams(
                     name = "java.util",
+                    expectedParsed = AmbiguousSourceReference(name = "java.util"),
                 ),
+
                 // Classes
                 TestParams(
                     name = "java.util.Map",
+                    expectedParsed = AmbiguousSourceReference(name = "java.util.Map"),
                 ),
                 TestParams(
                     name = "java.util.Map.Entry",
+                    expectedParsed = AmbiguousSourceReference(name = "java.util.Map.Entry"),
                 ),
+
                 // Fields (or maybe methods, no parentheses is ambiguous).
                 TestParams(
                     name = "java.lang.Integer#MAX_VALUE",
+                    expectedParsed =
+                        QualifyingClassSourceReference(
+                            className = "java.lang.Integer",
+                            AmbiguousMemberSourceReference(name = "MAX_VALUE"),
+                        )
                 ),
                 TestParams(
                     name = "#MAX_VALUE",
+                    expectedParsed =
+                        CurrentClassSourceReference(
+                            member = AmbiguousMemberSourceReference(name = "MAX_VALUE")
+                        ),
                 ),
                 TestParams(
                     name = "MAX_VALUE",
+                    expectedParsed = AmbiguousSourceReference(name = "MAX_VALUE"),
                 ),
+
                 // Methods with no parameters.
                 TestParams(
                     name = "java.lang.Character#isWhitespace()",
+                    expectedParsed =
+                        QualifyingClassSourceReference(
+                            className = "java.lang.Character",
+                            member =
+                                MethodSourceReference(
+                                    name = "isWhitespace",
+                                    parameters = "()",
+                                ),
+                        )
                 ),
                 TestParams(
                     name = "#isWhitespace()",
+                    expectedParsed =
+                        CurrentClassSourceReference(
+                            member = MethodSourceReference(name = "isWhitespace", parameters = "()")
+                        ),
                 ),
                 TestParams(
                     name = "isWhitespace()",
+                    expectedParsed =
+                        MethodSourceReference(name = "isWhitespace", parameters = "()"),
                 ),
+
                 // Methods with one parameter (no name).
                 TestParams(
                     name = "java.lang.String#toLowerCase(Locale)",
+                    expectedParsed =
+                        QualifyingClassSourceReference(
+                            className = "java.lang.String",
+                            member =
+                                MethodSourceReference(
+                                    name = "toLowerCase",
+                                    parameters = "(Locale)"
+                                ),
+                        )
+                ),
+                TestParams(
+                    // Not strictly valid (no # separating class and method) but still supported.
+                    name = "java.lang.String.toLowerCase(Locale)",
+                    expectedParsed =
+                        MethodSourceReference(
+                            name = "java.lang.String.toLowerCase",
+                            parameters = "(Locale)"
+                        ),
                 ),
                 TestParams(
                     name = "#toLowerCase(Locale)",
+                    expectedParsed =
+                        CurrentClassSourceReference(
+                            member =
+                                MethodSourceReference(name = "toLowerCase", parameters = "(Locale)")
+                        ),
                 ),
                 TestParams(
                     name = "toLowerCase(Locale)",
+                    expectedParsed =
+                        MethodSourceReference(name = "toLowerCase", parameters = "(Locale)"),
                 ),
+
                 // Methods with one parameter (with name).
                 TestParams(
                     name = "java.lang.String#toLowerCase(Locale locale)",
+                    expectedParsed =
+                        QualifyingClassSourceReference(
+                            className = "java.lang.String",
+                            member =
+                                MethodSourceReference(
+                                    name = "toLowerCase",
+                                    parameters = "(Locale locale)"
+                                ),
+                        )
+                ),
+                TestParams(
+                    // Not strictly valid (no # separating class and method) but still supported.
+                    name = "java.lang.String.toLowerCase(Locale locale)",
+                    expectedParsed =
+                        MethodSourceReference(
+                            name = "java.lang.String.toLowerCase",
+                            parameters = "(Locale locale)"
+                        ),
                 ),
                 TestParams(
                     name = "#toLowerCase(Locale locale)",
+                    expectedParsed =
+                        CurrentClassSourceReference(
+                            member =
+                                MethodSourceReference(
+                                    name = "toLowerCase",
+                                    parameters = "(Locale locale)"
+                                )
+                        ),
                 ),
                 TestParams(
                     name = "toLowerCase(Locale locale)",
+                    expectedParsed =
+                        MethodSourceReference(name = "toLowerCase", parameters = "(Locale locale)"),
                 ),
+
                 // Methods with two parameters (no names).
                 TestParams(
                     name = "java.util.Map#put(K, V)",
+                    expectedParsed =
+                        QualifyingClassSourceReference(
+                            className = "java.util.Map",
+                            member = MethodSourceReference(name = "put", parameters = "(K, V)"),
+                        )
                 ),
                 TestParams(
                     name = "#put(K, V)",
+                    expectedParsed =
+                        CurrentClassSourceReference(
+                            member = MethodSourceReference(name = "put", parameters = "(K, V)")
+                        ),
                 ),
-                TestParams(
-                    name = "#put(K, V)",
-                ),
+
                 // Methods with two parameters (with names).
                 TestParams(
                     name = "java.util.Map#put(K key, V value)",
+                    expectedParsed =
+                        QualifyingClassSourceReference(
+                            className = "java.util.Map",
+                            member =
+                                MethodSourceReference(
+                                    name = "put",
+                                    parameters = "(K key, V value)"
+                                ),
+                        )
                 ),
                 TestParams(
                     name = "#put(K key, V value)",
+                    expectedParsed =
+                        CurrentClassSourceReference(
+                            member =
+                                MethodSourceReference(name = "put", parameters = "(K key, V value)")
+                        ),
                 ),
                 TestParams(
                     name = "put(K key, V value)",
+                    expectedParsed =
+                        MethodSourceReference(name = "put", parameters = "(K key, V value)"),
                 ),
+
                 // Methods with generic parameter types.
                 TestParams(
                     name = "java.util.Collection#addAll(Collection<? extends E>)",
+                    expectedParsed =
+                        QualifyingClassSourceReference(
+                            className = "java.util.Collection",
+                            member =
+                                MethodSourceReference(
+                                    name = "addAll",
+                                    parameters = "(Collection<? extends E>)"
+                                ),
+                        )
                 ),
+
                 // Fragment reference
                 TestParams(
                     name = "java.util.Collection##optional-restrictions",
+                    expectedParsed =
+                        QualifyingClassSourceReference(
+                            className = "java.util.Collection",
+                            member =
+                                UriFragmentSourceReference(uriFragment = "##optional-restrictions"),
+                        )
                 ),
                 TestParams(
                     name = "##optional-restrictions",
+                    expectedParsed =
+                        CurrentClassSourceReference(
+                            member =
+                                UriFragmentSourceReference(uriFragment = "##optional-restrictions")
+                        ),
                 ),
+
                 // Invalid references
                 TestParams(
                     name = "<empty>",
                     reference = "",
-                    valid = false,
                 ),
                 TestParams(
                     name = ".java.util.List",
-                    valid = false,
                 ),
                 TestParams(
                     name = "List<String>",
-                    valid = false,
                 ),
                 TestParams(
                     name = "unbalanced-parentheses",
                     reference = "#method(int",
-                    valid = false,
                 ),
                 TestParams(
                     name = "trailing-junk",
                     reference = "#method(int),",
-                    valid = false,
+                ),
+                TestParams(
+                    name = "missing-method",
+                    reference = "#()",
+                ),
+                TestParams(
+                    name = "just-empty-parentheses",
+                    reference = "()",
+                ),
+                TestParams(
+                    name = "just-parentheses",
+                    reference = "(blah)",
                 ),
             )
 
-        @JvmStatic @Parameterized.Parameters(name = "{0}") fun params() = params
+        @JvmStatic @Parameterized.Parameters(name = "{0}") internal fun params() = params
     }
 
     @Test
     fun `Test validation`() {
-        assertEquals(params.valid, LabeledRefTagType.validateReference(params.reference))
+        val parsed = LabeledRefTagType.parseReference(params.reference)
+        assertEquals(params.expectedParsed, parsed)
     }
 }

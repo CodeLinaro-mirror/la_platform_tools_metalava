@@ -19,7 +19,6 @@ package com.android.tools.metalava
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.cli.common.ARG_SKIP_READING_COMMENTS
 import com.android.tools.metalava.lint.DefaultLintErrorMessage
-import com.android.tools.metalava.model.psi.REPORT_UNRESOLVED_SYMBOLS
 import com.android.tools.metalava.model.source.utils.packageHtmlToJavadoc
 import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
@@ -166,7 +165,7 @@ class JavadocTest : DriverTest() {
                      *  And here's one in the same package: {@link test.pkg1.LocalClass LocalClass}.
                      *
                      * @see test.pkg2.OtherClass
-                     * @see test.pkg2.OtherClass#bar(int, boolean)
+                     * @see test.pkg2.OtherClass#bar(int,boolean)
                      * @deprecated For some reason
                      */
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
@@ -376,7 +375,7 @@ class JavadocTest : DriverTest() {
                  *  And here's one in the same package: {@link test.pkg1.LocalClass LocalClass}.
                  *
                  * @see test.pkg2.OtherClass
-                 * @see test.pkg2.OtherClass#bar(int, boolean)
+                 * @see test.pkg2.OtherClass#bar(int,boolean)
                  * @deprecated For some reason
                  */
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
@@ -1011,15 +1010,7 @@ class JavadocTest : DriverTest() {
         @Suppress("ConstantConditionIf")
         checkStubs(
             docStubs = true,
-            warnings =
-                if (REPORT_UNRESOLVED_SYMBOLS) {
-                    """
-                src/test/pkg1/Test.java:6: lint: Unresolved documentation reference: SomethingMissing [UnresolvedLink]
-                src/test/pkg1/Test.java:6: lint: Unresolved documentation reference: OtherMissing [UnresolvedLink]
-            """
-                } else {
-                    ""
-                },
+            warnings = "",
             sourceFiles =
                 arrayOf(
                     java(

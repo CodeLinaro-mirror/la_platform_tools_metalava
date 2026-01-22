@@ -24,7 +24,6 @@ import com.android.tools.metalava.model.source.javadoc.ExprContext
 import com.android.tools.metalava.model.source.javadoc.TestTagTypes
 import com.android.tools.metalava.model.value.Value
 import com.android.tools.metalava.reporter.Issues.Issue
-import com.android.tools.metalava.reporter.LocationSpecificReporter
 import kotlin.test.assertEquals
 import org.junit.Before
 import org.mockito.kotlin.doReturn
@@ -127,14 +126,31 @@ class TestDocCommentContext : DocCommentContext, DocCommentMutationListener {
     /** A map from flage name to enabled status. */
     var flags: Map<String, Boolean> = emptyMap()
 
+    /** Qualify [sourceReference], if needed. */
+    private fun qualifySourceReference(sourceReference: String): String =
+        if (sourceReference.contains(".") || sourceReference.startsWith("#")) sourceReference
+        else "resolved.$sourceReference"
+
     override fun resolveItemReference(
         sourceReference: String,
         nameClassification: NameClassification
-    ): ReferencableItem {
-        return mock<FieldItem>(stubOnly = true) {
-            on { constantValue } doReturn Value.createLiteralValue(null, sourceReference)
+    ): ReferencableItem =
+        when (nameClassification) {
+            NameClassification.FIELD -> {
+                mock<FieldItem>(stubOnly = true) {
+                    on { constantValue } doReturn Value.createLiteralValue(null, sourceReference)
+                }
+            }
+            NameClassification.TYPE,
+            NameClassification.AMBIGUOUS -> {
+                val qualifiedName = qualifySourceReference(sourceReference)
+                mock<ClassItem>(stubOnly = true) { on { qualifiedName() } doReturn qualifiedName }
+            }
+            else ->
+                error(
+                    "referencableItemResolver did not return an item for ${nameClassification.describeName(sourceReference)}"
+                )
         }
-    }
 
     /** Implements [ExprContext.isFlagEnabled]. */
     override fun isFlagEnabled(flagName: String) = flags[flagName] ?: false
@@ -144,14 +160,6 @@ class TestDocCommentContext : DocCommentContext, DocCommentMutationListener {
     override fun isOverridingMethod() = false
 
     override fun fullyQualifyComment(comment: String) = comment
-
-    override fun resolveThrowableType(reporter: LocationSpecificReporter, typeName: String) =
-        ClassReference(typeName)
-
-    var referenceResolver: (String) -> ResolvedReference? = { null }
-
-    override fun resolveReference(reporter: LocationSpecificReporter, sourceReference: String) =
-        referenceResolver(sourceReference)
 
     override val containingClassItem: ClassItem?
         get() = null
