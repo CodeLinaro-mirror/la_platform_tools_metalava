@@ -16,7 +16,9 @@
 
 package com.android.tools.metalava.model.source.doc
 
+import com.android.tools.metalava.model.InvalidReferencableItem
 import com.android.tools.metalava.model.source.javadoc.JavadocContent
+import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.LocationSpecificReporter
 
 /**
@@ -246,4 +248,9 @@ internal object TagTypes {
         register(LabeledRefTagType("link", TagTypeForm.INLINE))
         register(LabeledRefTagType("linkplain", TagTypeForm.INLINE))
     }
+}
+
+/** Report the information encapsulated within this [InvalidReferencableItem] to [reporter]. */
+internal fun InvalidReferencableItem.reportIssue(reporter: LocationSpecificReporter) {
+    reporter.report(Issues.UNRESOLVED_LINK, message)
 }

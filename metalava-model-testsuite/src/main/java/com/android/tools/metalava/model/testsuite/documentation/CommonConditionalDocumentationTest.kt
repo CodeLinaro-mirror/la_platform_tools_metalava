@@ -83,7 +83,7 @@ class CommonConditionalDocumentationTest : BaseModelTest() {
                 """
             ),
             expectedIssues =
-                "MAIN_SRC/src/test/pkg/Test.java:5:15: error: Could not resolve 'Flags.FLAG' as could not find 'FLAG' in 'class test.pkg.Flags' [InvalidJavadocExpr]"
+                "MAIN_SRC/src/test/pkg/Test.java:5:15: error: Could not resolve a field called 'Flags.FLAG' as could not find a field called 'FLAG' in 'class test.pkg.Flags' [InvalidJavadocExpr]"
         )
     }
 
@@ -134,7 +134,7 @@ class CommonConditionalDocumentationTest : BaseModelTest() {
                 """
             ),
             expectedIssues =
-                "MAIN_SRC/src/test/pkg/Test.java:5:15: error: invalid item found for 'Flags.FLAG', expected field, found class test.pkg.Flags.FLAG [InvalidJavadocExpr]"
+                "MAIN_SRC/src/test/pkg/Test.java:5:15: error: Could not resolve a field called 'Flags.FLAG' as could not find a field called 'FLAG' in 'class test.pkg.Flags' [InvalidJavadocExpr]"
         )
     }
 

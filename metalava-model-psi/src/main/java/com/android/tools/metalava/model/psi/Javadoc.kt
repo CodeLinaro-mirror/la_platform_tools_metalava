@@ -24,19 +24,6 @@ package com.android.tools.metalava.model.psi
  * TODO: Handle KDoc
  */
 
-/**
- * Whether we should report unresolved symbols. This is typically a bug in the documentation. It
- * looks like there are a LOT of mistakes right now, so I'm worried about turning this on since
- * doclava didn't seem to abort on this.
- *
- * Here are some examples I've spot checked: (1) "Unresolved SQLExceptionif": In
- * java.sql.CallableStatement the getBigDecimal method contains this, presumably missing a space
- * before the if suffix: "@exception SQLExceptionif parameterName does not..." (2) In
- * android.nfc.tech.IsoDep there is "@throws TagLostException if ..." but TagLostException is not
- * imported anywhere and is not in the same package (it's in the parent package).
- */
-const val REPORT_UNRESOLVED_SYMBOLS = false
-
 fun containsLinkTags(documentation: String): Boolean {
     var index = 0
     while (true) {

@@ -26,7 +26,6 @@ import com.android.tools.metalava.model.value.ValueLanguage
 import com.android.tools.metalava.model.value.ValueParser
 import com.android.tools.metalava.model.value.ValueProvider
 import com.android.tools.metalava.model.value.ValueStringConfiguration
-import com.android.tools.metalava.model.value.provider
 import com.android.tools.metalava.reporter.FileLocation
 import java.lang.StringBuilder
 
@@ -622,34 +621,22 @@ sealed interface AnnotationAttribute {
          * [valueProvider] when requested.
          */
         fun createLazyAttribute(name: String, valueProvider: ValueProvider): AnnotationAttribute =
-            DefaultAnnotationAttribute(name, valueProvider)
+            LazyAnnotationAttribute(name, valueProvider)
 
         /** Create an [AnnotationAttribute] called [name] with [value]. */
         fun createAttribute(name: String, value: Value): AnnotationAttribute =
-            DefaultAnnotationAttribute(name, value.provider())
+            DefaultAnnotationAttribute(name, value)
     }
 }
 
-internal class DefaultAnnotationAttribute(
-    override val name: String,
-    private val valueProvider: ValueProvider,
+/** Base implementation of [AnnotationAttribute]. */
+private abstract class BaseAnnotationAttribute(
+    final override val name: String,
 ) : AnnotationAttribute {
 
-    override val value: Value
-        get() = valueProvider.value
-
     override fun snapshot(targetContext: AnnotationContext): DefaultAnnotationAttribute {
-        // Defer retrieval of the value until it is needed as it could throw an exception.
-        // This makes it easier to incrementally expand the Value model without breaking
-        // existing snapshot tests.
-        // TODO(b/354633349): Stop deferring retrieval.
-        val valueProvider =
-            object : ValueProvider {
-                override val value: Value
-                    get() = this@DefaultAnnotationAttribute.value.snapshot(targetContext)
-            }
-
-        return DefaultAnnotationAttribute(name, valueProvider)
+        val valueSnapshot = value.snapshot(targetContext)
+        return DefaultAnnotationAttribute(name, valueSnapshot)
     }
 
     override fun toString(): String {
@@ -667,3 +654,19 @@ internal class DefaultAnnotationAttribute(
         return result
     }
 }
+
+/** Lazy [AnnotationAttribute] that takes a [ValueProvider] to defer creating the [Value]. */
+private class LazyAnnotationAttribute(
+    name: String,
+    private val valueProvider: ValueProvider,
+) : BaseAnnotationAttribute(name) {
+
+    override val value: Value
+        get() = valueProvider.value
+}
+
+/** Simple [AnnotationAttribute] that takes a [Value] directly. */
+private class DefaultAnnotationAttribute(
+    name: String,
+    override val value: Value,
+) : BaseAnnotationAttribute(name)

@@ -16,14 +16,12 @@
 
 package com.android.tools.metalava.model.psi
 
-import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.source.AbstractItemDocumentation
 import com.android.tools.metalava.model.source.toItemDocumentationFactory
 import com.android.tools.metalava.reporter.FileLocation
-import com.android.tools.metalava.reporter.Issues
 import com.intellij.psi.JavaDocTokenType
 import com.intellij.psi.JavaPsiFacade
 import com.intellij.psi.PsiClass
@@ -149,26 +147,6 @@ internal class PsiItemDocumentation(
         return buildString(documentation.length) { expand(comment, this) }
     }
 
-    private fun reportUnresolvedDocReference(unresolved: String) {
-        if (!REPORT_UNRESOLVED_SYMBOLS) {
-            return
-        }
-
-        if (unresolved.startsWith("{@") && !unresolved.startsWith("{@link")) {
-            return
-        }
-
-        // References are sometimes split across lines and therefore have newlines, leading
-        // asterisks etc. in the middle: clean this up before emitting reference into error message
-        val cleaned = unresolved.replace("\n", "").replace("*", "").replace("  ", " ")
-
-        item.codebase.reporter.report(
-            Issues.UNRESOLVED_LINK,
-            item,
-            "Unresolved documentation reference: $cleaned"
-        )
-    }
-
     private fun expand(element: PsiElement, sb: StringBuilder) {
         when {
             element is PsiWhiteSpace -> {
@@ -187,7 +165,7 @@ internal class PsiItemDocumentation(
                     if (containingClass != null) {
                         val referenceText = element.reference?.element?.text ?: text
                         if (referenceText.startsWith("#")) {
-                            sb.append(text)
+                            appendFullyQualifiedMemberSuffix(element, sb, referenceText)
                             return
                         }
 
@@ -211,26 +189,19 @@ internal class PsiItemDocumentation(
                         }
 
                         sb.append(className)
-                        sb.append('#')
-                        sb.append(resolved.name)
-                        val index = text.indexOf('(')
-                        if (index != -1) {
-                            sb.append(text.substring(index))
-                        }
+
+                        val hashIndex = text.indexOf('#')
+                        val memberSuffix = if (hashIndex == -1) "" else text.substring(hashIndex)
+                        appendFullyQualifiedMemberSuffix(element, sb, memberSuffix)
                     } else {
                         sb.append(text)
                     }
                 } else {
-                    if (resolved == null) {
-                        val referenceText = element.reference?.element?.text ?: text
-                        if (text.startsWith("#") && item is ClassItem) {
-                            // Unfortunately resolving references is broken from class javadocs
-                            // to members using just a relative reference, #.
-                        } else {
-                            reportUnresolvedDocReference(referenceText)
-                        }
+                    if (text.startsWith("#")) {
+                        appendFullyQualifiedMemberSuffix(element, sb, text)
+                    } else {
+                        sb.append(text)
                     }
-                    sb.append(text)
                 }
             }
             element is PsiJavaCodeReferenceElement -> {
@@ -252,9 +223,6 @@ internal class PsiItemDocumentation(
                     }
                 } else {
                     val text = element.text
-                    if (resolved == null) {
-                        reportUnresolvedDocReference(text)
-                    }
                     sb.append(text)
                 }
             }
@@ -279,8 +247,8 @@ internal class PsiItemDocumentation(
     }
 
     private fun handleTag(element: PsiInlineDocTag, sb: StringBuilder): Boolean {
-        val name = element.name
-        if (name == "code" || name == "literal" || name == "throws") {
+        val tagType = element.name
+        if (tagType == "code" || tagType == "literal" || tagType == "throws") {
             // Don't attempt to rewrite this
             return false
         }
@@ -291,11 +259,7 @@ internal class PsiItemDocumentation(
         val displayText = customLinkText ?: referenceText.replaceFirst('#', '.')
         if (referenceText.startsWith("#")) {
             val suffix = element.text
-            if (suffix.contains("(") && suffix.contains(")")) {
-                expandArgumentList(element, suffix, sb)
-            } else {
-                sb.append(suffix)
-            }
+            appendFullyQualifiedMemberSuffix(element, sb, suffix)
             return true
         }
 
@@ -314,27 +278,15 @@ internal class PsiItemDocumentation(
                     val referenceElement = firstChildPsi as PsiJavaCodeReferenceElement?
                     val referencedElement = referenceElement!!.resolve()
                     if (referencedElement is PsiClass) {
-                        var className = computeFullClassName(referencedElement)
-                        if (className.indexOf('.') != -1 && !referenceText.startsWith(className)) {
-                            val simpleName = referencedElement.name
-                            if (simpleName != null && referenceText.startsWith(simpleName)) {
-                                className = simpleName
-                            }
-                        }
-                        if (referenceText.startsWith(className)) {
-                            sb.append("{@")
-                            sb.append(element.name)
-                            sb.append(' ')
-                            sb.append(referencedElement.classQualifiedName)
-                            val suffix = referenceText.substring(className.length)
-                            if (suffix.contains("(") && suffix.contains(")")) {
-                                expandArgumentList(element, suffix, sb)
-                            } else {
-                                sb.append(suffix)
-                            }
-                            sb.append(' ')
-                            sb.append(displayText)
-                            sb.append("}")
+                        val qualifiedName = referencedElement.classQualifiedName
+                        val hashIndex = referenceText.indexOf('#')
+                        val className =
+                            if (hashIndex == -1) referenceText
+                            else referenceText.substring(0, hashIndex)
+                        if (qualifiedName == className || qualifiedName.endsWith(".$className")) {
+                            val suffix =
+                                if (hashIndex == -1) "" else referenceText.substring(hashIndex)
+                            appendFullyQualifiedTag(element, sb, qualifiedName, suffix, displayText)
                             return true
                         }
                     }
@@ -348,7 +300,7 @@ internal class PsiItemDocumentation(
                 is PsiClass -> {
                     // No need to handle class references in {@link} and {@linkplain} tags as they
                     // have been resolved in LinkTagType.
-                    if (element.name == "link" || element.name == "linkplain") {
+                    if (tagType == "link" || tagType == "linkplain") {
                         return false
                     }
 
@@ -371,15 +323,15 @@ internal class PsiItemDocumentation(
                                 val end = start + valueElement.textLength
                                 text.substring(0, start) + qualifiedName + text.substring(end)
                             }
-                            name == "see" -> {
+                            tagType == "see" -> {
                                 val suffix =
                                     text.substring(
                                         text.indexOf(referenceText) + referenceText.length
                                     )
                                 "@see $qualifiedName$suffix"
                             }
-                            text.startsWith("{") -> "{@$name $qualifiedName $displayText}"
-                            else -> "@$name $qualifiedName $displayText"
+                            text.startsWith("{") -> "{@$tagType $qualifiedName $displayText}"
+                            else -> "@$tagType $qualifiedName $displayText"
                         }
                     sb.append(append)
                     return true
@@ -460,14 +412,70 @@ internal class PsiItemDocumentation(
                     }
                 }
             }
-        } else {
-            reportUnresolvedDocReference(referenceText)
         }
 
         return false
     }
 
-    private fun expandArgumentList(element: PsiInlineDocTag, suffix: String, sb: StringBuilder) {
+    /**
+     * Append a fully qualified version of [element] to [sb].
+     *
+     * @param element the [PsiInlineDocTag] to append.
+     * @param sb the destination [StringBuilder].
+     * @param qualifiedName the fully qualified name of the class.
+     * @param memberSuffix the not yet fully qualified member reference suffix.
+     * @param label the label to use for the tag.
+     */
+    private fun appendFullyQualifiedTag(
+        element: PsiInlineDocTag,
+        sb: StringBuilder,
+        qualifiedName: String,
+        memberSuffix: String,
+        label: String
+    ) {
+        // Open the doc tag.
+        sb.append("{@")
+        sb.append(element.name)
+        sb.append(' ')
+
+        // Append the fully qualified reference to the buffer, remembering where it started so it
+        // can be extracted later.
+        val startReference = sb.length
+        sb.append(qualifiedName)
+        appendFullyQualifiedMemberSuffix(element, sb, memberSuffix)
+
+        // Extract the qualified reference, convert it into display text by replacing '#' with '.'
+        // and compare it to the display text. If it is different then append the display text,
+        // otherwise do not.
+        if (sb.substring(startReference).replace('#', '.') != label) {
+            sb.append(' ')
+            sb.append(label)
+        }
+
+        // Close the doc tag.
+        sb.append("}")
+    }
+
+    /**
+     * Append a fully qualified version of [memberSuffix] to [sb].
+     *
+     * @param element the [PsiElement] that will be used to resolve any type references.
+     * @param sb the destination [StringBuilder].
+     * @param memberSuffix the not yet fully qualified member reference suffix.
+     */
+    private fun appendFullyQualifiedMemberSuffix(
+        element: PsiElement,
+        sb: StringBuilder,
+        memberSuffix: String
+    ) {
+        if (memberSuffix.contains("(") && memberSuffix.contains(")")) {
+            expandArgumentList(element, memberSuffix, sb)
+        } else {
+            sb.append(memberSuffix)
+        }
+    }
+
+    private fun expandArgumentList(element: PsiElement, suffix: String, sb: StringBuilder) {
         val elementFactory = JavaPsiFacade.getElementFactory(element.project)
         // Try to rewrite the types to fully qualified names as well
         val begin = suffix.indexOf('(')

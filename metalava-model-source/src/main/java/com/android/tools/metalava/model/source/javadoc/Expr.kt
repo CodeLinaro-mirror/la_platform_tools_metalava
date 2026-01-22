@@ -102,7 +102,7 @@ internal class ExprBuilder(
         val fieldReference = fieldReferenceContext.text.replace(Regex("""\s+"""), "")
 
         // Resolve the field reference.
-        val resolved = context.resolveItemReference(fieldReference, NameClassification.AMBIGUOUS)
+        val resolved = context.resolveItemReference(fieldReference, NameClassification.FIELD)
 
         // Get the Token to use for reporting errors in the flag reference.
         val fieldSymbol = fieldReferenceContext.IDENTIFIER(0).symbol
@@ -141,15 +141,9 @@ internal class ExprBuilder(
                     reporter.report(fieldSymbol, Issues.INVALID_JAVADOC_EXPR, resolved.message)
                     null
                 }
-                else -> {
-                    // Found an item but it was not a field.
-                    reporter.report(
-                        fieldSymbol,
-                        Issues.INVALID_JAVADOC_EXPR,
-                        "invalid item found for '$fieldReference', expected field, found $resolved"
-                    )
-                    null
-                }
+                // This should never happen as passing in NameClassification.FIELD above should
+                // limit the returned types to FieldItem or InvalidReferencableItem
+                else -> error("type '$fieldReference' was resolved to an unknown type $resolved")
             }
 
         // Create the flag function call expression. If `flagName` is `null` then this will always

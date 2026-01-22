@@ -98,7 +98,7 @@ Available Issues                             |  Category                        
   ExtendsDeprecated                          |  api_lint                             |   hidden
   ExtendsError                               |  api_lint                             |   error
   FacadeClassJvmName                         |  api_lint                             |   hidden
-  FlaggedApiLiteral                          |  api_lint                             |   warning_error_when_new
+  FlaggedApiLiteral                          |  api_lint                             |   error
   ForbiddenSuperClass                        |  api_lint                             |   error
   ForbiddenTag                               |  documentation                        |   error
   FractionFloat                              |  api_lint                             |   error

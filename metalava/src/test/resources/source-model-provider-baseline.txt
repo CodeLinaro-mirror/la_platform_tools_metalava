@@ -41,8 +41,10 @@ com.android.tools.metalava.PolymorphicMethodsTest
 
 com.android.tools.metalava.RequiresFeatureTest
   Check RequiresFeature handling - custom enforcement[turbine]
+  Check RequiresFeature handling - hidden feature[turbine]
   Check RequiresFeature handling - invalid enforcement[turbine]
   Check RequiresFeature handling - missing feature[turbine]
+  Check RequiresFeature handling[turbine]
 
 com.android.tools.metalava.TypeUseAnnotationFilteringTest
   Keep type use annotations[turbine]
