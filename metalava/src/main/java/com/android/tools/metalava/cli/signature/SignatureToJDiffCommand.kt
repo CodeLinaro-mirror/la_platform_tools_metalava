@@ -17,7 +17,6 @@
 package com.android.tools.metalava.cli.signature
 
 import com.android.tools.metalava.JDiffXmlWriter
-import com.android.tools.metalava.OptionsDelegate
 import com.android.tools.metalava.cli.common.DefaultSignatureFileLoader
 import com.android.tools.metalava.cli.common.MetalavaSubCommand
 import com.android.tools.metalava.cli.common.existingFile
@@ -121,10 +120,6 @@ class SignatureToJDiffCommand :
             .newFile()
 
     override fun run() {
-        // Make sure that none of the code called by this command accesses the global `options`
-        // property.
-        OptionsDelegate.disallowAccess()
-
         val annotationManager = DefaultAnnotationManager()
         val codebaseConfig =
             Codebase.Config(

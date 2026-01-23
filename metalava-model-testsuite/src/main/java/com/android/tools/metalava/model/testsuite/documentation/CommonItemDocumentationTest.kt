@@ -968,7 +968,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
             )
             assertDocContentToString(
                 documentation.blockTagDescription("see"),
-                expected = """JavadocText("String block tag documentation.")""",
+                expected = """JavadocText("block tag documentation.")""",
                 message = "@see block tag"
             )
             assertNull(documentation.blockTagDescription("unknown"), message = "@unknown block tag")

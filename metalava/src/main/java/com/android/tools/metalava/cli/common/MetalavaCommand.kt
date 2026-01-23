@@ -41,7 +41,7 @@ const val ARG_VERSION = "--version"
  * the subcommand called [defaultCommandName] passing in all the arguments not already consumed by
  * Clikt options.
  */
-internal open class MetalavaCommand(
+open class MetalavaCommand(
     internal val executionEnvironment: ExecutionEnvironment,
 
     /**

@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.apilevels.ApiVersion
 import com.android.tools.metalava.cli.common.BaseOptionGroupTest
 import com.android.tools.metalava.cli.common.MetalavaCliException
 import kotlin.test.assertEquals
@@ -52,6 +53,12 @@ Stub Generation:
                                              documentation based on source annotations present in the code. This is
                                              implied by --doc-stubs. (default: do not enhance unless --doc-stubs is
                                              specified)
+  --migrate-nullness <api-file>              Compare nullness information with the previous stable API and mark newly
+                                             annotated APIs as recently added. That replaces the annotations with a
+                                             special form of annotation that will cause the Kotlin compiler to treat
+                                             nullability issues as warnings not errors. The intent is that this will
+                                             make it possible to fix existing app code incrementally after a release
+                                             rather than having to fix it all at once.
   --force-convert-to-warning-nullability-annotations <package1:-package2:...>
                                              On every API declared in a class referenced by the given filter, makes
                                              nullability issues appear to callers as warnings rather than errors by
@@ -59,6 +66,17 @@ Stub Generation:
                                              @RecentlyNullable/@RecentlyNonNull.
 
                                              See `metalava help package-filters` for more information.
+  --apply-api-levels <api-versions.xml>      Reads an XML file containing API level descriptions and merges the
+                                             information into the documentation.
+  --api-version-label <api-version>:<label>  Specifies a label to use in place of the `<api-version>` when augmenting
+                                             the Javadoc to include information about the history of an API item, e.g.
+                                             in `@apiSince` and `@deprecatedSince` doc tags. This can be specified
+                                             multiple times to provide labels for multiple different versions.
+
+                                             See --api-version-for-sources for acceptable `<api-version>`s.
+
+                                             This only has an effect when generating doc stubs, or enhancing the javadoc
+                                             of normal stubs. It has no effect on the generation of the API history.
     """
         .trimIndent()
 
@@ -79,6 +97,51 @@ class StubGenerationOptionsTest :
                 "Cannot use --stubs and --doc-stubs, they are mutually exclusive",
                 exception.message
             )
+        }
+    }
+
+    @Test
+    fun `Test --apply-api-levels for non-existent file works correctly`() {
+        val nonExistentFile = temporaryFolder.root.resolve("non-existent/api-versions.xml")
+        runTest(ARG_APPLY_API_LEVELS, nonExistentFile.path) {
+            // Make sure that no errors are reported when parsing the options.
+            assertEquals("", stdout)
+            assertEquals("", stderr)
+            val exception =
+                assertThrows(MetalavaCliException::class.java) { options.generatorConfig() }
+
+            assertEquals(
+                "--apply-api-levels file 'TESTROOT/non-existent/api-versions.xml' does not exist or is not readable",
+                cleanupString(exception.message!!)
+            )
+        }
+    }
+
+    @Test
+    fun `Test invalid --api-version-label`() {
+        runTest(
+            ARG_API_VERSION_LABEL,
+            "9",
+        ) {
+            assertEquals("", stdout)
+            assertEquals(
+                """Invalid value for "--api-version-label": Must be of the form <version>:<label> but found '9'""",
+                stderr
+            )
+        }
+    }
+
+    @Test
+    fun `Test --api-version-label`() {
+        runTest(
+            ARG_API_VERSION_LABEL,
+            "1:First",
+            ARG_API_VERSION_LABEL,
+            "2.2:Other",
+        ) {
+            assertEquals("First", options.getApiVersionLabel(ApiVersion.fromLevel(1)))
+            assertEquals("Other", options.getApiVersionLabel(ApiVersion.fromMajorMinor(2, 2)))
+            assertEquals("3.1", options.getApiVersionLabel(ApiVersion.fromMajorMinor(3, 1)))
         }
     }
 }

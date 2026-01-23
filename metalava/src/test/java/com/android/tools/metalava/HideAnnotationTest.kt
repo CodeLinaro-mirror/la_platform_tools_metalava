@@ -167,7 +167,7 @@ class HideAnnotationTest : DriverTest() {
             api =
                 """
                 package test.pkg {
-                  @kotlin.annotation.Target(allowedTargets=kotlin.annotation.AnnotationTarget.FILE) public @interface HideFile {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) @kotlin.annotation.Target(allowedTargets=kotlin.annotation.AnnotationTarget.FILE) public @interface HideFile {
                   }
                   public final class VisibleTopLevelClass {
                     ctor public VisibleTopLevelClass();

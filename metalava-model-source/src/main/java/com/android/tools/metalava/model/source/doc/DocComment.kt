@@ -164,8 +164,16 @@ internal class DefaultDocComment(
     override fun hasBlockTagOfType(tagTypeName: String) =
         blockTagSections.any { it.tagType.name == tagTypeName }
 
+    /** Get the block [TagType] for [tagTypeName]. */
+    private fun blockTagTypeFor(tagTypeName: String) =
+        TagTypes.tagTypeOf(tagTypeName).apply {
+            if (!this.form.supportsBlockTag) {
+                error("Cannot use '$tagTypeName' as a block tag")
+            }
+        }
+
     override fun addBlockTagSection(tagTypeName: String, description: JavadocContent?) {
-        val tagType = BlockTagTypes.tagTypeOf(tagTypeName)
+        val tagType = blockTagTypeFor(tagTypeName)
         val blockTagSection =
             DefaultBlockTagSection(
                 context,
@@ -197,7 +205,7 @@ internal class DefaultDocComment(
         tagTypeName: String,
         description: JavadocContent?
     ): DocContentOwner {
-        val tagType = BlockTagTypes.tagTypeOf(tagTypeName)
+        val tagType = blockTagTypeFor(tagTypeName)
         return PendingBlockTagSection(this, context, tagType, description.toSupplier())
     }
 

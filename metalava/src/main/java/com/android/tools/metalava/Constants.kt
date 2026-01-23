@@ -20,7 +20,6 @@ const val ORG_JETBRAINS_ANNOTATIONS_PREFIX = "org.jetbrains.annotations."
 const val ORG_INTELLIJ_LANG_ANNOTATIONS_PREFIX = "org.intellij.lang.annotations."
 const val ANDROID_SDK_CONSTANT = "android.annotation.SdkConstant"
 
-const val ENV_VAR_METALAVA_DUMP_ARGV = "METALAVA_DUMP_ARGV"
 const val ENV_VAR_METALAVA_PREPEND_ARGS = "METALAVA_PREPEND_ARGS"
 const val ENV_VAR_METALAVA_APPEND_ARGS = "METALAVA_APPEND_ARGS"
 

@@ -16,8 +16,7 @@
 
 package com.android.tools.metalava.apilevels
 
-import com.android.tools.metalava.ARG_CURRENT_VERSION
-import com.android.tools.metalava.ARG_FIRST_VERSION
+import com.android.tools.metalava.ARG_API_VERSION_RANGE
 import com.android.tools.metalava.model.api.surface.ApiSurface
 import java.io.File
 import java.util.TreeSet
@@ -420,8 +419,7 @@ sealed class PatternNode {
                     Mandatory property that stores the version of a matched file.
 
                     Apart from the ${Placeholder.VERSION_EXTENSION} all placeholders for this will
-                    ignore versions that fall outside the range $ARG_FIRST_VERSION and
-                    $ARG_CURRENT_VERSION, if provided.
+                    ignore versions that fall outside the range $ARG_API_VERSION_RANGE, if provided.
                 """
             },
         ) {

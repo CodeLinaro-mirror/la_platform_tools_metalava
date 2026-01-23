@@ -371,18 +371,17 @@ enum class StripJavaLangPrefix {
 }
 
 /**
- * A mapping from one class's type parameters to the types provided for those type parameters in a
- * possibly indirect subclass.
+ * A mapping from type parameters to types which should be substituted for these type parameters.
+ *
+ * The primary use case for the is to map from one class's type parameters to the types provided for
+ * those type parameters in a possibly indirect subclass. It can also be used for a mapping from a
+ * typealias's type parameters to the types provided for those type parameters in a usage of that
+ * typealias.
  *
  * e.g. Given `Map<K, V>` and a subinterface `StringToIntMap extends Map<String, Integer>` then this
  * would contain a mapping from `K -> String` and `V -> Integer`.
- *
- * Although a `ClassTypeItem`'s arguments can be `WildcardTypeItem`s as well as
- * `ReferenceTypeItem`s, a `ClassTypeItem` used in an extends or implements list cannot have a
- * `WildcardTypeItem` as an argument so this cast is safe. See
- * https://docs.oracle.com/javase/specs/jls/se8/html/jls-8.html#jls-Superclass
  */
-typealias TypeParameterBindings = Map<TypeParameterItem, ReferenceTypeItem>
+typealias TypeParameterBindings = Map<TypeParameterItem, TypeArgumentTypeItem>
 
 abstract class DefaultTypeItem(
     final override val modifiers: TypeModifiers,
@@ -817,9 +816,6 @@ interface TypeArgumentTypeItem : TypeItem {
  * See https://docs.oracle.com/javase/specs/jls/se8/html/jls-4.html#jls-ReferenceType.
  */
 interface ReferenceTypeItem : TypeItem, TypeArgumentTypeItem {
-    /** Override to specialize the return type. */
-    override fun convertType(typeParameterBindings: TypeParameterBindings): ReferenceTypeItem
-
     /** Override to specialize the return type. */
     override fun substitute(modifiers: TypeModifiers): ReferenceTypeItem
 
@@ -1345,7 +1341,7 @@ interface VariableTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Except
     override fun substitute(modifiers: TypeModifiers): VariableTypeItem =
         if (modifiers !== this.modifiers) @Suppress("DEPRECATION") duplicate(modifiers) else this
 
-    override fun convertType(typeParameterBindings: TypeParameterBindings): ReferenceTypeItem {
+    override fun convertType(typeParameterBindings: TypeParameterBindings): TypeArgumentTypeItem {
         val nullability = modifiers.nullability
         return typeParameterBindings[asTypeParameter]?.let { replacement ->
             val replacementNullability =
@@ -1365,7 +1361,7 @@ interface VariableTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Except
             if (replacementNullability == null) {
                 replacement
             } else {
-                replacement.substitute(replacementNullability) as ReferenceTypeItem
+                replacement.substitute(replacementNullability) as TypeArgumentTypeItem
             }
         }
             ?:
@@ -1461,8 +1457,17 @@ interface WildcardTypeItem : TypeItem, TypeArgumentTypeItem {
     override fun convertType(typeParameterBindings: TypeParameterBindings): WildcardTypeItem {
         return substitute(
             modifiers,
-            extendsBound?.convertType(typeParameterBindings),
-            superBound?.convertType(typeParameterBindings)
+            // The converted bounds should always end up as ReferenceTypeItems.
+            // When convertType is used for superclasses, although a `ClassTypeItem`'s arguments can
+            // be `WildcardTypeItem`s as well as `ReferenceTypeItem`s, a `ClassTypeItem` used in an
+            // extends or implements list cannot have a `WildcardTypeItem` as an argument so this
+            // cast will always succeed.
+            // See https://docs.oracle.com/javase/specs/jls/se8/html/jls-8.html#jls-Superclass
+            // When convertType is used for typealiases, it is possible for a `WildcardTypeItem` to
+            // be used as an argument. However, that should never end up as the bounds for another
+            // `WildcardTypeItem`.
+            extendsBound?.convertType(typeParameterBindings) as? ReferenceTypeItem,
+            superBound?.convertType(typeParameterBindings) as? ReferenceTypeItem,
         )
     }
 

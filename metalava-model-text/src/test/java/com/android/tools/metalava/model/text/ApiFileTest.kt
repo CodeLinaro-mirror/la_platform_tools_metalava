@@ -25,7 +25,6 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
-import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.testing.value.literalValue
 import com.android.tools.metalava.testing.getAndroidJar
 import com.google.common.truth.Truth.assertThat
@@ -754,7 +753,6 @@ class ApiFileTest : BaseTextCodebaseTest() {
         val apiSurfaces = ApiSurfaces.create(needsBase = true)
         val codebaseConfig =
             Codebase.Config(
-                annotationManager = noOpAnnotationManager,
                 apiSurfaces = apiSurfaces,
             )
         val classPathResolver = ClassLoaderBasedClassPathResolver(listOf(getAndroidJar()))

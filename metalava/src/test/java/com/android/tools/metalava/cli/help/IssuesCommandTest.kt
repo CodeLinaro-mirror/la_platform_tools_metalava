@@ -64,6 +64,7 @@ Available Issues                             |  Category                        
   CallbackMethodName                         |  api_lint                             |   error
   CallbackName                               |  api_lint                             |   warning
   ChangedAbstract                            |  binary_and_source_compatibility      |   error
+  ChangedAnnotationRetention                 |  other_compatibility                  |   error
   ChangedClass                               |  binary_and_source_compatibility      |   error
   ChangedDefault                             |  binary_and_source_compatibility      |   error
   ChangedDeprecated                          |  source_compatibility_only            |   hidden
@@ -132,7 +133,16 @@ Available Issues                             |  Category                        
   InvalidNullabilityOverride                 |  api_lint                             |   error
   InvalidPackage                             |  unknown                              |   error
   InvalidSyntax                              |  unknown                              |   error
+  InvalidTagForm                             |  documentation                        |   warning_error_when_new
   IoError                                    |  unknown                              |   error
+  KmpDeprecationMismatch                     |  api_lint                             |   error
+  KmpExperimentalMismatch                    |  api_lint                             |   error
+  KmpHideShowAnnotationMismatch              |  api_lint                             |   error
+  KmpModifierMismatch                        |  api_lint                             |   error
+  KmpOriginMismatch                          |  api_lint                             |   error
+  KmpReifiedMismatch                         |  api_lint                             |   error
+  KmpSignatureClash                          |  api_lint                             |   error
+  KmpVisibilityMismatch                      |  api_lint                             |   error
   KotlinDefaultParameterOrder                |  api_lint                             |   error
   KotlinKeyword                              |  api_lint                             |   error
   KotlinOperator                             |  api_lint                             |   info
@@ -145,6 +155,7 @@ Available Issues                             |  Category                        
   MethodNameTense                            |  api_lint                             |   warning
   MethodNameUnits                            |  api_lint                             |   error
   MinMaxConstant                             |  api_lint                             |   warning
+  MissingAnnotationsXmlItem                  |  api_lint                             |   hidden
   MissingBuildMethod                         |  api_lint                             |   warning
   MissingColumn                              |  documentation                        |   warning
   MissingEnvironmentsValue                   |  api_lint                             |   error
@@ -158,6 +169,7 @@ Available Issues                             |  Category                        
   MutableBareField                           |  api_lint                             |   error
   NoByteOrShort                              |  api_lint                             |   warning
   NoClone                                    |  api_lint                             |   error
+  NoPreviouslyReleasedApi                    |  api_lint                             |   error
   NoSettingsProvider                         |  api_lint                             |   hidden
   NotCloseable                               |  api_lint                             |   warning
   Nullable                                   |  documentation                        |   hidden

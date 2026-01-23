@@ -16,33 +16,41 @@
 
 package com.android.tools.metalava.config
 
+import com.android.tools.metalava.config.ApiFlagActionConfig.Mutability
+import com.android.tools.metalava.config.ApiFlagActionConfig.Status
 import com.fasterxml.jackson.annotation.JsonValue
 import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlProperty
 
 data class ApiFlagsConfig(
+    @field:JacksonXmlProperty(localName = "unknown-flags", namespace = CONFIG_NAMESPACE)
+    val unknownFlags: UnknownApiFlagsConfig? = null,
     @field:JacksonXmlProperty(localName = "api-flag", namespace = CONFIG_NAMESPACE)
     val flags: List<ApiFlagConfig> = emptyList(),
 ) : CombinableConfig<ApiFlagsConfig> {
 
     /** Combine with another [ApiFlagsConfig] by concatenating the [flags]s. */
-    override fun combineWith(other: ApiFlagsConfig) = ApiFlagsConfig(flags + other.flags)
+    override fun combineWith(other: ApiFlagsConfig) =
+        ApiFlagsConfig(
+            unknownFlags =
+                when {
+                    unknownFlags == null -> other.unknownFlags
+                    other.unknownFlags == null -> unknownFlags
+                    else ->
+                        error("Cannot combine unknownFlag $unknownFlags and ${other.unknownFlags}")
+                },
+            flags = flags + other.flags
+        )
 
     /** Validate this object, i.e. check to make sure that the contained objects are consistent. */
     fun validate() {}
 }
 
-data class ApiFlagConfig(
-    /** The flag package name. */
-    @field:JacksonXmlProperty(isAttribute = true, localName = "package") val pkg: String,
-
-    /** The flag name, within [pkg]. */
-    @field:JacksonXmlProperty(isAttribute = true) val name: String,
-
+interface ApiFlagActionConfig {
     /**
      * Whether the flag can be mutated during the lifetime of the platform for which the API is
      * being built.
      */
-    @field:JacksonXmlProperty(isAttribute = true) val mutability: Mutability,
+    val mutability: Mutability
 
     /**
      * The status of the flag.
@@ -50,12 +58,8 @@ data class ApiFlagConfig(
      * If the flag is [Mutability.MUTABLE] then this could change over the lifetime of the platform
      * for which the API is being built.
      */
-    @field:JacksonXmlProperty(isAttribute = true) val status: Status,
+    val status: Status
 
-    /** Whether the flag is exported */
-    @field:JacksonXmlProperty(isAttribute = true, localName = "is-exported")
-    val isExported: Boolean,
-) {
     enum class Mutability {
         MUTABLE,
         IMMUTABLE,
@@ -74,3 +78,22 @@ data class ApiFlagConfig(
         @JsonValue fun forJackson() = name.lowercase()
     }
 }
+
+data class UnknownApiFlagsConfig(
+    @field:JacksonXmlProperty(isAttribute = true) override val mutability: Mutability,
+    @field:JacksonXmlProperty(isAttribute = true) override val status: Status,
+) : ApiFlagActionConfig
+
+data class ApiFlagConfig(
+    /** The flag package name. */
+    @field:JacksonXmlProperty(isAttribute = true, localName = "package") val pkg: String,
+
+    /** The flag name, within [pkg]. */
+    @field:JacksonXmlProperty(isAttribute = true) val name: String,
+    @field:JacksonXmlProperty(isAttribute = true) override val mutability: Mutability,
+    @field:JacksonXmlProperty(isAttribute = true) override val status: Status,
+
+    /** Whether the flag is exported */
+    @field:JacksonXmlProperty(isAttribute = true, localName = "is-exported")
+    val isExported: Boolean,
+) : ApiFlagActionConfig

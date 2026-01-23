@@ -17,8 +17,8 @@
 package com.android.tools.metalava.doc
 
 import com.android.tools.lint.checks.infrastructure.TestFiles
-import com.android.tools.metalava.ARG_CURRENT_CODENAME
-import com.android.tools.metalava.ARG_CURRENT_VERSION
+import com.android.tools.metalava.ARG_API_VERSION_FOR_SOURCES
+import com.android.tools.metalava.ARG_API_VERSION_LABEL
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.SystemApiType
 import com.android.tools.metalava.columnSource
@@ -35,6 +35,7 @@ import com.android.tools.metalava.uiThreadSource
 import com.android.tools.metalava.workerThreadSource
 import org.junit.Test
 
+// TODO (b/454050901) : Update test to replace --current-version with --api-version-for-sources
 /** Tests for the [DocAnalyzer] which enhances the docs */
 class DocAnalyzerTest : DriverTest() {
     // TODO: Test @StringDef
@@ -883,12 +884,7 @@ class DocAnalyzerTest : DriverTest() {
     fun `Api levels around current and preview`() {
         check(
             extraArguments =
-                arrayOf(
-                    ARG_CURRENT_CODENAME,
-                    "Z",
-                    ARG_CURRENT_VERSION,
-                    "35" // not real api level of Z
-                ),
+                arrayOf(ARG_API_VERSION_FOR_SOURCES, "36", ARG_API_VERSION_LABEL, "36:FOO"),
             includeSystemApiAnnotations = SystemApiType.PRIVILEGED_APPS,
             sourceFiles =
                 arrayOf(
@@ -931,7 +927,7 @@ class DocAnalyzerTest : DriverTest() {
                     public Test() { throw new RuntimeException("Stub!"); }
                     /** @apiSince 35 */
                     public static final java.lang.String UNIT_TEST_1 = "unit.test.1";
-                    /** @apiSince Z */
+                    /** @apiSince FOO */
                     public static final java.lang.String UNIT_TEST_2 = "unit.test.2";
                     }
                     """
@@ -941,13 +937,9 @@ class DocAnalyzerTest : DriverTest() {
     }
 
     @Test
-    fun `Api levels current codename but no current version`() {
+    fun `Api levels no current version`() {
         check(
-            extraArguments =
-                arrayOf(
-                    ARG_CURRENT_CODENAME,
-                    "Z",
-                ),
+            extraArguments = arrayOf(),
             sourceFiles =
                 arrayOf(
                     java(
@@ -1000,13 +992,7 @@ class DocAnalyzerTest : DriverTest() {
         // @SystemApi, @TestApi etc cannot get api versions since we don't have
         // accurate android.jar files (or even reliable api.txt/api.xml files) for them.
         check(
-            extraArguments =
-                arrayOf(
-                    ARG_CURRENT_CODENAME,
-                    "Z",
-                    ARG_CURRENT_VERSION,
-                    "35" // not real api level of Z
-                ),
+            extraArguments = arrayOf(ARG_API_VERSION_FOR_SOURCES, "36"),
             sourceFiles =
                 arrayOf(
                     java(
@@ -1045,7 +1031,7 @@ class DocAnalyzerTest : DriverTest() {
                     public Test(int i) { throw new RuntimeException("Stub!"); }
                     /** @apiSince 35 */
                     public static final java.lang.String UNIT_TEST_1 = "unit.test.1";
-                    /** @apiSince Z */
+                    /** @apiSince 36 */
                     public static final java.lang.String UNIT_TEST_2 = "unit.test.2";
                     }
                     """
@@ -1062,10 +1048,8 @@ class DocAnalyzerTest : DriverTest() {
         check(
             extraArguments =
                 arrayOf(
-                    ARG_CURRENT_CODENAME,
-                    "Z",
-                    ARG_CURRENT_VERSION,
-                    "35" // not real api level of Z
+                    ARG_API_VERSION_FOR_SOURCES,
+                    "36" // not real api level of Z
                 ),
             sourceFiles =
                 arrayOf(
@@ -1213,12 +1197,12 @@ class DocAnalyzerTest : DriverTest() {
     }
 
     @Test
-    fun `@sdkExtSince (finalized, no codename)`() {
+    fun `@sdkExtSince (finalized)`() {
         check(
             extraArguments =
                 arrayOf(
-                    ARG_CURRENT_VERSION,
-                    "30",
+                    ARG_API_VERSION_FOR_SOURCES,
+                    "31",
                 ),
             sourceFiles = SdkExtSinceConstants.sourceFiles,
             applyApiLevelsXml = SdkExtSinceConstants.apiVersionsXml,
@@ -1255,7 +1239,10 @@ class DocAnalyzerTest : DriverTest() {
                      * @sdkExtSince Standalone Extensions 3
                      */
                     public static final java.lang.String UNIT_TEST_2 = "unit.test.2";
-                    /** @sdkExtSince Standalone Extensions 4 */
+                    /**
+                     * @apiSince 31
+                     * @sdkExtSince Standalone Extensions 4
+                     */
                     public static final java.lang.String UNIT_TEST_3 = "unit.test.3";
                     /**
                      * @apiSince 1

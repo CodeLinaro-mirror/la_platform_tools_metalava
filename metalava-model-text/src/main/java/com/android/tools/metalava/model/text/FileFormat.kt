@@ -215,7 +215,13 @@ data class FileFormat(
     val typeArgumentSpacing
         get() = effectiveValue({ specifiedTypeArgumentSpacing }, TypeArgumentSpacing.LEGACY)
 
-    /** The base version of the file format. */
+    /**
+     * The base version of the file format.
+     *
+     * There is a cycle in the creation of [Version] and [FileFormat] and care must be taken not to
+     * initialize this class before [FileFormat] and its companion. That means you must not access
+     * [Version.entries] directly. Use [FileFormat.versions] instead.
+     */
     enum class Version(
         /** The version number of this as a string, e.g. "3.0". */
         val versionNumber: String,
@@ -489,6 +495,9 @@ data class FileFormat(
 
         // The defaults associated with the latest version.
         val LATEST = allDefaults.last()
+
+        /** The list of all [Version] instances. */
+        val versions: List<Version> = Version.entries
 
         const val SIGNATURE_FORMAT_PREFIX = "// Signature format: "
 

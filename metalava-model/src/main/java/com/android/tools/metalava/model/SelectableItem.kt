@@ -116,10 +116,8 @@ interface SelectableItem : Item {
     override var targetLanguages: Set<TargetLanguage>
 
     /**
-     * The javadoc/KDoc comment for this code element, if any. This is the original content of the
-     * documentation, including lexical tokens to begin, continue and end the comment (such as /+*).
-     * See [ItemDocumentation.fullyQualifiedDocumentation] to look up the documentation with fully
-     * qualified references to classes.
+     * An abstract representation of the underlying javadoc/KDoc comment for this code element, if
+     * any.
      */
     val documentation: ItemDocumentation?
 

@@ -33,4 +33,9 @@ enum class AnnotationRetention {
             return if (isKotlin) RUNTIME else CLASS
         }
     }
+
+    fun isMoreRestrictiveThan(other: AnnotationRetention): Boolean {
+        return (this == CLASS || this == BINARY) && other == RUNTIME ||
+            this == SOURCE && other != SOURCE
+    }
 }

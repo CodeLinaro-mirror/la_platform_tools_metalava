@@ -19,7 +19,6 @@ package com.android.tools.metalava.model.psi
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.model.Assertions
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.reporter.BasicReporter
 import com.android.tools.metalava.reporter.Reporter
@@ -81,7 +80,6 @@ class PsiSourceParserTest : TemporaryFolderOwner, Assertions {
             .createSourceParser(
                 codebaseConfig =
                     Codebase.Config(
-                        annotationManager = noOpAnnotationManager,
                         reporter = reporter,
                     ),
             )

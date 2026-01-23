@@ -98,6 +98,7 @@ class DefaultItemFactory(
         superClassType: ClassTypeItem?,
         interfaceTypes: List<ClassTypeItem>,
         optionalAliasedType: TypeItem? = null,
+        isFileFacade: Boolean = false,
     ) =
         DefaultClassItem(
             codebase,
@@ -116,7 +117,7 @@ class DefaultItemFactory(
             origin,
             superClassType,
             interfaceTypes,
-            isFileFacade = false,
+            isFileFacade = isFileFacade,
             optionalAliasedType = optionalAliasedType,
         )
 
@@ -289,7 +290,7 @@ class DefaultItemFactory(
         typeParameterList: TypeParameterList,
         origin: ClassOrigin,
         documentationFactory: ItemDocumentationFactory = ItemDocumentation.NONE_FACTORY,
-    ): ClassItem =
+    ): DefaultClassItem =
         DefaultClassItem.createTypeAlias(
             codebase,
             fileLocation,

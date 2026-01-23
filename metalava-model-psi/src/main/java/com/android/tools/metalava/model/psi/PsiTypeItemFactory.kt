@@ -393,9 +393,7 @@ internal class PsiTypeItemFactory(
                 typeAlias.aliasedType
             } else {
                 val typeParameterBindings =
-                    typeAlias.typeParameterList
-                        .zip(classTypeItem.arguments.map { it as ReferenceTypeItem })
-                        .toMap()
+                    typeAlias.typeParameterList.zip(classTypeItem.arguments).toMap()
                 typeAlias.aliasedType.convertType(typeParameterBindings)
             }
 

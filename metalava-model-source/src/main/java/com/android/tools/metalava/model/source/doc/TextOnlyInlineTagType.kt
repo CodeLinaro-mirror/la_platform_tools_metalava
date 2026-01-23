@@ -17,7 +17,7 @@
 package com.android.tools.metalava.model.source.doc
 
 /** A [TagType] for inline tags that can only contain text, e.g. `{@code}`, `{@literal}`. */
-internal class TextOnlyInlineTagType(name: String) : TagType<TagData>(name) {
+internal class TextOnlyInlineTagType(name: String) : TagType<TagData>(name, TagTypeForm.INLINE) {
     override val containsTextOnly: Boolean
         get() = true
 }

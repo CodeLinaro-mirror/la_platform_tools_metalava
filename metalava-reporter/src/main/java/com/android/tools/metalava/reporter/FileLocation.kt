@@ -18,6 +18,7 @@ package com.android.tools.metalava.reporter
 
 import java.io.File
 import java.nio.file.Path
+import java.util.Objects
 
 /**
  * Identifies a specific line within an input file.
@@ -108,6 +109,18 @@ abstract class FileLocation {
                 }
             }
         }
+    }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is FileLocation) return false
+        return other.path == this.path &&
+            other.line == this.line &&
+            other.characterPosition == this.characterPosition
+    }
+
+    override fun hashCode(): Int {
+        return Objects.hash(path, line, characterPosition)
     }
 
     override fun toString() =

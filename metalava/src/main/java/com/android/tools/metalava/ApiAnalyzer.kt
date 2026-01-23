@@ -65,7 +65,7 @@ class ApiAnalyzer(
     /** The code to analyze */
     private val codebase: Codebase,
     private val reporter: Reporter,
-    private val config: Config = Config(),
+    private val config: Config,
 ) {
 
     data class Config(
@@ -99,7 +99,10 @@ class ApiAnalyzer(
         val allShowAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),
 
         /** Configuration for any [ApiPredicate] instances this needs to create. */
-        val apiPredicateConfig: ApiPredicate.Config = ApiPredicate.Config()
+        val apiPredicateConfig: ApiPredicate.Config = ApiPredicate.Config(),
+
+        /** Configuration for [AnnotationsMerger] instances this needs to create. */
+        val annotationsMergerConfig: AnnotationsMerger.Config = AnnotationsMerger.Config(),
     )
 
     /** All packages in the API */
@@ -441,7 +444,7 @@ class ApiAnalyzer(
         }
     }
 
-    /** Apply package filters listed in [Options.skipEmitPackages] */
+    /** Apply package filters listed in [Config.skipEmitPackages] */
     private fun skipEmitPackages() {
         for (pkgName in config.skipEmitPackages) {
             val pkg = codebase.findPackage(pkgName) ?: continue
@@ -477,7 +480,7 @@ class ApiAnalyzer(
     fun mergeExternalQualifierAnnotations() {
         val mergeQualifierAnnotations = config.mergeQualifierAnnotations
         if (mergeQualifierAnnotations.isNotEmpty()) {
-            AnnotationsMerger(sourceParser, codebase, reporter)
+            AnnotationsMerger(sourceParser, codebase, reporter, config.annotationsMergerConfig)
                 .mergeQualifierAnnotationsFromFiles(mergeQualifierAnnotations)
         }
     }
@@ -486,7 +489,7 @@ class ApiAnalyzer(
     fun mergeExternalInclusionAnnotations() {
         val mergeInclusionAnnotations = config.mergeInclusionAnnotations
         if (mergeInclusionAnnotations.isNotEmpty()) {
-            AnnotationsMerger(sourceParser, codebase, reporter)
+            AnnotationsMerger(sourceParser, codebase, reporter, config.annotationsMergerConfig)
                 .mergeInclusionAnnotationsFromFiles(mergeInclusionAnnotations)
         }
     }
@@ -610,7 +613,7 @@ class ApiAnalyzer(
         codebase.accept(
             object :
                 ApiVisitor(
-                    apiPredicateConfig = @Suppress("DEPRECATION") options.apiPredicateConfig,
+                    apiPredicateConfig = config.apiPredicateConfig,
                     // Don't run checks on elements that only exist in bytecode.
                     targetLanguages = TargetLanguageSet.SOURCE,
                 ) {
@@ -870,17 +873,26 @@ class ApiAnalyzer(
             .forEach { cantStripThis(it, filter, notStrippable, cl, "as nested class") }
         // blow open super class and interfaces
         // TODO: Consider using val superClass = cl.filteredSuperclass(filter)
-        val superItems = cl.allInterfaces().toMutableSet()
-        cl.superClass()?.let { superClass -> superItems.add(superClass) }
+        val allSuperItems = cl.allInterfaces().toMutableSet()
+        val directSuperItems = cl.interfaceTypes().map { it.qualifiedName }.toMutableSet()
+        cl.superClass()?.let { superClass ->
+            allSuperItems.add(superClass)
+            directSuperItems.add(superClass.qualifiedName())
+        }
 
-        for (superItem in superItems) {
+        for (superItem in allSuperItems) {
             // allInterfaces includes cl itself if cl is an interface
             if (superItem.isHiddenOrRemoved() && superItem != cl) {
-                // cl is a public class declared as extending a hidden superclass.
+                // cl is a public class declared as extending a hidden superclass or implementing
+                // a hidden interface.
                 // this is not a desired practice, but it's happened, so we deal
                 // with it by finding the first super class which passes checkLevel for purposes of
                 // generating the doc & stub information, and proceeding normally.
-                if (superItem.origin != ClassOrigin.CLASS_PATH) {
+                if (
+                    // Make sure the parent element is either the superclass or an interface
+                    // that cl is implementing directly (as opposed to indirectly via parent class)
+                    superItem.qualifiedName() in directSuperItems
+                ) {
                     reporter.report(
                         Issues.HIDDEN_SUPERCLASS,
                         cl,

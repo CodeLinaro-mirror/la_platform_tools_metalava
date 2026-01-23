@@ -65,6 +65,9 @@ import com.android.tools.metalava.model.computeTypeNullability
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.isNonNullAnnotation
 import com.android.tools.metalava.model.isNullableAnnotation
+import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.reporter.Reporter
+import com.android.tools.metalava.reporter.ThrowingReporter
 
 /** The type of lambda that can construct a key from an [AnnotationItem] */
 typealias KeyFactory = (annotationItem: AnnotationItem) -> String
@@ -72,6 +75,7 @@ typealias KeyFactory = (annotationItem: AnnotationItem) -> String
 class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnnotationManager() {
 
     data class Config(
+        val reporter: Reporter = ThrowingReporter.INSTANCE,
         val passThroughAnnotations: Set<String> = emptySet(),
         val allShowAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),
         val showAnnotations: AnnotationFilter = AnnotationFilter.emptyFilter(),
@@ -303,10 +307,6 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
 
             // This implementation only annotation shouldn't be used by metalava at all.
             "dalvik.annotation.codegen.CovariantReturnType" -> return null
-
-            // TODO(b/399105459): remove this workaround once there is full support for typealias
-            //  annotations from the classpath
-            "kotlin.jvm.JvmRepeatable" -> return "java.lang.annotation.Repeatable"
             else -> {
                 // Some new annotations added to the platform: assume they are support
                 // annotations?
@@ -647,11 +647,17 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
      *
      * Searches the previously released API (if available).
      */
-    private fun findRevertItem(item: SelectableItem): SelectableItem? {
-        return previouslyReleasedCodebase?.let { codebase ->
-            item.findCorrespondingItemIn(codebase)
+    private fun findRevertItem(item: SelectableItem) =
+        previouslyReleasedCodebase.let { codebase ->
+            if (codebase == null) {
+                config.reporter.report(
+                    Issues.NO_PREVIOUSLY_RELEASED_API,
+                    item,
+                    "Cannot revert $item (or any other API item) as no previously released API has been provided"
+                )
+                null
+            } else item.findCorrespondingItemIn(codebase)
         }
-    }
 
     override val typedefMode: TypedefMode = config.typedefMode
 }
@@ -782,15 +788,25 @@ private class LazyAnnotationInfo(
         }
     }
 
+    private fun isDirectlyExperimental(qualifiedName: String): Boolean {
+        return qualifiedName == SUPPRESS_COMPATIBILITY_ANNOTATION_QUALIFIED ||
+            config.suppressCompatibilityMetaAnnotations.contains(qualifiedName)
+    }
+
     /**
      * If true then this annotation will suppress compatibility checking on annotated items.
      *
-     * This is true if this annotation is
+     * This is true if this annotation is directly annotated with a suppress annotation, or is
+     * annotated directly with an annotation that is annotated with a suppress annotation. It won't
+     * check more than 1 level up (see b/460835117).
      */
     override val suppressCompatibility by
         lazy(LazyThreadSafetyMode.NONE) {
-            qualifiedName == SUPPRESS_COMPATIBILITY_ANNOTATION_QUALIFIED ||
-                config.suppressCompatibilityMetaAnnotations.contains(qualifiedName) ||
-                checkResolvedAnnotationClass { it.hasSuppressCompatibilityMetaAnnotation() }
+            isDirectlyExperimental(qualifiedName) ||
+                checkResolvedAnnotationClass {
+                    it.modifiers.annotations().any { metaAnnotation ->
+                        isDirectlyExperimental(metaAnnotation.qualifiedName)
+                    }
+                }
         }
 }

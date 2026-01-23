@@ -71,12 +71,6 @@ private const val CARRIER_PRIVILEGES_MARKER = "carrier privileges"
 typealias ApiVersionLabelProvider = (ApiVersion) -> String
 
 /**
- * Lambda that when given an [ApiVersion] will return `true` if it can be referenced from within the
- * documentation and `false` if it cannot.
- */
-typealias ApiVersionFilter = (ApiVersion) -> Boolean
-
-/**
  * Walk over the API and apply tweaks to the documentation, such as
  * - Looking for annotations and converting them to auxiliary tags that will be processed by the
  *   documentation tools later.
@@ -95,9 +89,6 @@ class DocAnalyzer(
 
     /** Provides a string label for each [ApiVersion]. */
     private val apiVersionLabelProvider: ApiVersionLabelProvider,
-
-    /** Filter that determines whether an [ApiVersion] should be mentioned in the documentation. */
-    private val apiVersionFilter: ApiVersionFilter,
 
     /** Selects [Item]s whose documentation will be analyzed and/or enhanced. */
     private val apiPredicateConfig: ApiPredicate.Config,
@@ -840,11 +831,6 @@ class DocAnalyzer(
      */
     private fun addApiVersionDocumentation(apiVersion: ApiVersion?, item: SelectableItem) {
         if (apiVersion != null) {
-            // Check to see whether an API version should not be included in the documentation.
-            if (!apiVersionFilter(apiVersion)) {
-                return
-            }
-
             // Always set @apiSince, overriding any existing value.
             val apiVersionLabel = apiVersionLabelProvider(apiVersion)
             addUniqueVersionBlockTag(item, "apiSince", apiVersionLabel)

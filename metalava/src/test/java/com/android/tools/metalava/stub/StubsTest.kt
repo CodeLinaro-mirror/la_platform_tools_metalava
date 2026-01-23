@@ -16,8 +16,8 @@
 
 package com.android.tools.metalava.stub
 
-import com.android.tools.metalava.ARG_API_CLASS_RESOLUTION
 import com.android.tools.metalava.ARG_EXCLUDE_DOCUMENTATION_FROM_STUBS
+import com.android.tools.metalava.cli.common.ARG_API_CLASS_RESOLUTION
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.testing.java
 import org.junit.Test
@@ -995,14 +995,13 @@ class StubsTest : AbstractStubsTest() {
                  * This is the copyright header.
                  */
                 package test.pkg;
-                import java.util.List;
                 /** This is the documentation for the class */
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public class Foo {
                 public Foo() { throw new RuntimeException("Stub!"); }
                 /**
                  * Method documentation.
-                 * @see java.util.List
+                 * @see java.util.List List
                  */
                 protected static void onCreate(java.util.List<java.lang.String> parameter1) { throw new RuntimeException("Stub!"); }
                 /** My field doc */

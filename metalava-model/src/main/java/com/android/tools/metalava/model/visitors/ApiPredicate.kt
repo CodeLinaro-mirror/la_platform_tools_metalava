@@ -17,9 +17,7 @@
 package com.android.tools.metalava.model.visitors
 
 import com.android.tools.metalava.model.AnnotationItem
-import com.android.tools.metalava.model.ClassContentItem
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
@@ -72,9 +70,6 @@ class ApiPredicate(
          */
         val ignoreShown: Boolean = true,
 
-        /** Whether we allow matching items loaded from jar files instead of sources */
-        val allowClassesFromClasspath: Boolean = true,
-
         /**
          * Whether overriding methods essential for compiling the stubs should be considered as APIs
          * or not.
@@ -86,16 +81,6 @@ class ApiPredicate(
         // non-class, i.e., (literally) member declaration w/o emit flag, e.g., due to `expect`
         // Some [ClassItem], e.g., JvmInline, java.lang.* classes, may not set the emit flag.
         if (item !is ClassItem && !item.emit) {
-            return false
-        }
-
-        if (
-            !config.allowClassesFromClasspath &&
-                item is ClassContentItem &&
-                // This disallows classes from the source path not just the class path, contrary to
-                // what might be expected from the config property name.
-                item.origin != ClassOrigin.COMMAND_LINE
-        ) {
             return false
         }
 

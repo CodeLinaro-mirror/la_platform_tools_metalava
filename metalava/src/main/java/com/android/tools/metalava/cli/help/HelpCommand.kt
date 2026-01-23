@@ -115,7 +115,7 @@ private fun signatureFileFormatsHelp(): CliktCommand {
         }
 
         return buildDefinitionListHelp(
-            FileFormat.Version.entries.map { it.labelGetter() to it.help.trimIndent() },
+            FileFormat.versions.map { it.labelGetter() to it.help.trimIndent() },
             termPrefix = "* ",
         )
     }
