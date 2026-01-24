@@ -24,16 +24,11 @@ com.android.tools.metalava.JavadocTest
   Relative documentation links in stubs[turbine]
   Rewrite parameter list 2[turbine]
   Rewrite parameter list[turbine]
-  Rewrite relative documentation links in doc-stubs 3[turbine]
-  Rewrite relative documentation links in doc-stubs but preserve custom link text[turbine]
   Rewrite relative documentation links in doc-stubs[turbine]
   Warn about unresolved[turbine]
 
 com.android.tools.metalava.NullabilityAnnotationsValidatorTest
   Using class list[turbine]
-
-com.android.tools.metalava.ParameterizedKeepImportTest
-  Test import kept[turbine,in @link method reference]
 
 com.android.tools.metalava.PolymorphicMethodsTest
   Test MethodHandle[turbine]
@@ -72,9 +67,6 @@ com.android.tools.metalava.jar.StandaloneJarCodebaseLoaderTest
 
 com.android.tools.metalava.lint.ApiLintTest
   Typedef must be hidden[turbine]
-
-com.android.tools.metalava.lint.CheckBuilderTest
-  Check builders[turbine]
 
 com.android.tools.metalava.lint.FlaggedApiLintTest
   Require @FlaggedApi on API that modify annotations[turbine]

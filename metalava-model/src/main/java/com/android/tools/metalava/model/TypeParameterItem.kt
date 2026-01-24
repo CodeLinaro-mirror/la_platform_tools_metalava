@@ -34,7 +34,7 @@ interface TypeParameterItem : ReferencableItem {
      * something of this type. That is either the first bound (the super class) or
      * `java.lang.Object` if there are no bounds.
      */
-    fun asErasedType(): BoundsTypeItem?
+    fun asErasedType(): ClassTypeItem
 
     fun isReified(): Boolean
 

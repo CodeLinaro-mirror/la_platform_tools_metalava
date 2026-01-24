@@ -122,7 +122,7 @@ class ParameterizedKeepImportTest : DriverTest() {
                     classDoc = "{@link ImportedName#method()}",
                     expectedClassDoc =
                         "{@link other.pkg.ImportedName#method() ImportedName.method()}",
-                    shouldKeepImportedName = true,
+                    shouldKeepImportedName = false,
                 ),
             )
 

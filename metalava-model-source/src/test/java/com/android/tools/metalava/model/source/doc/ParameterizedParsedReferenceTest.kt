@@ -20,13 +20,14 @@ import com.android.tools.metalava.testing.EntryPoint
 import com.android.tools.metalava.testing.EntryPointCallerRule
 import com.android.tools.metalava.testing.EntryPointCallerTracker
 import org.junit.Assert.*
+import org.junit.Assume.assumeNotNull
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
 @RunWith(Parameterized::class)
-class ParameterizedDocReferenceValidationTest {
+class ParameterizedParsedReferenceTest {
 
     @Parameterized.Parameter(0) internal lateinit var params: TestParams
 
@@ -42,6 +43,7 @@ class ParameterizedDocReferenceValidationTest {
         val name: String,
         val reference: String = name,
         val expectedParsed: ParsedReference? = null,
+        val expectedNormalized: String = reference,
     ) {
         /**
          * Record the stack trace of the creation of this which can be used to provide a stack trace
@@ -264,7 +266,7 @@ class ParameterizedDocReferenceValidationTest {
                         QualifyingClassSourceReference(
                             className = "java.util.Collection",
                             member =
-                                UriFragmentSourceReference(uriFragment = "##optional-restrictions"),
+                                UriFragmentSourceReference(uriFragment = "optional-restrictions"),
                         )
                 ),
                 TestParams(
@@ -272,8 +274,9 @@ class ParameterizedDocReferenceValidationTest {
                     expectedParsed =
                         CurrentClassSourceReference(
                             member =
-                                UriFragmentSourceReference(uriFragment = "##optional-restrictions")
+                                UriFragmentSourceReference(uriFragment = "optional-restrictions")
                         ),
+                    expectedNormalized = "##optional-restrictions"
                 ),
 
                 // Invalid references
@@ -313,8 +316,16 @@ class ParameterizedDocReferenceValidationTest {
     }
 
     @Test
-    fun `Test validation`() {
+    fun `Test parsing`() {
         val parsed = LabeledRefTagType.parseReference(params.reference)
         assertEquals(params.expectedParsed, parsed)
+    }
+
+    @Test
+    fun `Test normalized form`() {
+        assumeNotNull(params.expectedParsed)
+
+        val parsed = LabeledRefTagType.parseReference(params.reference)
+        assertEquals(params.expectedNormalized, parsed!!.normalizedForm)
     }
 }

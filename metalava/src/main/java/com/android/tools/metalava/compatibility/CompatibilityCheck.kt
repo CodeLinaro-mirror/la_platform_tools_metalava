@@ -513,7 +513,7 @@ class CompatibilityCheck(
         }
 
         for (iface in old.interfaceTypes()) {
-            val qualifiedName = iface.asClass()?.qualifiedName() ?: continue
+            val qualifiedName = iface.resolveClass()?.qualifiedName() ?: continue
             if (!new.implements(qualifiedName)) {
                 report(
                     Issues.REMOVED_INTERFACE,
@@ -525,7 +525,7 @@ class CompatibilityCheck(
         }
 
         for (iface in new.filteredInterfaceTypes(filterReference)) {
-            val qualifiedName = iface.asClass()?.qualifiedName() ?: continue
+            val qualifiedName = iface.resolveClass()?.qualifiedName() ?: continue
             if (!old.implements(qualifiedName)) {
                 report(
                     Issues.ADDED_INTERFACE,

@@ -250,14 +250,10 @@ class CommonSourceFileTest : BaseModelTest() {
             val collectionClassItem = codebase.assertResolvedClass("java.util.Collection")
             val collectionClassImport = Import(collectionClassItem)
 
-            val listClassItem = codebase.assertResolvedClass("java.util.List")
-            val listClassImport = Import(listClassItem)
-
             // Makes sure that classes from the classpath are included in the imports.
             assertEquals(
                 setOf(
                     collectionClassImport,
-                    listClassImport,
                 ),
                 allImports,
                 message = "unfiltered imports"

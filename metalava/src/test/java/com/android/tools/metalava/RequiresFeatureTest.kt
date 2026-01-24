@@ -99,6 +99,7 @@ class RequiresFeatureTest : DriverTest() {
             feature = "PackageManager.FEATURE_LOCATION",
             expectedText =
                 "Requires the {@link android.content.pm.PackageManager#FEATURE_LOCATION PackageManager#FEATURE_LOCATION} feature which can be detected using {@link android.content.pm.PackageManager#hasSystemFeature(java.lang.String) PackageManager.hasSystemFeature(String)}.",
+            expectedImport = "",
         )
     }
 
@@ -121,6 +122,7 @@ class RequiresFeatureTest : DriverTest() {
                 "Requires the PackageManager#FEATURE_HIDDEN feature which can be detected using {@link android.content.pm.PackageManager#hasSystemFeature(java.lang.String) PackageManager.hasSystemFeature(String)}.",
             expectedIssues =
                 "src/test/pkg/FeatureUser.java:6: error: Feature field android.content.pm.PackageManager.FEATURE_HIDDEN required by class test.pkg.FeatureUser is hidden or removed [MissingPermission]",
+            expectedImport = "",
         )
     }
 
@@ -132,6 +134,7 @@ class RequiresFeatureTest : DriverTest() {
             enforcement = "android.pkg.other.OtherFeatureManager#hasMyFeature",
             expectedText =
                 "Requires the {@link android.pkg.other.OtherFeatureManager#FEATURE_OTHER OtherFeatureManager#FEATURE_OTHER} feature which can be detected using {@link android.pkg.other.OtherFeatureManager#hasMyFeature(java.lang.String) OtherFeatureManager.hasMyFeature(String)}.",
+            expectedImport = "",
         )
     }
 

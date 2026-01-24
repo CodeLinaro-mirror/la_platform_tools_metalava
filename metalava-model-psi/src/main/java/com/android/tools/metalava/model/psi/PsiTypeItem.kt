@@ -35,7 +35,6 @@ import com.intellij.psi.PsiClassType
 import com.intellij.psi.PsiPrimitiveType
 import com.intellij.psi.PsiType
 import com.intellij.psi.PsiWildcardType
-import com.intellij.psi.util.TypeConversionUtil
 
 /** Represents a type backed by PSI */
 internal sealed class PsiTypeItem(
@@ -44,16 +43,8 @@ internal sealed class PsiTypeItem(
     val kotlinTypeInfo: KotlinTypeInfo?,
 ) : DefaultTypeItem(modifiers) {
     /** Whether the [psiType] is originally a value class type. */
-    override fun isValueClassType(): Boolean = kotlinTypeInfo?.isValueClassType() ?: false
-
-    /** Returns `true` if `this` type can be assigned from `other` without unboxing the other. */
-    override fun isAssignableFromWithoutUnboxing(other: TypeItem): Boolean {
-        if (other !is PsiTypeItem) return super.isAssignableFromWithoutUnboxing(other)
-        if (this is PrimitiveTypeItem && other !is PrimitiveTypeItem) {
-            return false
-        }
-        return TypeConversionUtil.isAssignable(psiType, other.psiType)
-    }
+    override val isValueClassType
+        get() = kotlinTypeInfo?.isValueClassType() ?: false
 }
 
 /** A [PsiTypeItem] backed by a [PsiPrimitiveType]. */
@@ -88,7 +79,11 @@ internal class PsiArrayTypeItem(
         "implementation detail of this class",
         replaceWith = ReplaceWith("substitute(modifiers, componentType)"),
     )
-    override fun duplicate(modifiers: TypeModifiers, componentType: TypeItem): ArrayTypeItem =
+    override fun duplicate(
+        modifiers: TypeModifiers,
+        componentType: TypeItem,
+        isVarargs: Boolean,
+    ): ArrayTypeItem =
         PsiArrayTypeItem(
             psiType = psiType,
             componentType = componentType,
@@ -113,7 +108,7 @@ internal open class PsiClassTypeItem(
     private val asClassCache by
         lazy(LazyThreadSafetyMode.NONE) { codebase.resolveClass(qualifiedName) }
 
-    override fun asClass() = asClassCache
+    override fun resolveClass() = asClassCache
 
     override fun isFunctionalType(): Boolean {
         return LambdaUtil.isFunctionalType(psiType)

@@ -34,7 +34,7 @@ class DefaultResolvedClassTypeItem(
 
     override val className = classItem.simpleName()
 
-    override fun asClass() = classItem
+    override fun resolveClass() = classItem
 
     @Deprecated(
         "implementation detail of this class",

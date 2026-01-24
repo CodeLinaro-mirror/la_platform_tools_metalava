@@ -21,6 +21,7 @@ import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.CallableBody
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.value.FieldReferenceValue
 import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.Issues
@@ -33,6 +34,7 @@ import com.intellij.psi.PsiReferenceExpression
 import com.intellij.psi.PsiReturnStatement
 import com.intellij.psi.PsiSynchronizedStatement
 import com.intellij.psi.PsiThisExpression
+import com.intellij.psi.PsiType
 import org.jetbrains.uast.UCallExpression
 import org.jetbrains.uast.UClassLiteralExpression
 import org.jetbrains.uast.UElement
@@ -88,8 +90,7 @@ internal class PsiCallableBody(private val callable: PsiCallableItem) : Callable
                     val type = node.thrownExpression.getExpressionType()
                     // TODO: after KTIJ-31242, go back to null check only
                     if (type != null && type != UastErrorType) {
-                        val typeItemFactory = psiCodebase.globalTypeItemFactory.from(callable)
-                        val exceptionClass = typeItemFactory.getType(type).asClass()
+                        val exceptionClass = thrownExceptionClassForPsiType(type)?.resolveClass()
                         if (exceptionClass != null && !isCaught(exceptionClass, node)) {
                             exceptions.add(exceptionClass)
                         }
@@ -123,6 +124,16 @@ internal class PsiCallableBody(private val callable: PsiCallableItem) : Callable
         )
 
         return exceptions
+    }
+
+    /**
+     * Get the exception [ClassTypeItem] for the thrown exception [type].
+     *
+     * It must return a [ClassTypeItem] as only concrete exception classes can be thrown.
+     */
+    private fun thrownExceptionClassForPsiType(type: PsiType): ClassTypeItem? {
+        val typeItemFactory = psiCodebase.globalTypeItemFactory.from(callable)
+        return typeItemFactory.getType(type) as? ClassTypeItem
     }
 
     override fun findVisiblySynchronizedLocations(): List<FileLocation> {

@@ -1058,12 +1058,10 @@ class CommonItemDocumentationTest : BaseModelTest() {
 
             classDocumentation.mainDescriptionOwner.append(contentToAppend)
 
-            // TODO(b/450228132): The first '@link' should have been resolved to
-            //  `test.other.Other#method()`.
             val expectedOutputAfterMutation =
                 """
                     /**
-                     * Text to {@code append} see {@link #method()}. This is spread
+                     * Text to {@code append} see {@link test.other.Other#method() method()}. This is spread
                      * across multiple lines with leading whitespace and a link to
                      * {@link test.another.Another Another} class.
                      */

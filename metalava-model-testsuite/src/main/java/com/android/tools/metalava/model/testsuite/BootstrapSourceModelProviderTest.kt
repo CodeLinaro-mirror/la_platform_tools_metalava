@@ -384,7 +384,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             assertEquals(2, classItem.interfaceTypes().count())
 
             assertNotNull(superClassType)
-            assertEquals(null, superClassType.asClass())
+            assertEquals(null, superClassType.resolveClass())
         }
     }
 

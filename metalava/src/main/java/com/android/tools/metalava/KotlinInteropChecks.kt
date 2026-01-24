@@ -185,7 +185,7 @@ class KotlinInteropChecks(val reporter: Reporter) {
             // field is present on the containing class of the companion.
             companionContainer?.findField(name()) != null &&
             // The compiler does not allow @JvmField on value class type properties.
-            !type().isValueClassType()
+            !type().isValueClassType
     }
 
     private fun ensureFieldNameNotKeyword(field: FieldItem) {
@@ -341,9 +341,9 @@ class KotlinInteropChecks(val reporter: Reporter) {
         }
 
         val description =
-            if (property.type().isValueClassType()) {
+            if (property.type().isValueClassType) {
                 "type"
-            } else if (property.receiver?.isValueClassType() == true) {
+            } else if (property.receiver?.isValueClassType == true) {
                 "receiver type"
             } else {
                 return
@@ -370,7 +370,7 @@ class KotlinInteropChecks(val reporter: Reporter) {
         if (TargetLanguage.KOTLIN !in method.targetLanguages) return
         if (method.modifiers.hasAnnotation { it.qualifiedName == JVM_NAME }) return
 
-        if (method.returnType().isValueClassType()) {
+        if (method.returnType().isValueClassType) {
             reporter.report(
                 Issues.VALUE_CLASS_USAGE_WITHOUT_JVM_NAME,
                 method,
@@ -381,7 +381,7 @@ class KotlinInteropChecks(val reporter: Reporter) {
         }
 
         for (parameter in method.parameters()) {
-            if (parameter.type().isValueClassType()) {
+            if (parameter.type().isValueClassType) {
                 reporter.report(
                     Issues.VALUE_CLASS_USAGE_WITHOUT_JVM_NAME,
                     method,
@@ -397,7 +397,7 @@ class KotlinInteropChecks(val reporter: Reporter) {
     private fun disallowValueClassUsageInConstructorParameters(constructor: ConstructorItem) {
         if (TargetLanguage.KOTLIN !in constructor.targetLanguages) return
         for (parameter in constructor.parameters()) {
-            if (parameter.type().isValueClassType()) {
+            if (parameter.type().isValueClassType) {
                 reporter.report(
                     Issues.VALUE_CLASS_USAGE_FROM_CONSTRUCTOR,
                     constructor,

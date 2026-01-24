@@ -62,7 +62,7 @@ class CommonEnumTest : BaseModelTest() {
             val fooClass = codebase.assertClass("test.pkg.Foo")
             val enumClass = codebase.assertResolvedClass("java.lang.Enum")
 
-            assertSame(enumClass, fooClass.superClassType()?.asClass())
+            assertSame(enumClass, fooClass.superClassType()?.resolveClass())
             assertSame(enumClass, fooClass.superClass())
 
             val interfaceList = fooClass.interfaceTypes()

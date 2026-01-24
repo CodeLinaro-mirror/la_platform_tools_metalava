@@ -23,7 +23,6 @@ import com.android.tools.metalava.model.source.doc.LabeledRefTagData
 import com.android.tools.metalava.model.source.doc.ParamTagData
 import com.android.tools.metalava.model.source.doc.TagData
 import com.android.tools.metalava.model.source.doc.ThrowsTagData
-import com.android.tools.metalava.model.source.doc.containsWord
 
 /**
  * A [DocCommentPredicate] that will search [DocComment] for any references to [importedTypeName].
@@ -52,8 +51,7 @@ internal class FindPossiblyImportedTypeReferencesVisitor(private val importedTyp
             null -> false
             // @link, @linkplain and @see tags may contain references to imported types.
             // Only keep the imported name if the reference was not fully resolved.
-            is LabeledRefTagData ->
-                !wasReferenceFullyResolved() && sourceReference.containsWord(importedTypeName)
+            is LabeledRefTagData -> referenceCouldRelyOnImportedName(importedTypeName)
             // Parameter names should not cause an import of the same name to be kept as they are
             // not resolved against imported names.
             is ParamTagData -> false
