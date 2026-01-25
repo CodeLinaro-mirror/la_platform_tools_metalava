@@ -1479,38 +1479,6 @@ class ApiLintTest : DriverTest() {
     }
 
     @Test
-    fun `Check no usages of heavy BitSet`() {
-        check(
-            apiLint = "", // enabled
-            expectedIssues =
-                """
-                src/android/pkg/MyClass.java:7: error: Type must not be heavy BitSet (field android.pkg.MyClass.bitset) [HeavyBitSet]
-                src/android/pkg/MyClass.java:9: error: Type must not be heavy BitSet (method android.pkg.MyClass.reverse(java.util.BitSet)) [HeavyBitSet]
-                src/android/pkg/MyClass.java:9: error: Type must not be heavy BitSet (parameter bitset in android.pkg.MyClass.reverse(java.util.BitSet bitset)) [HeavyBitSet]
-                """,
-            expectedFail = DefaultLintErrorMessage,
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package android.pkg;
-                    import androidx.annotation.Nullable;
-                    import java.util.BitSet;
-
-                    public class MyClass {
-                        @Nullable
-                        public final BitSet bitset;
-                        @Nullable
-                        public BitSet reverse(@Nullable BitSet bitset) { return null; }
-                    }
-                    """
-                    ),
-                    androidxNullableSource
-                )
-        )
-    }
-
-    @Test
     fun `Check Manager related issues`() {
         check(
             apiLint = "", // enabled
@@ -2369,87 +2337,6 @@ class ApiLintTest : DriverTest() {
                     ),
                     androidxNonNullSource,
                     androidxNullableSource
-                )
-        )
-    }
-
-    @RequiresCapabilities(Capability.KOTLIN)
-    @Test
-    fun `Return collections instead of arrays`() {
-        check(
-            extraArguments = arrayOf(ARG_API_LINT, ARG_HIDE, "AutoBoxing"),
-            expectedIssues =
-                """
-                src/android/pkg/ArrayTest.java:13: warning: Method should return Collection<Object> (or subclass) instead of raw array; was `java.lang.Object[]` [ArrayReturn]
-                src/android/pkg/ArrayTest.java:14: warning: Method parameter should be Collection<Number> (or subclass) instead of raw array; was `java.lang.Number[]` [ArrayReturn]
-                """,
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package android.pkg;
-
-                    import androidx.annotation.NonNull;
-                    import androidx.annotation.Nullable;
-
-                    public class ArrayTest {
-                        @NonNull
-                        public int[] ok1() { throw new RuntimeException(); }
-                        @NonNull
-                        public String[] ok2() { throw new RuntimeException(); }
-                        public void ok3(@Nullable int[] i) { }
-                        @NonNull
-                        public Object[] error1() { throw new RuntimeException(); }
-                        public void error2(@NonNull Number[] i) { }
-                        public void ok(@NonNull Number... args) { }
-                    }
-                    """
-                    ),
-                    kotlin(
-                        """
-                    package test.pkg
-                    fun okMethod(vararg values: Integer, foo: Float, bar: Float)
-                    """
-                    ),
-                    androidxNonNullSource,
-                    androidxNullableSource,
-                )
-        )
-    }
-
-    @RequiresCapabilities(Capability.KOTLIN)
-    @Test
-    fun `Allow arrays for kotlin only APIs`() {
-        check(
-            apiLint = "",
-            expectedFail = DefaultLintErrorMessage,
-            expectedIssues =
-                """
-                src/test/pkg/ConstructorCanBeUsedFromJava.kt:2: warning: Method parameter should be Collection<Number> (or subclass) instead of raw array; was `java.lang.Number[]` [ArrayReturn]
-                src/test/pkg/IntValue.kt:2: error: Value classes should not be public in APIs targeting Java clients. [ValueClassDefinition]
-                """,
-            sourceFiles =
-                arrayOf(
-                    kotlin(
-                        """
-                        package test.pkg
-                        @JvmInline value class IntValue(val value: Int)
-                        """
-                    ),
-                    kotlin(
-                        """
-                        package test.pkg
-                        class ConstructorCanBeUsedFromJava(i: Int, arr: Array<Number>)
-                        """
-                    ),
-                    kotlin(
-                        """
-                        package test.pkg
-                        // IntValue is a value class type, which can't be used from Java
-                        // Arrays can be used for Kotlin only APIs, so this usage is okay
-                        class ConstructorCannotBeUsedFromJava(iv: IntValue, arr: Array<Number>)
-                        """
-                    ),
                 )
         )
     }

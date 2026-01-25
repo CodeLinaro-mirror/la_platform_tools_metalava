@@ -213,7 +213,7 @@ open class DefaultMethodItem(
      */
     private fun appendSuperMethodsFromInterfaces(methods: MutableSet<MethodItem>, cls: ClassItem) {
         for (itf in cls.interfaceTypes()) {
-            val itfClass = itf.asClass() ?: continue
+            val itfClass = itf.resolveClass() ?: continue
 
             // Find the method in the interface.
             itfClass.findMethod(this)?.let { superMethod ->

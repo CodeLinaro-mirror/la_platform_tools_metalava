@@ -1832,7 +1832,7 @@ class CommonTypeItemTest : BaseModelTest() {
     }
 
     @Test
-    fun `Test toSimpleType on varargs parameter`() {
+    fun `Test toSimpleTypeString on varargs parameter`() {
         runCodebaseTest(
             java(
                 """
@@ -1863,12 +1863,12 @@ class CommonTypeItemTest : BaseModelTest() {
         ) {
             val varargsType =
                 codebase.assertClass("test.pkg.Foo").methods().single().parameters().single().type()
-            assertThat(varargsType.toSimpleType()).isEqualTo("java.lang.String...")
+            assertThat(varargsType.toSimpleTypeString()).isEqualTo("java.lang.String...")
         }
     }
 
     @Test
-    fun `Test toSimpleType on varargs generic parameter`() {
+    fun `Test toSimpleTypeString on varargs generic parameter`() {
         runCodebaseTest(
             java(
                 @Suppress("unchecked")
@@ -1900,13 +1900,13 @@ class CommonTypeItemTest : BaseModelTest() {
         ) {
             val varargsType =
                 codebase.assertClass("test.pkg.Foo").methods().single().parameters().single().type()
-            assertThat(varargsType.toSimpleType())
+            assertThat(varargsType.toSimpleTypeString())
                 .isEqualTo("Comparable<? super java.lang.String>...")
         }
     }
 
     @Test
-    fun `Test toSimpleType on nested class`() {
+    fun `Test toSimpleTypeString on nested class`() {
         runCodebaseTest(
             java(
                 """
@@ -1937,7 +1937,7 @@ class CommonTypeItemTest : BaseModelTest() {
         ) {
             val varargsType =
                 codebase.assertClass("test.pkg.Foo").methods().single().parameters().single().type()
-            assertThat(varargsType.toSimpleType())
+            assertThat(varargsType.toSimpleTypeString())
                 .isEqualTo("java.lang.Thread.UncaughtExceptionHandler")
         }
     }

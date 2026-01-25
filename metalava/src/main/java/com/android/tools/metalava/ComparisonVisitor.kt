@@ -517,8 +517,10 @@ class CodebaseComparator {
                                             //      signatures since older signature files may have
                                             // removed
                                             //      those
-                                            val simpleType1 = parameter1.type().toCanonicalType()
-                                            val simpleType2 = parameter2.type().toCanonicalType()
+                                            val simpleType1 =
+                                                parameter1.type().toCanonicalTypeString()
+                                            val simpleType2 =
+                                                parameter2.type().toCanonicalTypeString()
                                             delta = simpleType1.compareTo(simpleType2)
                                             if (delta != 0) {
                                                 // If still not the same, check the special case for

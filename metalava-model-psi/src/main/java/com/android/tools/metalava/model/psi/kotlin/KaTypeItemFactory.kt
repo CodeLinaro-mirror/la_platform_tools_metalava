@@ -431,7 +431,7 @@ internal class KaTypeItemFactory(
         type: TypeItem,
     ): TypeItem {
         return analyze(processor.kaModule) {
-            if (type.isValueClassType()) {
+            if (type.isValueClassType) {
                 // Find the inlined type through the constructor of the value class. Value classes
                 // must have a single parameter for the primary constructor
                 val valueClass = kaType.expandedSymbol as KaNamedClassSymbol
@@ -465,13 +465,14 @@ internal class KaTypeItemFactory(
                     val recursivelyInlinedType = inlineTypeIfNeeded(inlineKaType, inlineType)
                     if (
                         recursivelyInlinedType is PrimitiveTypeItem &&
-                            !recursivelyInlinedType.isValueClassType()
+                            !recursivelyInlinedType.isValueClassType
                     ) {
                         // Make sure this is still listed as a value class type. This is only needed
                         // temporarily until the original value class type is used for property
                         // types instead of the inlined type.
                         object : PrimitiveTypeItem by recursivelyInlinedType {
-                            override fun isValueClassType(): Boolean = true
+                            override val isValueClassType
+                                get() = true
                         }
                     } else {
                         recursivelyInlinedType

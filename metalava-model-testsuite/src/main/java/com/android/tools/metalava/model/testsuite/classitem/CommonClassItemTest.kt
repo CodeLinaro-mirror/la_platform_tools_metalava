@@ -356,7 +356,7 @@ class CommonClassItemTest : BaseModelTest() {
             assertNull(fooInterface.superClassType())
             assertNull(fooInterface.superClass())
 
-            val interfaceList = fooInterface.interfaceTypes().map { it.asClass() }
+            val interfaceList = fooInterface.interfaceTypes().map { it.resolveClass() }
             assertEquals(emptyList(), interfaceList)
 
             val allInterfaces = fooInterface.allInterfaces().toList()
@@ -408,10 +408,10 @@ class CommonClassItemTest : BaseModelTest() {
             val interfaceC = codebase.assertClass("test.pkg.C")
             val fooInterface = codebase.assertClass("test.pkg.Foo")
 
-            assertNull(fooInterface.superClassType()?.asClass())
+            assertNull(fooInterface.superClassType()?.resolveClass())
             assertNull(fooInterface.superClass())
 
-            val interfaceList = fooInterface.interfaceTypes().map { it.asClass() }
+            val interfaceList = fooInterface.interfaceTypes().map { it.resolveClass() }
             assertEquals(listOf(interfaceA, interfaceB, interfaceC), interfaceList)
 
             val allInterfaces = fooInterface.allInterfaces().toList()
@@ -456,7 +456,7 @@ class CommonClassItemTest : BaseModelTest() {
 
             assertSame(objectClass, fooSuperClass)
 
-            val interfaceList = fooClass.interfaceTypes().map { it.asClass() }
+            val interfaceList = fooClass.interfaceTypes().map { it.resolveClass() }
             assertEquals(emptyList(), interfaceList)
 
             val allInterfaces = fooClass.allInterfaces().toList()
@@ -498,10 +498,10 @@ class CommonClassItemTest : BaseModelTest() {
             val barClass = codebase.assertClass("test.pkg.Bar")
             val fooClass = codebase.assertClass("test.pkg.Foo")
 
-            assertSame(barClass, fooClass.superClassType()?.asClass())
+            assertSame(barClass, fooClass.superClassType()?.resolveClass())
             assertSame(barClass, fooClass.superClass())
 
-            val interfaceList = fooClass.interfaceTypes().map { it.asClass() }
+            val interfaceList = fooClass.interfaceTypes().map { it.resolveClass() }
             assertEquals(emptyList(), interfaceList)
 
             val allInterfaces = fooClass.allInterfaces().toList()
@@ -561,7 +561,7 @@ class CommonClassItemTest : BaseModelTest() {
 
             assertSame(objectClass, fooSuperClass)
 
-            val interfaceList = fooClass.interfaceTypes().map { it.asClass() }
+            val interfaceList = fooClass.interfaceTypes().map { it.resolveClass() }
             assertEquals(listOf(interfaceA, interfaceB, interfaceC), interfaceList)
 
             val allInterfaces = fooClass.allInterfaces().toList()
@@ -618,10 +618,10 @@ class CommonClassItemTest : BaseModelTest() {
             val interfaceC = codebase.assertClass("test.pkg.C")
             val fooClass = codebase.assertClass("test.pkg.Foo")
 
-            assertSame(barClass, fooClass.superClassType()?.asClass())
+            assertSame(barClass, fooClass.superClassType()?.resolveClass())
             assertSame(barClass, fooClass.superClass())
 
-            val interfaceList = fooClass.interfaceTypes().map { it.asClass() }
+            val interfaceList = fooClass.interfaceTypes().map { it.resolveClass() }
             assertEquals(listOf(interfaceA, interfaceB, interfaceC), interfaceList)
 
             val allInterfaces = fooClass.allInterfaces().toList()

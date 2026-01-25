@@ -313,7 +313,7 @@ interface MethodItem : CallableItem, InheritableItem {
                 val s = queue.removeFirst()
                 visitCountMap[s] = visitCountMap.getOrDefault(s, 0) + 1
                 queue.addAll(
-                    s.interfaceTypes().mapNotNull { interfaceType -> interfaceType.asClass() }
+                    s.interfaceTypes().mapNotNull { interfaceType -> interfaceType.resolveClass() }
                 )
             }
         }

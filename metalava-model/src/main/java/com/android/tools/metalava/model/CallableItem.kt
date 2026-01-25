@@ -51,7 +51,7 @@ interface CallableItem : MemberItem, TypeParameterListOwner {
         }
         append(' ')
         if (includeReturnValue && !isConstructor()) {
-            append(returnType().toSimpleType())
+            append(returnType().toSimpleTypeString())
             append(' ')
         }
         appendCallableSignature(includeParameterNames, includeParameterTypes)
@@ -79,7 +79,7 @@ interface CallableItem : MemberItem, TypeParameterListOwner {
                     }
                 }
                 if (includeParameterTypes) {
-                    append(parameter.type().toSimpleType())
+                    append(parameter.type().toSimpleTypeString())
                     if (includeParameterNames) {
                         append(' ')
                     }
@@ -155,13 +155,13 @@ interface CallableItem : MemberItem, TypeParameterListOwner {
         append("#")
         append(name())
         append("(")
-        parameters().joinTo(this) { it.type().toSimpleType() }
+        parameters().joinTo(this) { it.type().toSimpleTypeString() }
         append(")")
     }
 
     override fun toStringForItem(): String {
         return "${if (isConstructor()) "constructor" else "method"} ${
-            containingClass().qualifiedName()}.${name()}(${parameters().joinToString { it.type().toSimpleType() }})"
+            containingClass().qualifiedName()}.${name()}(${parameters().joinToString { it.type().toSimpleTypeString() }})"
     }
 
     override fun equalsToItem(other: Any?): Boolean {
@@ -293,7 +293,7 @@ interface CallableItem : MemberItem, TypeParameterListOwner {
             is PrimitiveTypeItem -> false
             is ArrayTypeItem -> componentType.hasHiddenType(filterReference)
             is ClassTypeItem ->
-                asClass()?.let { !filterReference.test(it) } == true ||
+                resolveClass()?.let { !filterReference.test(it) } == true ||
                     outerClassType?.hasHiddenType(filterReference) == true ||
                     arguments.any { it.hasHiddenType(filterReference) }
             is VariableTypeItem ->

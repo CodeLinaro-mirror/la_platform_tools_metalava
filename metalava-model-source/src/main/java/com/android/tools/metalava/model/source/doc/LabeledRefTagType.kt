@@ -55,15 +55,28 @@ internal open class LabeledRefTagType(name: String, form: TagTypeForm) :
                 // Ensures consistent formatting irrespective of how it was formatted in the source.
                 .replace(SOME_WHITESPACE, " ")
 
-        // Resolve the source reference, if it failed then still return a non-null result to ensure
-        // that whitespace is normalized consistently.
+        // Parse the source reference, reporting an error if it could not be done.
+        val parsedReference = parseReference(sourceReference)
+        if (parsedReference == null) {
+            reporter.report(
+                Issues.MALFORMED_DOC_REFERENCE,
+                "Malformed reference `$sourceReference`"
+            )
+        }
+
+        // Resolve the parsed source reference, if available.
         val resolvedReference =
-            resolveReference(context, reporter, sourceReference)?.also { resolved ->
+            // Resolve the reference.
+            parsedReference?.resolveReference(context, reporter)?.also { resolved ->
                 checkSourceReferenceValidForResolvedReference(reporter, sourceReference, resolved)
             }
 
+        // Get a normalized form of the source reference for use as the label if the resolved
+        // reference is different.
+        val normalizedSourceReference = parsedReference?.normalizedForm ?: sourceReference
+
         return ExtractDataResult(
-            LabeledRefTagData(name, sourceReference, resolvedReference),
+            LabeledRefTagData(name, normalizedSourceReference, resolvedReference),
             // The source reference and any following whitespace must be removed from the content as
             // they are part of [LinkTagData].
             consumedContent = labelStart
@@ -104,29 +117,6 @@ internal open class LabeledRefTagType(name: String, form: TagTypeForm) :
             }
             else -> {}
         }
-    }
-
-    /**
-     * Resolve [sourceReference] (which may be a reference to a package, class, type parameter,
-     * constructor, method, or field) to a [ResolvedReference], if possible.
-     */
-    private fun resolveReference(
-        context: DocCommentContext,
-        reporter: LocationSpecificReporter,
-        sourceReference: String
-    ): ResolvedReference? {
-        // Parse the source reference matches the expected pattern.
-        val parsedReference = parseReference(sourceReference)
-        if (parsedReference == null) {
-            reporter.report(
-                Issues.MALFORMED_DOC_REFERENCE,
-                "Malformed reference `$sourceReference`"
-            )
-            return null
-        }
-
-        // Resolve the reference.
-        return parsedReference.resolveReference(context, reporter)
     }
 
     companion object {
@@ -241,7 +231,7 @@ internal open class LabeledRefTagType(name: String, form: TagTypeForm) :
                         MethodSourceReference(methodName, parameters).qualifyIfNeeded(qualified)
                     }
                     relative.startsWith("##") -> {
-                        UriFragmentSourceReference(relative).qualifyIfNeeded(qualified)
+                        UriFragmentSourceReference(relative.substring(2)).qualifyIfNeeded(qualified)
                     }
                     relative[0] == '#' -> {
                         AmbiguousMemberSourceReference(relative.substring(1))
@@ -264,6 +254,12 @@ internal open class LabeledRefTagType(name: String, form: TagTypeForm) :
  */
 internal sealed interface ParsedReference {
     /**
+     * Get the normalized form of this reference, including any '#' separator between a qualifying
+     * class and a [ClassMemberSourceReference].
+     */
+    val normalizedForm: String
+
+    /**
      * Resolve this [ParsedReference], if possible, within [context], reporting any issues to
      * [reporter].
      */
@@ -277,6 +273,9 @@ internal sealed interface ParsedReference {
 
 /** An ambiguous reference to something by [name]. */
 internal data class AmbiguousSourceReference(val name: String) : ParsedReference {
+    override val normalizedForm: String
+        get() = name
+
     override fun resolveReference(
         context: DocCommentContext,
         reporter: LocationSpecificReporter
@@ -296,6 +295,9 @@ internal data class QualifyingClassSourceReference(
     val className: String,
     val member: ClassMemberSourceReference
 ) : ParsedReference {
+    override val normalizedForm: String
+        get() = "$className#${member.normalizedForm}"
+
     override fun resolveReference(
         context: DocCommentContext,
         reporter: LocationSpecificReporter
@@ -321,6 +323,9 @@ internal data class QualifyingClassSourceReference(
 /** A [ParsedReference] that qualifies a [member] reference to the current class. */
 internal data class CurrentClassSourceReference(val member: ClassMemberSourceReference) :
     ParsedReference {
+    override val normalizedForm: String
+        get() = "#${member.normalizedForm}"
+
     override fun resolveReference(
         context: DocCommentContext,
         reporter: LocationSpecificReporter
@@ -338,6 +343,12 @@ internal data class CurrentClassSourceReference(val member: ClassMemberSourceRef
  */
 internal sealed interface ClassMemberSourceReference {
     /**
+     * Get the normalized form of this reference, not including the '#' separator from the
+     * qualifying class.
+     */
+    val normalizedForm: String
+
+    /**
      * Will wrap this in a [QualifyingClassSourceReference] if [className] is not-null otherwise
      * will wrap this in [CurrentClassSourceReference].
      */
@@ -353,6 +364,9 @@ internal sealed interface ClassMemberSourceReference {
 
 /** A reference to a member called [name], which could be a field or a method. */
 internal data class AmbiguousMemberSourceReference(val name: String) : ClassMemberSourceReference {
+    override val normalizedForm: String
+        get() = name
+
     override fun findIn(classItem: ClassItem): ResolvedReference? =
         classItem.findField(name)?.toResolvedReference()
 }
@@ -363,11 +377,32 @@ internal data class AmbiguousMemberSourceReference(val name: String) : ClassMemb
  * [ParsedReference] because it can be resolved within a [ReferencableNameScope].
  */
 internal data class MethodSourceReference(val name: String, val parameters: String) :
-    ClassMemberSourceReference, ParsedReference
+    ClassMemberSourceReference, ParsedReference {
+
+    override val normalizedForm: String
+        get() = "$name${formatParameters()}"
+
+    /**
+     * Format [parameters] for use in [normalizedForm] and [MethodReference.unresolvedParameters].
+     */
+    private fun formatParameters() = parameters
+
+    override fun findIn(classItem: ClassItem) =
+        // Return a method reference that uses the fully qualified name of the containing class.
+        MethodReference(classItem.qualifiedName(), "$name${formatParameters()}")
+}
 
 /** A reference to a [uriFragment]. */
 internal data class UriFragmentSourceReference(val uriFragment: String) :
-    ClassMemberSourceReference
+    ClassMemberSourceReference {
+    /**
+     * The normalized form of this includes a leading `#`. Coupled with the `#` added by the
+     * containing [QualifyingClassSourceReference] or [CurrentClassSourceReference] that gives the
+     * double `##` that identifies the reference as a URI fragment.
+     */
+    override val normalizedForm: String
+        get() = "#$uriFragment"
+}
 
 /**
  * Find the end of the reference.
@@ -418,12 +453,19 @@ internal data class LabeledRefTagData(
     /** The tag type for which this was created. */
     private val tagType: String,
     /** The reference from the source; used as the label if necessary. */
-    val sourceReference: String,
+    private val sourceReference: String,
     /** The resolved reference, subclasses identify the specific part of the API it references. */
-    val resolvedReference: ResolvedReference?,
+    private val resolvedReference: ResolvedReference?,
 ) : TagData {
-    /** Check whether the [sourceReference] was fully resolved. */
-    fun wasReferenceFullyResolved(): Boolean = resolvedReference != null
+    /**
+     * Check whether the references could possibly rely on the [importedName].
+     *
+     * Returns `true` if the reference has not been fully resolved and the partially resolved parts
+     * contain [importedName] as a separate word.
+     */
+    fun referenceCouldRelyOnImportedName(importedName: String) =
+        resolvedReference?.referenceCouldRelyOnImportedName(importedName)
+            ?: sourceReference.containsWord(importedName)
 
     /**
      * Print the tag contents which consists of the [sourceReference] and the [content] which is the

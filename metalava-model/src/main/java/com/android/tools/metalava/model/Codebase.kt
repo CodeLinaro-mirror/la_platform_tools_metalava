@@ -104,45 +104,6 @@ interface Codebase : ClassPathResolver, AnnotationContext {
         visitor.visit(this)
     }
 
-    /**
-     * Creates an annotation item for the given (fully qualified) Java source.
-     *
-     * Returns `null` if the source contains an annotation that is not recognized by Metalava.
-     */
-    fun createAnnotation(
-        source: String,
-        context: Item? = null,
-    ): AnnotationItem?
-
-    /**
-     * Create an [AnnotationItem] appropriate for this [Codebase] from the [attributes] by creating
-     * a source representation of the annotation and the calling [createAnnotation].
-     */
-    fun createAnnotationFromAttributes(
-        originalName: String,
-        attributes: List<Pair<String, String>> = emptyList(),
-        context: Item? = null,
-    ): AnnotationItem? {
-        val source = buildString {
-            append("@")
-            append(originalName)
-            if (attributes.isNotEmpty()) {
-                append("(")
-                attributes.forEachIndexed { i, attribute ->
-                    if (i != 0) {
-                        append(", ")
-                    }
-                    append(attribute.first)
-                    append("=")
-                    append(attribute.second)
-                }
-                append(")")
-            }
-        }
-
-        return createAnnotation(source, context)
-    }
-
     /** Reports that the given operation is unsupported for this codebase type */
     fun unsupported(desc: String? = null): Nothing {
         error(

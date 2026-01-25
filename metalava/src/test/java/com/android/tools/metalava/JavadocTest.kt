@@ -154,7 +154,6 @@ class JavadocTest : DriverTest() {
             source =
                 """
                     package test.pkg1;
-                    import test.pkg2.OtherClass;
                     /**
                      * Blah blah {@link test.pkg2.OtherClass OtherClass} blah blah.
                      *  Referencing <b>field</b> {@link test.pkg2.OtherClass#foo OtherClass.foo},
@@ -364,7 +363,6 @@ class JavadocTest : DriverTest() {
             source =
                 """
                 package test.pkg1;
-                import test.pkg2.OtherClass;
                 /**
                  * Blah blah {@link test.pkg2.OtherClass OtherClass} blah blah.
                  *  Referencing <b>field</b> {@link test.pkg2.OtherClass#foo OtherClass.foo},
@@ -537,7 +535,6 @@ class JavadocTest : DriverTest() {
             source =
                 """
                 package android.accessibilityservice;
-                import android.view.accessibility.AccessibilityEvent;
                 /**
                  * <p>
                  * Window content may be retrieved with
@@ -610,7 +607,6 @@ class JavadocTest : DriverTest() {
             source =
                 """
                 package android.accessibilityservice;
-                import android.view.accessibility.AccessibilityEvent;
                 /**
                  * <p>
                  * Window content may be retrieved with

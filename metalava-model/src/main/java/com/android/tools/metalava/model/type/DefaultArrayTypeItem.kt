@@ -30,7 +30,11 @@ class DefaultArrayTypeItem(
         "implementation detail of this class",
         replaceWith = ReplaceWith("substitute(modifiers, componentType)"),
     )
-    override fun duplicate(modifiers: TypeModifiers, componentType: TypeItem): ArrayTypeItem {
+    override fun duplicate(
+        modifiers: TypeModifiers,
+        componentType: TypeItem,
+        isVarargs: Boolean,
+    ): ArrayTypeItem {
         return DefaultArrayTypeItem(modifiers, componentType, isVarargs)
     }
 }

@@ -169,7 +169,7 @@ open class DefaultClassItem(
         frozen = true
         superClass()?.freeze()
         for (interfaceType in interfaceTypes) {
-            interfaceType.asClass()?.freeze()
+            interfaceType.resolveClass()?.freeze()
         }
     }
 
@@ -232,7 +232,7 @@ open class DefaultClassItem(
 
         // Add all the interfaces of direct interfaces
         interfaceTypes().forEach { interfaceType ->
-            val itf = interfaceType.asClass()
+            val itf = interfaceType.resolveClass()
             itf?.allInterfaces()?.forEach { add(it) }
         }
     }
@@ -374,7 +374,7 @@ open class DefaultClassItem(
                     )
                 // Then, check to see if it matches a class defined in a super interface.
                 ?: interfaceTypes().firstNotNullOfOrNull {
-                    it.asClass()
+                    it.resolveClass()
                         ?.resolveReferencableItemBySimpleName(
                             simpleName,
                             nameClassification,

@@ -231,16 +231,16 @@ class CommonTypeStringTest : BaseModelTest() {
         }
 
         /**
-         * [MethodToTest] that call [TypeItem.toCanonicalType].
+         * [MethodToTest] that call [TypeItem.toCanonicalTypeString].
          *
-         * [TypeItem.toCanonicalType] does not take a [TypeStringConfiguration] so this makes sure
-         * that a test just provides the default configuration to avoid confusion.
+         * [TypeItem.toCanonicalTypeString] does not take a [TypeStringConfiguration] so this makes
+         * sure that a test just provides the default configuration to avoid confusion.
          */
         private val TO_CANONICAL_TYPE: MethodToTest = { configuration ->
             require(configuration.isDefault) {
-                "toCanonicalType does not use configuration so expects the default but found $configuration"
+                "toCanonicalTypeString does not use configuration so expects the default but found $configuration"
             }
-            toCanonicalType()
+            toCanonicalTypeString()
         }
 
         @JvmStatic @Parameterized.Parameters fun testCases() = testCases

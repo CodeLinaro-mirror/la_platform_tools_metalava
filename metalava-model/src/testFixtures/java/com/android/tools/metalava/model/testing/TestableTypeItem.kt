@@ -81,11 +81,11 @@ fun classTypeItem(
     )
 
 /** Create a [ArrayTypeItem] for [componentType]. */
-fun arrayTypeItem(componentType: TypeItem): ArrayTypeItem =
+fun arrayTypeItem(componentType: TypeItem, isVarargs: Boolean = false): ArrayTypeItem =
     DefaultArrayTypeItem(
         DefaultTypeModifiers.emptyNonNullModifiers,
         componentType,
-        isVarargs = false,
+        isVarargs,
     )
 
 /** Create a [VariableTypeItem] for a [TypeArgumentTypeItem] called [name]. */

@@ -370,14 +370,6 @@ open class TypeItemParser(
     ): ClassTypeItem {
         val (name, afterName, classAnnotations) = splitClassType(type)
 
-        val qualifiedName =
-            if (outerClassType != null) {
-                // This is a nested type, add the prefix of the outer name
-                "${outerClassType.qualifiedName}.$name"
-            } else {
-                name
-            }
-
         val (argumentStrings, remainder) = typeParameterStringsWithRemainder(afterName)
         val arguments =
             argumentStrings.map {
@@ -392,27 +384,32 @@ open class TypeItemParser(
                 modifiers(classAnnotations + annotations, nullability)
             }
 
-        // If the class name is qualified (i.e. contains a `.`) then create the ClassTypeItem,
-        // directly, otherwise defer to the unqualifiedTypeHandler to create it instead.
-        val classType =
-            if (qualifiedName.contains('.')) {
-                DefaultClassTypeItem(
-                    annotationContext,
-                    classModifiers,
-                    qualifiedName,
-                    arguments,
-                    outerClassType
-                )
+        // Construct a qualified name to use for the class.
+        val qualifiedName =
+            if (outerClassType != null) {
+                // This is a nested type, add the prefix of the outer name
+                "${outerClassType.qualifiedName}.$name"
+            } else if (name.contains('.')) {
+                // The name is already qualified so use it.
+                name
             } else {
+                // Otherwise, delegate to the UnqualifiedClassHandler which will construct a
+                // qualified name.
                 unqualifiedClassHandler.handleUnqualifiedType(
-                    annotationContext,
                     errorReporter,
-                    classModifiers,
                     name,
-                    arguments,
-                    outerClassType
                 )
             }
+
+        // Create the ClassTypeItem.
+        val classType =
+            DefaultClassTypeItem(
+                annotationContext,
+                classModifiers,
+                qualifiedName,
+                arguments,
+                outerClassType,
+            )
 
         if (remainder != null) {
             if (!remainder.startsWith('.')) {

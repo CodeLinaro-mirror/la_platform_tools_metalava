@@ -91,14 +91,16 @@ interface TypeItem {
 
     fun asClass(): ClassItem?
 
-    fun toSimpleType() = toTypeString(SIMPLE_TYPE_CONFIGURATION)
+    fun toSimpleTypeString() = toTypeString(SIMPLE_TYPE_CONFIGURATION)
 
     /**
+     * Provide a canonical string representation of this type.
+     *
      * Helper methods to compare types, especially types from signature files with types from
      * parsing, which may have slightly different formats, e.g. varargs ("...") versus arrays
      * ("[]"), java.lang. prefixes removed in wildcard signatures, etc.
      */
-    fun toCanonicalType() = toTypeString(CANONICAL_TYPE_CONFIGURATION)
+    fun toCanonicalTypeString() = toTypeString(CANONICAL_TYPE_CONFIGURATION)
 
     /**
      * Makes substitutions to the type based on the [typeParameterBindings]. For instance, if the
@@ -121,15 +123,12 @@ interface TypeItem {
         return this
     }
 
-    /** Returns `true` if `this` type can be assigned from `other` without unboxing the other. */
-    fun isAssignableFromWithoutUnboxing(other: TypeItem): Boolean {
-        // Limited text based check
-        if (this == other) return true
-        val bounds =
-            (other as? VariableTypeItem)?.asTypeParameter?.typeBounds()?.map { it.toTypeString() }
-                ?: emptyList()
-        return bounds.contains(toTypeString())
-    }
+    /**
+     * Return an erased form of this [TypeItem].
+     *
+     * No annotations, no type arguments, no variables.
+     */
+    fun asErasedType(): TypeItem
 
     fun isJavaLangObject(): Boolean = false
 
@@ -163,7 +162,8 @@ interface TypeItem {
     fun transform(transformer: TypeTransformer): TypeItem
 
     /** Whether this type was originally a value class type. Defaults to false if not overridden. */
-    fun isValueClassType(): Boolean = false
+    val isValueClassType
+        get() = false
 
     /**
      * Returns whether this type is SAM convertible or a Kotlin lambda.
@@ -185,11 +185,11 @@ interface TypeItem {
     }
 
     companion object {
-        /** [TypeStringConfiguration] for [toSimpleType] to pass to [toTypeString]. */
+        /** [TypeStringConfiguration] for [toSimpleTypeString] to pass to [toTypeString]. */
         private val SIMPLE_TYPE_CONFIGURATION =
             TypeStringConfiguration(stripJavaLangPrefix = StripJavaLangPrefix.LEGACY)
 
-        /** [TypeStringConfiguration] for [toCanonicalType] to pass to [toTypeString]. */
+        /** [TypeStringConfiguration] for [toCanonicalTypeString] to pass to [toTypeString]. */
         private val CANONICAL_TYPE_CONFIGURATION =
             TypeStringConfiguration(
                 stripJavaLangPrefix = StripJavaLangPrefix.ALWAYS,
@@ -581,18 +581,7 @@ abstract class DefaultTypeItem(
                     if (configuration.eraseGenerics) {
                         // Replace the type variable with the bounds of the type parameter.
                         val typeParameter = type.asTypeParameter
-                        typeParameter.asErasedType()?.let { boundsType ->
-                            appendTypeString(boundsType, configuration)
-                        }
-                            // No explicit bounds were provided so use the default of
-                            // java.lang.Object.
-                            ?: if (
-                                configuration.stripJavaLangPrefix == StripJavaLangPrefix.ALWAYS
-                            ) {
-                                append("Object")
-                            } else {
-                                append(JAVA_LANG_OBJECT)
-                            }
+                        appendTypeString(typeParameter.asErasedType(), configuration)
                     } else {
                         append(type.name)
                     }
@@ -828,7 +817,10 @@ interface ReferenceTypeItem : TypeItem, TypeArgumentTypeItem {
  *
  * See https://docs.oracle.com/javase/specs/jls/se8/html/jls-4.html#jls-TypeBound
  */
-interface BoundsTypeItem : TypeItem, ReferenceTypeItem
+sealed interface BoundsTypeItem : TypeItem, ReferenceTypeItem {
+    /** Override to specialize the return type. */
+    override fun asErasedType(): ClassTypeItem
+}
 
 /**
  * The type of [MethodItem.throwsTypes]'s.
@@ -843,9 +835,7 @@ sealed interface ExceptionTypeItem : TypeItem, ReferenceTypeItem {
      * Get the erased [ClassItem], if any.
      *
      * The erased [ClassItem] is the one which would be used by Java at runtime after the generic
-     * types have been erased. This will cause an error if it is called on a [VariableTypeItem]
-     * whose [TypeParameterItem]'s upper bound is not a [ExceptionTypeItem]. However, that should
-     * never happen as it would be a compile time error.
+     * types have been erased.
      */
     val erasedClass: ClassItem?
 
@@ -1008,6 +998,9 @@ interface PrimitiveTypeItem : TypeItem {
         visitor.visit(this, other)
     }
 
+    /** Erasing a [PrimitiveTypeItem] requires removing annotations. */
+    override fun asErasedType() = substitute(modifiers.withoutAnnotations())
+
     @Deprecated(
         "implementation detail of this class",
         replaceWith = ReplaceWith("substitute(modifiers)"),
@@ -1053,14 +1046,25 @@ interface ArrayTypeItem : TypeItem, ReferenceTypeItem {
     }
 
     /**
-     * Duplicates this type substituting in the provided [modifiers] and [componentType] in place of
-     * this instance's [modifiers] and [componentType].
+     * Erasing an [ArrayTypeItem] requires removing annotations, erasing its component type and
+     * dropping the [isVarargs] if set.
+     */
+    override fun asErasedType() =
+        substitute(modifiers.withoutAnnotations(), componentType.asErasedType(), isVarargs = false)
+
+    /**
+     * Duplicates this type substituting in the provided [modifiers], [componentType] and
+     * [isVarargs] in place of this instance's [modifiers], [componentType] and [isVarargs].
      */
     @Deprecated(
         "implementation detail of this class",
-        replaceWith = ReplaceWith("substitute(modifiers, componentType)"),
+        replaceWith = ReplaceWith("substitute(modifiers, componentType, isVarargs)"),
     )
-    fun duplicate(modifiers: TypeModifiers, componentType: TypeItem): ArrayTypeItem
+    fun duplicate(
+        modifiers: TypeModifiers,
+        componentType: TypeItem,
+        isVarargs: Boolean,
+    ): ArrayTypeItem
 
     override fun substitute(modifiers: TypeModifiers): ArrayTypeItem =
         substitute(modifiers, componentType)
@@ -1076,9 +1080,10 @@ interface ArrayTypeItem : TypeItem, ReferenceTypeItem {
     fun substitute(
         modifiers: TypeModifiers = this.modifiers,
         componentType: TypeItem = this.componentType,
+        isVarargs: Boolean = this.isVarargs,
     ) =
         if (modifiers !== this.modifiers || componentType !== this.componentType)
-            @Suppress("DEPRECATION") duplicate(modifiers, componentType)
+            @Suppress("DEPRECATION") duplicate(modifiers, componentType, isVarargs)
         else this
 
     override fun convertType(typeParameterBindings: TypeParameterBindings): ArrayTypeItem {
@@ -1140,8 +1145,13 @@ interface ClassTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Exception
             return qualifiedName.substring(0, classNamePrefixEnd)
         }
 
+    /** Resolve this to a [ClassItem], if possible. */
+    fun resolveClass(): ClassItem?
+
+    override fun asClass() = resolveClass()
+
     override val erasedClass: ClassItem?
-        get() = asClass()
+        get() = resolveClass()
 
     override fun accept(visitor: TypeVisitor) {
         visitor.visit(this)
@@ -1167,6 +1177,13 @@ interface ClassTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Exception
      * which is an interface with at most one abstract method.
      */
     fun isFunctionalType(): Boolean = error("unsupported")
+
+    /**
+     * Erasing a [ClassTypeItem] requires removing annotations and argument types and erasing its
+     * outer class type.
+     */
+    override fun asErasedType(): ClassTypeItem =
+        substitute(modifiers.withoutAnnotations(), outerClassType?.asErasedType(), emptyList())
 
     /**
      * Duplicates this type substituting in the provided [modifiers], [outerClassType] and
@@ -1245,7 +1262,7 @@ interface ClassTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Exception
         // amount of Java methods with a Kotlin interface with a single abstract method from an
         // external dependency should be minimal. When using signature files, it also won't be clear
         // whether a non-fun interface was defined in Java or Kotlin.
-        val cls = asClass() ?: return false
+        val cls = resolveClass() ?: return false
         if (!cls.isInterface()) return false
         // The functional modifier will only be present on Kotlin source interfaces
         if (cls.modifiers.isFunctional()) return true
@@ -1318,11 +1335,14 @@ interface VariableTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Except
     /** The corresponding type parameter for this type variable. */
     val asTypeParameter: TypeParameterItem
 
+    /** Erasing a [VariableTypeItem] requires using the [TypeParameterItem]'s first bound. */
+    override fun asErasedType() = asTypeParameter.asErasedType()
+
     override val erasedClass: ClassItem?
-        get() = (asTypeParameter.asErasedType() as ClassTypeItem).erasedClass
+        get() = asTypeParameter.asErasedType().erasedClass
 
     override fun description() =
-        "$name (extends ${this.asTypeParameter.asErasedType()?.description() ?: "unknown type"})}"
+        "$name (extends ${this.asTypeParameter.asErasedType().description()})}"
 
     override fun accept(visitor: TypeVisitor) {
         visitor.visit(this)
@@ -1374,7 +1394,7 @@ interface VariableTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Except
         return transformer.transform(this)
     }
 
-    override fun asClass() = asTypeParameter.asErasedType()?.asClass()
+    override fun asClass() = asTypeParameter.asErasedType().asClass()
 
     override fun equalToType(other: TypeItem?, includeNullability: Boolean): Boolean {
         return (other as? VariableTypeItem)?.name == name &&
@@ -1390,9 +1410,7 @@ interface VariableTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Except
             it is LambdaTypeItem ||
                 // Check if this is a lambda type that was not created as a LambdaTypeItem (e.g.
                 // from the text model b/437086600)
-                (it is ClassTypeItem) &&
-                    it.classNamePrefix == "kotlin.jvm.functions." &&
-                    it.className.startsWith("Function")
+                it.classNamePrefix == "kotlin.jvm.functions." && it.className.startsWith("Function")
         }
     }
 }
@@ -1415,6 +1433,16 @@ interface WildcardTypeItem : TypeItem, TypeArgumentTypeItem {
     override fun accept(visitor: MultipleTypeVisitor, other: List<TypeItem>) {
         visitor.visit(this, other)
     }
+
+    /**
+     * Erasing a [WildcardTypeItem] does not make much sense.
+     *
+     * These can only appear in a generic class' parameters and so will be removed when that class
+     * is erased. It might be helpful to have this be erased to either [extendsBound] if present or
+     * `java.lang.Object` but there is no way to create a valid one with a [ClassResolver] and that
+     * is not available to implementations of this.
+     */
+    override fun asErasedType() = error("Erasing $this makes little sense")
 
     /**
      * Duplicates this type substituting in the provided [modifiers], [extendsBound] and

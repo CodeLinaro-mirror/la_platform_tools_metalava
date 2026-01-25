@@ -146,7 +146,7 @@ private constructor(
             // they can be public in source to kotlin callers, so we want to track them.
             if (
                 constructor.modifiers.isPrivate() &&
-                    constructor.parameters().any { it.type().isValueClassType() }
+                    constructor.parameters().any { it.type().isValueClassType }
             ) {
                 (psiMethod.sourceElement as? KtConstructor<*>)?.let { sourcePsi ->
                     if (!sourcePsi.hasModifier(KtTokens.PRIVATE_KEYWORD)) {

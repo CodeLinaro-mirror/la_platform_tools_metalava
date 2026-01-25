@@ -1178,7 +1178,7 @@ private constructor(
         // JvmName is used, they can be, but the inlined type needs to be used to find the accessor
         // instead of the value class type.
         val (possiblyInlinedPropertyType, possiblyInlinedReceiverType) =
-            if (propertyType.isValueClassType() || receiverType?.isValueClassType() == true) {
+            if (propertyType.isValueClassType || receiverType?.isValueClassType == true) {
                 if (accessor.annotations.any { it.classId?.asFqNameString() == JVM_NAME }) {
                     typeItemFactory.inlineTypeIfNeeded(property.returnType, propertyType) to
                         receiverType?.let {

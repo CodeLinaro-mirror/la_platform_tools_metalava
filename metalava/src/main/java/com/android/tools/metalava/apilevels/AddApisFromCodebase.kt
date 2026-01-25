@@ -90,7 +90,7 @@ fun addApisFromCodebase(
                 }
 
                 for (interfaceType in cls.interfaceTypes()) {
-                    val interfaceClass = interfaceType.asClass() ?: return
+                    val interfaceClass = interfaceType.resolveClass() ?: return
                     newClass.updateInterface(interfaceClass.nameInApi(), updater)
                 }
             }

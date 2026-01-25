@@ -393,7 +393,7 @@ class CommonModelTest : BaseModelTest() {
                 for (interfaceType in classItem.interfaceTypes()) {
                     // Resolve the interface type which might trigger a change in the
                     // packages/classes.
-                    interfaceType.asClass()?.let { items += it }
+                    interfaceType.resolveClass()?.let { items += it }
                 }
             }
 
