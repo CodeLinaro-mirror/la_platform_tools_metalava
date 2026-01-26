@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.CallableItem
+import com.android.tools.metalava.model.ClassOrVariableTypeItem
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.type.MethodFingerprint
 import com.intellij.psi.PsiMethod
@@ -79,7 +80,7 @@ internal interface PsiCallableItem : CallableItem, PsiItem {
                 // since for example the MethodItem.sameSignature check wants to do an
                 // element-by-element comparison to see if the signature matches, and that should
                 // match overrides even if they specify their elements in different orders.
-                .sortedWith(ExceptionTypeItem.fullNameComparator)
+                .sortedWith(ClassOrVariableTypeItem.fullNameComparator)
         }
     }
 }

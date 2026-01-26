@@ -70,32 +70,6 @@ com.android.tools.metalava.model.testsuite.methoditem.CommonParameterItemTest
 com.android.tools.metalava.model.testsuite.methoditem.CommonParameterModifierTest
   Test varargs[turbine]
 
-com.android.tools.metalava.model.testsuite.typeitem.CommonIsAssignableFromTest
-  Test assignability without unboxing[psi,java,k1,boxedInt to primitiveInt]
-  Test assignability without unboxing[psi,java,k1,number to boxedInt]
-  Test assignability without unboxing[psi,java,k1,number to primitiveInt]
-  Test assignability without unboxing[psi,java,k1,obj to string]
-  Test assignability without unboxing[psi,java,k2,boxedInt to primitiveInt]
-  Test assignability without unboxing[psi,java,k2,number to boxedInt]
-  Test assignability without unboxing[psi,java,k2,number to primitiveInt]
-  Test assignability without unboxing[psi,java,k2,obj to string]
-  Test assignability without unboxing[psi,kotlin,k1,boxedInt to primitiveInt]
-  Test assignability without unboxing[psi,kotlin,k1,number to boxedInt]
-  Test assignability without unboxing[psi,kotlin,k1,number to primitiveInt]
-  Test assignability without unboxing[psi,kotlin,k1,obj to string]
-  Test assignability without unboxing[psi,kotlin,k2,boxedInt to primitiveInt]
-  Test assignability without unboxing[psi,kotlin,k2,number to boxedInt]
-  Test assignability without unboxing[psi,kotlin,k2,number to primitiveInt]
-  Test assignability without unboxing[psi,kotlin,k2,obj to string]
-  Test assignability without unboxing[text,boxedInt to primitiveInt]
-  Test assignability without unboxing[text,number to boxedInt]
-  Test assignability without unboxing[text,number to primitiveInt]
-  Test assignability without unboxing[text,obj to string]
-  Test assignability without unboxing[turbine,boxedInt to primitiveInt]
-  Test assignability without unboxing[turbine,number to boxedInt]
-  Test assignability without unboxing[turbine,number to primitiveInt]
-  Test assignability without unboxing[turbine,obj to string]
-
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeModifiersTest
   Test inner parameterized types with annotations[psi,java,k1]
   Test inner parameterized types with annotations[psi,java,k2]

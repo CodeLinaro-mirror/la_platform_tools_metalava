@@ -21,10 +21,11 @@ import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.TypeModifiers
 
-class DefaultPrimitiveTypeItem(
+internal class DefaultPrimitiveTypeItem(
     modifiers: TypeModifiers,
     override val kind: Primitive,
-) : PrimitiveTypeItem, DefaultTypeItem(modifiers) {
+    isValueClassType: Boolean = false,
+) : PrimitiveTypeItem, DefaultTypeItem(modifiers, isValueClassType) {
     @Deprecated(
         "implementation detail of this class",
         replaceWith = ReplaceWith("substitute(modifiers)"),

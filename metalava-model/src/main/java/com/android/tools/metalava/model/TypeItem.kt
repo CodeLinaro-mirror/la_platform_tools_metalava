@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.type.InternalTypeItemFactory
 import com.android.tools.metalava.model.utils.extractSimpleName
 import java.util.Objects
 
@@ -184,7 +185,7 @@ interface TypeItem {
         return false
     }
 
-    companion object {
+    companion object : InternalTypeItemFactory {
         /** [TypeStringConfiguration] for [toSimpleTypeString] to pass to [toTypeString]. */
         private val SIMPLE_TYPE_CONFIGURATION =
             TypeStringConfiguration(stripJavaLangPrefix = StripJavaLangPrefix.LEGACY)
@@ -206,23 +207,24 @@ interface TypeItem {
         }
 
         /**
-         * Create a [Comparator] that when given two [TypeItem] will treat them as equal if either
-         * returns `null` from [TypeItem.asClass] and will otherwise compare the two [ClassItem]s
-         * using [comparator].
+         * Create a [Comparator] that when given two [TypeItem] will try and resolve them to a
+         * [ClassItem] and if successful will compare them using [classComparator]. If unsuccessful
+         * then it will use the [fallbackComparator] to compare the [TypeItem]s directly and if that
+         * is `null` then will treat them as equal.
          *
-         * This only defines a partial ordering over [TypeItem].
+         * This only defines a partial ordering over [TypeItem]. It is the responsibility of the
+         * caller to combine it with other [Comparator]s if a total ordering is required.
          */
         private fun typeItemAsClassComparator(
-            comparator: Comparator<ClassItem>
-        ): Comparator<TypeItem> {
-            return Comparator { type1, type2 ->
-                val cls1 = type1.asClass()
-                val cls2 = type2.asClass()
-                if (cls1 != null && cls2 != null) {
-                    comparator.compare(cls1, cls2)
-                } else {
-                    0
-                }
+            classComparator: Comparator<ClassItem>,
+            fallbackComparator: Comparator<TypeItem>? = null,
+        ): Comparator<TypeItem> = Comparator { type1, type2 ->
+            val class1 = type1.asClass()
+            val class2 = type2.asClass()
+            if (class1 != null && class2 != null) {
+                classComparator.compare(class1, class2)
+            } else {
+                fallbackComparator?.compare(type1, type2) ?: 0
             }
         }
 
@@ -238,20 +240,18 @@ interface TypeItem {
             typeItemAsClassComparator(ClassItem.fullNameThenQualifierComparator)
                 .thenComparing(typeStringComparator)
 
+        /**
+         * A partial ordering over [TypeItem] using [ClassItem.fullNameComparator] to compare the
+         * result of calling [TypeItem.asClass] and if that returned `null` for either type then it
+         * will use [typeStringComparator] on the [TypeItem] directly.
+         */
         @Deprecated(
             "" +
                 "this should not be used as it only defines a partial ordering which means that the " +
                 "source order will affect the result"
         )
-        val partialComparator: Comparator<TypeItem> = Comparator { type1, type2 ->
-            val cls1 = type1.asClass()
-            val cls2 = type2.asClass()
-            if (cls1 != null && cls2 != null) {
-                ClassItem.fullNameComparator.compare(cls1, cls2)
-            } else {
-                type1.toTypeString().compareTo(type2.toTypeString())
-            }
-        }
+        val partialComparator: Comparator<TypeItem> =
+            typeItemAsClassComparator(ClassItem.fullNameComparator, typeStringComparator)
 
         /**
          * Convert a type string containing to its lambda representation or return the original.
@@ -385,6 +385,7 @@ typealias TypeParameterBindings = Map<TypeParameterItem, TypeArgumentTypeItem>
 
 abstract class DefaultTypeItem(
     final override val modifiers: TypeModifiers,
+    override val isValueClassType: Boolean,
 ) : TypeItem {
 
     private lateinit var cachedDefaultType: String
@@ -788,7 +789,7 @@ data class TypeStringConfiguration(
  *
  * See https://docs.oracle.com/javase/specs/jls/se8/html/jls-4.html#jls-TypeArgument.
  */
-interface TypeArgumentTypeItem : TypeItem {
+sealed interface TypeArgumentTypeItem : TypeItem {
     /** Override to specialize the return type. */
     override fun convertType(typeParameterBindings: TypeParameterBindings): TypeArgumentTypeItem
 
@@ -804,7 +805,7 @@ interface TypeArgumentTypeItem : TypeItem {
  *
  * See https://docs.oracle.com/javase/specs/jls/se8/html/jls-4.html#jls-ReferenceType.
  */
-interface ReferenceTypeItem : TypeItem, TypeArgumentTypeItem {
+sealed interface ReferenceTypeItem : TypeItem, TypeArgumentTypeItem {
     /** Override to specialize the return type. */
     override fun substitute(modifiers: TypeModifiers): ReferenceTypeItem
 
@@ -813,21 +814,19 @@ interface ReferenceTypeItem : TypeItem, TypeArgumentTypeItem {
 }
 
 /**
- * The type of [TypeParameterItem]'s type bounds.
+ * The "union" of [ClassTypeItem] and [VariableTypeItem].
  *
- * See https://docs.oracle.com/javase/specs/jls/se8/html/jls-4.html#jls-TypeBound
+ * Provided as this is convenient for some code to handle these together.
  */
-sealed interface BoundsTypeItem : TypeItem, ReferenceTypeItem {
-    /** Override to specialize the return type. */
+sealed interface ClassOrVariableTypeItem : TypeItem, ReferenceTypeItem {
+    /**
+     * Override to specialize the return type.
+     *
+     * Use [asErasedClass] instead of calling [ClassTypeItem.resolveClass] on the result of this as
+     * [asErasedClass] is more efficient.
+     */
     override fun asErasedType(): ClassTypeItem
-}
 
-/**
- * The type of [MethodItem.throwsTypes]'s.
- *
- * See https://docs.oracle.com/javase/specs/jls/se8/html/jls-8.html#jls-ExceptionType.
- */
-sealed interface ExceptionTypeItem : TypeItem, ReferenceTypeItem {
     /** Override to specialize the return type. */
     override fun transform(transformer: TypeTransformer): ExceptionTypeItem
 
@@ -837,7 +836,7 @@ sealed interface ExceptionTypeItem : TypeItem, ReferenceTypeItem {
      * The erased [ClassItem] is the one which would be used by Java at runtime after the generic
      * types have been erased.
      */
-    val erasedClass: ClassItem?
+    fun asErasedClass(): ClassItem?
 
     /**
      * The best guess of the full name, i.e. the qualified class name without the package but
@@ -865,11 +864,34 @@ sealed interface ExceptionTypeItem : TypeItem, ReferenceTypeItem {
     fun fullName(): String = bestGuessAtFullName(toTypeString())
 
     companion object {
-        /** A partial ordering over [ExceptionTypeItem] comparing [ExceptionTypeItem] full names. */
-        val fullNameComparator: Comparator<ExceptionTypeItem> =
+        /**
+         * A partial ordering over [ClassOrVariableTypeItem] comparing [ClassOrVariableTypeItem]
+         * full names.
+         */
+        val fullNameComparator: Comparator<ClassOrVariableTypeItem> =
             Comparator.comparing { @Suppress("DEPRECATION") it.fullName() }
     }
 }
+
+/**
+ * The "union" type of [TypeParameterItem]'s type bounds.
+ *
+ * See https://docs.oracle.com/javase/specs/jls/se8/html/jls-4.html#jls-TypeBound
+ *
+ * At the moment this is identical to [ClassOrVariableTypeItem] but it is kept as that may not
+ * always be the case.
+ */
+sealed interface BoundsTypeItem : ClassOrVariableTypeItem
+
+/**
+ * The "union" type of [MethodItem.throwsTypes]'s.
+ *
+ * See https://docs.oracle.com/javase/specs/jls/se8/html/jls-8.html#jls-ExceptionType.
+ *
+ * At the moment this is identical to [ClassOrVariableTypeItem] but it is kept as that may not
+ * always be the case.
+ */
+sealed interface ExceptionTypeItem : ClassOrVariableTypeItem
 
 /** Represents a primitive type, like int or boolean. */
 interface PrimitiveTypeItem : TypeItem {
@@ -1037,6 +1059,15 @@ interface ArrayTypeItem : TypeItem, ReferenceTypeItem {
     /** Whether this array type represents a varargs parameter. */
     val isVarargs: Boolean
 
+    /** Get the innermost component type of this [ArrayTypeItem]. */
+    fun innermostComponentType(): TypeItem {
+        var type = componentType
+        while (type is ArrayTypeItem) {
+            type = type.componentType
+        }
+        return type
+    }
+
     override fun accept(visitor: TypeVisitor) {
         visitor.visit(this)
     }
@@ -1150,8 +1181,7 @@ interface ClassTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Exception
 
     override fun asClass() = resolveClass()
 
-    override val erasedClass: ClassItem?
-        get() = resolveClass()
+    override fun asErasedClass() = resolveClass()
 
     override fun accept(visitor: TypeVisitor) {
         visitor.visit(this)
@@ -1338,8 +1368,7 @@ interface VariableTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Except
     /** Erasing a [VariableTypeItem] requires using the [TypeParameterItem]'s first bound. */
     override fun asErasedType() = asTypeParameter.asErasedType()
 
-    override val erasedClass: ClassItem?
-        get() = asTypeParameter.asErasedType().erasedClass
+    override fun asErasedClass() = asTypeParameter.asErasedType().asErasedClass()
 
     override fun description() =
         "$name (extends ${this.asTypeParameter.asErasedType().description()})}"

@@ -33,14 +33,8 @@ import com.android.tools.metalava.model.WildcardTypeItem
 import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.type.ContextNullability
-import com.android.tools.metalava.model.type.DefaultArrayTypeItem
-import com.android.tools.metalava.model.type.DefaultClassTypeItem
-import com.android.tools.metalava.model.type.DefaultLambdaTypeItem
-import com.android.tools.metalava.model.type.DefaultPrimitiveTypeItem
 import com.android.tools.metalava.model.type.DefaultTypeItemFactory
 import com.android.tools.metalava.model.type.DefaultTypeModifiers
-import com.android.tools.metalava.model.type.DefaultVariableTypeItem
-import com.android.tools.metalava.model.type.DefaultWildcardTypeItem
 import com.android.tools.metalava.model.type.MethodFingerprint
 import org.jetbrains.kotlin.analysis.api.KaSession
 import org.jetbrains.kotlin.analysis.api.analyze
@@ -95,7 +89,7 @@ internal class KaTypeItemFactory(
         // For a general type, primitives don't need to be boxed.
         val type = underlyingType.toTypeItem(mustBoxPrimitives = false)
         return if (isVarArg) {
-            DefaultArrayTypeItem(
+            TypeItem.createArrayType(
                 // Kotlin varargs are non-null, unlike Java varargs.
                 modifiers = DefaultTypeModifiers.emptyNonNullModifiers,
                 componentType = type,
@@ -131,7 +125,7 @@ internal class KaTypeItemFactory(
         return analyze(processor.kaModule) {
             // Convert Unit returns to void
             if (underlyingReturnType.isUnitType) {
-                DefaultPrimitiveTypeItem(
+                TypeItem.createPrimitiveType(
                     DefaultTypeModifiers.emptyNonNullModifiers,
                     PrimitiveTypeItem.Primitive.VOID
                 )
@@ -170,7 +164,7 @@ internal class KaTypeItemFactory(
                     "expected class type to be KaUsualClassType or KaFunctionType, was $expandedKaType"
                 )
             is KaTypeParameterType ->
-                DefaultVariableTypeItem(
+                TypeItem.createVariableType(
                     modifiers = modifiers,
                     asTypeParameter =
                         typeParameterScope.getTypeParameter(expandedKaType.name.identifier),
@@ -191,7 +185,7 @@ internal class KaTypeItemFactory(
                     .substitute(TypeNullability.NONNULL)
             // To avoid runtime errors, construct an invalid class type for error types.
             is KaErrorType ->
-                DefaultClassTypeItem(
+                TypeItem.createClassType(
                     classResolver = codebase,
                     modifiers = modifiers,
                     qualifiedName = "ErrorType",
@@ -227,7 +221,7 @@ internal class KaTypeItemFactory(
         // The function arity doesn't include the return type.
         val qualifiedName = "kotlin.jvm.functions.Function${arguments.size - 1}"
 
-        return DefaultLambdaTypeItem(
+        return TypeItem.createLambdaType(
             classResolver = codebase,
             modifiers = modifiers,
             qualifiedName = qualifiedName,
@@ -250,7 +244,7 @@ internal class KaTypeItemFactory(
             } else {
                 originalSuspendType
             }
-        return DefaultClassTypeItem(
+        return TypeItem.createClassType(
             classResolver = codebase,
             modifiers = DefaultTypeModifiers.emptyNonNullModifiers,
             qualifiedName = KOTLIN_CONTINUATION,
@@ -280,7 +274,7 @@ internal class KaTypeItemFactory(
         // Create a primitive type if allowed and possible.
         if (!mustBoxPrimitives && modifiers.nullability != TypeNullability.NULLABLE) {
             PrimitiveTypeItem.Primitive.forWrapperClassName(qualifiedName)?.let { primitive ->
-                return DefaultPrimitiveTypeItem(modifiers, primitive)
+                return TypeItem.createPrimitiveType(modifiers, primitive)
             }
         }
 
@@ -294,7 +288,7 @@ internal class KaTypeItemFactory(
             analyze(processor.kaModule) {
                 (expandedSymbol as? KaNamedClassSymbol)?.isInline == true
             }
-        return DefaultClassTypeItem(
+        return TypeItem.createClassType(
             codebase,
             modifiers,
             qualifiedName,
@@ -336,7 +330,7 @@ internal class KaTypeItemFactory(
             )
                 return null
             outerClass =
-                DefaultClassTypeItem(
+                TypeItem.createClassType(
                     classResolver = codebase,
                     // Outer classes must be non-null.
                     modifiers = DefaultTypeModifiers.emptyNonNullModifiers,
@@ -380,7 +374,7 @@ internal class KaTypeItemFactory(
                 // the primitive is not boxed, but primitives should be boxed when a regular Array
                 // type is used.
                 val boxPrimitives = classId.shortClassName.identifierOrNullIfSpecial == "Array"
-                DefaultArrayTypeItem(
+                TypeItem.createArrayType(
                     modifiers = modifiers,
                     componentType = componentType.toTypeItem(boxPrimitives),
                     // Varargs aren't represented as an array ka type, instead [getType] will know
@@ -400,7 +394,7 @@ internal class KaTypeItemFactory(
     internal fun createObjectTypeItem(
         nullability: TypeNullability = TypeNullability.NULLABLE
     ): ClassTypeItem {
-        return DefaultClassTypeItem(
+        return TypeItem.createClassType(
             classResolver = codebase,
             modifiers = DefaultTypeModifiers.create(emptyList(), nullability),
             qualifiedName = "java.lang.Object",
@@ -414,7 +408,7 @@ internal class KaTypeItemFactory(
         extendsBound: ReferenceTypeItem? = null,
         superBound: ReferenceTypeItem? = null,
     ): WildcardTypeItem {
-        return DefaultWildcardTypeItem(
+        return TypeItem.createWildcardType(
             modifiers = DefaultTypeModifiers.emptyUndefinedModifiers,
             extendsBound = extendsBound,
             superBound = superBound,
@@ -480,7 +474,7 @@ internal class KaTypeItemFactory(
                 }
             } else if (type.toTypeString() == "kotlin.ULong" && type.modifiers.isNonNull) {
                 // Even though ULong is a value class type, it doesn't appear as one when using K1
-                DefaultPrimitiveTypeItem(type.modifiers, PrimitiveTypeItem.Primitive.LONG)
+                TypeItem.createPrimitiveType(type.modifiers, PrimitiveTypeItem.Primitive.LONG)
             } else {
                 type
             }
@@ -507,7 +501,7 @@ internal class KaTypeItemFactory(
 
     /** Converts the [primitiveTypeItem] to the boxed java class type. */
     private fun boxType(primitiveTypeItem: PrimitiveTypeItem): ClassTypeItem {
-        return DefaultClassTypeItem(
+        return TypeItem.createClassType(
             classResolver = codebase,
             modifiers = primitiveTypeItem.modifiers,
             qualifiedName =

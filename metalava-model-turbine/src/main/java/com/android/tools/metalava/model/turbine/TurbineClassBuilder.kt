@@ -23,7 +23,6 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.ConstructorItem
-import com.android.tools.metalava.model.DefaultTypeParameterList
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.ModifierFlags.Companion.ABSTRACT
@@ -43,7 +42,6 @@ import com.android.tools.metalava.model.ModifierFlags.Companion.VOLATILE
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.TypeParameterList
-import com.android.tools.metalava.model.TypeParameterListAndFactory
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.addDefaultRetentionPolicyAnnotation
 import com.android.tools.metalava.model.createMutableModifiers
@@ -51,6 +49,7 @@ import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.item.DefaultTypeParameterItem
 import com.android.tools.metalava.model.type.MethodFingerprint
+import com.android.tools.metalava.model.type.TypeParameterListAndFactory
 import com.android.tools.metalava.model.value.ValueUseSite
 import com.android.tools.metalava.reporter.FileLocation
 import com.google.common.collect.ImmutableList
@@ -315,8 +314,7 @@ internal class TurbineClassBuilder(
             )
 
         // Create a list of [TypeParameterItem]s from turbine specific classes.
-        return DefaultTypeParameterList.createTypeParameterItemsAndFactory(
-            enclosingClassTypeItemFactory,
+        return enclosingClassTypeItemFactory.createTypeParameterItemsAndFactory(
             description,
             tyParams.toList(),
             { (sym, tyParam) -> createTypeParameter(sym, tyParam) },

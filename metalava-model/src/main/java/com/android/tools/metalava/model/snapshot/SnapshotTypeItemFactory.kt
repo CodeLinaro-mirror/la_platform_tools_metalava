@@ -29,14 +29,8 @@ import com.android.tools.metalava.model.TypeTransformer
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.WildcardTypeItem
 import com.android.tools.metalava.model.type.ContextNullability
-import com.android.tools.metalava.model.type.DefaultArrayTypeItem
-import com.android.tools.metalava.model.type.DefaultClassTypeItem
-import com.android.tools.metalava.model.type.DefaultLambdaTypeItem
-import com.android.tools.metalava.model.type.DefaultPrimitiveTypeItem
 import com.android.tools.metalava.model.type.DefaultTypeItemFactory
 import com.android.tools.metalava.model.type.DefaultTypeModifiers
-import com.android.tools.metalava.model.type.DefaultVariableTypeItem
-import com.android.tools.metalava.model.type.DefaultWildcardTypeItem
 
 /**
  * A [DefaultTypeItemFactory] whose underlying type is another model's [TypeItem] that this will
@@ -84,14 +78,14 @@ internal class SnapshotTypeItemFactory(
         }
 
     override fun transform(typeItem: ArrayTypeItem) =
-        DefaultArrayTypeItem(
+        TypeItem.createArrayType(
             typeItem.modifiers.snapshot(),
             typeItem.componentType.transform(this),
             typeItem.isVarargs,
         )
 
     override fun transform(typeItem: ClassTypeItem) =
-        DefaultClassTypeItem(
+        TypeItem.createClassType(
             codebase,
             typeItem.modifiers.snapshot(),
             typeItem.qualifiedName,
@@ -100,7 +94,7 @@ internal class SnapshotTypeItemFactory(
         )
 
     override fun transform(typeItem: LambdaTypeItem) =
-        DefaultLambdaTypeItem(
+        TypeItem.createLambdaType(
             codebase,
             typeItem.modifiers.snapshot(),
             typeItem.qualifiedName,
@@ -113,16 +107,16 @@ internal class SnapshotTypeItemFactory(
         )
 
     override fun transform(typeItem: PrimitiveTypeItem) =
-        DefaultPrimitiveTypeItem(typeItem.modifiers.snapshot(), typeItem.kind)
+        TypeItem.createPrimitiveType(typeItem.modifiers.snapshot(), typeItem.kind)
 
     override fun transform(typeItem: VariableTypeItem) =
-        DefaultVariableTypeItem(
+        TypeItem.createVariableType(
             typeItem.modifiers.snapshot(),
             typeParameterScope.getTypeParameter(typeItem.name),
         )
 
     override fun transform(typeItem: WildcardTypeItem) =
-        DefaultWildcardTypeItem(
+        TypeItem.createWildcardType(
             typeItem.modifiers.snapshot(),
             typeItem.extendsBound?.transform(this),
             typeItem.superBound?.transform(this),

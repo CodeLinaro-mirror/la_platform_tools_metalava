@@ -23,7 +23,6 @@ import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
-import com.android.tools.metalava.model.DefaultTypeParameterList
 import com.android.tools.metalava.model.DelegatedVisitor
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.FilterPredicate
@@ -41,7 +40,6 @@ import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
-import com.android.tools.metalava.model.TypeParameterListAndFactory
 import com.android.tools.metalava.model.item.AbstractSourceFile
 import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.item.DefaultCodebase
@@ -50,6 +48,7 @@ import com.android.tools.metalava.model.item.DefaultItemFactory
 import com.android.tools.metalava.model.item.DefaultTypeParameterItem
 import com.android.tools.metalava.model.item.PackageInfo
 import com.android.tools.metalava.model.snapshottingFactory
+import com.android.tools.metalava.model.type.TypeParameterListAndFactory
 import com.android.tools.metalava.model.value.provider
 import java.util.IdentityHashMap
 
@@ -477,8 +476,7 @@ private constructor(referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor) 
         internal fun TypeParameterList.snapshot(description: String) =
             if (this == TypeParameterList.NONE) TypeParameterListAndFactory(this, typeItemFactory)
             else
-                DefaultTypeParameterList.createTypeParameterItemsAndFactory(
-                    typeItemFactory,
+                typeItemFactory.createTypeParameterItemsAndFactory(
                     description,
                     this,
                     { typeParameterItem ->

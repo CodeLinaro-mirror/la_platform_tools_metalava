@@ -28,7 +28,6 @@ import com.android.tools.metalava.model.ClassPathResolver
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
-import com.android.tools.metalava.model.DefaultTypeParameterList
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemDocumentation
@@ -47,7 +46,6 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterList
-import com.android.tools.metalava.model.TypeParameterListAndFactory
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.model.api.surface.ApiVariant
@@ -64,6 +62,7 @@ import com.android.tools.metalava.model.parser.Tokenizer
 import com.android.tools.metalava.model.type.MethodFingerprint
 import com.android.tools.metalava.model.type.TypeItemParser
 import com.android.tools.metalava.model.type.TypeItemParserErrorReporter
+import com.android.tools.metalava.model.type.TypeParameterListAndFactory
 import com.android.tools.metalava.model.utils.extractOptionalQualifierName
 import com.android.tools.metalava.model.utils.extractSimpleName
 import com.android.tools.metalava.model.value.Value
@@ -1855,8 +1854,7 @@ private constructor(
         // Create the List<TypeParameterItem> and the corresponding TypeItemFactory that can be
         // used to resolve TypeParameterItems from the list. This performs the construction in two
         // stages to handle cycles between the parameters.
-        return DefaultTypeParameterList.createTypeParameterItemsAndFactory(
-            enclosingTypeItemFactory,
+        return enclosingTypeItemFactory.createTypeParameterItemsAndFactory(
             scopeDescription,
             typeParameterStrings,
             // Create a `TextTypeParameterItem` from the type parameter string.

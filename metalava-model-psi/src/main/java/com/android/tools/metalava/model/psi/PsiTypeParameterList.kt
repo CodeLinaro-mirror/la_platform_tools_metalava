@@ -16,9 +16,8 @@
 
 package com.android.tools.metalava.model.psi
 
-import com.android.tools.metalava.model.DefaultTypeParameterList
 import com.android.tools.metalava.model.TypeParameterList
-import com.android.tools.metalava.model.TypeParameterListAndFactory
+import com.android.tools.metalava.model.type.TypeParameterListAndFactory
 import com.intellij.psi.PsiTypeParameter
 import com.intellij.psi.PsiTypeParameterListOwner
 
@@ -48,8 +47,7 @@ internal object PsiTypeParameterList {
             return TypeParameterListAndFactory(TypeParameterList.NONE, enclosingTypeItemFactory)
         }
 
-        return DefaultTypeParameterList.createTypeParameterItemsAndFactory(
-            enclosingTypeItemFactory,
+        return enclosingTypeItemFactory.createTypeParameterItemsAndFactory(
             scopeDescription,
             psiTypeParameters,
             { PsiTypeParameterItem.create(codebase, it) },

@@ -78,9 +78,6 @@ internal constructor(
     override var primaryConstructor: ConstructorItem? = null
         internal set
 
-    override fun createClassTypeItemForThis() =
-        psiCodebase.globalTypeItemFactory.getClassTypeForClass(this)
-
     override fun sourceFile(): SourceFile? {
         if (isNestedClass()) {
             // Retrieve the SourceFile from the top level class.
