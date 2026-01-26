@@ -17,6 +17,7 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassOrVariableTypeItem
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
@@ -275,22 +276,23 @@ class KotlinInteropChecks(val reporter: Reporter) {
         }
     }
 
-    /**
-     * @return whether [parameter] can be invoked by Kotlin callers using SAM conversion. This does
-     *   not check TextParameterItem, as there is missing metadata (such as whether the type is
-     *   defined in Kotlin source or not, which can affect SAM conversion).
-     */
+    /** @return whether [parameter] can be invoked by Kotlin callers using SAM conversion. */
     private fun isSamCompatible(parameter: ParameterItem): Boolean {
-        val cls = parameter.type().asClass()
-        // Some interfaces, while they have a single method are not considered to be SAM that we
-        // want to be the last argument because often it leads to unexpected behavior of the
-        // trailing lambda.
-        when (cls?.qualifiedName()) {
-            "java.util.concurrent.Executor",
-            "java.lang.Iterable" -> return false
+        val type = parameter.type()
+        when (type) {
+            // Handle class types and variable types (check their lower bound).
+            is ClassOrVariableTypeItem -> {
+                // Some interfaces, while they have a single method are not considered to be SAM
+                // that we want to be the last argument because often it leads to unexpected
+                // behavior of the trailing lambda.
+                when (type.asErasedType().qualifiedName) {
+                    "java.util.concurrent.Executor",
+                    "java.lang.Iterable" -> return false
+                }
+            }
         }
 
-        return parameter.type().isSamCompatibleOrKotlinLambda()
+        return type.isSamCompatibleOrKotlinLambda()
     }
 
     private fun disallowValueClasses(cls: ClassItem) {

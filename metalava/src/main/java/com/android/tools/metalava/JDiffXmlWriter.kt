@@ -18,10 +18,10 @@ package com.android.tools.metalava
 
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassOrVariableTypeItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DelegatedVisitor
-import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JAVA_LANG_ANNOTATION
@@ -277,7 +277,7 @@ class JDiffXmlWriter(
     private fun writeThrowsList(callable: CallableItem) {
         val throws = callable.throwsTypes()
         if (throws.isNotEmpty()) {
-            throws.sortedWith(ExceptionTypeItem.fullNameComparator).forEach { type ->
+            throws.sortedWith(ClassOrVariableTypeItem.fullNameComparator).forEach { type ->
                 writer.print("<exception name=\"")
                 @Suppress("DEPRECATION") writer.print(type.fullName())
                 writer.print("\" type=\"")

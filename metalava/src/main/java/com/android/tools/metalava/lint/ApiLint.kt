@@ -55,6 +55,7 @@ import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassOrVariableTypeItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
@@ -1171,6 +1172,9 @@ private constructor(
         for (method in methods) {
             val name = method.name()
             if (name == "build") {
+                // TODO(b/477255952): Provide stricter checking of the `build` methods.
+                // * What is there are multiple matching methods? At the moment it just uses the
+                //   last one it finds.
                 builtType = method.type()
                 continue
             } else if (name.startsWith("get") || name.startsWith("is")) {
@@ -1266,27 +1270,61 @@ private constructor(
                 "${builderClass.qualifiedName()} does not declare a `build()` method, but builder classes are expected to"
             )
         }
-        builtType?.asClass()?.let { builtClass ->
-            val builtMethods =
-                builtClass
-                    .filteredMethods(filterReference, includeSuperClassMethods = true)
-                    .map { it.name() }
-                    .toSet()
-            for ((setter, expectedGetterNames) in expectedGetters) {
-                if (builtMethods.intersect(expectedGetterNames).isEmpty()) {
-                    val expectedGetterCalls = expectedGetterNames.map { "$it()" }
-                    val errorString =
-                        if (expectedGetterCalls.size == 1) {
-                            "${builtClass.qualifiedName()} does not declare a " +
-                                "`${expectedGetterCalls.first()}` method matching " +
-                                setter.describe()
-                        } else {
-                            "${builtClass.qualifiedName()} does not declare a getter method " +
-                                "matching ${setter.describe()} (expected one of: " +
-                                "$expectedGetterCalls)"
-                        }
-                    report(MISSING_GETTER_MATCHING_BUILDER, setter, errorString)
-                }
+
+        // TODO(b/477255952): Provide stricter checking of the `build` methods.
+        // 1. What if the returned type is an array of classes? At the moment that is
+        //    allowed and this will run the check for expected getters on the innermost component.
+        // 2. What if the returned type is not a class? At the moment that is allowed but
+        //    it is not clear if that makes sense.
+        // 3. What is the built class cannot be resolved? At the moment that is allowed.
+        // 4. Types that are allowed but do not resolve to a class, e.g. primitives, are ignored
+        //    here.
+
+        // Resolve the built type to a class, if possible.
+        builtType?.builtClass()?.let { builtClass ->
+            // Check to make sure it provides the expected getters.
+            checkGettersOnBuiltClass(builtClass, expectedGetters)
+        }
+    }
+
+    /** Get the [ClassItem] being built by a build method that returned this [TypeItem]. */
+    private fun TypeItem.builtClass(): ClassItem? =
+        when (this) {
+            // The built type can either be a ClassTypeItem or a VariableTypeItem.
+            is ClassOrVariableTypeItem -> asErasedClass()
+
+            // TODO(b/477255952): This should probably be an error.
+            // If it is an array then the built class is considered to be the innermost component.
+            is ArrayTypeItem -> innermostComponentType().builtClass()
+
+            // Otherwise, there is no built class.
+            else -> null
+        }
+
+    /** Check that [builtClass] provides the [expectedGetters]. */
+    private fun checkGettersOnBuiltClass(
+        builtClass: ClassItem,
+        expectedGetters: List<Pair<Item, Set<String>>>,
+    ) {
+        val builtMethods =
+            builtClass
+                .filteredMethods(filterReference, includeSuperClassMethods = true)
+                .map { it.name() }
+                .toSet()
+        for ((setter, expectedGetterNames) in expectedGetters) {
+            if (builtMethods.intersect(expectedGetterNames).isEmpty()) {
+                val expectedGetterCalls = expectedGetterNames.map { "$it()" }
+                val errorString =
+                    if (expectedGetterCalls.size == 1) {
+                        "${builtClass.qualifiedName()} does not declare a " +
+                            "`${expectedGetterCalls.first()}` method matching " +
+                            setter.describe()
+                    } else {
+                        "${builtClass.qualifiedName()} does not declare a getter method " +
+                            "matching ${setter.describe()} (expected one of: " +
+                            "$expectedGetterCalls)"
+                    }
+                report(MISSING_GETTER_MATCHING_BUILDER, setter, errorString)
             }
         }
     }
@@ -1690,14 +1728,22 @@ private constructor(
     }
 
     /**
-     * Whether the type is a collection. To preserve legacy behavior, primitive arrays (for which
-     * [TypeItem.asClass] is null) are not considered collections but other arrays are
-     * (b/343748165).
+     * Whether the type is a collection.
+     *
+     * To preserve legacy behavior, primitive arrays are not considered collections but other arrays
+     * are (b/343748165).
      */
-    private fun TypeItem.isCollection(): Boolean {
-        val asClass = asClass() ?: return false
-        return this is ArrayTypeItem || asClass.isCollection()
-    }
+    private fun TypeItem.isCollection(): Boolean =
+        when (this) {
+            // Historically arrays are considered collections unless their innermost component type
+            // is primitive.
+            is ArrayTypeItem -> innermostComponentType() !is PrimitiveTypeItem
+            // A class reference is a collection if the referenced ClassItem is a collection.
+            is ClassTypeItem -> resolveClass()?.isCollection() == true
+            // A variable type is a collection if its erased type is a collection.
+            is VariableTypeItem -> asTypeParameter.asErasedType().isCollection()
+            else -> false
+        }
 
     private fun checkFlags(fields: Sequence<FieldItem>) {
         var known: MutableMap<String, Int>? = null
@@ -1736,7 +1782,7 @@ private constructor(
             // Get the throwable class, which for a type parameter will be the lower bound. A
             // method that throws a type parameter is treated as if it throws its lower bound, so
             // it makes sense for this check to treat it as if it was replaced with its lower bound.
-            val throwableClass = throwableType.erasedClass ?: continue
+            val throwableClass = throwableType.asErasedClass() ?: continue
             if (isUncheckedException(throwableClass)) {
                 report(
                     BANNED_THROW,

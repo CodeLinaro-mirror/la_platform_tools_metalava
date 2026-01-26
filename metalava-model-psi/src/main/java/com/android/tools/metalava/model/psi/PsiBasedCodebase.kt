@@ -22,6 +22,7 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.annotation.AnnotationDefaults
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.type.ContextNullability
@@ -90,7 +91,7 @@ internal class PsiBasedCodebase(
     private val methodMap: MutableMap<ClassItem, MutableMap<PsiMethod, PsiCallableItem>> =
         HashMap(METHOD_ESTIMATE)
 
-    /** [PsiTypeItemFactory] used to create [PsiTypeItem]s. */
+    /** [PsiTypeItemFactory] used to create [TypeItem]s. */
     internal val globalTypeItemFactory
         get() = psiAssembler.globalTypeItemFactory
 

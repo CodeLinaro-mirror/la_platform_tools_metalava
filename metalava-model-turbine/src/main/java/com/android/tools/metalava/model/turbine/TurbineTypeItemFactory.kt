@@ -25,13 +25,8 @@ import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.type.ContextNullability
-import com.android.tools.metalava.model.type.DefaultArrayTypeItem
-import com.android.tools.metalava.model.type.DefaultClassTypeItem
-import com.android.tools.metalava.model.type.DefaultPrimitiveTypeItem
 import com.android.tools.metalava.model.type.DefaultTypeItemFactory
 import com.android.tools.metalava.model.type.DefaultTypeModifiers
-import com.android.tools.metalava.model.type.DefaultVariableTypeItem
-import com.android.tools.metalava.model.type.DefaultWildcardTypeItem
 import com.google.turbine.model.TurbineConstantTypeKind
 import com.google.turbine.type.AnnoInfo
 import com.google.turbine.type.Type
@@ -82,21 +77,21 @@ internal class TurbineTypeItemFactory(
                 val modifiers = createModifiers(type.annos(), ContextNullability.forceNonNull)
                 when (type.primkind()) {
                     TurbineConstantTypeKind.BOOLEAN ->
-                        DefaultPrimitiveTypeItem(modifiers, PrimitiveTypeItem.Primitive.BOOLEAN)
+                        TypeItem.createPrimitiveType(modifiers, PrimitiveTypeItem.Primitive.BOOLEAN)
                     TurbineConstantTypeKind.BYTE ->
-                        DefaultPrimitiveTypeItem(modifiers, PrimitiveTypeItem.Primitive.BYTE)
+                        TypeItem.createPrimitiveType(modifiers, PrimitiveTypeItem.Primitive.BYTE)
                     TurbineConstantTypeKind.CHAR ->
-                        DefaultPrimitiveTypeItem(modifiers, PrimitiveTypeItem.Primitive.CHAR)
+                        TypeItem.createPrimitiveType(modifiers, PrimitiveTypeItem.Primitive.CHAR)
                     TurbineConstantTypeKind.DOUBLE ->
-                        DefaultPrimitiveTypeItem(modifiers, PrimitiveTypeItem.Primitive.DOUBLE)
+                        TypeItem.createPrimitiveType(modifiers, PrimitiveTypeItem.Primitive.DOUBLE)
                     TurbineConstantTypeKind.FLOAT ->
-                        DefaultPrimitiveTypeItem(modifiers, PrimitiveTypeItem.Primitive.FLOAT)
+                        TypeItem.createPrimitiveType(modifiers, PrimitiveTypeItem.Primitive.FLOAT)
                     TurbineConstantTypeKind.INT ->
-                        DefaultPrimitiveTypeItem(modifiers, PrimitiveTypeItem.Primitive.INT)
+                        TypeItem.createPrimitiveType(modifiers, PrimitiveTypeItem.Primitive.INT)
                     TurbineConstantTypeKind.LONG ->
-                        DefaultPrimitiveTypeItem(modifiers, PrimitiveTypeItem.Primitive.LONG)
+                        TypeItem.createPrimitiveType(modifiers, PrimitiveTypeItem.Primitive.LONG)
                     TurbineConstantTypeKind.SHORT ->
-                        DefaultPrimitiveTypeItem(modifiers, PrimitiveTypeItem.Primitive.SHORT)
+                        TypeItem.createPrimitiveType(modifiers, PrimitiveTypeItem.Primitive.SHORT)
                     else ->
                         throw IllegalStateException("Invalid primitive type in API surface: $type")
                 }
@@ -136,7 +131,7 @@ internal class TurbineTypeItemFactory(
                 type as Type.TyVar
                 val modifiers = createModifiers(type.annos(), contextNullability)
                 val typeParameter = typeParameterScope.getTypeParameter(type.sym().name())
-                DefaultVariableTypeItem(modifiers, typeParameter)
+                TypeItem.createVariableType(modifiers, typeParameter)
             }
             Type.TyKind.WILD_TY -> {
                 type as Type.WildTy
@@ -146,31 +141,31 @@ internal class TurbineTypeItemFactory(
                 when (type.boundKind()) {
                     Type.WildTy.BoundKind.UPPER -> {
                         val upperBound = createWildcardBound(type.bound())
-                        DefaultWildcardTypeItem(modifiers, upperBound, null)
+                        TypeItem.createWildcardType(modifiers, upperBound, null)
                     }
                     Type.WildTy.BoundKind.LOWER -> {
                         // LowerBounded types have java.lang.Object as upper bound
                         val upperBound = createWildcardBound(Type.ClassTy.OBJECT)
                         val lowerBound = createWildcardBound(type.bound())
-                        DefaultWildcardTypeItem(modifiers, upperBound, lowerBound)
+                        TypeItem.createWildcardType(modifiers, upperBound, lowerBound)
                     }
                     Type.WildTy.BoundKind.NONE -> {
                         // Unbounded types have java.lang.Object as upper bound
                         val upperBound = createWildcardBound(Type.ClassTy.OBJECT)
-                        DefaultWildcardTypeItem(modifiers, upperBound, null)
+                        TypeItem.createWildcardType(modifiers, upperBound, null)
                     }
                     else ->
                         throw IllegalStateException("Invalid wildcard type in API surface: $type")
                 }
             }
             Type.TyKind.VOID_TY ->
-                DefaultPrimitiveTypeItem(
+                TypeItem.createPrimitiveType(
                     // Primitives are always non-null.
                     createModifiers(emptyList(), ContextNullability.forceNonNull),
                     PrimitiveTypeItem.Primitive.VOID
                 )
             Type.TyKind.NONE_TY ->
-                DefaultPrimitiveTypeItem(
+                TypeItem.createPrimitiveType(
                     // Primitives are always non-null.
                     DefaultTypeModifiers.emptyNonNullModifiers,
                     PrimitiveTypeItem.Primitive.VOID
@@ -178,7 +173,7 @@ internal class TurbineTypeItemFactory(
             Type.TyKind.ERROR_TY -> {
                 // This is case of unresolved superclass or implemented interface
                 type as Type.ErrorTy
-                DefaultClassTypeItem(
+                TypeItem.createClassType(
                     codebase,
                     DefaultTypeModifiers.emptyUndefinedModifiers,
                     type.name(),
@@ -204,7 +199,7 @@ internal class TurbineTypeItemFactory(
         // Create an array type item from the Turbine array type using the supplied isVarArg and
         // contextual nullability.
         val modifiers = createModifiers(type.annos(), contextNullability)
-        return DefaultArrayTypeItem(modifiers, componentTypeItem, isVarArg)
+        return TypeItem.createArrayType(modifiers, componentTypeItem, isVarArg)
     }
 
     /**
@@ -240,7 +235,7 @@ internal class TurbineTypeItemFactory(
         // Since this type was never part of source , it won't have any annotation or arguments
         val modifiers = DefaultTypeModifiers.emptyNonNullModifiers
         val classTypeItem =
-            DefaultClassTypeItem(
+            TypeItem.createClassType(
                 codebase,
                 modifiers,
                 element.qualifiedName.toString(), // Assuming qualifiedName is available on element
@@ -266,6 +261,12 @@ internal class TurbineTypeItemFactory(
         val modifiers = createModifiers(type.annos(), contextNullability)
         val qualifiedName = sym.qualifiedName
         val parameters = type.targs().map { getGeneralType(it) as TypeArgumentTypeItem }
-        return DefaultClassTypeItem(codebase, modifiers, qualifiedName, parameters, outerClassItem)
+        return TypeItem.createClassType(
+            codebase,
+            modifiers,
+            qualifiedName,
+            parameters,
+            outerClassItem
+        )
     }
 }

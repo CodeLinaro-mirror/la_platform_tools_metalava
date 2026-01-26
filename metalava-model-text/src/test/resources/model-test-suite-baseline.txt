@@ -1,12 +1,6 @@
 com.android.tools.metalava.model.testsuite.methoditem.CommonMethodModifierTest
   Test final method in final class
 
-com.android.tools.metalava.model.testsuite.typeitem.CommonIsAssignableFromTest
-  Test assignability without unboxing[boxedInt to primitiveInt]
-  Test assignability without unboxing[number to boxedInt]
-  Test assignability without unboxing[number to primitiveInt]
-  Test assignability without unboxing[obj to string]
-
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeParameterItemTest
   Test type parameter with annotations
 

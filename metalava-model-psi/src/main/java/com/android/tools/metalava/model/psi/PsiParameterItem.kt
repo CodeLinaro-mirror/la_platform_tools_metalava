@@ -69,7 +69,7 @@ internal constructor(
             publicName = publicName,
             containingCallable = containingCallable as PsiCallableItem,
             parameterIndex = parameterIndex,
-            type = type().convertType(typeVariableMap) as PsiTypeItem,
+            type = type().convertType(typeVariableMap),
             hasDefaultValue = hasDefaultValue(),
         )
 

@@ -946,7 +946,7 @@ class ApiAnalyzer(
             }
             for (thrown in callable.throwsTypes()) {
                 if (thrown is VariableTypeItem) continue
-                val classItem = thrown.erasedClass ?: continue
+                val classItem = thrown.asErasedClass() ?: continue
                 cantStripThis(classItem, filter, notStrippable, callable, "as exception")
             }
             cantStripThis(callable.returnType(), callable, filter, notStrippable, "in return type")

@@ -119,7 +119,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
                     .assertMethod("foo", emptyList())
                     .throwsTypes()
                     .first()
-            assertSame(throwable, exception.erasedClass)
+            assertSame(throwable, exception.asErasedClass())
         }
     }
 
@@ -158,7 +158,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
                     .assertMethod("foo", emptyList())
                     .throwsTypes()
                     .first()
-            assertSame(error, exception.erasedClass)
+            assertSame(error, exception.asErasedClass())
         }
     }
 
@@ -187,7 +187,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
                     .assertMethod("foo", emptyList())
                     .throwsTypes()
                     .first()
-            assertSame(throwable, exception.erasedClass)
+            assertSame(throwable, exception.asErasedClass())
         }
     }
 
@@ -212,7 +212,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
 
             // Force the unknown exception class to be resolved, creating a stub in the process. It
             // is checked below.
-            exceptionType.erasedClass
+            exceptionType.asErasedClass()
 
             val unknownExceptionClass =
                 codebase.assertClass("other.UnknownException", expectedEmit = false)
@@ -226,7 +226,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
                     .assertMethod("foo", emptyList())
                     .throwsTypes()
                     .first()
-            assertSame(unknownExceptionClass, exception.erasedClass)
+            assertSame(unknownExceptionClass, exception.asErasedClass())
         }
     }
 
@@ -266,7 +266,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
                 .assertMethod("foo", emptyList())
                 .throwsTypes()
                 .first()
-        assertSame(unknownExceptionClass, exception.erasedClass)
+        assertSame(unknownExceptionClass, exception.asErasedClass())
     }
 
     @Test

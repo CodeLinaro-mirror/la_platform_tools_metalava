@@ -1511,13 +1511,21 @@ class CommonClassItemTest : BaseModelTest() {
     }
 
     @Test
-    fun `Test toType for outer class with type parameter`() {
+    fun `Test type for inner class with an outer class with type parameter`() {
         runCodebaseTest(
             java(
                 """
                     package test.pkg;
                     public class Outer<T> {
                         public class Inner {}
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+                    class Outer<T> {
+                        inner class Inner {}
                     }
                 """
             ),
@@ -1548,6 +1556,52 @@ class CommonClassItemTest : BaseModelTest() {
             val outerClassVariable = outerType.arguments.single()
             outerClassVariable.assertReferencesTypeParameter(outerClassParameter)
             assertThat((outerClassVariable as VariableTypeItem).name).isEqualTo("T")
+        }
+    }
+
+    @Test
+    fun `Test type for a nested but not inner class with an outer class with type parameter`() {
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+                    public class Outer<T> {
+                        public static class Inner {}
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+                    class Outer<T> {
+                        class Inner {}
+                    }
+                """
+            ),
+            signature(
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public class Outer<T> {
+                      }
+                      public static class Outer.Inner {
+                      }
+                    }
+                """
+            )
+        ) {
+            val innerClass = codebase.assertClass("test.pkg.Outer.Inner")
+            val outerClass = codebase.assertClass("test.pkg.Outer")
+
+            val innerType = innerClass.type()
+            assertThat(innerType).isInstanceOf(ClassTypeItem::class.java)
+            assertThat(innerType.qualifiedName).isEqualTo("test.pkg.Outer.Inner")
+
+            val outerType = innerType.outerClassType
+            assertThat(outerType).isNotNull()
+            assertThat(outerType!!.qualifiedName).isEqualTo("test.pkg.Outer")
+
+            assertThat(outerType.arguments).isEmpty()
         }
     }
 

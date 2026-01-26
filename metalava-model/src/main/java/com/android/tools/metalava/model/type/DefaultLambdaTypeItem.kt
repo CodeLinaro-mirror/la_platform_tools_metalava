@@ -23,7 +23,7 @@ import com.android.tools.metalava.model.TypeArgumentTypeItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeModifiers
 
-class DefaultLambdaTypeItem(
+internal class DefaultLambdaTypeItem(
     classResolver: ClassResolver,
     modifiers: TypeModifiers,
     qualifiedName: String,
@@ -33,6 +33,7 @@ class DefaultLambdaTypeItem(
     override val receiverType: TypeItem?,
     override val parameterTypes: List<TypeItem>,
     override val returnType: TypeItem,
+    isValueClassType: Boolean = false,
 ) :
     DefaultClassTypeItem(
         classResolver = classResolver,
@@ -40,6 +41,7 @@ class DefaultLambdaTypeItem(
         qualifiedName = qualifiedName,
         arguments = arguments,
         outerClassType = outerClassType,
+        isValueClassType = isValueClassType,
     ),
     LambdaTypeItem {
 

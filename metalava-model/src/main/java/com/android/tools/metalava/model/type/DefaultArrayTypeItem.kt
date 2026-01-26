@@ -21,11 +21,12 @@ import com.android.tools.metalava.model.DefaultTypeItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeModifiers
 
-class DefaultArrayTypeItem(
+internal class DefaultArrayTypeItem(
     modifiers: TypeModifiers,
     override val componentType: TypeItem,
     override val isVarargs: Boolean,
-) : ArrayTypeItem, DefaultTypeItem(modifiers) {
+    isValueClassType: Boolean = false,
+) : ArrayTypeItem, DefaultTypeItem(modifiers, isValueClassType) {
     @Deprecated(
         "implementation detail of this class",
         replaceWith = ReplaceWith("substitute(modifiers, componentType)"),

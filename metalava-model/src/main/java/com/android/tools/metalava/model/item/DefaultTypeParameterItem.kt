@@ -21,11 +21,10 @@ import com.android.tools.metalava.model.BoundsTypeItem
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.JAVA_LANG_OBJECT
 import com.android.tools.metalava.model.ModifierList
+import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.VariableTypeItem
-import com.android.tools.metalava.model.type.DefaultClassTypeItem
 import com.android.tools.metalava.model.type.DefaultTypeModifiers
-import com.android.tools.metalava.model.type.DefaultVariableTypeItem
 
 /** A [TypeParameterItem] implementation suitable for use by multiple models. */
 open class DefaultTypeParameterItem(
@@ -51,7 +50,7 @@ open class DefaultTypeParameterItem(
 
     /** Create a [VariableTypeItem] for this [TypeParameterItem]. */
     protected open fun createVariableTypeItem(): VariableTypeItem =
-        DefaultVariableTypeItem(DefaultTypeModifiers.emptyUndefinedModifiers, this)
+        TypeItem.createVariableType(DefaultTypeModifiers.emptyUndefinedModifiers, this)
 
     lateinit var bounds: List<BoundsTypeItem>
 
@@ -65,7 +64,7 @@ open class DefaultTypeParameterItem(
             // resolve the class and reuse its type.
             ?: classResolver.resolveClass(JAVA_LANG_OBJECT)?.type()
             // Otherwise, just create a type item for it.
-            ?: DefaultClassTypeItem(
+            ?: TypeItem.createClassType(
                 classResolver,
                 // The nullability of the default type bound differs between Kotlin (Any?) and Java
                 // (Object!) but that does not matter here as this is the type used at runtime which
