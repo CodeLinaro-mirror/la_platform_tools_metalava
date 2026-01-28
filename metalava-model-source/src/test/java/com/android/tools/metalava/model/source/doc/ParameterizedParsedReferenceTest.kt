@@ -57,6 +57,10 @@ class ParameterizedParsedReferenceTest {
     }
 
     companion object {
+        /** Construct a [MethodSourceReference]. */
+        private fun methodSourceReference(name: String, parameters: String = "()") =
+            MethodSourceReference(name, parameters)
+
         private val params =
             listOf(
                 // Packages
@@ -86,13 +90,13 @@ class ParameterizedParsedReferenceTest {
                         QualifyingClassSourceReference(
                             className = "java.lang.Integer",
                             AmbiguousMemberSourceReference(name = "MAX_VALUE"),
-                        )
+                        ),
                 ),
                 TestParams(
                     name = "#MAX_VALUE",
                     expectedParsed =
                         CurrentClassSourceReference(
-                            member = AmbiguousMemberSourceReference(name = "MAX_VALUE")
+                            member = AmbiguousMemberSourceReference(name = "MAX_VALUE"),
                         ),
                 ),
                 TestParams(
@@ -106,24 +110,19 @@ class ParameterizedParsedReferenceTest {
                     expectedParsed =
                         QualifyingClassSourceReference(
                             className = "java.lang.Character",
-                            member =
-                                MethodSourceReference(
-                                    name = "isWhitespace",
-                                    parameters = "()",
-                                ),
-                        )
+                            member = methodSourceReference(name = "isWhitespace"),
+                        ),
                 ),
                 TestParams(
                     name = "#isWhitespace()",
                     expectedParsed =
                         CurrentClassSourceReference(
-                            member = MethodSourceReference(name = "isWhitespace", parameters = "()")
+                            member = methodSourceReference(name = "isWhitespace"),
                         ),
                 ),
                 TestParams(
                     name = "isWhitespace()",
-                    expectedParsed =
-                        MethodSourceReference(name = "isWhitespace", parameters = "()"),
+                    expectedParsed = methodSourceReference(name = "isWhitespace"),
                 ),
 
                 // Methods with one parameter (no name).
@@ -133,19 +132,19 @@ class ParameterizedParsedReferenceTest {
                         QualifyingClassSourceReference(
                             className = "java.lang.String",
                             member =
-                                MethodSourceReference(
+                                methodSourceReference(
                                     name = "toLowerCase",
-                                    parameters = "(Locale)"
+                                    parameters = "(Locale)",
                                 ),
-                        )
+                        ),
                 ),
                 TestParams(
                     // Not strictly valid (no # separating class and method) but still supported.
                     name = "java.lang.String.toLowerCase(Locale)",
                     expectedParsed =
-                        MethodSourceReference(
+                        methodSourceReference(
                             name = "java.lang.String.toLowerCase",
-                            parameters = "(Locale)"
+                            parameters = "(Locale)",
                         ),
                 ),
                 TestParams(
@@ -153,13 +152,19 @@ class ParameterizedParsedReferenceTest {
                     expectedParsed =
                         CurrentClassSourceReference(
                             member =
-                                MethodSourceReference(name = "toLowerCase", parameters = "(Locale)")
+                                methodSourceReference(
+                                    name = "toLowerCase",
+                                    parameters = "(Locale)",
+                                ),
                         ),
                 ),
                 TestParams(
                     name = "toLowerCase(Locale)",
                     expectedParsed =
-                        MethodSourceReference(name = "toLowerCase", parameters = "(Locale)"),
+                        methodSourceReference(
+                            name = "toLowerCase",
+                            parameters = "(Locale)",
+                        ),
                 ),
 
                 // Methods with one parameter (with name).
@@ -169,19 +174,19 @@ class ParameterizedParsedReferenceTest {
                         QualifyingClassSourceReference(
                             className = "java.lang.String",
                             member =
-                                MethodSourceReference(
+                                methodSourceReference(
                                     name = "toLowerCase",
-                                    parameters = "(Locale locale)"
+                                    parameters = "(Locale locale)",
                                 ),
-                        )
+                        ),
                 ),
                 TestParams(
                     // Not strictly valid (no # separating class and method) but still supported.
                     name = "java.lang.String.toLowerCase(Locale locale)",
                     expectedParsed =
-                        MethodSourceReference(
+                        methodSourceReference(
                             name = "java.lang.String.toLowerCase",
-                            parameters = "(Locale locale)"
+                            parameters = "(Locale locale)",
                         ),
                 ),
                 TestParams(
@@ -189,16 +194,19 @@ class ParameterizedParsedReferenceTest {
                     expectedParsed =
                         CurrentClassSourceReference(
                             member =
-                                MethodSourceReference(
+                                methodSourceReference(
                                     name = "toLowerCase",
-                                    parameters = "(Locale locale)"
-                                )
+                                    parameters = "(Locale locale)",
+                                ),
                         ),
                 ),
                 TestParams(
                     name = "toLowerCase(Locale locale)",
                     expectedParsed =
-                        MethodSourceReference(name = "toLowerCase", parameters = "(Locale locale)"),
+                        methodSourceReference(
+                            name = "toLowerCase",
+                            parameters = "(Locale locale)",
+                        ),
                 ),
 
                 // Methods with two parameters (no names).
@@ -207,14 +215,22 @@ class ParameterizedParsedReferenceTest {
                     expectedParsed =
                         QualifyingClassSourceReference(
                             className = "java.util.Map",
-                            member = MethodSourceReference(name = "put", parameters = "(K, V)"),
-                        )
+                            member =
+                                methodSourceReference(
+                                    name = "put",
+                                    parameters = "(K, V)",
+                                ),
+                        ),
                 ),
                 TestParams(
                     name = "#put(K, V)",
                     expectedParsed =
                         CurrentClassSourceReference(
-                            member = MethodSourceReference(name = "put", parameters = "(K, V)")
+                            member =
+                                methodSourceReference(
+                                    name = "put",
+                                    parameters = "(K, V)",
+                                ),
                         ),
                 ),
 
@@ -225,24 +241,54 @@ class ParameterizedParsedReferenceTest {
                         QualifyingClassSourceReference(
                             className = "java.util.Map",
                             member =
-                                MethodSourceReference(
+                                methodSourceReference(
                                     name = "put",
-                                    parameters = "(K key, V value)"
+                                    parameters = "(K key, V value)",
                                 ),
-                        )
+                        ),
                 ),
                 TestParams(
                     name = "#put(K key, V value)",
                     expectedParsed =
                         CurrentClassSourceReference(
                             member =
-                                MethodSourceReference(name = "put", parameters = "(K key, V value)")
+                                methodSourceReference(
+                                    name = "put",
+                                    parameters = "(K key, V value)",
+                                ),
                         ),
                 ),
                 TestParams(
                     name = "put(K key, V value)",
                     expectedParsed =
-                        MethodSourceReference(name = "put", parameters = "(K key, V value)"),
+                        methodSourceReference(
+                            name = "put",
+                            parameters = "(K key, V value)",
+                        ),
+                ),
+                TestParams(
+                    name = "#bar(java.lang.Integer p1, java.lang.String)",
+                    expectedParsed =
+                        CurrentClassSourceReference(
+                            member =
+                                methodSourceReference(
+                                    name = "bar",
+                                    parameters = "(java.lang.Integer p1, java.lang.String)",
+                                ),
+                        ),
+                    expectedNormalized = "#bar(java.lang.Integer p1, java.lang.String)",
+                ),
+                TestParams(
+                    name = "#bar(int[]p1,List<String>p2)",
+                    expectedParsed =
+                        CurrentClassSourceReference(
+                            member =
+                                methodSourceReference(
+                                    name = "bar",
+                                    parameters = "(int[]p1,List<String>p2)",
+                                ),
+                        ),
+                    expectedNormalized = "#bar(int[]p1,List<String>p2)",
                 ),
 
                 // Methods with generic parameter types.
@@ -252,11 +298,72 @@ class ParameterizedParsedReferenceTest {
                         QualifyingClassSourceReference(
                             className = "java.util.Collection",
                             member =
-                                MethodSourceReference(
+                                methodSourceReference(
                                     name = "addAll",
-                                    parameters = "(Collection<? extends E>)"
+                                    parameters = "(Collection<? extends E>)",
                                 ),
-                        )
+                        ),
+                ),
+
+                // Methods with pathological formatting.
+                TestParams(
+                    name = "whitespaces but no parameters",
+                    reference = "Class#foo(   \t\n\r)",
+                    expectedParsed =
+                        QualifyingClassSourceReference(
+                            className = "Class",
+                            member =
+                                methodSourceReference(
+                                    name = "foo",
+                                    parameters = "(   \t\n\r)",
+                                ),
+                        ),
+                    expectedNormalized = "Class#foo(   \t\n\r)",
+                ),
+                TestParams(
+                    name = "leading and trailing whitespace",
+                    reference = "Class#foo(   int    )",
+                    expectedParsed =
+                        QualifyingClassSourceReference(
+                            className = "Class",
+                            member =
+                                methodSourceReference(
+                                    name = "foo",
+                                    parameters = "(   int    )",
+                                ),
+                        ),
+                    expectedNormalized = "Class#foo(   int    )",
+                ),
+                TestParams(
+                    name = "complex",
+                    reference =
+                        "Class#foo(   Collection<? extends Bar> [  ]   param   ,   Map< Integer  , List <String > >   )",
+                    expectedParsed =
+                        QualifyingClassSourceReference(
+                            className = "Class",
+                            member =
+                                methodSourceReference(
+                                    name = "foo",
+                                    parameters =
+                                        "(   Collection<? extends Bar> [  ]   param   ,   Map< Integer  , List <String > >   )",
+                                ),
+                        ),
+                    expectedNormalized =
+                        "Class#foo(   Collection<? extends Bar> [  ]   param   ,   Map< Integer  , List <String > >   )",
+                ),
+                TestParams(
+                    name = "qualified type with spaces",
+                    reference = "Class#foo(   java . lang . String   )",
+                    expectedParsed =
+                        QualifyingClassSourceReference(
+                            className = "Class",
+                            member =
+                                methodSourceReference(
+                                    name = "foo",
+                                    parameters = "(   java . lang . String   )",
+                                ),
+                        ),
+                    expectedNormalized = "Class#foo(   java . lang . String   )",
                 ),
 
                 // Fragment reference
@@ -267,16 +374,16 @@ class ParameterizedParsedReferenceTest {
                             className = "java.util.Collection",
                             member =
                                 UriFragmentSourceReference(uriFragment = "optional-restrictions"),
-                        )
+                        ),
                 ),
                 TestParams(
                     name = "##optional-restrictions",
                     expectedParsed =
                         CurrentClassSourceReference(
                             member =
-                                UriFragmentSourceReference(uriFragment = "optional-restrictions")
+                                UriFragmentSourceReference(uriFragment = "optional-restrictions"),
                         ),
-                    expectedNormalized = "##optional-restrictions"
+                    expectedNormalized = "##optional-restrictions",
                 ),
 
                 // Invalid references

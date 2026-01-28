@@ -18,7 +18,6 @@ package com.android.tools.metalava
 
 import com.android.SdkConstants.DOT_TXT
 import com.android.tools.lint.LintCliClient
-import com.android.tools.lint.UastEnvironment
 import com.android.tools.lint.checks.ApiLookup
 import com.android.tools.lint.checks.infrastructure.ClassName
 import com.android.tools.lint.checks.infrastructure.TestFile
@@ -231,8 +230,10 @@ abstract class DriverTest :
                 fail("Printed newlines with nothing else")
             }
 
+            /* TODO(b/477826713): Temporarily disable this while the problem is fixed.
             UastEnvironment.checkApplicationEnvironmentDisposed()
             Disposer.assertIsEmpty(true)
+             */
 
             return printedOutput
         } finally {

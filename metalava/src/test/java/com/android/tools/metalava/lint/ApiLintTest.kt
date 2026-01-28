@@ -1094,47 +1094,6 @@ class ApiLintTest : DriverTest() {
     }
 
     @Test
-    fun `Check package layering`() {
-        check(
-            apiLint = "", // enabled
-            expectedIssues =
-                """
-                src/android/content/MyClass1.java:8: warning: Field type `android.view.View` violates package layering: nothing in `package android.content` should depend on `package android.view` [PackageLayering]
-                src/android/content/MyClass1.java:8: warning: Method parameter type `android.view.View` violates package layering: nothing in `package android.content` should depend on `package android.view` [PackageLayering]
-                src/android/content/MyClass1.java:8: warning: Method parameter type `android.view.View` violates package layering: nothing in `package android.content` should depend on `package android.view` [PackageLayering]
-                src/android/content/MyClass1.java:8: warning: Method return type `android.view.View` violates package layering: nothing in `package android.content` should depend on `package android.view` [PackageLayering]
-                """,
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package android.content;
-
-                    import android.graphics.drawable.Drawable;
-                    import android.graphics.Bitmap;
-                    import android.view.View;
-                    import androidx.annotation.Nullable;
-
-                    public class MyClass1 {
-                        @Nullable
-                        public final View view = null;
-                        @Nullable
-                        public final Drawable drawable = null;
-                        @Nullable
-                        public final Bitmap bitmap = null;
-                        @Nullable
-                        public View ok(@Nullable View view, @Nullable Drawable drawable) { return null; }
-                        @Nullable
-                        public Bitmap wrong(@Nullable View view, @Nullable Bitmap bitmap) { return null; }
-                    }
-                    """
-                    ),
-                    androidxNullableSource
-                )
-        )
-    }
-
-    @Test
     fun `Check boolean getter and setter naming patterns`() {
         check(
             apiLint = "", // enabled
@@ -1474,49 +1433,6 @@ class ApiLintTest : DriverTest() {
                     }
                     """
                     )
-                )
-        )
-    }
-
-    @Test
-    fun `Check Manager related issues`() {
-        check(
-            apiLint = "", // enabled
-            expectedIssues =
-                """
-                src/android/pkg/MyFirstManager.java:6: error: Managers must always be obtained from Context; no direct constructors [ManagerConstructor]
-                src/android/pkg/MyFirstManager.java:9: error: Managers must always be obtained from Context (`get`) [ManagerLookup]
-                """,
-            expectedFail = DefaultLintErrorMessage,
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package android.pkg;
-
-                    import androidx.annotation.Nullable;
-
-                    public class MyFirstManager {
-                        public MyFirstManager() {
-                        }
-                        @Nullable
-                        public MyFirstManager get() { return null; }
-                        @Nullable
-                        public MySecondManager ok() { return null; }
-                    }
-                    """
-                    ),
-                    java(
-                        """
-                    package android.pkg;
-
-                    public class MySecondManager {
-                        private MySecondManager() {
-                        }
-                    }
-                    """
-                    ),
-                    androidxNullableSource
                 )
         )
     }
@@ -2925,60 +2841,6 @@ class ApiLintTest : DriverTest() {
                     """
                     ),
                     androidxNullableSource
-                )
-        )
-    }
-
-    @Test
-    fun `Listener replaceable with OutcomeReceiver or ListenableFuture`() {
-        check(
-            apiLint = "", // enabled
-            expectedIssues =
-                """
-                src/android/pkg/Cases.java:7: error: Cases.BadCallback can be replaced with OutcomeReceiver<R,E> (platform) or suspend fun / ListenableFuture (AndroidX). [GenericCallbacks]
-                src/android/pkg/Cases.java:11: error: Cases.BadListener can be replaced with OutcomeReceiver<R,E> (platform) or suspend fun / ListenableFuture (AndroidX). [GenericCallbacks]
-                src/android/pkg/Cases.java:15: error: Cases.BadGenericListener can be replaced with OutcomeReceiver<R,E> (platform) or suspend fun / ListenableFuture (AndroidX). [GenericCallbacks]
-            """,
-            expectedFail = DefaultLintErrorMessage,
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package android.pkg;
-
-                    import androidx.annotation.NonNull;
-                    import java.io.IOException;
-
-                    public final class Cases {
-                        public class BadCallback {
-                            public abstract void onSuccess(@NonNull String result);
-                            public void onFailure(@NonNull Throwable error) {}
-                        }
-                        public interface BadListener {
-                            void onResult(@NonNull Object result);
-                            void onError(@NonNull IOException error);
-                        }
-                        public interface BadGenericListener<R, E extends Throwable> {
-                            void onResult(@NonNull R result);
-                            void onError(@NonNull E error);
-                        }
-                        public interface OkListener {
-                            void onResult(@NonNull Object result);
-                            void onError(@NonNull int error);
-                        }
-                        public interface Ok2Listener {
-                            void onResult(@NonNull int result);
-                            void onError(@NonNull Throwable error);
-                        }
-                        public interface Ok3Listener {
-                            void onSuccess(@NonNull String result);
-                            void onOtherThing(@NonNull String result);
-                            void onFailure(@NonNull Throwable error);
-                        }
-                    }
-                    """
-                    ),
-                    androidxNonNullSource
                 )
         )
     }

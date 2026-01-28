@@ -53,6 +53,7 @@ import com.android.tools.metalava.manifest.SetMinSdkVersion
 import com.android.tools.metalava.manifest.emptyManifest
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
+import com.android.tools.metalava.model.BaseTypeVisitor
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassOrVariableTypeItem
@@ -71,10 +72,12 @@ import com.android.tools.metalava.model.MultipleTypeVisitor
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
+import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
+import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterListOwner
 import com.android.tools.metalava.model.TypeStringConfiguration
 import com.android.tools.metalava.model.VariableTypeItem
@@ -668,11 +671,15 @@ private constructor(
             method.parameters().size == 1 &&
                 method.name().startsWith("on") &&
                 method.parameters().first().type() !is PrimitiveTypeItem &&
-                method.returnType().toTypeString() == Void.TYPE.name
+                (method.returnType() as? PrimitiveTypeItem)?.kind == Primitive.VOID
 
         if (!methods.all(::isSingleParamCallbackMethod)) return
 
-        fun TypeItem.extendsThrowable() = asClass()?.extends(JAVA_LANG_THROWABLE) ?: false
+        fun TypeItem.extendsThrowable() =
+            // The only types that can represent a Throwable are either a type parameter or class.
+            (this as? ClassOrVariableTypeItem)?.asErasedClass()?.extends(JAVA_LANG_THROWABLE) ==
+                true
+
         fun isErrorMethod(method: MethodItem) =
             method.name().run { startsWith("onError") || startsWith("onFail") } &&
                 method.parameters().first().type().extendsThrowable()
@@ -1355,13 +1362,58 @@ private constructor(
         }
     }
 
-    private fun checkLayering(
-        cls: ClassItem,
-        callables: Sequence<CallableItem>,
-        fields: Sequence<FieldItem>
-    ) {
-        fun packageRank(pkg: PackageItem): Int {
-            return when (pkg.qualifiedName()) {
+    /** Encapsulate a [packageItem] and its associated [rank]. */
+    private class PackageRank private constructor() : BaseTypeVisitor() {
+        /**
+         * The [PackageItem].
+         *
+         * Must only be read if [rank] is not [INVALID_RANK].
+         */
+        private lateinit var packageItem: PackageItem
+
+        private var rank = INVALID_RANK
+
+        /** Construct from a [ClassItem]. */
+        constructor(classItem: ClassItem) : this() {
+            // Extract the package item from the class and get its rank.
+            packageItem = classItem.containingPackage()
+            rank = packageItem.packageRank()
+        }
+
+        /** Construct from a [TypeItem]. */
+        constructor(type: TypeItem) : this() {
+            // Visit the [type] searching for any [ClassTypeItem] references passing in this as the
+            // visitor. This class's visitor methods will ensure that the rank and packageItem are
+            // set the highest package rank for all the classes referenced in this type. If none are
+            // found (or no packages have a valid rank) then it will leave this in an invalid state
+            // so [TypeItem.packageRank] will discard it.
+            type.accept(this)
+        }
+
+        override fun visitClassType(classType: ClassTypeItem) {
+            val classItem = classType.resolveClass() ?: return
+            val newPackageItem = classItem.containingPackage()
+            val newRank = newPackageItem.packageRank()
+
+            // Use the rank if it is higher than the existing one.
+            if (newRank > rank) {
+                packageItem = newPackageItem
+                rank = newRank
+            }
+        }
+
+        override fun visit(variableType: VariableTypeItem) {
+            // Visit the lower type bound.
+            variableType.asErasedType().accept(this)
+        }
+
+        /**
+         * Get the package rank for this [PackageItem].
+         *
+         * Higher means the package is more restricted about what it can depend upon.
+         */
+        private fun PackageItem.packageRank() =
+            when (qualifiedName()) {
                 "android.service",
                 "android.accessibilityservice",
                 "android.inputmethodservice",
@@ -1383,64 +1435,64 @@ private constructor(
                 "android.graphics" -> 100
                 "android.os" -> 110
                 "android.util" -> 120
-                else -> -1
+                else -> INVALID_RANK
             }
-        }
 
-        fun getTypePackage(type: TypeItem?): PackageItem? {
-            return if (type == null || type is PrimitiveTypeItem) {
-                null
-            } else {
-                type.asClass()?.containingPackage()
-            }
-        }
+        /** True if this is value. */
+        fun valid() = rank != INVALID_RANK
 
-        fun getTypeRank(type: TypeItem?): Int {
-            type ?: return -1
-            val pkg = getTypePackage(type) ?: return -1
-            return packageRank(pkg)
-        }
+        operator fun compareTo(other: PackageRank) = rank.compareTo(other.rank)
 
-        val classPackage = cls.containingPackage()
-        val classRank = packageRank(classPackage)
-        if (classRank == -1) {
-            return
+        override fun toString() = if (valid()) packageItem.toString() else "invalid"
+
+        companion object {
+            /** The invalid or unknown rank. */
+            private const val INVALID_RANK = -1
         }
+    }
+
+    /** Get the [PackageRank] for this [ClassItem], returning `null` if it could not be found. */
+    private fun ClassItem.packageRank() = PackageRank(this).takeIf { it.valid() }
+
+    /** Get the [PackageRank] for this [TypeItem], returning `null` if it could not be found. */
+    private fun TypeItem.packageRank() = PackageRank(this).takeIf { it.valid() }
+
+    private fun checkLayering(
+        cls: ClassItem,
+        callables: Sequence<CallableItem>,
+        fields: Sequence<FieldItem>
+    ) {
+        val classRank = cls.packageRank() ?: return
+
         for (field in fields) {
-            val fieldTypeRank = getTypeRank(field.type())
-            if (fieldTypeRank != -1 && fieldTypeRank < classRank) {
+            val fieldTypeRank = field.type().packageRank() ?: continue
+            if (fieldTypeRank < classRank) {
                 report(
                     PACKAGE_LAYERING,
-                    cls,
-                    "Field type `${field.type().toTypeString()}` violates package layering: nothing in `$classPackage` should depend on `${getTypePackage(
-                        field.type()
-                    )}`"
+                    field,
+                    "Field type `${field.type().toTypeString()}` violates package layering: nothing in `$classRank` should depend on `$fieldTypeRank`"
                 )
             }
         }
 
         for (callable in callables) {
             val returnType = callable.returnType()
-            val returnTypeRank = getTypeRank(returnType)
-            if (returnTypeRank != -1 && returnTypeRank < classRank) {
+            val returnTypeRank = returnType.packageRank() ?: continue
+            if (returnTypeRank < classRank) {
                 report(
                     PACKAGE_LAYERING,
-                    cls,
-                    "Method return type `${returnType.toTypeString()}` violates package layering: nothing in `$classPackage` should depend on `${getTypePackage(
-                        returnType
-                    )}`"
+                    callable,
+                    "Method return type `${returnType.toTypeString()}` violates package layering: nothing in `$classRank` should depend on `$returnTypeRank`"
                 )
             }
 
             for (parameter in callable.parameters()) {
-                val parameterTypeRank = getTypeRank(parameter.type())
-                if (parameterTypeRank != -1 && parameterTypeRank < classRank) {
+                val parameterTypeRank = parameter.type().packageRank() ?: continue
+                if (parameterTypeRank < classRank) {
                     report(
                         PACKAGE_LAYERING,
-                        cls,
-                        "Method parameter type `${parameter.type().toTypeString()}` violates package layering: nothing in `$classPackage` should depend on `${getTypePackage(
-                            parameter.type()
-                        )}`"
+                        parameter,
+                        "Method parameter type `${parameter.type().toTypeString()}` violates package layering: nothing in `$classRank` should depend on `$parameterTypeRank`"
                     )
                 }
             }
@@ -1855,16 +1907,41 @@ private constructor(
         }
     }
 
-    /** Check whether this [TypeItem] uses any of the [qualifiedClassNames] in any way. */
-    private fun TypeItem.usesAnyClassIn(qualifiedClassNames: Set<String>): Boolean =
+    /**
+     * Check whether this [TypeItem] uses any of the [qualifiedClassNames] in any way.
+     *
+     * This will only check the [TypeParameterItem.typeBounds] of a
+     * [VariableTypeItem.asTypeParameter] if specifically requested. That is because when the check
+     * has to prevent any type being used it is better to check the [TypeParameterItem]s directly
+     * rather than every use as the latter would produce a lot of noise.
+     *
+     * Care has to be taken when checking [TypeParameterItem]s as they can form cycles, e.g.
+     * * in `Foo<T extends Foo<T>>` type parameter `T` depends on itself
+     * * in `Foo<A extends Foo<A, B>, B extends Foo<A, B>>` both `A` and `B` depend on each other.
+     */
+    private fun TypeItem.usesAnyClassIn(
+        qualifiedClassNames: Set<String>,
+        checkVariableTypes: Boolean = false,
+    ): Boolean =
         when (this) {
-            is ArrayTypeItem -> componentType.usesAnyClassIn(qualifiedClassNames)
+            is ArrayTypeItem ->
+                componentType.usesAnyClassIn(qualifiedClassNames, checkVariableTypes)
             is ClassTypeItem ->
                 qualifiedName in qualifiedClassNames ||
-                    arguments.any { it.usesAnyClassIn(qualifiedClassNames) }
+                    arguments.any { it.usesAnyClassIn(qualifiedClassNames, checkVariableTypes) }
             is WildcardTypeItem ->
-                extendsBound?.usesAnyClassIn(qualifiedClassNames) == true ||
-                    superBound?.usesAnyClassIn(qualifiedClassNames) == true
+                extendsBound?.usesAnyClassIn(qualifiedClassNames, checkVariableTypes) == true ||
+                    superBound?.usesAnyClassIn(qualifiedClassNames, checkVariableTypes) == true
+            // Make sure that there are no references to the class in the type parameter.
+            is VariableTypeItem ->
+                checkVariableTypes &&
+                    asTypeParameter.typeBounds().any {
+                        it.usesAnyClassIn(
+                            qualifiedClassNames,
+                            // Always set this to `true` to avoid getting trapped in a cycle.
+                            checkVariableTypes = false,
+                        )
+                    }
             else -> false
         }
 
@@ -1892,7 +1969,19 @@ private constructor(
             )
         }
         for (method in methods) {
-            if (method.returnType().asClass() == cls) {
+            // A Manager class must not be returned, in any form so report an issue if the return
+            // type contains any use of the Manager class name. That includes checking for variable
+            // types.
+            if (
+                method
+                    .returnType()
+                    .usesAnyClassIn(
+                        setOf(cls.qualifiedName()),
+                        // Make sure to check that the manager is not returned through a type
+                        // parameter.
+                        checkVariableTypes = true,
+                    )
+            ) {
                 report(
                     MANAGER_LOOKUP,
                     method,
