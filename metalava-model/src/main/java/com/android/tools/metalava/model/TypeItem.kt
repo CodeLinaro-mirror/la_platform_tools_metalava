@@ -207,43 +207,77 @@ interface TypeItem {
         }
 
         /**
-         * Create a [Comparator] that when given two [TypeItem] will try and resolve them to a
-         * [ClassItem] and if successful will compare them using [classComparator]. If unsuccessful
-         * then it will use the [fallbackComparator] to compare the [TypeItem]s directly and if that
-         * is `null` then will treat them as equal.
+         * Returns the base [ClassTypeItem], if available, `null` otherwise.
+         *
+         * The base [ClassTypeItem] is computed as follows:
+         * * For [ArrayTypeItem] it is the base [ClassTypeItem] of its
+         *   [ArrayTypeItem.componentType].
+         * * For [ClassTypeItem] (and [LambdaTypeItem]) it is the [ClassTypeItem].
+         * * For [VariableTypeItem] is the [VariableTypeItem.asErasedType].
+         * * For all other types it is `null`.
+         */
+        private fun TypeItem.baseClassType(): ClassTypeItem? =
+            when (this) {
+                is ArrayTypeItem -> innermostComponentType().baseClassType()
+                is ClassTypeItem -> this
+                is VariableTypeItem -> asErasedType()
+                else -> null
+            }
+
+        /**
+         * Create a [Comparator] that when given two [TypeItem] will try and extract from them a
+         * [ClassTypeItem] (using [TypeItem.baseClassType] and if successful will compare them using
+         * [classTypeComparator]. If unsuccessful then it will use the [fallbackComparator] to
+         * compare the [TypeItem]s directly and if that is `null` then will treat them as equal.
          *
          * This only defines a partial ordering over [TypeItem]. It is the responsibility of the
          * caller to combine it with other [Comparator]s if a total ordering is required.
          */
         private fun typeItemAsClassComparator(
-            classComparator: Comparator<ClassItem>,
+            classTypeComparator: Comparator<ClassTypeItem>,
             fallbackComparator: Comparator<TypeItem>? = null,
         ): Comparator<TypeItem> = Comparator { type1, type2 ->
-            val class1 = type1.asClass()
-            val class2 = type2.asClass()
-            if (class1 != null && class2 != null) {
-                classComparator.compare(class1, class2)
+            val classType1 = type1.baseClassType()
+            val classType2 = type2.baseClassType()
+            if (classType1 != null && classType2 != null) {
+                classTypeComparator.compare(classType1, classType2)
             } else {
                 fallbackComparator?.compare(type1, type2) ?: 0
             }
         }
+
+        /** A partial ordering over [ClassTypeItem] comparing [ClassTypeItem.fullName]. */
+        private val fullNameComparator: Comparator<ClassTypeItem> =
+            Comparator.comparing { @Suppress("DEPRECATION") it.fullName() }
+
+        /** A total ordering over [ClassTypeItem] comparing [ClassTypeItem.qualifiedName]. */
+        private val qualifiedComparator: Comparator<ClassTypeItem> =
+            Comparator.comparing { it.qualifiedName }
+
+        /**
+         * A total ordering over [ClassTypeItem] comparing [ClassTypeItem.fullName] first and then
+         * [ClassTypeItem.qualifiedName].
+         */
+        private val fullNameThenQualifierComparator =
+            fullNameComparator.thenComparing(qualifiedComparator)
 
         /** A total ordering over [TypeItem] comparing [TypeItem.toTypeString]. */
         private val typeStringComparator =
             Comparator.comparing<TypeItem, String> { it.toTypeString() }
 
         /**
-         * A total ordering over [TypeItem] comparing [TypeItem.asClass] using
-         * [ClassItem.fullNameThenQualifierComparator] and then comparing [TypeItem.toTypeString].
+         * A total ordering over [TypeItem] comparing [ClassTypeItem]s using
+         * [ClassTypeItem.fullNameThenQualifierComparator] and then comparing
+         * [TypeItem.toTypeString].
          */
         val totalComparator: Comparator<TypeItem> =
-            typeItemAsClassComparator(ClassItem.fullNameThenQualifierComparator)
+            typeItemAsClassComparator(fullNameThenQualifierComparator)
                 .thenComparing(typeStringComparator)
 
         /**
-         * A partial ordering over [TypeItem] using [ClassItem.fullNameComparator] to compare the
-         * result of calling [TypeItem.asClass] and if that returned `null` for either type then it
-         * will use [typeStringComparator] on the [TypeItem] directly.
+         * A partial ordering over [TypeItem] using [fullNameComparator] to compare the result of
+         * calling [TypeItem.baseClassType] and if that returned `null` for either type then it will
+         * use [typeStringComparator] on the [TypeItem] directly.
          */
         @Deprecated(
             "" +
@@ -251,7 +285,7 @@ interface TypeItem {
                 "source order will affect the result"
         )
         val partialComparator: Comparator<TypeItem> =
-            typeItemAsClassComparator(ClassItem.fullNameComparator, typeStringComparator)
+            typeItemAsClassComparator(fullNameComparator, typeStringComparator)
 
         /**
          * Convert a type string containing to its lambda representation or return the original.
