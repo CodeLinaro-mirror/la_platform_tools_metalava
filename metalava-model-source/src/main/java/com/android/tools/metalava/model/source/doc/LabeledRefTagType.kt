@@ -16,13 +16,19 @@
 
 package com.android.tools.metalava.model.source.doc
 
+import com.android.tools.metalava.model.BaseTypeTransformer
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.InvalidReferencableItem
 import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.ReferencableMethodSet
+import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterItem
+import com.android.tools.metalava.model.TypeStringConfiguration
 import com.android.tools.metalava.model.scope.NameClassification
 import com.android.tools.metalava.model.scope.ReferencableNameScope
+import com.android.tools.metalava.model.source.doc.MethodSourceReference.SourceParameter
 import com.android.tools.metalava.model.source.javadoc.JavadocContent
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.LocationSpecificReporter
@@ -56,7 +62,7 @@ internal open class LabeledRefTagType(name: String, form: TagTypeForm) :
                 .replace(SOME_WHITESPACE, " ")
 
         // Parse the source reference, reporting an error if it could not be done.
-        val parsedReference = parseReference(sourceReference)
+        val parsedReference = parseReference(sourceReference, context.docTypeParser)
         if (parsedReference == null) {
             reporter.report(
                 Issues.MALFORMED_DOC_REFERENCE,
@@ -189,7 +195,10 @@ internal open class LabeledRefTagType(name: String, form: TagTypeForm) :
         private const val RELATIVE_INDEX = 2
 
         /** Parse [sourceReference], to a [ParsedReference], or `null` if it was not valid. */
-        internal fun parseReference(sourceReference: String): ParsedReference? {
+        internal fun parseReference(
+            sourceReference: String,
+            docTypeParser: DocTypeParser
+        ): ParsedReference? {
             // Check some edge cases that are not caught by the pattrern.
             if (sourceReference == "" || sourceReference[0] == '(') return null
 
@@ -210,7 +219,8 @@ internal open class LabeledRefTagType(name: String, form: TagTypeForm) :
                         // qualified cannot be `null` as the only way for relative to start with `(`
                         // and qualified to be `null` is if sourceReference starts with '(' but that
                         // is rejected above.
-                        MethodSourceReference(qualified!!, parameters = relative)
+                        val parameters = parseParameters(relative, docTypeParser)
+                        MethodSourceReference(qualified!!, parameters)
                     }
                     relative.last() == ')' -> {
                         require(relative[0] == '#') {
@@ -226,7 +236,7 @@ internal open class LabeledRefTagType(name: String, form: TagTypeForm) :
                         }
 
                         val methodName = relative.substring(1, index)
-                        val parameters = relative.substring(index)
+                        val parameters = parseParameters(relative.substring(index), docTypeParser)
 
                         MethodSourceReference(methodName, parameters).qualifyIfNeeded(qualified)
                     }
@@ -244,6 +254,159 @@ internal open class LabeledRefTagType(name: String, form: TagTypeForm) :
                 }
 
             return parsedReference
+        }
+
+        /**
+         * Parse [parametersWithParentheses] into a list of [SourceParameter] objects, separating
+         * the parameter names and types.
+         */
+        private fun parseParameters(
+            parametersWithParentheses: String,
+            docTypeParser: DocTypeParser
+        ): List<SourceParameter> {
+            require(
+                parametersWithParentheses.first() == '(' && parametersWithParentheses.last() == ')'
+            ) {
+                "internal error: parameters should start with `(` and end with `)` but was '$parametersWithParentheses'"
+            }
+
+            var startInclusive = 1
+            return buildList {
+                while (true) {
+                    // Get the next parameter, if any. Exiting the loop if there was none.
+                    val (parameter, endExclusive) =
+                        parametersWithParentheses.nextParameter(startInclusive, docTypeParser)
+                            ?: break
+
+                    // Add the parameter to the list.
+                    add(parameter)
+
+                    // Move onto the next parameter.
+                    startInclusive = endExclusive + 1
+                }
+            }
+        }
+
+        /**
+         * Get the next parameter from this [String] starting from [startInclusive].
+         *
+         * If there is no next parameter then this returns `null`. Otherwise, it returns the
+         * [SourceParameter] for it and the index of the character (',' or ')') immediately
+         * following the parameter.
+         */
+        fun String.nextParameter(
+            startInclusive: Int,
+            docTypeParser: DocTypeParser
+        ): Pair<SourceParameter, Int>? {
+            var inTypeArgumentList = 0
+            for (index in startInclusive until length) {
+                val c = this[index]
+
+                // Track whether inside a type argument list as a ',' inside that does not end the
+                // parameter.
+                if (c == '<') {
+                    inTypeArgumentList += 1
+                    continue
+                } else if (c == '>') {
+                    inTypeArgumentList -= 1
+                    continue
+                } else if (inTypeArgumentList > 0) {
+                    continue
+                }
+
+                // Check for the end of the parameter.
+                if (c == ',' || c == ')') {
+                    // This is the end of the parameter.
+
+                    // Trim any leading whitespace from the start of the parameter.
+                    val parameterStartInclusive = skipForwardsOverLeadingWhitespace(startInclusive)
+                    if (parameterStartInclusive == index) {
+                        // There is no parameter.
+                        return null
+                    }
+
+                    // Trim any trailing whitespace from the end.
+                    val parameterEndExclusive = skipBackwardsOverTrailingWhitespace(index - 1) + 1
+
+                    // See if the parameter ends with a name.
+                    val nameStartInclusive =
+                        skipBackwardsOverParameterName(
+                            parameterEndExclusive - 1,
+                            parameterStartInclusive
+                        )
+
+                    val parameter =
+                        if (nameStartInclusive > parameterStartInclusive) {
+                            val typeEndExclusive =
+                                skipBackwardsOverTrailingWhitespace(nameStartInclusive - 1) + 1
+                            val typeString = substring(parameterStartInclusive, typeEndExclusive)
+                            val name = substring(nameStartInclusive, parameterEndExclusive)
+                            val parsedType = docTypeParser.parse(typeString)
+                            SourceParameter(parsedType, name)
+                        } else {
+                            val typeString =
+                                substring(parameterStartInclusive, parameterEndExclusive)
+                            val parsedType = docTypeParser.parse(typeString)
+                            SourceParameter(parsedType)
+                        }
+
+                    return parameter to index
+                }
+            }
+
+            return null
+        }
+
+        /**
+         * Starting with the character at position [endInclusive] and searching backwards, return
+         * the position of the beginning of a parameter name, or -1 if none could be found.
+         */
+        internal fun CharSequence.skipBackwardsOverParameterName(
+            endInclusive: Int,
+            toInclusive: Int
+        ): Int {
+            var end = endInclusive
+            while (end >= toInclusive) {
+                val c = this[end]
+                // Skip back over anything that could be part of a parameter name.
+                if (!c.isJavaIdentifierPart()) {
+                    // Check to see if anything that looked like a parameter (i.e. a java identifier
+                    // of length > 0) was found. If it was not then there is no parameter.
+                    if (end == endInclusive) {
+                        return -1
+                    }
+
+                    // An identifier was found at the end of the type which could be a parameter so
+                    // check if it is.
+
+                    // If it was preceded by something that is the end of an array or generic type
+                    // then it must be a parameter.
+                    if (c == ']' || c == '>') {
+                        return end + 1
+                    }
+
+                    // If it is a whitespace then the identifier at the end of the parameter could
+                    // be a parameter name but first check to make sure that it is not part of a
+                    // qualified type name.
+                    if (c.isWhitespace()) {
+                        // Skip backwards over any whitespace.
+                        val lastIndex = skipBackwardsOverTrailingWhitespace(end - 1)
+
+                        // If the character is '.' then the identifier is part of a qualified type
+                        // name, otherwise it is a parameter name.
+                        if (this[lastIndex] != '.') {
+                            return end + 1
+                        }
+                    }
+
+                    // No parameter was found.
+                    return -1
+                }
+                end -= 1
+            }
+
+            // Reached the beginning and no parameter was found.
+            return -1
         }
     }
 }
@@ -266,9 +429,7 @@ internal sealed interface ParsedReference {
     fun resolveReference(
         context: DocCommentContext,
         reporter: LocationSpecificReporter
-    ): ResolvedReference? =
-        // TODO(b/447588621): Remove default after implementing in all sub-classes.
-        null
+    ): ResolvedReference?
 }
 
 /** An ambiguous reference to something by [name]. */
@@ -316,7 +477,7 @@ internal data class QualifyingClassSourceReference(
                 else -> error("type '$className' was resolved to an unknown type $resolved")
             }
 
-        return member.findIn(classItem)
+        return member.findIn(context, reporter, classItem)
     }
 }
 
@@ -333,7 +494,7 @@ internal data class CurrentClassSourceReference(val member: ClassMemberSourceRef
         // TODO(b/447588621): Report issue when no class is available, member references are not
         //  allowed in packages.
         val classItem = context.containingClassItem ?: return null
-        return member.findIn(classItem)
+        return member.findIn(context, reporter, classItem)
     }
 }
 
@@ -357,7 +518,11 @@ internal sealed interface ClassMemberSourceReference {
             ?: CurrentClassSourceReference(this)
 
     /** Find this in [classItem]. */
-    fun findIn(classItem: ClassItem): ResolvedReference? =
+    fun findIn(
+        context: DocCommentContext,
+        reporter: LocationSpecificReporter,
+        classItem: ClassItem
+    ): ResolvedReference? =
         // TODO(b/447588621): Remove default after implementing in all sub-classes.
         null
 }
@@ -367,8 +532,11 @@ internal data class AmbiguousMemberSourceReference(val name: String) : ClassMemb
     override val normalizedForm: String
         get() = name
 
-    override fun findIn(classItem: ClassItem): ResolvedReference? =
-        classItem.findField(name)?.toResolvedReference()
+    override fun findIn(
+        context: DocCommentContext,
+        reporter: LocationSpecificReporter,
+        classItem: ClassItem
+    ): ResolvedReference? = classItem.findField(name)?.toResolvedReference()
 }
 
 /**
@@ -376,21 +544,141 @@ internal data class AmbiguousMemberSourceReference(val name: String) : ClassMemb
  * [ClassMemberSourceReference] because it can be resolved relative to a class, and
  * [ParsedReference] because it can be resolved within a [ReferencableNameScope].
  */
-internal data class MethodSourceReference(val name: String, val parameters: String) :
+internal data class MethodSourceReference(val name: String, val parameters: List<SourceParameter>) :
     ClassMemberSourceReference, ParsedReference {
 
     override val normalizedForm: String
-        get() = "$name${formatParameters()}"
+        get() =
+            formatSignature(
+                parameters,
+                // Preserve generic arguments in the label part of this.
+                eraseGenericArguments = false,
+            )
 
     /**
-     * Format [parameters] for use in [normalizedForm] and [MethodReference.unresolvedParameters].
+     * Format [name] and [parameters] into a method signature for use in [normalizedForm] and
+     * [MethodReference.signature].
      */
-    private fun formatParameters() = parameters
+    private fun formatSignature(
+        parameters: List<SourceParameter>,
+        eraseGenericArguments: Boolean,
+    ) = buildString {
+        val typeStringConfiguration =
+            if (eraseGenericArguments) ERASE_GENERICS_TYPE_STRING_CONFIGURATION
+            else TypeStringConfiguration.DEFAULT
+        append(name)
+        append('(')
+        parameters.joinTo(this, ",") { it.type.toTypeString(typeStringConfiguration) }
+        append(')')
+    }
 
-    override fun findIn(classItem: ClassItem) =
-        // Return a method reference that uses the fully qualified name of the containing class.
-        MethodReference(classItem.qualifiedName(), "$name${formatParameters()}")
+    /**
+     * Resolve [name] reference to a method directly within [context].
+     *
+     * This differs from [findIn] as that finds a method within a class that has already been
+     * resolved but this resolves the name directly within the containing scope. The key difference
+     * is that the former uses `#` to unambiguously separate the class from the method but the
+     * latter does not.
+     *
+     * e.g. [findIn] is used for references like `{@link #method()}` and {@link Class#method()}`
+     * while this is used for references like `{@link method()}` and `{@link Class.method()}`.
+     */
+    override fun resolveReference(
+        context: DocCommentContext,
+        reporter: LocationSpecificReporter
+    ): ResolvedReference? {
+        val resolved = context.resolveItemReference(name, NameClassification.METHOD_SET)
+        return when (resolved) {
+            is ReferencableMethodSet ->
+                // TODO(b/447588621): Try and find a method that matches the resolved [parameters].
+                createMethodReference(context, reporter, resolved.containingClass)
+            // Report an error and return `null`.
+            is InvalidReferencableItem -> {
+                resolved.reportIssue(reporter)
+                null
+            }
+            // This should never happen as passing in NameClassification.METHOD above should limit
+            // the returned types to MethodItemSet or InvalidReferencableItem.
+            else -> error("method name '$name' was resolved to an unknown type $resolved")
+        }
+    }
+
+    override fun findIn(
+        context: DocCommentContext,
+        reporter: LocationSpecificReporter,
+        classItem: ClassItem
+    ) = createMethodReference(context, reporter, classItem)
+
+    /**
+     * Return a method reference that uses the fully qualified name of the containing class and
+     * fully qualified parameter types.
+     */
+    private fun createMethodReference(
+        context: DocCommentContext,
+        reporter: LocationSpecificReporter,
+        classItem: ClassItem
+    ) =
+        MethodReference(
+            classItem.qualifiedName(),
+            formatSignature(
+                parameters.map { sourceParameter ->
+                    val fullyQualifiedType = sourceParameter.type.fullyQualify(context, reporter)
+                    SourceParameter(fullyQualifiedType, sourceParameter.name)
+                },
+                // Erase generic arguments from the reference part of this.
+                eraseGenericArguments = true,
+            )
+        )
+
+    data class SourceParameter(
+        val type: TypeItem,
+        val name: String? = null,
+    ) {
+        override fun toString() = if (name == null) type.toString() else "$name: $type"
+    }
+
+    companion object {
+        /** Configuration used in [formatSignature] when `eraseGenericArguments` is `true`. */
+        private val ERASE_GENERICS_TYPE_STRING_CONFIGURATION =
+            TypeStringConfiguration.DEFAULT.copy(eraseGenerics = true)
+    }
 }
+
+/** Fully qualify this [TypeItem] within [context], reporting any issues to [reporter]. */
+private fun TypeItem.fullyQualify(context: DocCommentContext, reporter: LocationSpecificReporter) =
+    transform(
+        object : BaseTypeTransformer() {
+            override fun transform(typeItem: ClassTypeItem): ClassTypeItem {
+                // Resolve the qualified name (which may in fact be a simple name, or a partially
+                // qualified name) as a class.
+                val resolved =
+                    context.resolveItemReference(typeItem.qualifiedName, NameClassification.CLASS)
+
+                val resolvedType =
+                    when (resolved) {
+                        is ClassItem ->
+                            // Use the resolved class's type.
+                            resolved.type()
+                        else -> {
+                            // Report any issues with resolving the class.
+                            if (resolved is InvalidReferencableItem) {
+                                resolved.reportIssue(reporter)
+                            }
+
+                            // Default to just using this type
+                            typeItem
+                        }
+                    }
+
+                // Fully qualify the type arguments, reporting any issues with class references.
+                val fullyQualifiedTypeArguments = typeItem.arguments.map { it.transform(this) }
+
+                // Use the resolved type with the fully qualified type arguments provided in the
+                // source.
+                return resolvedType.substitute(arguments = fullyQualifiedTypeArguments)
+            }
+        }
+    )
 
 /** A reference to a [uriFragment]. */
 internal data class UriFragmentSourceReference(val uriFragment: String) :

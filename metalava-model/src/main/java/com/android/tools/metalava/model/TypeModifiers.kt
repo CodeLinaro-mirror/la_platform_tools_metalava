@@ -20,13 +20,14 @@ package com.android.tools.metalava.model
  * Modifiers for a [TypeItem], analogous to [ModifierList]s for [Item]s. Contains type-use
  * annotation information.
  */
-interface TypeModifiers {
+class TypeModifiers
+private constructor(
     /** The type-use annotations applied to the owning type. */
-    val annotations: List<AnnotationItem>
+    val annotations: List<AnnotationItem>,
 
     /** The nullability of the type. */
-    val nullability: TypeNullability
-
+    val nullability: TypeNullability,
+) {
     /**
      * Return a [TypeModifiers] instance identical to this one except its
      * [TypeModifiers.nullability] and [TypeModifiers.annotations] properties are the same as the
@@ -38,10 +39,13 @@ interface TypeModifiers {
     fun substitute(
         nullability: TypeNullability = this.nullability,
         annotations: List<AnnotationItem> = this.annotations,
-    ): TypeModifiers
+    ): TypeModifiers =
+        if (nullability != this.nullability || annotations != this.annotations)
+            TypeModifiers(annotations, nullability)
+        else this
 
     /** Return an instance of this with all the [annotations] removed. */
-    fun withoutAnnotations(): TypeModifiers
+    fun withoutAnnotations(): TypeModifiers = emptyModifiers(nullability)
 
     /** Whether the [nullability] is [TypeNullability.NULLABLE]. */
     val isNullable
@@ -54,6 +58,44 @@ interface TypeModifiers {
     /** Whether the [nullability] is [TypeNullability.PLATFORM]. */
     val isPlatformNullability
         get() = nullability == TypeNullability.PLATFORM
+
+    companion object {
+        /** Get an empty (no annotations) [TypeModifiers] for [typeNullability]. */
+        internal fun emptyModifiers(typeNullability: TypeNullability) =
+            emptyModifiersByNullability[typeNullability.ordinal]
+
+        /**
+         * A list of empty [DefaultTypeModifiers] instances, one for each [TypeNullability] indexed
+         * by [TypeNullability.ordinal].
+         */
+        private val emptyModifiersByNullability =
+            buildList<TypeModifiers> {
+                for (typeNullability in TypeNullability.entries) {
+                    add(TypeModifiers(emptyList(), typeNullability))
+                }
+            }
+
+        /** A set of empty, non-null [TypeModifiers] for sharing. */
+        val emptyNonNullModifiers = emptyModifiers(TypeNullability.NONNULL)
+
+        /** A set of empty, platform [TypeModifiers] for sharing. */
+        val emptyPlatformModifiers = emptyModifiers(TypeNullability.PLATFORM)
+
+        /** A set of empty, undefined [TypeModifiers] for sharing. */
+        val emptyUndefinedModifiers = emptyModifiers(TypeNullability.UNDEFINED)
+
+        /** Create a [DefaultTypeModifiers]. */
+        fun create(
+            annotations: List<AnnotationItem>,
+            nullability: TypeNullability,
+        ): TypeModifiers =
+            // If the annotations are empty then use one of the predefined instances.
+            if (annotations.isEmpty()) {
+                emptyModifiers(nullability)
+            } else {
+                TypeModifiers(annotations, nullability)
+            }
+    }
 }
 
 /** An enum representing the possible nullness values of a type. */

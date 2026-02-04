@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ReferencableItem
+import com.android.tools.metalava.model.ReferencableMethodSet
 import com.android.tools.metalava.model.TypeParameterItem
 
 /**
@@ -41,6 +42,7 @@ enum class NameClassification(
     val classes: Boolean = false,
     val typeParameters: Boolean = false,
     val fields: Boolean = false,
+    val methods: Boolean = false,
     val nameDescriptionPrefix: String,
 ) {
     /** The name is ambiguous and could refer to any [ReferencableItem]. */
@@ -49,6 +51,7 @@ enum class NameClassification(
         classes = true,
         typeParameters = true,
         fields = true,
+        methods = true,
         nameDescriptionPrefix = "",
     ),
 
@@ -79,6 +82,12 @@ enum class NameClassification(
     FIELD(
         fields = true,
         nameDescriptionPrefix = "a field called ",
+    ),
+
+    /** A method name, i.e. one that can only reference a [ReferencableMethodItemSet]. */
+    METHOD_SET(
+        methods = true,
+        nameDescriptionPrefix = "a method called ",
     ),
     ;
 
@@ -112,6 +121,14 @@ enum class NameClassification(
      * Used by code that resolves names to control whether it searches for fields or not.
      */
     inline fun findField(body: () -> FieldItem?) = if (fields) body() else null
+
+    /**
+     * Run [body] if [methods] is `true` returning the result which must be `null` or a
+     * [ReferencableMethodSet].
+     *
+     * Used by code that resolves names to control whether it searches for methods or not.
+     */
+    inline fun findMethodSet(body: () -> ReferencableMethodSet?) = if (methods) body() else null
 
     /** Describe the name. */
     fun describeName(name: String) = "$nameDescriptionPrefix'$name'"

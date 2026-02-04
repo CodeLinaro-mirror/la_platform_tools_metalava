@@ -21,7 +21,6 @@ import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.ClassTypeItem
-import com.android.tools.metalava.model.JAVA_LANG_OBJECT
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.ReferenceTypeItem
 import com.android.tools.metalava.model.TypeArgumentTypeItem
@@ -30,6 +29,8 @@ import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.VariableTypeItem
+import com.android.tools.metalava.model.WellKnownTypes.JAVA_LANG_OBJECT_NON_NULL_TYPE
+import com.android.tools.metalava.model.WellKnownTypes.JAVA_LANG_OBJECT_PLATFORM_TYPE
 import com.android.tools.metalava.model.WildcardTypeItem
 import com.android.tools.metalava.model.value.ValueParser
 
@@ -51,10 +52,8 @@ open class TypeItemParser(
     private val valueParser = ValueParser(annotationContext, this)
 
     /** A [TypeItem] representing `java.lang.Object`, suitable for general use. */
-    private val objectType: ReferenceTypeItem
-        get() =
-            parseTypeWithContextNullability(JAVA_LANG_OBJECT, TypeParameterScope.empty)
-                as ReferenceTypeItem
+    private val objectType =
+        if (kotlinStyleNulls) JAVA_LANG_OBJECT_NON_NULL_TYPE else JAVA_LANG_OBJECT_PLATFORM_TYPE
 
     /**
      * Creates or retrieves from the cache a [TypeItem] representing [type], in the context of the
@@ -404,7 +403,6 @@ open class TypeItemParser(
         // Create the ClassTypeItem.
         val classType =
             TypeItem.createClassType(
-                annotationContext,
                 classModifiers,
                 qualifiedName,
                 arguments,
@@ -433,14 +431,26 @@ open class TypeItemParser(
         return classType
     }
 
+    /**
+     * Create a [TypeModifiers].
+     *
+     * If [knownNullability] is `null` then this will compute nullability from the [annotations], if
+     * any, and if not then default to platform nullness.
+     */
     private fun modifiers(
         annotations: List<AnnotationItem>,
-        nullability: TypeNullability?
+        knownNullability: TypeNullability?
     ): TypeModifiers {
-        return DefaultTypeModifiers.create(
-            annotations,
-            nullability,
-        )
+        // Use the known nullability, or find if there is a nullness annotation on the type,
+        // defaulting to platform nullness if not.
+        val nullability =
+            knownNullability
+                ?: annotations
+                    .firstOrNull { it.isNullnessAnnotation() }
+                    ?.let { TypeNullability.ofAnnotation(it) }
+                ?: TypeNullability.PLATFORM
+
+        return TypeModifiers.create(annotations, nullability)
     }
 
     /**

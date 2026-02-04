@@ -107,11 +107,4 @@ data class MethodReference(
 
     override fun formatForTagReference(containingClassName: String?) =
         if (qualifiedClassName == containingClassName) "#$signature" else fullyQualifiedForm
-
-    override fun referenceCouldRelyOnImportedName(importedName: String) =
-        // The only part of this that can rely on an imported name are the currently unresolved
-        // parameter types. This checks the whole signature so this will also keep imports that
-        // match the method name.
-        // TODO(b/447588621): Remove once this is fully resolved.
-        signature.containsWord(importedName)
 }

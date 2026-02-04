@@ -242,22 +242,11 @@ class CommonSourceFileTest : BaseModelTest() {
             val classItem = codebase.assertClass("test.pkg.Foo")
             val sourceFile = classItem.sourceFile()!!
 
-            // Get the imports before resolving java.util.Set to see how the getImports(...) methods
-            // behave with unresolved classes.
+            // Get the imports.
             val allImports = sourceFile.getImports()
 
-            // Create the Import objects that are expected.
-            val collectionClassItem = codebase.assertResolvedClass("java.util.Collection")
-            val collectionClassImport = Import(collectionClassItem)
-
-            // Makes sure that classes from the classpath are included in the imports.
-            assertEquals(
-                setOf(
-                    collectionClassImport,
-                ),
-                allImports,
-                message = "unfiltered imports"
-            )
+            // No imports are kept as all document references are resolved.
+            assertEquals(emptySet<Import>(), allImports, message = "unfiltered imports")
         }
     }
 

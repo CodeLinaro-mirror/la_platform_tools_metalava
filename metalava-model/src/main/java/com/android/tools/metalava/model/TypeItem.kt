@@ -90,8 +90,6 @@ interface TypeItem {
     /** Returns the internal name of the type, as seen in bytecode. */
     fun internalName(): String
 
-    fun asClass(): ClassItem?
-
     fun toSimpleTypeString() = toTypeString(SIMPLE_TYPE_CONFIGURATION)
 
     /**
@@ -180,7 +178,7 @@ interface TypeItem {
      * - Variable type with Kotlin lambda bound = true
      * - Any other type = false
      */
-    fun isSamCompatibleOrKotlinLambda(): Boolean {
+    fun isSamCompatibleOrKotlinLambda(classResolver: ClassResolver): Boolean {
         // Overrides are present on ClassTypeItem, LambdaTypeItem, and VariableTypeItem
         return false
     }
@@ -870,7 +868,7 @@ sealed interface ClassOrVariableTypeItem : TypeItem, ReferenceTypeItem {
      * The erased [ClassItem] is the one which would be used by Java at runtime after the generic
      * types have been erased.
      */
-    fun asErasedClass(): ClassItem?
+    fun asErasedClass(classResolver: ClassResolver): ClassItem?
 
     /**
      * The best guess of the full name, i.e. the qualified class name without the package but
@@ -1057,14 +1055,7 @@ interface PrimitiveTypeItem : TypeItem {
     /** Erasing a [PrimitiveTypeItem] requires removing annotations. */
     override fun asErasedType() = substitute(modifiers.withoutAnnotations())
 
-    @Deprecated(
-        "implementation detail of this class",
-        replaceWith = ReplaceWith("substitute(modifiers)"),
-    )
-    fun duplicate(modifiers: TypeModifiers): PrimitiveTypeItem
-
-    override fun substitute(modifiers: TypeModifiers): PrimitiveTypeItem =
-        if (modifiers !== this.modifiers) @Suppress("DEPRECATION") duplicate(modifiers) else this
+    override fun substitute(modifiers: TypeModifiers): PrimitiveTypeItem
 
     override fun convertType(typeParameterBindings: TypeParameterBindings): PrimitiveTypeItem {
         // Primitive type is never affected by a type mapping so always return this.
@@ -1081,8 +1072,6 @@ interface PrimitiveTypeItem : TypeItem {
     }
 
     override fun hashCodeForType(): Int = kind.hashCode()
-
-    override fun asClass(): ClassItem? = null
 }
 
 /** Represents an array type, including vararg types. */
@@ -1117,20 +1106,6 @@ interface ArrayTypeItem : TypeItem, ReferenceTypeItem {
     override fun asErasedType() =
         substitute(modifiers.withoutAnnotations(), componentType.asErasedType(), isVarargs = false)
 
-    /**
-     * Duplicates this type substituting in the provided [modifiers], [componentType] and
-     * [isVarargs] in place of this instance's [modifiers], [componentType] and [isVarargs].
-     */
-    @Deprecated(
-        "implementation detail of this class",
-        replaceWith = ReplaceWith("substitute(modifiers, componentType, isVarargs)"),
-    )
-    fun duplicate(
-        modifiers: TypeModifiers,
-        componentType: TypeItem,
-        isVarargs: Boolean,
-    ): ArrayTypeItem
-
     override fun substitute(modifiers: TypeModifiers): ArrayTypeItem =
         substitute(modifiers, componentType)
 
@@ -1146,10 +1121,7 @@ interface ArrayTypeItem : TypeItem, ReferenceTypeItem {
         modifiers: TypeModifiers = this.modifiers,
         componentType: TypeItem = this.componentType,
         isVarargs: Boolean = this.isVarargs,
-    ) =
-        if (modifiers !== this.modifiers || componentType !== this.componentType)
-            @Suppress("DEPRECATION") duplicate(modifiers, componentType, isVarargs)
-        else this
+    ): ArrayTypeItem
 
     override fun convertType(typeParameterBindings: TypeParameterBindings): ArrayTypeItem {
         return substitute(
@@ -1169,8 +1141,6 @@ interface ArrayTypeItem : TypeItem, ReferenceTypeItem {
     }
 
     override fun hashCodeForType(): Int = Objects.hash(isVarargs, componentType)
-
-    override fun asClass(): ClassItem? = componentType.asClass()
 }
 
 /** Represents a class type. */
@@ -1211,11 +1181,9 @@ interface ClassTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Exception
         }
 
     /** Resolve this to a [ClassItem], if possible. */
-    fun resolveClass(): ClassItem?
+    fun resolveClass(classResolver: ClassResolver) = classResolver.resolveClass(qualifiedName)
 
-    override fun asClass() = resolveClass()
-
-    override fun asErasedClass() = resolveClass()
+    override fun asErasedClass(classResolver: ClassResolver) = resolveClass(classResolver)
 
     override fun accept(visitor: TypeVisitor) {
         visitor.visit(this)
@@ -1249,20 +1217,6 @@ interface ClassTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Exception
     override fun asErasedType(): ClassTypeItem =
         substitute(modifiers.withoutAnnotations(), outerClassType?.asErasedType(), emptyList())
 
-    /**
-     * Duplicates this type substituting in the provided [modifiers], [outerClassType] and
-     * [arguments] in place of this instance's [modifiers], [outerClassType] and [arguments].
-     */
-    @Deprecated(
-        "implementation detail of this class",
-        replaceWith = ReplaceWith("substitute(modifiers, outerClassType, arguments)"),
-    )
-    fun duplicate(
-        modifiers: TypeModifiers,
-        outerClassType: ClassTypeItem?,
-        arguments: List<TypeArgumentTypeItem>,
-    ): ClassTypeItem
-
     override fun substitute(modifiers: TypeModifiers): ClassTypeItem =
         substitute(modifiers, outerClassType, arguments)
 
@@ -1278,14 +1232,7 @@ interface ClassTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Exception
         modifiers: TypeModifiers = this.modifiers,
         outerClassType: ClassTypeItem? = this.outerClassType,
         arguments: List<TypeArgumentTypeItem> = this.arguments,
-    ) =
-        if (
-            modifiers !== this.modifiers ||
-                outerClassType !== this.outerClassType ||
-                arguments !== this.arguments
-        )
-            @Suppress("DEPRECATION") duplicate(modifiers, outerClassType, arguments)
-        else this
+    ): ClassTypeItem
 
     override fun convertType(typeParameterBindings: TypeParameterBindings): ClassTypeItem {
         return substitute(
@@ -1312,7 +1259,7 @@ interface ClassTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Exception
 
     override fun hashCodeForType(): Int = Objects.hash(qualifiedName, outerClassType, arguments)
 
-    override fun isSamCompatibleOrKotlinLambda(): Boolean {
+    override fun isSamCompatibleOrKotlinLambda(classResolver: ClassResolver): Boolean {
         // Check if this is a lambda type that was not created as a LambdaTypeItem (e.g. from the
         // text model b/437086600)
         if (classNamePrefix == "kotlin.jvm.functions." && className.startsWith("Function"))
@@ -1326,7 +1273,7 @@ interface ClassTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Exception
         // amount of Java methods with a Kotlin interface with a single abstract method from an
         // external dependency should be minimal. When using signature files, it also won't be clear
         // whether a non-fun interface was defined in Java or Kotlin.
-        val cls = resolveClass() ?: return false
+        val cls = resolveClass(classResolver) ?: return false
         if (!cls.isInterface()) return false
         // The functional modifier will only be present on Kotlin source interfaces
         if (cls.modifiers.isFunctional()) return true
@@ -1361,16 +1308,6 @@ interface LambdaTypeItem : ClassTypeItem {
     /** The return type. */
     val returnType: TypeItem
 
-    @Deprecated(
-        "implementation detail of this class",
-        replaceWith = ReplaceWith("substitute(modifiers, outerClassType, arguments)")
-    )
-    override fun duplicate(
-        modifiers: TypeModifiers,
-        outerClassType: ClassTypeItem?,
-        arguments: List<TypeArgumentTypeItem>,
-    ): LambdaTypeItem
-
     override fun substitute(modifiers: TypeModifiers): LambdaTypeItem =
         substitute(modifiers, outerClassType, arguments)
 
@@ -1379,13 +1316,13 @@ interface LambdaTypeItem : ClassTypeItem {
         modifiers: TypeModifiers,
         outerClassType: ClassTypeItem?,
         arguments: List<TypeArgumentTypeItem>
-    ) = super.substitute(modifiers, outerClassType, arguments) as LambdaTypeItem
+    ): LambdaTypeItem
 
     override fun transform(transformer: TypeTransformer): LambdaTypeItem {
         return transformer.transform(this)
     }
 
-    override fun isSamCompatibleOrKotlinLambda(): Boolean {
+    override fun isSamCompatibleOrKotlinLambda(classResolver: ClassResolver): Boolean {
         // This is a Kotlin lambda type
         return true
     }
@@ -1402,7 +1339,8 @@ interface VariableTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Except
     /** Erasing a [VariableTypeItem] requires using the [TypeParameterItem]'s first bound. */
     override fun asErasedType() = asTypeParameter.asErasedType()
 
-    override fun asErasedClass() = asTypeParameter.asErasedType().asErasedClass()
+    override fun asErasedClass(classResolver: ClassResolver) =
+        asTypeParameter.asErasedType().asErasedClass(classResolver)
 
     override fun description() =
         "$name (extends ${this.asTypeParameter.asErasedType().description()})}"
@@ -1415,14 +1353,7 @@ interface VariableTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Except
         visitor.visit(this, other)
     }
 
-    @Deprecated(
-        "implementation detail of this class",
-        replaceWith = ReplaceWith("substitute(modifiers)")
-    )
-    fun duplicate(modifiers: TypeModifiers): VariableTypeItem
-
-    override fun substitute(modifiers: TypeModifiers): VariableTypeItem =
-        if (modifiers !== this.modifiers) @Suppress("DEPRECATION") duplicate(modifiers) else this
+    override fun substitute(modifiers: TypeModifiers): VariableTypeItem
 
     override fun convertType(typeParameterBindings: TypeParameterBindings): TypeArgumentTypeItem {
         val nullability = modifiers.nullability
@@ -1457,8 +1388,6 @@ interface VariableTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Except
         return transformer.transform(this)
     }
 
-    override fun asClass() = asTypeParameter.asErasedType().asClass()
-
     override fun equalToType(other: TypeItem?, includeNullability: Boolean): Boolean {
         return (other as? VariableTypeItem)?.name == name &&
             (!includeNullability || modifiers.nullability == other.modifiers.nullability)
@@ -1466,7 +1395,7 @@ interface VariableTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Except
 
     override fun hashCodeForType(): Int = name.hashCode()
 
-    override fun isSamCompatibleOrKotlinLambda(): Boolean {
+    override fun isSamCompatibleOrKotlinLambda(classResolver: ClassResolver): Boolean {
         // A variable type can be used with trailing lambda syntax if its bound is a Kotlin
         // functional type, but not if the bound is a different SAM compatible type.
         return asTypeParameter.asErasedType().let {
@@ -1507,20 +1436,6 @@ interface WildcardTypeItem : TypeItem, TypeArgumentTypeItem {
      */
     override fun asErasedType() = error("Erasing $this makes little sense")
 
-    /**
-     * Duplicates this type substituting in the provided [modifiers], [extendsBound] and
-     * [superBound] in place of this instance's [modifiers], [extendsBound] and [superBound].
-     */
-    @Deprecated(
-        "implementation detail of this class",
-        replaceWith = ReplaceWith("substitute(modifiers, extendsBound, superBound)"),
-    )
-    fun duplicate(
-        modifiers: TypeModifiers,
-        extendsBound: ReferenceTypeItem?,
-        superBound: ReferenceTypeItem?,
-    ): WildcardTypeItem
-
     override fun substitute(modifiers: TypeModifiers): WildcardTypeItem =
         substitute(modifiers, extendsBound, superBound)
 
@@ -1536,14 +1451,7 @@ interface WildcardTypeItem : TypeItem, TypeArgumentTypeItem {
         modifiers: TypeModifiers = this.modifiers,
         extendsBound: ReferenceTypeItem? = this.extendsBound,
         superBound: ReferenceTypeItem? = this.superBound,
-    ) =
-        if (
-            modifiers !== this.modifiers ||
-                extendsBound !== this.extendsBound ||
-                superBound !== this.superBound
-        )
-            @Suppress("DEPRECATION") duplicate(modifiers, extendsBound, superBound)
-        else this
+    ): WildcardTypeItem
 
     override fun convertType(typeParameterBindings: TypeParameterBindings): WildcardTypeItem {
         return substitute(
@@ -1575,8 +1483,6 @@ interface WildcardTypeItem : TypeItem, TypeArgumentTypeItem {
     }
 
     override fun hashCodeForType(): Int = Objects.hash(extendsBound, superBound)
-
-    override fun asClass(): ClassItem? = null
 }
 
 /**

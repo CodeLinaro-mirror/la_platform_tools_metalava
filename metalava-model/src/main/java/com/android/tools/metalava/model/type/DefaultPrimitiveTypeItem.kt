@@ -26,10 +26,7 @@ internal class DefaultPrimitiveTypeItem(
     override val kind: Primitive,
     isValueClassType: Boolean = false,
 ) : PrimitiveTypeItem, DefaultTypeItem(modifiers, isValueClassType) {
-    @Deprecated(
-        "implementation detail of this class",
-        replaceWith = ReplaceWith("substitute(modifiers)"),
-    )
-    override fun duplicate(modifiers: TypeModifiers): PrimitiveTypeItem =
-        DefaultPrimitiveTypeItem(modifiers, kind)
+
+    override fun substitute(modifiers: TypeModifiers) =
+        if (modifiers !== this.modifiers) DefaultPrimitiveTypeItem(modifiers, kind) else this
 }

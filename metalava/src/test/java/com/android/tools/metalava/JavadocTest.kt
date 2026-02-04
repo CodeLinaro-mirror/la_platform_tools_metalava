@@ -157,7 +157,7 @@ class JavadocTest : DriverTest() {
                     /**
                      * Blah blah {@link test.pkg2.OtherClass OtherClass} blah blah.
                      *  Referencing <b>field</b> {@link test.pkg2.OtherClass#foo OtherClass.foo},
-                     *  and referencing method {@link test.pkg2.OtherClass#bar(int,boolean) OtherClass.bar(int, boolean)}.
+                     *  and referencing method {@link test.pkg2.OtherClass#bar(int,boolean) OtherClass.bar(int,boolean)}.
                      *  And relative method reference {@link #baz()}.
                      *  And relative field reference {@link #importance}.
                      *  Here's an already fully qualified reference: {@link test.pkg2.OtherClass}.
@@ -366,7 +366,7 @@ class JavadocTest : DriverTest() {
                 /**
                  * Blah blah {@link test.pkg2.OtherClass OtherClass} blah blah.
                  *  Referencing <b>field</b> {@link test.pkg2.OtherClass#foo OtherClass.foo},
-                 *  and referencing method {@link test.pkg2.OtherClass#bar(int,boolean) OtherClass.bar(int, boolean)}.
+                 *  and referencing method {@link test.pkg2.OtherClass#bar(int,boolean) OtherClass.bar(int,boolean)}.
                  *  And relative method reference {@link #baz()}.
                  *  And relative field reference {@link #importance}.
                  *  Here's an already fully qualified reference: {@link test.pkg2.OtherClass}.
@@ -940,12 +940,11 @@ class JavadocTest : DriverTest() {
             source =
                 """
                 package test.pkg1;
-                import test.pkg2.OtherClass2;
-                /** Reference to {@link test.pkg2.OtherClass1#myMethod(test.pkg2.OtherClass2,int name,test.pkg2.OtherClass2[]) OtherClass1.myMethod(OtherClass2, int name, OtherClass2[])}, */
+                /** Reference to {@link test.pkg2.OtherClass1#myMethod(test.pkg2.OtherClass2,int,test.pkg2.OtherClass2[]) OtherClass1.myMethod(OtherClass2,int,OtherClass2[])}, */
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public class Test<E extends test.pkg2.OtherClass2> {
                 public Test() { throw new RuntimeException("Stub!"); }
-                /** Reference to {@link test.pkg2.OtherClass1#myMethod(E,int,test.pkg2.OtherClass2[]) OtherClass1.myMethod(E, int, OtherClass2 [])}, */
+                /** Reference to {@link test.pkg2.OtherClass1#myMethod(test.pkg2.OtherClass2,int,test.pkg2.OtherClass2[]) OtherClass1.myMethod(E,int,OtherClass2[])}, */
                 public void test() { throw new RuntimeException("Stub!"); }
                 }
                 """
@@ -984,7 +983,6 @@ class JavadocTest : DriverTest() {
             source =
                 """
                 package test.pkg1;
-                import java.nio.ByteBuffer;
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public abstract class Test {
                 public Test() { throw new RuntimeException("Stub!"); }
@@ -1100,7 +1098,6 @@ class JavadocTest : DriverTest() {
                     java(
                         """
                     package android.view;
-                    import android.graphics.Insets;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public final class WindowInsets {
                     public WindowInsets() { throw new RuntimeException("Stub!"); }

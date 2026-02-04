@@ -196,7 +196,7 @@ class FilteringApiVisitor(
 
         override fun sourceFile() = delegate.sourceFile()?.let { FilteringSourceFile(it) }
 
-        override fun superClass() = superClassType()?.resolveClass()
+        override fun superClass() = superClassType()?.resolveClass(codebase)
 
         override fun superClassType() =
             if (!filterSuperClassType || preFiltered) delegate.superClassType()

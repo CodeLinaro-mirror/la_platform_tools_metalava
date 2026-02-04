@@ -20,11 +20,6 @@ com.android.tools.metalava.Java9LanguageFeaturesTest
 
 com.android.tools.metalava.JavadocTest
   Check references to inherited field constants[turbine]
-  Javadoc link to innerclass constructor[turbine]
-  Relative documentation links in stubs[turbine]
-  Rewrite parameter list 2[turbine]
-  Rewrite parameter list[turbine]
-  Rewrite relative documentation links in doc-stubs[turbine]
   Warn about unresolved[turbine]
 
 com.android.tools.metalava.NullabilityAnnotationsValidatorTest
@@ -36,10 +31,8 @@ com.android.tools.metalava.PolymorphicMethodsTest
 
 com.android.tools.metalava.RequiresFeatureTest
   Check RequiresFeature handling - custom enforcement[turbine]
-  Check RequiresFeature handling - hidden feature[turbine]
   Check RequiresFeature handling - invalid enforcement[turbine]
   Check RequiresFeature handling - missing feature[turbine]
-  Check RequiresFeature handling[turbine]
 
 com.android.tools.metalava.TypeUseAnnotationFilteringTest
   Keep type use annotations[turbine]

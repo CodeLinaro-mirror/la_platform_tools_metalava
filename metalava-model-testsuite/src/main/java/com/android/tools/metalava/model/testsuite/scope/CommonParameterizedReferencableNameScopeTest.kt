@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.testsuite.scope
 import com.android.tools.metalava.model.Assertions
 import com.android.tools.metalava.model.InvalidReferencableItem
 import com.android.tools.metalava.model.ReferencableItem
+import com.android.tools.metalava.model.ReferencableMethodSet
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.scope.NameClassification
 import com.android.tools.metalava.model.scope.ReferencableNameScope
@@ -31,7 +32,6 @@ import com.android.tools.metalava.testing.EntryPointCallerTracker
 import com.android.tools.metalava.testing.java
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
-import kotlin.test.assertSame
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runners.Parameterized
@@ -56,6 +56,11 @@ class CommonParameterizedReferencableNameScopeTest : BaseModelTest() {
         val scopeGetter: CodebaseContext.() -> ReferencableNameScope,
         /** The name to resolve. */
         val referencableName: String,
+        /**
+         * The [NameClassification] of [referencableName] for which the [expectedErrorMessage] is
+         * provided.
+         */
+        val nameClassification: NameClassification = NameClassification.AMBIGUOUS,
         /**
          * Getter for the expected [ReferencableItem] to which [referencableName] name will be
          * resolved.
@@ -146,6 +151,34 @@ class CommonParameterizedReferencableNameScopeTest : BaseModelTest() {
                     }
                 ),
                 TestParams(
+                    name = "SourceFile - resolve imported class as field",
+                    imports =
+                        """
+                            import java.io.IOException;
+                        """,
+                    scopeGetter = { codebase.assertClass("test.pkg.Test").sourceFile()!! },
+                    referencableName = "IOException",
+                    nameClassification = NameClassification.FIELD,
+                    expectedItemGetter = { null },
+                    expectedErrorMessage =
+                        "Expected a field called 'IOException' but found 'class java.io.IOException'",
+                ),
+                TestParams(
+                    name = "SourceFile - resolve static imported method",
+                    imports =
+                        """
+                            import static java.lang.System.getenv;
+                        """,
+                    scopeGetter = { codebase.assertClass("test.pkg.Test") },
+                    referencableName = "getenv",
+                    expectedItemGetter = {
+                        ReferencableMethodSet(
+                            codebase.assertResolvedClass("java.lang.System"),
+                            "getenv"
+                        )
+                    },
+                ),
+                TestParams(
                     name = "SourceFile - resolve class in same file",
                     scopeGetter = { codebase.assertClass("test.pkg.Test").sourceFile()!! },
                     referencableName = "Hidden",
@@ -186,6 +219,24 @@ class CommonParameterizedReferencableNameScopeTest : BaseModelTest() {
                     referencableName = "Map",
                     expectedItemGetter = { codebase.assertResolvedClass("java.util.Map") }
                 ),
+                TestParams(
+                    name = "ClassItem - resolve self against self",
+                    scopeGetter = { codebase.assertResolvedClass("java.util.Map") },
+                    referencableName = "Map.Map",
+                    expectedItemGetter = { null },
+                    expectedErrorMessage =
+                        "Could not resolve 'Map.Map' as could not find 'Map' in 'class java.util.Map'",
+                ),
+                TestParams(
+                    name = "ClassItem - resolve self as field",
+                    scopeGetter = { codebase.assertClass("test.pkg.Test") },
+                    referencableName = "Test",
+                    nameClassification = NameClassification.FIELD,
+                    expectedItemGetter = { null },
+                    expectedErrorMessage =
+                        "Could not resolve a field called 'Test' in 'class test.pkg.Test'",
+                ),
+
                 // ClassItem - Nested classes
                 TestParams(
                     name = "ClassItem - resolve nested class",
@@ -266,6 +317,22 @@ class CommonParameterizedReferencableNameScopeTest : BaseModelTest() {
                     referencableName = "Test.field",
                     expectedItemGetter = {
                         codebase.assertClass("test.pkg.Test").assertField("field")
+                    },
+                ),
+                TestParams(
+                    name = "ClassItem - resolve simple method reference",
+                    scopeGetter = { codebase.assertClass("test.pkg.Test") },
+                    referencableName = "method",
+                    expectedItemGetter = {
+                        ReferencableMethodSet(codebase.assertClass("test.pkg.Test"), "method")
+                    },
+                ),
+                TestParams(
+                    name = "ClassItem - resolve qualified method reference",
+                    scopeGetter = { codebase.assertClass("test.pkg.Test") },
+                    referencableName = "Test.method",
+                    expectedItemGetter = {
+                        ReferencableMethodSet(codebase.assertClass("test.pkg.Test"), "method")
                     },
                 ),
 
@@ -404,7 +471,7 @@ class CommonParameterizedReferencableNameScopeTest : BaseModelTest() {
             val scope = scopeGetter()
 
             val resolvedItem =
-                scope.resolveReferencableItem(params.referencableName, NameClassification.AMBIGUOUS)
+                scope.resolveReferencableItem(params.referencableName, params.nameClassification)
 
             // Defer getting the expected Item until after resolving to ensure that resolving works
             // even on packages and classes that are not in the sources which have not yet been
@@ -415,7 +482,10 @@ class CommonParameterizedReferencableNameScopeTest : BaseModelTest() {
                 val error = assertIs<InvalidReferencableItem>(resolvedItem)
                 assertEquals(params.expectedErrorMessage, error.message)
             } else {
-                assertSame(expectedItem, resolvedItem)
+                // Compare resolved item using equals not same to handle ReferencableMethodSet which
+                // unlike other ReferencableItem classes is not found within the Codebase but is
+                // instead created on demand when resolving.
+                assertEquals(expectedItem, resolvedItem)
                 assertEquals(params.expectedErrorMessage, "")
             }
         }

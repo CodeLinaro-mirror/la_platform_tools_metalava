@@ -30,7 +30,6 @@ import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.WildcardTypeItem
 import com.android.tools.metalava.model.type.ContextNullability
 import com.android.tools.metalava.model.type.DefaultTypeItemFactory
-import com.android.tools.metalava.model.type.DefaultTypeModifiers
 
 /**
  * A [DefaultTypeItemFactory] whose underlying type is another model's [TypeItem] that this will
@@ -71,7 +70,7 @@ internal class SnapshotTypeItemFactory(
         if (annotations.isEmpty()) {
             this
         } else {
-            DefaultTypeModifiers(
+            TypeModifiers.create(
                 annotations.map { it.snapshot(codebase) },
                 nullability,
             )
@@ -86,7 +85,6 @@ internal class SnapshotTypeItemFactory(
 
     override fun transform(typeItem: ClassTypeItem) =
         TypeItem.createClassType(
-            codebase,
             typeItem.modifiers.snapshot(),
             typeItem.qualifiedName,
             typeItem.arguments.map { it.transform(this) },
@@ -95,7 +93,6 @@ internal class SnapshotTypeItemFactory(
 
     override fun transform(typeItem: LambdaTypeItem) =
         TypeItem.createLambdaType(
-            codebase,
             typeItem.modifiers.snapshot(),
             typeItem.qualifiedName,
             typeItem.arguments.map { it.transform(this) },

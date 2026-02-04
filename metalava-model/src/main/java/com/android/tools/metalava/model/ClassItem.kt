@@ -80,7 +80,7 @@ interface ClassItem :
      *
      * Interfaces always return `null` for this.
      */
-    @MetalavaApi fun superClass() = superClassType()?.resolveClass()
+    @MetalavaApi fun superClass() = superClassType()?.resolveClass(codebase)
 
     /** All super classes, if any */
     fun allSuperClasses(): Sequence<ClassItem> {
@@ -136,7 +136,7 @@ interface ClassItem :
         }
 
         interfaceTypes().forEach {
-            val cls = it.resolveClass()
+            val cls = it.resolveClass(codebase)
             if (cls != null && cls.implements(qualifiedName)) {
                 return true
             }
@@ -334,7 +334,7 @@ interface ClassItem :
 
         if (includeInterfaces) {
             for (itf in interfaceTypes()) {
-                val cls = itf.resolveClass() ?: continue
+                val cls = itf.resolveClass(codebase) ?: continue
                 cls.findMethod(template, includeSuperClasses, true)?.let {
                     return it
                 }
@@ -386,7 +386,7 @@ interface ClassItem :
 
         if (includeInterfaces) {
             for (itf in interfaceTypes()) {
-                val cls = itf.resolveClass() ?: continue
+                val cls = itf.resolveClass(codebase) ?: continue
                 cls.findField(fieldName, includeSuperClasses, true)?.let {
                     return it
                 }
@@ -421,7 +421,7 @@ interface ClassItem :
 
         if (includeInterfaces) {
             for (itf in interfaceTypes()) {
-                val cls = itf.resolveClass() ?: continue
+                val cls = itf.resolveClass(codebase) ?: continue
                 cls.findProperty(template, includeSuperClasses, true)?.let {
                     return it
                 }
@@ -542,7 +542,7 @@ interface ClassItem :
         var superClassType: ClassTypeItem? = superClassType() ?: return null
         var prev: ClassItem? = null
         while (superClassType != null) {
-            val superClass = superClassType.resolveClass() ?: return null
+            val superClass = superClassType.resolveClass(codebase) ?: return null
             if (predicate.test(superClass)) {
                 if (prev == null || superClass == superClass()) {
                     // Direct reference; no need to map type variables
@@ -684,7 +684,7 @@ interface ClassItem :
     ): Set<ClassTypeItem> {
         val superClassType = superClassType()
         if (superClassType != null) {
-            val superClass = superClassType.resolveClass()
+            val superClass = superClassType.resolveClass(codebase)
             if (superClass != null) {
                 if (!predicate.test(superClass)) {
                     superClass.filteredInterfaceTypes(
@@ -709,7 +709,7 @@ interface ClassItem :
             }
         }
         for (type in interfaceTypes()) {
-            val cls = type.resolveClass() ?: continue
+            val cls = type.resolveClass(codebase) ?: continue
             if (predicate.test(cls)) {
                 if (hasTypeVariables() && type.hasTypeArguments()) {
                     val replacementMap = target.mapTypeVariables(this)
@@ -761,7 +761,7 @@ interface ClassItem :
 
         for (superClassType in candidates.filterNotNull()) {
             // Get the class from the class type so that its type parameters can be accessed.
-            val declaringClass = superClassType.resolveClass() ?: continue
+            val declaringClass = superClassType.resolveClass(codebase) ?: continue
 
             if (declaringClass.qualifiedName() == target.qualifiedName()) {
                 // The target has been found, return the map directly.
