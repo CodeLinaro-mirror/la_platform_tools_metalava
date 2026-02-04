@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model.type
 
-import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.LambdaTypeItem
 import com.android.tools.metalava.model.TypeArgumentTypeItem
@@ -24,7 +23,6 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeModifiers
 
 internal class DefaultLambdaTypeItem(
-    classResolver: ClassResolver,
     modifiers: TypeModifiers,
     qualifiedName: String,
     arguments: List<TypeArgumentTypeItem>,
@@ -36,7 +34,6 @@ internal class DefaultLambdaTypeItem(
     isValueClassType: Boolean = false,
 ) :
     DefaultClassTypeItem(
-        classResolver = classResolver,
         modifiers = modifiers,
         qualifiedName = qualifiedName,
         arguments = arguments,
@@ -45,25 +42,21 @@ internal class DefaultLambdaTypeItem(
     ),
     LambdaTypeItem {
 
-    @Deprecated(
-        "implementation detail of this class",
-        replaceWith = ReplaceWith("substitute(modifiers, outerClassType, arguments)"),
-    )
-    override fun duplicate(
+    override fun substitute(
         modifiers: TypeModifiers,
         outerClassType: ClassTypeItem?,
-        arguments: List<TypeArgumentTypeItem>
-    ): LambdaTypeItem {
-        return DefaultLambdaTypeItem(
-            classResolver = classResolver,
-            qualifiedName = qualifiedName,
-            arguments = arguments,
-            outerClassType = outerClassType,
-            modifiers = modifiers,
-            isSuspend = isSuspend,
-            receiverType = receiverType,
-            parameterTypes = parameterTypes,
-            returnType = returnType,
-        )
-    }
+        arguments: List<TypeArgumentTypeItem>,
+    ): LambdaTypeItem =
+        if (requiresNewInstance(modifiers, outerClassType, arguments))
+            DefaultLambdaTypeItem(
+                modifiers,
+                qualifiedName,
+                arguments,
+                outerClassType,
+                isSuspend,
+                receiverType,
+                parameterTypes,
+                returnType,
+            )
+        else this
 }

@@ -90,7 +90,8 @@ internal class PsiCallableBody(private val callable: PsiCallableItem) : Callable
                     val type = node.thrownExpression.getExpressionType()
                     // TODO: after KTIJ-31242, go back to null check only
                     if (type != null && type != UastErrorType) {
-                        val exceptionClass = thrownExceptionClassForPsiType(type)?.resolveClass()
+                        val exceptionClass =
+                            thrownExceptionClassForPsiType(type)?.resolveClass(callable.codebase)
                         if (exceptionClass != null && !isCaught(exceptionClass, node)) {
                             exceptions.add(exceptionClass)
                         }

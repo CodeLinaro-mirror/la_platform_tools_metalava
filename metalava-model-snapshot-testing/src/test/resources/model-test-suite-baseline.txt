@@ -36,24 +36,12 @@ com.android.tools.metalava.model.testsuite.documentation.CommonItemDocumentation
   Test fully qualifying links that wrap on multiple lines[turbine]
 
 com.android.tools.metalava.model.testsuite.documentation.CommonParameterizedDocReferenceTest
-  Documentation text[turbine,@link,#collectionMethod(Collection)]
-  Documentation text[turbine,@link,Imported#collectionMethod(Collection)]
   Documentation text[turbine,@link,Imported#noParamsMethod]
-  Documentation text[turbine,@link,Other#collectionMethod(Collection)]
   Documentation text[turbine,@link,Other#noParamsMethod]
-  Documentation text[turbine,@link,other.pkg.Another#collectionMethod(Collection)]
-  Documentation text[turbine,@linkplain,#collectionMethod(Collection)]
-  Documentation text[turbine,@linkplain,Imported#collectionMethod(Collection)]
   Documentation text[turbine,@linkplain,Imported#noParamsMethod]
-  Documentation text[turbine,@linkplain,Other#collectionMethod(Collection)]
   Documentation text[turbine,@linkplain,Other#noParamsMethod]
-  Documentation text[turbine,@linkplain,other.pkg.Another#collectionMethod(Collection)]
-  Documentation text[turbine,@see,#collectionMethod(Collection)]
-  Documentation text[turbine,@see,Imported#collectionMethod(Collection)]
   Documentation text[turbine,@see,Imported#noParamsMethod]
-  Documentation text[turbine,@see,Other#collectionMethod(Collection)]
   Documentation text[turbine,@see,Other#noParamsMethod]
-  Documentation text[turbine,@see,other.pkg.Another#collectionMethod(Collection)]
 
 com.android.tools.metalava.model.testsuite.fielditem.CommonFieldItemTest
   Test implicit nullability of constant field initialized from @NonNull method[turbine]

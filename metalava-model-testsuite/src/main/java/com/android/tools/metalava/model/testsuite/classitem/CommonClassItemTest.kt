@@ -356,7 +356,7 @@ class CommonClassItemTest : BaseModelTest() {
             assertNull(fooInterface.superClassType())
             assertNull(fooInterface.superClass())
 
-            val interfaceList = fooInterface.interfaceTypes().map { it.resolveClass() }
+            val interfaceList = fooInterface.interfaceTypes().map { it.resolveClass(codebase) }
             assertEquals(emptyList(), interfaceList)
 
             val allInterfaces = fooInterface.allInterfaces().toList()
@@ -408,10 +408,10 @@ class CommonClassItemTest : BaseModelTest() {
             val interfaceC = codebase.assertClass("test.pkg.C")
             val fooInterface = codebase.assertClass("test.pkg.Foo")
 
-            assertNull(fooInterface.superClassType()?.resolveClass())
+            assertNull(fooInterface.superClassType()?.resolveClass(codebase))
             assertNull(fooInterface.superClass())
 
-            val interfaceList = fooInterface.interfaceTypes().map { it.resolveClass() }
+            val interfaceList = fooInterface.interfaceTypes().map { it.resolveClass(codebase) }
             assertEquals(listOf(interfaceA, interfaceB, interfaceC), interfaceList)
 
             val allInterfaces = fooInterface.allInterfaces().toList()
@@ -456,7 +456,7 @@ class CommonClassItemTest : BaseModelTest() {
 
             assertSame(objectClass, fooSuperClass)
 
-            val interfaceList = fooClass.interfaceTypes().map { it.resolveClass() }
+            val interfaceList = fooClass.interfaceTypes().map { it.resolveClass(codebase) }
             assertEquals(emptyList(), interfaceList)
 
             val allInterfaces = fooClass.allInterfaces().toList()
@@ -498,10 +498,10 @@ class CommonClassItemTest : BaseModelTest() {
             val barClass = codebase.assertClass("test.pkg.Bar")
             val fooClass = codebase.assertClass("test.pkg.Foo")
 
-            assertSame(barClass, fooClass.superClassType()?.resolveClass())
+            assertSame(barClass, fooClass.superClassType()?.resolveClass(codebase))
             assertSame(barClass, fooClass.superClass())
 
-            val interfaceList = fooClass.interfaceTypes().map { it.resolveClass() }
+            val interfaceList = fooClass.interfaceTypes().map { it.resolveClass(codebase) }
             assertEquals(emptyList(), interfaceList)
 
             val allInterfaces = fooClass.allInterfaces().toList()
@@ -561,7 +561,7 @@ class CommonClassItemTest : BaseModelTest() {
 
             assertSame(objectClass, fooSuperClass)
 
-            val interfaceList = fooClass.interfaceTypes().map { it.resolveClass() }
+            val interfaceList = fooClass.interfaceTypes().map { it.resolveClass(codebase) }
             assertEquals(listOf(interfaceA, interfaceB, interfaceC), interfaceList)
 
             val allInterfaces = fooClass.allInterfaces().toList()
@@ -618,10 +618,10 @@ class CommonClassItemTest : BaseModelTest() {
             val interfaceC = codebase.assertClass("test.pkg.C")
             val fooClass = codebase.assertClass("test.pkg.Foo")
 
-            assertSame(barClass, fooClass.superClassType()?.resolveClass())
+            assertSame(barClass, fooClass.superClassType()?.resolveClass(codebase))
             assertSame(barClass, fooClass.superClass())
 
-            val interfaceList = fooClass.interfaceTypes().map { it.resolveClass() }
+            val interfaceList = fooClass.interfaceTypes().map { it.resolveClass(codebase) }
             assertEquals(listOf(interfaceA, interfaceB, interfaceC), interfaceList)
 
             val allInterfaces = fooClass.allInterfaces().toList()
@@ -1602,6 +1602,60 @@ class CommonClassItemTest : BaseModelTest() {
             assertThat(outerType!!.qualifiedName).isEqualTo("test.pkg.Outer")
 
             assertThat(outerType.arguments).isEmpty()
+        }
+    }
+
+    @Test
+    fun `Test substituting outer class in type for inner class with an outer class with type parameter`() {
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+                    public class Outer<T> {
+                        public class Inner {}
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+                    class Outer<T> {
+                        inner class Inner {}
+                    }
+                """
+            ),
+            signature(
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public class Outer<T> {
+                      }
+                      public class Outer.Inner {
+                      }
+                    }
+                """
+            )
+        ) {
+            val innerClass = codebase.assertClass("test.pkg.Outer.Inner")
+
+            val innerType = innerClass.type()
+            assertThat(innerType.toTypeString()).isEqualTo("test.pkg.Outer<T>.Inner")
+
+            val outerClassType = innerType.outerClassType
+            assertNotNull(outerClassType)
+            assertThat(outerClassType.toTypeString()).isEqualTo("test.pkg.Outer<T>")
+
+            val noArgsOuterClassType = outerClassType.substitute(arguments = emptyList())
+            assertThat(noArgsOuterClassType.toTypeString()).isEqualTo("test.pkg.Outer")
+
+            // Replace the outer type with one without any arguments.
+            val innerWithNewOuterClassType =
+                innerType.substitute(outerClassType = noArgsOuterClassType)
+
+            // Make sure that the replacement actually changed the outer class type.
+            assertThat(innerWithNewOuterClassType.toTypeString()).isEqualTo("test.pkg.Outer.Inner")
+            assertThat(innerWithNewOuterClassType.outerClassType)
+                .isSameInstanceAs(noArgsOuterClassType)
         }
     }
 

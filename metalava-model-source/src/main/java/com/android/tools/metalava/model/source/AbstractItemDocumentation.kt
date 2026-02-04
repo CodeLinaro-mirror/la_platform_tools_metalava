@@ -34,6 +34,7 @@ import com.android.tools.metalava.model.source.doc.DocComment
 import com.android.tools.metalava.model.source.doc.DocCommentContext
 import com.android.tools.metalava.model.source.doc.DocCommentMutationListener
 import com.android.tools.metalava.model.source.doc.DocCommentPredicate
+import com.android.tools.metalava.model.source.doc.DocTypeParser
 import com.android.tools.metalava.model.source.doc.DocumentationIssueReporter
 import com.android.tools.metalava.model.source.doc.JavaSummaryTruncationWorkaround
 import com.android.tools.metalava.model.source.doc.TagTypes
@@ -217,6 +218,10 @@ abstract class AbstractItemDocumentation(
                 is MemberItem -> item.containingClass()
                 else -> null
             }
+
+    /** Implements [DocCommentContext.docTypeParser]. */
+    override val docTypeParser: DocTypeParser
+        get() = DocTypeParser.create(reporter = this, item)
 
     override val isDocOnly
         get() = hasBlockTagOfType("doconly")

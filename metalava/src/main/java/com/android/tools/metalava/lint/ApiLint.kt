@@ -677,8 +677,9 @@ private constructor(
 
         fun TypeItem.extendsThrowable() =
             // The only types that can represent a Throwable are either a type parameter or class.
-            (this as? ClassOrVariableTypeItem)?.asErasedClass()?.extends(JAVA_LANG_THROWABLE) ==
-                true
+            (this as? ClassOrVariableTypeItem)
+                ?.asErasedClass(codebase)
+                ?.extends(JAVA_LANG_THROWABLE) == true
 
         fun isErrorMethod(method: MethodItem) =
             method.name().run { startsWith("onError") || startsWith("onFail") } &&
@@ -1298,7 +1299,7 @@ private constructor(
     private fun TypeItem.builtClass(): ClassItem? =
         when (this) {
             // The built type can either be a ClassTypeItem or a VariableTypeItem.
-            is ClassOrVariableTypeItem -> asErasedClass()
+            is ClassOrVariableTypeItem -> asErasedClass(codebase)
 
             // TODO(b/477255952): This should probably be an error.
             // If it is an array then the built class is considered to be the innermost component.
@@ -1363,7 +1364,8 @@ private constructor(
     }
 
     /** Encapsulate a [packageItem] and its associated [rank]. */
-    private class PackageRank private constructor() : BaseTypeVisitor() {
+    private class PackageRank private constructor(private val codebase: Codebase) :
+        BaseTypeVisitor() {
         /**
          * The [PackageItem].
          *
@@ -1374,14 +1376,14 @@ private constructor(
         private var rank = INVALID_RANK
 
         /** Construct from a [ClassItem]. */
-        constructor(classItem: ClassItem) : this() {
+        constructor(classItem: ClassItem) : this(classItem.codebase) {
             // Extract the package item from the class and get its rank.
             packageItem = classItem.containingPackage()
             rank = packageItem.packageRank()
         }
 
         /** Construct from a [TypeItem]. */
-        constructor(type: TypeItem) : this() {
+        constructor(codebase: Codebase, type: TypeItem) : this(codebase) {
             // Visit the [type] searching for any [ClassTypeItem] references passing in this as the
             // visitor. This class's visitor methods will ensure that the rank and packageItem are
             // set the highest package rank for all the classes referenced in this type. If none are
@@ -1391,7 +1393,7 @@ private constructor(
         }
 
         override fun visitClassType(classType: ClassTypeItem) {
-            val classItem = classType.resolveClass() ?: return
+            val classItem = classType.resolveClass(codebase) ?: return
             val newPackageItem = classItem.containingPackage()
             val newRank = newPackageItem.packageRank()
 
@@ -1455,7 +1457,7 @@ private constructor(
     private fun ClassItem.packageRank() = PackageRank(this).takeIf { it.valid() }
 
     /** Get the [PackageRank] for this [TypeItem], returning `null` if it could not be found. */
-    private fun TypeItem.packageRank() = PackageRank(this).takeIf { it.valid() }
+    private fun TypeItem.packageRank() = PackageRank(codebase, this).takeIf { it.valid() }
 
     private fun checkLayering(
         cls: ClassItem,
@@ -1791,7 +1793,7 @@ private constructor(
             // is primitive.
             is ArrayTypeItem -> innermostComponentType() !is PrimitiveTypeItem
             // A class reference is a collection if the referenced ClassItem is a collection.
-            is ClassTypeItem -> resolveClass()?.isCollection() == true
+            is ClassTypeItem -> resolveClass(codebase)?.isCollection() == true
             // A variable type is a collection if its erased type is a collection.
             is VariableTypeItem -> asTypeParameter.asErasedType().isCollection()
             else -> false
@@ -1834,7 +1836,7 @@ private constructor(
             // Get the throwable class, which for a type parameter will be the lower bound. A
             // method that throws a type parameter is treated as if it throws its lower bound, so
             // it makes sense for this check to treat it as if it was replaced with its lower bound.
-            val throwableClass = throwableType.asErasedClass() ?: continue
+            val throwableClass = throwableType.asErasedClass(codebase) ?: continue
             if (isUncheckedException(throwableClass)) {
                 report(
                     BANNED_THROW,
@@ -2141,7 +2143,8 @@ private constructor(
 
         // Only report issues with an actual type and not a generic type that extends Number as
         // there is nothing that can be done to avoid auto-boxing when using generic types.
-        val qualifiedName = (type as? ClassTypeItem)?.resolveClass()?.qualifiedName() ?: return
+        val qualifiedName =
+            (type as? ClassTypeItem)?.resolveClass(codebase)?.qualifiedName() ?: return
         if (isBoxType(qualifiedName)) {
             report(AUTO_BOXING, item, "Must avoid boxed primitives (`$qualifiedName`)")
         }
@@ -3197,7 +3200,7 @@ private constructor(
         val lastRequiredParameter = requiredParameters.last()
         val hasTrailingLambda =
             lastRequiredParameter.parameterIndex == parameters.lastIndex &&
-                lastRequiredParameter.type().isSamCompatibleOrKotlinLambda()
+                lastRequiredParameter.type().isSamCompatibleOrKotlinLambda(codebase)
         val lastRequiredParameterIndex =
             if (hasTrailingLambda) {
                     requiredParameters.dropLast(1).lastOrNull()

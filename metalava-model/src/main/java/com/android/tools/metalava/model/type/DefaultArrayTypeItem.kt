@@ -27,15 +27,17 @@ internal class DefaultArrayTypeItem(
     override val isVarargs: Boolean,
     isValueClassType: Boolean = false,
 ) : ArrayTypeItem, DefaultTypeItem(modifiers, isValueClassType) {
-    @Deprecated(
-        "implementation detail of this class",
-        replaceWith = ReplaceWith("substitute(modifiers, componentType)"),
-    )
-    override fun duplicate(
+
+    override fun substitute(
         modifiers: TypeModifiers,
         componentType: TypeItem,
         isVarargs: Boolean,
-    ): ArrayTypeItem {
-        return DefaultArrayTypeItem(modifiers, componentType, isVarargs)
-    }
+    ) =
+        if (modifiers !== this.modifiers || componentType !== this.componentType)
+            DefaultArrayTypeItem(
+                modifiers,
+                componentType,
+                isVarargs,
+            )
+        else this
 }

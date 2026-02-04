@@ -34,7 +34,6 @@ import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.type.ContextNullability
 import com.android.tools.metalava.model.type.DefaultTypeItemFactory
-import com.android.tools.metalava.model.type.DefaultTypeModifiers
 import com.android.tools.metalava.model.type.MethodFingerprint
 import org.jetbrains.kotlin.analysis.api.KaSession
 import org.jetbrains.kotlin.analysis.api.analyze
@@ -91,7 +90,7 @@ internal class KaTypeItemFactory(
         return if (isVarArg) {
             TypeItem.createArrayType(
                 // Kotlin varargs are non-null, unlike Java varargs.
-                modifiers = DefaultTypeModifiers.emptyNonNullModifiers,
+                modifiers = TypeModifiers.emptyNonNullModifiers,
                 componentType = type,
                 isVarargs = true,
             )
@@ -126,7 +125,7 @@ internal class KaTypeItemFactory(
             // Convert Unit returns to void
             if (underlyingReturnType.isUnitType) {
                 TypeItem.createPrimitiveType(
-                    DefaultTypeModifiers.emptyNonNullModifiers,
+                    TypeModifiers.emptyNonNullModifiers,
                     PrimitiveTypeItem.Primitive.VOID
                 )
             } else {
@@ -151,7 +150,7 @@ internal class KaTypeItemFactory(
             analyze(processor.kaModule) { typeNullability(kaType) }
         }
         val typeItemAnnotations = annotations.mapNotNull { processor.createAnnotation(it) }
-        val modifiers = DefaultTypeModifiers.create(typeItemAnnotations, typeItemNullability)
+        val modifiers = TypeModifiers.create(typeItemAnnotations, typeItemNullability)
 
         // Expand type aliases
         val expandedKaType = analyze(processor.kaModule) { fullyExpandedType }
@@ -186,7 +185,6 @@ internal class KaTypeItemFactory(
             // To avoid runtime errors, construct an invalid class type for error types.
             is KaErrorType ->
                 TypeItem.createClassType(
-                    classResolver = codebase,
                     modifiers = modifiers,
                     qualifiedName = "ErrorType",
                     arguments = emptyList(),
@@ -222,7 +220,6 @@ internal class KaTypeItemFactory(
         val qualifiedName = "kotlin.jvm.functions.Function${arguments.size - 1}"
 
         return TypeItem.createLambdaType(
-            classResolver = codebase,
             modifiers = modifiers,
             qualifiedName = qualifiedName,
             arguments = arguments.map { it as TypeArgumentTypeItem },
@@ -245,12 +242,11 @@ internal class KaTypeItemFactory(
                 originalSuspendType
             }
         return TypeItem.createClassType(
-            classResolver = codebase,
-            modifiers = DefaultTypeModifiers.emptyNonNullModifiers,
+            modifiers = TypeModifiers.emptyNonNullModifiers,
             qualifiedName = KOTLIN_CONTINUATION,
             arguments =
                 listOf(createWildcardTypeItem(superBound = suspendType as ReferenceTypeItem)),
-            outerClassType = null
+            outerClassType = null,
         )
     }
 
@@ -289,7 +285,6 @@ internal class KaTypeItemFactory(
                 (expandedSymbol as? KaNamedClassSymbol)?.isInline == true
             }
         return TypeItem.createClassType(
-            codebase,
             modifiers,
             qualifiedName,
             // The last element of the qualifiers is for the innermost type
@@ -331,9 +326,8 @@ internal class KaTypeItemFactory(
                 return null
             outerClass =
                 TypeItem.createClassType(
-                    classResolver = codebase,
                     // Outer classes must be non-null.
-                    modifiers = DefaultTypeModifiers.emptyNonNullModifiers,
+                    modifiers = TypeModifiers.emptyNonNullModifiers,
                     qualifiedName = qualifiedName,
                     arguments = qualifier.typeArguments.toClassTypeArgumentItems(),
                     // Use the previous outer class as the outer class for this one.
@@ -395,8 +389,7 @@ internal class KaTypeItemFactory(
         nullability: TypeNullability = TypeNullability.NULLABLE
     ): ClassTypeItem {
         return TypeItem.createClassType(
-            classResolver = codebase,
-            modifiers = DefaultTypeModifiers.create(emptyList(), nullability),
+            modifiers = TypeModifiers.create(emptyList(), nullability),
             qualifiedName = "java.lang.Object",
             arguments = emptyList(),
             outerClassType = null,
@@ -409,7 +402,7 @@ internal class KaTypeItemFactory(
         superBound: ReferenceTypeItem? = null,
     ): WildcardTypeItem {
         return TypeItem.createWildcardType(
-            modifiers = DefaultTypeModifiers.emptyUndefinedModifiers,
+            modifiers = TypeModifiers.emptyUndefinedModifiers,
             extendsBound = extendsBound,
             superBound = superBound,
         )
@@ -502,7 +495,6 @@ internal class KaTypeItemFactory(
     /** Converts the [primitiveTypeItem] to the boxed java class type. */
     private fun boxType(primitiveTypeItem: PrimitiveTypeItem): ClassTypeItem {
         return TypeItem.createClassType(
-            classResolver = codebase,
             modifiers = primitiveTypeItem.modifiers,
             qualifiedName =
                 if (mapToJvmTypes) {

@@ -18,7 +18,6 @@ package com.android.tools.metalava.model.type
 
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.LambdaTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
@@ -48,7 +47,6 @@ interface InternalTypeItemFactory {
 
     /** Create a [ClassTypeItem]. */
     fun createClassType(
-        classResolver: ClassResolver,
         modifiers: TypeModifiers,
         qualifiedName: String,
         arguments: List<TypeArgumentTypeItem>,
@@ -56,7 +54,6 @@ interface InternalTypeItemFactory {
         isValueClassType: Boolean = false,
     ): ClassTypeItem =
         DefaultClassTypeItem(
-            classResolver,
             modifiers,
             qualifiedName,
             arguments,
@@ -67,13 +64,12 @@ interface InternalTypeItemFactory {
     /** Create a [ClassTypeItem] for [ClassItem]. */
     fun createClassTypeForClassItem(classItem: ClassItem): ClassTypeItem {
         val arguments = classItem.typeParameterList.map { it.type() }
-        val modifiers = DefaultTypeModifiers.emptyNonNullModifiers
+        val modifiers = TypeModifiers.emptyNonNullModifiers
         return DefaultResolvedClassTypeItem(modifiers, classItem, arguments)
     }
 
     /** Create a [LambdaTypeItem]. */
     fun createLambdaType(
-        classResolver: ClassResolver,
         modifiers: TypeModifiers,
         qualifiedName: String,
         arguments: List<TypeArgumentTypeItem>,
@@ -85,7 +81,6 @@ interface InternalTypeItemFactory {
         isValueClassType: Boolean = false,
     ): LambdaTypeItem =
         DefaultLambdaTypeItem(
-            classResolver,
             modifiers,
             qualifiedName,
             arguments,

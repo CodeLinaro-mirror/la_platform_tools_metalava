@@ -103,7 +103,7 @@ interface CallableItem : MemberItem, TypeParameterListOwner {
     /** Returns true if this callable throws the given exception */
     fun throws(qualifiedName: String): Boolean {
         for (type in throwsTypes()) {
-            val throwableClass = type.asErasedClass() ?: continue
+            val throwableClass = type.asErasedClass(codebase) ?: continue
             if (throwableClass.extends(qualifiedName)) {
                 return true
             }
@@ -129,7 +129,7 @@ interface CallableItem : MemberItem, TypeParameterListOwner {
                     throwsTypes.add(exceptionType)
                 }
                 is ClassTypeItem -> {
-                    val classItem = exceptionType.asErasedClass() ?: continue
+                    val classItem = exceptionType.asErasedClass(codebase) ?: continue
                     if (predicate.test(classItem)) {
                         throwsTypes.add(exceptionType)
                     } else {
@@ -296,7 +296,7 @@ interface CallableItem : MemberItem, TypeParameterListOwner {
             is PrimitiveTypeItem -> false
             is ArrayTypeItem -> componentType.hasHiddenType(filterReference)
             is ClassTypeItem ->
-                resolveClass()?.let { !filterReference.test(it) } == true ||
+                resolveClass(codebase)?.let { !filterReference.test(it) } == true ||
                     outerClassType?.hasHiddenType(filterReference) == true ||
                     arguments.any { it.hasHiddenType(filterReference) }
             is VariableTypeItem ->

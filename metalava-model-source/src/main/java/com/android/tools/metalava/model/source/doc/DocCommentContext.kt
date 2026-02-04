@@ -75,4 +75,7 @@ internal interface DocCommentContext : ExprBuilderContext, ExprContext {
      * * For a [MemberItem] this will return [MemberItem.containingClass].
      */
     val containingClassItem: ClassItem?
+
+    /** Provides support for parsing type references within Javadoc content. */
+    val docTypeParser: DocTypeParser
 }

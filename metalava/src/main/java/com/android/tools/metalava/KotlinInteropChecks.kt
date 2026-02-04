@@ -292,7 +292,7 @@ class KotlinInteropChecks(val reporter: Reporter) {
             }
         }
 
-        return type.isSamCompatibleOrKotlinLambda()
+        return type.isSamCompatibleOrKotlinLambda(parameter.codebase)
     }
 
     private fun disallowValueClasses(cls: ClassItem) {
