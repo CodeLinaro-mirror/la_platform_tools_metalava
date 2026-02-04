@@ -436,15 +436,15 @@ class DocAnalyzerTest : DriverTest() {
                     package test.pkg;
                     /**
                      * Methods in this class must be called on the thread that originally created
-                     * this UI element, unless otherwise noted. This is typically the
-                     * main thread of your app.
+                     *            this UI element, unless otherwise noted. This is typically the
+                     *            main thread of your app.
                      */
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class RangeTest {
                     public RangeTest() { throw new RuntimeException("Stub!"); }
                     /**
                      * This method may take several seconds to complete, so it should
-                     * only be called from a worker thread.
+                     *            only be called from a worker thread.
                      */
                     public int test1() { throw new RuntimeException("Stub!"); }
                     }
@@ -488,10 +488,10 @@ class DocAnalyzerTest : DriverTest() {
                     public RangeTest() { throw new RuntimeException("Stub!"); }
                     /**
                      * This method must be called on the thread that originally created
-                     * this UI element. This is typically the main thread of your app.
+                     *            this UI element. This is typically the main thread of your app.
                      * <br>
                      * This method may take several seconds to complete, so it should
-                     * only be called from a worker thread.
+                     *            only be called from a worker thread.
                      */
                     public int test1() { throw new RuntimeException("Stub!"); }
                     }
@@ -566,7 +566,7 @@ class DocAnalyzerTest : DriverTest() {
                      * Existing documentation for {@linkplain #getCurrentContentInsetEnd()} here.
                      * <br>
                      * This method must be called on the thread that originally created
-                     * this UI element. This is typically the main thread of your app.
+                     *            this UI element. This is typically the main thread of your app.
                      *
                      * @return blah blah blah
                      * @apiSince 24
@@ -574,7 +574,7 @@ class DocAnalyzerTest : DriverTest() {
                     public int getCurrentContentInsetEnd() { throw new RuntimeException("Stub!"); }
                     /**
                      * This method must be called on the thread that originally created
-                     * this UI element. This is typically the main thread of your app.
+                     *            this UI element. This is typically the main thread of your app.
                      * @apiSince 24
                      */
                     public int getCurrentContentInsetRight() { throw new RuntimeException("Stub!"); }
@@ -1694,7 +1694,6 @@ class DocAnalyzerTest : DriverTest() {
                     java(
                         """
                     package test.pkg;
-                    import android.database.Cursor;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class ColumnTest {
                     public ColumnTest() { throw new RuntimeException("Stub!"); }
@@ -1710,123 +1709,6 @@ class DocAnalyzerTest : DriverTest() {
                     """
                     )
                 )
-        )
-    }
-
-    @Test
-    fun `memberDoc crash`() {
-        check(
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                            package test.pkg;
-                            import java.lang.annotation.ElementType;
-                            import java.lang.annotation.Retention;
-                            import java.lang.annotation.RetentionPolicy;
-                            import java.lang.annotation.Target;
-                            /**
-                             * More text here
-                             * @memberDoc Important {@link another.pkg.Bar#BAR}
-                             * and here
-                             */
-                            @Target({ ElementType.FIELD })
-                            @Retention(RetentionPolicy.SOURCE)
-                            public @interface Foo { }
-                        """
-                    ),
-                    java(
-                        """
-                            package another.pkg;
-                            public class Bar {
-                                public String BAR = "BAAAAR";
-                            }
-                        """
-                    ),
-                    java(
-                        """
-                            package yetonemore.pkg;
-                            public class Fun {
-                                @test.pkg.Foo
-                                public Fun() {}
-
-                                /**
-                                 * Separate comment
-                                 */
-                                @test.pkg.Foo
-                                public static final String FUN = "FUN";
-                            }
-                        """
-                    )
-                ),
-            docStubs = true,
-            stubFiles =
-                arrayOf(
-                    java(
-                        """
-                            package yetonemore.pkg;
-                            @SuppressWarnings({"unchecked", "deprecation", "all"})
-                            public class Fun {
-                            /**
-                             * Important {@link another.pkg.Bar#BAR}
-                             * and here
-                             */
-                            public Fun() { throw new RuntimeException("Stub!"); }
-                            /**
-                             * Separate comment.
-                             * <br>
-                             * Important {@link another.pkg.Bar#BAR}
-                             * and here
-                             */
-                            public static final java.lang.String FUN = "FUN";
-                            }
-                        """
-                    )
-                )
-        )
-    }
-
-    @Test
-    fun `Invalid classDoc`() {
-        check(
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                            package test.pkg;
-                            /**
-                             * @classDoc {@code unclosed
-                             */
-                            public @interface Anno { }
-                        """
-                    ),
-                    java(
-                        """
-                            package test.pkg;
-                            @Anno
-                            public class Test {
-                            }
-                        """
-                    )
-                ),
-            docStubs = true,
-            stubFiles =
-                arrayOf(
-                    java(
-                        """
-                            package test.pkg;
-                            /** {@code unclosed} */
-                            @SuppressWarnings({"unchecked", "deprecation", "all"})
-                            @test.pkg.Anno
-                            public class Test {
-                            public Test() { throw new RuntimeException("Stub!"); }
-                            }
-                        """
-                    )
-                ),
-            expectedFail = DefaultLintErrorMessage,
-            expectedIssues =
-                "src/test/pkg/Anno.java:3: error: unclosed inline '@code' tag [UnclosedInlineTag]",
         )
     }
 }

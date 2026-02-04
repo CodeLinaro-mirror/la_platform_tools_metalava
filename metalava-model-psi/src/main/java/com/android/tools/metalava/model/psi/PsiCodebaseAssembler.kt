@@ -172,8 +172,9 @@ internal class PsiCodebaseAssembler(
         } else {
             val documentationFactory =
                 psiJavaFile.packageStatement?.let { PsiItemDocumentation.factory(it, psiCodebase) }
+            val sourceFile = PsiSourceFile(psiCodebase, psiJavaFile)
             SourcePackageInfo(
-                fileLocation = PsiFileLocation.fromPsiElement(psiJavaFile),
+                sourceFile = sourceFile,
                 annotations = annotations,
                 commentFactory = documentationFactory,
             )

@@ -28,7 +28,7 @@ import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeStringConfiguration
 import com.android.tools.metalava.model.scope.NameClassification
 import com.android.tools.metalava.model.scope.ReferencableNameScope
-import com.android.tools.metalava.model.source.doc.MethodSourceReference.SourceParameter
+import com.android.tools.metalava.model.source.doc.CallableSourceReference.SourceParameter
 import com.android.tools.metalava.model.source.javadoc.JavadocContent
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.LocationSpecificReporter
@@ -220,7 +220,7 @@ internal open class LabeledRefTagType(name: String, form: TagTypeForm) :
                         // and qualified to be `null` is if sourceReference starts with '(' but that
                         // is rejected above.
                         val parameters = parseParameters(relative, docTypeParser)
-                        MethodSourceReference(qualified!!, parameters)
+                        CallableSourceReference(qualified!!, parameters)
                     }
                     relative.last() == ')' -> {
                         require(relative[0] == '#') {
@@ -238,7 +238,7 @@ internal open class LabeledRefTagType(name: String, form: TagTypeForm) :
                         val methodName = relative.substring(1, index)
                         val parameters = parseParameters(relative.substring(index), docTypeParser)
 
-                        MethodSourceReference(methodName, parameters).qualifyIfNeeded(qualified)
+                        CallableSourceReference(methodName, parameters).qualifyIfNeeded(qualified)
                     }
                     relative.startsWith("##") -> {
                         UriFragmentSourceReference(relative.substring(2)).qualifyIfNeeded(qualified)
@@ -469,7 +469,7 @@ internal data class QualifyingClassSourceReference(
                 is ClassItem -> resolved
                 is InvalidReferencableItem -> {
                     resolved.reportIssue(reporter)
-                    return null
+                    null
                 }
                 // This should never happen as passing in NameClassification.CLASS above should
                 // limit
@@ -477,7 +477,13 @@ internal data class QualifyingClassSourceReference(
                 else -> error("type '$className' was resolved to an unknown type $resolved")
             }
 
-        return member.findIn(context, reporter, classItem)
+        return member.findIn(
+            context,
+            reporter,
+            classItem,
+            // Use the qualified class name if available, otherwise use the source name.
+            classItem?.qualifiedName() ?: className,
+        )
     }
 }
 
@@ -493,8 +499,8 @@ internal data class CurrentClassSourceReference(val member: ClassMemberSourceRef
     ): ResolvedReference? {
         // TODO(b/447588621): Report issue when no class is available, member references are not
         //  allowed in packages.
-        val classItem = context.containingClassItem ?: return null
-        return member.findIn(context, reporter, classItem)
+        val classItem = context.containingClassItem
+        return member.findIn(context, reporter, classItem, classItem?.qualifiedName() ?: "")
     }
 }
 
@@ -517,17 +523,23 @@ internal sealed interface ClassMemberSourceReference {
         className?.let { QualifyingClassSourceReference(it, this) }
             ?: CurrentClassSourceReference(this)
 
-    /** Find this in [classItem]. */
+    /**
+     * Find the class member that this is referencing in [classItem], if provided.
+     *
+     * If the qualifying class could be resolved then [classItem] will be provided and [className]
+     * will be the fully qualified class name. However, if the qualifying class could not be
+     * resolved then [classItem] will be `null` and [className] will be the name provided in the
+     * source.
+     */
     fun findIn(
         context: DocCommentContext,
         reporter: LocationSpecificReporter,
-        classItem: ClassItem
-    ): ResolvedReference? =
-        // TODO(b/447588621): Remove default after implementing in all sub-classes.
-        null
+        classItem: ClassItem?,
+        className: String,
+    ): ResolvedReference
 }
 
-/** A reference to a member called [name], which could be a field or a method. */
+/** A reference to a member called [name], which could be a field or a callable. */
 internal data class AmbiguousMemberSourceReference(val name: String) : ClassMemberSourceReference {
     override val normalizedForm: String
         get() = name
@@ -535,31 +547,42 @@ internal data class AmbiguousMemberSourceReference(val name: String) : ClassMemb
     override fun findIn(
         context: DocCommentContext,
         reporter: LocationSpecificReporter,
-        classItem: ClassItem
-    ): ResolvedReference? = classItem.findField(name)?.toResolvedReference()
+        classItem: ClassItem?,
+        className: String,
+    ) =
+        // TODO(b/447588621): Check for methods and constructors not just fields.
+        classItem?.findField(name)?.toResolvedReference()
+            // TODO(b/447588621): Report that the field could not be found.
+            // If the field could not be found then fallback to a field reference so that at least
+            // the resolved class will be fully qualified.
+            ?: FieldReference(className, name)
 }
 
 /**
- * A reference to a method called [name] with [parameters]. This is both a
+ * A reference to a callable called [name] with [parameters]. This is both a
  * [ClassMemberSourceReference] because it can be resolved relative to a class, and
  * [ParsedReference] because it can be resolved within a [ReferencableNameScope].
  */
-internal data class MethodSourceReference(val name: String, val parameters: List<SourceParameter>) :
-    ClassMemberSourceReference, ParsedReference {
+internal data class CallableSourceReference(
+    val name: String,
+    val parameters: List<SourceParameter>
+) : ClassMemberSourceReference, ParsedReference {
 
     override val normalizedForm: String
         get() =
             formatSignature(
+                name,
                 parameters,
                 // Preserve generic arguments in the label part of this.
                 eraseGenericArguments = false,
             )
 
     /**
-     * Format [name] and [parameters] into a method signature for use in [normalizedForm] and
-     * [MethodReference.signature].
+     * Format [name] and [parameters] into a callable signature for use in [normalizedForm] and
+     * [CallableReference.signature].
      */
     private fun formatSignature(
+        name: String,
         parameters: List<SourceParameter>,
         eraseGenericArguments: Boolean,
     ) = buildString {
@@ -573,11 +596,11 @@ internal data class MethodSourceReference(val name: String, val parameters: List
     }
 
     /**
-     * Resolve [name] reference to a method directly within [context].
+     * Resolve [name] reference to a callable directly within [context].
      *
-     * This differs from [findIn] as that finds a method within a class that has already been
+     * This differs from [findIn] as that finds a callable within a class that has already been
      * resolved but this resolves the name directly within the containing scope. The key difference
-     * is that the former uses `#` to unambiguously separate the class from the method but the
+     * is that the former uses `#` to unambiguously separate the class from the callable but the
      * latter does not.
      *
      * e.g. [findIn] is used for references like `{@link #method()}` and {@link Class#method()}`
@@ -587,11 +610,31 @@ internal data class MethodSourceReference(val name: String, val parameters: List
         context: DocCommentContext,
         reporter: LocationSpecificReporter
     ): ResolvedReference? {
-        val resolved = context.resolveItemReference(name, NameClassification.METHOD_SET)
+        val resolved = context.resolveItemReference(name, NameClassification.CALLABLE_SET)
         return when (resolved) {
-            is ReferencableMethodSet ->
-                // TODO(b/447588621): Try and find a method that matches the resolved [parameters].
-                createMethodReference(context, reporter, resolved.containingClass)
+            is ReferencableMethodSet -> {
+                // TODO(b/447588621): Try and find a callable that matches the resolved
+                //  [parameters].
+                val containingClass = resolved.containingClass
+                createCallableReference(
+                    context,
+                    reporter,
+                    containingClass.qualifiedName(),
+                    // Use the resolved name as the source name may be qualified.
+                    resolved.name,
+                )
+            }
+            is ClassItem -> {
+                // Resolving a callable can return the class in lieu of a set of constructor so
+                // treat it as one and create a reference to the constructor.
+                createCallableReference(
+                    context,
+                    reporter,
+                    resolved.qualifiedName(),
+                    // Use the class's simple name as the constructor name.
+                    resolved.simpleName(),
+                )
+            }
             // Report an error and return `null`.
             is InvalidReferencableItem -> {
                 resolved.reportIssue(reporter)
@@ -599,28 +642,39 @@ internal data class MethodSourceReference(val name: String, val parameters: List
             }
             // This should never happen as passing in NameClassification.METHOD above should limit
             // the returned types to MethodItemSet or InvalidReferencableItem.
-            else -> error("method name '$name' was resolved to an unknown type $resolved")
+            else -> error("callable name '$name' was resolved to an unknown type $resolved")
         }
     }
 
     override fun findIn(
         context: DocCommentContext,
         reporter: LocationSpecificReporter,
-        classItem: ClassItem
-    ) = createMethodReference(context, reporter, classItem)
+        classItem: ClassItem?,
+        className: String,
+    ) =
+        createCallableReference(
+            context,
+            reporter,
+            className,
+            // The source name will always be the simple callable name in this case, it will never
+            // be qualified so it is safe to use in the callable reference.
+            name,
+        )
 
     /**
-     * Return a method reference that uses the fully qualified name of the containing class and
+     * Return a [CallableReference] that uses the fully qualified name of the containing class and
      * fully qualified parameter types.
      */
-    private fun createMethodReference(
+    private fun createCallableReference(
         context: DocCommentContext,
         reporter: LocationSpecificReporter,
-        classItem: ClassItem
+        className: String,
+        name: String,
     ) =
-        MethodReference(
-            classItem.qualifiedName(),
+        CallableReference(
+            className,
             formatSignature(
+                name,
                 parameters.map { sourceParameter ->
                     val fullyQualifiedType = sourceParameter.type.fullyQualify(context, reporter)
                     SourceParameter(fullyQualifiedType, sourceParameter.name)
@@ -690,6 +744,16 @@ internal data class UriFragmentSourceReference(val uriFragment: String) :
      */
     override val normalizedForm: String
         get() = "#$uriFragment"
+
+    override fun findIn(
+        context: DocCommentContext,
+        reporter: LocationSpecificReporter,
+        classItem: ClassItem?,
+        className: String,
+    ) =
+        // TODO(b/447588621): If the source for classItem is available then check it for an
+        //  id="<uriFragment>" attribute.
+        UriFragmentReference(className, uriFragment)
 }
 
 /**
@@ -746,16 +810,6 @@ internal data class LabeledRefTagData(
     private val resolvedReference: ResolvedReference?,
 ) : TagData {
     /**
-     * Check whether the references could possibly rely on the [importedName].
-     *
-     * Returns `true` if the reference has not been fully resolved and the partially resolved parts
-     * contain [importedName] as a separate word.
-     */
-    fun referenceCouldRelyOnImportedName(importedName: String) =
-        resolvedReference?.referenceCouldRelyOnImportedName(importedName)
-            ?: sourceReference.containsWord(importedName)
-
-    /**
      * Print the tag contents which consists of the [sourceReference] and the [content] which is the
      * optional label.
      *
@@ -780,12 +834,6 @@ internal data class LabeledRefTagData(
             // Return immediately.
             return
         }
-
-        // Do not add custom labels to @see tags. This matches the behavior of the Psi reference
-        // resolution code and keeping them consistent simplifies migration to this reference
-        // resolving code.
-        // TODO(b/447588621): Remove once this replaces the Psi reference resolving code completely.
-        if (tagType == "see") return
 
         // Check to see whether it is necessary to add a label to try and preserve the developer's
         // original intent.
@@ -840,6 +888,9 @@ internal data class LabeledRefTagData(
      */
     fun String.referenceAsLabel(): String {
         val hashIndex = indexOf('#')
+        if (hashIndex + 1 < length && this[hashIndex + 1] == '#') {
+            return substring(hashIndex + 1)
+        }
         return when (hashIndex) {
             -1 -> this
             0 -> substring(1)

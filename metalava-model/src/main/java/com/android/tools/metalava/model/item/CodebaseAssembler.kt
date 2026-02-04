@@ -116,6 +116,7 @@ abstract class DefaultCodebaseAssembler : CodebaseAssembler {
             else createImmutableModifiers(VisibilityLevel.PUBLIC, annotations)
         return itemFactory.createPackageItem(
             packageInfo.fileLocation,
+            packageInfo.sourceFile,
             modifiers,
             documentationFactory,
             packageName,

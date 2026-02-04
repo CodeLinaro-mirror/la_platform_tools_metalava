@@ -163,8 +163,8 @@ class JavadocTest : DriverTest() {
                      *  Here's an already fully qualified reference: {@link test.pkg2.OtherClass}.
                      *  And here's one in the same package: {@link test.pkg1.LocalClass LocalClass}.
                      *
-                     * @see test.pkg2.OtherClass
-                     * @see test.pkg2.OtherClass#bar(int,boolean)
+                     * @see test.pkg2.OtherClass OtherClass
+                     * @see test.pkg2.OtherClass#bar(int,boolean) OtherClass.bar(int,boolean)
                      * @deprecated For some reason
                      */
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
@@ -372,8 +372,8 @@ class JavadocTest : DriverTest() {
                  *  Here's an already fully qualified reference: {@link test.pkg2.OtherClass}.
                  *  And here's one in the same package: {@link test.pkg1.LocalClass LocalClass}.
                  *
-                 * @see test.pkg2.OtherClass
-                 * @see test.pkg2.OtherClass#bar(int,boolean)
+                 * @see test.pkg2.OtherClass OtherClass
+                 * @see test.pkg2.OtherClass#bar(int,boolean) OtherClass.bar(int,boolean)
                  * @deprecated For some reason
                  */
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
@@ -864,7 +864,6 @@ class JavadocTest : DriverTest() {
             source =
                 """
                 package test.pkg1;
-                import test.pkg2.MyChild;
                 /**
                  * Reference to {@link test.pkg2.MyChild#CONSTANT1 MyChild.CONSTANT1},
                  * {@link test.pkg2.MyChild#CONSTANT2 MyChild.CONSTANT2}, and
@@ -1183,7 +1182,7 @@ class JavadocTest : DriverTest() {
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Foo {
                     public Foo() { throw new RuntimeException("Stub!"); }
-                    /** @see test.pkg.bar.Bar */
+                    /** @see test.pkg.bar.Bar Bar */
                     public void bar() { throw new RuntimeException("Stub!"); }
                     }
                     """
@@ -1194,9 +1193,9 @@ class JavadocTest : DriverTest() {
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Bar {
                     public Bar() { throw new RuntimeException("Stub!"); }
-                    /** @see test.pkg.baz.Baz */
+                    /** @see test.pkg.baz.Baz Baz */
                     public void baz(test.pkg.baz.Baz baz) { throw new RuntimeException("Stub!"); }
-                    /** @see test.pkg.Foo */
+                    /** @see test.pkg.Foo Foo */
                     public void foo(test.pkg.Foo foo) { throw new RuntimeException("Stub!"); }
                     }
                     """

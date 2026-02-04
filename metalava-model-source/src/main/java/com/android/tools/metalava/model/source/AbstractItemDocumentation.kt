@@ -205,12 +205,6 @@ abstract class AbstractItemDocumentation(
         // Purposely does not cache this as superMethods() is already cached.
         item is MethodItem && item.superMethods().isNotEmpty()
 
-    /** Expands the given documentation comment in the current name context */
-    open fun fullyQualifiedDocumentation(documentation: String): String = documentation
-
-    /** Implements [DocCommentContext.fullyQualifyComment]. */
-    override fun fullyQualifyComment(comment: String) = fullyQualifiedDocumentation(comment)
-
     override val containingClassItem: ClassItem?
         get() =
             when (item) {
@@ -245,28 +239,10 @@ abstract class AbstractItemDocumentation(
 
         checkDocumentationBeforePrinting(originalText)
 
-        // Before printing fully qualify the comment. This expects a whole comment and will fix up
-        // @link and @see tags.
-        val fullyQualifiedText = fullyQualifiedDocumentation(originalText)
-
         // Only print the comment if it is not blank.
-        if (fullyQualifiedText.isNotBlank()) {
-            // If fully qualifying did not change the text then used the docComment, otherwise
-            // create a new one from the fully qualified text.
-            val fullyQualifiedComment =
-                if (fullyQualifiedText == originalText) docComment
-                else
-                    DocComment.createDocComment(
-                        context = this,
-                        fullyQualifiedText,
-                        // Ignore any errors that are found while parsing the fully qualified test
-                        // as they will duplicate issues found when first creating and the line
-                        // numbers may not match the original source.
-                        reporter = DocumentationIssueReporter.NULL,
-                    )
-
+        if (originalText.isNotBlank()) {
             // Print the docComment as Javadoc.
-            fullyQualifiedComment.printAsJavadocComment(
+            docComment.printAsJavadocComment(
                 writer,
                 // Apply the [JavaSummaryTruncationWorkaround] to the main description.
                 mainDescriptionRewriter = JavaSummaryTruncationWorkaround()
@@ -307,10 +283,8 @@ abstract class AbstractItemDocumentation(
     override val mainDescriptionOwner: DocContentOwner
         get() = docComment
 
-    override fun blockTagDescription(tagTypeName: String, forAppending: Boolean): DocContent? =
-        findBlockTagSection(tagTypeName)?.let { blockTagSection ->
-            if (forAppending) blockTagSection.docContentForAppending else blockTagSection.docContent
-        }
+    override fun blockTagDescription(tagTypeName: String): DocContent? =
+        findBlockTagSection(tagTypeName)?.docContent
 
     override fun blockTagDescriptionOwner(tagTypeName: String): DocContentOwner {
         return findBlockTagSection(tagTypeName)

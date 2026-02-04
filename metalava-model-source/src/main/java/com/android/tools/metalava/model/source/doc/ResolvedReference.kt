@@ -16,10 +16,10 @@
 
 package com.android.tools.metalava.model.source.doc
 
+import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TypeParameterItem
@@ -40,14 +40,6 @@ sealed interface ResolvedReference : Comparable<ResolvedReference> {
 
     override fun compareTo(other: ResolvedReference) =
         fullyQualifiedForm.compareTo(other.fullyQualifiedForm)
-
-    /**
-     * Check whether this could possibly rely on the [importedName].
-     *
-     * Returns `true` if the reference has not been fully resolved and the partially resolved parts
-     * contain [importedName] as a separate word.
-     */
-    fun referenceCouldRelyOnImportedName(importedName: String) = false
 }
 
 /** A reference to a [PackageItem]. */
@@ -98,8 +90,8 @@ data class FieldReference(
 internal fun FieldItem.toResolvedReference() =
     FieldReference(containingClass().qualifiedName(), name())
 
-/** A reference to a [MethodItem]. */
-data class MethodReference(
+/** A reference to a [CallableItem]. */
+data class CallableReference(
     private val qualifiedClassName: String,
     private val signature: String,
 ) : MemberReference {
@@ -107,4 +99,15 @@ data class MethodReference(
 
     override fun formatForTagReference(containingClassName: String?) =
         if (qualifiedClassName == containingClassName) "#$signature" else fullyQualifiedForm
+}
+
+/** A reference to a URI fragment, i.e. an HTML element with `id="<fragment>" attribute. */
+data class UriFragmentReference(
+    private val qualifiedClassName: String,
+    private val fragmentName: String,
+) : MemberReference {
+    override val fullyQualifiedForm = "$qualifiedClassName##$fragmentName"
+
+    override fun formatForTagReference(containingClassName: String?) =
+        if (qualifiedClassName == containingClassName) "##$fragmentName" else fullyQualifiedForm
 }

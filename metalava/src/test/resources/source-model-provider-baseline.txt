@@ -18,10 +18,6 @@ com.android.tools.metalava.Java9LanguageFeaturesTest
   Basic class signature extraction[turbine]
   Using JDK APIs[turbine]
 
-com.android.tools.metalava.JavadocTest
-  Check references to inherited field constants[turbine]
-  Warn about unresolved[turbine]
-
 com.android.tools.metalava.NullabilityAnnotationsValidatorTest
   Using class list[turbine]
 
@@ -51,6 +47,8 @@ com.android.tools.metalava.compatibility.CompatibilityCheckTest
 
 com.android.tools.metalava.doc.DocAnalyzerTest
   Test Column annotation[turbine]
+
+com.android.tools.metalava.doc.InlineAnnotationDocTest
   memberDoc crash[turbine]
 
 com.android.tools.metalava.jar.StandaloneJarCodebaseLoaderTest
