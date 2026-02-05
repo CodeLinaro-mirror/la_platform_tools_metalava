@@ -181,4 +181,54 @@ class CommonDocReferenceTest : BaseModelTest() {
             )
         }
     }
+
+    @Test
+    fun `Test link tag in package-info`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+                        import java.util.List;
+                        public class Test {
+                            public int field;
+                            public void method(Test t, List<String> s) {}
+                        }
+                    """
+                ),
+                java(
+                    "test/pkg/package-info.java",
+                    """
+                        /**
+                         * {@link Test}
+                         * {@link Test#field}
+                         * {@link Test#method(Test,List<String>)}
+                         * {@link #invalid(String,Number)}
+                         */
+                        package test.pkg;
+
+                        import java.util.List;
+                    """
+                ),
+            ),
+        ) {
+            val testPackage = codebase.assertPackage("test.pkg")
+            testPackage.assertPrintedDocumentation(
+                expectedOutput =
+                    """
+                        /**
+                         * {@link test.pkg.Test Test}
+                         * {@link test.pkg.Test#field Test.field}
+                         * {@link test.pkg.Test#method(test.pkg.Test,java.util.List) Test.method(Test,List<String>)}
+                         * {@link #invalid(java.lang.String,java.lang.Number) invalid(String,Number)}
+                         */
+                    """,
+            )
+
+            assertAndRemoveReportedIssues(
+                // TODO(b/447588621): Should report an issue about the #invalid(...) reference.
+                ""
+            )
+        }
+    }
 }

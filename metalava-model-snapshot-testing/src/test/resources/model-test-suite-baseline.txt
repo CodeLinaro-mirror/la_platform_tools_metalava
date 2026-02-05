@@ -32,17 +32,6 @@ com.android.tools.metalava.model.testsuite.codebase.CommonCodebaseTest
 com.android.tools.metalava.model.testsuite.constructoritem.CommonConstructorModifierTest
   Test varargs[turbine]
 
-com.android.tools.metalava.model.testsuite.documentation.CommonItemDocumentationTest
-  Test fully qualifying links that wrap on multiple lines[turbine]
-
-com.android.tools.metalava.model.testsuite.documentation.CommonParameterizedDocReferenceTest
-  Documentation text[turbine,@link,Imported#noParamsMethod]
-  Documentation text[turbine,@link,Other#noParamsMethod]
-  Documentation text[turbine,@linkplain,Imported#noParamsMethod]
-  Documentation text[turbine,@linkplain,Other#noParamsMethod]
-  Documentation text[turbine,@see,Imported#noParamsMethod]
-  Documentation text[turbine,@see,Other#noParamsMethod]
-
 com.android.tools.metalava.model.testsuite.fielditem.CommonFieldItemTest
   Test implicit nullability of constant field initialized from @NonNull method[turbine]
 

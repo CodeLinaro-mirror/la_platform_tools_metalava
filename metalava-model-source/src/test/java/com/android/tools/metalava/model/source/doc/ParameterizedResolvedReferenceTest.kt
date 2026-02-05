@@ -105,12 +105,12 @@ class ParameterizedResolvedReferenceTest {
                     expectedFullyQualifiedForm = "test.pkg.Other#field",
                 ),
                 TestParams(
-                    reference = MethodReference("test.pkg.Class.Nested", "method()"),
+                    reference = CallableReference("test.pkg.Class.Nested", "method()"),
                     expectedFullyQualifiedForm = "test.pkg.Class.Nested#method()",
                     expectedForClassNested = "#method()",
                 ),
                 TestParams(
-                    reference = MethodReference("test.pkg.Other", "method()"),
+                    reference = CallableReference("test.pkg.Other", "method()"),
                     expectedFullyQualifiedForm = "test.pkg.Other#method()",
                 ),
             )

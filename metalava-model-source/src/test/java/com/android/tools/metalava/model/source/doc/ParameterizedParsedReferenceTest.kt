@@ -18,7 +18,7 @@ package com.android.tools.metalava.model.source.doc
 
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.TypeParameterScope
-import com.android.tools.metalava.model.source.doc.MethodSourceReference.SourceParameter
+import com.android.tools.metalava.model.source.doc.CallableSourceReference.SourceParameter
 import com.android.tools.metalava.model.testing.arrayTypeItem
 import com.android.tools.metalava.model.testing.classTypeItem
 import com.android.tools.metalava.model.testing.primitiveTypeForKind
@@ -67,9 +67,9 @@ class ParameterizedParsedReferenceTest {
     }
 
     companion object {
-        /** Construct a [MethodSourceReference]. */
+        /** Construct a [CallableSourceReference]. */
         private fun methodSourceReference(name: String, vararg parameters: SourceParameter) =
-            MethodSourceReference(name, parameters.toList())
+            CallableSourceReference(name, parameters.toList())
 
         private val params =
             listOf(

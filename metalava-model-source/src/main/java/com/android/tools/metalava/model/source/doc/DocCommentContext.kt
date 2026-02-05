@@ -63,9 +63,6 @@ internal interface DocCommentContext : ExprBuilderContext, ExprContext {
      */
     fun isOverridingMethod(): Boolean
 
-    /** Fully qualify the Javadoc [comment]. */
-    fun fullyQualifyComment(comment: String): String
-
     /**
      * The optional [ClassItem] that contains this documentation.
      *

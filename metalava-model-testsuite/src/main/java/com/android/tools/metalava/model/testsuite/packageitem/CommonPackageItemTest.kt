@@ -31,6 +31,7 @@ import com.android.tools.metalava.testing.jarFromSources
 import com.android.tools.metalava.testing.java
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import org.junit.ClassRule
 import org.junit.Test
@@ -250,6 +251,9 @@ class CommonPackageItemTest : BaseModelTest() {
             val packageLocation = packageItem.fileLocation.toString()
 
             assertEquals("MAIN_SRC/api.txt:2", removeTestSpecificDirectories(packageLocation))
+
+            // A signature package has no corresponding source file.
+            assertNull(packageItem.sourceFile)
         }
     }
 
@@ -281,6 +285,10 @@ class CommonPackageItemTest : BaseModelTest() {
                 "MAIN_SRC/src/test/pkg/package-info.java",
                 removeTestSpecificDirectories(packageLocation)
             )
+
+            // A package with a package-info.java file has a source file.
+            val sourceFile = assertNotNull(packageItem.sourceFile)
+            assertEquals(packageLocation, sourceFile.fileLocation.toString())
         }
     }
 
@@ -370,6 +378,9 @@ class CommonPackageItemTest : BaseModelTest() {
                 "MAIN_SRC/src/test/pkg/package.html",
                 removeTestSpecificDirectories(packageLocation)
             )
+
+            // A package with a package.html file has no corresponding source file.
+            assertNull(packageItem.sourceFile)
         }
     }
 

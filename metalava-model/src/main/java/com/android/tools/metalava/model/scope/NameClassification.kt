@@ -19,8 +19,8 @@ package com.android.tools.metalava.model.scope
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.ReferencableCallableItem
 import com.android.tools.metalava.model.ReferencableItem
-import com.android.tools.metalava.model.ReferencableMethodSet
 import com.android.tools.metalava.model.TypeParameterItem
 
 /**
@@ -42,7 +42,7 @@ enum class NameClassification(
     val classes: Boolean = false,
     val typeParameters: Boolean = false,
     val fields: Boolean = false,
-    val methods: Boolean = false,
+    val callables: Boolean = false,
     val nameDescriptionPrefix: String,
 ) {
     /** The name is ambiguous and could refer to any [ReferencableItem]. */
@@ -51,7 +51,7 @@ enum class NameClassification(
         classes = true,
         typeParameters = true,
         fields = true,
-        methods = true,
+        callables = true,
         nameDescriptionPrefix = "",
     ),
 
@@ -84,10 +84,17 @@ enum class NameClassification(
         nameDescriptionPrefix = "a field called ",
     ),
 
-    /** A method name, i.e. one that can only reference a [ReferencableMethodItemSet]. */
-    METHOD_SET(
-        methods = true,
-        nameDescriptionPrefix = "a method called ",
+    /**
+     * A callable name, i.e. one that can only reference a [ReferencableCallableItem] for callables.
+     */
+    CALLABLE_SET(
+        // Constructors cannot be referenced by name. Instead, the name refers to the constructor's
+        // class and that implicitly gives access to its constructors. Setting [classes] to `true`
+        // means that when this [NameClassification] is used if a name refers to a class it is
+        // assumed to be referring to its constructors.
+        classes = true,
+        callables = true,
+        nameDescriptionPrefix = "a method/constructor called ",
     ),
     ;
 
@@ -123,12 +130,17 @@ enum class NameClassification(
     inline fun findField(body: () -> FieldItem?) = if (fields) body() else null
 
     /**
-     * Run [body] if [methods] is `true` returning the result which must be `null` or a
-     * [ReferencableMethodSet].
+     * Run [body] if [callables] is `true` returning the result which must be `null` or a
+     * [ReferencableCallableItem].
      *
-     * Used by code that resolves names to control whether it searches for methods or not.
+     * Used by code that resolves names to control whether it searches for callables or not.
+     *
+     * This does not differentiate between methods and constructors because whether something is a
+     * constructor or a method can be determined solely by checking the name against the containing
+     * [ClassItem.simpleName]. If it matches then it is a constructor, otherwise it is a method.
      */
-    inline fun findMethodSet(body: () -> ReferencableMethodSet?) = if (methods) body() else null
+    inline fun findCallableSet(body: () -> ReferencableCallableItem?) =
+        if (callables) body() else null
 
     /** Describe the name. */
     fun describeName(name: String) = "$nameDescriptionPrefix'$name'"

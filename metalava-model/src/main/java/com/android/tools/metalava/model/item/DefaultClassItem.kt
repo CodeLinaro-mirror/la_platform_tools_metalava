@@ -365,7 +365,7 @@ open class DefaultClassItem(
             ?: nameClassification.findField { findField(simpleName) }
             // Then, check to see if this contains any method with the same name, if it does
             // then return a ReferencableMethodSet.
-            ?: nameClassification.findMethodSet { findMethodSet(simpleName) }
+            ?: nameClassification.findCallableSet { findCallableSet(simpleName) }
             // Then, check to see if it matches a nested class and if it does then return that.
             ?: nameClassification.findClass {
                 mutableNestedClasses.find { it.simpleName() == simpleName }
@@ -455,11 +455,28 @@ open class DefaultClassItem(
 }
 
 /**
- * Check to see if this [ClassItem] contains any methods called [name] and if so then returns a
- * [ReferencableMethodSet] to indicate that, otherwise returns `null`.
+ * Check to see if [name] refers to a method or constructor in this [ClassItem].
+ *
+ * If [name] matches [ClassItem.simpleName] then it is assumed to be a constructor. In that case if
+ * this [ClassItem] has any constructors then this [ClassItem] is returned to represent the set of
+ * constructors, otherwise `null` is returned. [ClassItem] is used to represent the constructors
+ * because that matches the specification. Constructors cannot usually be referenced by name and
+ * instead the class is referenced which gives access to its constructor.
+ *
+ * Else, [ClassItem.methods] is searched for a [MethodItem] that matches [name]. If at least one
+ * could be found then returns a [ReferencableMethodSet] to represent the set of all [MethodItem]s
+ * called [name].
+ *
+ * Otherwise, `null` is returned.
  */
-internal fun ClassItem.findMethodSet(name: String) =
-    if (methods().any { it.name() == name }) {
+internal fun ClassItem.findCallableSet(name: String) =
+    if (name == simpleName()) {
+        if (constructors().isEmpty()) {
+            null
+        } else {
+            this
+        }
+    } else if (methods().any { it.name() == name }) {
         ReferencableMethodSet(this, name)
     } else {
         null

@@ -48,20 +48,6 @@ internal class JavaStubWriter(
             if (qualifiedName.isNotBlank()) {
                 writer.println("package $qualifiedName;")
             }
-            if (config.includeDocumentationInStubs) {
-                // All the classes referenced in the stubs are fully qualified, so no imports are
-                // needed. However, in some cases for javadoc, replacement with fully qualified name
-                // fails, and thus we need to include imports for the stubs to compile.
-                cls.sourceFile()?.getImports()?.let {
-                    for (item in it) {
-                        if (item.isMember) {
-                            writer.println("import static ${item.pattern};")
-                        } else {
-                            writer.println("import ${item.pattern};")
-                        }
-                    }
-                }
-            }
         }
 
         appendDocumentation(cls, writer, config)

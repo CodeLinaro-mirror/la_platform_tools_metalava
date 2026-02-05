@@ -27,7 +27,15 @@ import com.android.tools.metalava.model.scope.QualifiedNameScope
  */
 @MetalavaApi
 interface ClassItem :
-    ClassContentItem, SelectableItem, TypeParameterListOwner, ReferencableItem, QualifiedNameScope {
+    ClassContentItem,
+    SelectableItem,
+    TypeParameterListOwner,
+    ReferencableItem,
+    // This is implemented because constructors cannot usually be referenced directly, e.g. in
+    // imports of `new` expressions. Instead, the class is referenced giving access to its
+    // constructors. Having ClassItem extend ReferencableCallableItem models that behavior.
+    ReferencableCallableItem,
+    QualifiedNameScope {
     /**
      * The qualified name of a class. In class foo.bar.Outer.Inner, the qualified name is the whole
      * thing.

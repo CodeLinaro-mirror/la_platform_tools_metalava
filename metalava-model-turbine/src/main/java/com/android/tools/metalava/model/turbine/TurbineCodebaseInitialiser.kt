@@ -409,7 +409,7 @@ internal class TurbineCodebaseInitialiser(
                 val pkgDecl = unit.pkg().get()
                 var annoInfos = packageInfoClass.annotations()
                 SourcePackageInfo(
-                    fileLocation = TurbineFileLocation.forTree(turbineSourceFile),
+                    sourceFile = turbineSourceFile,
                     annotations = annotationFactory.createAnnotations(annoInfos),
                     commentFactory = itemDocumentationFactoryForDecl(turbineSourceFile, pkgDecl),
                 )

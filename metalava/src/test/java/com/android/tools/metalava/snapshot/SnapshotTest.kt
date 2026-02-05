@@ -28,7 +28,6 @@ import com.android.tools.metalava.model.visitors.ApiType
 import com.android.tools.metalava.model.visitors.FilteringApiVisitor
 import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
-import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import org.junit.Test
 
@@ -115,10 +114,6 @@ class SnapshotTest : DriverTest() {
             // snapshot because it is hidden. It should succeed but return null.
             val resolved = snapshot.resolveClass("android.annotation.SdkConstant.SdkConstantType")
             assertNull(resolved)
-
-            val fooClass = snapshot.assertClass("test.pkg.Foo")
-            val imports = fooClass.sourceFile()?.getImports()?.mapNotNull { it.pattern }
-            assertEquals(emptyList(), imports)
         }
     }
 }

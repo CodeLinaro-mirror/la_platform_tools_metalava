@@ -23,8 +23,6 @@ import com.android.tools.metalava.model.source.javadoc.JavadocInlineTag
 import com.android.tools.metalava.model.source.javadoc.JavadocText
 import com.android.tools.metalava.model.source.javadoc.TextEndsWithVisitor
 import com.android.tools.metalava.model.source.javadoc.concatJavadocContent
-import java.io.PrintWriter
-import java.io.StringWriter
 import java.util.Optional
 import kotlin.jvm.optionals.getOrNull
 
@@ -86,64 +84,6 @@ internal open class DescriptionOwner(
         get() = description
 
     /**
-     * Backing field for [docContentForAppending].
-     *
-     * This is generated on demand from [docContent] so when [docContent] changes this must be
-     * discarded so the next time it is requested it will be regenerated from the updated
-     * [docContent].
-     */
-    private var _docContentForAppending: Optional<DocContent>? = null
-
-    /**
-     * Special form of [docContent] that is specially prepared for appending to documentation on
-     * other classes.
-     */
-    val docContentForAppending: DocContent?
-        get() {
-            if (_docContentForAppending == null) {
-                _docContentForAppending = Optional.ofNullable(prepareForAppending(description))
-            }
-
-            return _docContentForAppending!!.getOrNull()
-        }
-
-    private fun prepareForAppending(content: JavadocContent?): DocContent? {
-        content ?: return null
-        // Insert the content into a Javadoc comment.
-        val stringWriter = StringWriter()
-        PrintWriter(stringWriter).use { writer ->
-            writer.print("/**\n")
-            writer.print(" * ")
-            val printer = JavadocContentPrinter(writer, context)
-            printer.print(content)
-            writer.print("\n */")
-        }
-        val text = stringWriter.toString()
-
-        // Remove any leading whitespace. This is not strictly safe as it could contain `<pre>` tags
-        // where whitespace is important. However, it is what the preceding implementation did so it
-        // clearly did not cause too many issues.
-        val trimmed = text.replace(Regex("""^ \*  +""", RegexOption.MULTILINE), " * ")
-
-        // Fully qualify the content. This does not fully qualify references that are in the same
-        // class or package but again this is what the preceding implementation did.
-        val qualified = context.fullyQualifyComment(trimmed)
-
-        // Parse the comment, throwing an error if any errors were found.
-        val docComment =
-            DocComment.createDocComment(
-                context,
-                qualified,
-                // Use the null reporter as any issues found in this block tag will have been
-                // reported elsewhere.
-                DocumentationIssueReporter.NULL,
-            )
-
-        // Return the main description as the comment.
-        return docComment.description
-    }
-
-    /**
      * Update [description] to [new].
      *
      * If [new] is the same as [description] then does nothing. Otherwise, it sets [_description] to
@@ -152,9 +92,6 @@ internal open class DescriptionOwner(
     private fun updateDescription(new: JavadocContent?) {
         if (new !== description) {
             _description = Optional.ofNullable(new)
-
-            // Discard any content prepared for appending.
-            _docContentForAppending = null
 
             // Notify any listener.
             context.mutationListener.docCommentMutated()

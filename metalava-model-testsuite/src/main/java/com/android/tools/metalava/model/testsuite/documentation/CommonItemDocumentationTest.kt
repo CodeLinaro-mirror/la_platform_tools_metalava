@@ -1046,10 +1046,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
         ) {
             val otherClass = codebase.assertClass("test.other.Other")
             val contentToAppend =
-                otherClass.requiredDocumentation.blockTagDescription(
-                    "memberDoc",
-                    forAppending = true
-                )!!
+                otherClass.requiredDocumentation.blockTagDescription("memberDoc")!!
 
             val testClass = codebase.assertClass("test.pkg.Test")
             val classDocumentation = testClass.requiredDocumentation
@@ -1062,8 +1059,8 @@ class CommonItemDocumentationTest : BaseModelTest() {
                 """
                     /**
                      * Text to {@code append} see {@link test.other.Other#method() method()}. This is spread
-                     * across multiple lines with leading whitespace and a link to
-                     * {@link test.another.Another Another} class.
+                     *        across multiple lines with leading whitespace and a link to
+                     *        {@link test.another.Another Another} class.
                      */
                 """
 

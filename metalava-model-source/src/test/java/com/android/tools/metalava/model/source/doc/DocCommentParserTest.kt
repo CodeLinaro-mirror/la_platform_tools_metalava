@@ -127,7 +127,7 @@ class DocCommentParserTest : BaseDocCommentTest() {
                 """,
             expectedPrintOutput =
                 """
-                    /** @see resolved.something */
+                    /** @see resolved.something something */
                 """,
         )
     }
@@ -152,7 +152,7 @@ class DocCommentParserTest : BaseDocCommentTest() {
                     /**
                      * Some text
                      *
-                     * @see resolved.something
+                     * @see resolved.something something
                      * @see resolved.other thing
                      */
                 """,
@@ -190,7 +190,7 @@ class DocCommentParserTest : BaseDocCommentTest() {
                     /**
                      * Some text
                      *
-                     * @see resolved.something
+                     * @see resolved.something something
                      * @see resolved.other thing
                      */
                 """,
@@ -922,7 +922,7 @@ class DocCommentParserTest : BaseDocCommentTest() {
                     description: <<>>
                     @see <<Reference>>
                 """,
-            expectedPrintOutput = """/** @see resolved.Reference */""",
+            expectedPrintOutput = """/** @see resolved.Reference Reference */""",
         ) {
             docComment.assertStructure(
                 """

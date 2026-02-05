@@ -161,8 +161,6 @@ internal class TestDocCommentContext(reporter: DocumentationIssueReporter) :
 
     override fun isOverridingMethod() = false
 
-    override fun fullyQualifyComment(comment: String) = comment
-
     override val containingClassItem: ClassItem?
         get() = null
 
