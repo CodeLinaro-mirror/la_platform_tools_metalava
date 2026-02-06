@@ -402,6 +402,9 @@ enum class StripJavaLangPrefix {
     ALWAYS,
 }
 
+/** Lambda for converting one [TypeItem] into a different [TypeItem]. */
+typealias TypeItemConverter = (TypeItem) -> TypeItem
+
 /**
  * A mapping from type parameters to types which should be substituted for these type parameters.
  *

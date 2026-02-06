@@ -23,13 +23,13 @@ import com.android.tools.metalava.model.DefaultTypeParameterList
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PrimitiveTypeItem
+import com.android.tools.metalava.model.SkeletonTypeParameterItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.WildcardTypeItem
-import com.android.tools.metalava.model.item.DefaultTypeParameterItem
 import com.android.tools.metalava.model.typeNullability
 
 /**
@@ -438,13 +438,13 @@ abstract class DefaultTypeItemFactory<in T, F : DefaultTypeItemFactory<T, F>>(
      * @param paramFactory a function that will create a [TypeParameterItem] from the model
      *   specified parameter [P].
      * @param boundsGetter a function that will create a list of [BoundsTypeItem] from the model
-     *   specific bounds which will be stored in [DefaultTypeParameterItem.bounds].
+     *   specific bounds which will be stored in [SkeletonTypeParameterItem.bounds].
      * @param P the type of the underlying model specific type parameter objects.
      */
     fun <P> createTypeParameterItemsAndFactory(
         scopeDescription: String,
         inputParams: List<P>,
-        paramFactory: (P) -> DefaultTypeParameterItem,
+        paramFactory: (P) -> SkeletonTypeParameterItem,
         boundsGetter: (F, P) -> List<BoundsTypeItem>,
     ): TypeParameterListAndFactory<F> {
         // First, create a Map from [TypeParameterItem] to the model specific parameter. Using

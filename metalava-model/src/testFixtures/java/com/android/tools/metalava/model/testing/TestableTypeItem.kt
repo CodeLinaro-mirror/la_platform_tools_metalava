@@ -25,6 +25,7 @@ import com.android.tools.metalava.model.JAVA_LANG_STRING
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.ReferenceTypeItem
+import com.android.tools.metalava.model.SkeletonTypeParameterItem
 import com.android.tools.metalava.model.TypeArgumentTypeItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeModifiers
@@ -103,8 +104,8 @@ fun wildcardTypeItem(
     )
 
 /** Create a [TypeParameterItem] called [name]. */
-fun typeParameterItem(name: String, classResolver: ClassResolver = ClassResolver.THROWING) =
-    DefaultTypeParameterItem(classResolver, DefaultModifierList.create(0), name, isReified = false)
+fun typeParameterItem(name: String): SkeletonTypeParameterItem =
+    DefaultTypeParameterItem(DefaultModifierList.create(0), name, isReified = false)
 
 /** Force the resolving of all [ClassTypeItem]s in this [TypeItem]. */
 fun TypeItem.forceResolveClasses(classResolver: ClassResolver) =

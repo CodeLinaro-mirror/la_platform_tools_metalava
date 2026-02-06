@@ -36,7 +36,7 @@ import com.android.tools.metalava.model.scope.NameClassification
 import com.android.tools.metalava.model.scope.ReferencableNameScope
 import com.android.tools.metalava.reporter.FileLocation
 
-open class DefaultPropertyItem(
+internal class DefaultPropertyItem(
     codebase: Codebase,
     fileLocation: FileLocation,
     sourceLanguage: SourceLanguage,
@@ -69,9 +69,9 @@ open class DefaultPropertyItem(
     ),
     PropertyItem {
 
-    final override fun type(): TypeItem = type
+    override fun type(): TypeItem = type
 
-    final override fun setType(type: TypeItem) {
+    override fun setType(type: TypeItem) {
         this.type = type
     }
 
@@ -88,7 +88,7 @@ open class DefaultPropertyItem(
         // Property does not define a name scope.
         null
 
-    final override var inheritedFrom: ClassItem? = null
+    override var inheritedFrom: ClassItem? = null
 
     override fun duplicate(targetContainingClass: ClassItem): InheritableItem {
         return DefaultPropertyItem(

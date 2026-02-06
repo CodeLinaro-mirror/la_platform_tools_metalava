@@ -1628,7 +1628,7 @@ private constructor(
             val name = method.name()
             if (isBooleanGetter(method)) {
                 // Checks for Java and Kotlin getters are handled separately
-                if (method.isKotlinProperty()) {
+                if (method.isKotlinProperty) {
                     checkKotlinProperty(method)
                 } else {
                     val pattern =
@@ -1647,7 +1647,7 @@ private constructor(
             } else if (isBooleanSetter(method)) {
                 // Handled in the getter case (if the setter is part of the API, the getter also
                 // has to be: https://youtrack.jetbrains.com/issue/KT-3110)
-                if (method.isKotlinProperty()) continue
+                if (method.isKotlinProperty) continue
 
                 val pattern =
                     goodBooleanGetterSetterPrefixes.match(name, GetterSetterPattern::setter)

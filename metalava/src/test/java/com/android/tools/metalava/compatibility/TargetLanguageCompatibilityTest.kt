@@ -502,6 +502,44 @@ class TargetLanguageCompatibilityTest : DriverTest() {
     }
 
     @Test
+    fun `Test making a suspend method deprecated level hidden`() {
+        // `withCompatibleKotlinOverload` can still be used from Kotlin in the same way it was
+        // before because the extra continuation parameter isn't used from source, so the new
+        // overload with an optional parameter will work.
+        check(
+            expectedIssues =
+                """
+                released-api.txt:5: error: Source breaking change: method test.pkg.Foo.noCompatibleKotlinOverload(int,kotlin.coroutines.Continuation<? super kotlin.Unit>) can no longer be resolved from Java source [RemovedFromJava]
+                released-api.txt:5: error: Source breaking change: method test.pkg.Foo.noCompatibleKotlinOverload(int,kotlin.coroutines.Continuation<? super kotlin.Unit>) can no longer be resolved from Kotlin source [RemovedFromKotlin]
+                released-api.txt:6: error: Source breaking change: method test.pkg.Foo.withCompatibleKotlinOverload(int,kotlin.coroutines.Continuation<? super kotlin.Unit>) can no longer be resolved from Java source [RemovedFromJava]
+            """,
+            checkCompatibilityApiReleased =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public final class Foo {
+                    ctor public Foo();
+                    method public suspend Object? noCompatibleKotlinOverload(int i, kotlin.coroutines.Continuation<? super kotlin.Unit>);
+                    method public suspend Object? withCompatibleKotlinOverload(int i, kotlin.coroutines.Continuation<? super kotlin.Unit>);
+                  }
+                }
+                """,
+            signatureSource =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public final class Foo {
+                    ctor public Foo();
+                    method @BytecodeOnly @Deprecated public suspend Object? noCompatibleKotlinOverload(int, kotlin.coroutines.Continuation<? super kotlin.Unit>);
+                    method @BytecodeOnly @Deprecated public suspend Object? withCompatibleKotlinOverload(int, kotlin.coroutines.Continuation<? super kotlin.Unit>);
+                    method public suspend Object? withCompatibleKotlinOverload(int i, optional String s, kotlin.coroutines.Continuation<? super kotlin.Unit>);
+                  }
+                }
+                """
+        )
+    }
+
+    @Test
     fun `Test adding optional parameter to a reified inline function`() {
         check(
             expectedIssues =

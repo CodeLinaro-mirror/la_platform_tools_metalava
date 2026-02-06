@@ -195,6 +195,8 @@ internal class TurbineCodebaseInitialiser(
             var errorKind = diagnostic.kind()
             when (errorKind) {
                 TurbineError.ErrorKind.CANNOT_RESOLVE,
+                TurbineError.ErrorKind.CANNOT_RESOLVE_FIELD,
+                TurbineError.ErrorKind.EXPRESSION_ERROR,
                 TurbineError.ErrorKind.SYMBOL_NOT_FOUND -> {
                     false
                 }
@@ -374,10 +376,9 @@ internal class TurbineCodebaseInitialiser(
 
     /**
      * Find the TypeBoundClass for the `ClassSymbol` in the source path and if it could not find it
-     * then look in the class path. It is guaranteed to be found in one of those places as otherwise
-     * there would be no `ClassSymbol`.
+     * then look in the class path.
      */
-    override fun typeBoundClassForSymbol(classSymbol: ClassSymbol) = envClassMap.get(classSymbol)!!
+    override fun typeBoundClassForSymbol(classSymbol: ClassSymbol) = envClassMap.get(classSymbol)
 
     /**
      * Convert this qualified name consisting of a list of identifiers separated by '.' into a list
@@ -401,6 +402,9 @@ internal class TurbineCodebaseInitialiser(
         val packageInfoSym = ClassSymbol(packageInfoBinaryName)
         val packageInfoClass = envClassMap[packageInfoSym] ?: return null
 
+        // Create a FieldResolver to use to resolve field references in package annotations.
+        val fieldResolver = createFieldResolver(packageInfoSym, packageInfoClass)
+
         return when (packageInfoClass) {
             // Handle a package-info.java file.
             is SourceTypeBoundClass -> {
@@ -410,14 +414,14 @@ internal class TurbineCodebaseInitialiser(
                 var annoInfos = packageInfoClass.annotations()
                 SourcePackageInfo(
                     sourceFile = turbineSourceFile,
-                    annotations = annotationFactory.createAnnotations(annoInfos),
+                    annotations = annotationFactory.createAnnotations(annoInfos, fieldResolver),
                     commentFactory = itemDocumentationFactoryForDecl(turbineSourceFile, pkgDecl),
                 )
             }
             // Handle a package-info.class file.
             is BytecodeBoundClass -> {
-                val annotations =
-                    annotationFactory.createAnnotations(packageInfoClass.annotations())
+                val annoInfos = packageInfoClass.annotations()
+                val annotations = annotationFactory.createAnnotations(annoInfos, fieldResolver)
                 SourcePackageInfo(annotations = annotations)
             }
             else -> error("Unknown package-info class: $packageInfoClass")
@@ -466,11 +470,11 @@ internal class TurbineCodebaseInitialiser(
                 globalContext = this,
                 classSymbol = classSymbol,
                 typeBoundClass = typeBoundClass,
+                origin = origin,
             )
         return classBuilder.createClass(
             containingClassItem = null,
             enclosingClassTypeItemFactory = globalTypeItemFactory,
-            origin = origin,
         )
     }
 
@@ -493,7 +497,9 @@ internal class TurbineCodebaseInitialiser(
             codebase.findClass(topClassName)
                 ?: let {
                     // Get the origin of the class.
-                    val typeBoundClass = typeBoundClassForSymbol(topClassSym)
+                    val typeBoundClass =
+                        typeBoundClassForSymbol(topClassSym)
+                            ?: error("Cannot find type bound class for top class $topClassSym")
                     val origin =
                         when (typeBoundClass) {
                             is SourceTypeBoundClass -> ClassOrigin.SOURCE_PATH
@@ -519,15 +525,19 @@ internal class TurbineCodebaseInitialiser(
 
     override fun createFieldResolver(
         classSymbol: ClassSymbol,
-        sourceTypeBoundClass: SourceTypeBoundClass
-    ) =
-        TurbineFieldResolver(
-            classSymbol,
-            classSymbol,
-            sourceTypeBoundClass.memberImports(),
-            sourceTypeBoundClass.scope(),
-            envClassMap,
-        )
+        typeBoundClass: TypeBoundClass,
+    ): FieldResolver? =
+        when (typeBoundClass) {
+            is SourceTypeBoundClass ->
+                TurbineFieldResolver(
+                    classSymbol,
+                    classSymbol,
+                    typeBoundClass.memberImports(),
+                    typeBoundClass.scope(),
+                    envClassMap,
+                )
+            else -> null
+        }
 
     /**
      * Get the ClassSymbol corresponding to a qualified name. Since the Turbine's lookup method

@@ -92,9 +92,6 @@ internal open class DescriptionOwner(
     private fun updateDescription(new: JavadocContent?) {
         if (new !== description) {
             _description = Optional.ofNullable(new)
-
-            // Notify any listener.
-            context.mutationListener.docCommentMutated()
         }
     }
 

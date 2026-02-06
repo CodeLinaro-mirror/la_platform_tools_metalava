@@ -33,7 +33,11 @@ internal class DefaultArrayTypeItem(
         componentType: TypeItem,
         isVarargs: Boolean,
     ) =
-        if (modifiers !== this.modifiers || componentType !== this.componentType)
+        if (
+            modifiers !== this.modifiers ||
+                componentType !== this.componentType ||
+                isVarargs != this.isVarargs
+        )
             DefaultArrayTypeItem(
                 modifiers,
                 componentType,

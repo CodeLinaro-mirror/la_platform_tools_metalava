@@ -76,11 +76,8 @@ interface CodebaseAssembler {
      */
     fun createClassFromUnderlyingModel(qualifiedName: String): ClassItem?
 
-    /**
-     * Overrideable hook, called from [DefaultCodebase.registerClass] for each new
-     * [DefaultClassItem].
-     */
-    fun newClassRegistered(classItem: DefaultClassItem) {}
+    /** Overrideable hook, called from [DefaultCodebase.registerClass] for each new [ClassItem]. */
+    fun newClassRegistered(classItem: ClassItem) {}
 }
 
 /**

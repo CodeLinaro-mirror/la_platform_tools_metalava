@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.psi.kotlin
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.BoundsTypeItem
+import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.KOTLIN_CONTINUATION
 import com.android.tools.metalava.model.LambdaTypeItem
@@ -30,7 +31,6 @@ import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.WildcardTypeItem
-import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.type.ContextNullability
 import com.android.tools.metalava.model.type.DefaultTypeItemFactory
@@ -70,7 +70,7 @@ internal class KaTypeItemFactory(
     constructor(
         codebase: DefaultCodebase,
         processor: KaModuleProcessor,
-        classItem: DefaultClassItem,
+        classItem: ClassItem,
         mapToJvmTypes: Boolean,
     ) : this(codebase, processor, TypeParameterScope.from(classItem), mapToJvmTypes)
 

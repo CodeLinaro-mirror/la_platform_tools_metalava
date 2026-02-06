@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.ClassPathResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
+import com.android.tools.metalava.model.provider.Capability
 import java.io.File
 
 /** Provides support for creating [Codebase] related objects from source files (including jars). */
@@ -50,7 +51,8 @@ interface SourceParser {
      * @param projectDescription Lint project model that can describe project structures in detail.
      *   Only supported by the PSI model.
      * @param compiledSourceJar A jar file containing the compiled version of [sourceSet]. Used to
-     *   add the compiled JVM forms of Kotlin source APIs. Only supported by the PSI model.
+     *   add the compiled JVM forms of Kotlin source APIs. Only supported by the PSI model. If the
+     *   implementation supports this then it must provide [Capability.JAR_WITH_SOURCES].
      */
     fun parseSources(
         sourceSet: SourceSet,
@@ -63,6 +65,8 @@ interface SourceParser {
 
     /**
      * Load a [Codebase] from a single jar.
+     *
+     * If an implementation supports this it must provide [Capability.LOAD_JAR].
      *
      * @param apiJar the jar file from which the [Codebase] will be loaded.
      * @param classPath the possibly empty list of jar files which may provide additional classes

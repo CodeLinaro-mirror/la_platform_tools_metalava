@@ -34,12 +34,6 @@ import com.android.tools.metalava.model.source.javadoc.ExprContext
  */
 internal interface DocCommentContext : ExprBuilderContext, ExprContext {
     /**
-     * The [DocCommentMutationListener] whose [DocCommentMutationListener.docCommentMutated] must be
-     * invoked when the [DocComment] is changed.
-     */
-    val mutationListener: DocCommentMutationListener
-
-    /**
      * Compute the ordinal value for parameter [name] in the list of all `@param` tags.
      *
      * The `@param` tags can be used for type and callable parameters, sometimes in the same list.

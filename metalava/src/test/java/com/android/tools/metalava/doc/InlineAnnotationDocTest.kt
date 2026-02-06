@@ -43,7 +43,7 @@ class InlineAnnotationDocTest : DriverTest() {
                              * @memberDoc Important {@link another.pkg.Bar#BAR}
                              * and here
                              */
-                            @Target({ ElementType.FIELD })
+                            @Target({ ElementType.FIELD, ElementType.CONSTRUCTOR })
                             @Retention(RetentionPolicy.SOURCE)
                             public @interface Foo { }
                         """

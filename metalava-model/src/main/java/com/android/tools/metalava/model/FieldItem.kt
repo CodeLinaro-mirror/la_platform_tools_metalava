@@ -21,10 +21,13 @@ import com.android.tools.metalava.model.value.asAny
 import java.io.PrintWriter
 
 @MetalavaApi
-interface FieldItem : MemberItem, InheritableItem, ReferencableItem {
-    /** The property this field backs; inverse of [PropertyItem.backingField] */
-    val property: PropertyItem?
-        get() = null
+interface FieldItem : MemberItem, InheritableItem, ReferencableItem, PossiblyPropertyRelated {
+    /**
+     * The property this field backs; inverse of [PropertyItem.backingField].
+     *
+     * Overridden to provide more specific documentation.
+     */
+    override var property: PropertyItem?
 
     override fun describe(capitalize: Boolean) =
         if (isEnumConstant()) {

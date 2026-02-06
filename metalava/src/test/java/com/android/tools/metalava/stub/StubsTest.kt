@@ -17,7 +17,6 @@
 package com.android.tools.metalava.stub
 
 import com.android.tools.metalava.ARG_EXCLUDE_DOCUMENTATION_FROM_STUBS
-import com.android.tools.metalava.cli.common.ARG_API_CLASS_RESOLUTION
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.testing.java
 import org.junit.Test
@@ -1240,11 +1239,6 @@ class StubsTest : AbstractStubsTest() {
                     """
                     ),
                 ),
-            extraArguments =
-                arrayOf(
-                    ARG_API_CLASS_RESOLUTION,
-                    "api:classpath",
-                ),
         )
     }
 
@@ -1287,11 +1281,6 @@ class StubsTest : AbstractStubsTest() {
                     }
                     """
                     ),
-                ),
-            extraArguments =
-                arrayOf(
-                    ARG_API_CLASS_RESOLUTION,
-                    "api:classpath",
                 ),
         )
     }
