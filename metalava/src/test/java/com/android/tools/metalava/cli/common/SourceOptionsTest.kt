@@ -36,14 +36,6 @@ Sources:
   --kotlin-source <level>                    Sets the source level for Kotlin source files. (default: 1.9)
   --classpath <paths>                        One or more directories or jars (separated by `:`) containing classes that
                                              should be on the classpath when parsing the source files.
-  --api-class-resolution [api|api:classpath]
-                                             Determines how class resolution is performed when loading API signature
-                                             files. Any classes that cannot be found will be treated as empty.
-
-                                             api - will only look for classes in the API signature files.
-
-                                             api:classpath (default) - will look for classes in the API signature files
-                                             first and then in the classpath.
   --project <xmlfile>                        Project description written in XML according to Lint's project model.
   --stub-packages <package-list>             List of packages (separated by :) which will be used to filter out
                                              irrelevant classes. If specified, only classes in these packages will be

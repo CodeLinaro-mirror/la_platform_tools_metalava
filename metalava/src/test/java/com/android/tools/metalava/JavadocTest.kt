@@ -1250,10 +1250,10 @@ class JavadocTest : DriverTest() {
             expectedFail = DefaultLintErrorMessage,
             expectedIssues =
                 """
-                    src/test/pkg/Foo.java:4: error: Documentation contains '@hide' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
-                    src/test/pkg/Foo.java:9: error: Documentation contains '@hide' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
-                    src/test/pkg/Foo.java:14: error: Documentation contains '@hide' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
-                    src/test/pkg/Foo.java:19: error: Documentation contains '@hide' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
+                    src/test/pkg/Foo.java:4: error: Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
+                    src/test/pkg/Foo.java:9: error: Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
+                    src/test/pkg/Foo.java:14: error: Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
+                    src/test/pkg/Foo.java:19: error: Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
                 """,
             api =
                 """
@@ -1316,7 +1316,7 @@ class JavadocTest : DriverTest() {
             expectedFail = DefaultLintErrorMessage,
             expectedIssues =
                 """
-                    src/test/pkg/Foo.java:6: error: Documentation contains '@hide' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
+                    src/test/pkg/Foo.java:6: error: Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
                 """,
             docStubs = true,
             stubFiles =
@@ -1381,13 +1381,13 @@ class JavadocTest : DriverTest() {
                         """
                             // Baseline format: 1.0
                             InvalidBlockTagUse: test.pkg.Foo#bar():
-                                Documentation contains '@hide' that is not used as a block tag; that could cause unexpected behavior downstream.
+                                Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream.
                             InvalidBlockTagUse: test.pkg.Foo#baz():
-                                Documentation contains '@hide' that is not used as a block tag; that could cause unexpected behavior downstream.
+                                Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream.
                             InvalidBlockTagUse: test.pkg.Foo#quux():
-                                Documentation contains '@hide' that is not used as a block tag; that could cause unexpected behavior downstream.
+                                Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream.
                             InvalidBlockTagUse: test.pkg.Foo#qux():
-                                Documentation contains '@hide' that is not used as a block tag; that could cause unexpected behavior downstream.
+                                Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream.
                         """,
                     silentUpdate = false,
                 ),
@@ -1395,10 +1395,10 @@ class JavadocTest : DriverTest() {
                 "metalava wrote updated baseline to TESTROOT/update-baseline.txt\n$DefaultLintErrorMessage",
             expectedIssues =
                 """
-                    src/test/pkg/Foo.java:4: error: Documentation contains '@hide' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
-                    src/test/pkg/Foo.java:9: error: Documentation contains '@hide' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
-                    src/test/pkg/Foo.java:14: error: Documentation contains '@hide' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
-                    src/test/pkg/Foo.java:19: error: Documentation contains '@hide' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
+                    src/test/pkg/Foo.java:4: error: Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
+                    src/test/pkg/Foo.java:9: error: Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
+                    src/test/pkg/Foo.java:14: error: Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
+                    src/test/pkg/Foo.java:19: error: Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
                 """,
             api =
                 """

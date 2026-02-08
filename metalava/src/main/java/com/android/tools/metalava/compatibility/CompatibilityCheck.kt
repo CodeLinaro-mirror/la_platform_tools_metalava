@@ -383,17 +383,29 @@ class CompatibilityCheck(
             original.returnType().modifiers.isNonNull && candidate.returnType().modifiers.isNullable
         )
             return false
+
+        // Ensure that the functions are either both suspend or both not suspend.
+        if (candidate.modifiers.isSuspend() != original.modifiers.isSuspend()) return false
+        // If the functions are suspend, they have an extra continuation parameter which is not
+        // used from Kotlin source, so it can be skipped for parameter checks.
+        val (candidateParameters, originalParameters) =
+            if (candidate.modifiers.isSuspend()) {
+                candidate.parameters().dropLast(1) to original.parameters().dropLast(1)
+            } else {
+                candidate.parameters() to original.parameters()
+            }
+
         // All parameters from the original need to be present on the candidate, initial check to
         // make sure there are at least as many parameters (check for if they match is below).
-        if (candidate.parameters().size < original.parameters().size) return false
+        if (candidateParameters.size < originalParameters.size) return false
         // All new parameters on the candidate need to be optional for calls to the original to
         // still work since they won't be providing these new parameters.
         val additionalParameters =
-            candidate.parameters().subList(original.parameters().size, candidate.parameters().size)
+            candidateParameters.subList(originalParameters.size, candidateParameters.size)
         if (additionalParameters.any { !it.hasDefaultValue() }) return false
         // Verify that all parameters from the original are present.
-        return candidate.parameters().zip(original.parameters()).all {
-            (candidateParameter, oldParameter) ->
+        return candidateParameters.zip(originalParameters).all { (candidateParameter, oldParameter)
+            ->
             // Since the item could be called using named parameters, the name can't change.
             candidateParameter.name() == oldParameter.name() &&
                 // Parameter types must be the same.
@@ -1289,7 +1301,8 @@ class CompatibilityCheck(
         // It is ok to add a new abstract method to a class that cannot be extended externally
         if (
             new.modifiers.isAbstract() &&
-                new.containingClass().cannotContainExternallyOverridableAbstractMethods()
+                (new.containingClass().cannotContainExternallyOverridableAbstractMethods() ||
+                    new.containingClass().allExtensibleSubclassesConcretelyImplement(new))
         ) {
             return
         }
@@ -1320,6 +1333,37 @@ class CompatibilityCheck(
     }
 
     /**
+     * Determines if all publicly extensible subclasses of a class have a non-abstract
+     * implementation of targetMethod.
+     */
+    private fun ClassItem.allExtensibleSubclassesConcretelyImplement(
+        targetMethod: CallableItem
+    ): Boolean {
+        if (
+            methods().any { clsMethod: CallableItem ->
+                clsMethod != targetMethod &&
+                    !clsMethod.modifiers.isAbstract() &&
+                    clsMethod.matches(targetMethod)
+            }
+        ) {
+            return true
+        }
+
+        // We need to check if the class is effectively sealed here because the
+        // sealedClassDirectSubclasses() call below errors on classes that aren't effectively
+        // sealed. Additionally, if the class is not effectively sealed (and doesn't implement
+        // the method) then it can be externally implemented/extended and a new abstract method
+        // would be breaking change for users.
+        if (!isEffectivelySealed()) {
+            return false
+        }
+
+        return sealedClassDirectSubclasses().all { cls: ClassItem ->
+            cls.allExtensibleSubclassesConcretelyImplement(targetMethod)
+        }
+    }
+
+    /**
      * Determines if it is possible for the class to have externally overridable abstract methods.
      */
     private fun ClassItem.cannotContainExternallyOverridableAbstractMethods(): Boolean {
@@ -1330,12 +1374,7 @@ class CompatibilityCheck(
 
         // if the class is directly publicly extensible (and not concrete) then it can contain
         // externally overridable abstract methods
-        if (
-            !modifiers.isSealed() &&
-                ((isInterface() && isPublic) ||
-                    (isClass() &&
-                        constructors().any { (it.isPublic || it.isProtected) && !it.hidden }))
-        ) {
+        if (!isEffectivelySealed()) {
             return false
         }
 

@@ -169,12 +169,16 @@ interface Codebase : ClassPathResolver, AnnotationContext {
 
     companion object {
         /** Find the corresponding item in the previously released API if available. */
-        fun findPreviouslyReleased(oldCodebase: Codebase?, item: Item?): Item? {
+        fun findPreviouslyReleased(
+            oldCodebase: Codebase?,
+            item: Item?,
+            inherit: Boolean = true,
+        ): Item? {
             return oldCodebase?.let {
                 item?.findCorrespondingItemIn(
                     oldCodebase,
-                    superMethods = true,
-                    duplicate = true,
+                    superMethods = inherit,
+                    duplicate = inherit,
                 )
             }
         }

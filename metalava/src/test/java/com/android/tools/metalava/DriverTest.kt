@@ -25,7 +25,6 @@ import com.android.tools.lint.checks.infrastructure.TestFiles.java
 import com.android.tools.lint.checks.infrastructure.TestFiles.kotlin
 import com.android.tools.lint.checks.infrastructure.stripComments
 import com.android.tools.lint.client.api.LintClient
-import com.android.tools.metalava.cli.common.ARG_API_CLASS_RESOLUTION
 import com.android.tools.metalava.cli.common.ARG_CLASS_PATH
 import com.android.tools.metalava.cli.common.ARG_COMPILED_SOURCES
 import com.android.tools.metalava.cli.common.ARG_HIDE
@@ -68,7 +67,6 @@ import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.model.source.utils.DOT_KT
 import com.android.tools.metalava.model.testing.CodebaseCreatorConfig
 import com.android.tools.metalava.model.testing.CodebaseCreatorConfigAware
-import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.tools.metalava.model.text.ApiFile
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.SignatureFile
@@ -415,7 +413,6 @@ abstract class DriverTest :
         mergeInclusionAnnotations: Array<TestFile> = emptyArray(),
         /** Optional API signature files content to load **instead** of Java/Kotlin source files */
         @Language("TEXT") signatureSources: Array<String> = emptyArray(),
-        apiClassResolution: ApiClassResolution = ApiClassResolution.API,
         /**
          * An optional API signature file content to load **instead** of Java/Kotlin source files.
          * This is added to [signatureSources]. This argument exists for backward compatibility.
@@ -640,9 +637,6 @@ abstract class DriverTest :
                     "the test"
             )
         }
-
-        val apiClassResolutionArgs =
-            arrayOf(ARG_API_CLASS_RESOLUTION, apiClassResolution.optionValue)
 
         val sourceList =
             if (signatureSources.isNotEmpty() || signatureSource != null) {
@@ -1073,7 +1067,6 @@ abstract class DriverTest :
                 *validateNullabilityArgs,
                 *validateNullabilityFromListArgs,
                 format.outputFlags(),
-                *apiClassResolutionArgs,
                 *extraArguments,
                 *errorMessageApiLintArgs,
                 *errorMessageCheckCompatibilityReleasedArgs,

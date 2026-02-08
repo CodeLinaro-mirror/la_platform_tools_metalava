@@ -218,7 +218,7 @@ interface ClassItem :
      * Whether this class is a multi-file facade class, generated from Kotlin files annotated with
      * [JvmMultifileClass]. This can only be true when [isFileFacade] is true.
      */
-    fun isMultiFileClass() = false
+    val isMultiFileClass: Boolean
 
     override fun describe(capitalize: Boolean): String {
         val descriptor =
@@ -280,10 +280,6 @@ interface ClassItem :
 
     // This replaces the interface types implemented by this class
     fun setInterfaceTypes(interfaceTypes: List<ClassTypeItem>)
-
-    /** The primary constructor for this class in Kotlin, if present. */
-    val primaryConstructor: ConstructorItem?
-        get() = constructors().singleOrNull { it.isPrimary }
 
     override fun baselineElementId() = qualifiedName()
 
@@ -813,7 +809,7 @@ interface ClassItem :
     }
 
     /**
-     * Creates a default constructor in this class.
+     * Creates an implicit default constructor in this class.
      *
      * Default constructors that are added by Java have the same visibility as their class which is
      * the default behavior of this method if no [visibility] is provided. However, this is also
@@ -823,10 +819,11 @@ interface ClassItem :
      *
      * @param visibility the visibility of the constructor, defaults to the same as this class.
      */
-    fun createDefaultConstructor(
+    fun createImplicitDefaultConstructor(
         visibility: VisibilityLevel = modifiers.getVisibilityLevel()
     ): ConstructorItem
 
+    /** Add a method to this class. */
     fun addMethod(method: MethodItem)
 
     /**

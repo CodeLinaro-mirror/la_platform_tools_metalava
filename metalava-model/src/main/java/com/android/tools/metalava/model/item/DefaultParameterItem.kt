@@ -20,15 +20,14 @@ import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.DefaultItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TypeItem
-import com.android.tools.metalava.model.TypeParameterBindings
+import com.android.tools.metalava.model.TypeItemConverter
 import com.android.tools.metalava.reporter.FileLocation
 
-open class DefaultParameterItem(
+internal class DefaultParameterItem(
     codebase: Codebase,
     fileLocation: FileLocation,
     sourceLanguage: SourceLanguage,
@@ -53,26 +52,27 @@ open class DefaultParameterItem(
         type.let { if (it is ArrayTypeItem && it.isVarargs) mutateModifiers { setVarArg(true) } }
     }
 
-    final override fun name(): String = name
+    override fun name(): String = name
 
-    final override fun publicName(): String? = publicName
+    override fun publicName(): String? = publicName
 
-    final override fun containingCallable(): CallableItem = containingCallable
+    override fun containingCallable(): CallableItem = containingCallable
 
-    final override fun type(): TypeItem = type
+    override fun type(): TypeItem = type
 
-    final override fun setType(type: TypeItem) {
+    override fun setType(type: TypeItem) {
         this.type = type
     }
 
-    final override fun hasDefaultValue(): Boolean = hasDefaultValue
+    override fun hasDefaultValue(): Boolean = hasDefaultValue
 
     override var property: PropertyItem? = null
 
     override fun duplicate(
         containingCallable: CallableItem,
-        typeVariableMap: TypeParameterBindings,
-    ) =
+        typeConverter: TypeItemConverter,
+        newParameterIndex: Int,
+    ): ParameterItem =
         DefaultParameterItem(
             codebase,
             fileLocation,
@@ -81,8 +81,8 @@ open class DefaultParameterItem(
             name(),
             publicName,
             containingCallable,
-            parameterIndex,
-            type().convertType(typeVariableMap),
+            newParameterIndex,
+            typeConverter(type()),
             hasDefaultValue(),
         )
 }

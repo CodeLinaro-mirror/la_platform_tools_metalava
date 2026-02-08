@@ -28,7 +28,6 @@ import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.model.ANDROID_SYSTEM_API
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
-import com.android.tools.metalava.model.text.ApiClassResolution
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.nonNullSource
 import com.android.tools.metalava.reporter.Issues
@@ -41,387 +40,6 @@ import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
 
 class CompatibilityCheckTest : DriverTest() {
-
-    @Test
-    fun `Should raise issue when adding abstract method to non-effectively final explicitly sealed class`() {
-        check(
-            expectedIssues =
-                """
-                    load-api.txt:6: error: Binary breaking change: Added method test.pkg.MyNonFinalSealedClassWithNonSealedChild.myFun() [AddedAbstractMethod]
-                    load-api.txt:9: error: Binary breaking change: Added method test.pkg.MyNonFinalSealedClassWithNonSealedGrandchild.myFun() [AddedAbstractMethod]
-                """
-                    .trimIndent(),
-            checkCompatibilityApiReleased =
-                """
-                package test.pkg {
-                  public abstract sealed exhaustive class DirectChildClass extends test.pkg.MyNonFinalSealedClassWithNonSealedGrandchild {
-                  }
-                  public abstract sealed exhaustive class MyNonFinalSealedClassWithNonSealedChild {
-                  }
-                  public abstract sealed exhaustive class MyNonFinalSealedClassWithNonSealedGrandchild {
-                  }
-                  public abstract class NonSealedGrandchildClass extends test.pkg.DirectChildClass {
-                    ctor public NonSealedGrandchildClass();
-                  }
-                  public abstract class NotEffectivelySealedChildClass extends test.pkg.MyNonFinalSealedClassWithNonSealedChild {
-                    ctor public NotEffectivelySealedChildClass();
-                  }
-                }
-                """,
-            signatureSource =
-                """
-                package test.pkg {
-                  public abstract sealed exhaustive class DirectChildClass extends test.pkg.MyNonFinalSealedClassWithNonSealedGrandchild {
-                  }
-                  public abstract sealed exhaustive class MyNonFinalSealedClassWithNonSealedChild {
-                    method public abstract void myFun();
-                  }
-                  public abstract sealed exhaustive class MyNonFinalSealedClassWithNonSealedGrandchild {
-                    method public abstract void myFun();
-                  }
-                  public abstract class NonSealedGrandchildClass extends test.pkg.DirectChildClass {
-                    ctor public NonSealedGrandchildClass();
-                  }
-                  public abstract class NotEffectivelySealedChildClass extends test.pkg.MyNonFinalSealedClassWithNonSealedChild {
-                    ctor public NotEffectivelySealedChildClass();
-                  }
-                }
-                """
-        )
-    }
-
-    @Test
-    fun `Should raise issue when adding abstract method to non-effectively final effectively sealed class`() {
-        check(
-            expectedIssues =
-                """
-                    load-api.txt:6: error: Binary breaking change: Added method test.pkg.NonFinalAbstractEffectivelySealedClassWithNonSealedChild.myFun() [AddedAbstractMethod]
-                    load-api.txt:9: error: Binary breaking change: Added method test.pkg.NonFinalAbstractEffectivelySealedClassWithNonSealedGrandchild.myFun() [AddedAbstractMethod]
-                """
-                    .trimIndent(),
-            checkCompatibilityApiReleased =
-                """
-                package test.pkg {
-                  public abstract sealed exhaustive class DirectChildClass extends test.pkg.NonFinalAbstractEffectivelySealedClassWithNonSealedGrandchild {
-                  }
-                  public abstract class NonFinalAbstractEffectivelySealedClassWithNonSealedChild {
-                  }
-                  public abstract class NonFinalAbstractEffectivelySealedClassWithNonSealedGrandchild {
-                  }
-                  public abstract class NonSealedGrandchildClass extends test.pkg.DirectChildClass {
-                    ctor public NonSealedGrandchildClass();
-                  }
-                  public abstract class NotEffectivelySealedChildClass extends test.pkg.NonFinalAbstractEffectivelySealedClassWithNonSealedChild {
-                    ctor public NotEffectivelySealedChildClass();
-                  }
-                }
-                """,
-            signatureSource =
-                """
-                package test.pkg {
-                  public abstract sealed exhaustive class DirectChildClass extends test.pkg.NonFinalAbstractEffectivelySealedClassWithNonSealedGrandchild {
-                  }
-                  public abstract class NonFinalAbstractEffectivelySealedClassWithNonSealedChild {
-                    method public abstract void myFun();
-                  }
-                  public abstract class NonFinalAbstractEffectivelySealedClassWithNonSealedGrandchild {
-                    method public abstract void myFun();
-                  }
-                  public abstract class NonSealedGrandchildClass extends test.pkg.DirectChildClass {
-                    ctor public NonSealedGrandchildClass();
-                  }
-                  public abstract class NotEffectivelySealedChildClass extends test.pkg.NonFinalAbstractEffectivelySealedClassWithNonSealedChild {
-                    ctor public NotEffectivelySealedChildClass();
-                  }
-                }
-                """
-        )
-    }
-
-    @Test
-    fun `Should not raise issue when adding abstract method to non-effectively final effectively sealed interface`() {
-        check(
-            expectedIssues = "",
-            checkCompatibilityApiReleased =
-                """
-                package test.pkg {
-                  public sealed exhaustive interface SealedEffectivelyFinalInterface {
-                  }
-                }
-                """,
-            signatureSource =
-                """
-                package test.pkg {
-                  public sealed exhaustive interface SealedEffectivelyFinalInterface {
-                    method public void myFun();
-                  }
-                }
-                """
-        )
-    }
-
-    @Test
-    fun `Should raise issue when adding private subclass to exhaustive sealed interface (sealed interface changes from exhaustive to nonexhaustive)`() {
-        check(
-            expectedIssues =
-                """
-                    load-api.txt:6: error: Sealed interface can no longer be exhaustively matched because an inaccessible subclass was added. [SealedClassExhaustivityChanged]
-                """
-                    .trimIndent(),
-            expectedFail = "",
-            checkCompatibilityApiReleased =
-                """
-                package test.pkg {
-                  public final class OriginalInterfaceImplementor implements test.pkg.SealedInterface {
-                    ctor public OriginalInterfaceImplementor();
-                  }
-                  public sealed exhaustive interface SealedInterface {
-                  }
-                }
-                """,
-            signatureSource =
-                """
-                package test.pkg {
-                  public final class OriginalInterfaceImplementor implements test.pkg.SealedInterface {
-                    ctor public OriginalInterfaceImplementor();
-                  }
-                  public sealed nonexhaustive interface SealedInterface {
-                  }
-                }
-                """
-        )
-    }
-
-    @Test
-    fun `Should raise issue when adding private subclass to exhaustive sealed class (sealed class changes from exhaustive to nonexhaustive)`() {
-        check(
-            expectedIssues =
-                """
-                load-api.txt:6: error: Sealed class can no longer be exhaustively matched because an inaccessible subclass was added. [SealedClassExhaustivityChanged]
-            """
-                    .trimIndent(),
-            expectedFail = "",
-            checkCompatibilityApiReleased =
-                """
-                package test.pkg {
-                  public final class MySubClass extends test.pkg.SealedClass {
-                    ctor public MySubClass();
-                  }
-                  public abstract sealed exhaustive class SealedClass {
-                  }
-                }
-                """,
-            signatureSource =
-                """
-                package test.pkg {
-                  public final class MySubClass extends test.pkg.SealedClass {
-                    ctor public MySubClass();
-                  }
-                  public abstract sealed nonexhaustive class SealedClass {
-                  }
-                }
-                """
-        )
-    }
-
-    @Test
-    fun `Don't raise issue when adding subclass to nonexhaustive sealed class`() {
-        check(
-            expectedIssues = "",
-            checkCompatibilityApiReleased =
-                """
-                package test.pkg {
-                  public final class OriginalSubclass extends test.pkg.SealedClass {
-                    ctor public OriginalSubclass();
-                  }
-                  public abstract sealed nonexhaustive class SealedClass {
-                  }
-                }
-                """,
-            signatureSource =
-                """
-                package test.pkg {
-                  public final class NewSubclass extends test.pkg.SealedClass {
-                    ctor public NewSubclass();
-                  }
-                  public final class OriginalSubclass extends test.pkg.SealedClass {
-                    ctor public OriginalSubclass();
-                  }
-                  public abstract sealed nonexhaustive class SealedClass {
-                  }
-                }
-                """
-        )
-    }
-
-    @Test
-    fun `Should raise issue when adding implementor to exhaustive sealed interface`() {
-        check(
-            expectedIssues =
-                """
-                    load-api.txt:3: error: Added a subclass to a sealed interface that can be exhaustively matched [AddedSubclassToSealedClass]
-                """
-                    .trimIndent(),
-            expectedFail = "",
-            checkCompatibilityApiReleased =
-                """
-                package test.pkg {
-                  public final class OriginalInterfaceImplementor implements test.pkg.SealedInterface {
-                    ctor public OriginalInterfaceImplementor();
-                  }
-                  public sealed exhaustive interface SealedInterface {
-                  }
-                }
-                """,
-            signatureSource =
-                """
-                package test.pkg {
-                  public final class NewInterfaceImplementor implements test.pkg.SealedInterface {
-                    ctor public NewInterfaceImplementor();
-                  }
-                  public final class OriginalInterfaceImplementor implements test.pkg.SealedInterface {
-                    ctor public OriginalInterfaceImplementor();
-                  }
-                  public sealed exhaustive interface SealedInterface {
-                  }
-                }
-                """
-        )
-    }
-
-    @Test
-    fun `Should raise issue when adding non-experimental subclass to exhaustive sealed class`() {
-        check(
-            expectedIssues =
-                """
-                load-api.txt:3: error: Added a subclass to a sealed class that can be exhaustively matched [AddedSubclassToSealedClass]
-            """
-                    .trimIndent(),
-            expectedFail = "",
-            checkCompatibilityApiReleased =
-                """
-                package test.pkg {
-                  public abstract sealed exhaustive class SealedClass {
-                  }
-                  public final class OriginalSubclass extends test.pkg.SealedClass {
-                    ctor public OriginalSubclass();
-                  }
-                }
-                """,
-            signatureSource =
-                """
-                package test.pkg {
-                  public final class NewSubclass extends test.pkg.SealedClass {
-                    ctor public NewSubclass();
-                  }
-                  public abstract sealed exhaustive class SealedClass {
-                  }
-                  public final class OriginalSubclass extends test.pkg.SealedClass {
-                    ctor public OriginalSubclass();
-                  }
-                }
-                """
-        )
-    }
-
-    @Test
-    fun `Should raise issue when adding experimental subclass to exhaustive sealed class`() {
-        check(
-            expectedIssues =
-                """
-                load-api.txt:3: error: Added a subclass to a sealed class that can be exhaustively matched [AddedSubclassToSealedClass]
-            """
-                    .trimIndent(),
-            expectedFail = "",
-            checkCompatibilityApiReleased =
-                """
-                package test.pkg {
-                  public abstract sealed exhaustive class SealedClass {
-                  }
-                  public final class OriginalSubclass extends test.pkg.SealedClass {
-                    ctor public OriginalSubclass();
-                  }
-                }
-                """,
-            signatureSource =
-                """
-                package test.pkg {
-                  @SuppressCompatibility @kotlin.RequiresOptIn public final class NewSubclass extends test.pkg.SealedClass {
-                    ctor public NewSubclass();
-                  }
-                  public abstract sealed exhaustive class SealedClass {
-                  }
-                  public final class OriginalSubclass extends test.pkg.SealedClass {
-                    ctor public OriginalSubclass();
-                  }
-                }
-                """,
-            suppressCompatibilityMetaAnnotations =
-                arrayOf("androidx.annotation.SuppressCompatibility")
-        )
-    }
-
-    @Test
-    fun `Should not raise issue when comparing against sealed interface without any exhaustivity modifier`() {
-        check(
-            expectedIssues = "",
-            checkCompatibilityApiReleased =
-                """
-                package test.pkg {
-                  public final class OriginalInterfaceImplementor implements test.pkg.SealedInterface {
-                    ctor public OriginalInterfaceImplementor();
-                  }
-                  public sealed interface SealedInterface {
-                  }
-                }
-                """,
-            signatureSource =
-                """
-                package test.pkg {
-                  public final class NewInterfaceImplementor implements test.pkg.SealedInterface {
-                    ctor public NewInterfaceImplementor();
-                  }
-                  public final class OriginalInterfaceImplementor implements test.pkg.SealedInterface {
-                    ctor public OriginalInterfaceImplementor();
-                  }
-                  public sealed exhaustive interface SealedInterface {
-                  }
-                }
-                """
-        )
-    }
-
-    @Test
-    fun `Should not raise issue when comparing against sealed class without any exhaustivity modifier`() {
-        check(
-            expectedIssues = "",
-            checkCompatibilityApiReleased =
-                """
-                package test.pkg {
-                  public abstract sealed class SealedClass {
-                  }
-                  public final class OriginalSubclass extends test.pkg.SealedClass {
-                    ctor public OriginalSubclass();
-                  }
-                }
-                """,
-            signatureSource =
-                """
-                package test.pkg {
-                  @SuppressCompatibility @kotlin.RequiresOptIn public final class NewSubclass extends test.pkg.SealedClass {
-                    ctor public NewSubclass();
-                  }
-                  public abstract sealed exhaustive class SealedClass {
-                  }
-                  public final class OriginalSubclass extends test.pkg.SealedClass {
-                    ctor public OriginalSubclass();
-                  }
-                }
-                """,
-            suppressCompatibilityMetaAnnotations =
-                arrayOf("androidx.annotation.SuppressCompatibility")
-        )
-    }
 
     @Test
     fun `Should not raise issue when experimental package is added`() {
@@ -740,7 +358,6 @@ class CompatibilityCheckTest : DriverTest() {
     @Test
     fun `Removed method from classpath`() {
         check(
-            apiClassResolution = ApiClassResolution.API_CLASSPATH,
             classpath =
                 arrayOf(
                     /* The following source file, compiled, then ran
@@ -4393,7 +4010,6 @@ class CompatibilityCheckTest : DriverTest() {
     fun `Conversion from AutoCloseable to Closeable is not API-breaking`() {
         // Closeable implements AutoCloseable
         check(
-            apiClassResolution = ApiClassResolution.API_CLASSPATH,
             expectedIssues = "",
             checkCompatibilityApiReleased =
                 """
@@ -4448,7 +4064,6 @@ class CompatibilityCheckTest : DriverTest() {
     @Test
     fun `Conversion from MutableCollection to AbstractMutableCollection is not API-breaking`() {
         check(
-            apiClassResolution = ApiClassResolution.API_CLASSPATH,
             expectedIssues = "",
             checkCompatibilityApiReleased =
                 """
@@ -4489,7 +4104,6 @@ class CompatibilityCheckTest : DriverTest() {
     @Test
     fun `Expected API changes converting collections to Kotlin`() {
         check(
-            apiClassResolution = ApiClassResolution.API_CLASSPATH,
             // The parameter names are different between java.util.Collection and
             // kotlin.collections.Collection
             // Methods not defined in kotlin.collections.Collection appear abstract as they are not
@@ -4559,7 +4173,6 @@ class CompatibilityCheckTest : DriverTest() {
     @Test
     fun `No issues using the same classpath class twice`() {
         check(
-            apiClassResolution = ApiClassResolution.API_CLASSPATH,
             expectedIssues = "",
             checkCompatibilityApiReleased =
                 """

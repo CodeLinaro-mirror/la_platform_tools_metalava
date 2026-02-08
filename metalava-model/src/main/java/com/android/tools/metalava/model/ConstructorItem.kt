@@ -38,6 +38,13 @@ interface ConstructorItem : CallableItem {
     /** Returns the internal name of the class, as seen in bytecode */
     override fun internalName(): String = "<init>"
 
+    /**
+     * Override to specialize return type.
+     *
+     * Returned [ConstructorItem]s will always have [ConstructorItem.isPrimary] set to `false.
+     */
+    override fun createOverload(parameters: List<ParameterItem>): ConstructorItem
+
     override fun findCorrespondingItemIn(
         codebase: Codebase,
         superMethods: Boolean,

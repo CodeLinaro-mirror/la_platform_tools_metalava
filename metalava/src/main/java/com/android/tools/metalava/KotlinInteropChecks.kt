@@ -209,7 +209,7 @@ class KotlinInteropChecks(val reporter: Reporter) {
             return
         }
         val parameters = method.parameters()
-        if (parameters.size <= 1) {
+        if (parameters.isEmpty()) {
             // No need for overloads when there is at most one version...
             return
         }
@@ -318,7 +318,7 @@ class KotlinInteropChecks(val reporter: Reporter) {
                 // Technically it is possible to use JvmMultifileClass without using JvmName, but it
                 // wouldn't make sense to and it is difficult to find the annotations in psi in this
                 // case, so skip the check for multi-file classes.
-                !cls.isMultiFileClass() &&
+                !cls.isMultiFileClass &&
                 !cls.modifiers.hasAnnotation { it.qualifiedName == JVM_NAME } &&
                 filteredMembers.any {
                     // Check that there are no members that can be used from Java. While it is

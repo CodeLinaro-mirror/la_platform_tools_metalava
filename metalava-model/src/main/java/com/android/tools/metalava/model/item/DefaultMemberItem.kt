@@ -26,7 +26,7 @@ import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.reporter.FileLocation
 
-abstract class DefaultMemberItem(
+internal sealed class DefaultMemberItem(
     codebase: Codebase,
     fileLocation: FileLocation,
     sourceLanguage: SourceLanguage,

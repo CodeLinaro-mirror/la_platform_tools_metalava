@@ -33,8 +33,6 @@ fun interface ItemDocumentationFactory {
  * This implements [CharSequence] to simplify migration.
  */
 interface ItemDocumentation {
-    val text: String
-
     /** The location of the start of the document comment. */
     val fileLocation: FileLocation
         get() = FileLocation.UNKNOWN

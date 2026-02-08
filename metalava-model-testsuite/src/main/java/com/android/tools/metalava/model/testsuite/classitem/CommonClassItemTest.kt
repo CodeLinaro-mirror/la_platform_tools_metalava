@@ -1510,6 +1510,46 @@ class CommonClassItemTest : BaseModelTest() {
         }
     }
 
+    @RequiresCapabilities(Capability.JAVA)
+    @Test
+    fun `Test duplicated documentation is fully qualified in originating context`() {
+        runSourceCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+                        import java.util.List;
+                        class HiddenClass {
+                            // The following reference to List should be fully qualified here
+                            // because its destination knows nothing about `List`.
+                            /** {@link List} */
+                            public void method() {}
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        public class PublicClass extends HiddenClass {}
+                    """
+                ),
+            ),
+        ) {
+            val hiddenClass = codebase.assertResolvedClass("test.pkg.HiddenClass")
+            val publicClass = codebase.assertClass("test.pkg.PublicClass")
+
+            val hiddenMethod = hiddenClass.methods().single()
+            val inheritedMethod = hiddenMethod.duplicate(publicClass)
+
+            inheritedMethod.assertPrintedDocumentation(
+                expectedOutput =
+                    """
+                        /** {@link java.util.List List} */
+                    """
+            )
+        }
+    }
+
     @Test
     fun `Test type for inner class with an outer class with type parameter`() {
         runCodebaseTest(

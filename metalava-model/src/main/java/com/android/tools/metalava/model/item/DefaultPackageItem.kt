@@ -30,7 +30,7 @@ import com.android.tools.metalava.model.scope.NameClassification
 import com.android.tools.metalava.model.scope.ReferencableNameScope
 import com.android.tools.metalava.reporter.FileLocation
 
-class DefaultPackageItem(
+internal class DefaultPackageItem(
     codebase: Codebase,
     fileLocation: FileLocation,
     override val sourceFile: SourceFile?,

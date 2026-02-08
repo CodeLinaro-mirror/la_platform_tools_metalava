@@ -29,6 +29,7 @@ import com.intellij.psi.JavaRecursiveElementVisitor
 import com.intellij.psi.PsiClassObjectAccessExpression
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiField
+import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiModifier
 import com.intellij.psi.PsiReferenceExpression
 import com.intellij.psi.PsiReturnStatement
@@ -47,27 +48,13 @@ import org.jetbrains.uast.UastErrorType
 import org.jetbrains.uast.getParentOfType
 import org.jetbrains.uast.visitor.AbstractUastVisitor
 
-internal class PsiCallableBody(private val callable: PsiCallableItem) : CallableBody {
-
-    /**
-     * Access [psiCodebase] on demand as [callable] is not properly initialized during
-     * initialization of this class.
-     */
-    private val psiCodebase
-        get() = callable.psiCodebase
-
-    /**
-     * Access [psiMethod] on demand as [callable] is not properly initialized during initialization
-     * of this class.
-     */
-    private val psiMethod
-        get() = callable.psiMethod
-
-    override fun duplicate(callableItem: CallableItem): CallableBody {
-        // It is ok to cast here as `duplicate` will always be called with a `callableItem` from the
-        // same type of `Codebase` as this is.
-        return PsiCallableBody(callableItem as PsiCallableItem)
-    }
+internal class PsiCallableBody(
+    private val psiCodebase: PsiBasedCodebase,
+    private val callable: CallableItem,
+    private val psiMethod: PsiMethod,
+) : CallableBody {
+    override fun duplicate(callableItem: CallableItem) =
+        PsiCallableBody(psiCodebase, callableItem, psiMethod)
 
     // Cannot create a copy of this as callableItem cannot be cast to PsiCallableItem. There is no
     // easy way to capture the state of this sufficiently well to implement the necessary behavior

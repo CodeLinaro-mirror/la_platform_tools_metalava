@@ -17,7 +17,6 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.AnnotationItem
-import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassOrigin
@@ -31,12 +30,8 @@ import com.android.tools.metalava.model.value.ValueProvider
 import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiFile
-import com.intellij.psi.PsiMethod
 import java.io.File
 import org.jetbrains.kotlin.analysis.api.projectStructure.KaModule
-import org.jetbrains.uast.UMethod
-
-const val METHOD_ESTIMATE = 1000
 
 /**
  * A codebase containing Java, Kotlin, or UAST PSI classes
@@ -84,13 +79,6 @@ internal class PsiBasedCodebase(
     internal val project: Project
         get() = psiAssembler.project
 
-    /**
-     * Map from classes to the set of callables for each (but only for classes where we've called
-     * [findCallableByPsiMethod]
-     */
-    private val methodMap: MutableMap<ClassItem, MutableMap<PsiMethod, PsiCallableItem>> =
-        HashMap(METHOD_ESTIMATE)
-
     /** [PsiTypeItemFactory] used to create [TypeItem]s. */
     internal val globalTypeItemFactory
         get() = psiAssembler.globalTypeItemFactory
@@ -116,58 +104,6 @@ internal class PsiBasedCodebase(
     }
 
     internal fun findOrCreateClass(psiClass: PsiClass) = psiAssembler.findOrCreateClass(psiClass)
-
-    internal fun findCallableByPsiMethod(method: PsiMethod): PsiCallableItem {
-        val containingClass = method.containingClass
-        val cls = findOrCreateClass(containingClass!!)
-
-        // Ensure initialized/registered via [#registerMethods]
-        if (methodMap[cls] == null) {
-            val map = HashMap<PsiMethod, PsiCallableItem>(40)
-            registerCallablesByPsiMethod(cls.methods(), map)
-            registerCallablesByPsiMethod(cls.constructors(), map)
-            methodMap[cls] = map
-        }
-
-        val methods = methodMap[cls]!!
-        val methodItem = methods[method]
-        if (methodItem == null) {
-            // Probably switched psi classes (e.g. used source PsiClass in registry but found
-            // duplicate class in .jar library, and we're now pointing to it; in that case, find the
-            // equivalent method by signature
-            val psiClass = (cls as PsiClassItem).psiClass
-            val updatedMethod = psiClass.findMethodBySignature(method, true)
-            val result = methods[updatedMethod!!]
-            if (result == null) {
-                val extra =
-                    PsiMethodItem.create(this, cls, updatedMethod, globalTypeItemFactory.from(cls))
-                methods[method] = extra
-                methods[updatedMethod] = extra
-
-                return extra
-            }
-            return result
-        }
-
-        return methodItem
-    }
-
-    private fun registerCallablesByPsiMethod(
-        callables: List<CallableItem>,
-        map: MutableMap<PsiMethod, PsiCallableItem>
-    ) {
-        for (callable in callables) {
-            val psiMethod = (callable as PsiCallableItem).psiMethod
-            map[psiMethod] = callable
-            if (psiMethod is UMethod) {
-                // Register LC method as a key too
-                // so that we can find the corresponding [CallableItem]
-                // Otherwise, we will end up creating a new [CallableItem]
-                // without source PSI, resulting in wrong modifier.
-                map[psiMethod.javaPsi] = callable
-            }
-        }
-    }
 
     override fun isFromClassPath() = fromClasspath
 

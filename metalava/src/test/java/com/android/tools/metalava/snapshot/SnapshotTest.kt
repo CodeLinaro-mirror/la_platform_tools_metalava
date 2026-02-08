@@ -53,6 +53,7 @@ class SnapshotTest : DriverTest() {
                 codebase,
                 definitionVisitorFactory = factory,
                 referenceVisitorFactory = factory,
+                includeDocumentation = true,
             )
         return snapshot
     }

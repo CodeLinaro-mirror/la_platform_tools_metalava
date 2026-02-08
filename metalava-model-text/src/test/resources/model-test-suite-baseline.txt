@@ -1,3 +1,6 @@
+com.android.tools.metalava.model.testsuite.CommonModifierListWriterTest
+  modifiers public explicitly final method in final class
+
 com.android.tools.metalava.model.testsuite.methoditem.CommonMethodModifierTest
   Test final method in final class
 

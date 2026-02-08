@@ -1,73 +1,25 @@
-com.android.tools.metalava.AnnotationsMergerTest
-  Merge type use qualifier annotations from Java stub files[turbine]
-
 com.android.tools.metalava.ApiFileTest
-  Check skipping implicit final or deprecated override[turbine]
   Kotlin expect-actual with JvmOverloads constructors[psi,k2]
 
 com.android.tools.metalava.DuplicateClassTest
   Test duplicate classes[turbine]
 
-com.android.tools.metalava.ExtractAnnotationsTest
-  Check warning about unexpected returns from typedef method[turbine]
-
-com.android.tools.metalava.FlaggedApiEdgeCasesTest
-  Test unresolvable flag field[turbine]
-
 com.android.tools.metalava.Java9LanguageFeaturesTest
-  Basic class signature extraction[turbine]
   Using JDK APIs[turbine]
 
 com.android.tools.metalava.NullabilityAnnotationsValidatorTest
   Using class list[turbine]
 
-com.android.tools.metalava.PolymorphicMethodsTest
-  Test MethodHandle[turbine]
-  Test VarHandle[turbine]
-
-com.android.tools.metalava.RequiresFeatureTest
-  Check RequiresFeature handling - custom enforcement[turbine]
-  Check RequiresFeature handling - invalid enforcement[turbine]
-  Check RequiresFeature handling - missing feature[turbine]
-
 com.android.tools.metalava.TypeUseAnnotationFilteringTest
   Keep type use annotations[turbine]
-
-com.android.tools.metalava.UnhideApisTest
-  Including private interfaces from types[turbine]
-
-com.android.tools.metalava.apilevels.ApiGeneratorTest
-  APIs annotated with suppress-compatibility-meta-annotations appear in output[turbine]
-  Generate API for system surface from jar[turbine]
 
 com.android.tools.metalava.compatibility.CompatibilityCheckTest
   Conversion from MutableCollection to AbstractMutableCollection is not API-breaking[turbine]
   Empty bundle files[turbine]
   Expected API changes converting collections to Kotlin[turbine]
 
-com.android.tools.metalava.doc.DocAnalyzerTest
-  Test Column annotation[turbine]
-
-com.android.tools.metalava.doc.InlineAnnotationDocTest
-  memberDoc crash[turbine]
-
-com.android.tools.metalava.jar.StandaloneJarCodebaseLoaderTest
-  Test jar loader does not freeze codebase[turbine]
-  Test jar loader freezes codebase[turbine]
-  Test loaded jar depends on class path[turbine]
-
-com.android.tools.metalava.lint.ApiLintTest
-  Typedef must be hidden[turbine]
-
-com.android.tools.metalava.lint.FlaggedApiLintTest
-  Require @FlaggedApi on API that modify annotations[turbine]
-
 com.android.tools.metalava.stub.StubsAnnotationTest
   Pass through libcore annotations[turbine]
-
-com.android.tools.metalava.stub.StubsConstructorTest
-  Picking Constructors[turbine]
-  Varargs constructor parameter requiring cast[turbine]
 
 com.android.tools.metalava.stub.StubsTest
   Generate stubs for various modifier scenarios[turbine]

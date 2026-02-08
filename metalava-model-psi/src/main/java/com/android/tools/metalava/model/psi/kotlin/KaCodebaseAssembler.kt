@@ -31,9 +31,11 @@ import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.JVM_NAME
 import com.android.tools.metalava.model.KOTLIN_DEPRECATED
+import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.SkeletonClassItem
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TargetLanguageSet
@@ -44,18 +46,14 @@ import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.createImmutableModifiers
 import com.android.tools.metalava.model.createMutableModifiers
 import com.android.tools.metalava.model.item.CodebaseAssembler
-import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.item.DefaultCodebaseAssembler
 import com.android.tools.metalava.model.item.DefaultItemFactory
-import com.android.tools.metalava.model.item.DefaultParameterItem
 import com.android.tools.metalava.model.item.PackageInfo
 import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
 import com.android.tools.metalava.model.psi.PsiBasedCodebase
-import com.android.tools.metalava.model.psi.PsiFieldItem
 import com.android.tools.metalava.model.psi.PsiFileLocation
-import com.android.tools.metalava.model.psi.PsiItemDocumentation
-import com.android.tools.metalava.model.psi.PsiMethodItem
+import com.android.tools.metalava.model.psi.createItemDocumentation
 import com.android.tools.metalava.model.psi.isKotlin
 import com.android.tools.metalava.model.type.MethodFingerprint
 import com.android.tools.metalava.model.type.TypeParameterListAndFactory
@@ -152,7 +150,7 @@ internal class KaCodebaseAssembler(
      * Analyzes the [classItem] to find any Kotlin properties (which can't be found through the psi
      * directly) and add them to the class definition.
      */
-    fun addPropertiesToClassFromClasspath(classItem: DefaultClassItem) {
+    fun addPropertiesToClassFromClasspath(classItem: SkeletonClassItem) {
         mainModuleProcessor.addPropertiesToClassFromClasspath(classItem)
     }
 
@@ -402,9 +400,9 @@ private constructor(
     private fun KaSession.processNamedClass(
         classifierSymbol: KaNamedClassSymbol,
         containingPackage: PackageItem,
-        containingClass: DefaultClassItem? = null,
+        containingClass: SkeletonClassItem? = null,
         processIfClasspath: Boolean = false,
-    ): DefaultClassItem? {
+    ): SkeletonClassItem? {
         // When adding to a psi codebase, skip Java classes as they won't be kotlin-only.
         if (addingToPsiCodebase && classifierSymbol.psi?.isKotlin() == false) return null
         // Skip classes loaded from the classpath.
@@ -471,9 +469,9 @@ private constructor(
     private fun KaSession.findOrCreateClass(
         classifierSymbol: KaNamedClassSymbol,
         containingPackage: PackageItem,
-        containingClass: DefaultClassItem?,
+        containingClass: ClassItem?,
         qualifiedName: String,
-    ): DefaultClassItem {
+    ): SkeletonClassItem {
         codebase.findClassInCodebase(qualifiedName)?.let {
             return it
         }
@@ -568,7 +566,7 @@ private constructor(
      * Facade classes are only created for the JVM, but in order to support top level functions and
      * properties in the [Codebase] model this creates a fake class to hold the package-level items.
      */
-    private fun findOrCreateFacadeClass(containingPackage: PackageItem): DefaultClassItem {
+    private fun findOrCreateFacadeClass(containingPackage: PackageItem): SkeletonClassItem {
         // Create a fake class name to contain the top level items.
         val qualifiedName = containingPackage.qualifiedName() + ".\$TopLevelDeclarations"
         codebase.findClassInCodebase(qualifiedName)?.let {
@@ -595,11 +593,11 @@ private constructor(
         return classItem
     }
 
-    /** Creates a [DefaultClassItem] of kind type alias from the [typeAlias]. */
+    /** Creates a [ClassItem] of kind type alias from the [typeAlias]. */
     private fun processTypeAlias(
         typeAlias: KaTypeAliasSymbol,
         containingPackage: PackageItem
-    ): DefaultClassItem? {
+    ): ClassItem? {
         val qualifiedName = typeAlias.classId?.asFqNameString() ?: return null
         val typeParameterListAndFactory =
             typeParameterListAndFactory(
@@ -650,7 +648,7 @@ private constructor(
      */
     private fun KaSession.processConstructor(
         constructorSymbol: KaConstructorSymbol,
-        containingClass: DefaultClassItem,
+        containingClass: SkeletonClassItem,
         enclosingTypeItemFactory: KaTypeItemFactory,
     ) {
         if (!shouldGenerateConstructor(constructorSymbol, containingClass)) return
@@ -697,7 +695,7 @@ private constructor(
     /** Processes a [KaCallableSymbol], which could be a property or function. */
     private fun KaSession.processCallable(
         callableSymbol: KaCallableSymbol,
-        containingClass: DefaultClassItem,
+        containingClass: SkeletonClassItem,
         enclosingTypeItemFactory: KaTypeItemFactory,
     ) {
         // Skip callables loaded from the classpath.
@@ -764,7 +762,7 @@ private constructor(
     /** Constructs a method from the [functionSymbol] and adds it to the [containingClass]. */
     private fun KaSession.processFunction(
         functionSymbol: KaNamedFunctionSymbol,
-        containingClass: DefaultClassItem,
+        containingClass: SkeletonClassItem,
         enclosingTypeItemFactory: KaTypeItemFactory
     ) {
         if (!shouldGenerateMethod(functionSymbol)) return
@@ -876,7 +874,7 @@ private constructor(
      * Finds the symbol corresponding to the [classItem], if one exists, and adds any Kotlin
      * properties defined for the class.
      */
-    fun addPropertiesToClassFromClasspath(classItem: DefaultClassItem) {
+    fun addPropertiesToClassFromClasspath(classItem: SkeletonClassItem) {
         analyze(kaModule) {
             // The ClassId format is to have package names separated by slashes instead of dots.
             val classIdString =
@@ -903,7 +901,7 @@ private constructor(
     /** Constructs a property from the [propertySymbol] and adds it to the [containingClass]. */
     private fun KaSession.processProperty(
         propertySymbol: KaPropertySymbol,
-        containingClass: DefaultClassItem,
+        containingClass: SkeletonClassItem,
         enclosingTypeItemFactory: KaTypeItemFactory
     ) {
         // Skip creating enum entry properties, which exist for all enums.
@@ -981,7 +979,7 @@ private constructor(
                     } else {
                         containingClass
                     }
-                classWithField.findField(propertySymbol.name.identifier) as? PsiFieldItem
+                classWithField.findField(propertySymbol.name.identifier)
             } else {
                 null
             }
@@ -997,7 +995,6 @@ private constructor(
                     .maxByOrNull { it.parameters().size }
                     ?.parameters()
                     ?.firstOrNull { it.name() == propertySymbol.name.identifier }
-                    as? DefaultParameterItem
             } else {
                 null
             }
@@ -1154,7 +1151,7 @@ private constructor(
     /** Creates documentation for the symbol through psi, if possible. */
     private fun KaSymbol.getDocumentation(): ItemDocumentationFactory {
         return psiCodebase?.let { psiCodebase ->
-            psi?.let { psi -> PsiItemDocumentation.factory(psi, psiCodebase) }
+            psi?.let { psi -> psi.createItemDocumentation(psiCodebase) }
         } ?: ItemDocumentation.NONE_FACTORY
     }
 
@@ -1172,7 +1169,7 @@ private constructor(
         receiverType: TypeItem?,
         isGetter: Boolean,
         visibility: KaSymbolVisibility,
-    ): PsiMethodItem? {
+    ): MethodItem? {
         // Generally, properties using a value class type cannot be accessed from Java. However, if
         // JvmName is used, they can be, but the inlined type needs to be used to find the accessor
         // instead of the value class type.
@@ -1214,9 +1211,9 @@ private constructor(
             (methodItem.name() == name ||
                 (visibility == KaSymbolVisibility.INTERNAL &&
                     methodItem.name().startsWith("$name\$"))) &&
-                methodItem.isKotlinProperty() &&
+                methodItem.isKotlinProperty &&
                 methodItem.parameters().map { it.type().toErasedTypeString() } == parameters
-        } as? PsiMethodItem
+        }
     }
 
     /**

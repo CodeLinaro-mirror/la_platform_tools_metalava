@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.SkeletonClassItem
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
@@ -81,7 +82,7 @@ open class DefaultCodebase(
      *
      * Classes are added via [registerClass] while initialising the codebase.
      */
-    private val allClassesByName = HashMap<String, DefaultClassItem>(CLASS_ESTIMATE)
+    private val allClassesByName = HashMap<String, SkeletonClassItem>(CLASS_ESTIMATE)
 
     /** Find a class created by this [Codebase]. */
     fun findClassInCodebase(className: String) = allClassesByName[className]
@@ -124,7 +125,7 @@ open class DefaultCodebase(
      * Register the class by name, return `true` if the class was registered and `false` if it was
      * not, i.e. because it is a duplicate.
      */
-    fun registerClass(classItem: DefaultClassItem): Boolean {
+    fun registerClass(classItem: SkeletonClassItem): Boolean {
         // Check for duplicates, ignore the class if it is a duplicate.
         val qualifiedName = classItem.qualifiedName()
         val existing = allClassesByName[qualifiedName]

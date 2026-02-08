@@ -35,21 +35,35 @@ import com.google.turbine.tree.Tree.Expression
  * values.
  *
  * It consists of two parts.
- * * [const] - this is the constant value and has been evaluated by Turbine.
+ * * [const] - this is the constant value and has been evaluated by Turbine, `null` if the
+ *   evaluation failed, e.g. because it used an unknown field.
  * * [expr] - the optional source representation of the value. This is `null` when the value is
  *   obtained from a binary file, e.g. the value of an annotation attribute of an annotation on a
  *   class loaded from the class path.
+ *
+ * This has the following possible structures:
+ * * Value obtained from binary classes where no expressions or field references are available then
+ *   [const] is non-null and [expr] is null.
+ * * For valid (i.e. fully resolved, no compilation errors) source values [const] and [expr] are
+ *   non-null.
+ * * For invalid (i.e. partially resolved, with compilation errors) source values [const] is null
+ *   and [expr] os non-null.
+ *
+ * The [fieldResolver] is generally non-null whenever [expr] is null but that is not yet true for
+ * values on type use annotations. See [TurbineTypeItemFactory.fieldResolver].
  *
  * The model needs information from both so this encapsulates them together to make them easier to
  * use and provide a convenient place for code that manipulate them.
  */
 internal class TurbineValue(
-    /** The constant object representing the annotation value. */
-    val const: Const,
+    /**
+     * The optional constant object representing the value, is `null` if it could not be evaluated.
+     */
+    val const: Const?,
 
     /** An optional [Expression] that might provide additional context for value extraction. */
     val expr: Expression?,
 
     /** If available, then can be used to resolve [ConstVarName] to [TypeBoundClass.FieldInfo]. */
-    val fieldResolver: TurbineFieldResolver?,
+    val fieldResolver: FieldResolver?,
 )

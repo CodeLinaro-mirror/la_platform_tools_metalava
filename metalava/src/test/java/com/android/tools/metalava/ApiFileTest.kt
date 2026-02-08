@@ -6732,10 +6732,11 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    // With K1 there is an incorrect extra copy of the no-args constructor, annotated @A
+    @FilterByProvider("psi", "k1", action = FilterAction.EXCLUDE)
     @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Test primary constructor with defaults and secondary constructor with JvmOverloads`() {
-        // TODO(b/436557035): there should only be one copy of the constructor, annotated @B
         check(
             sourceFiles =
                 arrayOf(
@@ -6762,7 +6763,6 @@ class ApiFileTest : DriverTest() {
                   }
                   public final class Foo {
                     ctor @test.pkg.B public Foo();
-                    ctor @test.pkg.A public Foo();
                     ctor @test.pkg.A public Foo(optional int i);
                     ctor @test.pkg.B public Foo(optional String s);
                     ctor @test.pkg.B public Foo(optional String s, optional int i);

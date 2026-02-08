@@ -103,8 +103,6 @@ class CommonValueClassTest : BaseModelTest() {
         ) {
             val valueClass = codebase.assertClass("test.pkg.ValueClass")
             assertEquals(valueClass.constructors().size, 1, "Expected exactly one constructor")
-            assertNotNull(valueClass.primaryConstructor, "Expected a primary constructor")
-
             val primaryConstructor = valueClass.constructors().single()
             assertTrue(primaryConstructor.isPrimary, "Expected a primary constructor")
             val param = primaryConstructor.parameters().single()
