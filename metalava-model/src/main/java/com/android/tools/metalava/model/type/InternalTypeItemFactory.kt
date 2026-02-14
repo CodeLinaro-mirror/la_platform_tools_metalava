@@ -26,6 +26,7 @@ import com.android.tools.metalava.model.ReferenceTypeItem
 import com.android.tools.metalava.model.TypeArgumentTypeItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeModifiers
+import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.WildcardTypeItem
@@ -98,11 +99,17 @@ interface InternalTypeItemFactory {
         kind: Primitive,
         isValueClassType: Boolean = false,
     ): PrimitiveTypeItem =
-        DefaultPrimitiveTypeItem(
-            modifiers,
-            kind,
-            isValueClassType,
-        )
+        if (modifiers.annotations.isEmpty() && !isValueClassType) {
+            // Use one of the pre-cached instances.
+            primitiveTypes[kind.ordinal]
+        } else {
+            DefaultPrimitiveTypeItem(
+                // Force primitives to be non-null.
+                modifiers.substitute(nullability = TypeNullability.NONNULL),
+                kind,
+                isValueClassType,
+            )
+        }
 
     /** Create a [VariableTypeItem]. */
     fun createVariableType(
@@ -129,4 +136,14 @@ interface InternalTypeItemFactory {
             superBound,
             isValueClassType,
         )
+
+    companion object {
+        /** A cache of non-null [PrimitiveTypeItem]s indexed by [Primitive.ordinal]. */
+        private val primitiveTypes = run {
+            val kinds = Primitive.entries
+            Array<PrimitiveTypeItem>(kinds.size) { ordinal ->
+                DefaultPrimitiveTypeItem(TypeModifiers.emptyNonNullModifiers, kinds[ordinal])
+            }
+        }
+    }
 }
