@@ -21,6 +21,7 @@ import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FieldItem
+import com.android.tools.metalava.model.InheritableItem
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
@@ -29,9 +30,13 @@ import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
+import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.model.duplicatingFactory
+import com.android.tools.metalava.model.scope.NameClassification
+import com.android.tools.metalava.model.scope.ReferencableNameScope
 import com.android.tools.metalava.reporter.FileLocation
 
-open class DefaultPropertyItem(
+internal class DefaultPropertyItem(
     codebase: Codebase,
     fileLocation: FileLocation,
     sourceLanguage: SourceLanguage,
@@ -47,6 +52,7 @@ open class DefaultPropertyItem(
     override val backingField: FieldItem?,
     override val receiver: TypeItem?,
     override val typeParameterList: TypeParameterList,
+    override val setterVisibility: VisibilityLevel?,
 ) :
     DefaultMemberItem(
         codebase,
@@ -63,9 +69,46 @@ open class DefaultPropertyItem(
     ),
     PropertyItem {
 
-    final override fun type(): TypeItem = type
+    override fun type(): TypeItem = type
 
-    final override fun setType(type: TypeItem) {
+    override fun setType(type: TypeItem) {
         this.type = type
+    }
+
+    override val containingScope: ReferencableNameScope?
+        get() =
+            // Fallback to the containing class.
+            containingClass()
+
+    override fun resolveReferencableItemBySimpleName(
+        simpleName: String,
+        nameClassification: NameClassification,
+        isFirstSimpleName: Boolean
+    ) =
+        // Property does not define a name scope.
+        null
+
+    override var inheritedFrom: ClassItem? = null
+
+    override fun duplicate(targetContainingClass: ClassItem): InheritableItem {
+        return DefaultPropertyItem(
+                codebase = codebase,
+                fileLocation = fileLocation,
+                sourceLanguage = sourceLanguage,
+                documentationFactory = documentation.duplicatingFactory(),
+                variantSelectorsFactory = variantSelectors::duplicate,
+                modifiers = modifiers,
+                name = name(),
+                containingClass = targetContainingClass,
+                type = type,
+                getter = null,
+                setter = null,
+                constructorParameter = null,
+                backingField = null,
+                receiver = receiver,
+                typeParameterList = typeParameterList,
+                setterVisibility = setterVisibility,
+            )
+            .also { duplicated -> duplicated.inheritedFrom = containingClass() }
     }
 }

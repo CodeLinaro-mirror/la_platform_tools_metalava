@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.testsuite.documentation
 
+import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.model.api.flags.ApiFlag
 import com.android.tools.metalava.model.api.flags.ApiFlagAction
 import com.android.tools.metalava.model.api.flags.ApiFlags
@@ -24,8 +25,16 @@ import com.android.tools.metalava.testing.java
 import org.junit.Test
 
 class CommonConditionalDocumentationTest : BaseModelTest() {
-    @Test
-    fun `Test conditional javadoc no flag field defined`() {
+    /**
+     * Check the behavior of an invalid flags field.
+     *
+     * @param flagsFile the definition of the `Flags` class.
+     * @param expectedIssues the expected issues that will be reported.
+     */
+    private fun checkInvalidFlagsField(
+        flagsFile: TestFile,
+        expectedIssues: String,
+    ) {
         runSourceCodebaseTest(
             inputSet(
                 java(
@@ -44,6 +53,7 @@ class CommonConditionalDocumentationTest : BaseModelTest() {
                         }
                     """
                 ),
+                flagsFile,
             ),
         ) {
             val testClass = codebase.assertClass("test.pkg.Test")
@@ -56,7 +66,76 @@ class CommonConditionalDocumentationTest : BaseModelTest() {
                          */
                     """,
             )
+
+            assertAndRemoveReportedIssues(expectedIssues)
         }
+    }
+
+    @Test
+    fun `Test conditional javadoc no flag field defined`() {
+        checkInvalidFlagsField(
+            java(
+                """
+                    package test.pkg;
+
+                    public class Flags {
+                    }
+                """
+            ),
+            expectedIssues =
+                "MAIN_SRC/src/test/pkg/Test.java:5:15: error: Could not resolve a field called 'Flags.FLAG' as could not find a field called 'FLAG' in 'class test.pkg.Flags' [InvalidJavadocExpr]"
+        )
+    }
+
+    @Test
+    fun `Test conditional javadoc flag field has no constant value`() {
+        checkInvalidFlagsField(
+            java(
+                """
+                    package test.pkg;
+
+                    public class Flags {
+                        public static final String FLAG = "flag".toUpperCase();
+                    }
+                """
+            ),
+            expectedIssues =
+                "MAIN_SRC/src/test/pkg/Test.java:5:15: error: invalid flag field 'Flags.FLAG', it does not have a constant value [InvalidJavadocExpr]"
+        )
+    }
+
+    @Test
+    fun `Test conditional javadoc flag field value is not a string`() {
+        checkInvalidFlagsField(
+            java(
+                """
+                    package test.pkg;
+
+                    public class Flags {
+                        public static final int FLAG = 10;
+                    }
+                """
+            ),
+            expectedIssues =
+                "MAIN_SRC/src/test/pkg/Test.java:5:15: error: invalid flag field 'Flags.FLAG', expected a string value, found 10 of type int [InvalidJavadocExpr]"
+        )
+    }
+
+    @Test
+    fun `Test conditional javadoc flag field reference does not refer to a field`() {
+        checkInvalidFlagsField(
+            java(
+                """
+                    package test.pkg;
+
+                    public class Flags {
+                        public static class FLAG {}
+                    }
+                """
+            ),
+            expectedIssues =
+                "MAIN_SRC/src/test/pkg/Test.java:5:15: error: Could not resolve a field called 'Flags.FLAG' as could not find a field called 'FLAG' in 'class test.pkg.Flags' [InvalidJavadocExpr]"
+        )
     }
 
     @Test
@@ -171,6 +250,65 @@ class CommonConditionalDocumentationTest : BaseModelTest() {
                         /**
                          * Summary.
                          * {@if (flag(Flags.FLAG))
+                         *     {Content when flag enabled.}
+                         * else
+                         *     {Content when flag disabled.}
+                         * }
+                         */
+                        public class Test {
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+
+                        public class Flags {
+                            public static final String FLAG = "flag";
+                        }
+                    """
+                ),
+            ),
+            testFixture =
+                TestFixture(
+                    apiFlags =
+                        ApiFlags(
+                            listOf(
+                                ApiFlag(
+                                    "flag",
+                                    ApiFlagAction.KEEP,
+                                    isExported = true,
+                                )
+                            )
+                        )
+                ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            testClass.assertPrintedDocumentation(
+                expectedOutput =
+                    """
+                        /**
+                         * Summary.
+                         * Content when flag enabled.
+                         */
+                    """,
+            )
+        }
+    }
+
+    @Test
+    fun `Test conditional javadoc flag field using statically imported flag field`() {
+        runSourceCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+
+                        import static test.pkg.Flags.FLAG;
+
+                        /**
+                         * Summary.
+                         * {@if (flag(FLAG))
                          *     {Content when flag enabled.}
                          * else
                          *     {Content when flag disabled.}

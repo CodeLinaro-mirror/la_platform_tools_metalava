@@ -119,7 +119,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
                     .assertMethod("foo", emptyList())
                     .throwsTypes()
                     .first()
-            assertSame(throwable, exception.erasedClass)
+            assertSame(throwable, exception.asErasedClass(codebase))
         }
     }
 
@@ -144,7 +144,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
             val error = codebase.assertClass("java.lang.Error")
 
             // Get the super class to force it to be loaded.
-            val errorSuperClass = error.superClassType()?.asClass()
+            val errorSuperClass = error.superClassType()?.resolveClass(codebase)
 
             // Now get the throwable class.
             val throwable = codebase.assertClass("java.lang.Throwable", expectedEmit = false)
@@ -158,7 +158,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
                     .assertMethod("foo", emptyList())
                     .throwsTypes()
                     .first()
-            assertSame(error, exception.erasedClass)
+            assertSame(error, exception.asErasedClass(codebase))
         }
     }
 
@@ -187,7 +187,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
                     .assertMethod("foo", emptyList())
                     .throwsTypes()
                     .first()
-            assertSame(throwable, exception.erasedClass)
+            assertSame(throwable, exception.asErasedClass(codebase))
         }
     }
 
@@ -212,7 +212,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
 
             // Force the unknown exception class to be resolved, creating a stub in the process. It
             // is checked below.
-            exceptionType.erasedClass
+            exceptionType.asErasedClass(codebase)
 
             val unknownExceptionClass =
                 codebase.assertClass("other.UnknownException", expectedEmit = false)
@@ -226,7 +226,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
                     .assertMethod("foo", emptyList())
                     .throwsTypes()
                     .first()
-            assertSame(unknownExceptionClass, exception.erasedClass)
+            assertSame(unknownExceptionClass, exception.asErasedClass(codebase))
         }
     }
 
@@ -266,7 +266,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
                 .assertMethod("foo", emptyList())
                 .throwsTypes()
                 .first()
-        assertSame(unknownExceptionClass, exception.erasedClass)
+        assertSame(unknownExceptionClass, exception.asErasedClass(codebase))
     }
 
     @Test
@@ -569,7 +569,11 @@ class ApiFileTest : BaseTextCodebaseTest() {
             // Resolve the class. Even though it does not exist, the text model will fabricate an
             // instance.
             val unknownInterfaceClass =
-                codebase.assertClass("test.pkg.Foo").interfaceTypes().single().asClass()
+                codebase
+                    .assertClass("test.pkg.Foo")
+                    .interfaceTypes()
+                    .single()
+                    .resolveClass(codebase)
             assertNotNull(unknownInterfaceClass)
 
             // Make sure that the fabricated instance is of the correct structure.
@@ -711,9 +715,11 @@ class ApiFileTest : BaseTextCodebaseTest() {
                         package test.pkg {
                             public class Foo {
                                 ctor public Foo();
+                                ctor public Foo(String notCurrent);
                                 method public void method(int notCurrent);
                                 method public void extensibleMethod(int parameter) throws Throwable;
                                 field public int field;
+                                property public int prop;
                             }
                             public class Outer {
                             }
@@ -731,9 +737,11 @@ class ApiFileTest : BaseTextCodebaseTest() {
                         package test.pkg {
                             public class Foo {
                                 ctor public Foo(int currentCtorParameter);
+                                ctor public Foo(String currentCtorParameter);
                                 method public void extensibleMethod(int parameter) throws Exception;
                                 method public void currentMethod(int currentMethodParameter);
                                 field public int currentField;
+                                property public int prop;
                             }
                             public class Outer.Middle.Inner {
                                 method public void currentInnerMethod();
@@ -763,7 +771,8 @@ class ApiFileTest : BaseTextCodebaseTest() {
                 classPathResolver = classPathResolver,
             )
 
-        val current = buildList {
+        // Check the parts of the codebase that will be emitted.
+        val currentEmit = buildList {
             codebase.accept(
                 object : BaseItemVisitor(visitParameterItems = false) {
                     override fun visitSelectableItem(item: SelectableItem) {
@@ -774,20 +783,56 @@ class ApiFileTest : BaseTextCodebaseTest() {
                 }
             )
         }
-
         assertEquals(
             """
                 package test.pkg
                 class test.pkg.Foo
+                constructor test.pkg.Foo.Foo(String)
                 constructor test.pkg.Foo.Foo(int)
                 method test.pkg.Foo.extensibleMethod(int)
                 method test.pkg.Foo.currentMethod(int)
+                property test.pkg.Foo#prop
                 field Foo.currentField
                 class test.pkg.Outer.Middle.Inner
                 method test.pkg.Outer.Middle.Inner.currentInnerMethod()
             """
                 .trimIndent(),
-            current.joinToString("\n")
+            currentEmit.joinToString("\n"),
+            "emittable items"
+        )
+
+        // Check the entire codebase, to make sure there are no incorrect elements that aren't part
+        // of the emittable codebase.
+        val currentAll = buildList {
+            codebase.accept(
+                object : BaseItemVisitor(visitParameterItems = false) {
+                    override fun visitSelectableItem(item: SelectableItem) {
+                        add(item)
+                    }
+                }
+            )
+        }
+        assertEquals(
+            """
+                package test.pkg
+                class test.pkg.Foo
+                constructor test.pkg.Foo.Foo()
+                constructor test.pkg.Foo.Foo(String)
+                constructor test.pkg.Foo.Foo(int)
+                method test.pkg.Foo.method(int)
+                method test.pkg.Foo.extensibleMethod(int)
+                method test.pkg.Foo.currentMethod(int)
+                property test.pkg.Foo#prop
+                field Foo.field
+                field Foo.currentField
+                class test.pkg.Outer
+                class test.pkg.Outer.Middle
+                class test.pkg.Outer.Middle.Inner
+                method test.pkg.Outer.Middle.Inner.currentInnerMethod()
+            """
+                .trimIndent(),
+            currentAll.joinToString("\n"),
+            "all items"
         )
     }
 

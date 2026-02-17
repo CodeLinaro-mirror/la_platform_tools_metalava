@@ -119,6 +119,10 @@ class MetalavaBuildPlugin : Plugin<Project> {
                 "--add-opens=java.base/java.lang.reflect=ALL-UNNAMED",
             )
 
+            // Increase from the default heap size because multiplatform tests run out of memory
+            // otherwise (b/479506031).
+            task.maxHeapSize = "1024m"
+
             // Clear the environment before adding any custom variables. Avoids problems with
             // inconsistent behavior when testing code that accesses environment variables, e.g.
             // command line tools that use environment variables to determine whether to use colors

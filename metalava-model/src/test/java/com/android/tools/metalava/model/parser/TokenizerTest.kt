@@ -221,7 +221,6 @@ class TokenizerTest(private val params: Params) {
                 Params(
                     input = """{1, 2}""",
                     purpose = TokenPurpose.VALUE,
-                    // TODO(b/354633349): This is wrong, should be a single token.
                     expectedTokens = listOf("{1, 2}"),
                 ),
                 // Test handling of unbalanced brace.

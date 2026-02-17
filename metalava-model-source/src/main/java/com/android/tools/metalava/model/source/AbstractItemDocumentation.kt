@@ -18,145 +18,51 @@ package com.android.tools.metalava.model.source
 
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
-import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.ReferencableItem
 import com.android.tools.metalava.model.SelectableItem
-import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterListOwner
 import com.android.tools.metalava.model.api.flags.ApiFlagAction
 import com.android.tools.metalava.model.doc.DocContent
 import com.android.tools.metalava.model.doc.DocContentOwner
 import com.android.tools.metalava.model.doc.DocContentPredicate
-import com.android.tools.metalava.model.scope.ReferencableNameScope
+import com.android.tools.metalava.model.scope.NameClassification
 import com.android.tools.metalava.model.source.doc.BlockTagSection
-import com.android.tools.metalava.model.source.doc.ClassReference
 import com.android.tools.metalava.model.source.doc.DocComment
 import com.android.tools.metalava.model.source.doc.DocCommentContext
-import com.android.tools.metalava.model.source.doc.DocCommentMutationListener
 import com.android.tools.metalava.model.source.doc.DocCommentPredicate
+import com.android.tools.metalava.model.source.doc.DocTypeParser
 import com.android.tools.metalava.model.source.doc.DocumentationIssueReporter
 import com.android.tools.metalava.model.source.doc.JavaSummaryTruncationWorkaround
-import com.android.tools.metalava.model.source.doc.PackageReference
-import com.android.tools.metalava.model.source.doc.ResolvedReference
 import com.android.tools.metalava.model.source.doc.TagTypes
-import com.android.tools.metalava.model.source.doc.TypeParameterReference
-import com.android.tools.metalava.model.source.doc.TypeReference
 import com.android.tools.metalava.model.source.javadoc.ExprContext
+import com.android.tools.metalava.model.source.javadoc.InvalidBlockUseVisitor
 import com.android.tools.metalava.model.source.javadoc.JavadocText
 import com.android.tools.metalava.model.source.javadoc.toOptionalJavadocContent
-import com.android.tools.metalava.model.utils.splitIntoOptionalQualifierAndSimpleName
-import com.android.tools.metalava.model.value.StringValue
 import com.android.tools.metalava.reporter.Issues
-import com.android.tools.metalava.reporter.LocationSpecificReporter
 import java.io.PrintWriter
 
 /**
  * Abstract [ItemDocumentation] into which functionality that is common to all models will be added.
  */
-abstract class AbstractItemDocumentation(
+internal abstract class AbstractItemDocumentation(
     protected val item: SelectableItem,
-) :
-    ItemDocumentation,
-    DocumentationIssueReporter,
-    DocCommentContext,
-    // Implement this as a temporary measure while this needs to keep [text] and [docComment] in
-    // sync.
-    DocCommentMutationListener {
+) : ItemDocumentation, DocumentationIssueReporter, DocCommentContext {
 
-    /**
-     * Lazily initialized backing property for [text].
-     *
-     * If this is `null` then it requires setting. If [_docComment] is `null` then it will be set by
-     * calling [initializeTextBackingField]. Otherwise, it will be set by printing [_docComment].
-     */
-    protected var _text: String? = null
+    /** The [DocComment] that contains the documentation content. */
+    protected abstract val docComment: DocComment
 
-    /**
-     * Called when [_text] requires initializing. Implementations must set [_text] to a non-null
-     * value.
-     */
-    protected abstract fun initializeTextBackingField()
-
-    /**
-     * Ensures that [text]'s backing field has been initialized even if it is currently `null`.
-     *
-     * The `text` field has been initialized if [_text] is non-null or if [_docComment] is non-null.
-     * As the [_docComment] is only created from [_text] if it is non-null then [_text] must have
-     * been non-null in the past.
-     */
-    protected fun ensureTextBackingFieldHasBeenInitialized() {
-        if (_text == null && _docComment == null) {
-            initializeTextBackingField()
-        }
-    }
-
-    /**
-     * The immutable text contents of the documentation.
-     *
-     * Although it is not possible to modify this property the backing field will be kept in sync
-     * with [docComment] so the value returned from this will change if [docComment] is mutated.
-     *
-     * If [_docComment] is null then this needs initializing from the model, otherwise this is set
-     * from [_docComment].
-     */
-    override val text: String
-        get() {
-            if (_text == null) {
-                val docComment = _docComment
-                if (docComment == null) {
-                    // Initialize from the underlying model.
-                    initializeTextBackingField()
-                } else {
-                    // Initialize from the _docComment so that it reflects any changes in it.
-                    _text = docComment.asJavadocCommentString()
-                }
-            }
-            return _text!!
-        }
-
-    /** Lazily initialized from [text]. */
-    private var _docComment: DocComment? = null
-
-    private val docComment: DocComment
-        get() {
-            val docComment = _docComment
-            return if (docComment == null) {
-                val new =
-                    DocComment.createDocComment(
-                        context = this,
-                        text,
-                        reporter = this,
-                    )
-                _text = null
-                _docComment = new
-                new
-            } else {
-                docComment
-            }
-        }
-
-    override val mutationListener: DocCommentMutationListener
-        get() = this
-
-    /**
-     * Called when [docComment] is mutated to discard [_text] so it will be regenerated from
-     * [_docComment] the next time [text] is accessed.
-     *
-     * This ensures that [text] and [_docComment] do not get out of sync. It is needed because
-     * currently both [text] and [docComment] are modified directly. Longer term, changes will be
-     * applied directly to [_docComment] and [text] will be dropped.
-     */
-    override fun docCommentMutated() {
-        _text = null
+    override fun resolveItemReference(
+        sourceReference: String,
+        nameClassification: NameClassification
+    ): ReferencableItem {
+        return item.resolveReferencableItem(sourceReference, nameClassification)
     }
 
     /** Implements [ExprContext.isFlagEnabled]. */
-    override fun isFlagEnabled(flagFieldReference: String): Boolean {
-        val field = resolveConstantFieldReference(flagFieldReference) ?: return false
-        val flagName = (field.constantValue as? StringValue)?.underlyingValue ?: return false
+    override fun isFlagEnabled(flagName: String): Boolean {
         val apiFlags = item.codebase.config.apiFlags ?: return true
         return apiFlags[flagName].action != ApiFlagAction.REVERT
     }
@@ -209,79 +115,17 @@ abstract class AbstractItemDocumentation(
         // Purposely does not cache this as superMethods() is already cached.
         item is MethodItem && item.superMethods().isNotEmpty()
 
-    /** Expands the given documentation comment in the current name context */
-    open fun fullyQualifiedDocumentation(documentation: String): String = documentation
-
-    /** Implements [DocCommentContext.fullyQualifyComment]. */
-    override fun fullyQualifyComment(comment: String) = fullyQualifiedDocumentation(comment)
-
-    override fun resolveThrowableType(
-        reporter: LocationSpecificReporter,
-        typeName: String
-    ): TypeReference? {
-        val scope = item as? ReferencableNameScope ?: return null
-        val resolved = scope.resolveReferencableItem(typeName)
-        return when (resolved) {
-            is ClassItem -> ClassReference(resolved.qualifiedName())
-            is TypeParameterItem -> TypeParameterReference(resolved.name())
-            else -> {
-                reporter.report(Issues.UNRESOLVED_LINK, "Could not resolve $typeName")
-                null
-            }
-        }
-    }
-
-    override fun resolveReference(sourceReference: String): ResolvedReference? {
-        // Not all items that have documentation currently support resolving references from it,
-        // e.g. properties and type aliases.
-        val scope = item as? ReferencableNameScope ?: return null
-
-        // Ignore references to members for now.
-        val hashIndex = sourceReference.indexOf('#')
-        if (hashIndex != -1) return null
-
-        // Resolve the reference.
-        val resolved = scope.resolveReferencableItem(sourceReference)
-        return when (resolved) {
-            is ClassItem -> ClassReference(resolved.qualifiedName())
-            is PackageItem -> PackageReference(resolved.qualifiedName())
-            is TypeParameterItem -> TypeParameterReference(resolved.name())
-            else -> null
-        }
-    }
-
-    /**
-     * Resolve a constant field reference to the [FieldItem], if possible.
-     *
-     * @param sourceReference the reference to a field as it would be represented in source code.
-     *   e.g. it can be unqualified `FIELD`, qualified with a class `Class.FIELD`, or
-     *   `Class.Nested.FIELD` or fully qualified, e.g. `package.Class.FIELD`.
-     */
-    fun resolveConstantFieldReference(sourceReference: String): FieldItem? {
-        // Not all items that have documentation currently support resolving references from it,
-        // e.g. properties.
-        val scope = item as? ReferencableNameScope ?: return null
-
-        // Split the reference into optional class name and simple field name.
-        val (className, fieldName) = sourceReference.splitIntoOptionalQualifierAndSimpleName()
-
-        // Determine the scope to search.
-        // TODO(b/429965593): Take into account static imports of constant fields.
-        val classScope =
-            if (className != null) {
-                scope.resolveReferencableItem(className) as? ClassItem ?: return null
-            } else {
-                when (item) {
-                    is ClassItem -> item
-                    is MemberItem -> item.containingClass()
-                    else -> return null
-                }
+    override val containingClassItem: ClassItem?
+        get() =
+            when (item) {
+                is ClassItem -> item
+                is MemberItem -> item.containingClass()
+                else -> null
             }
 
-        // Find the field.
-        // TODO(b/429965593): Check for fields in super classes and interfaces.
-        return classScope.findField(fieldName)
-    }
+    /** Implements [DocCommentContext.docTypeParser]. */
+    override val docTypeParser: DocTypeParser
+        get() = DocTypeParser.create(reporter = this, item)
 
     override val isDocOnly
         get() = hasBlockTagOfType("doconly")
@@ -301,61 +145,28 @@ abstract class AbstractItemDocumentation(
             type == "hide" || type == "doconly"
         }
 
-        val originalText = text
+        checkDocumentationBeforePrinting()
 
-        checkDocumentationBeforePrinting(originalText)
-
-        // Before printing fully qualify the comment. This expects a whole comment and will fix up
-        // @link and @see tags.
-        val fullyQualifiedText = fullyQualifiedDocumentation(originalText)
-
-        // Only print the comment if it is not blank.
-        if (fullyQualifiedText.isNotBlank()) {
-            // If fully qualifying did not change the text then used the docComment, otherwise
-            // create a new one from the fully qualified text.
-            val fullyQualifiedComment =
-                if (fullyQualifiedText == originalText) docComment
-                else
-                    DocComment.createDocComment(
-                        context = this,
-                        fullyQualifiedText,
-                        // Ignore any errors that are found while parsing the fully qualified test
-                        // as they will duplicate issues found when first creating and the line
-                        // numbers may not match the original source.
-                        reporter = DocumentationIssueReporter.NULL,
-                    )
-
-            // Print the docComment as Javadoc.
-            fullyQualifiedComment.printAsJavadocComment(
-                writer,
-                // Apply the [JavaSummaryTruncationWorkaround] to the main description.
-                mainDescriptionRewriter = JavaSummaryTruncationWorkaround()
-            )
-        }
+        // Print the docComment as Javadoc.
+        docComment.printAsJavadocComment(
+            writer,
+            // Apply the [JavaSummaryTruncationWorkaround] to the main description.
+            mainDescriptionRewriter = JavaSummaryTruncationWorkaround.INSTANCE
+        )
     }
 
     /**
-     * Check the documentation content [text] before printing it.
+     * Check the documentation content [docComment] before printing it.
      *
      * Verifies that it does not contain anything which could cause problems downstream, e.g. in
      * `doclava`.
      */
-    private fun checkDocumentationBeforePrinting(text: String) {
-        checkForInvalidBlockTagUse(text, "@hide")
-        checkForInvalidBlockTagUse(text, "@removed")
-        checkForInvalidBlockTagUse(text, "@doconly")
-    }
-
-    /**
-     * Check to see if there are any remaining non-block uses of block tags that could cause
-     * problems downstream.
-     */
-    private fun checkForInvalidBlockTagUse(text: String, blockTag: String) {
-        if (text.contains(blockTag)) {
+    private fun checkDocumentationBeforePrinting() {
+        if (docComment.check(InvalidBlockUseVisitor.INSTANCE)) {
             item.codebase.reporter.report(
                 Issues.INVALID_BLOCK_TAG_USE,
                 item,
-                "Documentation contains '$blockTag' that is not used as a block tag; that could cause unexpected behavior downstream.",
+                "Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream.",
                 fileLocation,
             )
         }
@@ -367,10 +178,8 @@ abstract class AbstractItemDocumentation(
     override val mainDescriptionOwner: DocContentOwner
         get() = docComment
 
-    override fun blockTagDescription(tagTypeName: String, forAppending: Boolean): DocContent? =
-        findBlockTagSection(tagTypeName)?.let { blockTagSection ->
-            if (forAppending) blockTagSection.docContentForAppending else blockTagSection.docContent
-        }
+    override fun blockTagDescription(tagTypeName: String): DocContent? =
+        findBlockTagSection(tagTypeName)?.docContent
 
     override fun blockTagDescriptionOwner(tagTypeName: String): DocContentOwner {
         return findBlockTagSection(tagTypeName)
@@ -424,8 +233,11 @@ abstract class AbstractItemDocumentation(
     }
 
     override fun duplicate(item: SelectableItem): ItemDocumentation =
-        DefaultItemDocumentation(item, text, fileLocation)
+        DefaultItemDocumentation(item, docComment, fileLocation)
 
-    override fun snapshot(item: SelectableItem): ItemDocumentation =
-        DefaultItemDocumentation(item, text, fileLocation)
+    final override fun snapshot(item: SelectableItem): ItemDocumentation =
+        // Return this to avoid parsing the text again and duplicating errors. This is not strictly
+        // speaking safe as the underlying DocComment is mutable, and this will end up sharing it
+        // across multiple snapshots, but it does not seem to cause any problems at the moment.
+        this
 }

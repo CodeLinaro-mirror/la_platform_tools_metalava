@@ -243,24 +243,28 @@ internal class KaModifierFactory(private val processor: KaModuleProcessor) {
         return modifiers
     }
 
+    /** Returns the [VisibilityLevel] of the [symbol]. */
+    fun getVisibilityLevel(symbol: KaDeclarationSymbol): VisibilityLevel {
+        return when (symbol.visibility) {
+            KaSymbolVisibility.PUBLIC -> VisibilityLevel.PUBLIC
+            KaSymbolVisibility.PACKAGE_PRIVATE -> VisibilityLevel.PACKAGE_PRIVATE
+            KaSymbolVisibility.INTERNAL -> VisibilityLevel.INTERNAL
+            // KaSymbolVisibility distinguishes between Kotlin protected (visible to containing
+            // declaration and subclasses) and Java protected (additionally visible to other
+            // classes in the same package). Metalava does not make this distinction.
+            KaSymbolVisibility.PROTECTED,
+            KaSymbolVisibility.PACKAGE_PROTECTED -> VisibilityLevel.PROTECTED
+            // Local and unknown visibility shouldn't occur for API elements, treat them as
+            // private if they do.
+            KaSymbolVisibility.PRIVATE,
+            KaSymbolVisibility.LOCAL,
+            KaSymbolVisibility.UNKNOWN -> VisibilityLevel.PRIVATE
+        }
+    }
+
     /** Create modifiers for any declaration. */
     fun createForDeclaration(symbol: KaDeclarationSymbol): MutableModifierList {
-        val visibility =
-            when (symbol.visibility) {
-                KaSymbolVisibility.PUBLIC -> VisibilityLevel.PUBLIC
-                KaSymbolVisibility.PACKAGE_PRIVATE -> VisibilityLevel.PACKAGE_PRIVATE
-                KaSymbolVisibility.INTERNAL -> VisibilityLevel.INTERNAL
-                // KaSymbolVisibility distinguishes between Kotlin protected (visible to containing
-                // declaration and subclasses) and Java protected (additionally visible to other
-                // classes in the same package). Metalava does not make this distinction.
-                KaSymbolVisibility.PROTECTED,
-                KaSymbolVisibility.PACKAGE_PROTECTED -> VisibilityLevel.PROTECTED
-                // Local and unknown visibility shouldn't occur for API elements, treat them as
-                // private if they do.
-                KaSymbolVisibility.PRIVATE,
-                KaSymbolVisibility.LOCAL,
-                KaSymbolVisibility.UNKNOWN -> VisibilityLevel.PRIVATE
-            }
+        val visibility = getVisibilityLevel(symbol)
         val annotations = symbol.annotations.mapNotNull { processor.createAnnotation(it) }
         val modifiers = createMutableModifiers(visibility, annotations)
 

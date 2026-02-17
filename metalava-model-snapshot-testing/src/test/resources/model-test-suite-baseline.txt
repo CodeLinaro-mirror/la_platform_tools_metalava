@@ -1,19 +1,26 @@
 com.android.tools.metalava.model.testsuite.BootstrapSourceModelProviderTest
-  210 Test Method exception list[psi,java,k1]
-  210 Test Method exception list[psi,java,k2]
   260 - test doconly members[psi,java,k1]
   260 - test doconly members[psi,java,k2]
   260 - test doconly members[turbine]
 
 com.android.tools.metalava.model.testsuite.CommonModifierListWriterTest
-  modifiers public explicitly final method in final class[psi,java,k1]
-  modifiers public explicitly final method in final class[psi,java,k2]
+  modifiers public explicitly final method in final class[text]
 
 com.android.tools.metalava.model.testsuite.CommonTargetLanguageTest
+  Test constructor using optional value class type[psi,kotlin,k1]
   Test function in value class[psi,kotlin,k1]
+  Test properties of value class types with JvmName[psi,kotlin,k1]
+  Test properties of value class types with JvmName[psi,kotlin,k2]
 
 com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTest
-  annotation with unknown field[turbine]
+  unknown annotation class with default attribute - array value[psi,kotlin,k1]
+  unknown annotation class with default attribute - array value[psi,kotlin,k2]
+  unknown annotation class with default attribute - string value[psi,kotlin,k1]
+  unknown annotation class with default attribute - string value[psi,kotlin,k2]
+  unknown annotation class with named attribute - array value[psi,kotlin,k1]
+  unknown annotation class with named attribute - array value[psi,kotlin,k2]
+  unknown annotation class with named attribute - string value[psi,kotlin,k1]
+  unknown annotation class with named attribute - string value[psi,kotlin,k2]
 
 com.android.tools.metalava.model.testsuite.classitem.CommonDataClassTest
   Test data class copy method visibility with ConsistentCopyVisibility[psi,kotlin,k1]
@@ -27,102 +34,15 @@ com.android.tools.metalava.model.testsuite.codebase.CommonCodebaseTest
   Test getTopLevelClassesFromSource[psi,java,k2]
   Test getTopLevelClassesFromSource[turbine]
 
-com.android.tools.metalava.model.testsuite.constructoritem.CommonConstructorModifierTest
-  Test varargs[turbine]
-
-com.android.tools.metalava.model.testsuite.documentation.CommonItemDocumentationTest
-  Test fully qualifying links that wrap on multiple lines[turbine]
-
-com.android.tools.metalava.model.testsuite.documentation.CommonParameterizedDocReferenceTest
-  Documentation text[turbine,@link,Imported#Imported()]
-  Documentation text[turbine,@link,Imported#Imported(int p)]
-  Documentation text[turbine,@link,Imported#Imported(int)]
-  Documentation text[turbine,@link,Imported#field]
-  Documentation text[turbine,@link,Imported#intMethod(int p)]
-  Documentation text[turbine,@link,Imported#intMethod(int)]
-  Documentation text[turbine,@link,Imported#noParamsMethod()]
-  Documentation text[turbine,@link,Imported#noParamsMethod]
-  Documentation text[turbine,@link,Other#Other()]
-  Documentation text[turbine,@link,Other#Other(int p)]
-  Documentation text[turbine,@link,Other#Other(int)]
-  Documentation text[turbine,@link,Other#field]
-  Documentation text[turbine,@link,Other#intMethod(int p)]
-  Documentation text[turbine,@link,Other#intMethod(int)]
-  Documentation text[turbine,@link,Other#noParamsMethod()]
-  Documentation text[turbine,@link,Other#noParamsMethod]
-  Documentation text[turbine,@linkplain,Imported#Imported()]
-  Documentation text[turbine,@linkplain,Imported#Imported(int p)]
-  Documentation text[turbine,@linkplain,Imported#Imported(int)]
-  Documentation text[turbine,@linkplain,Imported#field]
-  Documentation text[turbine,@linkplain,Imported#intMethod(int p)]
-  Documentation text[turbine,@linkplain,Imported#intMethod(int)]
-  Documentation text[turbine,@linkplain,Imported#noParamsMethod()]
-  Documentation text[turbine,@linkplain,Imported#noParamsMethod]
-  Documentation text[turbine,@linkplain,Other#Other()]
-  Documentation text[turbine,@linkplain,Other#Other(int p)]
-  Documentation text[turbine,@linkplain,Other#Other(int)]
-  Documentation text[turbine,@linkplain,Other#field]
-  Documentation text[turbine,@linkplain,Other#intMethod(int p)]
-  Documentation text[turbine,@linkplain,Other#intMethod(int)]
-  Documentation text[turbine,@linkplain,Other#noParamsMethod()]
-  Documentation text[turbine,@linkplain,Other#noParamsMethod]
-  Documentation text[turbine,@see,Imported#Imported()]
-  Documentation text[turbine,@see,Imported#Imported(int p)]
-  Documentation text[turbine,@see,Imported#Imported(int)]
-  Documentation text[turbine,@see,Imported#field]
-  Documentation text[turbine,@see,Imported#intMethod(int p)]
-  Documentation text[turbine,@see,Imported#intMethod(int)]
-  Documentation text[turbine,@see,Imported#noParamsMethod()]
-  Documentation text[turbine,@see,Imported#noParamsMethod]
-  Documentation text[turbine,@see,Other#Other()]
-  Documentation text[turbine,@see,Other#Other(int p)]
-  Documentation text[turbine,@see,Other#Other(int)]
-  Documentation text[turbine,@see,Other#field]
-  Documentation text[turbine,@see,Other#intMethod(int p)]
-  Documentation text[turbine,@see,Other#intMethod(int)]
-  Documentation text[turbine,@see,Other#noParamsMethod()]
-  Documentation text[turbine,@see,Other#noParamsMethod]
-
 com.android.tools.metalava.model.testsuite.fielditem.CommonFieldItemTest
   Test implicit nullability of constant field initialized from @NonNull method[turbine]
 
 com.android.tools.metalava.model.testsuite.methoditem.CommonMethodModifierTest
   Test final method in final class[text]
-  Test final method in final class[turbine]
-  Test varargs[turbine]
 
 com.android.tools.metalava.model.testsuite.methoditem.CommonParameterItemTest
   Test publicName reports correct name when called on binary class - Object#equals[turbine]
   Test publicName reports correct name when called on binary class - ViewGroup#onLayout[turbine]
-
-com.android.tools.metalava.model.testsuite.methoditem.CommonParameterModifierTest
-  Test varargs[turbine]
-
-com.android.tools.metalava.model.testsuite.typeitem.CommonIsAssignableFromTest
-  Test assignability without unboxing[psi,java,k1,boxedInt to primitiveInt]
-  Test assignability without unboxing[psi,java,k1,number to boxedInt]
-  Test assignability without unboxing[psi,java,k1,number to primitiveInt]
-  Test assignability without unboxing[psi,java,k1,obj to string]
-  Test assignability without unboxing[psi,java,k2,boxedInt to primitiveInt]
-  Test assignability without unboxing[psi,java,k2,number to boxedInt]
-  Test assignability without unboxing[psi,java,k2,number to primitiveInt]
-  Test assignability without unboxing[psi,java,k2,obj to string]
-  Test assignability without unboxing[psi,kotlin,k1,boxedInt to primitiveInt]
-  Test assignability without unboxing[psi,kotlin,k1,number to boxedInt]
-  Test assignability without unboxing[psi,kotlin,k1,number to primitiveInt]
-  Test assignability without unboxing[psi,kotlin,k1,obj to string]
-  Test assignability without unboxing[psi,kotlin,k2,boxedInt to primitiveInt]
-  Test assignability without unboxing[psi,kotlin,k2,number to boxedInt]
-  Test assignability without unboxing[psi,kotlin,k2,number to primitiveInt]
-  Test assignability without unboxing[psi,kotlin,k2,obj to string]
-  Test assignability without unboxing[text,boxedInt to primitiveInt]
-  Test assignability without unboxing[text,number to boxedInt]
-  Test assignability without unboxing[text,number to primitiveInt]
-  Test assignability without unboxing[text,obj to string]
-  Test assignability without unboxing[turbine,boxedInt to primitiveInt]
-  Test assignability without unboxing[turbine,number to boxedInt]
-  Test assignability without unboxing[turbine,number to primitiveInt]
-  Test assignability without unboxing[turbine,obj to string]
 
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeModifiersTest
   Test inner parameterized types with annotations[psi,java,k1]
@@ -174,6 +94,9 @@ com.android.tools.metalava.model.testsuite.value.CommonParameterizedFieldWriteWi
   testLegacySource[psi,kotlin,k2,source,unsigned int - expression]
   testLegacySource[text,source,byte - cast]
   testLegacySource[text,source,short - cast]
+
+com.android.tools.metalava.model.testsuite.value.CommonValueTest
+  Test use field reference in a type annotation[turbine]
 
 com.android.tools.metalava.model.testsuite.value.ParameterizedValueParserTest
   Test parse[text,byte - cast,signatureExpression,jar]

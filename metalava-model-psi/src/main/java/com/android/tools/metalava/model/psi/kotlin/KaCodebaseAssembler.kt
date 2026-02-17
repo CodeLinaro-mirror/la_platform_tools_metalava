@@ -26,41 +26,37 @@ import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.DefaultTypeParameterList
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.JVM_NAME
 import com.android.tools.metalava.model.KOTLIN_DEPRECATED
+import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.SkeletonClassItem
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
-import com.android.tools.metalava.model.TypeParameterListAndFactory
 import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.createImmutableModifiers
 import com.android.tools.metalava.model.createMutableModifiers
 import com.android.tools.metalava.model.item.CodebaseAssembler
-import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.item.DefaultCodebaseAssembler
 import com.android.tools.metalava.model.item.DefaultItemFactory
-import com.android.tools.metalava.model.item.DefaultParameterItem
 import com.android.tools.metalava.model.item.PackageInfo
 import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
 import com.android.tools.metalava.model.psi.PsiBasedCodebase
-import com.android.tools.metalava.model.psi.PsiClassItem.Companion.isFileFacade
-import com.android.tools.metalava.model.psi.PsiFieldItem
 import com.android.tools.metalava.model.psi.PsiFileLocation
-import com.android.tools.metalava.model.psi.PsiItemDocumentation
-import com.android.tools.metalava.model.psi.PsiMethodItem
+import com.android.tools.metalava.model.psi.createItemDocumentation
 import com.android.tools.metalava.model.psi.isKotlin
 import com.android.tools.metalava.model.type.MethodFingerprint
+import com.android.tools.metalava.model.type.TypeParameterListAndFactory
 import com.android.tools.metalava.model.value.ArrayValue
 import com.android.tools.metalava.model.value.ClassObjectValue
 import com.android.tools.metalava.reporter.FileLocation
@@ -85,6 +81,7 @@ import org.jetbrains.kotlin.analysis.api.symbols.KaFunctionSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaNamedClassSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaNamedFunctionSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaPackageSymbol
+import org.jetbrains.kotlin.analysis.api.symbols.KaPropertyAccessorSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaPropertySymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaReceiverParameterSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaSymbol
@@ -93,7 +90,6 @@ import org.jetbrains.kotlin.analysis.api.symbols.KaSymbolVisibility
 import org.jetbrains.kotlin.analysis.api.symbols.KaTypeAliasSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaTypeParameterSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaValueParameterSymbol
-import org.jetbrains.kotlin.analysis.api.symbols.name
 import org.jetbrains.kotlin.analysis.api.symbols.receiverType
 import org.jetbrains.kotlin.analysis.api.types.KaType
 import org.jetbrains.kotlin.asJava.toLightElements
@@ -148,6 +144,14 @@ internal class KaCodebaseAssembler(
      */
     fun findClassInModule(finder: JavaPsiFacade, qualifiedName: String): PsiClass? {
         return analyze(mainModule) { finder.findClass(qualifiedName, analysisScope) }
+    }
+
+    /**
+     * Analyzes the [classItem] to find any Kotlin properties (which can't be found through the psi
+     * directly) and add them to the class definition.
+     */
+    fun addPropertiesToClassFromClasspath(classItem: SkeletonClassItem) {
+        mainModuleProcessor.addPropertiesToClassFromClasspath(classItem)
     }
 
     companion object {
@@ -229,6 +233,7 @@ private constructor(
             codebase,
             this,
             TypeParameterScope.empty,
+            addingToPsiCodebase,
         )
     private val kaValueFactory = KaValueFactory(this, kaTypeItemFactory)
     private val kaModifierFactory = KaModifierFactory(this)
@@ -386,7 +391,7 @@ private constructor(
                     findOrCreateFacadeClass(packageItem)
                 }
             val classTypeItemFactory =
-                KaTypeItemFactory(codebase, this@KaModuleProcessor, classItem)
+                KaTypeItemFactory(codebase, this@KaModuleProcessor, classItem, addingToPsiCodebase)
             processCallable(callableSymbol, classItem, classTypeItemFactory)
         }
     }
@@ -395,9 +400,9 @@ private constructor(
     private fun KaSession.processNamedClass(
         classifierSymbol: KaNamedClassSymbol,
         containingPackage: PackageItem,
-        containingClass: DefaultClassItem? = null,
+        containingClass: SkeletonClassItem? = null,
         processIfClasspath: Boolean = false,
-    ): DefaultClassItem? {
+    ): SkeletonClassItem? {
         // When adding to a psi codebase, skip Java classes as they won't be kotlin-only.
         if (addingToPsiCodebase && classifierSymbol.psi?.isKotlin() == false) return null
         // Skip classes loaded from the classpath.
@@ -422,6 +427,7 @@ private constructor(
                 codebase,
                 this@KaModuleProcessor,
                 classItem,
+                addingToPsiCodebase,
             )
 
         // The combined declared member scope contains both static and non-static members.
@@ -463,9 +469,9 @@ private constructor(
     private fun KaSession.findOrCreateClass(
         classifierSymbol: KaNamedClassSymbol,
         containingPackage: PackageItem,
-        containingClass: DefaultClassItem?,
+        containingClass: ClassItem?,
         qualifiedName: String,
-    ): DefaultClassItem {
+    ): SkeletonClassItem {
         codebase.findClassInCodebase(qualifiedName)?.let {
             return it
         }
@@ -473,8 +479,10 @@ private constructor(
         // If this is a nested class, nest the type item factory in scope of the outer class,
         // otherwise use the default factory for the codebase.
         val enclosingTypeItemFactory =
-            containingClass?.let { KaTypeItemFactory(codebase, this@KaModuleProcessor, it) }
-                ?: kaTypeItemFactory
+            containingClass?.let {
+                KaTypeItemFactory(codebase, this@KaModuleProcessor, it, addingToPsiCodebase)
+            } ?: kaTypeItemFactory
+
         val typeParameterListAndFactory =
             typeParameterListAndFactory(
                 enclosingTypeItemFactory,
@@ -558,7 +566,7 @@ private constructor(
      * Facade classes are only created for the JVM, but in order to support top level functions and
      * properties in the [Codebase] model this creates a fake class to hold the package-level items.
      */
-    private fun findOrCreateFacadeClass(containingPackage: PackageItem): DefaultClassItem {
+    private fun findOrCreateFacadeClass(containingPackage: PackageItem): SkeletonClassItem {
         // Create a fake class name to contain the top level items.
         val qualifiedName = containingPackage.qualifiedName() + ".\$TopLevelDeclarations"
         codebase.findClassInCodebase(qualifiedName)?.let {
@@ -585,11 +593,11 @@ private constructor(
         return classItem
     }
 
-    /** Creates a [DefaultClassItem] of kind type alias from the [typeAlias]. */
+    /** Creates a [ClassItem] of kind type alias from the [typeAlias]. */
     private fun processTypeAlias(
         typeAlias: KaTypeAliasSymbol,
         containingPackage: PackageItem
-    ): DefaultClassItem? {
+    ): ClassItem? {
         val qualifiedName = typeAlias.classId?.asFqNameString() ?: return null
         val typeParameterListAndFactory =
             typeParameterListAndFactory(
@@ -640,7 +648,7 @@ private constructor(
      */
     private fun KaSession.processConstructor(
         constructorSymbol: KaConstructorSymbol,
-        containingClass: DefaultClassItem,
+        containingClass: SkeletonClassItem,
         enclosingTypeItemFactory: KaTypeItemFactory,
     ) {
         if (!shouldGenerateConstructor(constructorSymbol, containingClass)) return
@@ -687,13 +695,12 @@ private constructor(
     /** Processes a [KaCallableSymbol], which could be a property or function. */
     private fun KaSession.processCallable(
         callableSymbol: KaCallableSymbol,
-        containingClass: DefaultClassItem,
+        containingClass: SkeletonClassItem,
         enclosingTypeItemFactory: KaTypeItemFactory,
     ) {
         // Skip callables loaded from the classpath.
         if (callableSymbol.origin == KaSymbolOrigin.LIBRARY) return
-        // TODO(b/421201575): currently, private properties need to be processed in order to reset
-        //  the visibility of the property accessors due to a uast bug for value class types
+        if (callableSymbol.visibility == KaSymbolVisibility.PRIVATE) return
 
         when (callableSymbol) {
             is KaPropertySymbol ->
@@ -755,7 +762,7 @@ private constructor(
     /** Constructs a method from the [functionSymbol] and adds it to the [containingClass]. */
     private fun KaSession.processFunction(
         functionSymbol: KaNamedFunctionSymbol,
-        containingClass: DefaultClassItem,
+        containingClass: SkeletonClassItem,
         enclosingTypeItemFactory: KaTypeItemFactory
     ) {
         if (!shouldGenerateMethod(functionSymbol)) return
@@ -768,13 +775,14 @@ private constructor(
                 functionSymbol.typeParameters
             )
 
-        // Create the jvm signature of the method: in addition to the regular parameters, if this is
-        // an extension function a parameter is added for the receiver, and if this is a suspend
-        // function a parameter is added for the continuation.
+        // Create the jvm signature of the method (which is used when adding to a psi codebase): in
+        // addition to the regular parameters, if this is an extension function a parameter is added
+        // for the receiver, and if this is a suspend function a parameter is added for the
+        // continuation.
         val parameterCount =
             functionSymbol.valueParameters.size +
                 (if (functionSymbol.receiverParameter != null) 1 else 0) +
-                (if (functionSymbol.isSuspend) 1 else 0)
+                (if (addingToPsiCodebase && functionSymbol.isSuspend) 1 else 0)
         val fingerprint = MethodFingerprint(name, parameterCount)
 
         val originalReturnType =
@@ -784,10 +792,11 @@ private constructor(
                 fingerprint,
                 containingClass.isAnnotationType()
             )
-        // For suspend functions, the jvm signature will have a nullable object return type (the
-        // source return type is used for the generated continuation parameter).
+        // For suspend functions, the jvm signature (which is used when adding to a psi codebase)
+        // will have a nullable object return type (the source return type is used for the generated
+        // continuation parameter).
         val returnType =
-            if (functionSymbol.isSuspend) {
+            if (addingToPsiCodebase && functionSymbol.isSuspend) {
                 typeParameterListAndFactory.factory.createObjectTypeItem()
             } else {
                 originalReturnType
@@ -861,10 +870,38 @@ private constructor(
         containingClass.addMethod(methodItem)
     }
 
+    /**
+     * Finds the symbol corresponding to the [classItem], if one exists, and adds any Kotlin
+     * properties defined for the class.
+     */
+    fun addPropertiesToClassFromClasspath(classItem: SkeletonClassItem) {
+        analyze(kaModule) {
+            // The ClassId format is to have package names separated by slashes instead of dots.
+            val classIdString =
+                classItem.containingPackage().qualifiedName().replace(".", "/") +
+                    "/" +
+                    classItem.fullName()
+            (findClassLike(ClassId.fromString(classIdString)) as? KaNamedClassSymbol)?.let { symbol
+                ->
+                val properties = symbol.memberScope.callables.filterIsInstance<KaPropertySymbol>()
+                val typeItemFactory =
+                    KaTypeItemFactory(
+                        codebase,
+                        this@KaModuleProcessor,
+                        classItem,
+                        addingToPsiCodebase,
+                    )
+                for (property in properties) {
+                    processProperty(property, classItem, typeItemFactory)
+                }
+            }
+        }
+    }
+
     /** Constructs a property from the [propertySymbol] and adds it to the [containingClass]. */
     private fun KaSession.processProperty(
         propertySymbol: KaPropertySymbol,
-        containingClass: DefaultClassItem,
+        containingClass: SkeletonClassItem,
         enclosingTypeItemFactory: KaTypeItemFactory
     ) {
         // Skip creating enum entry properties, which exist for all enums.
@@ -895,34 +932,6 @@ private constructor(
 
         val receiverType = propertySymbol.receiverType?.let { typeFactory.getGeneralType(it) }
 
-        // Private properties currently still need to be processed when they use a value class type
-        // to reset incorrect nullability on the accessors from psi. But other private properties
-        // can be skipped since they aren't part of the API surface.
-        if (
-            propertySymbol.visibility == KaSymbolVisibility.PRIVATE &&
-                !type.isValueClassType() &&
-                receiverType?.isValueClassType() != true
-        )
-            return
-
-        // To find the accessors of the property, use the inlined type if this property has a value
-        // class type. This is needed for now because the property accessors are being created with
-        // psi, which inlines the type.
-        val typeForAccessor = typeFactory.inlineTypeIfNeeded(propertySymbol.returnType, type)
-        val possiblyInlinedReceiverType =
-            receiverType?.let {
-                typeFactory.inlineTypeIfNeeded(propertySymbol.receiverType!!, receiverType)
-            }
-        // Similar to above, but due to b/385148821, if a property is an extension on a value class
-        // type or is deprecated level hidden, the psi accessors drop the receiver entirely, so only
-        // use the receiver type to find accessors if it is not a value class type or hidden.
-        val receiverTypeForAccessor =
-            if (receiverType?.isValueClassType() == true || propertySymbol.isDeprecatedHidden()) {
-                null
-            } else {
-                possiblyInlinedReceiverType
-            }
-
         val getter =
             propertySymbol.getter?.let {
                 // javaGetterName does not work for annotation property accessors, which should have
@@ -934,10 +943,13 @@ private constructor(
                         @OptIn(KaExperimentalApi::class) propertySymbol.javaGetterName.identifier
                     }
                 findAccessor(
+                    propertySymbol,
+                    it,
+                    typeFactory,
                     getterName,
                     containingClass,
-                    typeForAccessor,
-                    receiverTypeForAccessor,
+                    type,
+                    receiverType,
                     isGetter = true,
                     it.visibility,
                 )
@@ -945,10 +957,13 @@ private constructor(
         val setter =
             propertySymbol.setter?.let {
                 findAccessor(
+                    propertySymbol,
+                    it,
+                    typeFactory,
                     @OptIn(KaExperimentalApi::class) propertySymbol.javaSetterName!!.identifier,
                     containingClass,
-                    typeForAccessor,
-                    receiverTypeForAccessor,
+                    type,
+                    receiverType,
                     isGetter = false,
                     it.visibility,
                 )
@@ -964,7 +979,7 @@ private constructor(
                     } else {
                         containingClass
                     }
-                classWithField.findField(propertySymbol.name.identifier) as? PsiFieldItem
+                classWithField.findField(propertySymbol.name.identifier)
             } else {
                 null
             }
@@ -980,7 +995,6 @@ private constructor(
                     .maxByOrNull { it.parameters().size }
                     ?.parameters()
                     ?.firstOrNull { it.name() == propertySymbol.name.identifier }
-                    as? DefaultParameterItem
             } else {
                 null
             }
@@ -1005,6 +1019,8 @@ private constructor(
                 backingField = backingField,
                 receiver = receiverType,
                 typeParameterList = typeParameterListAndFactory.typeParameterList,
+                setterVisibility =
+                    propertySymbol.setter?.let { kaModifierFactory.getVisibilityLevel(it) }
             )
         getter?.property = propertyItem
         setter?.property = propertyItem
@@ -1072,9 +1088,10 @@ private constructor(
                 )
             }
 
-        // If this is a suspend function, there is an extra continuation parameter added to the end.
+        // If this is a suspend function, there is an extra continuation parameter added to the end
+        // for the jvm signature (which is used when adding to a psi codebase).
         val continuationParameter =
-            if (isSuspend) {
+            if (addingToPsiCodebase && isSuspend) {
                 val index = regularParameters.size + (receiverParameter?.let { 1 } ?: 0)
                 itemFactory.createParameterItem(
                     fileLocation = FileLocation.UNKNOWN,
@@ -1134,7 +1151,7 @@ private constructor(
     /** Creates documentation for the symbol through psi, if possible. */
     private fun KaSymbol.getDocumentation(): ItemDocumentationFactory {
         return psiCodebase?.let { psiCodebase ->
-            psi?.let { psi -> PsiItemDocumentation.factory(psi, psiCodebase) }
+            psi?.let { psi -> psi.createItemDocumentation(psiCodebase) }
         } ?: ItemDocumentation.NONE_FACTORY
     }
 
@@ -1143,22 +1160,45 @@ private constructor(
      * [propertyType] and [receiverType].
      */
     private fun findAccessor(
+        property: KaPropertySymbol,
+        accessor: KaPropertyAccessorSymbol,
+        typeItemFactory: KaTypeItemFactory,
         name: String,
         containingClass: ClassItem,
         propertyType: TypeItem,
         receiverType: TypeItem?,
         isGetter: Boolean,
         visibility: KaSymbolVisibility,
-    ): PsiMethodItem? {
+    ): MethodItem? {
+        // Generally, properties using a value class type cannot be accessed from Java. However, if
+        // JvmName is used, they can be, but the inlined type needs to be used to find the accessor
+        // instead of the value class type.
+        val (possiblyInlinedPropertyType, possiblyInlinedReceiverType) =
+            if (propertyType.isValueClassType || receiverType?.isValueClassType == true) {
+                if (accessor.annotations.any { it.classId?.asFqNameString() == JVM_NAME }) {
+                    typeItemFactory.inlineTypeIfNeeded(property.returnType, propertyType) to
+                        receiverType?.let {
+                            typeItemFactory.inlineTypeIfNeeded(
+                                property.receiverType!!,
+                                receiverType
+                            )
+                        }
+                } else {
+                    return null
+                }
+            } else {
+                propertyType to receiverType
+            }
+
         val parameters =
             listOfNotNull(
                     // Both the getter and setter have the receiver as the first parameter
-                    receiverType,
+                    possiblyInlinedReceiverType,
                     // The setter also has the property type as a parameter
                     if (isGetter) {
                         null
                     } else {
-                        propertyType
+                        possiblyInlinedPropertyType
                     }
                 )
                 // Compare types by erased string to work around differences like `List<String>` vs
@@ -1171,12 +1211,9 @@ private constructor(
             (methodItem.name() == name ||
                 (visibility == KaSymbolVisibility.INTERNAL &&
                     methodItem.name().startsWith("$name\$"))) &&
-                methodItem.isKotlinProperty() &&
-                // Due to value class type inlining, some accessors might end up with identical
-                // signatures. Pick one for each matching property.
-                methodItem.property == null &&
+                methodItem.isKotlinProperty &&
                 methodItem.parameters().map { it.type().toErasedTypeString() } == parameters
-        } as? PsiMethodItem
+        }
     }
 
     /**
@@ -1188,8 +1225,7 @@ private constructor(
         scopeDescription: String,
         typeParameterSymbols: List<KaTypeParameterSymbol>,
     ): TypeParameterListAndFactory<KaTypeItemFactory> {
-        return DefaultTypeParameterList.createTypeParameterItemsAndFactory(
-            enclosingTypeItemFactory,
+        return enclosingTypeItemFactory.createTypeParameterItemsAndFactory(
             scopeDescription,
             typeParameterSymbols,
             // Construct type parameter items from the symbols

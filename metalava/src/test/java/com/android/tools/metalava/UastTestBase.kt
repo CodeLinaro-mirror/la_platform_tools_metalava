@@ -1391,7 +1391,7 @@ abstract class UastTestBase : DriverTest() {
                   @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention.SOURCE) @kotlin.annotation.Target(allowedTargets=kotlin.annotation.AnnotationTarget.ANNOTATION_CLASS) public @interface MyIntDef {
                     ctor @KotlinOnly public MyIntDef(optional int... value, optional boolean flag);
                     method @InaccessibleFromKotlin public abstract boolean flag() default false;
-                    method @InaccessibleFromKotlin public abstract int[] value();
+                    method @InaccessibleFromKotlin public abstract int[] value() default {};
                     property public abstract boolean flag;
                     property public abstract int[] value;
                   }

@@ -16,18 +16,22 @@
 
 package com.android.tools.metalava.model.source.javadoc
 
+import com.android.tools.metalava.model.FieldItem
+import com.android.tools.metalava.model.InvalidReferencableItem
+import com.android.tools.metalava.model.ReferencableItem
+import com.android.tools.metalava.model.scope.NameClassification
+import com.android.tools.metalava.model.value.StringValue
 import com.android.tools.metalava.model.value.Value
 import com.android.tools.metalava.reporter.Issues
 
 /** Context that is made available when evaluating [Expr]. */
 internal interface ExprContext {
     /**
-     * Check to see whether the flag referenced by [flagFieldReference] is enabled.
+     * Check to see whether the flag called [flagName] is enabled.
      *
-     * @param flagFieldReference is a reference to a constant field that contains the name of the
-     *   flag. The reference must be formatted as a normal reference in the code would be.
+     * @param flagName is the name of the flag.
      */
-    fun isFlagEnabled(flagFieldReference: String): Boolean
+    fun isFlagEnabled(flagName: String): Boolean
 }
 
 /** An expression that can be used with a Javadoc conditional expression. */
@@ -45,18 +49,32 @@ internal interface Expr {
 /**
  * The `flag(...)` function call.
  *
- * @param flagFieldReference the reference to the flag field that can be passed to
- *   [ExprContext.isFlagEnabled].
+ * @param flagName the optional flag name, if `null` then this always evaluates to `false`
  */
-internal class FlagFunctionCall(private val flagFieldReference: String) : Expr {
-    override fun evaluate(context: ExprContext): Boolean {
-        return context.isFlagEnabled(flagFieldReference)
-    }
+internal class FlagFunctionCall(private val flagName: String?) : Expr {
+    override fun evaluate(context: ExprContext) =
+        if (flagName == null) false else context.isFlagEnabled(flagName)
+}
+
+/** Context that is made available when building [Expr]. */
+internal interface ExprBuilderContext {
+    /**
+     * Resolve [sourceReference] as if it was a possibly qualified reference in the source, e.g.
+     * `System.out` to a [ReferencableItem].
+     *
+     * Returns an [InvalidReferencableItem] if it could not be resolved.
+     */
+    fun resolveItemReference(
+        sourceReference: String,
+        nameClassification: NameClassification
+    ): ReferencableItem
 }
 
 /** Builds [Expr] instances. */
-internal class ExprBuilder(private val reporter: TokenIssueReporter) :
-    AntlrJavadocParserBaseVisitor<Expr>() {
+internal class ExprBuilder(
+    private val context: ExprBuilderContext,
+    private val reporter: TokenIssueReporter,
+) : AntlrJavadocParserBaseVisitor<Expr>() {
 
     /** Build an [Expr] from [ctx]. */
     fun buildExpr(ctx: AntlrJavadocParser.ExprContext): Expr {
@@ -72,8 +90,64 @@ internal class ExprBuilder(private val reporter: TokenIssueReporter) :
                 Issues.INVALID_JAVADOC_EXPR,
                 "unknown function '$name', expected 'flag'"
             )
+
+            // Return an expr that always evaluates to false.
+            return FlagFunctionCall(null)
         }
-        val field = ctx.fieldReference().text.replace(Regex("""\s+"""), "")
-        return FlagFunctionCall(field)
+
+        // Get the context for the flag field reference.
+        val fieldReferenceContext = ctx.fieldReference()
+
+        // Get the field reference, removing any white space.
+        val fieldReference = fieldReferenceContext.text.replace(Regex("""\s+"""), "")
+
+        // Resolve the field reference.
+        val resolved = context.resolveItemReference(fieldReference, NameClassification.FIELD)
+
+        // Get the Token to use for reporting errors in the flag reference.
+        val fieldSymbol = fieldReferenceContext.IDENTIFIER(0).symbol
+
+        // Determine the flag name, use `null` if no name could be determined.
+        val flagName =
+            when (resolved) {
+                is FieldItem -> {
+                    // Check the constant value.
+                    val value = resolved.constantValue
+                    when (value) {
+                        is StringValue -> value.underlyingValue
+                        else -> {
+                            when (value) {
+                                null -> {
+                                    reporter.report(
+                                        fieldSymbol,
+                                        Issues.INVALID_JAVADOC_EXPR,
+                                        "invalid flag field '$fieldReference', it does not have a constant value"
+                                    )
+                                }
+                                else -> {
+                                    reporter.report(
+                                        fieldSymbol,
+                                        Issues.INVALID_JAVADOC_EXPR,
+                                        "invalid flag field '$fieldReference', expected a string value, found ${value.toValueString()} of type ${value.kind}"
+                                    )
+                                }
+                            }
+                            null
+                        }
+                    }
+                }
+                // Did not find any item.
+                is InvalidReferencableItem -> {
+                    reporter.report(fieldSymbol, Issues.INVALID_JAVADOC_EXPR, resolved.message)
+                    null
+                }
+                // This should never happen as passing in NameClassification.FIELD above should
+                // limit the returned types to FieldItem or InvalidReferencableItem
+                else -> error("type '$fieldReference' was resolved to an unknown type $resolved")
+            }
+
+        // Create the flag function call expression. If `flagName` is `null` then this will always
+        // evaluate to false.
+        return FlagFunctionCall(flagName)
     }
 }

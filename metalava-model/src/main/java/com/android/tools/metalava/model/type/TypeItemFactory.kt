@@ -19,12 +19,15 @@ package com.android.tools.metalava.model.type
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.BoundsTypeItem
 import com.android.tools.metalava.model.ClassTypeItem
+import com.android.tools.metalava.model.DefaultTypeParameterList
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PrimitiveTypeItem
+import com.android.tools.metalava.model.SkeletonTypeParameterItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterItem
+import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.WildcardTypeItem
 import com.android.tools.metalava.model.typeNullability
@@ -414,4 +417,62 @@ abstract class DefaultTypeItemFactory<in T, F : DefaultTypeItemFactory<T, F>>(
             }
         }
     }
+
+    /**
+     * Create a list of [TypeParameterItem] and a corresponding [TypeItemFactory] from model
+     * specific parameter and bounds information within this [TypeItemFactory].
+     *
+     * A type parameter list can contain cycles between its type parameters, e.g.
+     *
+     *     class Node<L extends Node<L, R>, R extends Node<L, R>>
+     *
+     * Parsing that requires a multi-stage approach.
+     * 1. Separate the list into a mapping from `TypeParameterItem` that have not yet had their
+     *    `bounds` property initialized to the model specific parameter.
+     * 2. Create a nested factory of the enclosing factory which includes the type parameters. That
+     *    will allow references between them to be resolved.
+     * 3. Complete the initialization by converting each bounds string into a TypeItem.
+     *
+     * @param scopeDescription the description of the scope that will be created by the factory.
+     * @param inputParams a list of the model specific type parameters.
+     * @param paramFactory a function that will create a [TypeParameterItem] from the model
+     *   specified parameter [P].
+     * @param boundsGetter a function that will create a list of [BoundsTypeItem] from the model
+     *   specific bounds which will be stored in [SkeletonTypeParameterItem.bounds].
+     * @param P the type of the underlying model specific type parameter objects.
+     */
+    fun <P> createTypeParameterItemsAndFactory(
+        scopeDescription: String,
+        inputParams: List<P>,
+        paramFactory: (P) -> SkeletonTypeParameterItem,
+        boundsGetter: (F, P) -> List<BoundsTypeItem>,
+    ): TypeParameterListAndFactory<F> {
+        // First, create a Map from [TypeParameterItem] to the model specific parameter. Using
+        // the [paramFactory] to convert the model specific parameter to a [TypeParameterItem].
+        val typeParameterItemToBounds = inputParams.associateBy { param -> paramFactory(param) }
+
+        // Then, create a [TypeItemFactory] for this list of type parameters.
+        val typeParameters = typeParameterItemToBounds.keys.toList()
+        val typeItemFactory = nestedFactory(scopeDescription, typeParameters)
+
+        // Then, create and set the bounds in the [TypeParameterItem] passing in the
+        // [TypeItemFactory] to allow cross-references to type parameters to be resolved.
+        for ((typeParameter, param) in typeParameterItemToBounds) {
+            val boundsTypeItems = boundsGetter(typeItemFactory, param)
+            typeParameter.bounds = boundsTypeItems
+        }
+
+        // Pair the list up with the [TypeItemFactory] so that the latter can be reused.
+        val typeParameterList = DefaultTypeParameterList(typeParameters)
+        return TypeParameterListAndFactory(typeParameterList, typeItemFactory)
+    }
 }
+
+/**
+ * Group up [typeParameterList] and the [factory] that was used to resolve references when creating
+ * their [com.android.tools.metalava.model.BoundsTypeItem]s.
+ */
+data class TypeParameterListAndFactory<F : TypeItemFactory<*, F>>(
+    val typeParameterList: TypeParameterList,
+    val factory: F,
+)

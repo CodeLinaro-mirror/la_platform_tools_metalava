@@ -21,11 +21,12 @@ import com.android.tools.metalava.model.BoundsTypeItem
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
+import com.android.tools.metalava.model.ClassOrVariableTypeItem
 import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.ConstructorItem
-import com.android.tools.metalava.model.DefaultTypeParameterList
-import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.ItemDocumentationFactory
+import com.android.tools.metalava.model.ItemKind
+import com.android.tools.metalava.model.ModifierFlags
 import com.android.tools.metalava.model.ModifierFlags.Companion.ABSTRACT
 import com.android.tools.metalava.model.ModifierFlags.Companion.DEFAULT
 import com.android.tools.metalava.model.ModifierFlags.Companion.FINAL
@@ -42,15 +43,16 @@ import com.android.tools.metalava.model.ModifierFlags.Companion.VARARG
 import com.android.tools.metalava.model.ModifierFlags.Companion.VOLATILE
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.SkeletonClassItem
+import com.android.tools.metalava.model.SkeletonTypeParameterItem
+import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
-import com.android.tools.metalava.model.TypeParameterListAndFactory
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.addDefaultRetentionPolicyAnnotation
 import com.android.tools.metalava.model.createMutableModifiers
 import com.android.tools.metalava.model.hasAnnotation
-import com.android.tools.metalava.model.item.DefaultClassItem
-import com.android.tools.metalava.model.item.DefaultTypeParameterItem
 import com.android.tools.metalava.model.type.MethodFingerprint
+import com.android.tools.metalava.model.type.TypeParameterListAndFactory
 import com.android.tools.metalava.model.value.ValueUseSite
 import com.android.tools.metalava.reporter.FileLocation
 import com.google.common.collect.ImmutableList
@@ -83,43 +85,36 @@ import kotlin.jvm.optionals.getOrNull
  * @param globalContext provides access to various pieces of data that apply across all classes.
  * @param classSymbol the unique identifier for the [TypeBoundClass].
  * @param typeBoundClass the definition of the class as recorded by Turbine.
+ * @param origin the [ClassOrigin] of the class.
  */
 internal class TurbineClassBuilder(
     private val globalContext: TurbineGlobalContext,
     private val classSymbol: ClassSymbol,
     private val typeBoundClass: TypeBoundClass,
+    private val origin: ClassOrigin,
 ) : TurbineGlobalContext by globalContext {
     /** The [SourceTypeBoundClass] if this is a source class. */
     private val sourceTypeBoundClass = typeBoundClass as? SourceTypeBoundClass
 
-    /**
-     * The [TurbineFieldResolver] used for resolving [Tree.ConstVarName] to
-     * [TypeBoundClass.FieldInfo].
-     */
-    private var fieldResolver: TurbineFieldResolver?
-
-    init {
-        if (sourceTypeBoundClass == null) {
-            // Only source classes need to resolve fields.
-            fieldResolver = null
-        } else {
-            // Source files need
-            fieldResolver = createFieldResolver(classSymbol, sourceTypeBoundClass)
-        }
-    }
+    /** The [FieldResolver] used for resolving [Tree.ConstVarName] to [TypeBoundClass.FieldInfo]. */
+    private var fieldResolver = createFieldResolver(classSymbol, typeBoundClass)
 
     /**
      * Create a [ClassItem] for the [classSymbol]/[typeBoundClass] pair.
      *
-     * @param containingClassItem the containing [DefaultClassItem] to which the created [ClassItem]
-     *   will belong, if any.
+     * The parameters are on this method rather than the [TurbineClassBuilder] constructor because
+     * these only apply to the [ClassItem] that this builds, not to all the members or the nested
+     * classes. Adding these as constructor properties would confuse that code and possibly lead to
+     * errors if the wrong instance was used.
+     *
+     * @param containingClassItem the containing [ClassItem] to which the created [ClassItem] will
+     *   belong, if any.
      * @param enclosingClassTypeItemFactory the [TurbineTypeItemFactory] that is used to create
      *   [TypeItem]s and tracks the in scope type parameters.
      */
     internal fun createClass(
-        containingClassItem: DefaultClassItem?,
+        containingClassItem: ClassItem?,
         enclosingClassTypeItemFactory: TurbineTypeItemFactory,
-        origin: ClassOrigin,
     ): ClassItem {
         val decl = sourceTypeBoundClass?.decl()
 
@@ -144,6 +139,7 @@ internal class TurbineClassBuilder(
         val qualifiedName = classSymbol.qualifiedName
         val modifierItem =
             createModifiers(
+                ItemKind.CLASS,
                 typeBoundClass.access(),
                 typeBoundClass.annotations(),
             )
@@ -215,7 +211,12 @@ internal class TurbineClassBuilder(
         return classItem
     }
 
-    private fun createModifiers(flag: Int, annoInfos: List<AnnoInfo>): MutableModifierList {
+    /** Create modifiers for [itemKind] from the set of access flags [flag] and [annoInfos]. */
+    private fun createModifiers(
+        itemKind: ItemKind,
+        flag: Int,
+        annoInfos: List<AnnoInfo>
+    ): MutableModifierList {
         val annotations = annotationFactory.createAnnotations(annoInfos, fieldResolver)
         val modifierItem =
             when (flag) {
@@ -226,7 +227,7 @@ internal class TurbineClassBuilder(
                     )
                 }
                 else -> {
-                    createMutableModifiers(computeFlag(flag), annotations)
+                    createMutableModifiers(computeFlag(itemKind, flag), annotations)
                 }
             }
         modifierItem.setDeprecated(isDeprecated(annotations))
@@ -234,9 +235,10 @@ internal class TurbineClassBuilder(
     }
 
     /**
-     * Given flag value corresponding to Turbine modifiers compute the equivalent flag in Metalava.
+     * Given flag value corresponding to Turbine modifiers compute the equivalent [ModifierFlags]
+     * suitable for [itemKind].
      */
-    private fun computeFlag(flag: Int): Int {
+    private fun computeFlag(itemKind: ItemKind, flag: Int): Int {
         // If no visibility flag is provided, result remains 0, implying a 'package-private' default
         // state.
         var result = 0
@@ -286,6 +288,14 @@ internal class TurbineClassBuilder(
             result = result or PROTECTED
         }
 
+        // Remove any flags that are not appropriate for itemKind. This is needed as there are some
+        // overlaps between the TurbineFlag settings. e.g. TurbineFlag.ACC_TRANSIENT and
+        // TurbineFlag.ACC_VARARGS have the same value so they will always cause
+        // ModifierFlags.TRANSIENT and ModifierFlags.VARARG to be added. This removes them. The
+        // alternative is to check before adding the ModifierFlags whether it is appropriate for
+        // the itemKind but this seems more efficient and simpler.
+        result = itemKind.normalizeJavaFlags(result)
+
         return result
     }
 
@@ -315,8 +325,7 @@ internal class TurbineClassBuilder(
             )
 
         // Create a list of [TypeParameterItem]s from turbine specific classes.
-        return DefaultTypeParameterList.createTypeParameterItemsAndFactory(
-            enclosingClassTypeItemFactory,
+        return enclosingClassTypeItemFactory.createTypeParameterItemsAndFactory(
             description,
             tyParams.toList(),
             { (sym, tyParam) -> createTypeParameter(sym, tyParam) },
@@ -325,12 +334,12 @@ internal class TurbineClassBuilder(
     }
 
     /**
-     * Create the [DefaultTypeParameterItem] without any bounds and register it so that any uses of
+     * Create the [SkeletonTypeParameterItem] without any bounds and register it so that any uses of
      * it within the type bounds, e.g. `<E extends Enum<E>>`, or from other type parameters within
      * the same [TypeParameterList] can be resolved.
      */
-    private fun createTypeParameter(sym: TyVarSymbol, param: TyVarInfo): DefaultTypeParameterItem {
-        val modifiers = createModifiers(0, param.annotations())
+    private fun createTypeParameter(sym: TyVarSymbol, param: TyVarInfo): SkeletonTypeParameterItem {
+        val modifiers = createModifiers(ItemKind.TYPE_PARAMETER, 0, param.annotations())
         val typeParamItem =
             itemFactory.createTypeParameterItem(
                 modifiers,
@@ -341,7 +350,7 @@ internal class TurbineClassBuilder(
         return typeParamItem
     }
 
-    /** Create the bounds of a [DefaultTypeParameterItem]. */
+    /** Create the bounds of a [SkeletonTypeParameterItem]. */
     private fun createTypeParameterBounds(
         param: TyVarInfo,
         typeItemFactory: TurbineTypeItemFactory,
@@ -357,29 +366,31 @@ internal class TurbineClassBuilder(
 
     /** This method sets up the nested class hierarchy. */
     private fun createNestedClasses(
-        classItem: DefaultClassItem,
+        classItem: SkeletonClassItem,
         nestedClasses: ImmutableList<ClassSymbol>,
         enclosingClassTypeItemFactory: TurbineTypeItemFactory,
     ) {
         for (nestedClassSymbol in nestedClasses) {
-            val nestedTypeBoundClass = typeBoundClassForSymbol(nestedClassSymbol)
+            val nestedTypeBoundClass =
+                typeBoundClassForSymbol(nestedClassSymbol)
+                    ?: error("Cannot find type bound class for nested class $nestedClassSymbol")
             val nestedClassBuilder =
                 TurbineClassBuilder(
                     globalContext = globalContext,
                     classSymbol = nestedClassSymbol,
                     typeBoundClass = nestedTypeBoundClass,
+                    origin = origin,
                 )
             nestedClassBuilder.createClass(
                 containingClassItem = classItem,
                 enclosingClassTypeItemFactory = enclosingClassTypeItemFactory,
-                origin = classItem.origin,
             )
         }
     }
 
     /** This method creates and sets the fields of a class */
     private fun createFields(
-        classItem: DefaultClassItem,
+        classItem: SkeletonClassItem,
         fields: ImmutableList<FieldInfo>,
         typeItemFactory: TurbineTypeItemFactory,
     ) {
@@ -388,6 +399,7 @@ internal class TurbineClassBuilder(
             val decl = field.decl()
             val fieldModifierItem =
                 createModifiers(
+                    ItemKind.FIELD,
                     flags,
                     field.annotations(),
                 )
@@ -434,7 +446,7 @@ internal class TurbineClassBuilder(
     }
 
     private fun createMethods(
-        classItem: DefaultClassItem,
+        classItem: SkeletonClassItem,
         methods: List<MethodInfo>,
         enclosingClassTypeItemFactory: TurbineTypeItemFactory,
     ) {
@@ -445,9 +457,16 @@ internal class TurbineClassBuilder(
             val decl: MethDecl? = method.decl()
             val methodModifierItem =
                 createModifiers(
+                    ItemKind.METHOD,
                     method.access(),
                     method.annotations(),
                 )
+
+            // Final modifier is superfluous on a method in a final class.
+            if (methodModifierItem.isFinal() && classItem.modifiers.isFinal()) {
+                methodModifierItem.setFinal(false)
+            }
+
             val name = method.name()
             val (typeParams, methodTypeItemFactory) =
                 createTypeParameters(
@@ -525,7 +544,8 @@ internal class TurbineClassBuilder(
             for (parameter in parameters) {
                 if (ignoreSynthetic && parameter.synthetic()) continue
                 val parameterModifierItem =
-                    createModifiers(parameter.access(), parameter.annotations()).toImmutable()
+                    createModifiers(ItemKind.PARAMETER, parameter.access(), parameter.annotations())
+                        .toImmutable()
                 val type =
                     typeItemFactory.getMethodParameterType(
                         underlyingParameterType = parameter.type(),
@@ -563,7 +583,7 @@ internal class TurbineClassBuilder(
     }
 
     private fun createConstructors(
-        classItem: DefaultClassItem,
+        classItem: SkeletonClassItem,
         methods: List<MethodInfo>,
         enclosingClassTypeItemFactory: TurbineTypeItemFactory,
     ) {
@@ -574,6 +594,7 @@ internal class TurbineClassBuilder(
             val decl: MethDecl? = constructor.decl()
             val constructorModifierItem =
                 createModifiers(
+                    ItemKind.CONSTRUCTOR,
                     constructor.access(),
                     constructor.annotations(),
                 )
@@ -618,9 +639,14 @@ internal class TurbineClassBuilder(
     private fun getThrowsList(
         throwsTypes: List<Type>,
         enclosingTypeItemFactory: TurbineTypeItemFactory
-    ): List<ExceptionTypeItem> {
-        return throwsTypes.map { type -> enclosingTypeItemFactory.getExceptionType(type) }
-    }
+    ) =
+        throwsTypes
+            .map { type -> enclosingTypeItemFactory.getExceptionType(type) }
+            // We're sorting the names here even though outputs typically do their own sorting,
+            // since for example the MethodItem.sameSignature check wants to do an
+            // element-by-element comparison to see if the signature matches, and that should match
+            // overrides even if they specify their elements in different orders.
+            .sortedWith(ClassOrVariableTypeItem.fullNameComparator)
 
     /** Get an [ItemDocumentationFactory] for [decl] in [classItem]. */
     private fun itemDocumentationFactoryForDecl(classItem: ClassItem, decl: Tree?) =

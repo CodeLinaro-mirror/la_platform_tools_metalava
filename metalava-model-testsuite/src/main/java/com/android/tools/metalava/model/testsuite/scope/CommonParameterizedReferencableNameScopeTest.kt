@@ -17,8 +17,11 @@
 package com.android.tools.metalava.model.testsuite.scope
 
 import com.android.tools.metalava.model.Assertions
+import com.android.tools.metalava.model.InvalidReferencableItem
 import com.android.tools.metalava.model.ReferencableItem
+import com.android.tools.metalava.model.ReferencableMethodSet
 import com.android.tools.metalava.model.provider.Capability
+import com.android.tools.metalava.model.scope.NameClassification
 import com.android.tools.metalava.model.scope.ReferencableNameScope
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.testsuite.BaseModelTest
@@ -27,7 +30,8 @@ import com.android.tools.metalava.testing.EntryPoint
 import com.android.tools.metalava.testing.EntryPointCallerRule
 import com.android.tools.metalava.testing.EntryPointCallerTracker
 import com.android.tools.metalava.testing.java
-import kotlin.test.assertSame
+import kotlin.test.assertEquals
+import kotlin.test.assertIs
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runners.Parameterized
@@ -53,10 +57,19 @@ class CommonParameterizedReferencableNameScopeTest : BaseModelTest() {
         /** The name to resolve. */
         val referencableName: String,
         /**
+         * The [NameClassification] of [referencableName] for which the [expectedErrorMessage] is
+         * provided.
+         */
+        val nameClassification: NameClassification = NameClassification.AMBIGUOUS,
+        /**
          * Getter for the expected [ReferencableItem] to which [referencableName] name will be
          * resolved.
          */
         val expectedItemGetter: CodebaseContext.() -> ReferencableItem?,
+        /**
+         * The expected error message; should only be set if [expectedItemGetter] returns `null`.
+         */
+        val expectedErrorMessage: String? = "",
     ) {
         /**
          * Record the stack trace of the creation of this which can be used to provide a stack trace
@@ -83,7 +96,8 @@ class CommonParameterizedReferencableNameScopeTest : BaseModelTest() {
                     name = "PackageItem - not relative package",
                     scopeGetter = { codebase.assertResolvedPackage("java.lang") },
                     referencableName = "annotation",
-                    expectedItemGetter = { null }
+                    expectedItemGetter = { null },
+                    expectedErrorMessage = "Could not resolve 'annotation' in 'package java.lang'",
                 ),
                 TestParams(
                     name = "PackageItem - absolute class",
@@ -97,6 +111,29 @@ class CommonParameterizedReferencableNameScopeTest : BaseModelTest() {
                     referencableName = "java.util",
                     expectedItemGetter = { codebase.assertResolvedPackage("java.util") }
                 ),
+                TestParams(
+                    name = "PackageItem - implicit java.lang type",
+                    scopeGetter = { codebase.assertPackage("test.pkg") },
+                    referencableName = "String",
+                    expectedItemGetter = { codebase.assertResolvedClass("java.lang.String") },
+                ),
+                TestParams(
+                    name = "PackageItem - import List",
+                    scopeGetter = { codebase.assertPackage("test.pkg") },
+                    referencableName = "List",
+                    expectedItemGetter = { codebase.assertResolvedClass("java.util.List") },
+                ),
+                TestParams(
+                    name = "PackageItem - using qualified imported name List",
+                    scopeGetter = { codebase.assertPackage("test.pkg") },
+                    // The `List` name is imported into `test/pkg/package-info.java` and must only
+                    // be used when resolving an unqualified name. This makes sure that is correct.
+                    referencableName = "test.pkg.List",
+                    expectedItemGetter = { null },
+                    expectedErrorMessage =
+                        "Could not resolve 'test.pkg.List' as could not find 'List' in 'package test.pkg'",
+                ),
+
                 // SourceFile related tests.
                 TestParams(
                     name = "SourceFile - absolute class",
@@ -105,7 +142,7 @@ class CommonParameterizedReferencableNameScopeTest : BaseModelTest() {
                     expectedItemGetter = { codebase.assertResolvedClass("java.io.IOException") }
                 ),
                 TestParams(
-                    name = "SourceFile - resolve imported",
+                    name = "SourceFile - resolve imported class",
                     imports =
                         """
                             import java.io.IOException;
@@ -115,7 +152,7 @@ class CommonParameterizedReferencableNameScopeTest : BaseModelTest() {
                     expectedItemGetter = { codebase.assertResolvedClass("java.io.IOException") }
                 ),
                 TestParams(
-                    name = "SourceFile - resolve static imported",
+                    name = "SourceFile - resolve static imported class",
                     imports =
                         """
                             import static java.util.Map.Entry;
@@ -123,6 +160,46 @@ class CommonParameterizedReferencableNameScopeTest : BaseModelTest() {
                     scopeGetter = { codebase.assertClass("test.pkg.Test").sourceFile()!! },
                     referencableName = "Entry",
                     expectedItemGetter = { codebase.assertResolvedClass("java.util.Map.Entry") }
+                ),
+                TestParams(
+                    name = "SourceFile - resolve static imported field",
+                    imports =
+                        """
+                            import static java.lang.System.out;
+                        """,
+                    scopeGetter = { codebase.assertClass("test.pkg.Test").sourceFile()!! },
+                    referencableName = "out",
+                    expectedItemGetter = {
+                        codebase.assertResolvedClass("java.lang.System").assertField("out")
+                    }
+                ),
+                TestParams(
+                    name = "SourceFile - resolve imported class as field",
+                    imports =
+                        """
+                            import java.io.IOException;
+                        """,
+                    scopeGetter = { codebase.assertClass("test.pkg.Test").sourceFile()!! },
+                    referencableName = "IOException",
+                    nameClassification = NameClassification.FIELD,
+                    expectedItemGetter = { null },
+                    expectedErrorMessage =
+                        "Expected a field called 'IOException' but found 'class java.io.IOException'",
+                ),
+                TestParams(
+                    name = "SourceFile - resolve static imported method",
+                    imports =
+                        """
+                            import static java.lang.System.getenv;
+                        """,
+                    scopeGetter = { codebase.assertClass("test.pkg.Test") },
+                    referencableName = "getenv",
+                    expectedItemGetter = {
+                        ReferencableMethodSet(
+                            codebase.assertResolvedClass("java.lang.System"),
+                            "getenv"
+                        )
+                    },
                 ),
                 TestParams(
                     name = "SourceFile - resolve class in same file",
@@ -136,10 +213,11 @@ class CommonParameterizedReferencableNameScopeTest : BaseModelTest() {
                     referencableName = "Other",
                     expectedItemGetter = { codebase.assertClass("test.pkg.Other") }
                 ),
+
                 // ClassItem related tests.
                 TestParams(
                     name = "ClassItem - absolute class",
-                    scopeGetter = { codebase.assertClass("test.pkg.Test").sourceFile()!! },
+                    scopeGetter = { codebase.assertClass("test.pkg.Test") },
                     referencableName = "java.io.IOException",
                     expectedItemGetter = { codebase.assertResolvedClass("java.io.IOException") }
                 ),
@@ -165,6 +243,38 @@ class CommonParameterizedReferencableNameScopeTest : BaseModelTest() {
                     referencableName = "Map",
                     expectedItemGetter = { codebase.assertResolvedClass("java.util.Map") }
                 ),
+                TestParams(
+                    name = "ClassItem - resolve self against self",
+                    scopeGetter = { codebase.assertResolvedClass("java.util.Map") },
+                    referencableName = "Map.Map",
+                    expectedItemGetter = { null },
+                    expectedErrorMessage =
+                        "Could not resolve 'Map.Map' as could not find 'Map' in 'class java.util.Map'",
+                ),
+                TestParams(
+                    name = "ClassItem - resolve self as field",
+                    scopeGetter = { codebase.assertClass("test.pkg.Test") },
+                    referencableName = "Test",
+                    nameClassification = NameClassification.FIELD,
+                    expectedItemGetter = { null },
+                    expectedErrorMessage =
+                        "Could not resolve a field called 'Test' in 'class test.pkg.Test'",
+                ),
+                TestParams(
+                    name = "ClassItem - using qualified imported name List",
+                    imports =
+                        """
+                            import java.util.List;
+                        """,
+                    scopeGetter = { codebase.assertClass("test.pkg.Test") },
+                    // The `List` name is imported into `test/pkg/Test.java` but must only be used
+                    // when resolving an unqualified name.
+                    referencableName = "test.pkg.Test.List",
+                    expectedItemGetter = { null },
+                    expectedErrorMessage =
+                        "Could not resolve 'test.pkg.Test.List' as could not find 'List' in 'class test.pkg.Test'",
+                ),
+
                 // ClassItem - Nested classes
                 TestParams(
                     name = "ClassItem - resolve nested class",
@@ -190,6 +300,7 @@ class CommonParameterizedReferencableNameScopeTest : BaseModelTest() {
                     referencableName = "java.io.IOException",
                     expectedItemGetter = { codebase.assertResolvedClass("java.io.IOException") }
                 ),
+
                 // ClassItem - TypeParameters
                 TestParams(
                     name = "ClassItem - TypeParameter - O",
@@ -230,6 +341,90 @@ class CommonParameterizedReferencableNameScopeTest : BaseModelTest() {
                     expectedItemGetter = {
                         codebase.assertClass("test.pkg.Test.Nested").assertTypeParameter("S")
                     }
+                ),
+                TestParams(
+                    name = "ClassItem - resolve simple field reference",
+                    scopeGetter = { codebase.assertClass("test.pkg.Test") },
+                    referencableName = "field",
+                    expectedItemGetter = {
+                        codebase.assertClass("test.pkg.Test").assertField("field")
+                    },
+                ),
+                TestParams(
+                    name = "ClassItem - resolve qualified field reference",
+                    scopeGetter = { codebase.assertClass("test.pkg.Test") },
+                    referencableName = "Test.field",
+                    expectedItemGetter = {
+                        codebase.assertClass("test.pkg.Test").assertField("field")
+                    },
+                ),
+                TestParams(
+                    name = "ClassItem - resolve simple constructor reference - ambiguous",
+                    scopeGetter = { codebase.assertClass("test.pkg.Test") },
+                    referencableName = "Test",
+                    nameClassification = NameClassification.AMBIGUOUS,
+                    expectedItemGetter = {
+                        // A constructor name and class name are indistinguishable so unless the
+                        // NameClassification differentiates between them, resolving defaults to the
+                        // class.
+                        codebase.assertClass("test.pkg.Test")
+                    },
+                ),
+                TestParams(
+                    name = "ClassItem - resolve simple constructor reference - callable",
+                    scopeGetter = { codebase.assertClass("test.pkg.Test") },
+                    referencableName = "Test",
+                    nameClassification = NameClassification.CALLABLE_SET,
+                    // Resolving a name that matches a class will return the class in lieu of its
+                    // constructors.
+                    expectedItemGetter = { codebase.assertClass("test.pkg.Test") },
+                ),
+                TestParams(
+                    name = "ClassItem - resolve qualified constructor reference - callable",
+                    scopeGetter = { codebase.assertClass("test.pkg.Test") },
+                    referencableName = "java.io.IOException",
+                    nameClassification = NameClassification.CALLABLE_SET,
+                    // Resolving a name that matches a class should return the class in lieu of its
+                    // constructor.
+                    expectedItemGetter = { codebase.assertResolvedClass("java.io.IOException") },
+                ),
+                TestParams(
+                    name = "ClassItem - resolve invalid constructor reference - callable",
+                    scopeGetter = { codebase.assertClass("test.pkg.Test") },
+                    // This is not strictly speaking valid, but it is a likely result of someone
+                    // forgetting to use a # in a constructor reference.
+                    referencableName = "Test.Test",
+                    nameClassification = NameClassification.CALLABLE_SET,
+                    expectedItemGetter = { codebase.assertClass("test.pkg.Test") },
+                ),
+                TestParams(
+                    name = "ClassItem - resolve imported constructor reference - callable",
+                    // It is impossible to import a constructor, instead the class is imported in
+                    // lieu of its constructors.
+                    imports =
+                        """
+                            import java.io.IOException;
+                        """,
+                    scopeGetter = { codebase.assertClass("test.pkg.Test") },
+                    referencableName = "IOException",
+                    nameClassification = NameClassification.CALLABLE_SET,
+                    expectedItemGetter = { codebase.assertResolvedClass("java.io.IOException") },
+                ),
+                TestParams(
+                    name = "ClassItem - resolve simple method reference",
+                    scopeGetter = { codebase.assertClass("test.pkg.Test") },
+                    referencableName = "method",
+                    expectedItemGetter = {
+                        ReferencableMethodSet(codebase.assertClass("test.pkg.Test"), "method")
+                    },
+                ),
+                TestParams(
+                    name = "ClassItem - resolve qualified method reference",
+                    scopeGetter = { codebase.assertClass("test.pkg.Test") },
+                    referencableName = "Test.method",
+                    expectedItemGetter = {
+                        ReferencableMethodSet(codebase.assertClass("test.pkg.Test"), "method")
+                    },
                 ),
 
                 // ConstructorItem related tests.
@@ -338,6 +533,14 @@ class CommonParameterizedReferencableNameScopeTest : BaseModelTest() {
         runCodebaseTest(
             inputSet(
                 java(
+                    "test/pkg/package-info.java",
+                    """
+                        package test.pkg;
+
+                        import java.util.List;
+                    """
+                ),
+                java(
                     """
                         package test.pkg;
                         ${params.imports.trimIndent()}
@@ -366,15 +569,24 @@ class CommonParameterizedReferencableNameScopeTest : BaseModelTest() {
             val scopeGetter = params.scopeGetter
             val scope = scopeGetter()
 
-            val resolvedItem = scope.resolveReferencableItem(params.referencableName)
+            val resolvedItem =
+                scope.resolveReferencableItem(params.referencableName, params.nameClassification)
 
             // Defer getting the expected Item until after resolving to ensure that resolving works
             // even on packages and classes that are not in the sources which have not yet been
             // resolved.
             val expectedItemGetter = params.expectedItemGetter
             val expectedItem = expectedItemGetter()
-
-            assertSame(expectedItem, resolvedItem)
+            if (expectedItem == null) {
+                val error = assertIs<InvalidReferencableItem>(resolvedItem)
+                assertEquals(params.expectedErrorMessage, error.message)
+            } else {
+                // Compare resolved item using equals not same to handle ReferencableMethodSet which
+                // unlike other ReferencableItem classes is not found within the Codebase but is
+                // instead created on demand when resolving.
+                assertEquals(expectedItem, resolvedItem)
+                assertEquals(params.expectedErrorMessage, "")
+            }
         }
     }
 }

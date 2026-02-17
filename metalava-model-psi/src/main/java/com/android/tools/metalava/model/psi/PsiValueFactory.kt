@@ -22,13 +22,11 @@ import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.FieldItem
-import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.type.ContextNullability
-import com.android.tools.metalava.model.type.DefaultPrimitiveTypeItem
-import com.android.tools.metalava.model.type.DefaultTypeModifiers
 import com.android.tools.metalava.model.value.AnnotationValue
 import com.android.tools.metalava.model.value.ArrayElementValue
 import com.android.tools.metalava.model.value.BaseCachingDeferredTypeValueProvider
@@ -539,7 +537,7 @@ internal class PsiValueFactory(
 
                 val actualTypeItem =
                     actualPrimitiveKind?.let { kind ->
-                        DefaultPrimitiveTypeItem(DefaultTypeModifiers.emptyNonNullModifiers, kind)
+                        TypeItem.createPrimitiveType(TypeModifiers.emptyNonNullModifiers, kind)
                     } ?: optionalTypeItem
 
                 return uLiteralValue(actualTypeItem, originalSourceValue)

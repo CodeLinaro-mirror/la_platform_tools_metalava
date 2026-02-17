@@ -72,10 +72,10 @@ class TurbineFieldResolverTest : TemporaryFolderOwner {
         return combinedEnv
     }
 
-    /** Create a [TurbineFieldResolver] for resolving fields as if from within [binaryClassName]. */
+    /** Create a [FieldResolver] for resolving fields as if from within [binaryClassName]. */
     private fun CompoundEnv<ClassSymbol, TypeBoundClass>.resolverFor(
         binaryClassName: String
-    ): TurbineFieldResolver {
+    ): FieldResolver {
         // Select the class from where the field will be resolved.
         val testClassSym = ClassSymbol(binaryClassName)
         val testClassInfo =
@@ -93,7 +93,7 @@ class TurbineFieldResolverTest : TemporaryFolderOwner {
         return fieldResolver
     }
 
-    private fun assertFieldCanBeResolved(fieldResolver: TurbineFieldResolver, fieldName: String) {
+    private fun assertFieldCanBeResolved(fieldResolver: FieldResolver, fieldName: String) {
         val idents =
             fieldName
                 .split(".")

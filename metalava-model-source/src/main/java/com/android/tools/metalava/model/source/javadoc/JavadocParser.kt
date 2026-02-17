@@ -204,7 +204,7 @@ private class JavadocContentBuilder(
     private val exprBuilder: ExprBuilder
         get() {
             if (!::_exprBuilder.isInitialized) {
-                _exprBuilder = ExprBuilder(tokenIssueReporter)
+                _exprBuilder = ExprBuilder(context, tokenIssueReporter)
             }
             return _exprBuilder
         }

@@ -17,33 +17,22 @@
 package com.android.tools.metalava.model.turbine
 
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.FilterPredicate
-import com.android.tools.metalava.model.Import
 import com.android.tools.metalava.model.JavaImport
-import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.item.AbstractSourceFile
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.source.doc.characterOffsetFor
-import com.android.tools.metalava.model.source.filterImports
+import com.android.tools.metalava.reporter.FileLocation
 import com.google.turbine.diag.LineMap
 import com.google.turbine.tree.Tree.CompUnit
-import java.util.TreeSet
 
 internal class TurbineSourceFile(
     override val codebase: DefaultCodebase,
     val compUnit: CompUnit,
 ) : AbstractSourceFile() {
 
-    private lateinit var _containingPackage: PackageItem
+    override val fileLocation: FileLocation = TurbineFileLocation.forTree(this)
 
-    override val containingPackage: PackageItem
-        get() {
-            if (!::_containingPackage.isInitialized) {
-                val packageName = getPackageName(compUnit)
-                _containingPackage = codebase.packageTracker.findOrCreatePackage(packageName)
-            }
-            return _containingPackage
-        }
+    override fun computeContainingPackageName() = getPackageName(compUnit)
 
     override fun getHeaderComments() = compUnit.getHeaderComments()
 
@@ -71,42 +60,6 @@ internal class TurbineSourceFile(
                 static = import.stat(),
             )
         }
-
-    override fun getImports(predicate: FilterPredicate): Collection<Import> {
-        val imports = TreeSet<Import>(compareBy { it.pattern })
-
-        for (import in compUnit.imports()) {
-            val resolvedName = import.type().dotSeparatedName
-            // Package import
-            if (import.wild()) {
-                val pkgItem = codebase.findPackage(resolvedName) ?: continue
-                if (
-                    predicate.test(pkgItem) &&
-                        // Also make sure it isn't an empty package (after applying the
-                        // filter)
-                        // since in that case we'd have an invalid import
-                        pkgItem.topLevelClasses().any { it.emit && predicate.test(it) }
-                ) {
-                    imports.add(Import(pkgItem))
-                }
-            }
-            // Not static member import i.e. class import
-            else if (!import.stat()) {
-                val classItem = codebase.resolveClass(resolvedName) ?: continue
-                if (predicate.test(classItem)) {
-                    imports.add(Import(classItem))
-                }
-            }
-        }
-
-        // Next only keep those that are present in any docs; those are the only ones
-        // we need to import
-        if (imports.isNotEmpty()) {
-            return filterImports(imports, classes(), predicate)
-        }
-
-        return emptyList()
-    }
 
     /**
      * The [LineMap] used to map positions in the source file into line numbers.

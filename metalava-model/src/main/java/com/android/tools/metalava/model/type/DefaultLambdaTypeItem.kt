@@ -16,15 +16,13 @@
 
 package com.android.tools.metalava.model.type
 
-import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.LambdaTypeItem
 import com.android.tools.metalava.model.TypeArgumentTypeItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeModifiers
 
-class DefaultLambdaTypeItem(
-    classResolver: ClassResolver,
+internal class DefaultLambdaTypeItem(
     modifiers: TypeModifiers,
     qualifiedName: String,
     arguments: List<TypeArgumentTypeItem>,
@@ -33,35 +31,32 @@ class DefaultLambdaTypeItem(
     override val receiverType: TypeItem?,
     override val parameterTypes: List<TypeItem>,
     override val returnType: TypeItem,
+    isValueClassType: Boolean = false,
 ) :
     DefaultClassTypeItem(
-        classResolver = classResolver,
         modifiers = modifiers,
         qualifiedName = qualifiedName,
         arguments = arguments,
         outerClassType = outerClassType,
+        isValueClassType = isValueClassType,
     ),
     LambdaTypeItem {
 
-    @Deprecated(
-        "implementation detail of this class",
-        replaceWith = ReplaceWith("substitute(modifiers, outerClassType, arguments)"),
-    )
-    override fun duplicate(
+    override fun substitute(
         modifiers: TypeModifiers,
         outerClassType: ClassTypeItem?,
-        arguments: List<TypeArgumentTypeItem>
-    ): LambdaTypeItem {
-        return DefaultLambdaTypeItem(
-            classResolver = classResolver,
-            qualifiedName = qualifiedName,
-            arguments = arguments,
-            outerClassType = outerClassType,
-            modifiers = modifiers,
-            isSuspend = isSuspend,
-            receiverType = receiverType,
-            parameterTypes = parameterTypes,
-            returnType = returnType,
-        )
-    }
+        arguments: List<TypeArgumentTypeItem>,
+    ): LambdaTypeItem =
+        if (requiresNewInstance(modifiers, outerClassType, arguments))
+            DefaultLambdaTypeItem(
+                modifiers,
+                qualifiedName,
+                arguments,
+                outerClassType,
+                isSuspend,
+                receiverType,
+                parameterTypes,
+                returnType,
+            )
+        else this
 }

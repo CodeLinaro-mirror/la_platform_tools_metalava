@@ -17,11 +17,20 @@
 package com.android.tools.metalava.model.testsuite.typeitem
 
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.testing.arrayTypeItem
+import com.android.tools.metalava.model.testing.classTypeItem
+import com.android.tools.metalava.model.testing.primitiveTypeForKind
+import com.android.tools.metalava.model.testing.variableTypeItem
 import com.android.tools.metalava.model.testsuite.BaseModelTest
+import com.android.tools.metalava.testing.EntryPoint
+import com.android.tools.metalava.testing.EntryPointCallerRule
+import com.android.tools.metalava.testing.EntryPointCallerTracker
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import kotlin.test.assertEquals
+import org.junit.Rule
 import org.junit.Test
 import org.junit.runners.Parameterized
 
@@ -29,15 +38,30 @@ class CommonParameterizedTypeItemTest : BaseModelTest() {
 
     @Parameterized.Parameter(0) lateinit var params: TestParams
 
-    data class TestParams(
+    /**
+     * Will try and rewrite the stack trace of any test failures to refer to the location where the
+     * [TestParams] that is currently being tested was created.
+     */
+    @get:Rule val entryPointCallerRule = EntryPointCallerRule { params.entryPointCallerTracker }
+
+    data class TestParams
+    @EntryPoint
+    constructor(
         val javaTypeParameter: String? = null,
         val javaType: String,
         val name: String = javaType,
         val kotlinModifiers: String? = null,
         val kotlinTypeParameter: String? = null,
         val kotlinType: String,
-        val expectedAsClassName: String?,
+        val expectedTypeItem: TypeItem,
+        val expectedAsErasedTypeItem: TypeItem = expectedTypeItem,
     ) {
+        /**
+         * Record the stack trace of the creation of this which can be used to provide a stack trace
+         * to the creator of this instance in the event of a test failure.
+         */
+        val entryPointCallerTracker = EntryPointCallerTracker()
+
         fun javaParameter(): String = "$javaType p"
 
         fun javaTypeParameter(): String = javaTypeParameter ?: ""
@@ -57,57 +81,99 @@ class CommonParameterizedTypeItemTest : BaseModelTest() {
                 TestParams(
                     javaType = "int",
                     kotlinType = "Int",
-                    expectedAsClassName = null,
+                    expectedTypeItem = primitiveTypeForKind(PrimitiveTypeItem.Primitive.INT),
                 ),
                 TestParams(
                     javaType = "int[]",
                     kotlinType = "IntArray",
-                    expectedAsClassName = null,
+                    expectedTypeItem =
+                        arrayTypeItem(primitiveTypeForKind(PrimitiveTypeItem.Primitive.INT)),
                 ),
                 TestParams(
-                    javaType = "Comparable<String>",
-                    kotlinType = "Comparable<String>",
-                    expectedAsClassName = "java.lang.Comparable",
+                    javaType = "test.pkg.Generic<String>",
+                    kotlinType = "test.pkg.Generic<String>",
+                    expectedTypeItem =
+                        classTypeItem(
+                            "test.pkg.Generic",
+                            arguments =
+                                listOf(
+                                    classTypeItem("java.lang.String"),
+                                ),
+                        ),
+                    expectedAsErasedTypeItem = classTypeItem("test.pkg.Generic"),
                 ),
                 TestParams(
                     javaType = "String[]...",
                     kotlinModifiers = "vararg",
                     kotlinType = "Array<String>",
-                    expectedAsClassName = "java.lang.String",
+                    expectedTypeItem =
+                        arrayTypeItem(
+                            arrayTypeItem(classTypeItem("java.lang.String")),
+                            isVarargs = true,
+                        ),
+                    expectedAsErasedTypeItem =
+                        arrayTypeItem(arrayTypeItem(classTypeItem("java.lang.String"))),
                 ),
                 TestParams(
-                    javaTypeParameter = "<T extends Comparable<T>>",
+                    javaTypeParameter = "<T extends test.pkg.Generic<T>>",
                     javaType = "java.util.Map.Entry<String, T>",
-                    kotlinTypeParameter = "<T: Comparable<T>>",
+                    kotlinTypeParameter = "<T: test.pkg.Generic<T>>",
                     kotlinType = "java.util.Map.Entry<String, T>",
-                    expectedAsClassName = "java.util.Map.Entry",
+                    expectedTypeItem =
+                        classTypeItem(
+                            "java.util.Map.Entry",
+                            outerClassType = classTypeItem("java.util.Map"),
+                            arguments =
+                                listOf(
+                                    classTypeItem("java.lang.String"),
+                                    variableTypeItem("T"),
+                                ),
+                        ),
+                    expectedAsErasedTypeItem =
+                        classTypeItem(
+                            "java.util.Map.Entry",
+                            outerClassType = classTypeItem("java.util.Map"),
+                        ),
                 ),
                 TestParams(
                     javaTypeParameter = "<T>",
                     javaType = "T",
                     kotlinTypeParameter = "<T>",
                     kotlinType = "T",
-                    expectedAsClassName = "java.lang.Object",
+                    expectedTypeItem = variableTypeItem("T"),
+                    expectedAsErasedTypeItem = classTypeItem("java.lang.Object"),
                 ),
                 TestParams(
-                    name = "T extends Comparable",
-                    javaTypeParameter = "<T extends Comparable<T>>",
+                    name = "T extends Generic",
+                    javaTypeParameter = "<T extends test.pkg.Generic<T>>",
                     javaType = "T",
-                    kotlinTypeParameter = "<T: Comparable<T>>",
+                    kotlinTypeParameter = "<T: test.pkg.Generic<T>>",
                     kotlinType = "T",
-                    expectedAsClassName = "java.lang.Comparable",
+                    expectedTypeItem = variableTypeItem("T"),
+                    expectedAsErasedTypeItem = classTypeItem("test.pkg.Generic"),
                 ),
                 TestParams(
-                    javaTypeParameter = "<T extends Comparable<T>>",
+                    javaTypeParameter = "<T extends test.pkg.Generic<T>>",
                     javaType = "T[]",
-                    kotlinTypeParameter = "<T: Comparable<T>>",
+                    kotlinTypeParameter = "<T: test.pkg.Generic<T>>",
                     kotlinType = "Array<T>",
-                    expectedAsClassName = "java.lang.Comparable",
+                    expectedTypeItem = arrayTypeItem(variableTypeItem("T")),
+                    expectedAsErasedTypeItem = arrayTypeItem(classTypeItem("test.pkg.Generic")),
                 ),
                 TestParams(
-                    javaType = "Comparable<Integer>[]",
-                    kotlinType = "Array<Comparable<Int>>",
-                    expectedAsClassName = "java.lang.Comparable",
+                    javaType = "test.pkg.Generic<Integer>[]",
+                    kotlinType = "Array<test.pkg.Generic<Int>>",
+                    expectedTypeItem =
+                        arrayTypeItem(
+                            classTypeItem(
+                                "test.pkg.Generic",
+                                arguments =
+                                    listOf(
+                                        classTypeItem("java.lang.Integer"),
+                                    ),
+                            )
+                        ),
+                    expectedAsErasedTypeItem = arrayTypeItem(classTypeItem("test.pkg.Generic")),
                 ),
             )
 
@@ -121,31 +187,53 @@ class CommonParameterizedTypeItemTest : BaseModelTest() {
 
     private fun runTypeItemTest(test: TestContext.() -> Unit) {
         runCodebaseTest(
-            signature(
-                """
-                // Signature format: 2.0
-                package test.pkg {
-                    public interface Foo {
-                        method public ${params.javaTypeParameter()} void method(${params.javaParameter()});
-                    }
-                }
-                """
+            inputSet(
+                signature(
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                            public interface Foo {
+                                method public ${params.javaTypeParameter()} void method(${params.javaParameter()});
+                            }
+                            public interface Generic<A> {
+                            }
+                        }
+                    """
+                ),
             ),
-            java(
-                """
-                package test.pkg;
-                public interface Foo {
-                    ${params.javaTypeParameter()} void method(${params.javaParameter()});
-                }
-                """
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+                        public interface Foo {
+                            ${params.javaTypeParameter()} void method(${params.javaParameter()});
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        public interface Generic<A> {
+                        }
+                    """
+                ),
             ),
-            kotlin(
-                """
-                package test.pkg
-                interface Foo {
-                    fun ${params.kotlinTypeParameter()} method(${params.kotlinParameter()})
-                }
-                """
+            inputSet(
+                kotlin(
+                    """
+                        package test.pkg
+                        interface Foo {
+                            fun ${params.kotlinTypeParameter()} method(${params.kotlinParameter()})
+                        }
+                    """
+                ),
+                kotlin(
+                    """
+                        package test.pkg
+                        interface Generic<A> {
+                        }
+                    """
+                )
             ),
         ) {
             val methodItem = codebase.assertClass("test.pkg.Foo").methods().single()
@@ -160,9 +248,22 @@ class CommonParameterizedTypeItemTest : BaseModelTest() {
     }
 
     @Test
-    fun `Test asClass`() {
-        runTypeItemTest {
-            assertEquals(params.expectedAsClassName, typeItem.asClass()?.qualifiedName())
-        }
+    fun `Test type`() {
+        runTypeItemTest { assertEquals(params.expectedTypeItem, typeItem) }
+    }
+
+    @Test
+    fun `Test asErasedType`() {
+        runTypeItemTest { assertEquals(params.expectedAsErasedTypeItem, typeItem.asErasedType()) }
+    }
+
+    @Test
+    fun `Test consistency of asErasedType's toTypeString and toErasedTypeString`() {
+        /**
+         * The [TypeItem.toErasedTypeString] must be the same as the [[TypeItem.toTypeString] of
+         * [TypeItem.asErasedType].
+         */
+        val expectedErasedTypeString = params.expectedAsErasedTypeItem.toTypeString()
+        runTypeItemTest { assertEquals(expectedErasedTypeString, typeItem.toErasedTypeString()) }
     }
 }

@@ -19,7 +19,6 @@ package com.android.tools.metalava.model.testsuite.value
 import com.android.tools.metalava.model.junit4.ParameterFilter
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.CodebaseCreatorConfig
-import com.android.tools.metalava.model.testing.value.runValueTest
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.model.testsuite.ModelSuiteRunner
 import com.android.tools.metalava.model.testsuite.value.ValueExample.Companion.valueExamples
@@ -249,7 +248,7 @@ class ParameterizedValueParserTest : BaseModelTest() {
         ) {
             // Run the test on the expected value ignoring any [ValueProviderException]s if its
             // kind is not fully supported across implementation models.
-            testCase.expectedValue.runValueTest { expected ->
+            testCase.expectedValue.let { expected ->
                 val typeItem = codebase.assertClass("test.pkg.Foo").assertField("FIELD").type()
                 val valueParser = ValueParser(codebase, TypeItemParser.forValueParser(codebase))
                 val actualValue = valueParser.parse(typeItem, testCase.input)

@@ -16,16 +16,23 @@
 
 package com.android.tools.metalava.model.source.doc
 
+import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.FieldItem
+import com.android.tools.metalava.model.ReferencableItem
+import com.android.tools.metalava.model.TypeParameterScope
+import com.android.tools.metalava.model.scope.NameClassification
 import com.android.tools.metalava.model.source.javadoc.ExprContext
 import com.android.tools.metalava.model.source.javadoc.TestTagTypes
+import com.android.tools.metalava.model.value.Value
 import com.android.tools.metalava.reporter.Issues.Issue
-import com.android.tools.metalava.reporter.LocationSpecificReporter
 import kotlin.test.assertEquals
 import org.junit.Before
+import org.mockito.kotlin.doReturn
+import org.mockito.kotlin.mock
 
 abstract class BaseDocCommentTest {
-    val reporter = CollatingDocumentationIssueReporter()
-    val context = TestDocCommentContext()
+    internal val reporter = CollatingDocumentationIssueReporter()
+    internal val context = TestDocCommentContext(reporter)
 
     /**
      * Create a [DocComment] from [input] for testing, verifying that [expectedIssues] were found.
@@ -73,7 +80,7 @@ abstract class BaseDocCommentTest {
  * A [DocumentationIssueReporter] that collates any issues reported and returns them from
  * [toString].
  */
-class CollatingDocumentationIssueReporter : DocumentationIssueReporter {
+internal class CollatingDocumentationIssueReporter : DocumentationIssueReporter {
     private val list = mutableListOf<Report>()
 
     private data class Report(
@@ -111,28 +118,47 @@ class CollatingDocumentationIssueReporter : DocumentationIssueReporter {
 }
 
 /** A test [DocCommentContext] that provides basic implementations. */
-class TestDocCommentContext : DocCommentContext, DocCommentMutationListener {
-    override val mutationListener: DocCommentMutationListener
-        get() = this
-
-    override fun docCommentMutated() {}
+internal class TestDocCommentContext(reporter: DocumentationIssueReporter) : DocCommentContext {
 
     /** A map from flage name to enabled status. */
     var flags: Map<String, Boolean> = emptyMap()
 
+    /** Qualify [sourceReference], if needed. */
+    private fun qualifySourceReference(sourceReference: String): String =
+        if (sourceReference.contains(".") || sourceReference.startsWith("#")) sourceReference
+        else "resolved.$sourceReference"
+
+    override fun resolveItemReference(
+        sourceReference: String,
+        nameClassification: NameClassification
+    ): ReferencableItem =
+        when (nameClassification) {
+            NameClassification.FIELD -> {
+                mock<FieldItem>(stubOnly = true) {
+                    on { constantValue } doReturn Value.createLiteralValue(null, sourceReference)
+                }
+            }
+            NameClassification.TYPE,
+            NameClassification.AMBIGUOUS -> {
+                val qualifiedName = qualifySourceReference(sourceReference)
+                mock<ClassItem>(stubOnly = true) { on { qualifiedName() } doReturn qualifiedName }
+            }
+            else ->
+                error(
+                    "referencableItemResolver did not return an item for ${nameClassification.describeName(sourceReference)}"
+                )
+        }
+
     /** Implements [ExprContext.isFlagEnabled]. */
-    override fun isFlagEnabled(flagFieldReference: String) = flags[flagFieldReference] ?: false
+    override fun isFlagEnabled(flagName: String) = flags[flagName] ?: false
 
     override fun ordinalInParamsList(name: String) = 0
 
     override fun isOverridingMethod() = false
 
-    override fun fullyQualifyComment(comment: String) = comment
+    override val containingClassItem: ClassItem?
+        get() = null
 
-    override fun resolveThrowableType(reporter: LocationSpecificReporter, typeName: String) =
-        ClassReference(typeName)
-
-    var referenceResolver: (String) -> ResolvedReference? = { null }
-
-    override fun resolveReference(sourceReference: String) = referenceResolver(sourceReference)
+    override val docTypeParser: DocTypeParser =
+        DocTypeParser.create(reporter, TypeParameterScope.empty)
 }

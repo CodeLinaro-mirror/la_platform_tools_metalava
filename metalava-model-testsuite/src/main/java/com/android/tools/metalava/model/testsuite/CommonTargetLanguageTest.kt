@@ -891,7 +891,8 @@ class CommonTargetLanguageTest : BaseModelTest() {
                 assertThat(modifiers.isNonNull).isTrue()
             }
 
-            assertThat(fooClass.methods()).hasSize(7)
+            // The private method is not generated since it can't be part of the API surface.
+            assertThat(fooClass.methods()).hasSize(6)
         }
     }
 
@@ -1194,6 +1195,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
             val jvmNameOnGetGetter = fooClass.assertMethod("getJvmNameOnGet", emptyList())
             assertThat(jvmNameOnGetGetter.targetLanguages)
                 .containsExactlyElementsIn(TargetLanguageSet.NOT_KOTLIN)
+            assertThat(jvmNameOnGetGetter.property).isNotNull()
             val jvmNameOnGetSetter = fooClass.assertMethod("setJvmNameOnGet-Vxmw0xk", listOf("int"))
             assertThat(jvmNameOnGetSetter.targetLanguages).containsExactly(TargetLanguage.BYTECODE)
 
@@ -1202,13 +1204,16 @@ class CommonTargetLanguageTest : BaseModelTest() {
             val jvmNameOnSetSetter = fooClass.assertMethod("setJvmNameOnSet", listOf("int"))
             assertThat(jvmNameOnSetSetter.targetLanguages)
                 .containsExactlyElementsIn(TargetLanguageSet.NOT_KOTLIN)
+            assertThat(jvmNameOnSetSetter.property).isNotNull()
 
             val jvmNameOnBothGetter = fooClass.assertMethod("getJvmNameOnBoth", emptyList())
             assertThat(jvmNameOnBothGetter.targetLanguages)
                 .containsExactlyElementsIn(TargetLanguageSet.NOT_KOTLIN)
+            assertThat(jvmNameOnBothGetter.property).isNotNull()
             val jvmNameOnBothSetter = fooClass.assertMethod("setJvmNameOnBoth", listOf("int"))
             assertThat(jvmNameOnBothSetter.targetLanguages)
                 .containsExactlyElementsIn(TargetLanguageSet.NOT_KOTLIN)
+            assertThat(jvmNameOnBothSetter.property).isNotNull()
         }
     }
 
@@ -1924,6 +1929,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
 
             val kotlinCtor = fooClass.assertConstructor(listOf("test.pkg.IntValue"))
             assertThat(kotlinCtor.targetLanguages).containsExactly(TargetLanguage.KOTLIN)
+            assertThat(kotlinCtor.parameters().single().hasDefaultValue()).isTrue()
 
             val bytecodeCtor =
                 fooClass.assertConstructor(
@@ -1931,18 +1937,15 @@ class CommonTargetLanguageTest : BaseModelTest() {
                 )
             assertThat(bytecodeCtor.targetLanguages).containsExactly(TargetLanguage.BYTECODE)
 
-            // When a kotlin constructor has a single default parameter, an overload is generated
-            // with no parameters.
-            val defaultCtor = fooClass.assertConstructor(emptyList())
-            assertThat(defaultCtor.targetLanguages).containsExactlyElementsIn(TargetLanguageSet.ALL)
-
             val bytecodeDefaultCtor =
                 fooClass.assertConstructor(
                     listOf("int", "int", "kotlin.jvm.internal.DefaultConstructorMarker")
                 )
             assertThat(bytecodeDefaultCtor.targetLanguages).containsExactly(TargetLanguage.BYTECODE)
 
-            assertThat(fooClass.constructors()).hasSize(4)
+            // Usually, when a kotlin constructor has a single default parameter, an overload is
+            // generated with no parameters, but this is not the case with the value class type.
+            assertThat(fooClass.constructors()).hasSize(3)
         }
     }
 
@@ -2493,7 +2496,7 @@ class CommonTargetLanguageTest : BaseModelTest() {
                 ),
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
-            val fooProperty = fooClass.assertProperty("foo")
+            val fooProperty = fooClass.assertProperty("foo", receiverTypeString = "T")
             assertThat(fooProperty.targetLanguages)
                 .containsExactlyElementsIn(TargetLanguageSet.KOTLIN_ONLY)
 

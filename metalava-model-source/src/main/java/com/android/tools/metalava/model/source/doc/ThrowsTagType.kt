@@ -16,6 +16,10 @@
 
 package com.android.tools.metalava.model.source.doc
 
+import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.InvalidReferencableItem
+import com.android.tools.metalava.model.TypeParameterItem
+import com.android.tools.metalava.model.scope.NameClassification
 import com.android.tools.metalava.model.source.javadoc.JavadocContent
 import com.android.tools.metalava.reporter.LocationSpecificReporter
 
@@ -31,7 +35,7 @@ internal class ThrowsTagType() : TagType<ThrowsTagData>("throws", TagTypeForm.BL
         // Resolve the class name to a fully qualified class reference or type parameter. If it
         // could not be found then fake one.
         val throwableReference =
-            context.resolveThrowableType(reporter, throwsName) ?: ClassReference(throwsName)
+            resolveThrowableType(context, reporter, throwsName) ?: ClassReference(throwsName)
 
         return ExtractDataResult(
             tagData =
@@ -42,6 +46,30 @@ internal class ThrowsTagType() : TagType<ThrowsTagData>("throws", TagTypeForm.BL
             // they are part of [ThrowsTagData].
             consumedContent = text.skipForwardsOverLeadingWhitespace(throwsName.length),
         )
+    }
+
+    /**
+     * Resolve [typeName] (which may be a reference to a class or a type parameter) to a
+     * [TypeReference], if possible.
+     */
+    private fun resolveThrowableType(
+        context: DocCommentContext,
+        reporter: LocationSpecificReporter,
+        typeName: String
+    ): TypeReference? {
+        val resolved = context.resolveItemReference(typeName, NameClassification.TYPE)
+        // TODO(b/447588621): Ensure that the resolved type is a Throwable.
+        return when (resolved) {
+            is ClassItem -> resolved.toResolvedReference()
+            is TypeParameterItem -> resolved.toResolvedReference()
+            is InvalidReferencableItem -> {
+                resolved.reportIssue(reporter)
+                null
+            }
+            // This should never happen as passing in NameClassification.TYPE above should limit the
+            // returned types to ClassItem, TypeParameterItem or InvalidReferencableItem
+            else -> error("type '$typeName' was resolved to an unknown type $resolved")
+        }
     }
 }
 
@@ -58,12 +86,13 @@ internal data class ThrowsTagData(
     override fun printTagContents(contentPrinter: JavadocContentPrinter, content: JavadocContent?) {
         val writer = contentPrinter.writer
         writer.print(" ")
-        writer.print(throwableType.displayName)
+        writer.print(throwableType.fullyQualifiedForm)
 
         // Print the remaining content. Always preceded by a space as any leading whitespace has
         // been trimmed from it.
         content?.printWithLeadingSpaceTo(contentPrinter)
     }
 
-    override fun textMatches(predicate: (String) -> Boolean) = predicate(throwableType.displayName)
+    override fun textMatches(predicate: (String) -> Boolean) =
+        predicate(throwableType.fullyQualifiedForm)
 }

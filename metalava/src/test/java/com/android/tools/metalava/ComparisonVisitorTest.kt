@@ -92,7 +92,7 @@ class ComparisonVisitorTest : TemporaryFolderOwner, Assertions {
             .compare(
                 object : ComparisonVisitor() {
                     override fun addedMethodItem(new: MethodItem) {
-                        methodType = new.type().toSimpleType()
+                        methodType = new.type().toSimpleTypeString()
                     }
                 },
                 old,

@@ -101,7 +101,7 @@ class PsiAnnotationMixtureTest : BaseModelTest() {
             assertThat(string).isInstanceOf(ClassTypeItem::class.java)
             assertThat(string.annotationNames()).containsExactly("test.pkg.A")
             val stringMethodAnnotations = stringMethod.annotationNames()
-            if ((stringMethod as PsiMethodItem).psiMethod.isKotlin()) {
+            if (stringMethod.isKotlin()) {
                 // The Kotlin version puts a nullability annotation on the method
                 assertThat(stringMethodAnnotations)
                     .containsExactly("org.jetbrains.annotations.NotNull")

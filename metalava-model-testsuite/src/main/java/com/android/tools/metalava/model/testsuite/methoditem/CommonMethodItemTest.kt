@@ -19,6 +19,8 @@ package com.android.tools.metalava.model.testsuite.methoditem
 import com.android.tools.metalava.model.JAVA_LANG_THROWABLE
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
+import com.android.tools.metalava.model.provider.Capability
+import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.testing.classTypeItem
 import com.android.tools.metalava.model.testing.value.annotationValue
 import com.android.tools.metalava.model.testing.value.arrayValueFromAny
@@ -276,7 +278,7 @@ class CommonMethodItemTest : BaseModelTest() {
             val typeParameterItem = methodItem.typeParameterList.single()
             val throwsType = methodItem.throwsTypes().single()
             throwsType.assertReferencesTypeParameter(typeParameterItem)
-            assertEquals(throwsType.erasedClass!!.qualifiedName(), JAVA_LANG_THROWABLE)
+            assertEquals(throwsType.asErasedClass(codebase)!!.qualifiedName(), JAVA_LANG_THROWABLE)
         }
     }
 
@@ -313,7 +315,7 @@ class CommonMethodItemTest : BaseModelTest() {
             val throwsType = methodItem.throwsTypes().single()
             throwsType.assertReferencesTypeParameter(typeParameterItem)
             // The type parameter does not extend a throwable type.
-            assertFalse(throwsType.erasedClass!!.extends(JAVA_LANG_THROWABLE))
+            assertFalse(throwsType.asErasedClass(codebase)!!.extends(JAVA_LANG_THROWABLE))
         }
     }
 
@@ -339,7 +341,7 @@ class CommonMethodItemTest : BaseModelTest() {
             val methodItem = codebase.assertClass("test.pkg.Test").methods().single()
             val throwsType = methodItem.throwsTypes().single()
             // Neither the class nor throwable class is available.
-            assertNull(throwsType.erasedClass)
+            assertNull(throwsType.asErasedClass(codebase))
         }
     }
 
@@ -454,6 +456,7 @@ class CommonMethodItemTest : BaseModelTest() {
         }
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `JvmOverloads methods`() {
         val commonSource =
@@ -516,6 +519,7 @@ class CommonMethodItemTest : BaseModelTest() {
         }
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `JvmOverloads with initial vararg parameter`() {
         val commonSource =

@@ -26,8 +26,13 @@ import java.io.PrintWriter
 import kotlin.text.iterator
 
 /** Prints [JavadocContent] instances to [writer]. */
-internal class JavadocContentPrinter(internal val writer: PrintWriter) :
-    JavadocContentVisitor<Unit> {
+internal class JavadocContentPrinter(
+    /** The [PrintWriter] to which the content is written. */
+    internal val writer: PrintWriter,
+
+    /** Provides context about where the documentation will be printed. */
+    private val context: DocCommentContext,
+) : JavadocContentVisitor<Unit> {
     /**
      * Prints [content] as part of a Javadoc comment to [writer].
      *
@@ -73,6 +78,9 @@ internal class JavadocContentPrinter(internal val writer: PrintWriter) :
             writer.print(" *")
         }
     }
+
+    val containingClassName
+        get() = context.containingClassItem?.qualifiedName()
 
     companion object {
         /** Check to see whether [JavadocContent] starts with a newline character. */

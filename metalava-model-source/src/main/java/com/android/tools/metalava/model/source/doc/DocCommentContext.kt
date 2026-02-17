@@ -17,13 +17,12 @@
 package com.android.tools.metalava.model.source.doc
 
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SelectableItem
-import com.android.tools.metalava.model.TypeParameterItem
+import com.android.tools.metalava.model.source.javadoc.ExprBuilderContext
 import com.android.tools.metalava.model.source.javadoc.ExprContext
-import com.android.tools.metalava.reporter.LocationSpecificReporter
 
 /**
  * Provides contextual information from the surrounding model for use when processing a
@@ -33,13 +32,7 @@ import com.android.tools.metalava.reporter.LocationSpecificReporter
  * that created at different levels within the [DocComment] whereas this applies to the whole
  * [DocComment].
  */
-internal interface DocCommentContext : ExprContext {
-    /**
-     * The [DocCommentMutationListener] whose [DocCommentMutationListener.docCommentMutated] must be
-     * invoked when the [DocComment] is changed.
-     */
-    val mutationListener: DocCommentMutationListener
-
+internal interface DocCommentContext : ExprBuilderContext, ExprContext {
     /**
      * Compute the ordinal value for parameter [name] in the list of all `@param` tags.
      *
@@ -64,53 +57,16 @@ internal interface DocCommentContext : ExprContext {
      */
     fun isOverridingMethod(): Boolean
 
-    /** Fully qualify the Javadoc [comment]. */
-    fun fullyQualifyComment(comment: String): String
-
     /**
-     * Resolve [typeName] (which may be a reference to a class or a type parameter) to a
-     * [TypeReference], if possible.
+     * The optional [ClassItem] that contains this documentation.
+     *
+     * The value returned depends on the [SelectableItem] this documents:
+     * * For a [PackageItem] this will return `null`.
+     * * For a [ClassItem] this will just return the [ClassItem] itself.
+     * * For a [MemberItem] this will return [MemberItem.containingClass].
      */
-    fun resolveThrowableType(reporter: LocationSpecificReporter, typeName: String): TypeReference?
+    val containingClassItem: ClassItem?
 
-    /**
-     * Resolve [sourceReference] (which may be a reference to a package, class, type parameter,
-     * constructor, method, or field) to a [ResolvedReference], if possible.
-     */
-    fun resolveReference(sourceReference: String): ResolvedReference?
-}
-
-/**
- * Base for resolved references to some part of the API, e.g. [SelectableItem]s or
- * [TypeParameterItem]s.
- *
- * This allows the caller to differentiate between the different resolved types without depending on
- * [Item]s that would cause issues when taking a snapshot.
- */
-sealed interface ResolvedReference : Comparable<ResolvedReference> {
-    /** The display name of the referenced type. */
-    val displayName: String
-
-    override fun compareTo(other: ResolvedReference) = displayName.compareTo(other.displayName)
-}
-
-/** A reference to a [PackageItem]. */
-data class PackageReference(val qualifiedName: String) : ResolvedReference {
-    override val displayName: String
-        get() = qualifiedName
-}
-
-/** Base for references to type, i.e. classes and type parameters. */
-sealed interface TypeReference : ResolvedReference
-
-/** A reference to a [ClassItem]. */
-data class ClassReference(val qualifiedName: String) : TypeReference {
-    override val displayName: String
-        get() = qualifiedName
-}
-
-/** A reference to a [TypeParameterItem]. */
-data class TypeParameterReference(val name: String) : TypeReference {
-    override val displayName: String
-        get() = name
+    /** Provides support for parsing type references within Javadoc content. */
+    val docTypeParser: DocTypeParser
 }

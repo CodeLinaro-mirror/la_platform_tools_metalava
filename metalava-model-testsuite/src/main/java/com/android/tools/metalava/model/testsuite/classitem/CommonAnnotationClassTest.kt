@@ -54,10 +54,10 @@ class CommonAnnotationClassTest : BaseModelTest() {
             val fooClass = codebase.assertClass("test.pkg.Foo")
             val annotationClass = codebase.assertResolvedClass("java.lang.annotation.Annotation")
 
-            assertNull(fooClass.superClassType()?.asClass())
+            assertNull(fooClass.superClassType()?.resolveClass(codebase))
             assertNull(fooClass.superClass())
 
-            val interfaceList = fooClass.interfaceTypes().map { it.asClass() }
+            val interfaceList = fooClass.interfaceTypes().map { it.resolveClass(codebase) }
             assertEquals(listOf(annotationClass), interfaceList)
         }
     }

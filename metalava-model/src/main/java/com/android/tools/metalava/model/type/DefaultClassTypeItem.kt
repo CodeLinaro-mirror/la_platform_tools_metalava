@@ -16,46 +16,46 @@
 
 package com.android.tools.metalava.model.type
 
-import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.DefaultTypeItem
 import com.android.tools.metalava.model.TypeArgumentTypeItem
 import com.android.tools.metalava.model.TypeModifiers
 
-open class DefaultClassTypeItem(
-    internal val classResolver: ClassResolver,
+internal open class DefaultClassTypeItem(
     modifiers: TypeModifiers,
     final override val qualifiedName: String,
     final override val arguments: List<TypeArgumentTypeItem>,
     final override val outerClassType: ClassTypeItem?,
-    private val isValueClassType: Boolean = false,
-) : ClassTypeItem, DefaultTypeItem(modifiers) {
+    isValueClassType: Boolean = false,
+) : ClassTypeItem, DefaultTypeItem(modifiers, isValueClassType) {
     override val className: String = ClassTypeItem.computeClassName(qualifiedName)
 
-    private val asClassCache by
-        lazy(LazyThreadSafetyMode.NONE) { classResolver.resolveClass(qualifiedName) }
-
-    override fun asClass() = asClassCache
-
-    override fun isValueClassType(): Boolean {
-        return isValueClassType
-    }
-
-    @Deprecated(
-        "implementation detail of this class",
-        replaceWith = ReplaceWith("substitute(modifiers, outerClassType, arguments)"),
-    )
-    override fun duplicate(
+    /**
+     * Check whether the provided [modifiers], [outerClassType] and [arguments] are different to the
+     * current values.
+     *
+     * Used by [ClassTypeItem.substitute] to determine whether it needs to create a new instance.
+     */
+    protected fun requiresNewInstance(
         modifiers: TypeModifiers,
         outerClassType: ClassTypeItem?,
-        arguments: List<TypeArgumentTypeItem>
-    ): ClassTypeItem {
-        return DefaultClassTypeItem(
-            classResolver,
-            modifiers,
-            qualifiedName,
-            arguments,
-            outerClassType
-        )
-    }
+        arguments: List<TypeArgumentTypeItem>,
+    ): Boolean =
+        modifiers !== this.modifiers ||
+            outerClassType !== this.outerClassType ||
+            arguments !== this.arguments
+
+    override fun substitute(
+        modifiers: TypeModifiers,
+        outerClassType: ClassTypeItem?,
+        arguments: List<TypeArgumentTypeItem>,
+    ): ClassTypeItem =
+        if (requiresNewInstance(modifiers, outerClassType, arguments)) {
+            DefaultClassTypeItem(
+                modifiers,
+                qualifiedName,
+                arguments,
+                outerClassType,
+            )
+        } else this
 }

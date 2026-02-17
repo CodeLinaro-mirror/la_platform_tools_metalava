@@ -173,13 +173,13 @@ class CommonMultiplatformPropertyItemTest : BaseModelTest() {
                 )
         ) {
             val fooClass = multiplatformCodebase.assertClass("test.pkg.Foo")
-            val fooProperty = fooClass.assertProperty("foo", "java.lang.String")
+            val fooProperty = fooClass.assertProperty("foo", "kotlin.String")
             fooProperty.assertSourceSets("commonMain", "androidMain", "nativeMain")
             assertThat(fooProperty.containingItem).isEqualTo(fooClass)
             assertThat(fooProperty.name).isEqualTo("foo")
-            assertThat(fooProperty.receiver?.toTypeString()).isEqualTo("java.lang.String")
+            assertThat(fooProperty.receiver?.toTypeString()).isEqualTo("kotlin.String")
             assertThat(fooProperty.toString())
-                .isEqualTo("multiplatform property test.pkg.Foo#java.lang.String.foo")
+                .isEqualTo("multiplatform property test.pkg.Foo#kotlin.String.foo")
         }
     }
 
@@ -265,24 +265,25 @@ class CommonMultiplatformPropertyItemTest : BaseModelTest() {
         ) {
             val fooClass = multiplatformCodebase.assertClass("test.pkg.Foo")
 
-            val stringNonNullable = fooClass.assertProperty("string", "java.lang.String")
+            val stringNonNullable = fooClass.assertProperty("string", "kotlin.String")
             assertThat(stringNonNullable.toString())
-                .isEqualTo("multiplatform property test.pkg.Foo#java.lang.String.string")
-            val stringNullable = fooClass.assertProperty("string", "java.lang.String?")
+                .isEqualTo("multiplatform property test.pkg.Foo#kotlin.String.string")
+            val stringNullable = fooClass.assertProperty("string", "kotlin.String?")
             assertThat(stringNullable.toString())
-                .isEqualTo("multiplatform property test.pkg.Foo#java.lang.String?.string")
+                .isEqualTo("multiplatform property test.pkg.Foo#kotlin.String?.string")
             assertThat(stringNonNullable).isNotEqualTo(stringNullable)
 
             val listNonNullable =
-                fooClass.assertProperty("list", "java.util.List<java.lang.String>")
+                fooClass.assertProperty("list", "kotlin.collections.List<kotlin.String>")
             assertThat(listNonNullable.toString())
                 .isEqualTo(
-                    "multiplatform property test.pkg.Foo#java.util.List<java.lang.String>.list"
+                    "multiplatform property test.pkg.Foo#kotlin.collections.List<kotlin.String>.list"
                 )
-            val listNullable = fooClass.assertProperty("list", "java.util.List<java.lang.String?>")
+            val listNullable =
+                fooClass.assertProperty("list", "kotlin.collections.List<kotlin.String?>")
             assertThat(listNullable.toString())
                 .isEqualTo(
-                    "multiplatform property test.pkg.Foo#java.util.List<java.lang.String?>.list"
+                    "multiplatform property test.pkg.Foo#kotlin.collections.List<kotlin.String?>.list"
                 )
             assertThat(listNonNullable).isNotEqualTo(listNullable)
 
@@ -334,13 +335,13 @@ class CommonMultiplatformPropertyItemTest : BaseModelTest() {
             val testPkg = multiplatformCodebase.assertPackage("test.pkg")
             testPkg.assertSourceSets("androidMain", "commonMain", "nativeMain")
 
-            val fooProperty = testPkg.assertProperty("foo", "int")
+            val fooProperty = testPkg.assertProperty("foo", "kotlin.Int")
             fooProperty.assertSourceSets("androidMain", "commonMain", "nativeMain")
 
-            val androidProperty = testPkg.assertProperty("android", "int")
+            val androidProperty = testPkg.assertProperty("android", "kotlin.Int")
             androidProperty.assertSourceSets("androidMain")
 
-            val nativeProperty = testPkg.assertProperty("native", "int")
+            val nativeProperty = testPkg.assertProperty("native", "kotlin.Int")
             nativeProperty.assertSourceSets("nativeMain")
 
             assertThat(testPkg.topLevelProperties).hasSize(3)

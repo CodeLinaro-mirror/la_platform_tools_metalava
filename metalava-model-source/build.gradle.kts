@@ -69,9 +69,11 @@ dependencies {
     testFixturesImplementation(libs.androidLintTests)
     testFixturesImplementation(project(":metalava-testing"))
 
+    testImplementation(testFixtures(project(":metalava-model")))
     testImplementation(libs.androidLintTests)
     testImplementation(libs.junit4)
     testImplementation(libs.truth)
     testImplementation(libs.kotlinTest)
+    testImplementation(libs.mockitoKotlin)
     testImplementation(project(":metalava-testing"))
 }

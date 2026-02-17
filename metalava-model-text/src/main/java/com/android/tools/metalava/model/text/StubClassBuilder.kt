@@ -21,15 +21,15 @@ import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.SkeletonClassItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.createImmutableModifiers
-import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.reporter.FileLocation
 
 /**
- * A builder for stub classes, i.e. [DefaultClassItem]s fabricated because [ApiFile] has no
- * definition of the class but a [DefaultClassItem] is still needed.
+ * A builder for stub classes, i.e. [SkeletonClassItem]s fabricated because [ApiFile] has no
+ * definition of the class but a [SkeletonClassItem] is still needed.
  */
 internal class StubClassBuilder(
     internal val assembler: TextCodebaseAssembler,
@@ -45,7 +45,7 @@ internal class StubClassBuilder(
 
     var superClassType: ClassTypeItem? = null
 
-    private fun build(): DefaultClassItem =
+    private fun build(): SkeletonClassItem =
         assembler.itemFactory.createClassItem(
             fileLocation = FileLocation.UNKNOWN,
             modifiers = modifiers,
@@ -64,7 +64,7 @@ internal class StubClassBuilder(
 
     companion object {
         /**
-         * Create a [DefaultClassItem] in the specified [codebase] and with the specific
+         * Create a [SkeletonClassItem] in the specified [assembler] and with the specific
          * [qualifiedName], after applying the specified mutator.
          */
         fun build(
@@ -73,7 +73,7 @@ internal class StubClassBuilder(
             containingClass: ClassItem?,
             containingPackage: PackageItem,
             mutator: StubClassBuilder.() -> Unit,
-        ): DefaultClassItem {
+        ): SkeletonClassItem {
             val builder =
                 StubClassBuilder(
                     assembler = assembler,

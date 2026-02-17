@@ -23,5 +23,39 @@ package com.android.tools.metalava.model
  * * [PackageItem]
  * * [ClassItem]
  * * [TypeParameterItem]
+ * * [FieldItem]
+ * * [ReferencableCallableItem]
+ *
+ * and also [InvalidReferencableItem] for reporting errors.
  */
 sealed interface ReferencableItem
+
+/** Provides details about an invalid reference and why it could not be resolved. */
+data class InvalidReferencableItem(val message: String) : ReferencableItem
+
+/**
+ * Effectively forms a union type of all referencable [Item]s that extend this.
+ *
+ * Currently, the union contains:
+ * * [ReferencableMethodSet]
+ *
+ * and also [InvalidReferencableItem] for reporting errors.
+ */
+sealed interface ReferencableCallableItem : ReferencableItem
+
+/**
+ * The set of all [MethodItem]s in [ClassItem] called [name].
+ *
+ * It is the responsibility of the recipient to resolve this to a specific [MethodItem], if
+ * possible, using additional information that it has available, e.g. parameter types.
+ *
+ * An alternative solution would have been to just return a [MethodItem] in the set to represent the
+ * whole set but that would be confusing to callers.
+ */
+data class ReferencableMethodSet(
+    /** The [ClassItem] that contains the methods. */
+    val containingClass: ClassItem,
+
+    /** The name of the methods in the set. */
+    val name: String,
+) : ReferencableCallableItem

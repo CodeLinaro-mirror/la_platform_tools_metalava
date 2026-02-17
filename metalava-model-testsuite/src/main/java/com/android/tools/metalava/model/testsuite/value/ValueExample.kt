@@ -150,6 +150,12 @@ constructor(
     val expectedValue: Expectation<Value?>,
 
     /**
+     * The expected exception message to produce when parsing this value as a field constant in a
+     * signature file.
+     */
+    val expectedSignatureFieldException: String? = null,
+
+    /**
      * Controls which [ValueExample]s in [allValueExamples] are run.
      *
      * When all the [ValueExample]s have this set to `false` (the default) then they are all tests.
@@ -228,9 +234,6 @@ constructor(
 
         /** All except Java. */
         private val notValidForJava = EnumSet.complementOf(EnumSet.of(InputFormat.JAVA))
-
-        /** Only Java. */
-        private val onlyValidForJava = EnumSet.of(InputFormat.JAVA)
 
         /**
          * The list of all [ValueExample]s that could be tested across [ProducerKind] and
@@ -485,6 +488,8 @@ constructor(
                     kotlinType = "Class<*>",
                     kotlinExpression = "BitSet::class.java",
                     signatureExpression = "java.util.BitSet.class",
+                    expectedSignatureFieldException =
+                        "Unknown token <java.util.BitSet.class> of java.lang.Class<?>",
                     expectedLegacySource =
                         expectations {
                             common = "java.util.BitSet.class"
@@ -509,6 +514,8 @@ constructor(
                     kotlinType = "Class<*>",
                     kotlinExpression = "List::class.java",
                     signatureExpression = "java.util.List.class",
+                    expectedSignatureFieldException =
+                        "Unknown token <java.util.List.class> of java.lang.Class<?>",
                     expectedLegacySource =
                         expectations {
                             common = "java.util.List.class"
@@ -531,6 +538,8 @@ constructor(
                     kotlinType = "Class<*>",
                     kotlinExpression = "Array<BitSet>::class.java",
                     signatureExpression = "java.util.BitSet[].class",
+                    expectedSignatureFieldException =
+                        "Unknown token <java.util.BitSet[].class> of java.lang.Class<?>",
                     expectedLegacySource =
                         expectations {
                             common = "java.util.BitSet[].class"
@@ -558,6 +567,8 @@ constructor(
                     // annotation it has no way of representing it in the source.
                     validForInputFormats = notValidForKotlin,
                     signatureExpression = "java.util.List[].class",
+                    expectedSignatureFieldException =
+                        "Unknown token <java.util.List[].class> of java.lang.Class<?>",
                     expectedLegacySource =
                         expectations {
                             common = "java.util.List[].class"
@@ -578,6 +589,8 @@ constructor(
                     name = "class literal - void primitive",
                     javaType = "Class<?>",
                     javaExpression = "void.class",
+                    expectedSignatureFieldException =
+                        "Unknown token <void.class> of java.lang.Class<?>",
                     // While Kotlin can correctly map a `void.class` instance from a Java annotation
                     // it has no way of representing it in the source.
                     validForInputFormats = notValidForKotlin,
@@ -594,6 +607,8 @@ constructor(
                     javaExpression = "Void.class",
                     kotlinType = "Class<*>",
                     kotlinExpression = "java.lang.Void::class.java",
+                    expectedSignatureFieldException =
+                        "Unknown token <Void.class> of java.lang.Class<?>",
                     expectedLegacySource =
                         expectations {
                             common = "java.lang.Void.class"
@@ -613,6 +628,8 @@ constructor(
                     javaExpression = "int.class",
                     kotlinType = "Class<*>",
                     kotlinExpression = "Int::class.java",
+                    expectedSignatureFieldException =
+                        "Unknown token <int.class> of java.lang.Class<?>",
                     expectedLegacySource = expectations { common = "int.class" },
                     expectedKotlinLegacySource = expectations { common = "Int::class" },
                     expectedValue =
@@ -626,6 +643,8 @@ constructor(
                     javaExpression = "Integer.class",
                     kotlinType = "Class<*>",
                     kotlinExpression = "Integer::class.java",
+                    expectedSignatureFieldException =
+                        "Unknown token <Integer.class> of java.lang.Class<?>",
                     expectedLegacySource =
                         expectations {
                             common = "java.lang.Integer.class"
@@ -648,6 +667,8 @@ constructor(
                     javaExpression = "int[].class",
                     kotlinType = "Class<*>",
                     kotlinExpression = "IntArray::class.java",
+                    expectedSignatureFieldException =
+                        "Unknown token <int[].class> of java.lang.Class<?>",
                     expectedLegacySource = expectations { common = "int[].class" },
                     expectedKotlinLegacySource = expectations { common = "IntArray::class" },
                     expectedValue =
@@ -898,6 +919,8 @@ constructor(
                     // Must fully qualify most classes in signature files.
                     signatureType = "test.pkg.TestEnum",
                     signatureExpression = "test.pkg.TestEnum.VALUE1",
+                    expectedSignatureFieldException =
+                        "Unknown token <test.pkg.TestEnum.VALUE1> of test.pkg.TestEnum",
                     expectedLegacySource = expectations { common = "test.pkg.TestEnum.VALUE1" },
                     expectedValue =
                         expectations {
@@ -924,6 +947,8 @@ constructor(
                     javaType = "String",
                     javaExpression = "GenericClass.STRING_CONSTANT",
                     signatureExpression = "test.pkg.GenericClass.STRING_CONSTANT",
+                    expectedSignatureFieldException =
+                        "Unknown token <test.pkg.GenericClass.STRING_CONSTANT> of java.lang.String",
                     expectedLegacySource =
                         expectations {
                             common = "\"constant\""
@@ -960,6 +985,8 @@ constructor(
                     javaExpression = "Constants.INT_CONSTANT",
                     kotlinType = "Long",
                     signatureExpression = "test.pkg.Constants.INT_CONSTANT",
+                    expectedSignatureFieldException =
+                        "Unknown token <test.pkg.Constants.INT_CONSTANT> of long",
                     expectedLegacySource =
                         expectations {
                             common = "37L"
@@ -995,6 +1022,8 @@ constructor(
                     kotlinType = "Byte",
                     kotlinExpression = "test.pkg.Constants.INT_CONSTANT.toByte()",
                     signatureExpression = "test.pkg.Constants.INT_CONSTANT.toByte()",
+                    expectedSignatureFieldException =
+                        "Unknown token <test.pkg.Constants.INT_CONSTANT.toByte()> of byte",
                     // Only Kotlin needs to support explicit casting like this, Java will cast
                     // implicitly. Signature files may contain these casts, so it needs to know how
                     // to parse them.
@@ -1033,6 +1062,8 @@ constructor(
                     kotlinType = "Double",
                     kotlinExpression = "test.pkg.Constants.INT_CONSTANT.toDouble()",
                     signatureExpression = "test.pkg.Constants.INT_CONSTANT.toDouble()",
+                    expectedSignatureFieldException =
+                        "Unknown token <test.pkg.Constants.INT_CONSTANT.toDouble()> of double",
                     // Only Kotlin needs to support explicit casting like this, Java will cast
                     // implicitly. Signature files may contain these casts, so it needs to know how
                     // to parse them.
@@ -1071,6 +1102,8 @@ constructor(
                     kotlinType = "Float",
                     kotlinExpression = "test.pkg.Constants.INT_CONSTANT.toFloat()",
                     signatureExpression = "test.pkg.Constants.INT_CONSTANT.toFloat()",
+                    expectedSignatureFieldException =
+                        "Unknown token <test.pkg.Constants.INT_CONSTANT.toFloat()> of float",
                     // Only Kotlin needs to support explicit casting like this, Java will cast
                     // implicitly. Signature files may contain these casts, so it needs to know how
                     // to parse them.
@@ -1109,6 +1142,8 @@ constructor(
                     kotlinType = "Int",
                     kotlinExpression = "test.pkg.Constants.LONG_CONSTANT.toInt()",
                     signatureExpression = "test.pkg.Constants.LONG_CONSTANT.toInt()",
+                    expectedSignatureFieldException =
+                        "Unknown token <test.pkg.Constants.LONG_CONSTANT.toInt()> of int",
                     // Only Kotlin needs to support explicit casting like this, Java will cast
                     // implicitly. Signature files may contain these casts, so it needs to know how
                     // to parse them.
@@ -1147,6 +1182,8 @@ constructor(
                     kotlinType = "Long",
                     kotlinExpression = "test.pkg.Constants.INT_CONSTANT.toLong()",
                     signatureExpression = "test.pkg.Constants.INT_CONSTANT.toLong()",
+                    expectedSignatureFieldException =
+                        "Unknown token <test.pkg.Constants.INT_CONSTANT.toLong()> of long",
                     // Only Kotlin needs to support explicit casting like this, Java will cast
                     // implicitly. Signature files may contain these casts, so it needs to know how
                     // to parse them.
@@ -1185,6 +1222,8 @@ constructor(
                     kotlinType = "Short",
                     kotlinExpression = "test.pkg.Constants.INT_CONSTANT.toShort()",
                     signatureExpression = "test.pkg.Constants.INT_CONSTANT.toShort()",
+                    expectedSignatureFieldException =
+                        "Unknown token <test.pkg.Constants.INT_CONSTANT.toShort()> of short",
                     // Only Kotlin needs to support explicit casting like this, Java will cast
                     // implicitly. Signature files may contain these casts, so it needs to know how
                     // to parse them.
@@ -1549,9 +1588,7 @@ constructor(
                     kotlinType = "Int",
                     kotlinExpression =
                         "('_'.code shl 24) or ('P'.code shl 16) or ('N'.code shl 8) or 'G'.code",
-                    // TODO(b/354633349): Only valid for Java, Kotlin is inconsistent and signature
-                    //   files do not have complex expressions at all.
-                    validForInputFormats = onlyValidForJava,
+                    validForInputFormats = notValidForSignature,
                     expectedLegacySource =
                         expectations {
                             common = "1599098439"
@@ -1559,11 +1596,7 @@ constructor(
                             source { annotationToSource = "0x5f504e47" }
                         },
                     expectedKotlinLegacySource =
-                        expectations {
-                            source {
-                                annotationToSource = "0x5f000000 | 0x500000 | 0x4e00 | 'G'.code"
-                            }
-                        },
+                        expectations { source { annotationToSource = "0x5f504e47" } },
                     expectedValue =
                         expectations {
                             common = literalValue(1599098439, nonLiteralInSource = true)
@@ -1722,11 +1755,6 @@ constructor(
                     // Literal arrays are only allowed in annotations not fields.
                     suitableFor = allLegacyValueUseSitesExceptFields,
                     expectedLegacySource = expectations { common = "{}" },
-                    expectedKotlinLegacySource =
-                        expectations {
-                            // TODO(b/354633349): Fix this, it should not be an empty string.
-                            attributeDefaultValue = ""
-                        },
                     expectedValue = expectations { common = arrayValueFromAny() },
                 ),
                 ValueExample(
@@ -1760,6 +1788,7 @@ constructor(
                     javaType = "String[]",
                     javaExpression = "\"string\"",
                     kotlinType = "Array<String>",
+                    expectedSignatureFieldException = "",
                     // Fields that are of type String[] cannot be given a solitary string like an
                     // annotation attribute can.
                     suitableFor = allLegacyValueUseSitesExceptFields,
@@ -1777,6 +1806,8 @@ constructor(
                     javaExpression = "Constants.STRING_CONSTANT",
                     // Must fully qualify most classes in signature files.
                     signatureExpression = "test.pkg.Constants.STRING_CONSTANT",
+                    expectedSignatureFieldException =
+                        "Unknown token <test.pkg.Constants.STRING_CONSTANT> of java.lang.String",
                     expectedLegacySource =
                         expectations {
                             common = "\"constant\""

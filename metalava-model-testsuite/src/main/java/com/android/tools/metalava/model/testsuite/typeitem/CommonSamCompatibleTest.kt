@@ -58,9 +58,9 @@ class CommonSamCompatibleTest : BaseModelTest() {
                     .assertClass("test.pkg.Foo")
                     .assertMethod("foo", listOf("int", "boolean", "float"))
             for (parameter in fooMethod.parameters()) {
-                assertThat(parameter.type().isSamCompatibleOrKotlinLambda()).isFalse()
+                assertThat(parameter.type().isSamCompatibleOrKotlinLambda(codebase)).isFalse()
             }
-            assertThat(fooMethod.returnType().isSamCompatibleOrKotlinLambda()).isFalse()
+            assertThat(fooMethod.returnType().isSamCompatibleOrKotlinLambda(codebase)).isFalse()
         }
     }
 
@@ -99,7 +99,7 @@ class CommonSamCompatibleTest : BaseModelTest() {
                         )
                     )
             for (parameter in fooMethod.parameters()) {
-                assertThat(parameter.type().isSamCompatibleOrKotlinLambda()).isTrue()
+                assertThat(parameter.type().isSamCompatibleOrKotlinLambda(codebase)).isTrue()
             }
         }
     }
@@ -139,7 +139,7 @@ class CommonSamCompatibleTest : BaseModelTest() {
                         )
                     )
             for (parameter in fooMethod.parameters()) {
-                assertThat(parameter.type().isSamCompatibleOrKotlinLambda()).isTrue()
+                assertThat(parameter.type().isSamCompatibleOrKotlinLambda(codebase)).isTrue()
             }
         }
     }
@@ -200,7 +200,7 @@ class CommonSamCompatibleTest : BaseModelTest() {
                     .assertMethod("foo", listOf("test.pkg.SamInterface"))
                     .parameters()
                     .single()
-            assertThat(fooParameter.type().isSamCompatibleOrKotlinLambda()).isTrue()
+            assertThat(fooParameter.type().isSamCompatibleOrKotlinLambda(codebase)).isTrue()
         }
     }
 
@@ -247,7 +247,7 @@ class CommonSamCompatibleTest : BaseModelTest() {
                     .assertMethod("foo", listOf("test.pkg.SamInterface"))
                     .parameters()
                     .single()
-            assertThat(fooParameter.type().isSamCompatibleOrKotlinLambda()).isFalse()
+            assertThat(fooParameter.type().isSamCompatibleOrKotlinLambda(codebase)).isFalse()
         }
     }
 
@@ -307,7 +307,7 @@ class CommonSamCompatibleTest : BaseModelTest() {
                     .assertMethod("foo", listOf("test.pkg.FunInterface"))
                     .parameters()
                     .single()
-            assertThat(fooParameter.type().isSamCompatibleOrKotlinLambda()).isTrue()
+            assertThat(fooParameter.type().isSamCompatibleOrKotlinLambda(codebase)).isTrue()
         }
     }
 
@@ -340,7 +340,7 @@ class CommonSamCompatibleTest : BaseModelTest() {
                     .assertMethod("foo", listOf("T"))
                     .parameters()
                     .single()
-            assertThat(fooParameter.type().isSamCompatibleOrKotlinLambda()).isTrue()
+            assertThat(fooParameter.type().isSamCompatibleOrKotlinLambda(codebase)).isTrue()
         }
     }
 
@@ -411,7 +411,7 @@ class CommonSamCompatibleTest : BaseModelTest() {
             val fooMethod =
                 codebase.assertClass("test.pkg.Foo").assertMethod("foo", listOf("T1", "T2"))
             for (parameter in fooMethod.parameters()) {
-                assertThat(parameter.type().isSamCompatibleOrKotlinLambda()).isFalse()
+                assertThat(parameter.type().isSamCompatibleOrKotlinLambda(codebase)).isFalse()
             }
         }
     }

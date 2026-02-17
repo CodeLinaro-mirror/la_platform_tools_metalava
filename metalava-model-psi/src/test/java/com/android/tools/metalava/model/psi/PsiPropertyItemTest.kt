@@ -21,7 +21,6 @@ import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.kotlin
 import kotlin.test.Test
-import kotlin.test.assertContains
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
@@ -320,11 +319,11 @@ class PsiPropertyItemTest : BaseModelTest() {
             val body = properties.single { it.name() == "body" }
             val accessors = properties.single { it.name() == "accessors" }
 
-            assertContains(parameter.requiredDocumentation.text, "parameter doc")
-            assertContains(body.requiredDocumentation.text, "body doc")
-            assertContains(accessors.requiredDocumentation.text, "accessors property doc")
-            assertContains(accessors.getter?.requiredDocumentation?.text.orEmpty(), "getter doc")
-            assertContains(accessors.setter?.requiredDocumentation?.text.orEmpty(), "setter doc")
+            parameter.assertPrintedDocumentation(expectedOutput = "/** parameter doc */")
+            body.assertPrintedDocumentation(expectedOutput = "/** body doc */")
+            accessors.assertPrintedDocumentation(expectedOutput = "/** accessors property doc */")
+            accessors.getter?.assertPrintedDocumentation(expectedOutput = "/** getter doc */")
+            accessors.setter?.assertPrintedDocumentation(expectedOutput = "/** setter doc */")
         }
     }
 }

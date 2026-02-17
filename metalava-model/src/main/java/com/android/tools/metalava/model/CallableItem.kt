@@ -16,12 +16,11 @@
 
 package com.android.tools.metalava.model
 
-import com.android.tools.metalava.model.scope.ReferencableNameScope
 import java.util.Objects
 
 /** Common to [MethodItem] and [ConstructorItem]. */
 @MetalavaApi
-interface CallableItem : MemberItem, TypeParameterListOwner, ReferencableNameScope {
+interface CallableItem : MemberItem, TypeParameterListOwner {
 
     /** Whether this callable is a constructor or a method. */
     @MetalavaApi fun isConstructor(): Boolean
@@ -52,7 +51,7 @@ interface CallableItem : MemberItem, TypeParameterListOwner, ReferencableNameSco
         }
         append(' ')
         if (includeReturnValue && !isConstructor()) {
-            append(returnType().toSimpleType())
+            append(returnType().toSimpleTypeString())
             append(' ')
         }
         appendCallableSignature(includeParameterNames, includeParameterTypes)
@@ -80,7 +79,7 @@ interface CallableItem : MemberItem, TypeParameterListOwner, ReferencableNameSco
                     }
                 }
                 if (includeParameterTypes) {
-                    append(parameter.type().toSimpleType())
+                    append(parameter.type().toSimpleTypeString())
                     if (includeParameterNames) {
                         append(' ')
                     }
@@ -104,7 +103,7 @@ interface CallableItem : MemberItem, TypeParameterListOwner, ReferencableNameSco
     /** Returns true if this callable throws the given exception */
     fun throws(qualifiedName: String): Boolean {
         for (type in throwsTypes()) {
-            val throwableClass = type.erasedClass ?: continue
+            val throwableClass = type.asErasedClass(codebase) ?: continue
             if (throwableClass.extends(qualifiedName)) {
                 return true
             }
@@ -125,24 +124,38 @@ interface CallableItem : MemberItem, TypeParameterListOwner, ReferencableNameSco
         throwsTypes: LinkedHashSet<ExceptionTypeItem>
     ): LinkedHashSet<ExceptionTypeItem> {
         for (exceptionType in throwsTypes()) {
-            if (exceptionType is VariableTypeItem) {
-                throwsTypes.add(exceptionType)
-            } else {
-                val classItem = exceptionType.erasedClass ?: continue
-                if (predicate.test(classItem)) {
+            when (exceptionType) {
+                is VariableTypeItem -> {
                     throwsTypes.add(exceptionType)
-                } else {
-                    // Excluded, but it may have super class throwables that are included; if so,
-                    // include those.
-                    classItem
-                        .allSuperClasses()
-                        .firstOrNull { superClass -> predicate.test(superClass) }
-                        ?.let { superClass -> throwsTypes.add(superClass.type()) }
+                }
+                is ClassTypeItem -> {
+                    val classItem = exceptionType.asErasedClass(codebase) ?: continue
+                    if (predicate.test(classItem)) {
+                        throwsTypes.add(exceptionType)
+                    } else {
+                        // Excluded, but it may have super class throwables that are included; if
+                        // so, include those.
+                        classItem
+                            .allSuperClasses()
+                            .firstOrNull { superClass -> predicate.test(superClass) }
+                            ?.let { superClass -> throwsTypes.add(superClass.type()) }
+                    }
                 }
             }
         }
         return throwsTypes
     }
+
+    /**
+     * Create an overload of this [CallableItem] with a copy of [parameters].
+     *
+     * The returned [CallableItem] will have its own parameters that are a copy of [parameters] with
+     * one exception. If [parameters] contains a varargs parameter which is last and its type is an
+     * [ArrayTypeItem] whose [ArrayTypeItem.isVarargs] is `false` then this will replace that type
+     * with an identical one except that [ArrayTypeItem.isVarargs] will be `true`. That ensures
+     * correct behavior for Kotlin varargs.
+     */
+    fun createOverload(parameters: List<ParameterItem>): CallableItem
 
     /** Override to specialize return type. */
     override fun findCorrespondingItemIn(
@@ -156,13 +169,13 @@ interface CallableItem : MemberItem, TypeParameterListOwner, ReferencableNameSco
         append("#")
         append(name())
         append("(")
-        parameters().joinTo(this) { it.type().toSimpleType() }
+        parameters().joinTo(this) { it.type().toSimpleTypeString() }
         append(")")
     }
 
     override fun toStringForItem(): String {
         return "${if (isConstructor()) "constructor" else "method"} ${
-            containingClass().qualifiedName()}.${name()}(${parameters().joinToString { it.type().toSimpleType() }})"
+            containingClass().qualifiedName()}.${name()}(${parameters().joinToString { it.type().toSimpleTypeString() }})"
     }
 
     override fun equalsToItem(other: Any?): Boolean {
@@ -294,7 +307,7 @@ interface CallableItem : MemberItem, TypeParameterListOwner, ReferencableNameSco
             is PrimitiveTypeItem -> false
             is ArrayTypeItem -> componentType.hasHiddenType(filterReference)
             is ClassTypeItem ->
-                asClass()?.let { !filterReference.test(it) } == true ||
+                resolveClass(codebase)?.let { !filterReference.test(it) } == true ||
                     outerClassType?.hasHiddenType(filterReference) == true ||
                     arguments.any { it.hasHiddenType(filterReference) }
             is VariableTypeItem ->

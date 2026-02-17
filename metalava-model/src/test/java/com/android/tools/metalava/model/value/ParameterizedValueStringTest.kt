@@ -117,7 +117,7 @@ class ParameterizedValueStringTest {
                 LabelledConfig(
                     "annotation-class-renamer",
                     ValueStringConfiguration(
-                        annotationQualifiedNameGetter = { annotationItem ->
+                        annotationQualifiedNameGetter = { annotationItem, _ ->
                             annotationItem.qualifiedName.replace(
                                 "android.annotation.",
                                 "androidx.annotation."

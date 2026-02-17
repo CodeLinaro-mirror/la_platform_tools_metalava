@@ -19,34 +19,29 @@ package com.android.tools.metalava.model.source
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.SelectableItem
+import com.android.tools.metalava.model.source.doc.ContentSupplier
+import com.android.tools.metalava.model.source.doc.DefaultDocComment
+import com.android.tools.metalava.model.source.doc.DocComment
 import com.android.tools.metalava.reporter.FileLocation
 
 /** A default [com.android.tools.metalava.model.ItemDocumentation] containing JavaDoc/KDoc. */
 internal class DefaultItemDocumentation(
     item: SelectableItem,
-    text: String,
+    docComment: DocComment? = null,
     override val fileLocation: FileLocation = FileLocation.UNKNOWN,
 ) : AbstractItemDocumentation(item) {
 
-    init {
-        // Initialize _text from the text constructor parameter.
-        _text = text
-    }
-
-    /** Should never be called as _text has been initialized above. */
-    override fun initializeTextBackingField() {
-        error("Internal Error: _text backing field is uninitialized")
-    }
+    override val docComment: DocComment =
+        docComment
+            ?: DefaultDocComment(
+                this,
+                ContentSupplier.NULL,
+                emptyList(),
+                noComment = true,
+            )
 }
 
-/** Wrap a [String] in an [ItemDocumentationFactory]. */
-fun String.toItemDocumentationFactory(): ItemDocumentationFactory = ItemDocumentationFactory {
-    toItemDocumentation(it)
+/** Creates an [ItemDocumentation] for an item without any source comment. */
+val NO_SOURCE_COMMENT_FACTORY = ItemDocumentationFactory { item ->
+    DefaultItemDocumentation(item, null)
 }
-
-/** Wrap a [String] in an [ItemDocumentation] instance. */
-private fun String.toItemDocumentation(item: SelectableItem): ItemDocumentation =
-    DefaultItemDocumentation(item, this)
-
-/** Creates a [DefaultItemDocumentation] for an item without any source comment. */
-val NO_SOURCE_COMMENT_FACTORY = "".toItemDocumentationFactory()

@@ -21,24 +21,27 @@ import com.android.tools.metalava.model.ReferenceTypeItem
 import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.WildcardTypeItem
 
-class DefaultWildcardTypeItem(
+internal class DefaultWildcardTypeItem(
     modifiers: TypeModifiers,
     override val extendsBound: ReferenceTypeItem?,
     override val superBound: ReferenceTypeItem?,
-) : WildcardTypeItem, DefaultTypeItem(modifiers) {
-    @Deprecated(
-        "implementation detail of this class",
-        replaceWith = ReplaceWith("substitute(modifiers, extendsBound, superBound)"),
-    )
-    override fun duplicate(
+    isValueClassType: Boolean = false,
+) : WildcardTypeItem, DefaultTypeItem(modifiers, isValueClassType) {
+
+    override fun substitute(
         modifiers: TypeModifiers,
         extendsBound: ReferenceTypeItem?,
         superBound: ReferenceTypeItem?
-    ): WildcardTypeItem {
-        return DefaultWildcardTypeItem(
-            modifiers,
-            extendsBound,
-            superBound,
+    ) =
+        if (
+            modifiers !== this.modifiers ||
+                extendsBound !== this.extendsBound ||
+                superBound !== this.superBound
         )
-    }
+            DefaultWildcardTypeItem(
+                modifiers,
+                extendsBound,
+                superBound,
+            )
+        else this
 }

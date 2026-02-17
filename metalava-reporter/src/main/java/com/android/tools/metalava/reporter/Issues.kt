@@ -52,6 +52,7 @@ object Issues {
     // doesn't distinguish those cases.
     val ADDED_FIELD by Issue(Severity.HIDDEN, Category.OTHER_COMPATIBILITY)
     val ADDED_INTERFACE by Issue(Severity.HIDDEN, Category.OTHER_COMPATIBILITY)
+    val ADDED_PROPERTY by Issue(Severity.HIDDEN, Category.OTHER_COMPATIBILITY)
     // This refers to removing usage of an `--api-compat-annotation` (not removing a definition)
     val REMOVED_ANNOTATION by Issue(Severity.ERROR, Category.OTHER_COMPATIBILITY)
     val REMOVED_PACKAGE by Issue(Severity.ERROR, Category.BINARY_AND_SOURCE_COMPATIBILITY)
@@ -60,6 +61,7 @@ object Issues {
     val REMOVED_FIELD by Issue(Severity.ERROR, Category.BINARY_AND_SOURCE_COMPATIBILITY)
     val REMOVED_INTERFACE by Issue(Severity.ERROR, Category.BINARY_AND_SOURCE_COMPATIBILITY)
     val REMOVED_TYPE_ALIAS by Issue(Severity.ERROR, Category.SOURCE_COMPATIBILITY_ONLY)
+    val REMOVED_PROPERTY by Issue(Severity.ERROR, Category.SOURCE_COMPATIBILITY_ONLY)
     val CHANGED_STATIC by Issue(Severity.ERROR, Category.BINARY_AND_SOURCE_COMPATIBILITY)
     val ADDED_FINAL by Issue(Severity.ERROR, Category.BINARY_AND_SOURCE_COMPATIBILITY)
     val CHANGED_VOLATILE by Issue(Severity.ERROR, Category.OTHER_COMPATIBILITY)
@@ -83,6 +85,7 @@ object Issues {
     val REMOVED_DEPRECATED_METHOD by Issue(REMOVED_METHOD, Category.BINARY_AND_SOURCE_COMPATIBILITY)
     val REMOVED_DEPRECATED_FIELD by Issue(REMOVED_FIELD, Category.BINARY_AND_SOURCE_COMPATIBILITY)
     val ADDED_ABSTRACT_METHOD by Issue(Severity.ERROR, Category.BINARY_AND_SOURCE_COMPATIBILITY)
+    val ADDED_ABSTRACT_PROPERTY by Issue(Severity.ERROR, Category.SOURCE_COMPATIBILITY_ONLY)
     val ADDED_REIFIED by Issue(Severity.ERROR, Category.BINARY_COMPATIBILITY_ONLY)
     val REMOVED_JVM_DEFAULT_WITH_COMPATIBILITY by
         Issue(Severity.ERROR, Category.BINARY_COMPATIBILITY_ONLY)
@@ -99,6 +102,7 @@ object Issues {
     val INVALID_TAG_FORM by Issue(Severity.WARNING_ERROR_WHEN_NEW, Category.DOCUMENTATION)
     val UNCLOSED_INLINE_TAG by Issue(Severity.ERROR, Category.DOCUMENTATION)
     val UNRESOLVED_LINK by Issue(Severity.WARNING_ERROR_WHEN_NEW, Category.DOCUMENTATION)
+    val INVALID_DOC_THROWS_TYPE by Issue(Severity.ERROR, Category.DOCUMENTATION)
     val UNAVAILABLE_SYMBOL by Issue(Severity.WARNING, Category.DOCUMENTATION)
     val HIDDEN_SUPERCLASS by Issue(Severity.WARNING, Category.DOCUMENTATION)
     val DEPRECATED by Issue(Severity.HIDDEN, Category.DOCUMENTATION)
@@ -263,7 +267,7 @@ object Issues {
     val KOTLIN_DEFAULT_PARAMETER_ORDER by Issue(Severity.ERROR, Category.API_LINT)
 
     val UNFLAGGED_API by Issue(Severity.HIDDEN, Category.API_LINT)
-    val FLAGGED_API_LITERAL by Issue(Severity.WARNING_ERROR_WHEN_NEW, Category.API_LINT)
+    val FLAGGED_API_LITERAL by Issue(Severity.ERROR, Category.API_LINT)
     val UNEXPORTED_FLAGGED_API by Issue(Severity.WARNING_ERROR_WHEN_NEW, Category.API_LINT)
 
     val NO_PREVIOUSLY_RELEASED_API by Issue(Severity.ERROR, Category.API_LINT)
@@ -278,6 +282,8 @@ object Issues {
     // TODO(b/165356974): set this to error once AndroidX selectively opts-in for projects that
     // target Java
     val FACADE_CLASS_JVM_NAME by Issue(Severity.HIDDEN, Category.API_LINT)
+    val VALUE_CLASS_USAGE_WITHOUT_JVM_NAME by Issue(Severity.HIDDEN, Category.API_LINT)
+    val VALUE_CLASS_USAGE_FROM_CONSTRUCTOR by Issue(Severity.HIDDEN, Category.API_LINT)
 
     val KMP_DEPRECATION_MISMATCH by Issue(Severity.ERROR, Category.API_LINT)
     val KMP_VISIBILITY_MISMATCH by Issue(Severity.ERROR, Category.API_LINT)

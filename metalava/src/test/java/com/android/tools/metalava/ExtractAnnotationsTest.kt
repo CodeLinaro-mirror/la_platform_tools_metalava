@@ -461,7 +461,7 @@ class ExtractAnnotationsTest : DriverTest() {
                     <root>
                       <item name="test.pkg.Test java.lang.String sayHello(int) 0">
                         <annotation name="androidx.annotation.IntRange">
-                          <val name="from" val="10" />
+                          <val name="from" val="10L" />
                         </annotation>
                       </item>
                     </root>
@@ -470,6 +470,7 @@ class ExtractAnnotationsTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.METHOD_BODY)
     @Test
     fun `Check warning about unexpected returns from typedef method`() {
         check(
@@ -677,7 +678,7 @@ class ExtractAnnotationsTest : DriverTest() {
                 <root>
                   <item name="test.pkg.MyTest void test(java.util.List&lt;java.lang.Integer&gt;, int) 1">
                     <annotation name="androidx.annotation.IntRange">
-                      <val name="from" val="10" />
+                      <val name="from" val="10L" />
                     </annotation>
                   </item>
                 </root>
