@@ -105,7 +105,7 @@ class ComparisonVisitorTest : TemporaryFolderOwner, Assertions {
     fun `Test make sure that method with emit=false is ignored during comparison`() {
 
         fun TestFile.readCodebase(): Codebase {
-            val signatureFiles = SignatureFile.fromFiles(createFile(temporaryFolder.root))
+            val signatureFiles = SignatureFile.fromFiles(toFile())
             return ApiFile.parseApi(signatureFiles, Codebase.Config.NOOP)
         }
 

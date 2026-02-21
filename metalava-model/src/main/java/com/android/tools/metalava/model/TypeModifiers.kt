@@ -102,22 +102,31 @@ private constructor(
 enum class TypeNullability(
     /** Kotlin nullability suffix. */
     val suffix: String,
+    /**
+     * Indicates whether this [TypeNullability] is a known type, i.e. nullable or non-null, or an
+     * unknown type, i.e. platform or undefined.
+     */
+    val known: Boolean,
 ) {
     /**
      * Nullability for a type that is annotated non-null, is primitive, or defined as non-null in
      * Kotlin.
      */
-    NONNULL(""),
+    NONNULL("", known = true),
+
     /** Nullability for a type that is annotated nullable or defined as nullable in Kotlin. */
-    NULLABLE("?"),
+    NULLABLE("?", known = true),
+
     /** Nullability for a Java type without a specified nullability. */
-    PLATFORM("!"),
+    PLATFORM("!", known = false),
+
     /**
      * The nullability for a type without defined nullness. Examples include:
      * - A Kotlin type variable with inherited nullability.
      * - Wildcard types (nullness is defined through the bounds of the wildcard).
      */
-    UNDEFINED("");
+    UNDEFINED("", known = false),
+    ;
 
     companion object {
         /** Given a nullness [annotation], returns the corresponding [TypeNullability]. */

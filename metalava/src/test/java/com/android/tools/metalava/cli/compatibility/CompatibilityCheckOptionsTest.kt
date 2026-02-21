@@ -85,8 +85,7 @@ class CompatibilityCheckOptionsTest :
 
     @Test
     fun `check compatibility api released`() {
-        val file =
-            signature("released.txt", "// Signature format: 2.0\n").createFile(temporaryFolder.root)
+        val file = signature("released.txt", "// Signature format: 2.0\n").toFile()
         runTest(ARG_CHECK_COMPATIBILITY_API_RELEASED, file.path) {
             assertThat(options.compatibilityChecks)
                 .isEqualTo(
@@ -102,12 +101,8 @@ class CompatibilityCheckOptionsTest :
 
     @Test
     fun `check compatibility api released multiple files`() {
-        val file1 =
-            signature("released1.txt", "// Signature format: 2.0\n")
-                .createFile(temporaryFolder.root)
-        val file2 =
-            signature("released2.txt", "// Signature format: 2.0\n")
-                .createFile(temporaryFolder.root)
+        val file1 = signature("released1.txt", "// Signature format: 2.0\n").toFile()
+        val file2 = signature("released2.txt", "// Signature format: 2.0\n").toFile()
         runTest(
             ARG_CHECK_COMPATIBILITY_API_RELEASED,
             file1.path,
@@ -129,8 +124,7 @@ class CompatibilityCheckOptionsTest :
 
     @Test
     fun `check compatibility removed api released`() {
-        val file =
-            signature("removed.txt", "// Signature format: 2.0\n").createFile(temporaryFolder.root)
+        val file = signature("removed.txt", "// Signature format: 2.0\n").toFile()
         runTest(ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED, file.path) {
             assertThat(options.compatibilityChecks)
                 .isEqualTo(
@@ -152,7 +146,7 @@ class CompatibilityCheckOptionsTest :
      * Create a fake jar file. It is ok that it is not actually a jar file as its contents are not
      * read.
      */
-    private fun fakeJar() = source("some.jar", "PK...").createFile(temporaryFolder.root)
+    private fun fakeJar() = source("some.jar", "PK...").toFile()
 
     @Test
     fun `check compatibility api released from jar`() {
@@ -173,8 +167,7 @@ class CompatibilityCheckOptionsTest :
     @Test
     fun `check compatibility api released mixture of signature and jar`() {
         val jarFile = fakeJar()
-        val signatureFile =
-            signature("removed.txt", "// Signature format: 2.0\n").createFile(temporaryFolder.root)
+        val signatureFile = signature("removed.txt", "// Signature format: 2.0\n").toFile()
 
         val exception =
             assertThrows(IllegalStateException::class.java) {
@@ -225,8 +218,7 @@ class CompatibilityCheckOptionsTest :
 
     @Test
     fun `Test check-compatibility=disabled disables check but not previously released API`() {
-        val file =
-            signature("released.txt", "// Signature format: 2.0\n").createFile(temporaryFolder.root)
+        val file = signature("released.txt", "// Signature format: 2.0\n").toFile()
         runTest(
             ARG_CHECK_COMPATIBILITY_API_RELEASED,
             file.path,

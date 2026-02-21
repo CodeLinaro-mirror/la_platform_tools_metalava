@@ -129,7 +129,7 @@ internal class TurbineTypeItemFactory(
             }
             Type.TyKind.TY_VAR -> {
                 type as Type.TyVar
-                val modifiers = createModifiers(type.annos(), contextNullability)
+                val modifiers = createModifiers(type.annos(), contextNullability.forTypeVariable())
                 val typeParameter = typeParameterScope.getTypeParameter(type.sym().name())
                 TypeItem.createVariableType(modifiers, typeParameter)
             }

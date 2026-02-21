@@ -111,7 +111,7 @@ class SignatureFormatOptionsTest :
 
     @Test
     fun `--use-same-format-as reads from a valid file and ignores --format`() {
-        val path = source("api.txt", "// Signature format: 4.0\n").createFile(temporaryFolder.root)
+        val path = source("api.txt", "// Signature format: 4.0\n").toFile()
         runTest("--use-same-format-as", path.path, "--format", "v4") {
             assertThat(options.fileFormat).isEqualTo(FileFormat.V4)
         }
@@ -119,7 +119,7 @@ class SignatureFormatOptionsTest :
 
     @Test
     fun `--use-same-format-as ignores empty file and falls back to format`() {
-        val path = source("api.txt", "").createFile(temporaryFolder.root)
+        val path = source("api.txt", "").toFile()
         runTest("--use-same-format-as", path.path, "--format", "v4") {
             assertThat(options.fileFormat).isEqualTo(FileFormat.V4)
         }
@@ -127,7 +127,7 @@ class SignatureFormatOptionsTest :
 
     @Test
     fun `--use-same-format-as will honor --format-defaults overloaded-method-order=source`() {
-        val path = source("api.txt", "// Signature format: 2.0\n").createFile(temporaryFolder.root)
+        val path = source("api.txt", "// Signature format: 2.0\n").toFile()
         runTest(
             "--use-same-format-as",
             path.path,
@@ -152,8 +152,7 @@ class SignatureFormatOptionsTest :
 
     @Test
     fun `--use-same-format-as fails to read from an invalid file`() {
-        val path =
-            source("api.txt", "// Not a signature file").createFile(temporaryFolder.root).path
+        val path = source("api.txt", "// Not a signature file").toFile().path
         val e =
             assertThrows(ApiParseException::class.java) {
                 runTest("--use-same-format-as", path) {

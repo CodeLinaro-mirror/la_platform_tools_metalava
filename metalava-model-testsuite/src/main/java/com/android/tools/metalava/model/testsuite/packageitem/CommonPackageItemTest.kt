@@ -566,7 +566,7 @@ class CommonPackageItemTest : BaseModelTest() {
             ),
             testFixture =
                 TestFixture(
-                    additionalClassPath = listOf(otherJarFile.createFile(temporaryFolder.root))
+                    additionalClassPath = listOf(otherJarFile.toFile()),
                 ),
         ) {
             val packageItem = codebase.assertResolvedPackage("other.pkg")

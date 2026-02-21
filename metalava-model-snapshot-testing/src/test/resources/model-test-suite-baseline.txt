@@ -44,6 +44,19 @@ com.android.tools.metalava.model.testsuite.methoditem.CommonParameterItemTest
   Test publicName reports correct name when called on binary class - Object#equals[turbine]
   Test publicName reports correct name when called on binary class - ViewGroup#onLayout[turbine]
 
+com.android.tools.metalava.model.testsuite.typeitem.CommonParameterizedTypeVariableNullabilityTest
+  Test type variable as type argument of inner class type[text,KOTLIN_STYLE_NULLS,non-nullable variable]
+  Test type variable as type argument of outer class type[psi,java,k1,TYPE_USE_ANNOTATIONS,non-nullable variable]
+  Test type variable as type argument of outer class type[psi,java,k1,TYPE_USE_ANNOTATIONS,nullable variable]
+  Test type variable as type argument of outer class type[psi,java,k2,TYPE_USE_ANNOTATIONS,non-nullable variable]
+  Test type variable as type argument of outer class type[psi,java,k2,TYPE_USE_ANNOTATIONS,nullable variable]
+  Test type variable as type argument of outer class type[psi,kotlin,k1,KOTLIN_STYLE_NULLS,non-nullable variable]
+  Test type variable as type argument of outer class type[psi,kotlin,k1,KOTLIN_STYLE_NULLS,nullable variable]
+  Test type variable as type argument of outer class type[psi,kotlin,k2,KOTLIN_STYLE_NULLS,non-nullable variable]
+  Test type variable as type argument of outer class type[psi,kotlin,k2,KOTLIN_STYLE_NULLS,nullable variable]
+  Test type variable as type argument of outer class type[text,KOTLIN_STYLE_NULLS,non-nullable variable]
+  Test type variable on its own[text,KOTLIN_STYLE_NULLS,non-nullable variable]
+
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeModifiersTest
   Test inner parameterized types with annotations[psi,java,k1]
   Test inner parameterized types with annotations[psi,java,k2]

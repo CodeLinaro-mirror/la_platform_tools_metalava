@@ -15,6 +15,16 @@ com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTe
 com.android.tools.metalava.model.testsuite.classitem.CommonDataClassTest
   Test data class copy method visibility with ConsistentCopyVisibility[kotlin,k1]
 
+com.android.tools.metalava.model.testsuite.typeitem.CommonParameterizedTypeVariableNullabilityTest
+  Test type variable as type argument of outer class type[java,k1,TYPE_USE_ANNOTATIONS,non-nullable variable]
+  Test type variable as type argument of outer class type[java,k1,TYPE_USE_ANNOTATIONS,nullable variable]
+  Test type variable as type argument of outer class type[java,k2,TYPE_USE_ANNOTATIONS,non-nullable variable]
+  Test type variable as type argument of outer class type[java,k2,TYPE_USE_ANNOTATIONS,nullable variable]
+  Test type variable as type argument of outer class type[kotlin,k1,KOTLIN_STYLE_NULLS,non-nullable variable]
+  Test type variable as type argument of outer class type[kotlin,k1,KOTLIN_STYLE_NULLS,nullable variable]
+  Test type variable as type argument of outer class type[kotlin,k2,KOTLIN_STYLE_NULLS,non-nullable variable]
+  Test type variable as type argument of outer class type[kotlin,k2,KOTLIN_STYLE_NULLS,nullable variable]
+
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeModifiersTest
   Test inner parameterized types with annotations[java,k1]
   Test inner parameterized types with annotations[java,k2]
