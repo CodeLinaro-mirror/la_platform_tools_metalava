@@ -745,7 +745,8 @@ internal class PsiTypeItemFactory(
         contextNullability: ContextNullability,
     ) =
         TypeItem.createVariableType(
-            modifiers = createTypeModifiers(psiType, kotlinType, contextNullability),
+            modifiers =
+                createTypeModifiers(psiType, kotlinType, contextNullability.forTypeVariable()),
             asTypeParameter = typeParameterItem,
             isValueClassType = kotlinType.isValueClassTypeIfAvailable,
         )

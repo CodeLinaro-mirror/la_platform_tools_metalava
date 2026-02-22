@@ -18,11 +18,14 @@ package com.android.tools.metalava.lint
 
 import com.android.tools.metalava.ARG_PASS_THROUGH_ANNOTATION
 import com.android.tools.metalava.DriverTest
+import com.android.tools.metalava.androidRestrictedForEnvironment
+import com.android.tools.metalava.androidXRestrictedForEnvironment
 import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.cli.common.ARG_WARNING
 import com.android.tools.metalava.requiresPermissionSource
 import com.android.tools.metalava.systemApiSource
 import com.android.tools.metalava.testing.KnownJarFiles
+import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.xml
 import org.junit.Test
@@ -684,14 +687,11 @@ class FlaggedApiLintTest : DriverTest() {
         )
     }
 
-    // b/448616809 Test added to showcase the discrepancy between how the previously released api
-    // (loaded from prebuilts) and the current api (loaded from sources) store @RequiresPermission.
-    // Comparisons for this annotation will be disabled until this discrepancy is resolved, hence
-    // changes in the @RequiresPermission annotation will not require flagging for the time being.
     @Test
-    fun `Do not require @FlaggedApi on RequiresPermission`() {
+    fun `Require @FlaggedApi on RequiresPermission changes`() {
         check(
-            expectedIssues = "",
+            expectedIssues =
+                "src/test/pkg/Foo.java:5: warning: Changes to modifiers, from '@androidx.annotation.RequiresPermission(\"android.permission.MY_PERMISSION_STRING\") public' to 'public' must be flagged with @FlaggedApi: class test.pkg.Foo [UnflaggedApi]",
             apiLint =
                 """
                     // Signature format: 2.0
@@ -739,6 +739,75 @@ class FlaggedApiLintTest : DriverTest() {
 
                             import android.annotation.RequiresPermission;
 
+                            public class Foo {
+                                Foo() {}
+                            }
+                        """
+                    ),
+                    flagsFile,
+                    requiresPermissionSource
+                ),
+            // Access android.annotation.FlaggedApi
+            classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
+            extraArguments = arrayOf(ARG_WARNING, "UnflaggedApi"),
+        )
+    }
+
+    // This test was added to showcase what happens when the attributes for @RequiresPermission are
+    // stored differently between sources (current api) and the prebuilts signature file (previous
+    // api).
+    @Test
+    fun `Do not require @FlaggedApi on RequiresPermission annotations that resolve to the same value`() {
+        check(
+            expectedIssues = "",
+            apiLint =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                    @RequiresPermission("android.permission.MY_PERMISSION_STRING") public class Foo {
+                    }
+                    public class Manifest {
+                    }
+                    public static final class Manifest.permission {
+                      field public static final String MY_PERMISSION = "android.permission.MY_PERMISSION_STRING";
+                    }
+                  }
+                """,
+            api =
+                """
+                  package test.pkg {
+                    @RequiresPermission(test.pkg.Manifest.permission.MY_PERMISSION) public class Foo {
+                    }
+                    public class Manifest {
+                    }
+                    public static final class Manifest.permission {
+                      field public static final String MY_PERMISSION = "android.permission.MY_PERMISSION_STRING";
+                    }
+                  }
+            """,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            public class Manifest {
+                                Manifest() {}
+
+                                public static final class permission {
+                                    permission() {}
+                                    public static final String MY_PERMISSION = "android.permission.MY_PERMISSION_STRING";
+                                }
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+
+                            import android.annotation.RequiresPermission;
+
+                            @RequiresPermission(Manifest.permission.MY_PERMISSION)
                             public class Foo {
                                 Foo() {}
                             }
@@ -935,6 +1004,88 @@ class FlaggedApiLintTest : DriverTest() {
     }
 
     @Test
+    fun `Do not require @FlaggedApi on annotations changes that involve attribute fields that resolve to the same value`() {
+        check(
+            expectedIssues = "",
+            apiLint =
+                """
+                     // Signature format: 5.0
+                     package test.annotation {
+                       @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) @java.lang.annotation.Target({java.lang.annotation.ElementType.METHOD}) public @interface Custom {
+                         method public abstract int value() default 0;
+                       }
+                     }
+                     package test.pkg {
+                       public class Foo {
+                         ctor public Foo();
+                         method @test.annotation.Custom(test.pkg.Foo.SECONDARY_FIELD) public void bar();
+                         field public static final int PRIMARY_FIELD = 1; // 0x1
+                         field public static final int SECONDARY_FIELD = 1; // 0x1
+                       }
+                     }
+                """,
+            api =
+                """
+                    // Signature format: 5.0
+                    package test.annotation {
+                      @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) @java.lang.annotation.Target({java.lang.annotation.ElementType.METHOD}) public @interface Custom {
+                        method public abstract int value() default 0;
+                      }
+                    }
+                    package test.pkg {
+                      public class Foo {
+                        ctor public Foo();
+                        method @test.annotation.Custom(test.pkg.Foo.PRIMARY_FIELD) public void bar();
+                        field public static final int PRIMARY_FIELD = 1; // 0x1
+                        field public static final int SECONDARY_FIELD = 1; // 0x1
+                      }
+                    }
+            """,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.annotation;
+
+                            import static java.lang.annotation.ElementType.METHOD;
+                            import java.lang.annotation.Target;
+
+                            @Target({METHOD})
+                            public @interface Custom {
+                                int value() default 0;
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+
+                            import test.annotation.Custom;
+
+                            public class Foo {
+                                public static final int PRIMARY_FIELD = 1;
+                                public static final int SECONDARY_FIELD = 1;
+
+                                @Custom(PRIMARY_FIELD)
+                                public void bar() {}
+                            }
+                        """
+                    ),
+                    flagsFile,
+                ),
+            // Access android.annotation.FlaggedApi
+            classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
+            extraArguments =
+                arrayOf(
+                    ARG_WARNING,
+                    "UnflaggedApi",
+                    ARG_PASS_THROUGH_ANNOTATION,
+                    "test.annotation.Custom"
+                ),
+        )
+    }
+
+    @Test
     fun `Require @FlaggedApi api flags to be exported`() {
         val apiFlagsXmlFile =
             xml(
@@ -990,6 +1141,57 @@ class FlaggedApiLintTest : DriverTest() {
             checkCompatibilityApiReleased = previouslyReleasedApi,
             // Access android.annotation.FlaggedApi
             classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
+        )
+    }
+
+    // b/483372828 - This test was added to prevent false-positives from occurring stating that
+    // @RestrictedForEnvironment should be flagged when it shouldn't. @RestrictedForEnvironment has
+    // attribute values that are represented differently between the sources (current api) and the
+    // prebuilts signature file (previous api). Testing around this can be improved in the future.
+    @Test
+    fun `Do not require @FlaggedApi for @RestrictedForEnvironment with no changes`() {
+        check(
+            expectedIssues = "",
+            apiLint =
+                """
+                    // Signature format: 5.0
+                    package android.pkg {
+                      @androidx.annotation.RestrictedForEnvironment(environments=android.annotation.RestrictedForEnvironment.ENVIRONMENT_SDK_RUNTIME, from=34) public final class Foo {
+                        ctor public Foo();
+                      }
+                    }
+                """,
+            api =
+                """
+                // Signature format: 5.0
+                package android.pkg {
+                  @RestrictedForEnvironment(environments=android.annotation.RestrictedForEnvironment.ENVIRONMENT_SDK_RUNTIME, from=34) public final class Foo {
+                    ctor public Foo();
+                  }
+                }
+            """
+                    .trimIndent(),
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package android.pkg;
+                            import androidx.annotation.RestrictedForEnvironment;
+
+                            @RestrictedForEnvironment(environments=android.annotation.RestrictedForEnvironment.ENVIRONMENT_SDK_RUNTIME, from=34)
+                            public final class Foo {
+                                public Foo() {}
+                            }
+                        """
+                    ),
+                    androidRestrictedForEnvironment,
+                    androidXRestrictedForEnvironment,
+                    KnownSourceFiles.stringDefSource,
+                    flagsFile,
+                ),
+            // Access android.annotation.FlaggedApi
+            classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
+            extraArguments = arrayOf(ARG_WARNING, "UnflaggedApi"),
         )
     }
 }

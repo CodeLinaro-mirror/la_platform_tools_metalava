@@ -404,20 +404,45 @@ class CompatibilityCheck(
             candidateParameters.subList(originalParameters.size, candidateParameters.size)
         if (additionalParameters.any { !it.hasDefaultValue() }) return false
         // Verify that all parameters from the original are present.
-        return candidateParameters.zip(originalParameters).all { (candidateParameter, oldParameter)
-            ->
-            // Since the item could be called using named parameters, the name can't change.
-            candidateParameter.name() == oldParameter.name() &&
-                // Parameter types must be the same.
-                candidateParameter.type() == oldParameter.type() &&
-                // The nullability can't change from nullable to non-null, because that would mean
-                // that usages that pass in a nullable value would no longer work.
-                (oldParameter.type().modifiers.isNonNull ||
-                    candidateParameter.type().modifiers.isNullable) &&
-                // If there was a default value, an existing caller might not be providing the
-                // parameter, so the parameters needs to still be optional.
-                (!oldParameter.hasDefaultValue() || candidateParameter.hasDefaultValue())
+        return candidateParameters.zip(originalParameters).all {
+            (candidateParameter, originalParameter) ->
+            isCompatibleKotlinOverloadParameter(originalParameter, candidateParameter)
         }
+    }
+
+    /** Check whether the parameters are compatible in a Kotlin method overload. */
+    private fun isCompatibleKotlinOverloadParameter(
+        original: ParameterItem,
+        candidate: ParameterItem,
+    ): Boolean {
+        // Since the item could be called using named parameters, the name can't change.
+        if (original.name() != candidate.name()) return false
+
+        // Parameter types must be compatible.
+        if (!isCompatibleKotlinOverloadParameterType(original.type(), candidate.type()))
+            return false
+
+        // If there was a default value, an existing caller might not be providing the
+        // parameter, so the parameters needs to still be optional.
+        return (!original.hasDefaultValue() || candidate.hasDefaultValue())
+    }
+
+    /** Check whether the parameter types are compatible in a Kotlin method overload. */
+    private fun isCompatibleKotlinOverloadParameterType(
+        original: TypeItem,
+        candidate: TypeItem,
+    ): Boolean {
+        // Parameter types must be the same. Note: TypeItem.equals() does not check nullability (or
+        // annotations). So, it is possible that two TypeItems that are equal are not compatible due
+        // to differences in nullability. That will be checked below.
+        if (original != candidate) return false
+
+        // If the nullability is the same then the parameters are compatible.
+        if (original.modifiers.nullability == candidate.modifiers.nullability) return true
+
+        // The nullability can't change from nullable to non-null, because that would mean that
+        // usages that pass in a nullable value would no longer work.
+        return original.modifiers.isNonNull || candidate.modifiers.isNullable
     }
 
     override fun compareParameterItems(old: ParameterItem, new: ParameterItem) {

@@ -751,7 +751,7 @@ class ApiFileTest : BaseTextCodebaseTest() {
                 )
             )
 
-        val files = testFiles.map { it.createFile(temporaryFolder.newFolder()) }
+        val files = testFiles.map { it.toFile() }
         val signatureFiles =
             SignatureFile.fromFiles(
                 files,

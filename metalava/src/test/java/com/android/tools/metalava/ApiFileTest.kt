@@ -488,7 +488,7 @@ class ApiFileTest : DriverTest() {
                 package test.pkg {
                   public class Context {
                     ctor public Context();
-                    method public final <T> T! getSystemService(Class<T!>!);
+                    method public final <T> T getSystemService(Class<T>!);
                   }
                   public final class TestKt {
                     method @KotlinOnly public static inline <reified T> T! systemService1(test.pkg.Context);
@@ -944,7 +944,7 @@ class ApiFileTest : DriverTest() {
                 """
                 // Signature format: 4.0
                 package androidx.collection {
-                  public class ArrayMap<K, V> extends java.util.HashMap<K!,V!> implements java.util.Map<K!,V!> {
+                  public class ArrayMap<K, V> extends java.util.HashMap<K,V> implements java.util.Map<K,V> {
                     ctor public ArrayMap();
                   }
                   public final class ArrayMapKt {
@@ -952,7 +952,7 @@ class ApiFileTest : DriverTest() {
                     method public static <K, V> androidx.collection.ArrayMap<K,V> arrayMapOf(kotlin.Pair<? extends K,? extends V>... pairs);
                     method public static <K, V> androidx.collection.ArrayMap<K,V>? arrayMapOfNullable(kotlin.Pair<? extends K,? extends V>?... pairs);
                   }
-                  public class ArraySet<E> extends java.util.HashSet<E!> implements java.util.Set<E!> {
+                  public class ArraySet<E> extends java.util.HashSet<E> implements java.util.Set<E> {
                     ctor public ArraySet();
                   }
                   public final class ArraySetKt {
@@ -1240,9 +1240,9 @@ class ApiFileTest : DriverTest() {
                     property public S? second;
                   }
                   public class PlatformJavaPair<F, S> {
-                    ctor public PlatformJavaPair(F!, S!);
-                    field public final F! first;
-                    field public final S! second;
+                    ctor public PlatformJavaPair(F, S);
+                    field public final F first;
+                    field public final S second;
                   }
                   public final class TestKt {
                     method public static inline operator <F, S> F! component1(androidx.util.PlatformJavaPair<F,S>);
@@ -2089,7 +2089,7 @@ class ApiFileTest : DriverTest() {
             api =
                 """
                 package test.pkg {
-                  public class MyStringBuilder<A, B> extends test.pkg.PublicSuper<A!,B!> {
+                  public class MyStringBuilder<A, B> extends test.pkg.PublicSuper<A,B> {
                     ctor public MyStringBuilder();
                     method public void setLength(int);
                   }
@@ -4186,8 +4186,8 @@ class ApiFileTest : DriverTest() {
         val expected =
             """
             package Test.pkg {
-              public class IpcDataCache<Query, Result> extends android.app.PropertyInvalidatedCache<Query!,Result!> {
-                ctor public IpcDataCache(int, String, String, String, android.os.IpcDataCache.QueryHandler<Query!,Result!>);
+              public class IpcDataCache<Query, Result> extends android.app.PropertyInvalidatedCache<Query,Result> {
+                ctor public IpcDataCache(int, String, String, String, android.os.IpcDataCache.QueryHandler<Query,Result>);
                 method public void disableForCurrentProcess();
                 method public static void disableForCurrentProcess(String);
                 method public void invalidateCache();

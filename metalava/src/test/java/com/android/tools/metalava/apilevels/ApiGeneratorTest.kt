@@ -849,8 +849,7 @@ class ApiGeneratorTest : DriverTest() {
         )
     }
 
-    private fun createTextFile(name: String, contents: String) =
-        signature(name, contents).createFile(temporaryFolder.root)
+    private fun createTextFile(name: String, contents: String) = signature(name, contents).toFile()
 
     @Test
     fun `Support major minor versions in generated api-versions xml file`() {

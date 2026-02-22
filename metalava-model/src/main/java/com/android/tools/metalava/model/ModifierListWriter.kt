@@ -45,6 +45,16 @@ private constructor(
             )
         }
 
+        fun forNormalizing(writer: Writer): ModifierListWriter {
+            return ModifierListWriter(
+                writer = writer,
+                target = AnnotationTarget.SIGNATURE_FILE,
+                annotationFormatter = AnnotationFormatter.normalizingFormatter(),
+                runtimeAnnotationsOnly = false,
+                skipNullnessAnnotations = true,
+            )
+        }
+
         fun forStubs(
             writer: Writer,
             isDocStubs: Boolean,
@@ -101,9 +111,8 @@ private constructor(
     fun write(
         item: Item,
         normalizeFinal: Boolean = false,
-        skipRequiresPermission: Boolean = false
     ) {
-        writeAnnotations(item, skipRequiresPermission)
+        writeAnnotations(item)
         writeKeywords(item, normalizeFinal = normalizeFinal)
     }
 
@@ -225,7 +234,7 @@ private constructor(
         }
     }
 
-    private fun writeAnnotations(item: Item, skipRequiresPermission: Boolean) {
+    private fun writeAnnotations(item: Item) {
         // Generate annotations on separate lines in stub files for packages, classes and
         // methods and also for enum constants.
         val separateLines =
@@ -257,15 +266,6 @@ private constructor(
         var annotations = list.annotations()
         if (annotations.isEmpty()) {
             return
-        }
-
-        // b/442395516 RequiresPermission is not loaded consistently across codebases hence will be
-        // excluded for now
-        if (skipRequiresPermission) {
-            annotations =
-                annotations.filter { annotation ->
-                    !annotation.qualifiedName.contains("RequiresPermission")
-                }
         }
 
         if (annotations.any { it.isSuppressCompatibilityAnnotation() }) {

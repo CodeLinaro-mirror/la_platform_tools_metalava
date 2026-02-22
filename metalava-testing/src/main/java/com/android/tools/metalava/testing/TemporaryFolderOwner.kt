@@ -137,4 +137,7 @@ interface TemporaryFolderOwner {
 
         return s
     }
+
+    /** Create a [File] from this [TestFile] in the root directory of the [temporaryFolder]. */
+    fun TestFile.toFile() = createFile(temporaryFolder.root)
 }

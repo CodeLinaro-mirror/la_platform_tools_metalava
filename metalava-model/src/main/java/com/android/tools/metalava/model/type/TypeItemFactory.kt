@@ -25,6 +25,7 @@ import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.SkeletonTypeParameterItem
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterList
@@ -184,9 +185,9 @@ data class MethodFingerprint(
  * 2. Kotlin; ignoring [TypeNullability.PLATFORM].
  * 3. Annotations.
  * 4. Nullability inferred from context, e.g. constant field with non-null value.
- * 4. [TypeNullability.PLATFORM]
+ * 4. [defaultNullability]
  */
-class ContextNullability(
+data class ContextNullability(
     /**
      * The [TypeNullability] that a [TypeItem] MUST have by virtue of what the type is, or where it
      * is used; e.g. [PrimitiveTypeItem]s and super class types MUST be [TypeNullability.NONNULL]
@@ -220,27 +221,42 @@ class ContextNullability(
      * It is passed as a lambda as it may be expensive to compute.
      */
     val inferNullability: (() -> TypeNullability?)? = null,
+
+    /** The default [TypeNullability] when all else fails. */
+    val defaultNullability: TypeNullability = TypeNullability.PLATFORM
 ) {
     /**
      * Compute the [TypeNullability] according to the priority in the documentation for this class.
+     *
+     * @param existingNullability this will either come from Kotlin type information or is the
+     *   [TypeNullability] for an existing [TypeItem] that might need its
+     *   [TypeModifiers.nullability] updating.
      */
     fun compute(
-        kotlinNullability: TypeNullability?,
+        existingNullability: TypeNullability?,
         typeAnnotations: List<AnnotationItem>
     ): TypeNullability =
         // If forced is set then use that as the top priority.
         forcedNullability
-            // If kotlin provides it then use that as it is most accurate, ignore PLATFORM though
-            // as that may be overridden by annotations or the default.
-            ?: kotlinNullability?.takeIf { nullability -> nullability != TypeNullability.PLATFORM }
+            // If an existing nullability is provided and is a known nullability then use that but
+            // if it is a known nullability then ignore it for now as it is possible that a known
+            // nullability will be provided by annotations or inference.
+            ?: existingNullability?.takeIf { nullability -> nullability.known }
+
             // If annotations provide it then use them as the developer requested.
             ?: typeAnnotations.typeNullability
+
             // If item annotations are found then check them.
             ?: itemAnnotations?.typeNullability
+
             // If an inferred nullability is provided then use it.
             ?: inferNullability?.invoke()
-            // Finally default to [TypeNullability.PLATFORM].
-            ?: TypeNullability.PLATFORM
+
+            // Use an existing nullability, even if it is unknown.
+            ?: existingNullability
+
+            // Finally use the default.
+            ?: defaultNullability
 
     /**
      * Get a [ContextNullability] instance for components of arrays.
@@ -252,10 +268,46 @@ class ContextNullability(
     fun forComponentType() =
         forcedComponentNullability?.let { ContextNullability(forcedNullability = it) } ?: none
 
+    /**
+     * Get a [ContextNullability] instance for type variables.
+     *
+     * If `this`] is [none] then this method returns [defaultUndefined], otherwise this method
+     * returns a copy of `this` with [ContextNullability.defaultUndefined] set to
+     * [TypeNullability.UNDEFINED].
+     */
+    fun forTypeVariable() =
+        if (this == none) defaultUndefined else copy(defaultNullability = TypeNullability.UNDEFINED)
+
     companion object {
+        /**
+         * A [ContextNullability] instance that provides no hints from the context as to the
+         * nullability of a type.
+         */
         val none = ContextNullability()
-        val forceNonNull = ContextNullability(TypeNullability.NONNULL)
-        val forceUndefined = ContextNullability(TypeNullability.UNDEFINED)
+
+        /**
+         * A [ContextNullability] instance that will force a type to be treated as
+         * [TypeNullability.NONNULL].
+         */
+        val forceNonNull =
+            ContextNullability(
+                forcedNullability = TypeNullability.NONNULL,
+            )
+
+        /**
+         * A [ContextNullability] instance that will force a type to be treated as
+         * [TypeNullability.UNDEFINED].
+         */
+        val forceUndefined =
+            ContextNullability(
+                forcedNullability = TypeNullability.UNDEFINED,
+            )
+
+        /**
+         * A [ContextNullability] instance that will default to [TypeNullability.UNDEFINED] if not
+         * otherwise specified.
+         */
+        val defaultUndefined = ContextNullability(defaultNullability = TypeNullability.UNDEFINED)
     }
 }
 

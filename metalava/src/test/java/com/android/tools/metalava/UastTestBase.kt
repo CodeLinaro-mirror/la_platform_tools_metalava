@@ -3018,7 +3018,7 @@ abstract class UastTestBase : DriverTest() {
                     method @BytecodeOnly public void sort(java.util.Comparator<? super java.lang.String!>!);
                     method public test.pkg.EmptyStringList subList(int fromIndex, int toIndex);
                     method @BytecodeOnly public Object![]! toArray();
-                    method @BytecodeOnly public <T> T![]! toArray(T![]!);
+                    method @BytecodeOnly public <T> T[]! toArray(T[]!);
                     property public int size;
                   }
                 }

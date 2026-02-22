@@ -293,12 +293,8 @@ class FlaggedApiLint(
      */
     private fun normalizeModifiers(item: Item): String {
         return StringWriter().use { writer ->
-            val modifierListWriter =
-                ModifierListWriter.forSignature(
-                    writer,
-                    skipNullnessAnnotations = true,
-                )
-            modifierListWriter.write(item, normalizeFinal = true, skipRequiresPermission = true)
+            val modifierListWriter = ModifierListWriter.forNormalizing(writer)
+            modifierListWriter.write(item, normalizeFinal = true)
             val normalizedModifiers = writer.toString().trim()
             normalizedModifiers
         }

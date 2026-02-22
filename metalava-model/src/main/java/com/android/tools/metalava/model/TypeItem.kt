@@ -1364,15 +1364,15 @@ interface VariableTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Except
         return typeParameterBindings[asTypeParameter]?.let { replacement ->
             val replacementNullability =
                 when {
-                    // If this use of the type parameter is marked as nullable, then it overrides
+                    // If this use of the type parameter has a known nullability then it overrides
                     // the nullability of the substituted type.
-                    nullability == TypeNullability.NULLABLE -> nullability
-                    // If the type that is replacing the type parameter has platform nullability,
-                    // i.e. carries no information one way or another about whether it is nullable,
-                    // then use the nullability of the use of the type parameter as while at worst
-                    // it may also have no nullability information, it could have some, e.g. from a
-                    // declaration nullability annotation.
-                    replacement.modifiers.nullability == TypeNullability.PLATFORM -> nullability
+                    // e.g. the result of replacing `T` with `String?` in `T & Any` (which makes T
+                    // non-null) is `String? & Any` which simplifies to `String`.
+                    //
+                    // The resulty of replacing `T` with `String in `T?` is `String?`.
+                    nullability.known -> nullability
+
+                    // Otherwise, use the replacement nullability.
                     else -> null
                 }
 
