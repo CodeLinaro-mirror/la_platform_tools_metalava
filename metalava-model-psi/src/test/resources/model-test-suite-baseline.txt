@@ -15,37 +15,27 @@ com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTe
 com.android.tools.metalava.model.testsuite.classitem.CommonDataClassTest
   Test data class copy method visibility with ConsistentCopyVisibility[kotlin,k1]
 
-com.android.tools.metalava.model.testsuite.typeitem.CommonParameterizedTypeVariableNullabilityTest
-  Test type variable as type argument of outer class type[java,k1,TYPE_USE_ANNOTATIONS,non-nullable variable]
-  Test type variable as type argument of outer class type[java,k1,TYPE_USE_ANNOTATIONS,nullable variable]
-  Test type variable as type argument of outer class type[java,k2,TYPE_USE_ANNOTATIONS,non-nullable variable]
-  Test type variable as type argument of outer class type[java,k2,TYPE_USE_ANNOTATIONS,nullable variable]
-  Test type variable as type argument of outer class type[kotlin,k1,KOTLIN_STYLE_NULLS,non-nullable variable]
-  Test type variable as type argument of outer class type[kotlin,k1,KOTLIN_STYLE_NULLS,nullable variable]
-  Test type variable as type argument of outer class type[kotlin,k2,KOTLIN_STYLE_NULLS,non-nullable variable]
-  Test type variable as type argument of outer class type[kotlin,k2,KOTLIN_STYLE_NULLS,nullable variable]
-
-com.android.tools.metalava.model.testsuite.typeitem.CommonTypeModifiersTest
-  Test inner parameterized types with annotations[java,k1]
-  Test inner parameterized types with annotations[java,k2]
-  Test nullability of outer classes[java,k1]
-  Test nullability of outer classes[java,k2]
-
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeParameterItemTest
   Test type parameter with annotations[kotlin,k1]
 
-com.android.tools.metalava.model.testsuite.typeitem.CommonTypeStringTest
-  Type string[java,k1,null annotated parameterized inner type - annotated]
-  Type string[java,k1,null annotated parameterized inner type - kotlin nulls]
-  Type string[java,k2,null annotated parameterized inner type - annotated]
-  Type string[java,k2,null annotated parameterized inner type - kotlin nulls]
+com.android.tools.metalava.model.testsuite.value.CommonParameterizedAnnotationToSourceValueTest
+  testLegacySource[kotlin,k1,source,long - int expression]
+
+com.android.tools.metalava.model.testsuite.value.CommonParameterizedAttributeDefaultValueTest
+  testLegacySource[kotlin,k1,source,long - int expression]
+  testMethodDefaultValue[kotlin,k1,source,long - int expression]
+
+com.android.tools.metalava.model.testsuite.value.CommonParameterizedAttributeValueTest
+  testAttributeValue[kotlin,k1,source,long - int expression]
 
 com.android.tools.metalava.model.testsuite.value.CommonParameterizedFieldValueTest
+  testFieldValue[kotlin,k1,source,long - int expression]
   testFieldValue[kotlin,k1,source,null - intermediate non-constant expression]
   testFieldValue[kotlin,k2,source,null - intermediate non-constant expression]
   testFieldValue[kotlin,k2,source,unsigned int - expression]
 
 com.android.tools.metalava.model.testsuite.value.CommonParameterizedFieldWriteWithSemicolonValueTest
+  testLegacySource[kotlin,k1,source,long - int expression]
   testLegacySource[kotlin,k1,source,null - intermediate non-constant expression]
   testLegacySource[kotlin,k2,source,null - intermediate non-constant expression]
   testLegacySource[kotlin,k2,source,unsigned int - expression]

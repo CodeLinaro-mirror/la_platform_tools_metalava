@@ -528,3 +528,28 @@ data class TypeParameterListAndFactory<F : TypeItemFactory<*, F>>(
     val typeParameterList: TypeParameterList,
     val factory: F,
 )
+
+/** Determine if [qualifiedName] is a class name according to standard Java naming conventions. */
+fun isClassByConvention(qualifiedName: String): Boolean {
+    val length = qualifiedName.length
+    var startIndex = 0
+
+    // Iterate over the simple names in the qualified name, starting with the first simple name.
+    // If any simple name looks like a class (starts with an upper case character) then the whole
+    // name is for a class as a class can only qualify other classes. That ensures correct behavior
+    // for something like android.Manifest.permission.
+    while (startIndex < length) {
+        // Determine if the simple name being processed is for a class.
+        val c = qualifiedName[startIndex]
+        if (c.isUpperCase()) return true
+
+        // Find the end of the current simple name.
+        val nextDotIndex = qualifiedName.indexOf('.', startIndex)
+        val endOfNextSimpleName = if (nextDotIndex == -1) length else nextDotIndex
+
+        // Move onto the next simple name, if any, by skipping over the '.' separator.
+        startIndex = endOfNextSimpleName + 1
+    }
+
+    return false
+}

@@ -43,6 +43,18 @@ interface Assertions {
      */
     fun Codebase.assertClass(qualifiedName: String, expectedEmit: Boolean = true): ClassItem {
         val classItem = findClass(qualifiedName)
+        return checkClass(classItem, qualifiedName, expectedEmit)
+    }
+
+    /**
+     * Checks to make sure that [classItem] is non-null and that its [ClassItem.emit] property
+     * matches [expectedEmit].
+     */
+    private fun checkClass(
+        classItem: ClassItem?,
+        qualifiedName: String,
+        expectedEmit: Boolean,
+    ): ClassItem {
         assertNotNull(classItem, message = "Expected $qualifiedName to be defined")
         assertEquals(
             expectedEmit,
@@ -53,21 +65,21 @@ interface Assertions {
     }
 
     /**
-     * Resolve the class from the [Codebase], failing if it does not exist.
+     * Resolve the class from the [ClassResolver], failing if it does not exist.
      *
      * Checks to make sure that returned [ClassItem]'s [ClassItem.emit] property matches
      * [expectedEmit]. That defaults to `true` as this is usually used to retrieve a class that is
      * present in the source which have `emit = true` by default.
      */
-    fun Codebase.assertResolvedClass(
+    fun ClassResolver.assertResolvedClass(
         qualifiedName: String,
         expectedEmit: Boolean = false
     ): ClassItem {
         // Resolve the class which should make it available to assertClass(...) if it could be
         // found.
-        resolveClass(qualifiedName)
+        val resolved = resolveClass(qualifiedName)
         // Assert that the class exists and has correct setting of `emit`.
-        return assertClass(qualifiedName, expectedEmit)
+        return checkClass(resolved, qualifiedName, expectedEmit)
     }
 
     /** Get the package from the [Codebase], failing if it does not exist. */
@@ -77,8 +89,8 @@ interface Assertions {
         return packageItem
     }
 
-    /** Resolve the package from the [Codebase], failing if it does not exist. */
-    fun Codebase.assertResolvedPackage(pkgName: String): PackageItem {
+    /** Resolve the package from the [ClassPathResolver], failing if it does not exist. */
+    fun ClassPathResolver.assertResolvedPackage(pkgName: String): PackageItem {
         val packageItem = resolvePackage(pkgName)
         assertNotNull(packageItem, message = "Expected $pkgName to be defined")
         return packageItem

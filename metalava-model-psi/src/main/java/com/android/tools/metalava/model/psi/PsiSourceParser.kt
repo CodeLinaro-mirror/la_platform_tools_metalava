@@ -82,7 +82,7 @@ internal class PsiSourceParser(
     ): Codebase {
         val codebase =
             parseAbsoluteSources(
-                sourceSet.absoluteCopy().extractRoots(reporter),
+                sourceSet.extractRoots(reporter),
                 description,
                 classPath.map { it.absoluteFile },
                 apiPackages,

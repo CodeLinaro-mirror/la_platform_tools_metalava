@@ -19,8 +19,6 @@ package com.android.tools.metalava.model.psi
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.item.DefaultItemFactory
-import com.intellij.psi.PsiClass
-import com.intellij.psi.PsiClassType
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiPackage
 import com.intellij.psi.PsiType
@@ -39,9 +37,6 @@ internal interface PsiGlobalContext {
 
     /** The global, i.e. no class specific, [PsiTypeItemFactory]. */
     val globalTypeItemFactory: PsiTypeItemFactory
-
-    /** Get a [PsiClassType] for [psiClass]. */
-    fun getClassType(psiClass: PsiClass): PsiClassType
 
     /**
      * Create a [PsiType] from the source representation [sourceType].

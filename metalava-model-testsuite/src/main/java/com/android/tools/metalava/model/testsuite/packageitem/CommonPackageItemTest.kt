@@ -428,16 +428,19 @@ class CommonPackageItemTest : BaseModelTest() {
                         }
                     """
                 ),
-                html(
-                    "src/other/pkg/package.html",
-                    """
-                        <HTML>
-                        <BODY>
-                        Some text.
-                        </BODY>
-                        </HTML>
-                    """
-                ),
+                sourcePathFiles =
+                    listOf(
+                        html(
+                            "src/other/pkg/package.html",
+                            """
+                                <HTML>
+                                <BODY>
+                                Some text.
+                                </BODY>
+                                </HTML>
+                            """
+                        ),
+                    ),
             ),
         ) {
             val packageItem = codebase.findPackage("other.pkg")
@@ -615,6 +618,49 @@ class CommonPackageItemTest : BaseModelTest() {
                         MAIN_SRC/src/test/pkg/package-info.java: warning: It is illegal to provide both a package-info.java file and a package.html file for the same package [BothPackageInfoAndHtml]
                     """
             )
+        }
+    }
+
+    @RequiresCapabilities(Capability.JAVA)
+    @Test
+    fun `Test overlapping source path dirs`() {
+        // Tests what happens when the source path contains overlapping source roots.
+        runCodebaseTest(
+            inputSet(
+                // Adds TEST-ROOT/src/a-really-long-dir-name on the source path.
+                java(
+                    "a-really-long-dir-name/test/pkg/Test.java",
+                    """
+                        package test.pkg;
+                        public class Test {}
+                    """
+                ),
+                // Adds TEST-ROOT/src/a-really-long-dir-name/shorter-dir-name on the source path.
+                java(
+                    "a-really-long-dir-name/shorter-dir-name/other/pkg/Other.java",
+                    """
+                        package other.pkg;
+                        public class Other {}
+                    """
+                ),
+                // Should be treated as being relative to the containing directory with the longest
+                // path, i.e. `TEST-ROOT/src/a-really-long-dir-name/shorter-dir-name` and so be
+                // applicable to the `other` package.
+                html(
+                    "a-really-long-dir-name/shorter-dir-name/other/package.html",
+                    """
+                        <HTML>
+                        <BODY>
+                        Some text
+                        </BODY>
+                        </HTML>
+                    """
+                ),
+            )
+        ) {
+            val packageItem = codebase.assertPackage("other")
+
+            packageItem.assertPrintedDocumentation(expectedOutput = "/** Some text */")
         }
     }
 }
