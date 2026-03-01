@@ -22,6 +22,7 @@ import com.intellij.psi.PsiComment
 import com.intellij.psi.PsiCompiledElement
 import com.intellij.psi.PsiDocCommentOwner
 import com.intellij.psi.PsiElement
+import com.intellij.psi.PsiModifierList
 import com.intellij.psi.PsiPackageStatement
 import com.intellij.psi.javadoc.PsiDocComment
 import com.intellij.psi.util.PsiTreeUtil
@@ -78,6 +79,29 @@ internal class PsiSourceComment(private val psiElement: PsiElement) : LazySource
                     if (text.startsWith("/**")) {
                         psiComment = docComment
                         return text
+                    }
+                } else {
+                    // A doc comment could not be found so look a little deeper.
+                    if (psiElement.annotations.size > 0) {
+                        // If the element has annotations then if the annotations come before the
+                        // doc comment then the doc comment will be a child of the PsiModifierList.
+                        psiElement.children
+                            // Get the first PsiModifierList.
+                            .filterIsInstance<PsiModifierList>()
+                            .firstOrNull()
+                            // Get its first PsiDocComment.
+                            ?.children
+                            ?.filterIsInstance<PsiDocComment>()
+                            ?.firstOrNull()
+                            ?.let { docComment ->
+                                val text = docComment.text
+
+                                // Make sure that the text is a doc comment, i.e. starts with /**.
+                                if (text.startsWith("/**")) {
+                                    psiComment = docComment
+                                    return text
+                                }
+                            }
                     }
                 }
             }

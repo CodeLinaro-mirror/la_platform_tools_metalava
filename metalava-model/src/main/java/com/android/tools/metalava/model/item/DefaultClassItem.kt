@@ -376,7 +376,9 @@ internal class DefaultClassItem(
     override val annotationClass: AnnotationClass
         get() {
             if (classKind != ClassKind.ANNOTATION_TYPE) {
-                error("annotationClass can only be accessed on annotation classes")
+                error(
+                    "annotationClass can only be accessed on annotation classes but $qualifiedName is $classKind"
+                )
             }
 
             if (!::cachedAnnotationClass.isInitialized) {

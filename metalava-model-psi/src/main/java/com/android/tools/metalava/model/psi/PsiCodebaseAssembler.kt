@@ -19,19 +19,24 @@ package com.android.tools.metalava.model.psi
 import com.android.SdkConstants
 import com.android.tools.lint.UastEnvironment
 import com.android.tools.lint.annotations.Extractor
+import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ApiVariantSelectors
+import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.JAVA_PACKAGE_INFO
+import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.SkeletonClassItem
 import com.android.tools.metalava.model.SourceLanguage
+import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.item.DefaultItemFactory
+import com.android.tools.metalava.model.mapIfNotSameNotNull
 import com.android.tools.metalava.model.psi.kotlin.KaCodebaseAssembler
 import com.android.tools.metalava.model.source.SourceCodebaseAssembler
 import com.android.tools.metalava.model.source.SourcePackageInfo
@@ -464,6 +469,11 @@ internal class PsiCodebaseAssembler(
         // accessible from there.
         determineIfInaccessibleClassesMakeSuperClassesNonExhaustive(psiClasses)
 
+        // Psi does not correctly track annotations in some cases so fix them up. Done here as it
+        // cannot fix them up earlier because it requires resolving annotation classes and doing it
+        // earlier would result in annotation classes being loaded multiple times.
+        correctIncorrectlyAppliedAnnotations()
+
         // Add kotlin-only APIs.
         kaCodebaseAssembler?.assemble()
     }
@@ -525,6 +535,100 @@ internal class PsiCodebaseAssembler(
             }
         }
     }
+
+    /**
+     * Correct any incorrectly applied annotations.
+     *
+     * At the moment declaration annotations which are placed between a generic method's type
+     * parameters list and the return type are not applied correctly. Psi treats them as type use
+     * only annotations. This will add declaration only annotations to the method and remove any
+     * non-type use annotations from the type.
+     */
+    fun correctIncorrectlyAppliedAnnotations() {
+        // Iterate over all the classes in all the packages.
+        for (classItem in codebase.getPackages().allClasses()) {
+            // Ignore any Kotlin classes as Kotlin syntax unambiguously differentiates between
+            // type use and declaration annotations so does not have the problem of incorrectly
+            // applied annotations.
+            if (classItem.sourceLanguage == SourceLanguage.KOTLIN) continue
+
+            // Iterate over all the methods in each class.
+            for (methodItem in classItem.methods()) {
+                // Ignore methods that have no type parameters.
+                if (methodItem.typeParameterList.isEmpty()) continue
+
+                // Get the return type.
+                val returnType = methodItem.returnType()
+
+                // Add any declaration annotations in the closest part of the return type to method
+                // item and remove any non-type use annotations. The closest part of the return type
+                // is the return type itself, unless it is an array in which case it is the
+                // innermost component type.
+                val newReturnType = returnType.correctUseOfDeclarationAnnotations(methodItem)
+
+                // If any changes were made to the return type then update the method item type.
+                if (newReturnType !== returnType) {
+                    methodItem.setType(newReturnType)
+                }
+            }
+        }
+    }
+
+    /**
+     * Correct use of declaration annotations in this [TypeItem], adding them to the [item]
+     * annotations and remove non-type use annotations from this.
+     *
+     * This only affects annotations on this type, unless it is an array in which case it affects
+     * the annotations on the innermost component type. That matches the definition of `closest
+     * type` from https://docs.oracle.com/javase/specs/jls/se21/html/jls-9.html#jls-9.7.4.
+     */
+    private fun TypeItem.correctUseOfDeclarationAnnotations(item: MethodItem): TypeItem {
+        return when (this) {
+            is ArrayTypeItem -> {
+                val newComponentType = componentType.correctUseOfDeclarationAnnotations(item)
+                substitute(componentType = newComponentType)
+            }
+            else -> {
+                val typeAnnotations = modifiers.annotations
+
+                // Iterate over the type annotations adding any declaration annotations to item if
+                // they do not already exist there and removing any non-type use annotations.
+                val newTypeAnnotations =
+                    typeAnnotations.mapIfNotSameNotNull { annotation ->
+                        // If the annotation should be copied to the item, and it does not already
+                        // exist in its annotations then add it to them.
+                        if (shouldCopyTypeAnnotationToMethodItem(annotation)) {
+                            val itemAnnotations = item.modifiers.annotations()
+                            if (annotation !in itemAnnotations) {
+                                item.mutateModifiers { mutateAnnotations { add(annotation) } }
+                            }
+                        }
+
+                        // If the annotation is usable in a type context then keep it in the type
+                        // annotations, otherwise return null and discard it.
+                        annotation.takeIf { it.annotationUse.usableInTypeContext }
+                    }
+
+                // If the new type annotations are not the same as the old type annotations then
+                // create new type modifiers with them and substitute them in the type.
+                if (newTypeAnnotations !== typeAnnotations) {
+                    val newTypeModifiers = modifiers.substitute(annotations = newTypeAnnotations)
+                    substitute(newTypeModifiers)
+                } else {
+                    this
+                }
+            }
+        }
+    }
+
+    /**
+     * Check to see whether [typeAnnotation] should be copied to its associated [MethodItem].
+     *
+     * Replicates behavior of [PsiModifierItem]'s `filterIncorrectTypeUseAnnotations` method.
+     */
+    private fun shouldCopyTypeAnnotationToMethodItem(typeAnnotation: AnnotationItem) =
+        typeAnnotation.annotationUse.usableInDeclarationContext ||
+            typeAnnotation.isNullnessAnnotation()
 
     /**
      * Adds a class to the codebase based on the [psiClass].
