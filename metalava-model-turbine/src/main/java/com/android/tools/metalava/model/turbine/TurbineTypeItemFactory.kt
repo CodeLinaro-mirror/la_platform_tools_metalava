@@ -25,12 +25,11 @@ import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.type.ContextNullability
 import com.android.tools.metalava.model.type.DefaultTypeItemFactory
+import com.google.common.collect.ImmutableList
+import com.google.turbine.binder.sym.ClassSymbol
 import com.google.turbine.model.TurbineConstantTypeKind
 import com.google.turbine.type.AnnoInfo
 import com.google.turbine.type.Type
-import javax.lang.model.element.Element
-import javax.lang.model.element.TypeElement
-import javax.lang.model.type.TypeKind
 
 /** Creates [TypeItem]s from [Type]s. */
 internal class TurbineTypeItemFactory(
@@ -101,31 +100,7 @@ internal class TurbineTypeItemFactory(
             }
             Type.TyKind.CLASS_TY -> {
                 type as Type.ClassTy
-                var outerClass: ClassTypeItem? = null
-                // A ClassTy is represented by list of SimpleClassTY each representing a nested
-                // class. e.g. , Outer.Inner.Inner1 will be represented by three simple classes
-                // Outer, Outer.Inner and Outer.Inner.Inner1
-                val iterator = type.classes().iterator()
-                while (iterator.hasNext()) {
-                    val simpleClass = iterator.next()
-
-                    // Select the ContextNullability. If there is another SimpleClassTy after this
-                    // then this is an outer class which can never be null, so force it to be
-                    // non-null. Otherwise, this is the nested class so use the supplied
-                    // ContextNullability.
-                    val actualContextNullability =
-                        if (iterator.hasNext()) {
-                            // For all outer class types, set the nullability to non-null.
-                            ContextNullability.forceNonNull
-                        } else {
-                            // Use the supplied ContextNullability.
-                            contextNullability
-                        }
-
-                    outerClass =
-                        createNestedClassType(simpleClass, outerClass, actualContextNullability)
-                }
-                outerClass!!
+                createClassTypeItemFromSimpleTys(type.classes(), contextNullability)!!
             }
             Type.TyKind.TY_VAR -> {
                 type as Type.TyVar
@@ -176,12 +151,46 @@ internal class TurbineTypeItemFactory(
                 TypeItem.createClassType(
                     TypeModifiers.emptyUndefinedModifiers,
                     type.name(),
-                    emptyList(),
+                    createTypeArguments(type.targs()),
                     null,
                 )
             }
             else -> throw IllegalStateException("Invalid type in API surface: $kind")
         }
+    }
+
+    /**
+     * Create a [ClassTypeItem] from a list of [Type.ClassTy.SimpleClassTy] using
+     * [contextNullability].
+     */
+    private fun createClassTypeItemFromSimpleTys(
+        simpleTys: List<Type.ClassTy.SimpleClassTy>,
+        contextNullability: ContextNullability
+    ): ClassTypeItem? {
+        var outerClass: ClassTypeItem? = null
+        // A ClassTy is represented by list of SimpleClassTy each representing a nested
+        // class. e.g. , Outer.Inner.Inner1 will be represented by three simple classes
+        // Outer, Outer.Inner and Outer.Inner.Inner1
+        val iterator = simpleTys.iterator()
+        while (iterator.hasNext()) {
+            val simpleClass = iterator.next()
+
+            // Select the ContextNullability. If there is another SimpleClassTy after this
+            // then this is an outer class which can never be null, so force it to be
+            // non-null. Otherwise, this is the nested class so use the supplied
+            // ContextNullability.
+            val actualContextNullability =
+                if (iterator.hasNext()) {
+                    // For all outer class types, set the nullability to non-null.
+                    ContextNullability.forceNonNull
+                } else {
+                    // Use the supplied ContextNullability.
+                    contextNullability
+                }
+
+            outerClass = createNestedClassType(simpleClass, outerClass, actualContextNullability)
+        }
+        return outerClass
     }
 
     private fun createWildcardBound(type: Type) = getGeneralType(type) as ReferenceTypeItem
@@ -202,45 +211,57 @@ internal class TurbineTypeItemFactory(
     }
 
     /**
-     * Retrieves the `ClassTypeItem` representation of the outer class associated with a given
-     * nested class type. Intended for types that are not explicitly mentioned within the source
-     * code.
+     * Create the [ClassTypeItem] representation of the outer class associated with [classSymbol].
      *
-     * @param type The `Type.ClassTy.SimpleClassTy` object representing the nested class.
-     * @return The `ClassTypeItem` representing the outer class.
+     * If [classSymbol] is not for a nested class then this returns null.
      */
-    private fun getOuterClassType(type: Type.ClassTy.SimpleClassTy): ClassTypeItem {
-        val className = type.sym().qualifiedName
-        val classTypeElement = initializer.getTypeElement(className)!!
-        return createOuterClassType(classTypeElement.enclosingElement!!)!!
-    }
+    private fun optionalOuterClassType(classSymbol: ClassSymbol): ClassTypeItem? {
+        val binaryName = classSymbol.binaryName()
 
-    /**
-     * Constructs a `ClassTypeItem` representation from a type element. Intended for types that are
-     * not explicitly mentioned within the source code.
-     *
-     * @param element The `Element` object representing the type.
-     * @return The corresponding `ClassTypeItem`, or null if the `element` does not represent a
-     *   declared type.
-     */
-    private fun createOuterClassType(element: Element): ClassTypeItem? {
-        if (element.asType().kind != TypeKind.DECLARED) return null
+        // If it does not contain a $ then it is not a nested class.
+        val firstDollarIndex = binaryName.indexOf('$')
+        if (firstDollarIndex == -1) {
+            return null
+        }
 
-        val outerClassElement = element.enclosingElement!!
-        val outerClassTypeItem = createOuterClassType(outerClassElement)
+        // Construct a list pf SimpleClassTys from the symbol.
+        val simpleClassTys = buildList {
+            val length = binaryName.length
 
-        element as TypeElement
+            // Iterate over each $ in the binary name of the symbol creating a SimpleClassTy for
+            // each containing class. e.g. when given pkg/A$B$C it will construct SimpleClassTys for
+            // * pkg/A
+            // * pkg/A$B
+            var startIndex = firstDollarIndex
+            while (startIndex < length) {
+                // Find the next $, if none exists then drop out. That ignores the innermost class
+                // which is created by the caller.
+                val nextDollarIndex = binaryName.indexOf('$', startIndex)
+                if (nextDollarIndex == -1) {
+                    break
+                }
 
-        // Since this type was never part of source , it won't have any annotation or arguments
-        val modifiers = TypeModifiers.emptyNonNullModifiers
-        val classTypeItem =
-            TypeItem.createClassType(
-                modifiers,
-                element.qualifiedName.toString(), // Assuming qualifiedName is available on element
-                emptyList(),
-                outerClassTypeItem,
-            )
-        return classTypeItem
+                // Create a symbol for the outer class.
+                val outerClassSymbol = ClassSymbol(binaryName.substring(0, nextDollarIndex))
+
+                // Wrap that in a SimpleClassTy
+                val simpleClassTy =
+                    Type.ClassTy.SimpleClassTy.create(
+                        outerClassSymbol,
+                        ImmutableList.of(),
+                        ImmutableList.of(),
+                    )
+
+                // Add it to the list.
+                add(simpleClassTy)
+
+                // Skip past the $.
+                startIndex = nextDollarIndex + 1
+            }
+        }
+
+        // Create a ClassTypeItem from the list of SimpleClassTys.
+        return createClassTypeItemFromSimpleTys(simpleClassTys, ContextNullability.forceNonNull)
     }
 
     private fun createNestedClassType(
@@ -249,16 +270,14 @@ internal class TurbineTypeItemFactory(
         contextNullability: ContextNullability,
     ): ClassTypeItem {
         val sym = type.sym()
-        val outerClassItem =
-            if (sym.binaryName().contains("$") && outerClass == null) {
-                getOuterClassType(type)
-            } else {
-                outerClass
-            }
+
+        // If no outer class was provided then try and get an outer class type item from the type
+        // symbol.
+        val outerClassItem = outerClass ?: optionalOuterClassType(type.sym())
 
         val modifiers = createModifiers(type.annos(), contextNullability)
         val qualifiedName = sym.qualifiedName
-        val parameters = type.targs().map { getGeneralType(it) as TypeArgumentTypeItem }
+        val parameters = createTypeArguments(type.targs())
         return TypeItem.createClassType(
             modifiers,
             qualifiedName,
@@ -266,4 +285,8 @@ internal class TurbineTypeItemFactory(
             outerClassItem,
         )
     }
+
+    /** Create a list of [TypeArgumentTypeItem]s from [types]. */
+    private fun createTypeArguments(types: ImmutableList<Type>) =
+        types.map { getGeneralType(it) as TypeArgumentTypeItem }
 }

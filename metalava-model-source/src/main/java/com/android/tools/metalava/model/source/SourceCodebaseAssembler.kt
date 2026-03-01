@@ -76,7 +76,7 @@ abstract class SourceCodebaseAssembler : DefaultCodebaseAssembler() {
      */
     private fun gatherPackageJavadoc(sourceSet: SourceSet): PackageDocs {
         val packages = mutableMapOf<String, MutablePackageDoc>()
-        val sortedSourceRoots = sourceSet.sourcePath.sortedBy { -it.name.length }
+        val sortedSourceRoots = sourceSet.sourcePath.sortedBy { -it.path.length }
         for (file in sourceSet.sources) {
             val documentationFile =
                 when (file.name) {
@@ -98,7 +98,7 @@ abstract class SourceCodebaseAssembler : DefaultCodebaseAssembler() {
                     ?.listFiles()
                     ?.filter { it.name.endsWith(DOT_JAVA) }
                     ?.asSequence()
-                    ?.mapNotNull { findPackage(it) }
+                    ?.map { findPackage(it) }
                     ?.firstOrNull()
             if (pkg == null) {
                 // Strip the longest prefix source root.

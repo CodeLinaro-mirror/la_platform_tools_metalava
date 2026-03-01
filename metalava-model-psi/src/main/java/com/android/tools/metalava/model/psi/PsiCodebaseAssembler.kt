@@ -49,7 +49,6 @@ import com.intellij.psi.PsiFile
 import com.intellij.psi.PsiImportStatement
 import com.intellij.psi.PsiJavaFile
 import com.intellij.psi.PsiPackage
-import com.intellij.psi.PsiSubstitutor
 import com.intellij.psi.PsiTypeParameter
 import com.intellij.psi.javadoc.PsiDocComment
 import com.intellij.psi.search.GlobalSearchScope
@@ -121,9 +120,6 @@ internal class PsiCodebaseAssembler(
     }
 
     private fun getFactory() = JavaPsiFacade.getElementFactory(project)
-
-    override fun getClassType(psiClass: PsiClass) =
-        getFactory().createType(psiClass, PsiSubstitutor.EMPTY)
 
     override fun createPsiType(sourceType: String, context: PsiElement?) =
         getFactory().createTypeFromText(sourceType, context)

@@ -26,8 +26,10 @@ import java.io.File
 /** Provides support for creating [Codebase] related objects from source files (including jars). */
 interface SourceParser {
     /**
-     * Get a [com.android.tools.metalava.model.ClassPathResolver] instance that will resolve items
-     * provided by jars on the [classPath].
+     * Get a [ClassPathResolver] instance that will resolve items provided by jars on the
+     * [classPath].
+     *
+     * If an implementation supports this it must provide [Capability.CLASS_PATH_RESOLVER].
      *
      * @param classPath a list of jar [File]s.
      */
