@@ -25,6 +25,9 @@ object KnownSourceFiles {
         TestFiles.java(
             """
                 package not.type.use;
+                import java.lang.annotation.*;
+                import static java.lang.annotation.ElementType.*;
+                @Target({METHOD, PARAMETER, FIELD})
                 public @interface NonNull {
                 }
             """
@@ -34,6 +37,9 @@ object KnownSourceFiles {
         TestFiles.java(
             """
                 package not.type.use;
+                import java.lang.annotation.*;
+                import static java.lang.annotation.ElementType.*;
+                @Target({METHOD, PARAMETER, FIELD})
                 public @interface Nullable {
                 }
             """
@@ -58,6 +64,30 @@ object KnownSourceFiles {
                 import java.lang.annotation.*;
                 import static java.lang.annotation.ElementType.*;
                 @Target(TYPE_USE)
+                public @interface Nullable {
+                }
+            """
+        )
+
+    val mixedUseNonNullSource: TestFile =
+        TestFiles.java(
+            """
+                package mixed.use;
+                import java.lang.annotation.*;
+                import static java.lang.annotation.ElementType.*;
+                @Target({METHOD, PARAMETER, FIELD, TYPE_USE})
+                public @interface NonNull {
+                }
+            """
+        )
+
+    val mixedUseNullableSource: TestFile =
+        TestFiles.java(
+            """
+                package mixed.use;
+                import java.lang.annotation.*;
+                import static java.lang.annotation.ElementType.*;
+                @Target({METHOD, PARAMETER, FIELD, TYPE_USE})
                 public @interface Nullable {
                 }
             """
@@ -108,31 +138,31 @@ object KnownSourceFiles {
     val libcoreNonNullSource: TestFile =
         TestFiles.java(
             """
-    package libcore.util;
-    import static java.lang.annotation.ElementType.*;
-    import static java.lang.annotation.RetentionPolicy.SOURCE;
-    import java.lang.annotation.*;
-    @Documented
-    @Retention(SOURCE)
-    @Target({TYPE_USE})
-    public @interface NonNull {
-    }
-    """
+                package libcore.util;
+                import static java.lang.annotation.ElementType.*;
+                import static java.lang.annotation.RetentionPolicy.SOURCE;
+                import java.lang.annotation.*;
+                @Documented
+                @Retention(SOURCE)
+                @Target({FIELD, METHOD, PARAMETER, TYPE_USE})
+                public @interface NonNull {
+                }
+            """
         )
 
     val libcoreNullableSource: TestFile =
         TestFiles.java(
             """
-    package libcore.util;
-    import static java.lang.annotation.ElementType.*;
-    import static java.lang.annotation.RetentionPolicy.SOURCE;
-    import java.lang.annotation.*;
-    @Documented
-    @Retention(SOURCE)
-    @Target({TYPE_USE})
-    public @interface Nullable {
-    }
-    """
+                package libcore.util;
+                import static java.lang.annotation.ElementType.*;
+                import static java.lang.annotation.RetentionPolicy.SOURCE;
+                import java.lang.annotation.*;
+                @Documented
+                @Retention(SOURCE)
+                @Target({FIELD, METHOD, PARAMETER, TYPE_USE})
+                public @interface Nullable {
+                }
+            """
         )
 
     /**

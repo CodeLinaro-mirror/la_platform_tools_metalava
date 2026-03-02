@@ -1651,35 +1651,33 @@ val broadcastBehaviorSource: TestFile =
 
 val androidxNonNullSource: TestFile =
     java(
-            """
-    package androidx.annotation;
-    import java.lang.annotation.*;
-    import static java.lang.annotation.ElementType.*;
-    import static java.lang.annotation.RetentionPolicy.SOURCE;
-    @SuppressWarnings("WeakerAccess")
-    @Retention(SOURCE)
-    @Target({METHOD, PARAMETER, FIELD, LOCAL_VARIABLE, TYPE_USE, ANNOTATION_TYPE, PACKAGE})
-    public @interface NonNull {
-    }
-    """
-        )
-        .indented()
+        """
+            package androidx.annotation;
+            import java.lang.annotation.*;
+            import static java.lang.annotation.ElementType.*;
+            import static java.lang.annotation.RetentionPolicy.SOURCE;
+            @SuppressWarnings("WeakerAccess")
+            @Retention(SOURCE)
+            @Target({METHOD, PARAMETER, FIELD, PACKAGE, TYPE_PARAMETER})
+            public @interface NonNull {
+            }
+        """
+    )
 
 val androidxNullableSource: TestFile =
     java(
-            """
-    package androidx.annotation;
-    import java.lang.annotation.*;
-    import static java.lang.annotation.ElementType.*;
-    import static java.lang.annotation.RetentionPolicy.SOURCE;
-    @SuppressWarnings("WeakerAccess")
-    @Retention(SOURCE)
-    @Target({METHOD, PARAMETER, FIELD, LOCAL_VARIABLE, TYPE_USE, ANNOTATION_TYPE, PACKAGE})
-    public @interface Nullable {
-    }
-    """
-        )
-        .indented()
+        """
+            package androidx.annotation;
+            import java.lang.annotation.*;
+            import static java.lang.annotation.ElementType.*;
+            import static java.lang.annotation.RetentionPolicy.SOURCE;
+            @SuppressWarnings("WeakerAccess")
+            @Retention(SOURCE)
+            @Target({METHOD, PARAMETER, FIELD, PACKAGE, TYPE_PARAMETER})
+            public @interface Nullable {
+            }
+        """
+    )
 
 val recentlyNonNullSource: TestFile =
     java(
@@ -1908,6 +1906,10 @@ val DEFAULT_SKIP_EMIT_PACKAGES =
         ANDROIDX_ANNOTATION_PACKAGE,
         // Ditto for libcore.util.
         "libcore.util",
+        // Ditto for test only nullability annotations.
+        "mixed.use",
+        "not.type.use",
+        "type.use.only",
     )
 
 /**

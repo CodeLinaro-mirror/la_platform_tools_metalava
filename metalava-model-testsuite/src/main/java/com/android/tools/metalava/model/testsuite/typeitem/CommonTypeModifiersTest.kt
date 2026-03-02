@@ -287,6 +287,9 @@ class CommonTypeModifiersTest : BaseModelTest() {
                     public class Foo {
                         public test.pkg.@test.pkg.A Foo foo() {}
                     }
+
+                    @java.lang.annotation.Target(java.lang.annotation.ElementType.TYPE_USE)
+                    public @interface A {}
                 """
             ),
             signature(
@@ -321,6 +324,15 @@ class CommonTypeModifiersTest : BaseModelTest() {
                     public class Foo {
                         public java.util.@test.pkg.A Map<java.lang.@test.pkg.B @test.pkg.C String, java.lang.@test.pkg.D String> foo() {}
                     }
+
+                    @java.lang.annotation.Target(java.lang.annotation.ElementType.TYPE_USE)
+                    public @interface A {}
+                    @java.lang.annotation.Target(java.lang.annotation.ElementType.TYPE_USE)
+                    public @interface B {}
+                    @java.lang.annotation.Target(java.lang.annotation.ElementType.TYPE_USE)
+                    public @interface C {}
+                    @java.lang.annotation.Target(java.lang.annotation.ElementType.TYPE_USE)
+                    public @interface D {}
                 """
             ),
             signature(
@@ -364,6 +376,13 @@ class CommonTypeModifiersTest : BaseModelTest() {
                     public class Foo {
                         public test.pkg.@test.pkg.A @test.pkg.B Foo @test.pkg.B @test.pkg.C [] foo() {}
                     }
+
+                    @java.lang.annotation.Target(java.lang.annotation.ElementType.TYPE_USE)
+                    public @interface A {}
+                    @java.lang.annotation.Target(java.lang.annotation.ElementType.TYPE_USE)
+                    public @interface B {}
+                    @java.lang.annotation.Target(java.lang.annotation.ElementType.TYPE_USE)
+                    public @interface C {}
                 """
             ),
             signature(
@@ -375,7 +394,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
                       }
                     }
                 """
-            )
+            ),
         ) {
             val method = codebase.assertClass("test.pkg.Foo").methods().single()
             assertThat(method.annotationNames()).isEmpty()
@@ -401,6 +420,9 @@ class CommonTypeModifiersTest : BaseModelTest() {
                     public class Foo {
                         public <T> @test.pkg.A T[] foo() {}
                     }
+
+                    @java.lang.annotation.Target(java.lang.annotation.ElementType.TYPE_USE)
+                    public @interface A {}
                 """
             ),
             signature(
@@ -436,6 +458,15 @@ class CommonTypeModifiersTest : BaseModelTest() {
                     public class Foo {
                         public test.pkg.@test.pkg.A Foo @test.pkg.B [] @test.pkg.C [] @test.pkg.D [] foo() {}
                     }
+
+                    @java.lang.annotation.Target(java.lang.annotation.ElementType.TYPE_USE)
+                    public @interface A {}
+                    @java.lang.annotation.Target(java.lang.annotation.ElementType.TYPE_USE)
+                    public @interface B {}
+                    @java.lang.annotation.Target(java.lang.annotation.ElementType.TYPE_USE)
+                    public @interface C {}
+                    @java.lang.annotation.Target(java.lang.annotation.ElementType.TYPE_USE)
+                    public @interface D {}
                 """
             ),
             signature(
@@ -537,6 +568,15 @@ class CommonTypeModifiersTest : BaseModelTest() {
                             return new Outer<P1>.Inner<P2>();
                         }
                     }
+
+                    @java.lang.annotation.Target(java.lang.annotation.ElementType.TYPE_USE)
+                    public @interface A {}
+                    @java.lang.annotation.Target(java.lang.annotation.ElementType.TYPE_USE)
+                    public @interface B {}
+                    @java.lang.annotation.Target(java.lang.annotation.ElementType.TYPE_USE)
+                    public @interface C {}
+                    @java.lang.annotation.Target(java.lang.annotation.ElementType.TYPE_USE)
+                    public @interface D {}
                 """
             ),
             signature(
@@ -596,6 +636,13 @@ class CommonTypeModifiersTest : BaseModelTest() {
                 """
                     package test.pkg;
                     public class Foo implements test.pkg.@test.pkg.A Bar, test.pkg.Baz {}
+
+                    public interface Bar {}
+
+                    public interface Baz {}
+
+                    @java.lang.annotation.Target(java.lang.annotation.ElementType.TYPE_USE)
+                    public @interface A {}
                 """
             ),
             signature(
@@ -665,6 +712,19 @@ class CommonTypeModifiersTest : BaseModelTest() {
                 """
                     package test.pkg;
                     public interface Foo extends test.pkg.@test.pkg.A Bar, test.pkg.@test.pkg.B Baz<@test.pkg.C String>, test.pkg.Biz {}
+
+                    public interface Bar {}
+
+                    public interface Baz {}
+
+                    public interface Biz {}
+
+                    @java.lang.annotation.Target(java.lang.annotation.ElementType.TYPE_USE)
+                    public @interface A {}
+                    @java.lang.annotation.Target(java.lang.annotation.ElementType.TYPE_USE)
+                    public @interface B {}
+                    @java.lang.annotation.Target(java.lang.annotation.ElementType.TYPE_USE)
+                    public @interface C {}
                 """
             ),
             signature(

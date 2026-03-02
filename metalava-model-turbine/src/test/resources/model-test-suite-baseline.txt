@@ -1,3 +1,7 @@
+com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTest
+  annotations of various uses and nullability after generic method type arguments list
+  annotations of various uses and nullability on method
+
 com.android.tools.metalava.model.testsuite.fielditem.CommonFieldItemTest
   Test implicit nullability of constant field initialized from @NonNull method
 
@@ -11,11 +15,6 @@ com.android.tools.metalava.model.testsuite.typeitem.CommonParameterizedInvalidTy
   Test invalid source reference[otherNested - other and nested both undefined]
   Test invalid source reference[otherNested - other and nested undefined but with another class in the same package]
   Test invalid source reference[otherNested - other defined but nested undefined]
-
-com.android.tools.metalava.model.testsuite.typeitem.CommonTypeModifiersTest
-  Test interface types
-  Test leading annotation on array type
-  Test super class and interface types of interface
 
 com.android.tools.metalava.model.testsuite.value.CommonValueTest
   Test use field reference in a type annotation

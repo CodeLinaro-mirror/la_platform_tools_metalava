@@ -7,19 +7,13 @@ com.android.tools.metalava.DuplicateClassTest
 com.android.tools.metalava.Java9LanguageFeaturesTest
   Using JDK APIs[turbine]
 
-com.android.tools.metalava.NullabilityAnnotationsValidatorTest
-  Using class list[turbine]
-
-com.android.tools.metalava.TypeUseAnnotationFilteringTest
-  Keep type use annotations[turbine]
+com.android.tools.metalava.NullnessMigrationTest
+  Check type use only nullability annotations[turbine]
 
 com.android.tools.metalava.compatibility.CompatibilityCheckTest
   Conversion from MutableCollection to AbstractMutableCollection is not API-breaking[turbine]
   Empty bundle files[turbine]
   Expected API changes converting collections to Kotlin[turbine]
-
-com.android.tools.metalava.stub.StubsAnnotationTest
-  Pass through libcore annotations[turbine]
 
 com.android.tools.metalava.stub.StubsTest
   Generate stubs for various modifier scenarios[turbine]

@@ -55,7 +55,7 @@ open class BaseTypeTransformer : TypeTransformer {
         return typeItem.substitute(
             modifiers = transform(typeItem.modifiers),
             outerClassType = typeItem.outerClassType?.transform(this),
-            arguments = typeItem.arguments.mapIfNotSame { it.transform(this) }
+            arguments = typeItem.arguments.mapIfNotSameNotNull { it.transform(this) }
         )
     }
 
@@ -63,7 +63,7 @@ open class BaseTypeTransformer : TypeTransformer {
         return typeItem.substitute(
             modifiers = transform(typeItem.modifiers),
             outerClassType = typeItem.outerClassType?.transform(this),
-            arguments = typeItem.arguments.mapIfNotSame { it.transform(this) }
+            arguments = typeItem.arguments.mapIfNotSameNotNull { it.transform(this) }
         )
     }
 

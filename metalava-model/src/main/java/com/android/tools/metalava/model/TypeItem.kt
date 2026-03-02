@@ -1146,7 +1146,7 @@ interface ClassTypeItem : TypeItem, BoundsTypeItem, ReferenceTypeItem, Exception
     override fun convertType(typeParameterBindings: TypeParameterBindings): ClassTypeItem {
         return substitute(
             outerClassType = outerClassType?.convertType(typeParameterBindings),
-            arguments = arguments.mapIfNotSame { it.convertType(typeParameterBindings) },
+            arguments = arguments.mapIfNotSameNotNull { it.convertType(typeParameterBindings) },
         )
     }
 
@@ -1405,9 +1405,12 @@ fun typeUseAnnotationFilter(filter: FilterPredicate): TypeTransformer =
             if (modifiers.annotations.isEmpty()) return modifiers
             return modifiers.substitute(
                 annotations =
-                    modifiers.annotations.filter { annotationItem ->
+                    modifiers.annotations.filterIfNotSame { annotationItem ->
                         // If the annotation cannot be resolved then keep it.
-                        val annotationClass = annotationItem.resolve() ?: return@filter true
+                        val annotationClass =
+                            annotationItem.resolve() ?: return@filterIfNotSame true
+
+                        // Otherwise, apply the filter to determine whether to keep it.
                         filter.test(annotationClass)
                     }
             )
@@ -1444,20 +1447,81 @@ fun equalWithFlattenedWildcards(type1: TypeItem, type2: TypeItem): Boolean {
 }
 
 /**
+ * Create a new [MutableList] containing the first [count] items from this list.
+ *
+ * Helper method for [filterIfNotSame] and [mapIfNotSameNotNull].
+ */
+@PublishedApi
+internal fun <T> List<T>.mutableCopyOfFirstItems(count: Int): MutableList<T> {
+    val newList = mutableListOf<T>()
+    for (i in 0..<count) {
+        newList.add(get(i))
+    }
+    return newList
+}
+
+/**
+ * Filter the elements in this list to a new list if [predicate] returns false for at least one
+ * element, otherwise return this.
+ */
+internal inline fun <T> List<T>.filterIfNotSame(predicate: (T) -> Boolean): List<T> {
+    // The new list that might need to be created.
+    var newList: MutableList<T>? = null
+
+    // Iterate over the elements in this list.
+    for ((i, element) in withIndex()) {
+        // Run the predicate on the element.
+        val keep = predicate(element)
+
+        // If the element is to be discarded then a new list is needed.
+        if (!keep && newList == null) {
+            // Create it a new list and populate it with all the previous elements that were not
+            // filtered out.
+            newList = mutableCopyOfFirstItems(i)
+        }
+
+        // If the element is to be kept than add it the new list if it was created, otherwise do
+        // nothing as nothing has been filtered out yet.
+        if (keep) {
+            newList?.add(element)
+        }
+    }
+
+    // Return the new list if it was created, otherwise return this.
+    return newList ?: this
+}
+
+/**
  * Map the items in this list to a new list if [transform] returns at least one item which is not
  * the same instance as its input, otherwise return this.
+ *
+ * If [transform] returns null then the item is removed from the list.
  */
-fun <T> List<T>.mapIfNotSame(transform: (T) -> T): List<T> {
-    if (isEmpty()) return this
-    val newList = map(transform)
-    val i1 = iterator()
-    val i2 = newList.iterator()
-    while (i1.hasNext() && i2.hasNext()) {
-        val t1 = i1.next()
-        val t2 = i2.next()
-        if (t1 !== t2) return newList
+fun <T> List<T>.mapIfNotSameNotNull(transform: (T) -> T?): List<T> {
+    // The new list that might need to be created.
+    var newList: MutableList<T>? = null
+
+    // Iterate over the elements in this list.
+    for ((i, element) in withIndex()) {
+        // Transform the element.
+        val newElement = transform(element)
+
+        // If the element was change then a new list is needed.
+        if (newElement !== element && newList == null) {
+            // Create it a new list and populate it with all the previous elements that were not
+            // transformed.
+            newList = mutableCopyOfFirstItems(i)
+        }
+
+        // Add the possibly new, non-null, element to the new list if it was created, otherwise do
+        // nothing as nothing has been changed yet.
+        if (newElement != null) {
+            newList?.add(newElement)
+        }
     }
-    return this
+
+    // Return the new list if it was created, otherwise return this.
+    return newList ?: this
 }
 
 /**

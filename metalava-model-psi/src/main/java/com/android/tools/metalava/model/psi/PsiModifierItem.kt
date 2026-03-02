@@ -386,12 +386,32 @@ internal object PsiModifierItem {
      */
     private fun PsiAnnotationMemberValue.targets(): List<String> {
         return when (this) {
-            is PsiReferenceExpression -> listOf(qualifiedName)
-            is PsiArrayInitializerMemberValue ->
-                initializers.mapNotNull { (it as? PsiReferenceExpression)?.qualifiedName }
+            is PsiReferenceExpression -> {
+                // Note: This does not use canonicalText because while its documentation says that
+                // it should provide a fully qualified reference independent of imports that is not
+                // always true.
+
+                // Resolve the reference to what should be a field in ElementType.
+                val psiField = resolve() as? PsiField
+
+                // Return a list of the qualified field name, falling back to the inline text just
+                // in case it cannot be resolved.
+                val qualifiedName = psiField?.qualifiedName() ?: qualifiedName
+                listOf(qualifiedName)
+            }
+            is PsiArrayInitializerMemberValue -> {
+                // Combine the targets from each item in the array.
+                initializers.flatMap { it.targets() }
+            }
             else -> emptyList()
         }
     }
+
+    /**
+     * Get the qualified name of the [PsiField], returning `null` if the containing class could not
+     * be found.
+     */
+    private fun PsiField.qualifiedName() = containingClass?.qualifiedName?.let { "$it.$name" }
 
     /**
      * Annotations which are only `TYPE_USE` should only apply to types, not the owning item of the
