@@ -36,14 +36,6 @@ import java.nio.file.Files
  *   found.
  */
 class SourceSet(val sources: List<File>, val sourcePath: List<File>) {
-    /** Creates a copy of [SourceSet], but with elements mapped with [File.getAbsoluteFile] */
-    fun absoluteCopy(): SourceSet {
-        val absoluteSources = sources.map { it.absoluteFile }
-        val absoluteSourcePaths = sourcePath.filter { it.path.isNotBlank() }.map { it.absoluteFile }
-
-        return SourceSet(absoluteSources, absoluteSourcePaths)
-    }
-
     /**
      * Creates a new instance of [SourceSet], adding in source roots implied by the source files in
      * the current [SourceSet].
@@ -52,14 +44,14 @@ class SourceSet(val sources: List<File>, val sourcePath: List<File>) {
      * the roots as a mixture of relative and absolute files will not work.
      */
     fun extractRoots(reporter: Reporter): SourceSet {
-        val absoluteSources = sources.map { it.absoluteFile }
+        val absoluteSources = sources.map { it.absoluteFile }.distinct()
         val absoluteSourcePaths =
             mutableListOf<File>().also {
                 sourcePath.filter { it.path.isNotBlank() }.mapTo(it) { it.absoluteFile }
             }
 
         val sourceRoots = extractRoots(reporter, absoluteSources, absoluteSourcePaths)
-        return SourceSet(sources, sourceRoots)
+        return SourceSet(absoluteSources, sourceRoots)
     }
 
     companion object {

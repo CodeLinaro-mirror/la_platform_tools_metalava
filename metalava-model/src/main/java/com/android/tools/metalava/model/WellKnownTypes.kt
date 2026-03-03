@@ -34,6 +34,9 @@ object WellKnownTypes {
     /** Get a [TypeNullability.NONNULL] [ClassTypeItem] for [this] name. */
     internal fun String.nonNullClassType() = wellKnownType(this, TypeNullability.NONNULL)
 
+    /** Get a [TypeNullability.NULLABLE] [ClassTypeItem] for [this] name. */
+    internal fun String.nullableClassType() = wellKnownType(this, TypeNullability.NULLABLE)
+
     /** Get a [TypeNullability.PLATFORM] [ClassTypeItem] for [this] name. */
     internal fun String.platformClassType() = wellKnownType(this, TypeNullability.PLATFORM)
 
@@ -43,4 +46,22 @@ object WellKnownTypes {
 
     val JAVA_LANG_OBJECT_PLATFORM_TYPE = JAVA_LANG_OBJECT.platformClassType()
     val JAVA_LANG_OBJECT_NON_NULL_TYPE = JAVA_LANG_OBJECT.nonNullClassType()
+    val JAVA_LANG_OBJECT_NULLABLE_TYPE = JAVA_LANG_OBJECT.nullableClassType()
+
+    /** The default type parameter bounds when none is provided in Kotlin source. */
+    private val DEFAULT_JAVA_TYPE_PARAMETER_BOUNDS = listOf(JAVA_LANG_OBJECT_PLATFORM_TYPE)
+
+    /** The default type parameter bounds when none is provided in Kotlin source. */
+    private val DEFAULT_KOTLIN_TYPE_PARAMETER_BOUNDS = listOf(JAVA_LANG_OBJECT_NULLABLE_TYPE)
+
+    /**
+     * Get the default [TypeParameterItem.typeBounds] depending on whether this is [forKotlin] or
+     * not.
+     */
+    fun defaultTypeParameterBounds(forKotlin: Boolean) =
+        if (forKotlin) {
+            DEFAULT_KOTLIN_TYPE_PARAMETER_BOUNDS
+        } else {
+            DEFAULT_JAVA_TYPE_PARAMETER_BOUNDS
+        }
 }

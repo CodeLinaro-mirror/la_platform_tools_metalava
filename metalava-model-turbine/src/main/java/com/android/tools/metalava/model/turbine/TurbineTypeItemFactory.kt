@@ -150,7 +150,7 @@ internal class TurbineTypeItemFactory(
                 type as Type.ErrorTy
                 TypeItem.createClassType(
                     TypeModifiers.emptyUndefinedModifiers,
-                    type.name(),
+                    type.qualifiedName(),
                     createTypeArguments(type.targs()),
                     null,
                 )

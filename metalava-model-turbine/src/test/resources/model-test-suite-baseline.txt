@@ -1,7 +1,3 @@
-com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTest
-  annotations of various uses and nullability after generic method type arguments list
-  annotations of various uses and nullability on method
-
 com.android.tools.metalava.model.testsuite.fielditem.CommonFieldItemTest
   Test implicit nullability of constant field initialized from @NonNull method
 

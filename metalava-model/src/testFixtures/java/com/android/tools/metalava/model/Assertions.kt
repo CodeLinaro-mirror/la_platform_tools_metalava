@@ -287,6 +287,30 @@ interface Assertions {
         return found
     }
 
+    /** Assert the bounds of this [TypeParameterListOwner]. */
+    fun TypeParameterListOwner.assertTypeParameterListBounds(
+        expectedBounds: String,
+        message: String? = null,
+    ) {
+        val bounds = buildString {
+            for (typeParameterItem in typeParameterList) {
+                this.append(typeParameterItem.name())
+                this.append(" -> ")
+                append(
+                    typeParameterItem.typeBounds().map {
+                        it.testTypeString(
+                            annotations = true,
+                            kotlinStyleNulls = true,
+                        )
+                    }
+                )
+                this.append('\n')
+            }
+        }
+
+        assertEquals(expectedBounds.trimIndent(), bounds.trim(), message)
+    }
+
     /** Make sure when the documentation for [this] is printed that it matches [expectedOutput]. */
     fun SelectableItem.assertPrintedDocumentation(expectedOutput: String, message: String? = null) {
         val stringWriter = StringWriter()

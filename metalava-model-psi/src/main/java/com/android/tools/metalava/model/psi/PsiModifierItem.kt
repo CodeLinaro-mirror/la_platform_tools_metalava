@@ -423,8 +423,10 @@ internal object PsiModifierItem {
      *
      * To work around psi incorrectly applying exclusively `TYPE_USE` annotations to non-type items,
      * this filters all annotations which should apply to types but not the [forOwner] item.
+     *
+     * Similar to the behavior of [PsiCodebaseAssembler.shouldCopyTypeAnnotationToMethodItem].
      */
-    private fun List<PsiAnnotation>.filterIncorrectTypeUseAnnotations(
+    internal fun List<PsiAnnotation>.filterIncorrectTypeUseAnnotations(
         forOwner: PsiModifierListOwner
     ): List<PsiAnnotation> {
         val expectedTarget =
@@ -440,9 +442,7 @@ internal object PsiModifierItem {
             // If the annotation is not type use, it has been correctly applied to the item.
             !applicableTargets.contains(JAVA_LANG_TYPE_USE_TARGET) ||
                 // If the annotation has the item type as a target, it should be applied here.
-                applicableTargets.contains(expectedTarget) ||
-                // For now, leave in nullness annotations until they are specially handled.
-                isNullnessAnnotation(annotation.qualifiedName.orEmpty())
+                applicableTargets.contains(expectedTarget)
         }
     }
 

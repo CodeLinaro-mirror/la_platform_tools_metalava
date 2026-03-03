@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model.psi
 
-import com.android.SdkConstants
 import com.android.tools.lint.UastEnvironment
 import com.android.tools.lint.annotations.Extractor
 import com.android.tools.metalava.model.AnnotationItem
@@ -57,9 +56,6 @@ import com.intellij.psi.PsiPackage
 import com.intellij.psi.PsiTypeParameter
 import com.intellij.psi.javadoc.PsiDocComment
 import com.intellij.psi.search.GlobalSearchScope
-import java.io.File
-import java.io.IOException
-import java.util.zip.ZipFile
 import kotlin.collections.forEach
 import kotlin.collections.set
 import org.jetbrains.kotlin.asJava.classes.KtLightClassForFacade
@@ -188,10 +184,7 @@ internal class PsiCodebaseAssembler(
      * [ClassItem] may be created for it later if needed, e.g. if it is a super class of an
      * accessible class.
      */
-    private fun createPossibleApiClass(
-        psiClass: PsiClass,
-        origin: ClassOrigin,
-    ): ClassItem? {
+    private fun createPossibleApiClass(psiClass: PsiClass): ClassItem? {
         if (psiClass.containingClass != null) error("$psiClass is not a top level class")
 
         // Ignore inaccessible classes.
@@ -201,7 +194,12 @@ internal class PsiCodebaseAssembler(
             return null
         }
 
-        return createTopLevelClassAndContents(psiClass, origin, modifiers)
+        return createTopLevelClassAndContents(
+            psiClass,
+            // Sources always come from the command line.
+            ClassOrigin.COMMAND_LINE,
+            modifiers
+        )
     }
 
     /** Create a top level class, their inner classes and all the other members. */
@@ -268,7 +266,9 @@ internal class PsiCodebaseAssembler(
         return if (uastEnvironment.isKMP && kaCodebaseAssembler != null) {
             kaCodebaseAssembler!!.findClassInModule(finder, qualifiedName)
         } else {
-            finder.findClass(qualifiedName, projectSearchScope)
+            finder.findClass(qualifiedName, projectSearchScope)?.takeIf {
+                it.qualifiedName == qualifiedName
+            }
         }
     }
 
@@ -371,51 +371,6 @@ internal class PsiCodebaseAssembler(
         }
     }
 
-    internal fun initializeFromJar(jarFile: File) {
-        // Extract the list of class names from the jar file.
-        val classNames = buildList {
-            try {
-                ZipFile(jarFile).use { jar ->
-                    for (entry in jar.entries().iterator()) {
-                        val fileName = entry.name
-                        if (fileName.contains("$")) {
-                            // skip inner classes
-                            continue
-                        }
-                        if (!fileName.endsWith(SdkConstants.DOT_CLASS)) {
-                            // skip entries that are not .class files.
-                            continue
-                        }
-
-                        val qualifiedName =
-                            fileName.removeSuffix(SdkConstants.DOT_CLASS).replace('/', '.')
-                        if (qualifiedName.endsWith(".package-info")) {
-                            // skip package-info files.
-                            continue
-                        }
-
-                        add(qualifiedName)
-                    }
-                }
-            } catch (e: IOException) {
-                reporter.report(Issues.IO_ERROR, jarFile, e.message ?: e.toString())
-            }
-        }
-
-        // Find all classes referenced from the class
-        val facade = JavaPsiFacade.getInstance(project)
-        val scope = GlobalSearchScope.allScope(project)
-
-        val isFromClassPath = codebase.isFromClassPath()
-        val origin = if (isFromClassPath) ClassOrigin.CLASS_PATH else ClassOrigin.COMMAND_LINE
-        for (className in classNames) {
-            val psiClass = facade.findClass(className, scope) ?: continue
-
-            val classItem = createPossibleApiClass(psiClass, origin) ?: continue
-            codebase.addTopLevelClassFromSource(classItem)
-        }
-    }
-
     /** Lists all packages in the psi project. */
     private fun allPackages(): Set<String> {
         fun listPackages(psiPackage: PsiPackage): List<String> {
@@ -429,6 +384,7 @@ internal class PsiCodebaseAssembler(
     internal fun initializeFromSources(
         sourceSet: SourceSet,
         apiPackages: PackageFilter?,
+        includeKotlinInCodebase: Boolean,
     ) {
         // Get the list of `PsiFile`s from the `SourceSet`.
         val psiFiles = Extractor.createUnitsForFiles(uastEnvironment.ideaProject, sourceSet.sources)
@@ -441,9 +397,14 @@ internal class PsiCodebaseAssembler(
 
         // Add type aliases.
         val kotlinFiles = psiFiles.filterIsInstance<KtFile>()
-        kaCodebaseAssembler =
-            psiCodebase.mainAnalysisModule?.let { KaCodebaseAssembler(kotlinFiles, psiCodebase) }
-        kaCodebaseAssembler?.let { kaCodebaseAssembler ->
+        if (includeKotlinInCodebase) {
+            kaCodebaseAssembler =
+                psiCodebase.mainAnalysisModule?.let {
+                    KaCodebaseAssembler(kotlinFiles, psiCodebase)
+                }
+        }
+
+        kaCodebaseAssembler?.apply {
             // Provide a list of all packages when all typealiases are needed in order to inline
             // usages. If that isn't necessary, just typealiases from source will be processed.
             val allPackages =
@@ -452,7 +413,7 @@ internal class PsiCodebaseAssembler(
                 } else {
                     null
                 }
-            kaCodebaseAssembler.createTypeAliases(allPackages)
+            createTypeAliases(allPackages)
         }
 
         // Tracker for which source files of `@JvmMultifileClass`es have already been processed.
@@ -468,6 +429,9 @@ internal class PsiCodebaseAssembler(
         // example in ApiAnalyzer) wouldn't be possible because non-visible classes are no longer
         // accessible from there.
         determineIfInaccessibleClassesMakeSuperClassesNonExhaustive(psiClasses)
+
+        // Copy type use only nullness annotations to items.
+        copyTypeUseOnlyNullnessAnnotationsToItems()
 
         // Psi does not correctly track annotations in some cases so fix them up. Done here as it
         // cannot fix them up earlier because it requires resolving annotation classes and doing it
@@ -624,11 +588,13 @@ internal class PsiCodebaseAssembler(
     /**
      * Check to see whether [typeAnnotation] should be copied to its associated [MethodItem].
      *
-     * Replicates behavior of [PsiModifierItem]'s `filterIncorrectTypeUseAnnotations` method.
+     * Only annotations that are usable in a declaration context should be copied to the method
+     * item.
+     *
+     * Similar to the behavior of [PsiModifierItem.filterIncorrectTypeUseAnnotations].
      */
-    private fun shouldCopyTypeAnnotationToMethodItem(typeAnnotation: AnnotationItem) =
-        typeAnnotation.annotationUse.usableInDeclarationContext ||
-            typeAnnotation.isNullnessAnnotation()
+    internal fun shouldCopyTypeAnnotationToMethodItem(typeAnnotation: AnnotationItem) =
+        typeAnnotation.annotationUse.usableInDeclarationContext
 
     /**
      * Adds a class to the codebase based on the [psiClass].
@@ -693,12 +659,7 @@ internal class PsiCodebaseAssembler(
             if (!apiPackages.matches(packageName)) return
         }
 
-        val classItem =
-            createPossibleApiClass(
-                psiClass,
-                // Sources always come from the command line.
-                ClassOrigin.COMMAND_LINE,
-            ) ?: return
+        val classItem = createPossibleApiClass(psiClass) ?: return
         codebase.addTopLevelClassFromSource(classItem)
     }
 

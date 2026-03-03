@@ -43,6 +43,7 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.model.WellKnownTypes
 import com.android.tools.metalava.model.createImmutableModifiers
 import com.android.tools.metalava.model.createMutableModifiers
 import com.android.tools.metalava.model.item.CodebaseAssembler
@@ -1238,7 +1239,12 @@ private constructor(
             },
             // Get the bounds of the type parameter from the symbols
             { typeItemFactory, typeParameterSymbol ->
-                typeParameterSymbol.upperBounds.map { typeItemFactory.getBoundsType(it) }
+                val upperBounds = typeParameterSymbol.upperBounds
+                if (upperBounds.isEmpty()) {
+                    WellKnownTypes.defaultTypeParameterBounds(forKotlin = true)
+                } else {
+                    upperBounds.map { typeItemFactory.getBoundsType(it) }
+                }
             },
         )
     }

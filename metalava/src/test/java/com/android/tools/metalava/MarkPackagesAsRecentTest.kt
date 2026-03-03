@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import org.junit.Test
 
@@ -40,7 +41,7 @@ class MarkPackagesAsRecentTest : DriverTest() {
                     }
                     """
                     ),
-                    androidxNullableSource
+                    KnownSourceFiles.androidxNullableJavaSource
                 ),
             extraArguments = arrayOf(ARG_FORCE_CONVERT_TO_WARNING_NULLABILITY_ANNOTATIONS, "*"),
             stubFiles =
@@ -75,7 +76,7 @@ class MarkPackagesAsRecentTest : DriverTest() {
                     }
                     """
                     ),
-                    androidxNullableSource
+                    KnownSourceFiles.androidxNullableJavaSource
                 ),
             extraArguments =
                 arrayOf(

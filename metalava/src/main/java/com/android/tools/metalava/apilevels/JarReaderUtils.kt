@@ -15,9 +15,9 @@
  */
 package com.android.tools.metalava.apilevels
 
-import com.android.SdkConstants
 import com.android.tools.metalava.model.JAVA_ENUM_VALUES
 import com.android.tools.metalava.model.JAVA_ENUM_VALUE_OF
+import com.android.tools.metalava.model.JavaConstants
 import java.io.File
 import java.io.FileInputStream
 import java.util.zip.ZipInputStream
@@ -41,7 +41,7 @@ fun Api.readJar(
         while (true) {
             val entry = zis.nextEntry ?: break
             val entryName = entry.name
-            if (!entryName.endsWith(SdkConstants.DOT_CLASS)) {
+            if (!entryName.endsWith(JavaConstants.DOT_CLASS)) {
                 continue
             }
 

@@ -27,6 +27,7 @@ Sources:
 
   Options that control which source files will be processed.
 
+  --source-model-provider [psi|turbine]      (default: psi)
   --source-path <path>                       A : separated list of directories containing source files (organized in a
                                              standard Java package hierarchy).
   --source-files <files>                     A comma separated list of source files to be parsed. Can also be @ followed

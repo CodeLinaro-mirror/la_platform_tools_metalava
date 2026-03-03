@@ -58,7 +58,7 @@ internal class DefaultClassItem(
     private val containingPackage: PackageItem,
     private val qualifiedName: String,
     override val typeParameterList: TypeParameterList,
-    override val origin: ClassOrigin,
+    origin: ClassOrigin,
     private var superClassType: ClassTypeItem?,
     private var interfaceTypes: List<ClassTypeItem>,
     override val isFileFacade: Boolean,
@@ -84,6 +84,12 @@ internal class DefaultClassItem(
     private val simpleName = qualifiedName.extractSimpleName()
 
     private val fullName: String
+
+    override var origin: ClassOrigin = origin
+        set(value) {
+            ensureNotFrozen()
+            field = value
+        }
 
     init {
         // Register the class first. Leaking `this` is ok as it only uses its qualified name and

@@ -31,7 +31,7 @@ internal class TurbineEnvironmentManager() : EnvironmentManager {
         kotlinLanguageLevel: String,
         modelOptions: ModelOptions,
         jdkHome: File?,
-    ): SourceParser = TurbineSourceParser(codebaseConfig)
+    ): SourceParser = TurbineSourceParser(codebaseConfig, jdkHome)
 
     // TODO (b/299217550 implement it)
     override fun close() {}

@@ -313,11 +313,10 @@ class CommonMultiplatformCallableItemTest : BaseModelTest() {
                 "androidMain" to "optionalString",
                 "nativeMain" to "optionalString",
             )
-            // TODO(b/447420267): android and native should inherit the default value from common
             commonParameter.hasDefaultValue.assertSourceSetValues(
                 "commonMain" to true,
-                "androidMain" to false,
-                "nativeMain" to false,
+                "androidMain" to true,
+                "nativeMain" to true,
             )
 
             val nativeMethod =

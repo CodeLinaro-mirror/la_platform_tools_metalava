@@ -48,6 +48,7 @@ import com.android.tools.metalava.model.SkeletonTypeParameterItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.model.WellKnownTypes
 import com.android.tools.metalava.model.addDefaultRetentionPolicyAnnotation
 import com.android.tools.metalava.model.createMutableModifiers
 import com.android.tools.metalava.model.hasAnnotation
@@ -355,13 +356,17 @@ internal class TurbineClassBuilder(
         param: TyVarInfo,
         typeItemFactory: TurbineTypeItemFactory,
     ): List<BoundsTypeItem> {
-        val typeBounds = mutableListOf<BoundsTypeItem>()
-        val upperBounds = param.upperBound()
+        val upperBounds = param.upperBound().bounds()
+        val lowerBound = param.lowerBound()
 
-        upperBounds.bounds().mapTo(typeBounds) { typeItemFactory.getBoundsType(it) }
-        param.lowerBound()?.let { typeBounds.add(typeItemFactory.getBoundsType(it)) }
+        if (upperBounds.isEmpty() && lowerBound == null) {
+            return WellKnownTypes.defaultTypeParameterBounds(forKotlin = false)
+        }
 
-        return typeBounds.toList()
+        return buildList {
+            upperBounds.mapTo(this) { typeItemFactory.getBoundsType(it) }
+            lowerBound?.let { add(typeItemFactory.getBoundsType(it)) }
+        }
     }
 
     /** This method sets up the nested class hierarchy. */
