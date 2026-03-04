@@ -24,6 +24,7 @@ import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.FilterAction.EXCLUDE
 import com.android.tools.metalava.model.testing.FilterByProvider
 import com.android.tools.metalava.model.testing.RequiresCapabilities
+import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
@@ -55,7 +56,7 @@ class KotlinInteropChecksTest : DriverTest() {
                     }
                     """
                     ),
-                    androidxNonNullSource,
+                    KnownSourceFiles.androidxNonNullJavaSource,
                 )
         )
     }
@@ -132,8 +133,8 @@ class KotlinInteropChecksTest : DriverTest() {
                     fun ok(bar: () -> Int, foo: Int) { }
                 """
                     ),
-                    androidxNullableSource,
-                    androidxNonNullSource
+                    KnownSourceFiles.androidxNullableJavaSource,
+                    KnownSourceFiles.androidxNonNullJavaSource
                 )
         )
     }

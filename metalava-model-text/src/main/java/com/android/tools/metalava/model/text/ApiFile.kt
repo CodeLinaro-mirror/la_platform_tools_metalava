@@ -49,6 +49,7 @@ import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.model.WellKnownTypes
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.model.api.surface.ApiVariant
 import com.android.tools.metalava.model.api.surface.ApiVariantType
@@ -1869,7 +1870,11 @@ private constructor(
             // Create, set and return the [BoundsTypeItem] list.
             { typeItemFactory, typeParameterString ->
                 val boundsStringList = extractTypeParameterBoundsStringList(typeParameterString)
-                boundsStringList.map { typeItemFactory.getBoundsType(it) }
+                if (boundsStringList.isEmpty()) {
+                    WellKnownTypes.defaultTypeParameterBounds(forKotlin = false)
+                } else {
+                    boundsStringList.map { typeItemFactory.getBoundsType(it) }
+                }
             },
         )
     }

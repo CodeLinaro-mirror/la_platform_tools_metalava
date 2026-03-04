@@ -17,7 +17,12 @@
 package com.android.tools.metalava.model.source
 
 import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.AnnotationUse
+import com.android.tools.metalava.model.AnnotationUse.TYPE_ONLY
+import com.android.tools.metalava.model.BaseItemVisitor
+import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.PackageItem
@@ -31,6 +36,7 @@ import com.android.tools.metalava.model.source.utils.OVERVIEW_HTML
 import com.android.tools.metalava.model.source.utils.PACKAGE_HTML
 import com.android.tools.metalava.model.source.utils.findPackage
 import com.android.tools.metalava.model.source.utils.packageHtmlToJavadoc
+import com.android.tools.metalava.model.typeNullability
 import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.Issues
 import java.io.File
@@ -207,6 +213,40 @@ abstract class SourceCodebaseAssembler : DefaultCodebaseAssembler() {
      * `package-info.java` or `package-info.class` file.
      */
     protected abstract fun getPackageInfoFromSource(packageName: String): SourcePackageInfo?
+
+    /**
+     * Copy [AnnotationUse.TYPE_ONLY] only nullness annotations from types to [Item]s.
+     *
+     * The Psi model has historically included nullness annotations in the annotations for an item
+     * even when those annotations are [AnnotationUse.TYPE_ONLY]. This replicates that behavior.
+     *
+     * This is not strictly the same as Psi, as Psi only does that for annotations that are used in
+     * a context that means it could apply to either the declaration or the type. This simply always
+     * copies them. That means that in theory the behavior could differ but in practice this does
+     * not as type use only nullness annotations are not heavily used in Android or AndroidX.
+     */
+    fun copyTypeUseOnlyNullnessAnnotationsToItems() {
+        codebase.accept(
+            object : BaseItemVisitor() {
+                override fun visitItem(item: Item) {
+                    if (item is ClassItem || item is PackageItem) return
+                    val type = item.type() ?: return
+
+                    val itemAnnotations = item.modifiers.annotations()
+                    if (itemAnnotations.typeNullability == null) {
+                        val annotationToAdd =
+                            type.modifiers.annotations.find { it.isNullnessAnnotation() }
+                        if (
+                            annotationToAdd != null &&
+                                annotationToAdd.annotationUse == AnnotationUse.TYPE_ONLY
+                        ) {
+                            item.mutateModifiers { mutateAnnotations { add(annotationToAdd) } }
+                        }
+                    }
+                }
+            }
+        )
+    }
 }
 
 /**

@@ -1041,7 +1041,7 @@ class CommonPropertyItemTest : BaseModelTest() {
                 fooClass.assertProperty("oneTypeParameterReceiver", receiverTypeString = "T")
             val oneTypeParameterReceiverT = oneTypeParameterReceiver.typeParameterList.single()
             assertThat(oneTypeParameterReceiverT.name()).isEqualTo("T")
-            assertThat(oneTypeParameterReceiverT.typeBounds()).isEmpty()
+            oneTypeParameterReceiverT.assertUsesDefaultTypeBounds()
             assertThat(oneTypeParameterReceiverT.isReified()).isFalse()
             oneTypeParameterReceiver.receiver.assertVariableTypeItem {
                 assertEquals(asTypeParameter, oneTypeParameterReceiverT)
@@ -1056,7 +1056,7 @@ class CommonPropertyItemTest : BaseModelTest() {
             val oneTypeParameterListReceiverT =
                 oneTypeParameterListReceiver.typeParameterList.single()
             assertThat(oneTypeParameterListReceiverT.name()).isEqualTo("T")
-            assertThat(oneTypeParameterListReceiverT.typeBounds()).isEmpty()
+            oneTypeParameterListReceiverT.assertUsesDefaultTypeBounds()
             assertThat(oneTypeParameterListReceiverT.isReified()).isFalse()
             oneTypeParameterListReceiver.receiver.assertClassTypeItem {
                 assertEquals(qualifiedName, "java.util.List")
@@ -1089,11 +1089,11 @@ class CommonPropertyItemTest : BaseModelTest() {
                 )
             val twoTypeParameterMapReceiverT1 = twoTypeParameterMapReceiver.typeParameterList[0]
             assertThat(twoTypeParameterMapReceiverT1.name()).isEqualTo("T1")
-            assertThat(twoTypeParameterMapReceiverT1.typeBounds()).isEmpty()
+            twoTypeParameterMapReceiverT1.assertUsesDefaultTypeBounds()
             assertThat(twoTypeParameterMapReceiverT1.isReified()).isFalse()
             val twoTypeParameterMapReceiverT2 = twoTypeParameterMapReceiver.typeParameterList[1]
             assertThat(twoTypeParameterMapReceiverT2.name()).isEqualTo("T2")
-            assertThat(twoTypeParameterMapReceiverT2.typeBounds()).isEmpty()
+            twoTypeParameterMapReceiverT2.assertUsesDefaultTypeBounds()
             assertThat(twoTypeParameterMapReceiverT2.isReified()).isFalse()
             twoTypeParameterMapReceiver.receiver.assertClassTypeItem {
                 assertEquals(qualifiedName, "java.util.Map")
@@ -1182,7 +1182,7 @@ class CommonPropertyItemTest : BaseModelTest() {
                 fooClass.assertProperty("typeParameterExtension", receiverTypeString = "T")
             val typeParameterExtensionT = typeParameterExtension.typeParameterList.single()
             assertThat(typeParameterExtensionT.name()).isEqualTo("T")
-            assertThat(typeParameterExtensionT.typeBounds()).isEmpty()
+            typeParameterExtensionT.assertUsesDefaultTypeBounds()
             assertThat(typeParameterExtensionT.isReified()).isFalse()
             typeParameterExtension.type().assertVariableTypeItem {
                 assertEquals(asTypeParameter, typeParameterExtensionT)

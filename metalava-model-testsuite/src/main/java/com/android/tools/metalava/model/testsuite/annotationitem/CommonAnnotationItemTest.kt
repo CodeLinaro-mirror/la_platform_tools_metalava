@@ -1974,7 +1974,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
                         type = java.lang.@type.use.only.Nullable String
 
                     method test.pkg.Test.method4()
-                        annotations = [@type.use.only.NonNull]
+                        annotations = [@type.use.only.Nullable]
                         type = java.lang.@type.use.only.NonNull String @type.use.only.Nullable []
 
                     method test.pkg.Test.method5()
@@ -2145,7 +2145,7 @@ class CommonAnnotationItemTest : BaseModelTest() {
                         type = java.lang.@type.use.only.Nullable String
 
                     method test.pkg.Test.method4()
-                        annotations = [@type.use.only.NonNull]
+                        annotations = [@type.use.only.Nullable]
                         type = java.lang.@type.use.only.NonNull String @type.use.only.Nullable []
 
                     method test.pkg.Test.method5()

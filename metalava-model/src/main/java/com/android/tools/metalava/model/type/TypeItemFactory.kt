@@ -511,6 +511,9 @@ abstract class DefaultTypeItemFactory<in T, F : DefaultTypeItemFactory<T, F>>(
         // [TypeItemFactory] to allow cross-references to type parameters to be resolved.
         for ((typeParameter, param) in typeParameterItemToBounds) {
             val boundsTypeItems = boundsGetter(typeItemFactory, param)
+            if (boundsTypeItems.isEmpty()) {
+                error("No bounds provided for type parameter: $param")
+            }
             typeParameter.bounds = boundsTypeItems
         }
 

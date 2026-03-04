@@ -1072,12 +1072,14 @@ class CompatibilityCheck(
         return when (type) {
             is ArrayTypeItem -> describeBounds(type.componentType) + "[]"
             is VariableTypeItem -> {
-                type.name +
-                    if (type.asTypeParameter.typeBounds().isEmpty()) {
-                        " (extends java.lang.Object)"
-                    } else {
-                        " (extends ${type.asTypeParameter.typeBounds().joinToString(separator = " & ") { it.toTypeString() }})"
+                buildString {
+                    append(type.name)
+                    append(" (extends ")
+                    type.asTypeParameter.typeBounds().joinTo(this, separator = " & ") {
+                        it.toTypeString()
                     }
+                    append(")")
+                }
             }
             else -> type.toTypeString()
         }

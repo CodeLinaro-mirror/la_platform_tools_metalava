@@ -59,6 +59,7 @@ import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
 import com.android.tools.metalava.model.psi.PsiModelOptions
 import com.android.tools.metalava.model.snapshot.NonFilteringDelegatingVisitor
 import com.android.tools.metalava.model.source.EnvironmentManager
+import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.model.text.SignatureFile
 import com.android.tools.metalava.model.text.SignatureWriter
@@ -713,15 +714,18 @@ class Driver(
             }
 
         progressTracker.progress("Reading Codebase: ")
-        val codebase =
-            sourceParser.parseSources(
+
+        val inputs =
+            SourceParser.Inputs(
                 sourceSet,
                 "Codebase loaded from source folders",
                 classPath = sourceOptions.classpath,
                 apiPackages = sourceOptions.apiPackageFilter,
                 projectDescription = sourceOptions.projectDescription,
-                compiledSourceJar = sourceOptions.compiledSourceJar
-            ) ?: return null
+                compiledSourceJar = sourceOptions.compiledSourceJar,
+            )
+
+        val codebase = sourceParser.parseSources(inputs) ?: return null
 
         progressTracker.progress("Analyzing API: ")
 

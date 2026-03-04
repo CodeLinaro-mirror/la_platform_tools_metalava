@@ -13,8 +13,6 @@ com.android.tools.metalava.model.testsuite.CommonTargetLanguageTest
   Test properties of value class types with JvmName[psi,kotlin,k2]
 
 com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTest
-  annotations of various uses and nullability after generic method type arguments list[turbine]
-  annotations of various uses and nullability on method[turbine]
   unknown annotation class with default attribute - array value[psi,kotlin,k1]
   unknown annotation class with default attribute - array value[psi,kotlin,k2]
   unknown annotation class with default attribute - string value[psi,kotlin,k1]
@@ -38,6 +36,10 @@ com.android.tools.metalava.model.testsuite.codebase.CommonCodebaseTest
 
 com.android.tools.metalava.model.testsuite.fielditem.CommonFieldItemTest
   Test implicit nullability of constant field initialized from @NonNull method[turbine]
+
+com.android.tools.metalava.model.testsuite.methoditem.CommonMethodItemTest
+  JvmOverloads methods[psi,kotlin,k1]
+  JvmOverloads with initial vararg parameter[psi,kotlin,k1]
 
 com.android.tools.metalava.model.testsuite.methoditem.CommonMethodModifierTest
   Test final method in final class[text]

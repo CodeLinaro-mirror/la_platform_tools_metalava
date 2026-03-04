@@ -689,7 +689,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             val typeParameter1 = testClass1.typeParameterList.single()
             typeArgument1.assertReferencesTypeParameter(typeParameter1)
             assertEquals("S", (typeArgument1 as VariableTypeItem).toString())
-            assertEquals(0, typeParameter1.typeBounds().count())
+            typeParameter1.assertUsesDefaultTypeBounds()
             assertEquals("test.pkg.Test1<S>", testClassType1.toString())
             assertEquals(null, testClassType1.outerClassType)
 

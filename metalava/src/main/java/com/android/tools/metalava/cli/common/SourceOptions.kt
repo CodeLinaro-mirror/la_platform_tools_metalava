@@ -29,7 +29,6 @@ import com.android.tools.metalava.model.source.SourceModelProvider
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import com.github.ajalt.clikt.parameters.options.convert
 import com.github.ajalt.clikt.parameters.options.default
-import com.github.ajalt.clikt.parameters.options.deprecated
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.multiple
 import com.github.ajalt.clikt.parameters.options.option
@@ -87,15 +86,9 @@ class SourceOptions(
     private val sourceModelProviderName by
         option(
                 ARG_SOURCE_MODEL_PROVIDER,
-                // Hidden from command line help for now.
-                hidden = true,
             )
             .choice("psi", "turbine")
             .default("psi")
-            .deprecated(
-                """WARNING: The turbine model is under work and not usable for now. Eventually this option can be used to set the source model provider to either turbine or psi. The default is psi. """
-                    .trimIndent()
-            )
 
     /** Get the [SourceModelProvider] corresponding to [sourceModelProviderName]. */
     val sourceModelProvider: SourceModelProvider

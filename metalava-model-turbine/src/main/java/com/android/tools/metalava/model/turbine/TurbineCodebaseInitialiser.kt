@@ -36,7 +36,7 @@ import com.google.common.collect.ImmutableList
 import com.google.common.collect.ImmutableMap
 import com.google.turbine.binder.Binder
 import com.google.turbine.binder.Binder.BindingResult
-import com.google.turbine.binder.ClassPathBinder
+import com.google.turbine.binder.ClassPath
 import com.google.turbine.binder.Processing.ProcessorInfo
 import com.google.turbine.binder.bound.SourceTypeBoundClass
 import com.google.turbine.binder.bound.TypeBoundClass
@@ -68,7 +68,8 @@ import javax.lang.model.SourceVersion
  */
 internal class TurbineCodebaseInitialiser(
     codebaseFactory: DefaultCodebaseFactory,
-    private val classpath: List<File>,
+    private val bootclasspath: ClassPath,
+    private val classpath: ClassPath,
 ) : SourceCodebaseAssembler(), TurbineGlobalContext {
 
     override val codebase = codebaseFactory(this)
@@ -167,9 +168,9 @@ internal class TurbineCodebaseInitialiser(
                 Binder.bind(
                     log,
                     allUnits,
-                    ClassPathBinder.bindClasspath(classpath.map { it.toPath() }),
+                    classpath,
                     annotationProcessorInfo,
-                    ClassPathBinder.bindClasspath(listOf()),
+                    bootclasspath,
                     Optional.empty()
                 )!!
         } catch (e: TurbineError) {
@@ -186,6 +187,7 @@ internal class TurbineCodebaseInitialiser(
                 TurbineError.ErrorKind.CANNOT_RESOLVE,
                 TurbineError.ErrorKind.CANNOT_RESOLVE_FIELD,
                 TurbineError.ErrorKind.EXPRESSION_ERROR,
+                TurbineError.ErrorKind.NO_JAVA_LANG,
                 TurbineError.ErrorKind.SYMBOL_NOT_FOUND -> {
                     false
                 }
@@ -241,6 +243,9 @@ internal class TurbineCodebaseInitialiser(
         createInitialPackages(sourceSet)
 
         createAllCommandLineClasses(commandLineSourceClasses, apiPackages)
+
+        // Copy type use only nullness annotations to items.
+        copyTypeUseOnlyNullnessAnnotationsToItems()
     }
 
     /**

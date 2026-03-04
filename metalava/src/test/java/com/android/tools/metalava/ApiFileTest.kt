@@ -31,12 +31,12 @@ import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.FileFormat.OverloadedMethodOrder
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.testing.KnownJarFiles
+import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.createAndroidModuleDescription
 import com.android.tools.metalava.testing.createCommonModuleDescription
 import com.android.tools.metalava.testing.createProjectDescription
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
-import com.android.tools.metalava.testing.source
 import org.junit.Test
 
 class ApiFileTest : DriverTest() {
@@ -937,8 +937,8 @@ class ApiFileTest : DriverTest() {
                     }
                     """
                     ),
-                    androidxNonNullSource,
-                    androidxNullableSource,
+                    KnownSourceFiles.androidxNonNullJavaSource,
+                    KnownSourceFiles.androidxNullableJavaSource,
                 ),
             api =
                 """
@@ -1208,8 +1208,8 @@ class ApiFileTest : DriverTest() {
                     inline operator fun <F, S> PlatformJavaPair<F, S>.component1() = first
                     """
                     ),
-                    androidxNonNullSource,
-                    androidxNullableSource,
+                    KnownSourceFiles.androidxNonNullJavaSource,
+                    KnownSourceFiles.androidxNullableJavaSource,
                 ),
             api =
                 """
@@ -1363,8 +1363,8 @@ class ApiFileTest : DriverTest() {
                     """
                         )
                         .indented(),
-                    androidxNonNullSource,
-                    androidxNullableSource,
+                    KnownSourceFiles.androidxNonNullJavaSource,
+                    KnownSourceFiles.androidxNullableJavaSource,
                 ),
             api =
                 """
@@ -4108,7 +4108,7 @@ class ApiFileTest : DriverTest() {
                     }
                     """
                     ),
-                    androidxNonNullSource,
+                    KnownSourceFiles.androidxNonNullJavaSource,
                 ),
             expectedIssues = "",
             api =
@@ -4775,8 +4775,8 @@ class ApiFileTest : DriverTest() {
                     }
                     """
                     ),
-                    androidxNullableSource,
-                    androidxNonNullSource,
+                    KnownSourceFiles.androidxNullableJavaSource,
+                    KnownSourceFiles.androidxNonNullJavaSource,
                 ),
             api =
                 """
@@ -5144,6 +5144,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @FilterByProvider("psi", "k1", action = FilterAction.EXCLUDE)
     @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Kotlin expect-actual with JvmOverloads constructors`() {
@@ -5224,6 +5225,7 @@ class ApiFileTest : DriverTest() {
         )
     }
 
+    @FilterByProvider("psi", "k1", action = FilterAction.EXCLUDE)
     @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Kotlin expect-actual with JvmOverloads methods`() {

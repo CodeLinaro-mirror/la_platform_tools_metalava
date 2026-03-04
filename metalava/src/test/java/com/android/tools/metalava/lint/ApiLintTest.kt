@@ -18,8 +18,6 @@ package com.android.tools.metalava.lint
 
 import com.android.tools.lint.checks.infrastructure.TestFiles.base64gzip
 import com.android.tools.metalava.DriverTest
-import com.android.tools.metalava.androidxNonNullSource
-import com.android.tools.metalava.androidxNullableSource
 import com.android.tools.metalava.cli.common.ARG_ERROR
 import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.cli.lint.ARG_API_LINT
@@ -28,6 +26,7 @@ import com.android.tools.metalava.model.testing.FilterAction
 import com.android.tools.metalava.model.testing.FilterByProvider
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.nonNullSource
+import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
@@ -105,8 +104,8 @@ class ApiLintTest : DriverTest() {
                     }
                     """
                     ),
-                    androidxNonNullSource,
-                    androidxNullableSource
+                    KnownSourceFiles.androidxNonNullJavaSource,
+                    KnownSourceFiles.androidxNullableJavaSource
                 )
         )
     }
@@ -417,7 +416,7 @@ class ApiLintTest : DriverTest() {
                     }
                     """
                     ),
-                    androidxNullableSource
+                    KnownSourceFiles.androidxNullableJavaSource
                 )
         )
     }
@@ -560,7 +559,7 @@ class ApiLintTest : DriverTest() {
                             public class Uri {}
                         """
                     ),
-                    androidxNonNullSource
+                    KnownSourceFiles.androidxNonNullJavaSource
                 )
         )
     }
@@ -618,7 +617,7 @@ class ApiLintTest : DriverTest() {
                     }
                     """
                     ),
-                    androidxNullableSource
+                    KnownSourceFiles.androidxNullableJavaSource
                 )
         )
     }
@@ -722,7 +721,7 @@ class ApiLintTest : DriverTest() {
                     }
                     """
                     ),
-                    androidxNullableSource
+                    KnownSourceFiles.androidxNullableJavaSource
                 )
         )
     }
@@ -754,7 +753,7 @@ class ApiLintTest : DriverTest() {
                     }
                     """
                     ),
-                    androidxNullableSource
+                    KnownSourceFiles.androidxNullableJavaSource
                 )
         )
     }
@@ -1025,7 +1024,7 @@ class ApiLintTest : DriverTest() {
                 }
                 """
                     ),
-                    androidxNonNullSource
+                    KnownSourceFiles.androidxNonNullJavaSource
                 )
         )
     }
@@ -1159,7 +1158,7 @@ class ApiLintTest : DriverTest() {
                     }
                     """
                     ),
-                    androidxNonNullSource
+                    KnownSourceFiles.androidxNonNullJavaSource
                 )
         )
     }
@@ -1366,7 +1365,7 @@ class ApiLintTest : DriverTest() {
                     }
                     """
                     ),
-                    androidxNonNullSource
+                    KnownSourceFiles.androidxNonNullJavaSource
                 )
         )
     }
@@ -1544,7 +1543,7 @@ class ApiLintTest : DriverTest() {
                     fun String.badCall(value: Int, context: Context) {}
                     """
                     ),
-                    androidxNullableSource
+                    KnownSourceFiles.androidxNullableJavaSource
                 )
         )
     }
@@ -1613,7 +1612,7 @@ class ApiLintTest : DriverTest() {
                     }
                     """
                     ),
-                    androidxNullableSource
+                    KnownSourceFiles.androidxNullableJavaSource
                 )
         )
     }
@@ -1752,7 +1751,7 @@ class ApiLintTest : DriverTest() {
                     }
                     """
                     ),
-                    androidxNullableSource
+                    KnownSourceFiles.androidxNullableJavaSource
                 )
         )
     }
@@ -1841,7 +1840,7 @@ class ApiLintTest : DriverTest() {
                     }
                     """
                     ),
-                    androidxNullableSource
+                    KnownSourceFiles.androidxNullableJavaSource
                 )
         )
     }
@@ -1875,7 +1874,7 @@ class ApiLintTest : DriverTest() {
                     }
                     """
                     ),
-                    androidxNullableSource
+                    KnownSourceFiles.androidxNullableJavaSource
                 )
         )
     }
@@ -1963,7 +1962,7 @@ class ApiLintTest : DriverTest() {
             expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
-                    androidxNonNullSource,
+                    KnownSourceFiles.androidxNonNullJavaSource,
                     java(
                         """
                     package android.pkg;
@@ -2251,8 +2250,8 @@ class ApiLintTest : DriverTest() {
                     }
                     """
                     ),
-                    androidxNonNullSource,
-                    androidxNullableSource
+                    KnownSourceFiles.androidxNonNullJavaSource,
+                    KnownSourceFiles.androidxNullableJavaSource
                 )
         )
     }
@@ -2293,7 +2292,7 @@ class ApiLintTest : DriverTest() {
                     }
                     """
                     ),
-                    androidxNullableSource
+                    KnownSourceFiles.androidxNullableJavaSource
                 )
         )
     }
@@ -2428,7 +2427,7 @@ class ApiLintTest : DriverTest() {
                     }
                     """
                     ),
-                    androidxNonNullSource
+                    KnownSourceFiles.androidxNonNullJavaSource
                 )
         )
     }
@@ -2458,7 +2457,7 @@ class ApiLintTest : DriverTest() {
                     }
                     """
                     ),
-                    androidxNullableSource
+                    KnownSourceFiles.androidxNullableJavaSource
                 )
         )
     }
@@ -2513,7 +2512,7 @@ class ApiLintTest : DriverTest() {
                     }
                     """
                     ),
-                    androidxNullableSource,
+                    KnownSourceFiles.androidxNullableJavaSource,
                     nonNullSource
                 )
         )
@@ -2583,7 +2582,7 @@ class ApiLintTest : DriverTest() {
                     }
                     """
                     ),
-                    androidxNullableSource
+                    KnownSourceFiles.androidxNullableJavaSource
                 )
         )
     }
@@ -2675,7 +2674,7 @@ class ApiLintTest : DriverTest() {
                     }
                     """
                     ),
-                    androidxNullableSource
+                    KnownSourceFiles.androidxNullableJavaSource
                 )
         )
     }
@@ -2840,7 +2839,7 @@ class ApiLintTest : DriverTest() {
                     }
                     """
                     ),
-                    androidxNullableSource
+                    KnownSourceFiles.androidxNullableJavaSource
                 )
         )
     }
@@ -2890,7 +2889,7 @@ class ApiLintTest : DriverTest() {
                         }
                     """
                     ),
-                    androidxNonNullSource,
+                    KnownSourceFiles.androidxNonNullJavaSource,
                 )
         )
     }

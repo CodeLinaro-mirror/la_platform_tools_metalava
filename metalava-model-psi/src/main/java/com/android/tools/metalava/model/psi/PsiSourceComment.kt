@@ -18,12 +18,17 @@ package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.source.LazySourceComment
 import com.android.tools.metalava.reporter.FileLocation
+import com.intellij.psi.JavaTokenType
 import com.intellij.psi.PsiComment
 import com.intellij.psi.PsiCompiledElement
 import com.intellij.psi.PsiDocCommentOwner
 import com.intellij.psi.PsiElement
-import com.intellij.psi.PsiModifierList
+import com.intellij.psi.PsiField
+import com.intellij.psi.PsiJavaToken
 import com.intellij.psi.PsiPackageStatement
+import com.intellij.psi.PsiWhiteSpace
+import com.intellij.psi.impl.source.SourceTreeToPsiMap
+import com.intellij.psi.impl.source.tree.java.FieldElement
 import com.intellij.psi.javadoc.PsiDocComment
 import com.intellij.psi.util.PsiTreeUtil
 import org.jetbrains.kotlin.psi.KtDeclaration
@@ -72,6 +77,80 @@ internal class PsiSourceComment(private val psiElement: PsiElement) : LazySource
                 }
             }
             is PsiDocCommentOwner -> {
+                // If this element is a field then it may be a field in a multi-field declaration in
+                // which case the doc comment is only associated with the first field, so look to
+                // see if that is the case. Do this before checking the owner so that it does not
+                // accidentally take a doc comment from within the middle of the declaration.
+                if (psiElement is PsiField) {
+                    // Get the syntax tree for this field.
+                    SourceTreeToPsiMap.psiElementToTree(psiElement)?.let { sourceTree ->
+                        // Search backwards through the syntax tree to find the first field in a
+                        // multiple field declaration. Start with the tree node before this field.
+                        var tree = sourceTree.treePrev
+
+                        // Track whether a comma has been seen as a preceding field is only part of
+                        // a multi-field declaration if it is separated with a comma.
+                        var precedingFieldIsPartOfMultiFieldDeclaration = false
+
+                        // Record the first field in the multi-field declaration, if any.
+                        var firstField: FieldElement? = null
+
+                        // Iterate through the previous siblings of the field.
+                        while (tree != null) {
+                            when {
+                                tree is PsiWhiteSpace -> {
+                                    // Ignore white spaces.
+                                }
+                                tree is PsiJavaToken && tree.tokenType == JavaTokenType.COMMA -> {
+                                    // A comma indicates that the preceding field is part of the
+                                    // same multi-field declaration as this one.
+                                    precedingFieldIsPartOfMultiFieldDeclaration = true
+                                }
+                                tree is FieldElement -> {
+                                    // If this is part of the same multi-field declaration then
+                                    // treat it as the first unless a preceding one can be found.
+                                    if (precedingFieldIsPartOfMultiFieldDeclaration) {
+                                        // This is the earliest field that is part of a multi-field
+                                        // declaration found so far.
+                                        firstField = tree
+
+                                        // Make sure to require a comma in order to treat a
+                                        // preceding field as part of the multi-field declaration.
+                                        precedingFieldIsPartOfMultiFieldDeclaration = false
+                                    } else {
+                                        // Otherwise, this field is separate so stop.
+                                        break
+                                    }
+                                }
+                                else -> {
+                                    // Stop at anything that is not whitespace, comma or a field as
+                                    // it has reached the beginning of the field declaration,
+                                    // whether for a multi-field or not.
+                                    break
+                                }
+                            }
+
+                            // Move to the previous tree node.
+                            tree = tree.treePrev
+                        }
+
+                        // If a field is found then check to see if it has a doc comment. It will be
+                        // the first child if it is present. If it is present then use it, otherwise
+                        // drop out.
+                        if (firstField != null) {
+                            val docComment = firstField.firstChildNode as? PsiDocComment
+                            if (docComment != null) {
+                                val text = docComment.text
+                                // Make sure that the text is a doc comment, i.e. starts with /**.
+                                if (text.startsWith("/**")) {
+                                    psiComment = docComment
+                                    return text
+                                }
+                            }
+                        }
+                    }
+                }
+
                 val docComment = psiElement.docComment
                 if (docComment != null) {
                     val text = docComment.text
@@ -79,29 +158,6 @@ internal class PsiSourceComment(private val psiElement: PsiElement) : LazySource
                     if (text.startsWith("/**")) {
                         psiComment = docComment
                         return text
-                    }
-                } else {
-                    // A doc comment could not be found so look a little deeper.
-                    if (psiElement.annotations.size > 0) {
-                        // If the element has annotations then if the annotations come before the
-                        // doc comment then the doc comment will be a child of the PsiModifierList.
-                        psiElement.children
-                            // Get the first PsiModifierList.
-                            .filterIsInstance<PsiModifierList>()
-                            .firstOrNull()
-                            // Get its first PsiDocComment.
-                            ?.children
-                            ?.filterIsInstance<PsiDocComment>()
-                            ?.firstOrNull()
-                            ?.let { docComment ->
-                                val text = docComment.text
-
-                                // Make sure that the text is a doc comment, i.e. starts with /**.
-                                if (text.startsWith("/**")) {
-                                    psiComment = docComment
-                                    return text
-                                }
-                            }
                     }
                 }
             }

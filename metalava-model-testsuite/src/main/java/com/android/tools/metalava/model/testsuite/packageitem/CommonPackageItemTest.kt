@@ -18,11 +18,10 @@ package com.android.tools.metalava.model.testsuite.packageitem
 
 import com.android.tools.lint.checks.infrastructure.TestFiles.source
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.testsuite.BaseModelTest
-import com.android.tools.metalava.testing.KnownSourceFiles.nonNullSource
+import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.TestFileCache
 import com.android.tools.metalava.testing.TestFileCacheRule
 import com.android.tools.metalava.testing.cacheIn
@@ -154,10 +153,10 @@ class CommonPackageItemTest : BaseModelTest() {
     fun `Test nullability annotation in package info`() {
         runSourceCodebaseTest(
             inputSet(
-                nonNullSource,
+                KnownSourceFiles.androidxNonNullJavaSource,
                 java(
                     """
-                        @android.annotation.NonNull
+                        @androidx.annotation.NonNull
                         package test.pkg;
                     """
                 ),
@@ -169,16 +168,10 @@ class CommonPackageItemTest : BaseModelTest() {
                     """
                 ),
             ),
-            testFixture =
-                TestFixture(
-                    // Use the noOpAnnotationManager to avoid annotation name normalizing as the
-                    // annotation names are important for this test.
-                    annotationManager = noOpAnnotationManager,
-                ),
         ) {
             val packageItem = codebase.assertPackage("test.pkg")
             assertEquals(
-                "@android.annotation.NonNull",
+                "@androidx.annotation.NonNull",
                 packageItem.modifiers.annotations().single().toString()
             )
         }

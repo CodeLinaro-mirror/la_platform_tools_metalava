@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.testsuite
 
 import com.android.tools.metalava.model.ClassPathResolver
+import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.provider.Capability
 import java.io.File
 
@@ -35,4 +36,15 @@ interface JarSupport {
      * @param classPath a list of jar [File]s.
      */
     fun getClassPathResolver(classPath: List<File>): ClassPathResolver
+
+    /**
+     * Load a [Codebase] from a single jar.
+     *
+     * If an implementation supports this it must provide [Capability.LOAD_JAR].
+     *
+     * @param apiJar the jar file from which the [Codebase] will be loaded.
+     * @param classPath the possibly empty list of jar files which may provide additional classes
+     *   referenced by [apiJar].
+     */
+    fun loadFromJar(apiJar: File, classPath: List<File>): Codebase
 }

@@ -79,7 +79,7 @@ internal fun CompUnit.getHeaderComments(): String {
     // Search backwards for the start of the `package` keyword.
     val packageKeywordStart = source.lastIndexOf("package", packageNamePosition)
     // Return the content before the `package` keyword to match Java.
-    return source.substring(0, packageKeywordStart)
+    return source.substring(0, packageKeywordStart).replace("\r\n", "\n")
 }
 
 /** Get an [ItemDocumentationFactory] for [decl] in [sourceFile]. */

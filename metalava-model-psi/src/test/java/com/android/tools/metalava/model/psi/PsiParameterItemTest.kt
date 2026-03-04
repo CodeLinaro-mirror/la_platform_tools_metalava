@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava.model.psi
 
+import com.android.tools.metalava.model.testing.FilterAction
+import com.android.tools.metalava.model.testing.FilterByProvider
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.createAndroidModuleDescription
 import com.android.tools.metalava.testing.createCommonModuleDescription
@@ -44,6 +46,7 @@ class PsiParameterItemTest : BaseModelTest() {
     }
 
     @Test
+    @FilterByProvider("psi", "k1", action = FilterAction.EXCLUDE)
     fun `actuals get params from expects`() {
         val commonSource =
             kotlin(
@@ -106,7 +109,10 @@ class PsiParameterItemTest : BaseModelTest() {
             val classItem = codebase.assertClass("Test")
             assertSame(actualFile, classItem.sourceFile())
 
-            val constructorItem = classItem.constructors().single()
+            // When a default constructor has a single optional parameter the compiler generates a
+            // no-args constructor overload.
+            classItem.assertConstructor(emptyList())
+            val constructorItem = classItem.assertConstructor(listOf("java.lang.String"))
             with(constructorItem) {
                 val parameter = parameters().single()
                 assertTrue(parameter.hasDefaultValue())
