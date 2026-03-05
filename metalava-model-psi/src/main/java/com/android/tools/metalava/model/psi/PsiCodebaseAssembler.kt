@@ -132,12 +132,21 @@ internal class PsiCodebaseAssembler(
         JavaPsiFacade.getInstance(project).findPackage(packageName)
 
     override fun getPackageInfoFromSource(packageName: String): SourcePackageInfo? {
+        // The root package can never have a corresponding package-info.java and so cannot have
+        // any annotations or documentation so return immediately.
+        if (packageName == "") {
+            return null
+        }
+
         val psiPackage = findPsiPackage(packageName) ?: return null
         val annotations = PsiModifierItem.create(psiCodebase, psiPackage).annotations()
 
+        // Try and find a package-info.java file for the package in the project files.
         val psiJavaFile =
-            psiPackage.getFiles(projectSearchScope).find { it.name == JAVA_PACKAGE_INFO }
-                as? PsiJavaFile
+            psiPackage.getFiles(projectSearchScope).find {
+                // Make sure that the file is a PsiJavaFile with the correct package name.
+                it is PsiJavaFile && it.name == JAVA_PACKAGE_INFO && it.packageName == packageName
+            } as? PsiJavaFile
 
         return if (psiJavaFile == null) {
             SourcePackageInfo(
