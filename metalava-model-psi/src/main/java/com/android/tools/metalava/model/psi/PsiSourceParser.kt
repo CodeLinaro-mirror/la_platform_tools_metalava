@@ -59,7 +59,6 @@ internal class PsiSourceParser(
     private val codebaseConfig: Codebase.Config,
     private val javaLanguageLevel: LanguageLevel,
     private val kotlinLanguageLevel: LanguageVersionSettings,
-    private val useK2Uast: Boolean,
     private val jdkHome: File?,
 ) : AbstractSourceParser(codebaseConfig.reporter) {
     /**
@@ -72,7 +71,7 @@ internal class PsiSourceParser(
         val sourceSet = inputs.sourceSet
 
         @Suppress("DEPRECATION") // b/427783483: to be removed when K1 support is dropped
-        val config = UastEnvironment.Configuration.create(useFirUast = useK2Uast)
+        val config = UastEnvironment.Configuration.create(useFirUast = true)
         config.javaLanguageLevel = javaLanguageLevel
 
         when (val projectDescription = inputs.projectDescription) {
@@ -152,8 +151,6 @@ internal class PsiSourceParser(
     }
 
     override fun createMultiplatformCodebase(projectDescription: File): MultiplatformCodebase {
-        if (!useK2Uast) error("Multiplatform codebase creation requires K2 UAST.")
-
         // If an environment was already created to create a regular Codebase, reuse it since
         // creating an environment is expensive.
         val environment =
@@ -185,7 +182,7 @@ internal class PsiSourceParser(
     /** Initializes a UAST environment using the [apiJars] as classpath roots. */
     private fun loadUastFromJars(apiJars: List<File>): UastEnvironment {
         @Suppress("DEPRECATION") // b/427783483: to be removed when K1 support is dropped
-        val config = UastEnvironment.Configuration.create(useFirUast = useK2Uast)
+        val config = UastEnvironment.Configuration.create(useFirUast = true)
         val sourceRoots = emptyList<File>()
         configureUastEnvironment(config, sourceRoots, apiJars)
 

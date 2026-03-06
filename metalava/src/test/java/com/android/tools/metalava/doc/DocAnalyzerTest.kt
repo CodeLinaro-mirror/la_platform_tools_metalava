@@ -19,6 +19,7 @@ package com.android.tools.metalava.doc
 import com.android.tools.lint.checks.infrastructure.TestFiles
 import com.android.tools.metalava.ARG_API_VERSION_FOR_SOURCES
 import com.android.tools.metalava.ARG_API_VERSION_LABEL
+import com.android.tools.metalava.ARG_ENHANCE_DOCUMENTATION
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.SystemApiType
 import com.android.tools.metalava.columnSource
@@ -1709,6 +1710,31 @@ class DocAnalyzerTest : DriverTest() {
                     """
                     )
                 )
+        )
+    }
+
+    @RequiresCapabilities(Capability.KOTLIN)
+    @Test
+    fun `Enhancing documentation with Kotlin only APIs`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package androidx.compose.runtime
+                        annotation class Composable
+                        """
+                    ),
+                    kotlin(
+                        """
+                        package test.pkg
+                        import androidx.compose.runtime.Composable
+                        @Composable
+                        fun ComposableFun() = Unit
+                        """
+                    )
+                ),
+            extraArguments = arrayOf(ARG_ENHANCE_DOCUMENTATION),
         )
     }
 }

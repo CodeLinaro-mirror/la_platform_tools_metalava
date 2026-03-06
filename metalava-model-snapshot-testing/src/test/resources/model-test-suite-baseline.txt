@@ -1,45 +1,28 @@
 com.android.tools.metalava.model.testsuite.BootstrapSourceModelProviderTest
-  260 - test doconly members[psi,java,k1]
-  260 - test doconly members[psi,java,k2]
+  260 - test doconly members[psi,java]
   260 - test doconly members[turbine]
 
 com.android.tools.metalava.model.testsuite.CommonModifierListWriterTest
   modifiers public explicitly final method in final class[text]
 
 com.android.tools.metalava.model.testsuite.CommonTargetLanguageTest
-  Test constructor using optional value class type[psi,kotlin,k1]
-  Test function in value class[psi,kotlin,k1]
-  Test properties of value class types with JvmName[psi,kotlin,k1]
-  Test properties of value class types with JvmName[psi,kotlin,k2]
+  Test properties of value class types with JvmName[psi,kotlin]
 
 com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTest
-  unknown annotation class with default attribute - array value[psi,kotlin,k1]
-  unknown annotation class with default attribute - array value[psi,kotlin,k2]
-  unknown annotation class with default attribute - string value[psi,kotlin,k1]
-  unknown annotation class with default attribute - string value[psi,kotlin,k2]
-  unknown annotation class with named attribute - array value[psi,kotlin,k1]
-  unknown annotation class with named attribute - array value[psi,kotlin,k2]
-  unknown annotation class with named attribute - string value[psi,kotlin,k1]
-  unknown annotation class with named attribute - string value[psi,kotlin,k2]
-
-com.android.tools.metalava.model.testsuite.classitem.CommonDataClassTest
-  Test data class copy method visibility with ConsistentCopyVisibility[psi,kotlin,k1]
+  unknown annotation class with default attribute - array value[psi,kotlin]
+  unknown annotation class with default attribute - string value[psi,kotlin]
+  unknown annotation class with named attribute - array value[psi,kotlin]
+  unknown annotation class with named attribute - string value[psi,kotlin]
 
 com.android.tools.metalava.model.testsuite.classitem.CommonValueClassTest
-  Usage of value class with type parameter[psi,kotlin,k1]
-  Usage of value class with type parameter[psi,kotlin,k2]
+  Usage of value class with type parameter[psi,kotlin]
 
 com.android.tools.metalava.model.testsuite.codebase.CommonCodebaseTest
-  Test getTopLevelClassesFromSource[psi,java,k1]
-  Test getTopLevelClassesFromSource[psi,java,k2]
+  Test getTopLevelClassesFromSource[psi,java]
   Test getTopLevelClassesFromSource[turbine]
 
 com.android.tools.metalava.model.testsuite.fielditem.CommonFieldItemTest
   Test implicit nullability of constant field initialized from @NonNull method[turbine]
-
-com.android.tools.metalava.model.testsuite.methoditem.CommonMethodItemTest
-  JvmOverloads methods[psi,kotlin,k1]
-  JvmOverloads with initial vararg parameter[psi,kotlin,k1]
 
 com.android.tools.metalava.model.testsuite.methoditem.CommonMethodModifierTest
   Test final method in final class[text]
@@ -61,11 +44,9 @@ com.android.tools.metalava.model.testsuite.typeitem.CommonParameterizedTypeVaria
   Test type variable on its own[text,KOTLIN_STYLE_NULLS,non-nullable variable]
 
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeParameterItemTest
-  Test type parameter with annotations[psi,kotlin,k1]
   Test type parameter with annotations[text]
 
 com.android.tools.metalava.model.testsuite.value.CommonParameterizedAnnotationToSourceValueTest
-  testLegacySource[psi,kotlin,k1,source,long - int expression]
   testLegacySource[text,source,byte - cast]
   testLegacySource[text,source,class literal - array of basic class]
   testLegacySource[text,source,class literal - array of generic class]
@@ -74,31 +55,24 @@ com.android.tools.metalava.model.testsuite.value.CommonParameterizedAnnotationTo
   testLegacySource[text,source,short - cast]
 
 com.android.tools.metalava.model.testsuite.value.CommonParameterizedAttributeDefaultValueTest
-  testLegacySource[psi,kotlin,k1,source,long - int expression]
   testLegacySource[text,source,byte - cast]
   testLegacySource[text,source,short - cast]
-  testMethodDefaultValue[psi,kotlin,k1,source,long - int expression]
   testMethodDefaultValue[text,source,byte - cast]
   testMethodDefaultValue[text,source,short - cast]
 
 com.android.tools.metalava.model.testsuite.value.CommonParameterizedAttributeValueTest
-  testAttributeValue[psi,kotlin,k1,source,long - int expression]
   testAttributeValue[text,source,byte - cast]
   testAttributeValue[text,source,short - cast]
 
 com.android.tools.metalava.model.testsuite.value.CommonParameterizedFieldValueTest
-  testFieldValue[psi,kotlin,k1,source,long - int expression]
-  testFieldValue[psi,kotlin,k1,source,null - intermediate non-constant expression]
-  testFieldValue[psi,kotlin,k2,source,null - intermediate non-constant expression]
-  testFieldValue[psi,kotlin,k2,source,unsigned int - expression]
+  testFieldValue[psi,kotlin,source,null - intermediate non-constant expression]
+  testFieldValue[psi,kotlin,source,unsigned int - expression]
   testFieldValue[text,source,byte - cast]
   testFieldValue[text,source,short - cast]
 
 com.android.tools.metalava.model.testsuite.value.CommonParameterizedFieldWriteWithSemicolonValueTest
-  testLegacySource[psi,kotlin,k1,source,long - int expression]
-  testLegacySource[psi,kotlin,k1,source,null - intermediate non-constant expression]
-  testLegacySource[psi,kotlin,k2,source,null - intermediate non-constant expression]
-  testLegacySource[psi,kotlin,k2,source,unsigned int - expression]
+  testLegacySource[psi,kotlin,source,null - intermediate non-constant expression]
+  testLegacySource[psi,kotlin,source,unsigned int - expression]
   testLegacySource[text,source,byte - cast]
   testLegacySource[text,source,short - cast]
 

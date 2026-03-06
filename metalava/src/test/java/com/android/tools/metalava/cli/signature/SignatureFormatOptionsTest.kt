@@ -45,36 +45,14 @@ Signature Format Output:
 
                                              See `metalava help signature-file-formats` for more information on the
                                              properties.
-  --format [v2|v4|latest|recommended|<specifier>]
-                                             Specifies the output signature file format.
-
-                                             The preferred way of specifying the format is to use one of the following
-                                             values (in no particular order):
-
-                                             latest - The latest in the supported versions. Only use this if you want to
-                                             have the very latest and are prepared to update signature files on a
-                                             continuous basis.
-
-                                             recommended (default) - The recommended version to use. This is currently
-                                             set to `v2` and will only change very infrequently so can be considered
-                                             stable.
+  --format <specifier>                       Specifies the output signature file format.
 
                                              <specifier> - which has the following syntax:
 
                                              <version>[:<property>=<value>[,<property>=<value>]*]
 
-                                             Where:
-
-                                             The following values are still supported but should be considered
-                                             deprecated.
-
-                                             v2 - The main version used in Android.
-
-                                             v4 - Adds support for using kotlin style syntax to embed nullability
-                                             information instead of using explicit and verbose @NonNull and @Nullable
-                                             annotations. This can be used for Java files and Kotlin files alike. Also,
-                                             adds support for recording that a parameter has a default value by using
-                                             the pseudo-modifier `optional`. (default: recommended)
+                                             See `metalava help signature-file-formats` for more help including a list
+                                             of the available `<version>`s and `<property>=<value>`s. (default: 2.0)
   --use-same-format-as <file>                Specifies that the output format should be the same as the format used in
                                              the specified file. It is an error if the file does not exist. If the file
                                              is empty then this will behave as if it was not specified. If the file is
@@ -104,7 +82,7 @@ class SignatureFormatOptionsTest :
         runTest("--format=v1") {
             assertThat(stderr)
                 .startsWith(
-                    """Invalid value for "--format": invalid version, found 'v1', expected one of '2.0', '4.0', '5.0', 'v2', 'v4', 'latest', 'recommended'"""
+                    """Invalid value for "--format": invalid version, found 'v1', expected one of '2.0', '4.0', '5.0'"""
                 )
         }
     }
@@ -112,7 +90,7 @@ class SignatureFormatOptionsTest :
     @Test
     fun `--use-same-format-as reads from a valid file and ignores --format`() {
         val path = source("api.txt", "// Signature format: 4.0\n").toFile()
-        runTest("--use-same-format-as", path.path, "--format", "v4") {
+        runTest("--use-same-format-as", path.path, "--format", "5.0") {
             assertThat(options.fileFormat).isEqualTo(FileFormat.V4)
         }
     }
@@ -120,7 +98,7 @@ class SignatureFormatOptionsTest :
     @Test
     fun `--use-same-format-as ignores empty file and falls back to format`() {
         val path = source("api.txt", "").toFile()
-        runTest("--use-same-format-as", path.path, "--format", "v4") {
+        runTest("--use-same-format-as", path.path, "--format", "4.0") {
             assertThat(options.fileFormat).isEqualTo(FileFormat.V4)
         }
     }

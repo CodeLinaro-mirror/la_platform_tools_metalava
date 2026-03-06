@@ -17,8 +17,6 @@
 package com.android.tools.metalava.model.testsuite.multiplatform
 
 import com.android.tools.metalava.model.multiplatform.transformValues
-import com.android.tools.metalava.model.testing.FilterAction.EXCLUDE
-import com.android.tools.metalava.model.testing.FilterByProvider
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.createAndroidModuleDescription
 import com.android.tools.metalava.testing.createCommonModuleDescription
@@ -28,7 +26,6 @@ import com.android.tools.metalava.testing.kotlin
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
 
-@FilterByProvider("psi", "k1", action = EXCLUDE)
 class CommonMultiplatformCallableItemTest : BaseModelTest() {
     @Test
     fun `Definition of expect actual constructor`() {

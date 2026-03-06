@@ -56,7 +56,6 @@ import com.android.tools.metalava.model.DelegatedVisitor
 import com.android.tools.metalava.model.ItemVisitor
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
 import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
-import com.android.tools.metalava.model.psi.PsiModelOptions
 import com.android.tools.metalava.model.snapshot.NonFilteringDelegatingVisitor
 import com.android.tools.metalava.model.source.EnvironmentManager
 import com.android.tools.metalava.model.source.SourceParser
@@ -553,7 +552,6 @@ class Driver(
                         ApiLint.Config(
                             manifest = miscellaneousOptions.manifest,
                             allowedAcronyms = apiLintOptions.allowedAcronyms,
-                            useK2Uast = sourceOptions.modelOptions[PsiModelOptions.useK2Uast],
                         ),
                     )
                 }
@@ -776,7 +774,6 @@ class Driver(
                 ApiLint.Config(
                     manifest = miscellaneousOptions.manifest,
                     allowedAcronyms = apiLintOptions.allowedAcronyms,
-                    useK2Uast = sourceOptions.modelOptions[PsiModelOptions.useK2Uast],
                 ),
             )
         }

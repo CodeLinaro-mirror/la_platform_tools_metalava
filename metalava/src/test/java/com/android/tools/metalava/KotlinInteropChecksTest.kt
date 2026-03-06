@@ -21,8 +21,6 @@ import com.android.tools.metalava.cli.common.ARG_ERROR
 import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.lint.DefaultLintErrorMessage
 import com.android.tools.metalava.model.provider.Capability
-import com.android.tools.metalava.model.testing.FilterAction.EXCLUDE
-import com.android.tools.metalava.model.testing.FilterByProvider
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
@@ -607,9 +605,6 @@ class KotlinInteropChecksTest : DriverTest() {
         )
     }
 
-    // K1 is disabled because which file is used for all the parameters in the multifile class is
-    // different between K1 and K2.
-    @FilterByProvider("psi", "k1", action = EXCLUDE)
     @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Test file location for error on parameter within multifile class`() {
