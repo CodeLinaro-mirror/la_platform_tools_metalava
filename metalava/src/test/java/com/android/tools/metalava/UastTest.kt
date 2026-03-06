@@ -18,8 +18,6 @@ package com.android.tools.metalava
 
 import com.android.tools.lint.checks.infrastructure.TestFiles.base64gzip
 import com.android.tools.metalava.model.provider.Capability
-import com.android.tools.metalava.model.testing.FilterAction.EXCLUDE
-import com.android.tools.metalava.model.testing.FilterByProvider
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.stripBlankLines
@@ -33,14 +31,12 @@ import com.android.tools.metalava.testing.standardProjectXmlClasspath
 import kotlin.test.assertEquals
 import org.junit.Test
 
-/** Base class to collect test inputs whose behaviors (API/lint) vary depending on UAST versions. */
+/** Test inputs whose behaviors (API/lint) varied depending on UAST version. */
 @RequiresCapabilities(Capability.KOTLIN)
-abstract class UastTestBase : DriverTest() {
+class UastTest : DriverTest() {
 
     @Test
     fun `Test RequiresOptIn and OptIn`() {
-        // See http://b/248341155 for more details
-        val klass = if (isK2) "Class" else "kotlin.reflect.KClass"
         check(
             sourceFiles =
                 arrayOf(
@@ -108,7 +104,7 @@ abstract class UastTestBase : DriverTest() {
                 package androidx.annotation.experimental {
                   @kotlin.annotation.Retention(kotlin.annotation.AnnotationRetention.BINARY) @kotlin.annotation.Target(allowedTargets={kotlin.annotation.AnnotationTarget.CLASS, kotlin.annotation.AnnotationTarget.PROPERTY, kotlin.annotation.AnnotationTarget.LOCAL_VARIABLE, kotlin.annotation.AnnotationTarget.VALUE_PARAMETER, kotlin.annotation.AnnotationTarget.CONSTRUCTOR, kotlin.annotation.AnnotationTarget.FUNCTION, kotlin.annotation.AnnotationTarget.PROPERTY_GETTER, kotlin.annotation.AnnotationTarget.PROPERTY_SETTER, kotlin.annotation.AnnotationTarget.FILE, kotlin.annotation.AnnotationTarget.TYPEALIAS}) public @interface UseExperimental {
                     ctor @KotlinOnly public UseExperimental(kotlin.reflect.KClass<? extends java.lang.annotation.Annotation>... markerClass);
-                    method @InaccessibleFromKotlin public abstract $klass<? extends java.lang.annotation.Annotation>[] markerClass();
+                    method @InaccessibleFromKotlin public abstract Class<? extends java.lang.annotation.Annotation>[] markerClass();
                     property public abstract kotlin.reflect.KClass<? extends java.lang.annotation.Annotation>[] markerClass;
                   }
                 }
@@ -134,44 +130,23 @@ abstract class UastTestBase : DriverTest() {
     @Test
     fun `renamed via @JvmName`() {
         val api =
-            if (isK2) {
-                // NB: getInterpolated -> isInterpolated
-                """
-                    // Signature format: 4.0
-                    package test.pkg {
-                      public final class ColorRamp {
-                        ctor public ColorRamp(int[] colors, boolean interpolated);
-                        method @InaccessibleFromKotlin public int[] getColors();
-                        method @InaccessibleFromKotlin public int[] getOtherColors();
-                        method @InaccessibleFromKotlin public boolean isInitiallyEnabled();
-                        method @InaccessibleFromKotlin public boolean isInterpolated();
-                        method @InaccessibleFromKotlin public void updateOtherColors(int[]);
-                        property public int[] colors;
-                        property public boolean initiallyEnabled;
-                        property public boolean interpolated;
-                        property public int[] otherColors;
-                      }
-                    }
-                """
-            } else {
-                """
-                    // Signature format: 4.0
-                    package test.pkg {
-                      public final class ColorRamp {
-                        ctor public ColorRamp(int[] colors, boolean interpolated);
-                        method @InaccessibleFromKotlin public int[] getColors();
-                        method @InaccessibleFromKotlin public boolean getInterpolated();
-                        method @InaccessibleFromKotlin public int[] getOtherColors();
-                        method @InaccessibleFromKotlin public boolean isInitiallyEnabled();
-                        method @InaccessibleFromKotlin public void updateOtherColors(int[]);
-                        property public int[] colors;
-                        property public boolean initiallyEnabled;
-                        property public boolean interpolated;
-                        property public int[] otherColors;
-                      }
-                    }
-                """
-            }
+            """
+                // Signature format: 4.0
+                package test.pkg {
+                  public final class ColorRamp {
+                    ctor public ColorRamp(int[] colors, boolean interpolated);
+                    method @InaccessibleFromKotlin public int[] getColors();
+                    method @InaccessibleFromKotlin public int[] getOtherColors();
+                    method @InaccessibleFromKotlin public boolean isInitiallyEnabled();
+                    method @InaccessibleFromKotlin public boolean isInterpolated();
+                    method @InaccessibleFromKotlin public void updateOtherColors(int[]);
+                    property public int[] colors;
+                    property public boolean initiallyEnabled;
+                    property public boolean interpolated;
+                    property public int[] otherColors;
+                  }
+                }
+            """
         // Regression test from http://b/257444932: @get:JvmName on constructor property
         check(
             sourceFiles =
@@ -608,7 +583,6 @@ abstract class UastTestBase : DriverTest() {
         )
     }
 
-    @FilterByProvider("psi", "k2", action = EXCLUDE)
     @Test
     fun `internal setter with delegation`() {
         // https://youtrack.jetbrains.com/issue/KT-70458
@@ -1003,8 +977,6 @@ abstract class UastTestBase : DriverTest() {
     @Test
     fun `Upper bound wildcards -- extension function type -- deprecated`() {
         // https://youtrack.jetbrains.com/issue/KT-61734
-        val wildcard1 = if (isK2) "" else "? super "
-        val wildcard2 = if (isK2) "" else "? extends "
         check(
             sourceFiles =
                 arrayOf(
@@ -1122,7 +1094,6 @@ abstract class UastTestBase : DriverTest() {
 
     @Test
     fun `Upper bound wildcards -- suspend continuation with generic collection`() {
-        val wildcard = if (isK2) "" else "? extends "
         check(
             sourceFiles =
                 arrayOf(
@@ -1143,7 +1114,7 @@ abstract class UastTestBase : DriverTest() {
                 package test.pkg {
                   public final class Test {
                     ctor public Test();
-                    method public suspend Object? foo(kotlin.coroutines.Continuation<? super java.util.Set<${wildcard}java.lang.String>>);
+                    method public suspend Object? foo(kotlin.coroutines.Continuation<? super java.util.Set<java.lang.String>>);
                   }
                 }
                 """
@@ -1416,203 +1387,102 @@ abstract class UastTestBase : DriverTest() {
     @Test
     fun `APIs before and after @Deprecated(HIDDEN) on properties or accessors`() {
         val api =
-            if (isK2) {
-                // NB: better tracking non-deprecated accessors (thanks to better use-site handling)
-                """
-                    package test.pkg {
-                      @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) @kotlin.annotation.Target(allowedTargets={kotlin.annotation.AnnotationTarget.PROPERTY, kotlin.annotation.AnnotationTarget.PROPERTY_GETTER, kotlin.annotation.AnnotationTarget.PROPERTY_SETTER}) public @interface MyAnnotation {
-                      }
-                      public interface TestInterface {
-                        method @BytecodeOnly @Deprecated public int getPOld_deprecatedOnGetter();
-                        method @BytecodeOnly @Deprecated @test.pkg.MyAnnotation public int getPOld_deprecatedOnGetter_myAnnoOnBoth();
-                        method @BytecodeOnly @Deprecated @test.pkg.MyAnnotation public int getPOld_deprecatedOnGetter_myAnnoOnGetter();
-                        method @BytecodeOnly @Deprecated public int getPOld_deprecatedOnGetter_myAnnoOnSetter();
-                        method @BytecodeOnly @Deprecated public int getPOld_deprecatedOnProperty();
-                        method @BytecodeOnly @Deprecated @test.pkg.MyAnnotation public int getPOld_deprecatedOnProperty_myAnnoOnBoth();
-                        method @BytecodeOnly @Deprecated @test.pkg.MyAnnotation public int getPOld_deprecatedOnProperty_myAnnoOnGetter();
-                        method @BytecodeOnly @Deprecated public int getPOld_deprecatedOnProperty_myAnnoOnSetter();
-                        method @InaccessibleFromKotlin public int getPOld_deprecatedOnSetter();
-                        method @InaccessibleFromKotlin @test.pkg.MyAnnotation public int getPOld_deprecatedOnSetter_myAnnoOnBoth();
-                        method @InaccessibleFromKotlin @test.pkg.MyAnnotation public int getPOld_deprecatedOnSetter_myAnnoOnGetter();
-                        method @InaccessibleFromKotlin public int getPOld_deprecatedOnSetter_myAnnoOnSetter();
-                        method @InaccessibleFromKotlin @Deprecated public void setPOld_deprecatedOnGetter(int);
-                        method @InaccessibleFromKotlin @Deprecated @test.pkg.MyAnnotation public void setPOld_deprecatedOnGetter_myAnnoOnBoth(int);
-                        method @InaccessibleFromKotlin @Deprecated public void setPOld_deprecatedOnGetter_myAnnoOnGetter(int);
-                        method @InaccessibleFromKotlin @Deprecated @test.pkg.MyAnnotation public void setPOld_deprecatedOnGetter_myAnnoOnSetter(int);
-                        method @BytecodeOnly @Deprecated public void setPOld_deprecatedOnProperty(int);
-                        method @BytecodeOnly @Deprecated @test.pkg.MyAnnotation public void setPOld_deprecatedOnProperty_myAnnoOnBoth(int);
-                        method @BytecodeOnly @Deprecated public void setPOld_deprecatedOnProperty_myAnnoOnGetter(int);
-                        method @BytecodeOnly @Deprecated @test.pkg.MyAnnotation public void setPOld_deprecatedOnProperty_myAnnoOnSetter(int);
-                        method @BytecodeOnly @Deprecated public void setPOld_deprecatedOnSetter(int);
-                        method @BytecodeOnly @Deprecated @test.pkg.MyAnnotation public void setPOld_deprecatedOnSetter_myAnnoOnBoth(int);
-                        method @BytecodeOnly @Deprecated public void setPOld_deprecatedOnSetter_myAnnoOnGetter(int);
-                        method @BytecodeOnly @Deprecated @test.pkg.MyAnnotation public void setPOld_deprecatedOnSetter_myAnnoOnSetter(int);
-                        property @Deprecated public abstract int pOld_deprecatedOnGetter;
-                        property @Deprecated public abstract int pOld_deprecatedOnGetter_myAnnoOnBoth;
-                        property @Deprecated public abstract int pOld_deprecatedOnGetter_myAnnoOnGetter;
-                        property @Deprecated public abstract int pOld_deprecatedOnGetter_myAnnoOnSetter;
-                        property public abstract int pOld_deprecatedOnSetter;
-                        property @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnSetter_myAnnoOnBoth;
-                        property @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnSetter_myAnnoOnGetter;
-                        property public abstract int pOld_deprecatedOnSetter_myAnnoOnSetter;
-                      }
-                      public final class Test_accessors {
-                        ctor public Test_accessors();
-                        method @InaccessibleFromKotlin public String? getPNew_accessors();
-                        method @BytecodeOnly @Deprecated public String! getPOld_accessors_deprecatedOnGetter();
-                        method @BytecodeOnly @Deprecated public String! getPOld_accessors_deprecatedOnProperty();
-                        method @InaccessibleFromKotlin public String? getPOld_accessors_deprecatedOnSetter();
-                        method @InaccessibleFromKotlin public void setPNew_accessors(String?);
-                        method @InaccessibleFromKotlin @Deprecated public void setPOld_accessors_deprecatedOnGetter(String?);
-                        method @BytecodeOnly @Deprecated public void setPOld_accessors_deprecatedOnProperty(String!);
-                        method @BytecodeOnly @Deprecated public void setPOld_accessors_deprecatedOnSetter(String!);
-                        property public String? pNew_accessors;
-                        property @Deprecated public String? pOld_accessors_deprecatedOnGetter;
-                        property public String? pOld_accessors_deprecatedOnSetter;
-                      }
-                      public final class Test_getter {
-                        ctor public Test_getter();
-                        method @InaccessibleFromKotlin public String? getPNew_getter();
-                        method @BytecodeOnly @Deprecated public String! getPOld_getter_deprecatedOnGetter();
-                        method @BytecodeOnly @Deprecated public String! getPOld_getter_deprecatedOnProperty();
-                        method @InaccessibleFromKotlin public String? getPOld_getter_deprecatedOnSetter();
-                        method @InaccessibleFromKotlin public void setPNew_getter(String?);
-                        method @InaccessibleFromKotlin @Deprecated public void setPOld_getter_deprecatedOnGetter(String?);
-                        method @BytecodeOnly @Deprecated public void setPOld_getter_deprecatedOnProperty(String!);
-                        method @BytecodeOnly @Deprecated public void setPOld_getter_deprecatedOnSetter(String!);
-                        property public String? pNew_getter;
-                        property @Deprecated public String? pOld_getter_deprecatedOnGetter;
-                        property public String? pOld_getter_deprecatedOnSetter;
-                      }
-                      public final class Test_noAccessor {
-                        ctor public Test_noAccessor();
-                        method @InaccessibleFromKotlin public String getPNew_noAccessor();
-                        method @BytecodeOnly @Deprecated public String! getPOld_noAccessor_deprecatedOnGetter();
-                        method @BytecodeOnly @Deprecated public String! getPOld_noAccessor_deprecatedOnProperty();
-                        method @InaccessibleFromKotlin public String getPOld_noAccessor_deprecatedOnSetter();
-                        method @InaccessibleFromKotlin public void setPNew_noAccessor(String);
-                        method @InaccessibleFromKotlin @Deprecated public void setPOld_noAccessor_deprecatedOnGetter(String);
-                        method @BytecodeOnly @Deprecated public void setPOld_noAccessor_deprecatedOnProperty(String!);
-                        method @BytecodeOnly @Deprecated public void setPOld_noAccessor_deprecatedOnSetter(String!);
-                        property public String pNew_noAccessor;
-                        property @Deprecated public String pOld_noAccessor_deprecatedOnGetter;
-                        property public String pOld_noAccessor_deprecatedOnSetter;
-                      }
-                      public final class Test_setter {
-                        ctor public Test_setter();
-                        method @InaccessibleFromKotlin public String? getPNew_setter();
-                        method @BytecodeOnly @Deprecated public String! getPOld_setter_deprecatedOnGetter();
-                        method @BytecodeOnly @Deprecated public String! getPOld_setter_deprecatedOnProperty();
-                        method @InaccessibleFromKotlin public String? getPOld_setter_deprecatedOnSetter();
-                        method @InaccessibleFromKotlin public void setPNew_setter(String?);
-                        method @InaccessibleFromKotlin @Deprecated public void setPOld_setter_deprecatedOnGetter(String?);
-                        method @BytecodeOnly @Deprecated public void setPOld_setter_deprecatedOnProperty(String!);
-                        method @BytecodeOnly @Deprecated public void setPOld_setter_deprecatedOnSetter(String!);
-                        property public String? pNew_setter;
-                        property @Deprecated public String? pOld_setter_deprecatedOnGetter;
-                        property public String? pOld_setter_deprecatedOnSetter;
-                      }
-                    }
-                """
-            } else {
-                """
-                    package test.pkg {
-                      @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) @kotlin.annotation.Target(allowedTargets={kotlin.annotation.AnnotationTarget.PROPERTY, kotlin.annotation.AnnotationTarget.PROPERTY_GETTER, kotlin.annotation.AnnotationTarget.PROPERTY_SETTER}) public @interface MyAnnotation {
-                      }
-                      public interface TestInterface {
-                        method @BytecodeOnly @Deprecated public int getPOld_deprecatedOnGetter();
-                        method @BytecodeOnly @Deprecated @test.pkg.MyAnnotation public int getPOld_deprecatedOnGetter_myAnnoOnBoth();
-                        method @BytecodeOnly @Deprecated @test.pkg.MyAnnotation public int getPOld_deprecatedOnGetter_myAnnoOnGetter();
-                        method @BytecodeOnly @Deprecated public int getPOld_deprecatedOnGetter_myAnnoOnSetter();
-                        method @BytecodeOnly @Deprecated public int getPOld_deprecatedOnProperty();
-                        method @BytecodeOnly @Deprecated @test.pkg.MyAnnotation public int getPOld_deprecatedOnProperty_myAnnoOnBoth();
-                        method @BytecodeOnly @Deprecated @test.pkg.MyAnnotation public int getPOld_deprecatedOnProperty_myAnnoOnGetter();
-                        method @BytecodeOnly @Deprecated public int getPOld_deprecatedOnProperty_myAnnoOnSetter();
-                        method @BytecodeOnly public int getPOld_deprecatedOnSetter();
-                        method @BytecodeOnly @test.pkg.MyAnnotation public int getPOld_deprecatedOnSetter_myAnnoOnBoth();
-                        method @BytecodeOnly @test.pkg.MyAnnotation public int getPOld_deprecatedOnSetter_myAnnoOnGetter();
-                        method @BytecodeOnly public int getPOld_deprecatedOnSetter_myAnnoOnSetter();
-                        method @BytecodeOnly public void setPOld_deprecatedOnGetter(int);
-                        method @BytecodeOnly @test.pkg.MyAnnotation public void setPOld_deprecatedOnGetter_myAnnoOnBoth(int);
-                        method @BytecodeOnly public void setPOld_deprecatedOnGetter_myAnnoOnGetter(int);
-                        method @BytecodeOnly @test.pkg.MyAnnotation public void setPOld_deprecatedOnGetter_myAnnoOnSetter(int);
-                        method @BytecodeOnly @Deprecated public void setPOld_deprecatedOnProperty(int);
-                        method @BytecodeOnly @Deprecated @test.pkg.MyAnnotation public void setPOld_deprecatedOnProperty_myAnnoOnBoth(int);
-                        method @BytecodeOnly @Deprecated public void setPOld_deprecatedOnProperty_myAnnoOnGetter(int);
-                        method @BytecodeOnly @Deprecated @test.pkg.MyAnnotation public void setPOld_deprecatedOnProperty_myAnnoOnSetter(int);
-                        method @BytecodeOnly @Deprecated public void setPOld_deprecatedOnSetter(int);
-                        method @BytecodeOnly @Deprecated @test.pkg.MyAnnotation public void setPOld_deprecatedOnSetter_myAnnoOnBoth(int);
-                        method @BytecodeOnly @Deprecated public void setPOld_deprecatedOnSetter_myAnnoOnGetter(int);
-                        method @BytecodeOnly @Deprecated @test.pkg.MyAnnotation public void setPOld_deprecatedOnSetter_myAnnoOnSetter(int);
-                        property @Deprecated public abstract int pOld_deprecatedOnGetter;
-                        property @Deprecated public abstract int pOld_deprecatedOnGetter_myAnnoOnBoth;
-                        property @Deprecated public abstract int pOld_deprecatedOnGetter_myAnnoOnGetter;
-                        property @Deprecated public abstract int pOld_deprecatedOnGetter_myAnnoOnSetter;
-                        property public abstract int pOld_deprecatedOnSetter;
-                        property public abstract int pOld_deprecatedOnSetter_myAnnoOnBoth;
-                        property public abstract int pOld_deprecatedOnSetter_myAnnoOnGetter;
-                        property public abstract int pOld_deprecatedOnSetter_myAnnoOnSetter;
-                      }
-                      public final class Test_accessors {
-                        ctor public Test_accessors();
-                        method @InaccessibleFromKotlin public String? getPNew_accessors();
-                        method @BytecodeOnly @Deprecated public String! getPOld_accessors_deprecatedOnGetter();
-                        method @BytecodeOnly @Deprecated public String! getPOld_accessors_deprecatedOnProperty();
-                        method @BytecodeOnly public String? getPOld_accessors_deprecatedOnSetter();
-                        method @InaccessibleFromKotlin public void setPNew_accessors(String?);
-                        method @BytecodeOnly public void setPOld_accessors_deprecatedOnGetter(String?);
-                        method @BytecodeOnly @Deprecated public void setPOld_accessors_deprecatedOnProperty(String!);
-                        method @BytecodeOnly @Deprecated public void setPOld_accessors_deprecatedOnSetter(String!);
-                        property public String? pNew_accessors;
-                        property @Deprecated public String? pOld_accessors_deprecatedOnGetter;
-                        property public String? pOld_accessors_deprecatedOnSetter;
-                      }
-                      public final class Test_getter {
-                        ctor public Test_getter();
-                        method @InaccessibleFromKotlin public String? getPNew_getter();
-                        method @BytecodeOnly @Deprecated public String! getPOld_getter_deprecatedOnGetter();
-                        method @BytecodeOnly @Deprecated public String! getPOld_getter_deprecatedOnProperty();
-                        method @BytecodeOnly public String? getPOld_getter_deprecatedOnSetter();
-                        method @InaccessibleFromKotlin public void setPNew_getter(String?);
-                        method @BytecodeOnly public void setPOld_getter_deprecatedOnGetter(String?);
-                        method @BytecodeOnly @Deprecated public void setPOld_getter_deprecatedOnProperty(String!);
-                        method @BytecodeOnly @Deprecated public void setPOld_getter_deprecatedOnSetter(String!);
-                        property public String? pNew_getter;
-                        property @Deprecated public String? pOld_getter_deprecatedOnGetter;
-                        property public String? pOld_getter_deprecatedOnSetter;
-                      }
-                      public final class Test_noAccessor {
-                        ctor public Test_noAccessor();
-                        method @InaccessibleFromKotlin public String getPNew_noAccessor();
-                        method @BytecodeOnly @Deprecated public String! getPOld_noAccessor_deprecatedOnGetter();
-                        method @BytecodeOnly @Deprecated public String! getPOld_noAccessor_deprecatedOnProperty();
-                        method @BytecodeOnly public String getPOld_noAccessor_deprecatedOnSetter();
-                        method @InaccessibleFromKotlin public void setPNew_noAccessor(String);
-                        method @BytecodeOnly public void setPOld_noAccessor_deprecatedOnGetter(String);
-                        method @BytecodeOnly @Deprecated public void setPOld_noAccessor_deprecatedOnProperty(String!);
-                        method @BytecodeOnly @Deprecated public void setPOld_noAccessor_deprecatedOnSetter(String!);
-                        property public String pNew_noAccessor;
-                        property @Deprecated public String pOld_noAccessor_deprecatedOnGetter;
-                        property public String pOld_noAccessor_deprecatedOnSetter;
-                      }
-                      public final class Test_setter {
-                        ctor public Test_setter();
-                        method @InaccessibleFromKotlin public String? getPNew_setter();
-                        method @BytecodeOnly @Deprecated public String! getPOld_setter_deprecatedOnGetter();
-                        method @BytecodeOnly @Deprecated public String! getPOld_setter_deprecatedOnProperty();
-                        method @BytecodeOnly public String? getPOld_setter_deprecatedOnSetter();
-                        method @InaccessibleFromKotlin public void setPNew_setter(String?);
-                        method @BytecodeOnly public void setPOld_setter_deprecatedOnGetter(String?);
-                        method @BytecodeOnly @Deprecated public void setPOld_setter_deprecatedOnProperty(String!);
-                        method @BytecodeOnly @Deprecated public void setPOld_setter_deprecatedOnSetter(String!);
-                        property public String? pNew_setter;
-                        property @Deprecated public String? pOld_setter_deprecatedOnGetter;
-                        property public String? pOld_setter_deprecatedOnSetter;
-                      }
-                    }
-                """
-            }
-        // TODO: https://youtrack.jetbrains.com/issue/KTIJ-27244
+            """
+                package test.pkg {
+                  @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) @kotlin.annotation.Target(allowedTargets={kotlin.annotation.AnnotationTarget.PROPERTY, kotlin.annotation.AnnotationTarget.PROPERTY_GETTER, kotlin.annotation.AnnotationTarget.PROPERTY_SETTER}) public @interface MyAnnotation {
+                  }
+                  public interface TestInterface {
+                    method @BytecodeOnly @Deprecated public int getPOld_deprecatedOnGetter();
+                    method @BytecodeOnly @Deprecated @test.pkg.MyAnnotation public int getPOld_deprecatedOnGetter_myAnnoOnBoth();
+                    method @BytecodeOnly @Deprecated @test.pkg.MyAnnotation public int getPOld_deprecatedOnGetter_myAnnoOnGetter();
+                    method @BytecodeOnly @Deprecated public int getPOld_deprecatedOnGetter_myAnnoOnSetter();
+                    method @BytecodeOnly @Deprecated public int getPOld_deprecatedOnProperty();
+                    method @BytecodeOnly @Deprecated @test.pkg.MyAnnotation public int getPOld_deprecatedOnProperty_myAnnoOnBoth();
+                    method @BytecodeOnly @Deprecated @test.pkg.MyAnnotation public int getPOld_deprecatedOnProperty_myAnnoOnGetter();
+                    method @BytecodeOnly @Deprecated public int getPOld_deprecatedOnProperty_myAnnoOnSetter();
+                    method @InaccessibleFromKotlin public int getPOld_deprecatedOnSetter();
+                    method @InaccessibleFromKotlin @test.pkg.MyAnnotation public int getPOld_deprecatedOnSetter_myAnnoOnBoth();
+                    method @InaccessibleFromKotlin @test.pkg.MyAnnotation public int getPOld_deprecatedOnSetter_myAnnoOnGetter();
+                    method @InaccessibleFromKotlin public int getPOld_deprecatedOnSetter_myAnnoOnSetter();
+                    method @InaccessibleFromKotlin @Deprecated public void setPOld_deprecatedOnGetter(int);
+                    method @InaccessibleFromKotlin @Deprecated @test.pkg.MyAnnotation public void setPOld_deprecatedOnGetter_myAnnoOnBoth(int);
+                    method @InaccessibleFromKotlin @Deprecated public void setPOld_deprecatedOnGetter_myAnnoOnGetter(int);
+                    method @InaccessibleFromKotlin @Deprecated @test.pkg.MyAnnotation public void setPOld_deprecatedOnGetter_myAnnoOnSetter(int);
+                    method @BytecodeOnly @Deprecated public void setPOld_deprecatedOnProperty(int);
+                    method @BytecodeOnly @Deprecated @test.pkg.MyAnnotation public void setPOld_deprecatedOnProperty_myAnnoOnBoth(int);
+                    method @BytecodeOnly @Deprecated public void setPOld_deprecatedOnProperty_myAnnoOnGetter(int);
+                    method @BytecodeOnly @Deprecated @test.pkg.MyAnnotation public void setPOld_deprecatedOnProperty_myAnnoOnSetter(int);
+                    method @BytecodeOnly @Deprecated public void setPOld_deprecatedOnSetter(int);
+                    method @BytecodeOnly @Deprecated @test.pkg.MyAnnotation public void setPOld_deprecatedOnSetter_myAnnoOnBoth(int);
+                    method @BytecodeOnly @Deprecated public void setPOld_deprecatedOnSetter_myAnnoOnGetter(int);
+                    method @BytecodeOnly @Deprecated @test.pkg.MyAnnotation public void setPOld_deprecatedOnSetter_myAnnoOnSetter(int);
+                    property @Deprecated public abstract int pOld_deprecatedOnGetter;
+                    property @Deprecated public abstract int pOld_deprecatedOnGetter_myAnnoOnBoth;
+                    property @Deprecated public abstract int pOld_deprecatedOnGetter_myAnnoOnGetter;
+                    property @Deprecated public abstract int pOld_deprecatedOnGetter_myAnnoOnSetter;
+                    property public abstract int pOld_deprecatedOnSetter;
+                    property @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnSetter_myAnnoOnBoth;
+                    property @test.pkg.MyAnnotation public abstract int pOld_deprecatedOnSetter_myAnnoOnGetter;
+                    property public abstract int pOld_deprecatedOnSetter_myAnnoOnSetter;
+                  }
+                  public final class Test_accessors {
+                    ctor public Test_accessors();
+                    method @InaccessibleFromKotlin public String? getPNew_accessors();
+                    method @BytecodeOnly @Deprecated public String! getPOld_accessors_deprecatedOnGetter();
+                    method @BytecodeOnly @Deprecated public String! getPOld_accessors_deprecatedOnProperty();
+                    method @InaccessibleFromKotlin public String? getPOld_accessors_deprecatedOnSetter();
+                    method @InaccessibleFromKotlin public void setPNew_accessors(String?);
+                    method @InaccessibleFromKotlin @Deprecated public void setPOld_accessors_deprecatedOnGetter(String?);
+                    method @BytecodeOnly @Deprecated public void setPOld_accessors_deprecatedOnProperty(String!);
+                    method @BytecodeOnly @Deprecated public void setPOld_accessors_deprecatedOnSetter(String!);
+                    property public String? pNew_accessors;
+                    property @Deprecated public String? pOld_accessors_deprecatedOnGetter;
+                    property public String? pOld_accessors_deprecatedOnSetter;
+                  }
+                  public final class Test_getter {
+                    ctor public Test_getter();
+                    method @InaccessibleFromKotlin public String? getPNew_getter();
+                    method @BytecodeOnly @Deprecated public String! getPOld_getter_deprecatedOnGetter();
+                    method @BytecodeOnly @Deprecated public String! getPOld_getter_deprecatedOnProperty();
+                    method @InaccessibleFromKotlin public String? getPOld_getter_deprecatedOnSetter();
+                    method @InaccessibleFromKotlin public void setPNew_getter(String?);
+                    method @InaccessibleFromKotlin @Deprecated public void setPOld_getter_deprecatedOnGetter(String?);
+                    method @BytecodeOnly @Deprecated public void setPOld_getter_deprecatedOnProperty(String!);
+                    method @BytecodeOnly @Deprecated public void setPOld_getter_deprecatedOnSetter(String!);
+                    property public String? pNew_getter;
+                    property @Deprecated public String? pOld_getter_deprecatedOnGetter;
+                    property public String? pOld_getter_deprecatedOnSetter;
+                  }
+                  public final class Test_noAccessor {
+                    ctor public Test_noAccessor();
+                    method @InaccessibleFromKotlin public String getPNew_noAccessor();
+                    method @BytecodeOnly @Deprecated public String! getPOld_noAccessor_deprecatedOnGetter();
+                    method @BytecodeOnly @Deprecated public String! getPOld_noAccessor_deprecatedOnProperty();
+                    method @InaccessibleFromKotlin public String getPOld_noAccessor_deprecatedOnSetter();
+                    method @InaccessibleFromKotlin public void setPNew_noAccessor(String);
+                    method @InaccessibleFromKotlin @Deprecated public void setPOld_noAccessor_deprecatedOnGetter(String);
+                    method @BytecodeOnly @Deprecated public void setPOld_noAccessor_deprecatedOnProperty(String!);
+                    method @BytecodeOnly @Deprecated public void setPOld_noAccessor_deprecatedOnSetter(String!);
+                    property public String pNew_noAccessor;
+                    property @Deprecated public String pOld_noAccessor_deprecatedOnGetter;
+                    property public String pOld_noAccessor_deprecatedOnSetter;
+                  }
+                  public final class Test_setter {
+                    ctor public Test_setter();
+                    method @InaccessibleFromKotlin public String? getPNew_setter();
+                    method @BytecodeOnly @Deprecated public String! getPOld_setter_deprecatedOnGetter();
+                    method @BytecodeOnly @Deprecated public String! getPOld_setter_deprecatedOnProperty();
+                    method @InaccessibleFromKotlin public String? getPOld_setter_deprecatedOnSetter();
+                    method @InaccessibleFromKotlin public void setPNew_setter(String?);
+                    method @InaccessibleFromKotlin @Deprecated public void setPOld_setter_deprecatedOnGetter(String?);
+                    method @BytecodeOnly @Deprecated public void setPOld_setter_deprecatedOnProperty(String!);
+                    method @BytecodeOnly @Deprecated public void setPOld_setter_deprecatedOnSetter(String!);
+                    property public String? pNew_setter;
+                    property @Deprecated public String? pOld_setter_deprecatedOnGetter;
+                    property public String? pOld_setter_deprecatedOnSetter;
+                  }
+                }
+            """
         check(
             sourceFiles =
                 arrayOf(
@@ -1997,7 +1867,6 @@ abstract class UastTestBase : DriverTest() {
         // https://youtrack.jetbrains.com/issue/KT-55085
         // This case is not meant to be supported for K2 -- the project xml file should be used to
         // separate the common and android modules.
-        val expandedTypeAlias = if (isK2) "test.pkg.NativePointerKeyboardModifiers" else "int"
         check(
             sourceFiles =
                 arrayOf(
@@ -2037,7 +1906,7 @@ abstract class UastTestBase : DriverTest() {
                     property public test.pkg.PointerKeyboardModifiers keyboardModifiers;
                   }
                   @kotlin.jvm.JvmInline public final value class PointerKeyboardModifiers {
-                    ctor @KotlinOnly public PointerKeyboardModifiers($expandedTypeAlias packedValue);
+                    ctor @KotlinOnly public PointerKeyboardModifiers(test.pkg.NativePointerKeyboardModifiers packedValue);
                   }
                 }
                 """
@@ -2045,13 +1914,10 @@ abstract class UastTestBase : DriverTest() {
     }
 
     // b/324521456: need to set kotlin-stdlib-common for common module
-    @FilterByProvider("psi", "k2", action = EXCLUDE)
     @Test
     fun `actual typealias`() {
         // https://youtrack.jetbrains.com/issue/KT-55085
         // TODO: https://youtrack.jetbrains.com/issue/KTIJ-26853
-        val typeAliasExpanded = if (isK2) "test.pkg.NativePointerKeyboardModifiers" else "int"
-        val targetLanguages = if (isK2) "" else "@KotlinOnly "
         val commonSource =
             kotlin(
                 "commonMain/src/test/pkg/PointerEvent.kt",
@@ -2096,7 +1962,7 @@ abstract class UastTestBase : DriverTest() {
                     property public test.pkg.PointerKeyboardModifiers keyboardModifiers;
                   }
                   @kotlin.jvm.JvmInline public final value class PointerKeyboardModifiers {
-                    ctor ${targetLanguages}public PointerKeyboardModifiers($typeAliasExpanded packedValue);
+                    ctor public PointerKeyboardModifiers(test.pkg.NativePointerKeyboardModifiers packedValue);
                   }
                 }
                 """
@@ -2515,12 +2381,6 @@ abstract class UastTestBase : DriverTest() {
     fun `Data class with value class type`() {
         // For K2, no UElement created for a method using a value class type (b/388244267).
         // This will be resolved through b/406833486.
-        val copyEntry =
-            if (isK2) {
-                "method @BytecodeOnly public test.pkg.IntValueData copy-Vxmw0xk(int);"
-            } else {
-                "method public test.pkg.IntValueData copy-Vxmw0xk(int intValue);"
-            }
         check(
             sourceFiles =
                 arrayOf(
@@ -2614,7 +2474,7 @@ abstract class UastTestBase : DriverTest() {
                     ctor @BytecodeOnly public IntValueData(int, kotlin.jvm.internal.DefaultConstructorMarker!);
                     ctor @KotlinOnly public IntValueData(test.pkg.IntValue intValue);
                     method @KotlinOnly public test.pkg.IntValueData copy(optional test.pkg.IntValue intValue);
-                    $copyEntry
+                    method @BytecodeOnly public test.pkg.IntValueData copy-Vxmw0xk(int);
                     method @BytecodeOnly public static test.pkg.IntValueData! copy-Vxmw0xk${'$'}default(test.pkg.IntValueData!, int, int, Object!);
                   }
                 }
@@ -2898,7 +2758,6 @@ abstract class UastTestBase : DriverTest() {
 
     @Test
     fun `Test mapped collections methods`() {
-        val maybeExtends = if (isK2) "" else "? extends "
         check(
             sourceFiles =
                 arrayOf(
@@ -2997,7 +2856,7 @@ abstract class UastTestBase : DriverTest() {
                     method @BytecodeOnly public void clear();
                     method @BytecodeOnly public boolean contains(Object!);
                     method public boolean contains(String element);
-                    method public boolean containsAll(java.util.Collection<${maybeExtends}java.lang.String> elements);
+                    method public boolean containsAll(java.util.Collection<java.lang.String> elements);
                     method public Void get(int index);
                     method @InaccessibleFromKotlin public int getSize();
                     method @BytecodeOnly public int indexOf(Object!);

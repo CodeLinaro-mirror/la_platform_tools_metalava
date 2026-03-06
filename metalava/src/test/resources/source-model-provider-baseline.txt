@@ -1,8 +1,11 @@
 com.android.tools.metalava.ApiFileTest
-  Kotlin expect-actual with JvmOverloads constructors[psi,k2]
+  Kotlin expect-actual with JvmOverloads constructors[psi]
 
 com.android.tools.metalava.DuplicateClassTest
   Test duplicate classes[turbine]
+
+com.android.tools.metalava.UastTest
+  actual typealias[psi]
 
 com.android.tools.metalava.compatibility.CompatibilityCheckTest
   Expected API changes converting collections to Kotlin[turbine]

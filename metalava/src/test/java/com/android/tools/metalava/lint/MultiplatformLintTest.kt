@@ -21,8 +21,6 @@ import com.android.tools.lint.checks.infrastructure.TestFiles.base64gzip
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.model.provider.Capability
-import com.android.tools.metalava.model.testing.FilterAction
-import com.android.tools.metalava.model.testing.FilterByProvider
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.testing.createAndroidModuleDescription
 import com.android.tools.metalava.testing.createCommonModuleDescription
@@ -35,7 +33,6 @@ import com.android.tools.metalava.testing.standardProjectXmlClasspath
 import org.junit.Test
 
 @RequiresCapabilities(Capability.KOTLIN, Capability.MULTIPLATFORM)
-@FilterByProvider("psi", "k1", action = FilterAction.EXCLUDE)
 class MultiplatformLintTest : DriverTest() {
     private fun checkLint(
         commonSource: Array<TestFile>,

@@ -1,45 +1,13 @@
-com.android.tools.metalava.model.testsuite.CommonTargetLanguageTest
-  Test constructor using optional value class type[kotlin,k1]
-  Test function in value class[kotlin,k1]
-
 com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTest
-  unknown annotation class with default attribute - array value[kotlin,k1]
-  unknown annotation class with default attribute - array value[kotlin,k2]
-  unknown annotation class with default attribute - string value[kotlin,k1]
-  unknown annotation class with default attribute - string value[kotlin,k2]
-  unknown annotation class with named attribute - array value[kotlin,k1]
-  unknown annotation class with named attribute - array value[kotlin,k2]
-  unknown annotation class with named attribute - string value[kotlin,k1]
-  unknown annotation class with named attribute - string value[kotlin,k2]
-
-com.android.tools.metalava.model.testsuite.classitem.CommonDataClassTest
-  Test data class copy method visibility with ConsistentCopyVisibility[kotlin,k1]
-
-com.android.tools.metalava.model.testsuite.methoditem.CommonMethodItemTest
-  JvmOverloads methods[kotlin,k1]
-  JvmOverloads with initial vararg parameter[kotlin,k1]
-
-com.android.tools.metalava.model.testsuite.typeitem.CommonTypeParameterItemTest
-  Test type parameter with annotations[kotlin,k1]
-
-com.android.tools.metalava.model.testsuite.value.CommonParameterizedAnnotationToSourceValueTest
-  testLegacySource[kotlin,k1,source,long - int expression]
-
-com.android.tools.metalava.model.testsuite.value.CommonParameterizedAttributeDefaultValueTest
-  testLegacySource[kotlin,k1,source,long - int expression]
-  testMethodDefaultValue[kotlin,k1,source,long - int expression]
-
-com.android.tools.metalava.model.testsuite.value.CommonParameterizedAttributeValueTest
-  testAttributeValue[kotlin,k1,source,long - int expression]
+  unknown annotation class with default attribute - array value[kotlin]
+  unknown annotation class with default attribute - string value[kotlin]
+  unknown annotation class with named attribute - array value[kotlin]
+  unknown annotation class with named attribute - string value[kotlin]
 
 com.android.tools.metalava.model.testsuite.value.CommonParameterizedFieldValueTest
-  testFieldValue[kotlin,k1,source,long - int expression]
-  testFieldValue[kotlin,k1,source,null - intermediate non-constant expression]
-  testFieldValue[kotlin,k2,source,null - intermediate non-constant expression]
-  testFieldValue[kotlin,k2,source,unsigned int - expression]
+  testFieldValue[kotlin,source,null - intermediate non-constant expression]
+  testFieldValue[kotlin,source,unsigned int - expression]
 
 com.android.tools.metalava.model.testsuite.value.CommonParameterizedFieldWriteWithSemicolonValueTest
-  testLegacySource[kotlin,k1,source,long - int expression]
-  testLegacySource[kotlin,k1,source,null - intermediate non-constant expression]
-  testLegacySource[kotlin,k2,source,null - intermediate non-constant expression]
-  testLegacySource[kotlin,k2,source,unsigned int - expression]
+  testLegacySource[kotlin,source,null - intermediate non-constant expression]
+  testLegacySource[kotlin,source,unsigned int - expression]

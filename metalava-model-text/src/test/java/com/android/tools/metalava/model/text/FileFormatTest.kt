@@ -86,7 +86,6 @@ class FileFormatTest {
             FileFormat.parseSpecifier(
                 specifier,
                 migratingAllowed = true,
-                extraVersions = emptySet()
             ),
             message = "format parsed from specifier does not match"
         )

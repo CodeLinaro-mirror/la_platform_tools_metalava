@@ -22,8 +22,6 @@ import com.android.tools.metalava.cli.common.ARG_ERROR
 import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.cli.lint.ARG_API_LINT
 import com.android.tools.metalava.model.provider.Capability
-import com.android.tools.metalava.model.testing.FilterAction
-import com.android.tools.metalava.model.testing.FilterByProvider
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.nonNullSource
 import com.android.tools.metalava.testing.KnownSourceFiles
@@ -1295,28 +1293,8 @@ class ApiLintTest : DriverTest() {
     }
 
     @RequiresCapabilities(Capability.KOTLIN)
-    @FilterByProvider("psi", "k2", action = FilterAction.EXCLUDE)
     @Test
-    fun `Check boolean constructor parameter accessor naming patterns in Kotlin -- K1`() {
-        `Check boolean constructor parameter accessor naming patterns in Kotlin`(
-            // missing errors for `isVisibleSetterBad`, `transientStateBad`,
-            // `hasTransientStateGetterBad`, `canRecordGetterBad`, `shouldFitWidthGetterBad`
-            expectedIssues =
-                """
-                src/android/pkg/MyClass.kt:19: error: Invalid name for boolean property `visibleBad`. Should start with one of `has`, `can`, `should`, `is`. [GetterSetterNames]
-                src/android/pkg/MyClass.kt:27: error: Invalid prefix `isHas` for boolean property `isHasTransientStateAlsoBad`. [GetterSetterNames]
-                src/android/pkg/MyClass.kt:29: error: Invalid prefix `isCan` for boolean property `isCanRecordBad`. [GetterSetterNames]
-                src/android/pkg/MyClass.kt:31: error: Invalid prefix `isShould` for boolean property `isShouldFitWidthBad`. [GetterSetterNames]
-                src/android/pkg/MyClass.kt:33: error: Invalid name for boolean property `wiFiRoamingSettingEnabledBad`. Should start with one of `has`, `can`, `should`, `is`. [GetterSetterNames]
-                src/android/pkg/MyClass.kt:35: error: Invalid name for boolean property `enabledBad`. Should start with one of `has`, `can`, `should`, `is`. [GetterSetterNames]
-                              """,
-        )
-    }
-
-    @RequiresCapabilities(Capability.KOTLIN)
-    @FilterByProvider("psi", "k1", action = FilterAction.EXCLUDE)
-    @Test
-    fun `Check boolean constructor parameter accessor naming patterns in Kotlin -- K2`() {
+    fun `Check boolean constructor parameter accessor naming patterns in Kotlin`() {
         `Check boolean constructor parameter accessor naming patterns in Kotlin`(
             expectedIssues =
                 """
