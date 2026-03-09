@@ -50,6 +50,11 @@ sealed interface AnnotationFormatter {
         /** An [AnnotationFormatter] for use when writing stubs for [target]. */
         fun stubFormatter(target: AnnotationTarget): AnnotationFormatter = StubFormatter(target)
 
+        /**
+         * An [AnnotationFormatter] for use when normalizing annotation values during comparisons.
+         */
+        fun normalizingFormatter(): AnnotationFormatter = NormalizingFormatter()
+
         /** True if this [FieldItem] is not-null, is not hidden or removed and is public. */
         private fun FieldItem?.isAccessible() = this != null && !isHiddenOrRemoved() && isPublic
 
@@ -114,6 +119,38 @@ sealed interface AnnotationFormatter {
             val alwaysInline = annotationItem.qualifiedName == ANDROID_FLAGGED_API
             val configuration =
                 if (alwaysInline) alwaysInlineConfiguration else defaultConfiguration
+            annotationItem.appendAnnotationStringTo(
+                builder,
+                configuration,
+                purpose,
+            )
+        }
+    }
+
+    /** An [AnnotationFormatter] used when normalizing annotations e.g. for comparisons */
+    private class NormalizingFormatter() : AnnotationFormatter {
+        /** The default [ValueStringConfiguration] for normalization */
+        private val defaultConfiguration =
+            ValueStringConfiguration(
+                annotationAttributeNameValueSeparator =
+                    AnnotationAttributeNameValueSeparator.WITHOUT_SPACES,
+                inlineFieldReferenceChecker = { true },
+                singleArrayElementFormat = SingleArrayElementFormat.UNWRAP,
+                useOriginalValueForNumbers = true,
+            )
+
+        override fun appendFormatAnnotation(
+            builder: StringBuilder,
+            annotationItem: AnnotationItem,
+            purpose: AnnotationPurpose,
+            context: Item?
+        ) {
+            var configuration = defaultConfiguration
+            // b/483372828 - attribute values are loaded inconsistently for RestrictedForEnvironment
+            // so they will be ignored for now.
+            if (annotationItem.qualifiedName.contains("RestrictedForEnvironment")) {
+                configuration = configuration.copy(inlineFieldReferenceChecker = null)
+            }
             annotationItem.appendAnnotationStringTo(
                 builder,
                 configuration,

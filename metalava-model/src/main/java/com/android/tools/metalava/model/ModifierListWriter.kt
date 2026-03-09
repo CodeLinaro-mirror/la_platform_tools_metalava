@@ -45,6 +45,16 @@ private constructor(
             )
         }
 
+        fun forNormalizing(writer: Writer): ModifierListWriter {
+            return ModifierListWriter(
+                writer = writer,
+                target = AnnotationTarget.SIGNATURE_FILE,
+                annotationFormatter = AnnotationFormatter.normalizingFormatter(),
+                runtimeAnnotationsOnly = false,
+                skipNullnessAnnotations = true,
+            )
+        }
+
         fun forStubs(
             writer: Writer,
             isDocStubs: Boolean,
@@ -101,9 +111,8 @@ private constructor(
     fun write(
         item: Item,
         normalizeFinal: Boolean = false,
-        skipRequiresPermission: Boolean = false
     ) {
-        writeAnnotations(item, skipRequiresPermission)
+        writeAnnotations(item)
         writeKeywords(item, normalizeFinal = normalizeFinal)
     }
 
@@ -225,7 +234,7 @@ private constructor(
         }
     }
 
-    private fun writeAnnotations(item: Item, skipRequiresPermission: Boolean) {
+    private fun writeAnnotations(item: Item) {
         // Generate annotations on separate lines in stub files for packages, classes and
         // methods and also for enum constants.
         val separateLines =
@@ -237,17 +246,6 @@ private constructor(
                     is FieldItem -> item.isEnumConstant()
                     else -> false
                 }
-
-        val list = item.modifiers
-        var annotations = list.annotations()
-        // b/442395516 RequiresPermission is not loaded consistently across codebases hence will be
-        // excluded for now
-        if (skipRequiresPermission) {
-            annotations =
-                annotations.filter { annotation ->
-                    !annotation.qualifiedName.contains("RequiresPermission")
-                }
-        }
 
         // Do not write deprecate annotations on a package.
         if (item !is PackageItem) {
@@ -264,6 +262,12 @@ private constructor(
             }
         }
 
+        val list = item.modifiers
+        var annotations = list.annotations()
+        if (annotations.isEmpty()) {
+            return
+        }
+
         if (annotations.any { it.isSuppressCompatibilityAnnotation() }) {
             writer.write("@$SUPPRESS_COMPATIBILITY_ANNOTATION")
             writer.write(if (separateLines) "\n" else " ")
@@ -274,66 +278,60 @@ private constructor(
         annotations =
             annotations.filter { it.qualifiedName != SUPPRESS_COMPATIBILITY_ANNOTATION_QUALIFIED }
         // Ensure stable signature file order
-        if (annotations.size > 1) {
-            annotations = annotations.sortedBy { it.qualifiedName }
-        }
+        annotations = annotations.sortedBy { it.qualifiedName }
 
-        if (annotations.isNotEmpty()) {
-            var index = -1
-            for (annotation in annotations) {
-                index++
+        var index = -1
+        for (annotation in annotations) {
+            index++
 
-                if (runtimeAnnotationsOnly && annotation.retention != AnnotationRetention.RUNTIME) {
+            if (runtimeAnnotationsOnly && annotation.retention != AnnotationRetention.RUNTIME) {
+                continue
+            }
+
+            var printAnnotation = annotation
+            if (!annotation.targets.contains(target)) {
+                continue
+            } else if (annotation.isNullnessAnnotation()) {
+                // skip Nullness annotations if requested, otherwise fall through the if-statements
+                // like any other annotation
+                if (skipNullnessAnnotations) {
                     continue
                 }
-
-                var printAnnotation = annotation
-                if (!annotation.targets.contains(target)) {
-                    continue
-                } else if ((annotation.isNullnessAnnotation())) {
-                    if (skipNullnessAnnotations) {
-                        continue
+            } else if (annotation.qualifiedName == "java.lang.Deprecated") {
+                // Special cased in stubs and signature files: emitted first
+                continue
+            } else {
+                val typedefMode = item.codebase.annotationManager.typedefMode
+                if (typedefMode == TypedefMode.INLINE) {
+                    val typedef = annotation.findTypedefAnnotation()
+                    if (typedef != null) {
+                        printAnnotation = typedef
                     }
-                } else if (annotation.qualifiedName == "java.lang.Deprecated") {
-                    // Special cased in stubs and signature files: emitted first
-                    continue
-                } else {
-                    val typedefMode = item.codebase.annotationManager.typedefMode
-                    if (typedefMode == TypedefMode.INLINE) {
-                        val typedef = annotation.findTypedefAnnotation()
-                        if (typedef != null) {
-                            printAnnotation = typedef
-                        }
-                    } else if (
-                        typedefMode == TypedefMode.REFERENCE &&
-                            annotation.targets === ANNOTATION_SIGNATURE_ONLY &&
-                            annotation.findTypedefAnnotation() != null
-                    ) {
-                        // For annotation references, only include the simple name
-                        writer.write("@")
-                        writer.write(annotation.resolve()?.simpleName() ?: annotation.qualifiedName)
-                        if (separateLines) {
-                            writer.write("\n")
-                        } else {
-                            writer.write(" ")
-                        }
-                        continue
+                } else if (
+                    typedefMode == TypedefMode.REFERENCE &&
+                        annotation.targets === ANNOTATION_SIGNATURE_ONLY &&
+                        annotation.findTypedefAnnotation() != null
+                ) {
+                    // For annotation references, only include the simple name
+                    writer.write("@")
+                    writer.write(annotation.resolve()?.simpleName() ?: annotation.qualifiedName)
+                    if (separateLines) {
+                        writer.write("\n")
+                    } else {
+                        writer.write(" ")
                     }
+                    continue
                 }
+            }
 
-                val source =
-                    annotationFormatter.formatAnnotation(
-                        printAnnotation,
-                        AnnotationPurpose.ITEM,
-                        item
-                    )
-                writer.write(source)
+            val source =
+                annotationFormatter.formatAnnotation(printAnnotation, AnnotationPurpose.ITEM, item)
+            writer.write(source)
 
-                if (separateLines) {
-                    writer.write("\n")
-                } else {
-                    writer.write(" ")
-                }
+            if (separateLines) {
+                writer.write("\n")
+            } else {
+                writer.write(" ")
             }
         }
     }

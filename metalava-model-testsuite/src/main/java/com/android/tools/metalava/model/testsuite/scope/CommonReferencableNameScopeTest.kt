@@ -62,7 +62,7 @@ class CommonReferencableNameScopeTest : BaseModelTest() {
         // Verify that the type name resolves to the expected class by checking a field of that
         // type name.
         val testField = testClass.fields().single()
-        val fieldClass = (testField.type() as ClassTypeItem).resolveClass()
+        val fieldClass = (testField.type() as ClassTypeItem).resolveClass(codebase)
         val expectedUnderlyingClass = expectedUnderlyingClass?.let { codebase.resolveClass(it)!! }
         assertSame(expectedUnderlyingClass, fieldClass, message = "field class")
 

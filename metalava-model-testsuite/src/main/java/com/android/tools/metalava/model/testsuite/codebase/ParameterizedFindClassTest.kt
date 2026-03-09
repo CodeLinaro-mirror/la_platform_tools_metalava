@@ -154,11 +154,11 @@ class ParameterizedFindClassTest : BaseModelTest() {
 
             // Force loading of the Object classes by resolving the return type which is
             // java.lang.Object.
-            fooMethod.returnType().forceResolveClasses()
+            fooMethod.returnType().forceResolveClasses(codebase)
 
             // Force loading of the Throwable classes by resolving the parameter's type which is
             // java.lang.Object.
-            fooMethod.parameters().single().type().forceResolveClasses()
+            fooMethod.parameters().single().type().forceResolveClasses(codebase)
 
             val className = params.className
             val foundClass = codebase.findClass(className)

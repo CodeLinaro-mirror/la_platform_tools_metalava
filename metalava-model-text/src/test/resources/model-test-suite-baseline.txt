@@ -1,5 +1,13 @@
+com.android.tools.metalava.model.testsuite.CommonModifierListWriterTest
+  modifiers public explicitly final method in final class
+
 com.android.tools.metalava.model.testsuite.methoditem.CommonMethodModifierTest
   Test final method in final class
+
+com.android.tools.metalava.model.testsuite.typeitem.CommonParameterizedTypeVariableNullabilityTest
+  Test type variable as type argument of inner class type[KOTLIN_STYLE_NULLS,non-nullable variable]
+  Test type variable as type argument of outer class type[KOTLIN_STYLE_NULLS,non-nullable variable]
+  Test type variable on its own[KOTLIN_STYLE_NULLS,non-nullable variable]
 
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeParameterItemTest
   Test type parameter with annotations

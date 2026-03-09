@@ -17,53 +17,65 @@
 package com.android.tools.metalava.model.type
 
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.ClassTypeItem
-import com.android.tools.metalava.model.DefaultTypeItem
 import com.android.tools.metalava.model.TypeArgumentTypeItem
 import com.android.tools.metalava.model.TypeModifiers
 
 internal class DefaultResolvedClassTypeItem(
     modifiers: TypeModifiers,
     private val classItem: ClassItem,
-    override val arguments: List<TypeArgumentTypeItem>,
+    arguments: List<TypeArgumentTypeItem>,
+    outerClassType: ClassTypeItem? = classItem.outerClassType,
     isValueClassType: Boolean = false,
-) : ClassTypeItem, DefaultTypeItem(modifiers, isValueClassType) {
-
-    override val qualifiedName = classItem.qualifiedName()
-
-    /**
-     * The outer class type to use depends on whether [classItem] is an inner (i.e. not-static
-     * nested) class or simply a static nested class. For inner classes the outer type needs to
-     * include its type arguments but for static nested classes the outer type must not include any
-     * type arguments.
-     */
-    override val outerClassType =
-        // Get the containing class type (if available) and adjust it based on the inner/static
-        // nesting state of [classItem].
-        classItem.containingClass()?.type()?.let { containingType ->
-            if (classItem.modifiers.isStatic()) {
-                // The type for a static nested class does not include any type arguments from its
-                // containing outer class so remove any that it may have.
-                containingType.substitute(arguments = emptyList())
-            } else {
-                // The type for an inner nested class does so keep its type as is.
-                containingType
-            }
-        }
-
+) :
+    DefaultClassTypeItem(
+        modifiers,
+        classItem.qualifiedName(),
+        arguments,
+        outerClassType,
+        isValueClassType,
+    ) {
     override val className = classItem.simpleName()
 
-    override fun resolveClass() = classItem
+    override fun resolveClass(classResolver: ClassResolver) =
+        // If the ClassResolver is the Codebase for the classItem then just return it, otherwise
+        // resolve this by name in the ClassResolver.
+        if (classItem.codebase === classResolver) classItem
+        else classResolver.resolveClass(qualifiedName)
 
-    @Deprecated(
-        "implementation detail of this class",
-        replaceWith = ReplaceWith("substitute(modifiers, outerClassType, arguments)"),
-    )
-    override fun duplicate(
+    override fun substitute(
         modifiers: TypeModifiers,
         outerClassType: ClassTypeItem?,
         arguments: List<TypeArgumentTypeItem>
-    ): ClassTypeItem {
-        return DefaultResolvedClassTypeItem(modifiers, classItem, arguments)
-    }
+    ) =
+        if (requiresNewInstance(modifiers, outerClassType, arguments))
+            DefaultResolvedClassTypeItem(
+                modifiers,
+                classItem,
+                arguments,
+                outerClassType,
+                isValueClassType,
+            )
+        else this
 }
+
+/**
+ * Get the [ClassTypeItem] for this [ClassItem] to use as the [ClassTypeItem.outerClassType] for a
+ * nested [ClassItem] of this.
+ */
+private val ClassItem.outerClassType
+    get() =
+        // Get the containing class type (if available) and adjust it based on the inner/static
+        // nesting state of [classItem].
+        containingClass()?.type()?.let { containingType ->
+            if (modifiers.isStatic()) {
+                // The type for a static nested class must not include any type arguments from its
+                // containing outer class so remove any that it may have.
+                containingType.substitute(arguments = emptyList())
+            } else {
+                // The type for an inner nested class must include type arguments from its
+                // containing outer class, so keep its type as is.
+                containingType
+            }
+        }

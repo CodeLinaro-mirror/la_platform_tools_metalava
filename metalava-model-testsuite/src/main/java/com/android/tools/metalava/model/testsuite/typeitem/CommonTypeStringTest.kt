@@ -298,7 +298,7 @@ class CommonTypeStringTest : BaseModelTest() {
                 ) +
                 TypeStringParameters.forDefaultAndKotlinNulls(
                     name = "T",
-                    expectedKotlinNullsTypeString = "T!",
+                    expectedKotlinNullsTypeString = "T",
                     typeParameters = "<T>"
                 ) +
                 TypeStringParameters.fromConfigurations(

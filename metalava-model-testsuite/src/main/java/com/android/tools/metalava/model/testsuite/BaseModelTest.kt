@@ -55,7 +55,10 @@ import org.junit.runners.Parameterized.Parameter
  */
 @RunWith(ModelTestSuiteRunner::class)
 abstract class BaseModelTest() :
-    CodebaseCreatorConfigAware<ModelSuiteRunner>, TemporaryFolderOwner, Assertions {
+    CodebaseCreatorConfigAware<ModelSuiteRunner>,
+    TemporaryFolderOwner,
+    Assertions,
+    InputSetFactory {
 
     /**
      * Set by injection by [Parameterized] after class initializers are called.
@@ -97,63 +100,6 @@ abstract class BaseModelTest() :
         get() = codebaseCreatorConfig.inputFormat!!
 
     @get:Rule override val temporaryFolder = TemporaryFolder()
-
-    /**
-     * Set of inputs for a test.
-     *
-     * Currently, this is limited to one file but in future it may be more.
-     */
-    data class InputSet(
-        /** The [InputFormat] of the [testFiles]. */
-        val inputFormat: InputFormat,
-
-        /** The [TestFile]s to explicitly pass to code being tested. */
-        val testFiles: List<TestFile>,
-
-        /** The optional [TestFile]s to pass on source path. */
-        val additionalTestFiles: List<TestFile>?,
-    )
-
-    /** Create an [InputSet] from a list of [TestFile]s. */
-    fun inputSet(testFiles: List<TestFile>): InputSet = inputSet(*testFiles.toTypedArray())
-
-    /**
-     * Create an [InputSet].
-     *
-     * It is an error if [testFiles] is empty or if [testFiles] have a mixture of source
-     * ([InputFormat.JAVA] or [InputFormat.KOTLIN]) and signature ([InputFormat.SIGNATURE]). If it
-     * contains both [InputFormat.JAVA] and [InputFormat.KOTLIN] then the latter will be used.
-     */
-    fun inputSet(vararg testFiles: TestFile, sourcePathFiles: List<TestFile>? = null): InputSet {
-        if (testFiles.isEmpty()) {
-            throw IllegalStateException("Must provide at least one source file")
-        }
-
-        // Get the paths for the TestFiles.
-        val paths = testFiles.map { it.targetRelativePath }
-
-        // Fail if there are any name collisions.
-        val uniquePaths = paths.groupBy { it }
-        if (uniquePaths.size != testFiles.size) {
-            val colliding = uniquePaths.mapNotNull { if (it.value.size == 1) null else it.key }
-            error(
-                "The following test files in the input set have the same name as another test file:\n${colliding.joinToString("\n") { "    $it" }}"
-            )
-        }
-
-        val inputFormat =
-            paths
-                .asSequence()
-                // Ignore HTML files.
-                .filter { !it.endsWith(".html") }
-                // Map to InputFormat.
-                .map { InputFormat.fromFilename(it) }
-                // Combine InputFormats to produce a single one, may throw an exception if they
-                // are incompatible.
-                .reduce { if1, if2 -> if1.combineWith(if2) }
-
-        return InputSet(inputFormat, testFiles.toList(), sourcePathFiles)
-    }
 
     /**
      * Context within which the main body of tests that check the state of the [Codebase] or
@@ -500,4 +446,68 @@ abstract class BaseModelTest() :
     /** Create a signature [TestFile] with the supplied [contents] in a file with a path of [to]. */
     fun signature(to: String, contents: String): TestFile =
         TestFiles.source(to, contents.trimIndent())
+}
+
+/**
+ * Set of inputs for a test.
+ *
+ * Currently, this is limited to one file but in future it may be more.
+ */
+data class InputSet(
+    /** The [InputFormat] of the [testFiles]. */
+    val inputFormat: InputFormat,
+
+    /** The [TestFile]s to explicitly pass to code being tested. */
+    val testFiles: List<TestFile>,
+
+    /** The optional [TestFile]s to pass on source path. */
+    val additionalTestFiles: List<TestFile>?,
+)
+
+/** Provides support for creating [InputSet]s */
+interface InputSetFactory {
+    /** Create an [InputSet] from a list of [TestFile]s. */
+    fun inputSet(testFiles: List<TestFile>): InputSet = inputSet(*testFiles.toTypedArray())
+
+    /**
+     * Create an [InputSet].
+     *
+     * It is an error if [testFiles] is empty or if [testFiles] have a mixture of source
+     * ([InputFormat.JAVA] or [InputFormat.KOTLIN]) and signature ([InputFormat.SIGNATURE]). If it
+     * contains both [InputFormat.JAVA] and [InputFormat.KOTLIN] then the latter will be used.
+     */
+    fun inputSet(vararg testFiles: TestFile, sourcePathFiles: List<TestFile>? = null): InputSet {
+        if (testFiles.isEmpty()) {
+            throw IllegalStateException("Must provide at least one source file")
+        }
+
+        // Get the paths for the TestFiles.
+        val paths = testFiles.map { it.targetRelativePath }
+
+        // Fail if there are any name collisions.
+        val uniquePaths = paths.groupBy { it }
+        if (uniquePaths.size != testFiles.size) {
+            val colliding = uniquePaths.mapNotNull { if (it.value.size == 1) null else it.key }
+            error(
+                "The following test files in the input set have the same name as another test file:\n${
+                    colliding.joinToString(
+                        "\n"
+                    ) { "    $it" }
+                }"
+            )
+        }
+
+        val inputFormat =
+            paths
+                .asSequence()
+                // Ignore HTML files.
+                .filter { !it.endsWith(".html") }
+                // Map to InputFormat.
+                .map { InputFormat.fromFilename(it) }
+                // Combine InputFormats to produce a single one, may throw an exception if they
+                // are incompatible.
+                .reduce { if1, if2 -> if1.combineWith(if2) }
+
+        return InputSet(inputFormat, testFiles.toList(), sourcePathFiles)
+    }
 }

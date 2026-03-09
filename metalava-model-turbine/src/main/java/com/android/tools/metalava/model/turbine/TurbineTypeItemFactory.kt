@@ -23,10 +23,8 @@ import com.android.tools.metalava.model.TypeArgumentTypeItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.TypeParameterScope
-import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.type.ContextNullability
 import com.android.tools.metalava.model.type.DefaultTypeItemFactory
-import com.android.tools.metalava.model.type.DefaultTypeModifiers
 import com.google.turbine.model.TurbineConstantTypeKind
 import com.google.turbine.type.AnnoInfo
 import com.google.turbine.type.Type
@@ -41,7 +39,9 @@ internal class TurbineTypeItemFactory(
     typeParameterScope: TypeParameterScope,
 ) : DefaultTypeItemFactory<Type, TurbineTypeItemFactory>(typeParameterScope) {
 
-    private val codebase: DefaultCodebase = initializer.codebase
+    // TODO(b/479907812): Provide a non-null FieldResolver.
+    val fieldResolver: FieldResolver?
+        get() = null
 
     override fun self() = this
 
@@ -58,11 +58,11 @@ internal class TurbineTypeItemFactory(
         annos: List<AnnoInfo>,
         contextNullability: ContextNullability,
     ): TypeModifiers {
-        val typeAnnotations = annotationFactory.createAnnotations(annos)
+        val typeAnnotations = annotationFactory.createAnnotations(annos, fieldResolver)
         // Compute the nullability, factoring in any context nullability and type annotations.
         // Turbine does not support kotlin so the kotlin nullability is always null.
         val nullability = contextNullability.compute(null, typeAnnotations)
-        return DefaultTypeModifiers.create(typeAnnotations, nullability)
+        return TypeModifiers.create(typeAnnotations, nullability)
     }
 
     internal fun createType(
@@ -129,7 +129,7 @@ internal class TurbineTypeItemFactory(
             }
             Type.TyKind.TY_VAR -> {
                 type as Type.TyVar
-                val modifiers = createModifiers(type.annos(), contextNullability)
+                val modifiers = createModifiers(type.annos(), contextNullability.forTypeVariable())
                 val typeParameter = typeParameterScope.getTypeParameter(type.sym().name())
                 TypeItem.createVariableType(modifiers, typeParameter)
             }
@@ -167,15 +167,14 @@ internal class TurbineTypeItemFactory(
             Type.TyKind.NONE_TY ->
                 TypeItem.createPrimitiveType(
                     // Primitives are always non-null.
-                    DefaultTypeModifiers.emptyNonNullModifiers,
+                    TypeModifiers.emptyNonNullModifiers,
                     PrimitiveTypeItem.Primitive.VOID
                 )
             Type.TyKind.ERROR_TY -> {
                 // This is case of unresolved superclass or implemented interface
                 type as Type.ErrorTy
                 TypeItem.createClassType(
-                    codebase,
-                    DefaultTypeModifiers.emptyUndefinedModifiers,
+                    TypeModifiers.emptyUndefinedModifiers,
                     type.name(),
                     emptyList(),
                     null,
@@ -233,14 +232,13 @@ internal class TurbineTypeItemFactory(
         element as TypeElement
 
         // Since this type was never part of source , it won't have any annotation or arguments
-        val modifiers = DefaultTypeModifiers.emptyNonNullModifiers
+        val modifiers = TypeModifiers.emptyNonNullModifiers
         val classTypeItem =
             TypeItem.createClassType(
-                codebase,
                 modifiers,
                 element.qualifiedName.toString(), // Assuming qualifiedName is available on element
                 emptyList(),
-                outerClassTypeItem
+                outerClassTypeItem,
             )
         return classTypeItem
     }
@@ -262,11 +260,10 @@ internal class TurbineTypeItemFactory(
         val qualifiedName = sym.qualifiedName
         val parameters = type.targs().map { getGeneralType(it) as TypeArgumentTypeItem }
         return TypeItem.createClassType(
-            codebase,
             modifiers,
             qualifiedName,
             parameters,
-            outerClassItem
+            outerClassItem,
         )
     }
 }

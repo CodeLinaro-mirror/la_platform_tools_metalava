@@ -103,7 +103,7 @@ interface CallableItem : MemberItem, TypeParameterListOwner {
     /** Returns true if this callable throws the given exception */
     fun throws(qualifiedName: String): Boolean {
         for (type in throwsTypes()) {
-            val throwableClass = type.asErasedClass() ?: continue
+            val throwableClass = type.asErasedClass(codebase) ?: continue
             if (throwableClass.extends(qualifiedName)) {
                 return true
             }
@@ -129,7 +129,7 @@ interface CallableItem : MemberItem, TypeParameterListOwner {
                     throwsTypes.add(exceptionType)
                 }
                 is ClassTypeItem -> {
-                    val classItem = exceptionType.asErasedClass() ?: continue
+                    val classItem = exceptionType.asErasedClass(codebase) ?: continue
                     if (predicate.test(classItem)) {
                         throwsTypes.add(exceptionType)
                     } else {
@@ -145,6 +145,17 @@ interface CallableItem : MemberItem, TypeParameterListOwner {
         }
         return throwsTypes
     }
+
+    /**
+     * Create an overload of this [CallableItem] with a copy of [parameters].
+     *
+     * The returned [CallableItem] will have its own parameters that are a copy of [parameters] with
+     * one exception. If [parameters] contains a varargs parameter which is last and its type is an
+     * [ArrayTypeItem] whose [ArrayTypeItem.isVarargs] is `false` then this will replace that type
+     * with an identical one except that [ArrayTypeItem.isVarargs] will be `true`. That ensures
+     * correct behavior for Kotlin varargs.
+     */
+    fun createOverload(parameters: List<ParameterItem>): CallableItem
 
     /** Override to specialize return type. */
     override fun findCorrespondingItemIn(
@@ -296,7 +307,7 @@ interface CallableItem : MemberItem, TypeParameterListOwner {
             is PrimitiveTypeItem -> false
             is ArrayTypeItem -> componentType.hasHiddenType(filterReference)
             is ClassTypeItem ->
-                resolveClass()?.let { !filterReference.test(it) } == true ||
+                resolveClass(codebase)?.let { !filterReference.test(it) } == true ||
                     outerClassType?.hasHiddenType(filterReference) == true ||
                     arguments.any { it.hasHiddenType(filterReference) }
             is VariableTypeItem ->

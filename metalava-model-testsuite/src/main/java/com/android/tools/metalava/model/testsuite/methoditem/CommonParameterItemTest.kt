@@ -285,7 +285,7 @@ class CommonParameterItemTest : BaseModelTest() {
                     "method2" to "java.lang.String![]",
                     "method3" to "java.lang.String![]![]",
                     "method4" to "T",
-                    "method5" to "java.util.Map.Entry<T!,java.lang.String!>",
+                    "method5" to "java.util.Map.Entry<T,java.lang.String!>",
                 )
             val methods = codebase.assertClass("test.pkg.Foo").methods()
             assertEquals("method count", expectedTypes.size, methods.size)
@@ -347,7 +347,7 @@ class CommonParameterItemTest : BaseModelTest() {
                     "method2" to "java.lang.String![]?",
                     "method3" to "java.lang.String![]![]?",
                     "method4" to "T?",
-                    "method5" to "java.util.Map.Entry<T!,java.lang.String!>?",
+                    "method5" to "java.util.Map.Entry<T,java.lang.String!>?",
                 )
             val methods = codebase.assertClass("test.pkg.Foo").methods()
             assertEquals("method count", expectedTypes.size, methods.size)

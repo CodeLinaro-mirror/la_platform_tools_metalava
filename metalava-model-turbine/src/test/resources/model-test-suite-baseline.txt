@@ -1,47 +1,14 @@
-com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTest
-  annotation with unknown field
-
-com.android.tools.metalava.model.testsuite.constructoritem.CommonConstructorModifierTest
-  Test varargs
-
-com.android.tools.metalava.model.testsuite.documentation.CommonItemDocumentationTest
-  Test fully qualifying links that wrap on multiple lines
-
-com.android.tools.metalava.model.testsuite.documentation.CommonParameterizedDocReferenceTest
-  Documentation text[@link,#collectionMethod(Collection)]
-  Documentation text[@link,Imported#collectionMethod(Collection)]
-  Documentation text[@link,Imported#noParamsMethod]
-  Documentation text[@link,Other#collectionMethod(Collection)]
-  Documentation text[@link,Other#noParamsMethod]
-  Documentation text[@link,other.pkg.Another#collectionMethod(Collection)]
-  Documentation text[@linkplain,#collectionMethod(Collection)]
-  Documentation text[@linkplain,Imported#collectionMethod(Collection)]
-  Documentation text[@linkplain,Imported#noParamsMethod]
-  Documentation text[@linkplain,Other#collectionMethod(Collection)]
-  Documentation text[@linkplain,Other#noParamsMethod]
-  Documentation text[@linkplain,other.pkg.Another#collectionMethod(Collection)]
-  Documentation text[@see,#collectionMethod(Collection)]
-  Documentation text[@see,Imported#collectionMethod(Collection)]
-  Documentation text[@see,Imported#noParamsMethod]
-  Documentation text[@see,Other#collectionMethod(Collection)]
-  Documentation text[@see,Other#noParamsMethod]
-  Documentation text[@see,other.pkg.Another#collectionMethod(Collection)]
-
 com.android.tools.metalava.model.testsuite.fielditem.CommonFieldItemTest
   Test implicit nullability of constant field initialized from @NonNull method
-
-com.android.tools.metalava.model.testsuite.methoditem.CommonMethodModifierTest
-  Test final method in final class
-  Test varargs
 
 com.android.tools.metalava.model.testsuite.methoditem.CommonParameterItemTest
   Test publicName reports correct name when called on binary class - Object#equals
   Test publicName reports correct name when called on binary class - ViewGroup#onLayout
 
-com.android.tools.metalava.model.testsuite.methoditem.CommonParameterModifierTest
-  Test varargs
-
 com.android.tools.metalava.model.testsuite.typeitem.CommonTypeModifiersTest
   Test interface types
   Test leading annotation on array type
   Test super class and interface types of interface
+
+com.android.tools.metalava.model.testsuite.value.CommonValueTest
+  Test use field reference in a type annotation

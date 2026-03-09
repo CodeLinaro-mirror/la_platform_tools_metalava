@@ -470,6 +470,7 @@ class ExtractAnnotationsTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.METHOD_BODY)
     @Test
     fun `Check warning about unexpected returns from typedef method`() {
         check(

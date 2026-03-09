@@ -698,8 +698,7 @@ class DocAnalyzer(
 
         // Get the text for the supplied tag as that is what needs to be copied into the use site.
         // If there is no such text then return immediately.
-        val tagDescription =
-            annotationDocumentation.blockTagDescription(tag, forAppending = true) ?: return
+        val tagDescription = annotationDocumentation.blockTagDescription(tag) ?: return
 
         descriptionOwner.append(tagDescription)
     }

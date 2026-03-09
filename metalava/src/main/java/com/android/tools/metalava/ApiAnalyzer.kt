@@ -264,12 +264,12 @@ class ApiAnalyzer(
         var interfaceTypeClasses: MutableList<ClassItem>? = null
         for (hiddenSuperClass in hiddenSuperClasses) {
             for (hiddenInterface in hiddenSuperClass.interfaceTypes()) {
-                val hiddenInterfaceClass = hiddenInterface.resolveClass()
+                val hiddenInterfaceClass = hiddenInterface.resolveClass(codebase)
                 if (filterReference.test(hiddenInterfaceClass ?: continue)) {
                     if (interfaceTypes == null) {
                         interfaceTypes = cls.interfaceTypes().toMutableList()
                         interfaceTypeClasses =
-                            interfaceTypes.mapNotNull { it.resolveClass() }.toMutableList()
+                            interfaceTypes.mapNotNull { it.resolveClass(codebase) }.toMutableList()
                         if (cls.isInterface()) {
                             cls.superClass()?.let { interfaceTypeClasses.add(it) }
                         }
@@ -315,7 +315,7 @@ class ApiAnalyzer(
         // potential overrides.
         val inheritableMethods = MethodItemSet()
         for (interfaceType in interfaces) {
-            val interfaceClass = interfaceType.resolveClass() ?: continue
+            val interfaceClass = interfaceType.resolveClass(codebase) ?: continue
             for (method in interfaceClass.methods()) {
                 inheritableMethods.add(method)
             }
@@ -716,7 +716,7 @@ class ApiAnalyzer(
                     type.accept(
                         object : BaseTypeVisitor() {
                             override fun visitClassType(classType: ClassTypeItem) {
-                                val cls = classType.resolveClass() ?: return
+                                val cls = classType.resolveClass(codebase) ?: return
                                 if (
                                     !filterReference.test(cls) &&
                                         cls.origin != ClassOrigin.CLASS_PATH
@@ -807,7 +807,7 @@ class ApiAnalyzer(
                     }
 
                     for (t in cl.interfaceTypes()) {
-                        if (t.resolveClass()?.effectivelyDeprecated == true) {
+                        if (t.resolveClass(codebase)?.effectivelyDeprecated == true) {
                             reporter.report(
                                 Issues.EXTENDS_DEPRECATED,
                                 cl,
@@ -946,7 +946,7 @@ class ApiAnalyzer(
             }
             for (thrown in callable.throwsTypes()) {
                 if (thrown is VariableTypeItem) continue
-                val classItem = thrown.asErasedClass() ?: continue
+                val classItem = thrown.asErasedClass(codebase) ?: continue
                 cantStripThis(classItem, filter, notStrippable, callable, "as exception")
             }
             cantStripThis(callable.returnType(), callable, filter, notStrippable, "in return type")
@@ -976,7 +976,7 @@ class ApiAnalyzer(
         type.accept(
             object : BaseTypeVisitor() {
                 override fun visitClassType(classType: ClassTypeItem) {
-                    val asClass = classType.resolveClass() ?: return
+                    val asClass = classType.resolveClass(codebase) ?: return
                     cantStripThis(asClass, filter, notStrippable, context, usage)
                 }
             }
@@ -996,7 +996,7 @@ class ApiAnalyzer(
             type.accept(
                 object : BaseTypeVisitor() {
                     override fun visitClassType(classType: ClassTypeItem) {
-                        if (classType.resolveClass()?.effectivelyDeprecated == true) {
+                        if (classType.resolveClass(codebase)?.effectivelyDeprecated == true) {
                             reporter.report(
                                 Issues.REFERENCES_DEPRECATED,
                                 containingMethod,
@@ -1049,7 +1049,7 @@ class ApiAnalyzer(
         ti.accept(
             object : BaseTypeVisitor() {
                 override fun visitClassType(classType: ClassTypeItem) {
-                    val asClass = classType.resolveClass() ?: return
+                    val asClass = classType.resolveClass(codebase) ?: return
                     if (asClass.isHiddenOrRemoved()) {
                         hiddenClasses.add(asClass)
                     }

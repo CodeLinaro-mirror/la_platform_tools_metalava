@@ -72,10 +72,10 @@ class CommonItemDocumentationTest : BaseModelTest() {
             ),
         ) {
             val testClass = codebase.assertClass("test.pkg.Test")
-            testClass.assertDocumentationText(expectedOutput = "/** Doc */", message = "class")
+            testClass.assertPrintedDocumentation(expectedOutput = "/** Doc */", message = "class")
 
             val testMethod = testClass.methods().last()
-            testMethod.assertDocumentationText(
+            testMethod.assertPrintedDocumentation(
                 expectedOutput = "/** Method Doc */",
                 message = "method"
             )
@@ -131,10 +131,10 @@ class CommonItemDocumentationTest : BaseModelTest() {
             ),
         ) {
             val testClass = codebase.assertClass("test.pkg.Test")
-            testClass.assertDocumentationText(expectedOutput = "/** Doc */", message = "class")
+            testClass.assertPrintedDocumentation(expectedOutput = "/** Doc */", message = "class")
 
             val testMethod = testClass.methods().last()
-            testMethod.assertDocumentationText(
+            testMethod.assertPrintedDocumentation(
                 expectedOutput = "/** Method Doc */",
                 message = "method"
             )
@@ -190,10 +190,10 @@ class CommonItemDocumentationTest : BaseModelTest() {
             ),
         ) {
             val testClass = codebase.assertClass("test.pkg.Test")
-            testClass.assertDocumentationText(expectedOutput = "/** Doc */", message = "class")
+            testClass.assertPrintedDocumentation(expectedOutput = "/** Doc */", message = "class")
 
             val testMethod = testClass.methods().last()
-            testMethod.assertDocumentationText(
+            testMethod.assertPrintedDocumentation(
                 expectedOutput = "/** Method Doc */",
                 message = "method"
             )
@@ -237,10 +237,10 @@ class CommonItemDocumentationTest : BaseModelTest() {
             ),
         ) {
             val testClass = codebase.assertClass("test.pkg.Test")
-            testClass.assertDocumentationText(expectedOutput = "", message = "class")
+            testClass.assertPrintedDocumentation(expectedOutput = "", message = "class")
 
             val testMethod = testClass.methods().last()
-            testMethod.assertDocumentationText(expectedOutput = "", message = "method")
+            testMethod.assertPrintedDocumentation(expectedOutput = "", message = "method")
         }
     }
 
@@ -1046,10 +1046,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
         ) {
             val otherClass = codebase.assertClass("test.other.Other")
             val contentToAppend =
-                otherClass.requiredDocumentation.blockTagDescription(
-                    "memberDoc",
-                    forAppending = true
-                )!!
+                otherClass.requiredDocumentation.blockTagDescription("memberDoc")!!
 
             val testClass = codebase.assertClass("test.pkg.Test")
             val classDocumentation = testClass.requiredDocumentation
@@ -1062,13 +1059,13 @@ class CommonItemDocumentationTest : BaseModelTest() {
                 """
                     /**
                      * Text to {@code append} see {@link test.other.Other#method() method()}. This is spread
-                     * across multiple lines with leading whitespace and a link to
-                     * {@link test.another.Another Another} class.
+                     *        across multiple lines with leading whitespace and a link to
+                     *        {@link test.another.Another Another} class.
                      */
                 """
 
             // Make sure that the text reflects the changes after mutation.
-            testClass.assertDocumentationText(
+            testClass.assertPrintedDocumentation(
                 expectedOutput = expectedOutputAfterMutation,
                 message = "text after mutation"
             )
@@ -1107,7 +1104,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
                 """
 
             // Make sure that the text reflects the changes after mutation.
-            testMethod.assertDocumentationText(
+            testMethod.assertPrintedDocumentation(
                 expectedOutput = expectedOutputAfterMutation,
                 message = "text after mutation"
             )
@@ -1134,7 +1131,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
             val testClass = codebase.assertClass("test.pkg.Test")
             val documentation = testClass.requiredDocumentation
 
-            testClass.assertDocumentationText(
+            testClass.assertPrintedDocumentation(
                 expectedOutput = "/** @deprecated */",
                 message = "before mutation"
             )
@@ -1147,7 +1144,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
                 """
 
             // Make sure that the text reflects the changes after mutation.
-            testClass.assertDocumentationText(
+            testClass.assertPrintedDocumentation(
                 expectedOutput = expectedOutputAfterMutation,
                 message = "after mutation"
             )
@@ -1172,7 +1169,10 @@ class CommonItemDocumentationTest : BaseModelTest() {
             val testClass = codebase.assertClass("test.pkg.Test")
             val documentation = testClass.requiredDocumentation
 
-            testClass.assertDocumentationText(expectedOutput = "", message = "text before mutation")
+            testClass.assertPrintedDocumentation(
+                expectedOutput = "",
+                message = "text before mutation"
+            )
 
             // Get the description owner for the non-existent deprecated block tag.
             val descriptionOwner = documentation.blockTagDescriptionOwner("deprecated")
@@ -1192,7 +1192,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
                 """
 
             // Make sure that the text reflects the changes after mutation.
-            testClass.assertDocumentationText(
+            testClass.assertPrintedDocumentation(
                 expectedOutput = expectedOutputAfterFirstMutation,
                 message = "text after first mutation"
             )
@@ -1217,7 +1217,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
                 """
 
             // Make sure that the text reflects the changes after mutation.
-            testClass.assertDocumentationText(
+            testClass.assertPrintedDocumentation(
                 expectedOutput = expectedOutputAfterSecondMutation,
                 message = "text after second mutation"
             )
@@ -1248,7 +1248,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
             val testMethod = testClass.methods().single()
             val documentation = testMethod.requiredDocumentation
 
-            testMethod.assertDocumentationText(
+            testMethod.assertPrintedDocumentation(
                 expectedOutput = "/** @param p */",
                 message = "before mutation"
             )
@@ -1261,7 +1261,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
                 """
 
             // Make sure that the text reflects the changes after mutation.
-            testMethod.assertDocumentationText(
+            testMethod.assertPrintedDocumentation(
                 expectedOutput = expectedOutputAfterMutation,
                 message = "after mutation"
             )
@@ -1288,7 +1288,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
             val testMethod = testClass.methods().single()
             val documentation = testMethod.requiredDocumentation
 
-            testMethod.assertDocumentationText(
+            testMethod.assertPrintedDocumentation(
                 expectedOutput = "",
                 message = "text before mutation"
             )
@@ -1311,7 +1311,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
                 """
 
             // Make sure that the text reflects the changes after mutation.
-            testMethod.assertDocumentationText(
+            testMethod.assertPrintedDocumentation(
                 expectedOutput = expectedOutputAfterFirstMutation,
                 message = "text after first mutation"
             )
@@ -1336,7 +1336,7 @@ class CommonItemDocumentationTest : BaseModelTest() {
                 """
 
             // Make sure that the text reflects the changes after mutation.
-            testMethod.assertDocumentationText(
+            testMethod.assertPrintedDocumentation(
                 expectedOutput = expectedOutputAfterSecondMutation,
                 message = "text after second mutation"
             )

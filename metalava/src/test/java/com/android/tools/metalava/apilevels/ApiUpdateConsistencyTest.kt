@@ -103,7 +103,7 @@ class ApiUpdateConsistencyTest : DriverTest() {
     private fun versionedSignatureApi(contents: String): VersionedApiFactory {
         return { version ->
             val testFile = signature("$version.txt", contents)
-            val file = testFile.createFile(temporaryFolder.root)
+            val file = testFile.toFile()
             VersionedSignatureApi(
                 DefaultSignatureFileLoader(Codebase.Config.NOOP),
                 listOf(file),

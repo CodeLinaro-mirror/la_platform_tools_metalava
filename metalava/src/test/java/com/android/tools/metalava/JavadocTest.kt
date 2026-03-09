@@ -157,14 +157,14 @@ class JavadocTest : DriverTest() {
                     /**
                      * Blah blah {@link test.pkg2.OtherClass OtherClass} blah blah.
                      *  Referencing <b>field</b> {@link test.pkg2.OtherClass#foo OtherClass.foo},
-                     *  and referencing method {@link test.pkg2.OtherClass#bar(int,boolean) OtherClass.bar(int, boolean)}.
+                     *  and referencing method {@link test.pkg2.OtherClass#bar(int,boolean) OtherClass.bar(int,boolean)}.
                      *  And relative method reference {@link #baz()}.
                      *  And relative field reference {@link #importance}.
                      *  Here's an already fully qualified reference: {@link test.pkg2.OtherClass}.
                      *  And here's one in the same package: {@link test.pkg1.LocalClass LocalClass}.
                      *
-                     * @see test.pkg2.OtherClass
-                     * @see test.pkg2.OtherClass#bar(int,boolean)
+                     * @see test.pkg2.OtherClass OtherClass
+                     * @see test.pkg2.OtherClass#bar(int,boolean) OtherClass.bar(int,boolean)
                      * @deprecated For some reason
                      */
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
@@ -366,14 +366,14 @@ class JavadocTest : DriverTest() {
                 /**
                  * Blah blah {@link test.pkg2.OtherClass OtherClass} blah blah.
                  *  Referencing <b>field</b> {@link test.pkg2.OtherClass#foo OtherClass.foo},
-                 *  and referencing method {@link test.pkg2.OtherClass#bar(int,boolean) OtherClass.bar(int, boolean)}.
+                 *  and referencing method {@link test.pkg2.OtherClass#bar(int,boolean) OtherClass.bar(int,boolean)}.
                  *  And relative method reference {@link #baz()}.
                  *  And relative field reference {@link #importance}.
                  *  Here's an already fully qualified reference: {@link test.pkg2.OtherClass}.
                  *  And here's one in the same package: {@link test.pkg1.LocalClass LocalClass}.
                  *
-                 * @see test.pkg2.OtherClass
-                 * @see test.pkg2.OtherClass#bar(int,boolean)
+                 * @see test.pkg2.OtherClass OtherClass
+                 * @see test.pkg2.OtherClass#bar(int,boolean) OtherClass.bar(int,boolean)
                  * @deprecated For some reason
                  */
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
@@ -864,7 +864,6 @@ class JavadocTest : DriverTest() {
             source =
                 """
                 package test.pkg1;
-                import test.pkg2.MyChild;
                 /**
                  * Reference to {@link test.pkg2.MyChild#CONSTANT1 MyChild.CONSTANT1},
                  * {@link test.pkg2.MyChild#CONSTANT2 MyChild.CONSTANT2}, and
@@ -940,12 +939,11 @@ class JavadocTest : DriverTest() {
             source =
                 """
                 package test.pkg1;
-                import test.pkg2.OtherClass2;
-                /** Reference to {@link test.pkg2.OtherClass1#myMethod(test.pkg2.OtherClass2,int name,test.pkg2.OtherClass2[]) OtherClass1.myMethod(OtherClass2, int name, OtherClass2[])}, */
+                /** Reference to {@link test.pkg2.OtherClass1#myMethod(test.pkg2.OtherClass2,int,test.pkg2.OtherClass2[]) OtherClass1.myMethod(OtherClass2,int,OtherClass2[])}, */
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public class Test<E extends test.pkg2.OtherClass2> {
                 public Test() { throw new RuntimeException("Stub!"); }
-                /** Reference to {@link test.pkg2.OtherClass1#myMethod(E,int,test.pkg2.OtherClass2[]) OtherClass1.myMethod(E, int, OtherClass2 [])}, */
+                /** Reference to {@link test.pkg2.OtherClass1#myMethod(test.pkg2.OtherClass2,int,test.pkg2.OtherClass2[]) OtherClass1.myMethod(E,int,OtherClass2[])}, */
                 public void test() { throw new RuntimeException("Stub!"); }
                 }
                 """
@@ -984,7 +982,6 @@ class JavadocTest : DriverTest() {
             source =
                 """
                 package test.pkg1;
-                import java.nio.ByteBuffer;
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public abstract class Test {
                 public Test() { throw new RuntimeException("Stub!"); }
@@ -1100,7 +1097,6 @@ class JavadocTest : DriverTest() {
                     java(
                         """
                     package android.view;
-                    import android.graphics.Insets;
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public final class WindowInsets {
                     public WindowInsets() { throw new RuntimeException("Stub!"); }
@@ -1186,7 +1182,7 @@ class JavadocTest : DriverTest() {
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Foo {
                     public Foo() { throw new RuntimeException("Stub!"); }
-                    /** @see test.pkg.bar.Bar */
+                    /** @see test.pkg.bar.Bar Bar */
                     public void bar() { throw new RuntimeException("Stub!"); }
                     }
                     """
@@ -1197,9 +1193,9 @@ class JavadocTest : DriverTest() {
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class Bar {
                     public Bar() { throw new RuntimeException("Stub!"); }
-                    /** @see test.pkg.baz.Baz */
+                    /** @see test.pkg.baz.Baz Baz */
                     public void baz(test.pkg.baz.Baz baz) { throw new RuntimeException("Stub!"); }
-                    /** @see test.pkg.Foo */
+                    /** @see test.pkg.Foo Foo */
                     public void foo(test.pkg.Foo foo) { throw new RuntimeException("Stub!"); }
                     }
                     """
@@ -1254,10 +1250,10 @@ class JavadocTest : DriverTest() {
             expectedFail = DefaultLintErrorMessage,
             expectedIssues =
                 """
-                    src/test/pkg/Foo.java:4: error: Documentation contains '@hide' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
-                    src/test/pkg/Foo.java:9: error: Documentation contains '@hide' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
-                    src/test/pkg/Foo.java:14: error: Documentation contains '@hide' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
-                    src/test/pkg/Foo.java:19: error: Documentation contains '@hide' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
+                    src/test/pkg/Foo.java:4: error: Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
+                    src/test/pkg/Foo.java:9: error: Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
+                    src/test/pkg/Foo.java:14: error: Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
+                    src/test/pkg/Foo.java:19: error: Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
                 """,
             api =
                 """
@@ -1320,7 +1316,7 @@ class JavadocTest : DriverTest() {
             expectedFail = DefaultLintErrorMessage,
             expectedIssues =
                 """
-                    src/test/pkg/Foo.java:6: error: Documentation contains '@hide' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
+                    src/test/pkg/Foo.java:6: error: Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
                 """,
             docStubs = true,
             stubFiles =
@@ -1385,13 +1381,13 @@ class JavadocTest : DriverTest() {
                         """
                             // Baseline format: 1.0
                             InvalidBlockTagUse: test.pkg.Foo#bar():
-                                Documentation contains '@hide' that is not used as a block tag; that could cause unexpected behavior downstream.
+                                Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream.
                             InvalidBlockTagUse: test.pkg.Foo#baz():
-                                Documentation contains '@hide' that is not used as a block tag; that could cause unexpected behavior downstream.
+                                Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream.
                             InvalidBlockTagUse: test.pkg.Foo#quux():
-                                Documentation contains '@hide' that is not used as a block tag; that could cause unexpected behavior downstream.
+                                Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream.
                             InvalidBlockTagUse: test.pkg.Foo#qux():
-                                Documentation contains '@hide' that is not used as a block tag; that could cause unexpected behavior downstream.
+                                Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream.
                         """,
                     silentUpdate = false,
                 ),
@@ -1399,10 +1395,10 @@ class JavadocTest : DriverTest() {
                 "metalava wrote updated baseline to TESTROOT/update-baseline.txt\n$DefaultLintErrorMessage",
             expectedIssues =
                 """
-                    src/test/pkg/Foo.java:4: error: Documentation contains '@hide' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
-                    src/test/pkg/Foo.java:9: error: Documentation contains '@hide' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
-                    src/test/pkg/Foo.java:14: error: Documentation contains '@hide' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
-                    src/test/pkg/Foo.java:19: error: Documentation contains '@hide' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
+                    src/test/pkg/Foo.java:4: error: Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
+                    src/test/pkg/Foo.java:9: error: Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
+                    src/test/pkg/Foo.java:14: error: Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
+                    src/test/pkg/Foo.java:19: error: Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
                 """,
             api =
                 """

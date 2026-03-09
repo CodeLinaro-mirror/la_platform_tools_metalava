@@ -34,7 +34,6 @@ import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.WildcardTypeItem
 import com.android.tools.metalava.model.type.ContextNullability
 import com.android.tools.metalava.model.type.DefaultTypeItemFactory
-import com.android.tools.metalava.model.type.DefaultTypeModifiers
 import com.android.tools.metalava.model.type.MethodFingerprint
 import com.intellij.psi.PsiAnnotation
 import com.intellij.psi.PsiArrayType
@@ -65,28 +64,28 @@ data class PsiTypeInfo(val psiType: PsiType, val context: PsiElement? = null)
  * [PsiTypeInfo].
  */
 internal class PsiTypeItemFactory(
-    private val assembler: PsiCodebaseAssembler,
+    private val globalContext: PsiGlobalContext,
     typeParameterScope: TypeParameterScope
 ) : DefaultTypeItemFactory<PsiTypeInfo, PsiTypeItemFactory>(typeParameterScope) {
 
-    private val codebase = assembler.psiCodebase
+    private val codebase = globalContext.psiCodebase
 
     /** Construct a [PsiTypeItemFactory] suitable for creating types within [classItem]. */
     fun from(classItem: ClassItem): PsiTypeItemFactory {
         val scope = TypeParameterScope.from(classItem)
-        return if (scope.isEmpty()) this else PsiTypeItemFactory(assembler, scope)
+        return if (scope.isEmpty()) this else PsiTypeItemFactory(globalContext, scope)
     }
 
     /** Construct a [PsiTypeItemFactory] suitable for creating types within [callableItem]. */
     fun from(callableItem: CallableItem): PsiTypeItemFactory {
         val scope = TypeParameterScope.from(callableItem)
-        return if (scope.isEmpty()) this else PsiTypeItemFactory(assembler, scope)
+        return if (scope.isEmpty()) this else PsiTypeItemFactory(globalContext, scope)
     }
 
     override fun self() = this
 
     override fun createNestedFactory(scope: TypeParameterScope) =
-        PsiTypeItemFactory(assembler, scope)
+        PsiTypeItemFactory(globalContext, scope)
 
     override fun getType(
         underlyingType: PsiTypeInfo,
@@ -176,20 +175,6 @@ internal class PsiTypeItemFactory(
         return createTypeItem(psiType, kotlinTypeInfo, contextNullability)
     }
 
-    /** Get a [VariableTypeItem] to represent [PsiTypeParameterItem]. */
-    fun getVariableTypeForTypeParameter(
-        psiTypeParameterItem: PsiTypeParameterItem
-    ): VariableTypeItem {
-        val psiTypeParameter = psiTypeParameterItem.psi()
-        val psiType = assembler.getClassType(psiTypeParameter)
-        return createVariableTypeItem(
-            psiType,
-            null,
-            psiTypeParameterItem,
-            ContextNullability.forceUndefined,
-        )
-    }
-
     // TypeItem factory methods
 
     /** Creates modifiers based on the annotations of the [type]. */
@@ -207,7 +192,7 @@ internal class PsiTypeItemFactory(
         // Compute the nullability, factoring in any context nullability, kotlin types and
         // type annotations.
         val nullability = contextNullability.compute(kotlinType?.nullability(), typeAnnotations)
-        return DefaultTypeModifiers.create(typeAnnotations, nullability)
+        return TypeModifiers.create(typeAnnotations, nullability)
     }
 
     private val PsiAnnotation.isJetBrainNotNull: Boolean
@@ -294,7 +279,7 @@ internal class PsiTypeItemFactory(
                         // compiled type.
                         val workaroundQualifiedName =
                             psiType.computeQualifiedName().replace(Regex("\\.(\\d)"), "\\$$1")
-                        val workaroundPsiType = assembler.createPsiType(workaroundQualifiedName)
+                        val workaroundPsiType = globalContext.createPsiType(workaroundQualifiedName)
                         return createTypeItem(
                             workaroundPsiType,
                             kotlinType,
@@ -442,7 +427,6 @@ internal class PsiTypeItemFactory(
     ): ClassTypeItem {
         val qualifiedName = psiType.computeQualifiedName()
         return TypeItem.createClassType(
-            classResolver = codebase,
             modifiers = createTypeModifiers(psiType, kotlinType, contextNullability),
             qualifiedName = qualifiedName,
             arguments =
@@ -604,11 +588,11 @@ internal class PsiTypeItemFactory(
             // [PsiNameHelper.getOuterClassReference] returns an empty string if there is no
             // outer class reference. If the type is not a nested type, it returns the package
             // name (e.g. for "java.lang.String" it returns "java.lang").
-            if (outerClassName == "" || assembler.findPsiPackage(outerClassName) != null) {
+            if (outerClassName == "" || globalContext.findPsiPackage(outerClassName) != null) {
                 null
             } else {
                 val psiOuterClassType =
-                    assembler.createPsiType(
+                    globalContext.createPsiType(
                         outerClassName,
                         // The context psi element allows variable types to be resolved (with no
                         // context, they would be interpreted as class types). The [psiContext]
@@ -741,7 +725,6 @@ internal class PsiTypeItemFactory(
                 .toList()
 
         return TypeItem.createLambdaType(
-            classResolver = codebase,
             modifiers = createTypeModifiers(psiType, actualKotlinType, contextNullability),
             qualifiedName = qualifiedName,
             arguments = typeArguments,
@@ -762,7 +745,8 @@ internal class PsiTypeItemFactory(
         contextNullability: ContextNullability,
     ) =
         TypeItem.createVariableType(
-            modifiers = createTypeModifiers(psiType, kotlinType, contextNullability),
+            modifiers =
+                createTypeModifiers(psiType, kotlinType, contextNullability.forTypeVariable()),
             asTypeParameter = typeParameterItem,
             isValueClassType = kotlinType.isValueClassTypeIfAvailable,
         )

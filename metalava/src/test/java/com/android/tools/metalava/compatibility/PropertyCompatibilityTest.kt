@@ -21,7 +21,6 @@ import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.cli.common.ARG_ERROR_CATEGORY
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
-import com.android.tools.metalava.model.text.ApiClassResolution
 import kotlin.test.Test
 
 // These tests do not include property accessors in the signature files to specifically test the
@@ -153,7 +152,6 @@ class PropertyCompatibilityTest : DriverTest() {
     @Test
     fun `Change in whether inherited property from classpath is listed`() {
         check(
-            apiClassResolution = ApiClassResolution.API_CLASSPATH,
             extraArguments = arrayOf(ARG_ERROR_CATEGORY, "Compatibility"),
             checkCompatibilityApiReleased =
                 """

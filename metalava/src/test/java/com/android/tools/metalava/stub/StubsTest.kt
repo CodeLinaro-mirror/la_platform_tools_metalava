@@ -17,7 +17,6 @@
 package com.android.tools.metalava.stub
 
 import com.android.tools.metalava.ARG_EXCLUDE_DOCUMENTATION_FROM_STUBS
-import com.android.tools.metalava.cli.common.ARG_API_CLASS_RESOLUTION
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.testing.java
 import org.junit.Test
@@ -561,17 +560,17 @@ class StubsTest : AbstractStubsTest() {
                   public class Generics {
                     ctor public Generics();
                   }
-                  public class Generics.MyClass<X, Y extends java.lang.Number> extends test.pkg.Generics.PublicParent<X!,Y!> implements test.pkg.Generics.PublicInterface<X!,Y!> {
+                  public class Generics.MyClass<X, Y extends java.lang.Number> extends test.pkg.Generics.PublicParent<X,Y> implements test.pkg.Generics.PublicInterface<X,Y> {
                     ctor public Generics.MyClass();
-                    method public java.util.Map<X!,java.util.Map<Y!,java.lang.String!>!>! createMap(java.util.List<X!>!) throws java.io.IOException;
-                    method protected java.util.List<X!>! foo();
+                    method public java.util.Map<X,java.util.Map<Y,java.lang.String!>!>! createMap(java.util.List<X>!) throws java.io.IOException;
+                    method protected java.util.List<X>! foo();
                   }
                   public static interface Generics.PublicInterface<A, B> {
-                    method public java.util.Map<A!,java.util.Map<B!,java.lang.String!>!>! createMap(java.util.List<A!>!) throws java.io.IOException;
+                    method public java.util.Map<A,java.util.Map<B,java.lang.String!>!>! createMap(java.util.List<A>!) throws java.io.IOException;
                   }
                   public abstract class Generics.PublicParent<A, B extends java.lang.Number> {
                     ctor public Generics.PublicParent();
-                    method protected abstract java.util.List<A!>! foo();
+                    method protected abstract java.util.List<A>! foo();
                   }
                 }
             """,
@@ -1001,7 +1000,7 @@ class StubsTest : AbstractStubsTest() {
                 public Foo() { throw new RuntimeException("Stub!"); }
                 /**
                  * Method documentation.
-                 * @see java.util.List
+                 * @see java.util.List List
                  */
                 protected static void onCreate(java.util.List<java.lang.String> parameter1) { throw new RuntimeException("Stub!"); }
                 /** My field doc */
@@ -1240,11 +1239,6 @@ class StubsTest : AbstractStubsTest() {
                     """
                     ),
                 ),
-            extraArguments =
-                arrayOf(
-                    ARG_API_CLASS_RESOLUTION,
-                    "api:classpath",
-                ),
         )
     }
 
@@ -1287,11 +1281,6 @@ class StubsTest : AbstractStubsTest() {
                     }
                     """
                     ),
-                ),
-            extraArguments =
-                arrayOf(
-                    ARG_API_CLASS_RESOLUTION,
-                    "api:classpath",
                 ),
         )
     }

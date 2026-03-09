@@ -18,7 +18,6 @@ package com.android.tools.metalava.model.type
 
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.LambdaTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
@@ -27,6 +26,7 @@ import com.android.tools.metalava.model.ReferenceTypeItem
 import com.android.tools.metalava.model.TypeArgumentTypeItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeModifiers
+import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.WildcardTypeItem
@@ -48,7 +48,6 @@ interface InternalTypeItemFactory {
 
     /** Create a [ClassTypeItem]. */
     fun createClassType(
-        classResolver: ClassResolver,
         modifiers: TypeModifiers,
         qualifiedName: String,
         arguments: List<TypeArgumentTypeItem>,
@@ -56,7 +55,6 @@ interface InternalTypeItemFactory {
         isValueClassType: Boolean = false,
     ): ClassTypeItem =
         DefaultClassTypeItem(
-            classResolver,
             modifiers,
             qualifiedName,
             arguments,
@@ -67,13 +65,12 @@ interface InternalTypeItemFactory {
     /** Create a [ClassTypeItem] for [ClassItem]. */
     fun createClassTypeForClassItem(classItem: ClassItem): ClassTypeItem {
         val arguments = classItem.typeParameterList.map { it.type() }
-        val modifiers = DefaultTypeModifiers.emptyNonNullModifiers
+        val modifiers = TypeModifiers.emptyNonNullModifiers
         return DefaultResolvedClassTypeItem(modifiers, classItem, arguments)
     }
 
     /** Create a [LambdaTypeItem]. */
     fun createLambdaType(
-        classResolver: ClassResolver,
         modifiers: TypeModifiers,
         qualifiedName: String,
         arguments: List<TypeArgumentTypeItem>,
@@ -85,7 +82,6 @@ interface InternalTypeItemFactory {
         isValueClassType: Boolean = false,
     ): LambdaTypeItem =
         DefaultLambdaTypeItem(
-            classResolver,
             modifiers,
             qualifiedName,
             arguments,
@@ -103,11 +99,17 @@ interface InternalTypeItemFactory {
         kind: Primitive,
         isValueClassType: Boolean = false,
     ): PrimitiveTypeItem =
-        DefaultPrimitiveTypeItem(
-            modifiers,
-            kind,
-            isValueClassType,
-        )
+        if (modifiers.annotations.isEmpty() && !isValueClassType) {
+            // Use one of the pre-cached instances.
+            primitiveTypes[kind.ordinal]
+        } else {
+            DefaultPrimitiveTypeItem(
+                // Force primitives to be non-null.
+                modifiers.substitute(nullability = TypeNullability.NONNULL),
+                kind,
+                isValueClassType,
+            )
+        }
 
     /** Create a [VariableTypeItem]. */
     fun createVariableType(
@@ -134,4 +136,14 @@ interface InternalTypeItemFactory {
             superBound,
             isValueClassType,
         )
+
+    companion object {
+        /** A cache of non-null [PrimitiveTypeItem]s indexed by [Primitive.ordinal]. */
+        private val primitiveTypes = run {
+            val kinds = Primitive.entries
+            Array<PrimitiveTypeItem>(kinds.size) { ordinal ->
+                DefaultPrimitiveTypeItem(TypeModifiers.emptyNonNullModifiers, kinds[ordinal])
+            }
+        }
+    }
 }

@@ -54,7 +54,6 @@ class CommonParameterizedTypeItemTest : BaseModelTest() {
         val kotlinTypeParameter: String? = null,
         val kotlinType: String,
         val expectedTypeItem: TypeItem,
-        val expectedAsClassName: String?,
         val expectedAsErasedTypeItem: TypeItem = expectedTypeItem,
     ) {
         /**
@@ -83,14 +82,12 @@ class CommonParameterizedTypeItemTest : BaseModelTest() {
                     javaType = "int",
                     kotlinType = "Int",
                     expectedTypeItem = primitiveTypeForKind(PrimitiveTypeItem.Primitive.INT),
-                    expectedAsClassName = null,
                 ),
                 TestParams(
                     javaType = "int[]",
                     kotlinType = "IntArray",
                     expectedTypeItem =
                         arrayTypeItem(primitiveTypeForKind(PrimitiveTypeItem.Primitive.INT)),
-                    expectedAsClassName = null,
                 ),
                 TestParams(
                     javaType = "test.pkg.Generic<String>",
@@ -103,7 +100,6 @@ class CommonParameterizedTypeItemTest : BaseModelTest() {
                                     classTypeItem("java.lang.String"),
                                 ),
                         ),
-                    expectedAsClassName = "test.pkg.Generic",
                     expectedAsErasedTypeItem = classTypeItem("test.pkg.Generic"),
                 ),
                 TestParams(
@@ -115,7 +111,6 @@ class CommonParameterizedTypeItemTest : BaseModelTest() {
                             arrayTypeItem(classTypeItem("java.lang.String")),
                             isVarargs = true,
                         ),
-                    expectedAsClassName = "java.lang.String",
                     expectedAsErasedTypeItem =
                         arrayTypeItem(arrayTypeItem(classTypeItem("java.lang.String"))),
                 ),
@@ -134,7 +129,6 @@ class CommonParameterizedTypeItemTest : BaseModelTest() {
                                     variableTypeItem("T"),
                                 ),
                         ),
-                    expectedAsClassName = "java.util.Map.Entry",
                     expectedAsErasedTypeItem =
                         classTypeItem(
                             "java.util.Map.Entry",
@@ -147,7 +141,6 @@ class CommonParameterizedTypeItemTest : BaseModelTest() {
                     kotlinTypeParameter = "<T>",
                     kotlinType = "T",
                     expectedTypeItem = variableTypeItem("T"),
-                    expectedAsClassName = "java.lang.Object",
                     expectedAsErasedTypeItem = classTypeItem("java.lang.Object"),
                 ),
                 TestParams(
@@ -157,7 +150,6 @@ class CommonParameterizedTypeItemTest : BaseModelTest() {
                     kotlinTypeParameter = "<T: test.pkg.Generic<T>>",
                     kotlinType = "T",
                     expectedTypeItem = variableTypeItem("T"),
-                    expectedAsClassName = "test.pkg.Generic",
                     expectedAsErasedTypeItem = classTypeItem("test.pkg.Generic"),
                 ),
                 TestParams(
@@ -166,7 +158,6 @@ class CommonParameterizedTypeItemTest : BaseModelTest() {
                     kotlinTypeParameter = "<T: test.pkg.Generic<T>>",
                     kotlinType = "Array<T>",
                     expectedTypeItem = arrayTypeItem(variableTypeItem("T")),
-                    expectedAsClassName = "test.pkg.Generic",
                     expectedAsErasedTypeItem = arrayTypeItem(classTypeItem("test.pkg.Generic")),
                 ),
                 TestParams(
@@ -182,7 +173,6 @@ class CommonParameterizedTypeItemTest : BaseModelTest() {
                                     ),
                             )
                         ),
-                    expectedAsClassName = "test.pkg.Generic",
                     expectedAsErasedTypeItem = arrayTypeItem(classTypeItem("test.pkg.Generic")),
                 ),
             )
@@ -260,13 +250,6 @@ class CommonParameterizedTypeItemTest : BaseModelTest() {
     @Test
     fun `Test type`() {
         runTypeItemTest { assertEquals(params.expectedTypeItem, typeItem) }
-    }
-
-    @Test
-    fun `Test asClass`() {
-        runTypeItemTest {
-            assertEquals(params.expectedAsClassName, typeItem.asClass()?.qualifiedName())
-        }
     }
 
     @Test

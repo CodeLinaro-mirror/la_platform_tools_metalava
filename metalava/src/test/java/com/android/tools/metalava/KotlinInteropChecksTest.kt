@@ -200,6 +200,7 @@ class KotlinInteropChecksTest : DriverTest() {
             expectedIssues =
                 """
                 src/test/pkg/Bar.kt:12: warning: A Kotlin method with default parameter values should be annotated with @JvmOverloads for better Java interoperability; see https://android.github.io/kotlin-guides/interop.html#function-overloads-for-defaults [MissingJvmstatic]
+                src/test/pkg/Bar.kt:15: warning: A Kotlin method with default parameter values should be annotated with @JvmOverloads for better Java interoperability; see https://android.github.io/kotlin-guides/interop.html#function-overloads-for-defaults [MissingJvmstatic]
                 """,
             sourceFiles =
                 arrayOf(
@@ -216,9 +217,10 @@ class KotlinInteropChecksTest : DriverTest() {
                         fun ok2(int: Int) { }
                         fun ok3(int: Int, int2: Int) { }
                         @JvmOverloads fun ok4(int: Int = 0, int2: Int = 0) { }
-                        fun error(int: Int = 0, int2: Int = 0) { }
+                        fun error1(int: Int = 0, int2: Int = 0) { }
                         fun String.ok4(int: Int = 0, int2: Int = 0) { }
                         inline fun ok5(int: Int, int2: Int) { }
+                        fun error2(int: Int = 0) = Unit
                     }
                     """
                     )

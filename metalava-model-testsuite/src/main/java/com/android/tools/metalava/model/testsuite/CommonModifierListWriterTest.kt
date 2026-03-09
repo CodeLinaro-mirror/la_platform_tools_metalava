@@ -125,11 +125,7 @@ class CommonModifierListWriterTest : BaseModelTest() {
             val testClass = codebase.assertClass("test.pkg.Test")
             val methodItem = testClass.methods().single()
 
-            // This test reveals some inconsistencies between the models in how they handle a final
-            // method in a final class. Psi ignores the `final` keyword on the method but text and
-            // turbine do not. It is not 100% clear which is the correct behavior but at the moment
-            // this treats the latter two behavior as correct.
-            assertEquals("public final", methodItem.writeKeywords())
+            assertEquals("public", methodItem.writeKeywords())
         }
     }
 

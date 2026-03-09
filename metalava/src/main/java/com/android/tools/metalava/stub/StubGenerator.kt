@@ -171,6 +171,8 @@ internal class StubGenerator(
                             ignoreEmit = true,
                         )
                     },
+                    // Include documentation if required for writing the stubs.
+                    includeDocumentation = config.stubWriterConfig.includeDocumentationInStubs,
                 )
         }
 
