@@ -159,7 +159,7 @@ class FileFormatTest {
                 }
                 """,
             expectedError =
-                "api.txt:1: Signature format error - invalid version, found '3.14', expected one of '2.0', '4.0', '5.0'",
+                "api.txt:1: Signature format error - invalid version, found '3.14', expected one of '2.0', '4.0', '5.0', '6.0'",
         )
     }
 
@@ -357,6 +357,18 @@ class FileFormatTest {
                 package fred {
             """,
             expectedFormat = FileFormat.V5.copy(kotlinStyleNulls = false),
+            expectedNextLine = "package fred {",
+        )
+    }
+
+    @Test
+    fun `Check format parsing - v6 - no properties`() {
+        checkParseHeader(
+            """
+                // Signature format: 6.0
+                package fred {
+            """,
+            expectedFormat = FileFormat.V6,
             expectedNextLine = "package fred {",
         )
     }

@@ -25,7 +25,7 @@ import org.junit.Assert.assertEquals
 fun assertSignatureFilesMatch(
     expected: String,
     actual: String,
-    expectedFormat: FileFormat = FileFormat.LATEST,
+    expectedFormat: FileFormat = FileFormat.V5,
     message: String? = null
 ) {
     val expectedPrepared = prepareSignatureFileForTest(expected, expectedFormat)

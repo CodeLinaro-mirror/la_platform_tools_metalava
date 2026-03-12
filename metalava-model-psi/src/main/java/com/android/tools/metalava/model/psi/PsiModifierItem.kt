@@ -238,11 +238,11 @@ internal object PsiModifierItem {
                 }
             }
 
-            // With K2, the source psi of a data class copy method is the primary constructor, so
-            // that gets used to determine internal visibility above. That works if the data class
-            // is annotated with @ConsistentCopyVisibility (pre Kotlin 2.3), or is not annotated
-            // with @ExposedCopyVisibility (Kotlin 2.3 or later). Otherwise, the copy method should
-            // be public. If the copy method is supposed to be internal, it will get a mangled name
+            // The source psi of a data class copy method is the primary constructor, so that gets
+            // used to determine internal visibility above. That works if the data class is
+            // annotated with @ConsistentCopyVisibility (pre Kotlin 2.3), or is not annotated with
+            // @ExposedCopyVisibility (Kotlin 2.3 or later). Otherwise, the copy method should be
+            // public. If the copy method is supposed to be internal, it will get a mangled name
             // (`copy$<module name>`), so if the name is just plain "copy", that means it should not
             // be internal. Reset the visibility to public in that case.
             if (

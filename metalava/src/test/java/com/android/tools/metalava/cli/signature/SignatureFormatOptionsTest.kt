@@ -67,6 +67,15 @@ Signature Format Output:
                                              for new empty API files (e.g. created using `touch`) while this option is
                                              used to specify the format for generating updates to the existing non-empty
                                              files.
+  --format-overrides <overrides>             Specifies overrides for format properties. Intended for use with
+                                             --use-same-format-as to change individual properties within a signature
+                                             file.
+
+                                             A comma separated list of `<property>=<value>` assignments where
+                                             `<property>` can be any property supported by signature file formats.
+
+                                             See `metalava help signature-file-formats` for more information on the
+                                             properties.
     """
         .trimIndent()
 
@@ -142,6 +151,37 @@ class SignatureFormatOptionsTest :
             """$path:1: Signature format error - invalid prefix, found '// Not a signature fi', expected '// Signature format: '""",
             e.message
         )
+    }
+
+    @Test
+    fun `--use-same-format-as with overrides`() {
+        val path =
+            source(
+                    "api.txt",
+                    """
+                        // Signature format: 5.0
+                        // - add-additional-overrides=no
+                    """
+                        .trimIndent()
+                )
+                .toFile()
+        runTest(
+            "--use-same-format-as",
+            path.path,
+            "--format-overrides",
+            "add-additional-overrides=yes,name=fred,surface=public"
+        ) {
+            assertEquals(
+                """
+                    // Signature format: 5.0
+                    // - name=fred
+                    // - surface=public
+                    // - add-additional-overrides=yes
+                """
+                    .trimIndent(),
+                options.fileFormat.header().trim()
+            )
+        }
     }
 
     @Test
@@ -366,6 +406,28 @@ class SignatureFormatOptionsTest :
             assertEquals(
                 """Invalid value for "--format": invalid format specifier: '5.0:kotlin-style-nulls=no,include-default-parameter-values=no,migrating=See b/295577788' - must not contain a 'migrating' property""",
                 stderr
+            )
+        }
+    }
+
+    @Test
+    fun `--format with overrides`() {
+        runTest(
+            "--format",
+            "5.0:kotlin-style-nulls=no,include-default-parameter-values=no",
+            "--format-overrides",
+            "name=fred,surface=public,kotlin-style-nulls=yes",
+            optionGroup = SignatureFormatOptions(migratingAllowed = false),
+        ) {
+            assertEquals(
+                """
+                    // Signature format: 5.0
+                    // - name=fred
+                    // - surface=public
+                    // - include-default-parameter-values=no
+                """
+                    .trimIndent(),
+                options.fileFormat.header().trim()
             )
         }
     }

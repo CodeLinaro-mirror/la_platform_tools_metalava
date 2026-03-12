@@ -118,6 +118,27 @@ class SignatureFormatOptions(
                 file?.reader(Charsets.UTF_8)?.use { FileFormat.parseHeader(file.toPath(), it) }
             }
 
+    private val formatOverrides by
+        option(
+            "--format-overrides",
+            metavar = "<overrides>",
+            help =
+                """
+                    Specifies overrides for format properties. Intended for use with
+                    $ARG_USE_SAME_FORMAT_AS to change individual properties within a signature file.
+
+                    A comma separated list of `<property>=<value>` assignments where `<property>`
+                    can be any property supported by signature file formats.
+
+                    See `metalava help signature-file-formats` for more information on the
+                    properties.
+                """,
+        )
+
+    /** Apply optional overrides specified in [formatOverrides] to [base]. */
+    private fun applyOverridesTo(base: FileFormat) =
+        formatOverrides?.let { overrides -> FileFormat.parseOverrides(base, overrides) } ?: base
+
     /**
      * The [FileFormat] produced by merging all the format related options into one cohesive set of
      * format related properties. It combines the defaults
@@ -128,7 +149,10 @@ class SignatureFormatOptions(
             // fall back to the other options.
             val format = useSameFormatAs ?: formatSpecifier
 
-            // Apply any additional overrides.
-            formatDefaults?.let { format.copy(formatDefaults = it) } ?: format
+            // Apply any overrides.
+            val withOverrides = applyOverridesTo(format)
+
+            // Apply any additional defaults.
+            formatDefaults?.let { withOverrides.copy(formatDefaults = it) } ?: withOverrides
         }
 }
