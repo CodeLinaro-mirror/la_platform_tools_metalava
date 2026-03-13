@@ -23,7 +23,6 @@ import org.jetbrains.kotlin.analysis.api.symbols.KaFunctionSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaNamedFunctionSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaParameterSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaValueParameterSymbol
-import org.jetbrains.kotlin.psi.KtClass
 import org.jetbrains.kotlin.psi.KtFunction
 import org.jetbrains.kotlin.psi.KtPrimaryConstructor
 import org.jetbrains.kotlin.psi.psiUtil.containingClass
@@ -63,10 +62,9 @@ internal object PsiParameterDefaultValue {
     /** Returns whether the [uMethod] is the generated copy function of a data class. */
     private fun isDataClassCopyMethod(uMethod: UMethod?): Boolean {
         if (uMethod?.name != "copy") return false
-        // The source psi for the generated copy function is the constructor for K2, the class for
-        // K1 (for a copy method defined in source, the psi would be the source method).
+        // The source psi for the generated copy function is the constructor (for a copy method
+        // defined in source, the psi would be the source method).
         return when (val sourcePsi = uMethod.sourcePsi) {
-            is KtClass -> sourcePsi.isData()
             is KtPrimaryConstructor -> sourcePsi.containingClass()?.isData() ?: false
             else -> false
         }
