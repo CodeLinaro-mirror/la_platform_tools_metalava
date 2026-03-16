@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.psi
 
+import com.android.tools.metalava.model.KOTLIN_CONTINUATION
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.psi.kotlin.KaTypeItemFactory
 import com.android.tools.metalava.model.psi.kotlin.KaTypeItemFactory.Companion.typeNullability
@@ -25,6 +26,8 @@ import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.analysis.api.symbols.KaNamedClassSymbol
 import org.jetbrains.kotlin.analysis.api.types.KaClassType
 import org.jetbrains.kotlin.analysis.api.types.KaType
+import org.jetbrains.kotlin.name.ClassId
+import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.psi.KtCallableDeclaration
 import org.jetbrains.kotlin.psi.KtClass
 import org.jetbrains.kotlin.psi.KtElement
@@ -315,26 +318,25 @@ private constructor(
 
         /**
          * Create a [KotlinTypeInfo] that represents the continuation parameter of a `suspend`
-         * function with [returnKtType].
-         *
-         * Ideally, this would create a [KtNonErrorClassType] for `Continuation<$returnType$>`,
-         * where `$returnType$` is the return type of the Kotlin suspend function but while that
-         * works in K2 it fails in K1 as it cannot resolve the `Continuation` type even though it is
-         * in the Kotlin stdlib which will be on the classpath.
-         *
-         * Fortunately, doing that is not strictly necessary as the [KtType] is only used to
-         * retrieve nullability for the `Continuation` type and its type argument. So, this uses
-         * non-nullable [Any] as the fake type for `Continuation` (as that is always non-nullable)
-         * and stores the suspend function's return type in [KotlinTypeInfo.overrideTypeArguments]
-         * from where it will be retrieved.
+         * function with [returnKtType] (`Continuation<$returnType$>`)
          */
         internal fun KaSession.syntheticContinuationParameter(
             context: PsiElement,
             returnKtType: KaType
         ): KotlinTypeInfo {
-            val returnTypeInfo = KotlinTypeInfo(this, returnKtType, context)
-            val fakeContinuationKtType = builtinTypes.any
-            return KotlinTypeInfo(this, fakeContinuationKtType, context, listOf(returnTypeInfo))
+            val continuationKaType = buildClassType(continuationClassId) { argument(returnKtType) }
+            return KotlinTypeInfo(this, continuationKaType, context)
+        }
+
+        /**
+         * The [ClassId] of the Kotlin `Continuation` class, used by
+         * [syntheticContinuationParameter].
+         */
+        private val continuationClassId by lazy {
+            val continuationFqName = FqName(KOTLIN_CONTINUATION)
+            val continuationPackageFqName = continuationFqName.parent()
+            val continuationClassName = continuationFqName.shortName()
+            ClassId(continuationPackageFqName, continuationClassName)
         }
 
         /** Try and get the type for [parameterIndex] in [containingMethod] from the [ktClass]. */

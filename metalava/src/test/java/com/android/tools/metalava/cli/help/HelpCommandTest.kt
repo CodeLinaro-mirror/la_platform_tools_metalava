@@ -149,6 +149,18 @@ Usage: metalava help signature-file-formats
   * `5.0` - This is the first version that has full support for properties in the signature header. As such it does not
   add any new defaults to `4.0`. The intent is that properties will be explicitly defined in the signature file avoiding
   reliance on version specific defaults.
+
+  * `6.0` - Provides support for sealed and record classes.
+
+  Also, provides defaults for lots of formatting properties to ensure consistent formatting. This is `5.0` plus the
+  following properties:
+
+  + add-additional-overrides = yes
+  + normalize-final-modifier = yes
+  + overloaded-method-order = signature
+  + sort-whole-extends-list = yes
+  + strip-java-lang-prefix = always
+  + type-argument-spacing = space
                 """
                     .trimIndent()
         }
