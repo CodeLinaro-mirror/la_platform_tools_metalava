@@ -465,6 +465,9 @@ internal class KaTypeItemFactory(
                         recursivelyInlinedType
                     }
                 }
+            } else if (type.toTypeString() == "kotlin.ULong" && type.modifiers.isNonNull) {
+                // Even though ULong is a value class type, it doesn't appear as one when using K1
+                TypeItem.createPrimitiveType(type.modifiers, PrimitiveTypeItem.Primitive.LONG)
             } else {
                 type
             }

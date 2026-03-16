@@ -16,7 +16,9 @@
 
 package com.android.tools.metalava.model.testsuite.typeitem
 
+import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.WildcardTypeItem
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.createAndroidModuleDescription
 import com.android.tools.metalava.testing.createCommonModuleDescription
@@ -110,6 +112,19 @@ class CommonTypeAliasTest : BaseModelTest() {
         }
     }
 
+    /**
+     * Asserts that [typeItem] is either a [ClassTypeItem] or a [WildcardTypeItem]. Returns the
+     * [ClassTypeItem] or the extends bound of the [WildcardTypeItem].
+     *
+     * This is to be used when there are K1/K2 differences between when type arguments end up as
+     * wildcards or plain usages of a type.
+     */
+    private fun getClassOrWildcardExtendsBound(typeItem: TypeItem): TypeItem {
+        return typeItem as? ClassTypeItem
+            ?: (typeItem as? WildcardTypeItem)?.extendsBound
+            ?: error("expected class type or wildcard type with extends bound, was $typeItem")
+    }
+
     @Test
     fun `Test usage of simple typealias expect actual`() {
         checkExpectActualTypealias(
@@ -156,7 +171,7 @@ class CommonTypeAliasTest : BaseModelTest() {
             it.assertClassTypeItem {
                 assertThat(qualifiedName).isEqualTo("java.util.List")
                 assertThat(modifiers.isNullable).isFalse()
-                val stringType = arguments.single()
+                val stringType = getClassOrWildcardExtendsBound(arguments.single())
                 assertThat(stringType.isString()).isTrue()
                 assertThat(stringType.modifiers.isNullable).isFalse()
             }
@@ -173,7 +188,7 @@ class CommonTypeAliasTest : BaseModelTest() {
             it.assertClassTypeItem {
                 assertThat(qualifiedName).isEqualTo("java.util.List")
                 assertThat(modifiers.isNullable).isFalse()
-                val stringType = arguments.single()
+                val stringType = getClassOrWildcardExtendsBound(arguments.single())
                 assertThat(stringType.isString()).isTrue()
                 assertThat(stringType.modifiers.isNullable).isTrue()
             }
@@ -190,7 +205,7 @@ class CommonTypeAliasTest : BaseModelTest() {
             it.assertClassTypeItem {
                 assertThat(qualifiedName).isEqualTo("java.util.List")
                 assertThat(modifiers.isNullable).isFalse()
-                val stringType = arguments.single()
+                val stringType = getClassOrWildcardExtendsBound(arguments.single())
                 assertThat(stringType.isString()).isTrue()
                 assertThat(stringType.modifiers.isNullable).isTrue()
             }
@@ -223,11 +238,11 @@ class CommonTypeAliasTest : BaseModelTest() {
                 assertThat(qualifiedName).isEqualTo("java.util.Map")
                 assertThat(modifiers.isNullable).isFalse()
                 assertThat(arguments).hasSize(2)
-                arguments[0].assertClassTypeItem {
+                getClassOrWildcardExtendsBound(arguments[0]).assertClassTypeItem {
                     assertThat(qualifiedName).isEqualTo("java.lang.Number")
                     assertThat(modifiers.isNullable).isFalse()
                 }
-                arguments[1].assertClassTypeItem {
+                getClassOrWildcardExtendsBound(arguments[1]).assertClassTypeItem {
                     assertThat(qualifiedName).isEqualTo("java.lang.String")
                     assertThat(modifiers.isNullable).isFalse()
                 }

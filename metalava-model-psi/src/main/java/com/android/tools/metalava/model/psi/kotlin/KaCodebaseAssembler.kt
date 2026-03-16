@@ -437,7 +437,12 @@ private constructor(
             processConstructor(constructorSymbol, classItem, classTypeItemFactory)
         }
         for (callableSymbol in filterExpects(memberScope.callables)) {
-            processCallable(callableSymbol, classItem, classTypeItemFactory)
+            // K1 includes delegate symbols in the combinedDeclaredMemberScope, K2 does not.
+            // Don't add delegate symbols here because they're processed from the
+            // delegatedMemberScope below, and they shouldn't be duplicated for K1.
+            if (callableSymbol.origin != KaSymbolOrigin.DELEGATED) {
+                processCallable(callableSymbol, classItem, classTypeItemFactory)
+            }
         }
         for (nestedClassifierSymbol in
             memberScope.classifiers.filterIsInstance<KaNamedClassSymbol>()) {
@@ -888,12 +893,6 @@ private constructor(
                         addingToPsiCodebase,
                     )
                 for (property in properties) {
-                    // There might be properties included on the class with a signature from a
-                    // parent. Skip these, which can be created through the parent class.
-                    val callableId = property.callableId ?: continue
-                    val containingClassForProperty =
-                        callableId.packageName.asString() + "." + callableId.className?.asString()
-                    if (containingClassForProperty != classItem.qualifiedName()) continue
                     processProperty(property, classItem, typeItemFactory)
                 }
             }

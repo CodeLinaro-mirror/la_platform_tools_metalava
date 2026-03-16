@@ -22,11 +22,20 @@ import com.android.tools.metalava.cli.common.newOrExistingFile
 import com.android.tools.metalava.cli.common.stderr
 import com.android.tools.metalava.cli.common.stdin
 import com.android.tools.metalava.cli.common.stdout
+import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.text.ApiFile
+import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.SignatureFile
+import com.android.tools.metalava.model.text.SignatureWriter
+import com.android.tools.metalava.model.text.createFilteringVisitorForSignatures
+import com.android.tools.metalava.model.visitors.ApiPredicate
+import com.android.tools.metalava.model.visitors.ApiType
+import com.android.tools.metalava.reporter.BasicReporter
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.arguments.multiple
 import com.github.ajalt.clikt.parameters.groups.provideDelegate
 import com.github.ajalt.clikt.parameters.options.option
+import java.io.PrintWriter
 
 class SignatureCatCommand :
     MetalavaSubCommand(
@@ -80,9 +89,39 @@ class SignatureCatCommand :
                 SignatureFile.fromFiles(files)
             }
 
-        val codebase = readSignatureFiles(signatureFiles, stderr)
+        val codebase = read(signatureFiles)
         (outputFile?.printWriter() ?: stdout).use { outputWriter ->
-            writeSignatureFile(codebase, outputFormat, outputWriter)
+            write(codebase, outputFormat, outputWriter)
         }
+    }
+
+    private fun read(signatureFiles: List<SignatureFile>) =
+        ApiFile.parseApi(
+            signatureFiles,
+            Codebase.Config(
+                reporter = BasicReporter(stderr),
+            ),
+        )
+
+    private fun write(codebase: Codebase, outputFormat: FileFormat, printWriter: PrintWriter) {
+        val signatureWriter =
+            SignatureWriter(
+                writer = printWriter,
+                fileFormat = outputFormat,
+            )
+
+        // Create a visitor suitable for writing signatures. It will ensure correct ordering for
+        // signature files for the outputFormat.
+        val apiWriter =
+            createFilteringVisitorForSignatures(
+                delegate = signatureWriter,
+                fileFormat = outputFormat,
+                apiType = ApiType.ALL,
+                preFiltered = true,
+                showUnannotated = true,
+                apiPredicateConfig = ApiPredicate.Config(),
+            )
+
+        codebase.accept(apiWriter)
     }
 }
