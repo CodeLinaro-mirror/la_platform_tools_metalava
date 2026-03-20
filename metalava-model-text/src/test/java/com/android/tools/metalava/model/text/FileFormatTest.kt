@@ -17,6 +17,16 @@
 package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.StripJavaLangPrefix
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.INCLUDE_DEFAULT_PARAMETER_VALUES
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.INCLUDE_TYPE_USE_ANNOTATIONS
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.KOTLIN_NAME_TYPE_ORDER
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.KOTLIN_STYLE_NULLS
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.LANGUAGE
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.MIGRATING
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.NAME
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.OVERLOADED_METHOD_ORDER
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.STRIP_JAVA_LANG_PREFIX
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.SURFACE
 import java.io.LineNumberReader
 import java.io.StringReader
 import java.nio.file.Path
@@ -28,6 +38,7 @@ import org.junit.Test
 val DEFAULTABLE_PROPERTY_NAMES =
     listOf(
         "add-additional-overrides",
+        "normalize-abstract-modifier",
         "normalize-final-modifier",
         "overloaded-method-order",
         "sort-whole-extends-list",
@@ -117,7 +128,7 @@ class FileFormatTest {
     }
 
     @Test
-    fun `Check format parsing (v1)`() {
+    fun `Check format parsing - v1`() {
         checkParseHeader(
             """
                 package test.pkg {
@@ -132,7 +143,7 @@ class FileFormatTest {
     }
 
     @Test
-    fun `Check format parsing (v1 + legacy format)`() {
+    fun `Check format parsing - v1 + legacy format`() {
         checkParseHeader(
             """
                 package test.pkg {
@@ -148,7 +159,7 @@ class FileFormatTest {
     }
 
     @Test
-    fun `Check format parsing (unknown version)`() {
+    fun `Check format parsing - unknown version`() {
         checkParseHeader(
             """
                 // Signature format: 3.14
@@ -164,7 +175,7 @@ class FileFormatTest {
     }
 
     @Test
-    fun `Check format parsing (v2)`() {
+    fun `Check format parsing - v2`() {
         checkParseHeader(
             """
                 // Signature format: 2.0
@@ -181,7 +192,7 @@ class FileFormatTest {
     }
 
     @Test
-    fun `Check format parsing (v4)`() {
+    fun `Check format parsing - v4`() {
         checkParseHeader(
             """
                 // Signature format: 4.0
@@ -197,7 +208,7 @@ class FileFormatTest {
     }
 
     @Test
-    fun `Check format parsing (v2 non-unix newlines)`() {
+    fun `Check format parsing - v2 non-unix newlines`() {
         checkParseHeader(
             "" +
                 "// Signature format: 2.0\r\n" +
@@ -213,7 +224,7 @@ class FileFormatTest {
     }
 
     @Test
-    fun `Check format parsing, shortened prefix (v2 non-unix newlines)`() {
+    fun `Check format parsing, shortened prefix - v2 non-unix newlines`() {
         checkParseHeader(
             "" +
                 "// Signature for\r\n" +
@@ -229,7 +240,7 @@ class FileFormatTest {
     }
 
     @Test
-    fun `Check format parsing (invalid)`() {
+    fun `Check format parsing - invalid`() {
         checkParseHeader(
             """
                 blah blah
@@ -240,12 +251,12 @@ class FileFormatTest {
     }
 
     @Test
-    fun `Check format parsing (blank)`() {
+    fun `Check format parsing - blank`() {
         checkParseHeader("")
     }
 
     @Test
-    fun `Check format parsing (blank - multiple lines)`() {
+    fun `Check format parsing - blank - multiple lines`() {
         checkParseHeader(
             """
 
@@ -256,7 +267,7 @@ class FileFormatTest {
     }
 
     @Test
-    fun `Check format parsing (not blank, multiple lines of white space, then some text)`() {
+    fun `Check format parsing - not blank, multiple lines of white space, then some text`() {
         checkParseHeader(
             """
 
@@ -269,7 +280,7 @@ class FileFormatTest {
     }
 
     @Test
-    fun `Check format parsing (v4 + kotlin-style-nulls=no but no migrating)`() {
+    fun `Check format parsing - v4 + kotlin-style-nulls=no but no migrating`() {
         checkParseHeader(
             """
                 // Signature format: 4.0
@@ -281,7 +292,7 @@ class FileFormatTest {
     }
 
     @Test
-    fun `Check header and specifier (v4 + kotlin-style-nulls=no,migrating=test)`() {
+    fun `Check header and specifier - v4 + kotlin-style-nulls=no,migrating=test`() {
         headerAndSpecifierTest(
             header =
                 """
@@ -291,12 +302,16 @@ class FileFormatTest {
 
             """,
             specifier = "4.0:kotlin-style-nulls=no,migrating=test",
-            format = FileFormat.V4.copy(kotlinStyleNulls = false, migrating = "test"),
+            format =
+                FileFormat.V4.buildCopy {
+                    this[KOTLIN_STYLE_NULLS] = false
+                    this[MIGRATING] = "test"
+                },
         )
     }
 
     @Test
-    fun `Check header and specifier (v2 + kotlin-style-nulls=yes,migrating=test)`() {
+    fun `Check header and specifier - v2 + kotlin-style-nulls=yes,migrating=test`() {
         headerAndSpecifierTest(
             header =
                 """
@@ -306,12 +321,16 @@ class FileFormatTest {
 
             """,
             specifier = "2.0:kotlin-style-nulls=yes,migrating=test",
-            format = FileFormat.V2.copy(kotlinStyleNulls = true, migrating = "test"),
+            format =
+                FileFormat.V2.buildCopy {
+                    this[KOTLIN_STYLE_NULLS] = true
+                    this[MIGRATING] = "test"
+                },
         )
     }
 
     @Test
-    fun `Check header and specifier (v5)`() {
+    fun `Check header and specifier - v5`() {
         headerAndSpecifierTest(
             header =
                 """
@@ -324,7 +343,7 @@ class FileFormatTest {
     }
 
     @Test
-    fun `Check format parsing (v5) - no properties with package`() {
+    fun `Check format parsing - v5 - no properties with package`() {
         checkParseHeader(
             """
                 // Signature format: 5.0
@@ -336,7 +355,7 @@ class FileFormatTest {
     }
 
     @Test
-    fun `Check format parsing (v5) - invalid property`() {
+    fun `Check format parsing - v5 - invalid property`() {
         checkParseHeader(
             """
                 // Signature format: 5.0
@@ -349,14 +368,14 @@ class FileFormatTest {
     }
 
     @Test
-    fun `Check format parsing (v5) - kotlin-style-nulls property`() {
+    fun `Check format parsing - v5 - kotlin-style-nulls property`() {
         checkParseHeader(
             """
                 // Signature format: 5.0
                 // - kotlin-style-nulls=no
                 package fred {
             """,
-            expectedFormat = FileFormat.V5.copy(kotlinStyleNulls = false),
+            expectedFormat = FileFormat.V5.buildCopy { this[KOTLIN_STYLE_NULLS] = false },
             expectedNextLine = "package fred {",
         )
     }
@@ -374,7 +393,7 @@ class FileFormatTest {
     }
 
     @Test
-    fun `Check header and specifier (v2)`() {
+    fun `Check header and specifier - v2`() {
         headerAndSpecifierTest(
             header =
                 """
@@ -387,7 +406,7 @@ class FileFormatTest {
     }
 
     @Test
-    fun `Check header and specifier (v2 + kotlin-style-nulls=yes + migrating=test)`() {
+    fun `Check header and specifier - v2 + kotlin-style-nulls=yes + migrating=test`() {
         headerAndSpecifierTest(
             header =
                 """
@@ -397,12 +416,16 @@ class FileFormatTest {
 
             """,
             specifier = "2.0:kotlin-style-nulls=yes,migrating=test",
-            format = FileFormat.V2.copy(kotlinStyleNulls = true, migrating = "test")
+            format =
+                FileFormat.V2.buildCopy {
+                    this[KOTLIN_STYLE_NULLS] = true
+                    this[MIGRATING] = "test"
+                }
         )
     }
 
     @Test
-    fun `Check header and specifier (v4 + kotlin-style-nulls=no)`() {
+    fun `Check header and specifier - v4 + kotlin-style-nulls=no`() {
         headerAndSpecifierTest(
             header =
                 """
@@ -412,18 +435,22 @@ class FileFormatTest {
 
             """,
             specifier = "4.0:kotlin-style-nulls=no,migrating=test",
-            format = FileFormat.V4.copy(kotlinStyleNulls = false, migrating = "test"),
+            format =
+                FileFormat.V4.buildCopy {
+                    this[KOTLIN_STYLE_NULLS] = false
+                    this[MIGRATING] = "test"
+                },
         )
     }
 
     @Test
-    fun `Check header (v2 + overloaded-method-order=source but no migrating)`() {
+    fun `Check header - v2 + overloaded-method-order=source but no migrating`() {
         assertEquals(
             // The full specifier is only output when migrating is specified.
             "// Signature format: 2.0\n",
-            FileFormat.V2.copy(
-                    specifiedOverloadedMethodOrder = FileFormat.OverloadedMethodOrder.SOURCE,
-                )
+            FileFormat.V2.buildCopy {
+                    this[OVERLOADED_METHOD_ORDER] = FileFormat.OverloadedMethodOrder.SOURCE
+                }
                 .header()
         )
     }
@@ -432,7 +459,7 @@ class FileFormatTest {
     fun `Check no ',' in migrating`() {
         val e =
             assertThrows(IllegalStateException::class.java) {
-                @Suppress("UnusedDataClassCopyResult") FileFormat.V2.copy(migrating = "a,b")
+                FileFormat.V2.buildCopy { this[MIGRATING] = "a,b" }
             }
         assertEquals(
             """invalid value for property 'migrating': 'a,b' contains at least one invalid character from the set {',', '\n'}""",
@@ -441,7 +468,7 @@ class FileFormatTest {
     }
 
     @Test
-    fun `Check header and specifier (v5 + overloaded-method-order=source)`() {
+    fun `Check header and specifier - v5 + overloaded-method-order=source`() {
         headerAndSpecifierTest(
             header =
                 """
@@ -451,14 +478,14 @@ class FileFormatTest {
             """,
             specifier = "5.0:overloaded-method-order=source",
             format =
-                FileFormat.V5.copy(
-                    specifiedOverloadedMethodOrder = FileFormat.OverloadedMethodOrder.SOURCE,
-                ),
+                FileFormat.V5.buildCopy {
+                    this[OVERLOADED_METHOD_ORDER] = FileFormat.OverloadedMethodOrder.SOURCE
+                },
         )
     }
 
     @Test
-    fun `Check header and specifier (v5 + overloaded-method-order=source,migrating=test)`() {
+    fun `Check header and specifier - v5 + overloaded-method-order=source,migrating=test`() {
         headerAndSpecifierTest(
             header =
                 """
@@ -469,15 +496,15 @@ class FileFormatTest {
             """,
             specifier = "5.0:migrating=test,overloaded-method-order=source",
             format =
-                FileFormat.V5.copy(
-                    specifiedOverloadedMethodOrder = FileFormat.OverloadedMethodOrder.SOURCE,
-                    migrating = "test",
-                ),
+                FileFormat.V5.buildCopy {
+                    this[OVERLOADED_METHOD_ORDER] = FileFormat.OverloadedMethodOrder.SOURCE
+                    this[MIGRATING] = "test"
+                },
         )
     }
 
     @Test
-    fun `Check header and specifier (v5 + strip-java-lang-prefix=always)`() {
+    fun `Check header and specifier - v5 + strip-java-lang-prefix=always`() {
         headerAndSpecifierTest(
             header =
                 """
@@ -488,15 +515,15 @@ class FileFormatTest {
                 """,
             specifier = "5.0:migrating=test,strip-java-lang-prefix=always",
             format =
-                FileFormat.V5.copy(
-                    specifiedStripJavaLangPrefix = StripJavaLangPrefix.ALWAYS,
-                    migrating = "test",
-                ),
+                FileFormat.V5.buildCopy {
+                    this[STRIP_JAVA_LANG_PREFIX] = StripJavaLangPrefix.ALWAYS
+                    this[MIGRATING] = "test"
+                },
         )
     }
 
     @Test
-    fun `Check header and specifier (v5 + language=java)`() {
+    fun `Check header and specifier - v5 + language=java`() {
         headerAndSpecifierTest(
             header =
                 """
@@ -506,16 +533,16 @@ class FileFormatTest {
             """,
             specifier = "5.0:language=java",
             format =
-                FileFormat.V5.copy(
-                    language = FileFormat.Language.JAVA,
-                    includeDefaultParameterValues = false,
-                    kotlinStyleNulls = false,
-                ),
+                FileFormat.V5.buildCopy {
+                    this[LANGUAGE] = FileFormat.Language.JAVA
+                    this[INCLUDE_DEFAULT_PARAMETER_VALUES] = false
+                    this[KOTLIN_STYLE_NULLS] = false
+                },
         )
     }
 
     @Test
-    fun `Check header and specifier (v5 + kotlin-style-nulls=yes,language=java)`() {
+    fun `Check header and specifier - v5 + kotlin-style-nulls=yes,language=java`() {
         headerAndSpecifierTest(
             header =
                 """
@@ -526,16 +553,16 @@ class FileFormatTest {
             """,
             specifier = "5.0:language=java,kotlin-style-nulls=yes",
             format =
-                FileFormat.V5.copy(
-                    language = FileFormat.Language.JAVA,
-                    includeDefaultParameterValues = false,
-                    kotlinStyleNulls = true,
-                ),
+                FileFormat.V5.buildCopy {
+                    this[LANGUAGE] = FileFormat.Language.JAVA
+                    this[INCLUDE_DEFAULT_PARAMETER_VALUES] = false
+                    this[KOTLIN_STYLE_NULLS] = true
+                },
         )
     }
 
     @Test
-    fun `Check header and specifier (v5 + language=kotlin)`() {
+    fun `Check header and specifier - v5 + language=kotlin`() {
         headerAndSpecifierTest(
             header =
                 """
@@ -544,15 +571,12 @@ class FileFormatTest {
 
             """,
             specifier = "5.0:language=kotlin",
-            format =
-                FileFormat.V5.copy(
-                    language = FileFormat.Language.KOTLIN,
-                ),
+            format = FileFormat.V5.buildCopy { this[LANGUAGE] = FileFormat.Language.KOTLIN },
         )
     }
 
     @Test
-    fun `Check header and specifier (v5 + include-default-parameter-values=no,language=kotlin)`() {
+    fun `Check header and specifier - v5 + include-default-parameter-values=no,language=kotlin`() {
         headerAndSpecifierTest(
             header =
                 """
@@ -563,15 +587,15 @@ class FileFormatTest {
             """,
             specifier = "5.0:language=kotlin,include-default-parameter-values=no",
             format =
-                FileFormat.V5.copy(
-                    language = FileFormat.Language.KOTLIN,
-                    includeDefaultParameterValues = false,
-                ),
+                FileFormat.V5.buildCopy {
+                    this[LANGUAGE] = FileFormat.Language.KOTLIN
+                    this[INCLUDE_DEFAULT_PARAMETER_VALUES] = false
+                },
         )
     }
 
     @Test
-    fun `Check header and specifier (v5 + kotlinNameTypeOrder=yes)`() {
+    fun `Check header and specifier - v5 + kotlinNameTypeOrder=yes`() {
         headerAndSpecifierTest(
             header =
                 """
@@ -580,15 +604,12 @@ class FileFormatTest {
 
             """,
             specifier = "5.0:kotlin-name-type-order=yes",
-            format =
-                FileFormat.V5.copy(
-                    kotlinNameTypeOrder = true,
-                ),
+            format = FileFormat.V5.buildCopy { this[KOTLIN_NAME_TYPE_ORDER] = true },
         )
     }
 
     @Test
-    fun `Check header and specifier (v5 + kotlin-name-type-order=yes,kotlin-name-type-order=yes)`() {
+    fun `Check header and specifier - v5 + include-type-use-annotations=yes,kotlin-name-type-order=yes`() {
         headerAndSpecifierTest(
             header =
                 """
@@ -599,7 +620,10 @@ class FileFormatTest {
             """,
             specifier = "5.0:include-type-use-annotations=yes,kotlin-name-type-order=yes",
             format =
-                FileFormat.V5.copy(kotlinNameTypeOrder = true, includeTypeUseAnnotations = true),
+                FileFormat.V5.buildCopy {
+                    this[INCLUDE_TYPE_USE_ANNOTATIONS] = true
+                    this[KOTLIN_NAME_TYPE_ORDER] = true
+                },
         )
     }
 
@@ -633,17 +657,14 @@ class FileFormatTest {
 
             """,
                 specifier = "5.0:name=$name",
-                format =
-                    FileFormat.V5.copy(
-                        name = name,
-                    ),
+                format = FileFormat.V5.buildCopy { this[NAME] = name },
             )
         }
 
         fun checkInvalidName(name: String) {
             val e =
                 assertThrows(IllegalStateException::class.java) {
-                    @Suppress("UnusedDataClassCopyResult") FileFormat.V5.copy(name = name)
+                    FileFormat.V5.buildCopy { this[NAME] = name }
                 }
 
             assertEquals(
@@ -675,17 +696,14 @@ class FileFormatTest {
 
             """,
                 specifier = "5.0:surface=$surface",
-                format =
-                    FileFormat.V5.copy(
-                        surface = surface,
-                    ),
+                format = FileFormat.V5.buildCopy { this[SURFACE] = surface },
             )
         }
 
         fun checkInvalidSurface(surface: String) {
             val e =
                 assertThrows(IllegalStateException::class.java) {
-                    @Suppress("UnusedDataClassCopyResult") FileFormat.V5.copy(surface = surface)
+                    FileFormat.V5.buildCopy { this[SURFACE] = surface }
                 }
 
             assertEquals(
@@ -714,10 +732,7 @@ class FileFormatTest {
     @Test
     fun `Check parseDefaults overloaded-method-order=source`() {
         val defaults = FileFormat.parseDefaults("overloaded-method-order=source")
-        assertEquals(
-            FileFormat.OverloadedMethodOrder.SOURCE,
-            defaults.specifiedOverloadedMethodOrder
-        )
+        assertEquals(FileFormat.OverloadedMethodOrder.SOURCE, defaults[OVERLOADED_METHOD_ORDER])
     }
 
     @Test
@@ -755,5 +770,70 @@ class FileFormatTest {
             format.header()
         )
         assertEquals("5.0", format.specifier())
+    }
+
+    @Test
+    fun `Check get does not apply defaults`() {
+        val formatDefaults = FileFormat.parseDefaults("strip-java-lang-prefix=never")
+        val format =
+            FileFormat.V2.copy(formatDefaults = formatDefaults).buildCopy {
+                this[INCLUDE_DEFAULT_PARAMETER_VALUES] = true
+            }
+
+        val properties = buildString {
+            for (property in CustomizableProperty.entries) {
+                val value = format.getAsString(property)
+                if (value != null) {
+                    append(property.propertyName)
+                    append("=")
+                    append(value)
+                    append("\n")
+                }
+            }
+        }
+
+        assertEquals(
+            """
+                include-default-parameter-values=yes
+            """
+                .trimIndent(),
+            properties.trim()
+        )
+    }
+
+    @Test
+    fun `Check getWithDefault applies defaults`() {
+        val formatDefaults = FileFormat.parseDefaults("strip-java-lang-prefix=never")
+        val format = FileFormat.V2.copy(formatDefaults = formatDefaults)
+
+        val properties = buildString {
+            for (property in CustomizableProperty.entries) {
+                val value = format.getWithDefault(property)
+                if (value != null) {
+                    append(property.propertyName)
+                    append("=")
+                    append(value)
+                    append("\n")
+                }
+            }
+        }
+
+        assertEquals(
+            """
+                add-additional-overrides=no
+                include-default-parameter-values=no
+                include-type-use-annotations=no
+                kotlin-name-type-order=no
+                kotlin-style-nulls=no
+                normalize-abstract-modifier=no
+                normalize-final-modifier=no
+                overloaded-method-order=signature
+                sort-whole-extends-list=no
+                strip-java-lang-prefix=never
+                type-argument-spacing=legacy
+            """
+                .trimIndent(),
+            properties.trim()
+        )
     }
 }

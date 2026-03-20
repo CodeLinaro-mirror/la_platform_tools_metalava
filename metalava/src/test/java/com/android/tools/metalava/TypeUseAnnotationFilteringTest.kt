@@ -17,6 +17,8 @@
 package com.android.tools.metalava
 
 import com.android.tools.lint.checks.infrastructure.TestFile
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.INCLUDE_TYPE_USE_ANNOTATIONS
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.KOTLIN_NAME_TYPE_ORDER
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
@@ -31,10 +33,10 @@ class TypeUseAnnotationFilteringTest : DriverTest() {
     ) {
         check(
             format =
-                FileFormat.V5.copy(
-                    kotlinNameTypeOrder = true,
-                    includeTypeUseAnnotations = true,
-                ),
+                FileFormat.V5.buildCopy {
+                    this[INCLUDE_TYPE_USE_ANNOTATIONS] = true
+                    this[KOTLIN_NAME_TYPE_ORDER] = true
+                },
             sourceFiles =
                 arrayOf(
                     KnownSourceFiles.nonNullSource,

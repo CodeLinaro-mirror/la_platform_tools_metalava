@@ -64,6 +64,9 @@ class SignatureFormatOptions(
             )
             .convert { defaults -> FileFormat.parseDefaults(defaults) }
 
+    /** Apply optional defaults specified in [formatDefaults] to [base]. */
+    fun applyDefaultsTo(base: FileFormat) = base.copy(formatDefaults = formatDefaults)
+
     /** The output format version being used */
     private val formatSpecifier by
         option(
@@ -153,6 +156,6 @@ class SignatureFormatOptions(
             val withOverrides = applyOverridesTo(format)
 
             // Apply any additional defaults.
-            formatDefaults?.let { withOverrides.copy(formatDefaults = it) } ?: withOverrides
+            applyDefaultsTo(withOverrides)
         }
 }

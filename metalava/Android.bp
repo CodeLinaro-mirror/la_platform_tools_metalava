@@ -27,7 +27,7 @@ filegroup {
 java_binary_host {
     name: "metalava",
     visibility: [
-        "//visibility:private",
+        "//visibility:public",
     ],
     srcs: [
         "src/main/java/**/*.java",

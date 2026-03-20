@@ -67,6 +67,10 @@ import com.android.tools.metalava.model.source.utils.DOT_KT
 import com.android.tools.metalava.model.testing.CodebaseCreatorConfig
 import com.android.tools.metalava.model.testing.CodebaseCreatorConfigAware
 import com.android.tools.metalava.model.text.ApiFile
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.INCLUDE_TYPE_USE_ANNOTATIONS
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.KOTLIN_NAME_TYPE_ORDER
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.KOTLIN_STYLE_NULLS
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.STRIP_JAVA_LANG_PREFIX
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.SignatureFile
 import com.android.tools.metalava.model.text.assertSignatureFilesMatch
@@ -1876,12 +1880,12 @@ val DEFAULT_SKIP_EMIT_PACKAGES =
  * A special [FileFormat] used by tests that want to output type use annotations to signature files.
  */
 val TYPE_USE_FORMAT =
-    FileFormat.V5.copy(
-        kotlinNameTypeOrder = true,
-        includeTypeUseAnnotations = true,
-        kotlinStyleNulls = false,
-        specifiedStripJavaLangPrefix = StripJavaLangPrefix.ALWAYS,
-    )
+    FileFormat.V5.buildCopy {
+        this[INCLUDE_TYPE_USE_ANNOTATIONS] = true
+        this[KOTLIN_NAME_TYPE_ORDER] = true
+        this[KOTLIN_STYLE_NULLS] = false
+        this[STRIP_JAVA_LANG_PREFIX] = StripJavaLangPrefix.ALWAYS
+    }
 
 /**
  * Enumeration of the different types of system APIs used in Android.
