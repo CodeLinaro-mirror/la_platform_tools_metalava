@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.ANNOTATION_ATTR_VALUE
 import com.android.tools.metalava.model.ANNOTATION_IN_ALL_STUBS
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.BaseItemVisitor
+import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.annotation.AnnotationFilter
@@ -205,6 +206,42 @@ class CommonAnnotationItemTest : BaseModelTest() {
                     12:parameter p in test.pkg.Foo.method(int p)
                 """
             )
+        }
+    }
+
+    @Test
+    fun `annotation super class kind`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public @interface Anno {
+                      }
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+
+                    public @interface Anno {
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+                    annotation class Anno
+                """
+            )
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Anno")
+            val annotationClass = codebase.assertResolvedClass("java.lang.annotation.Annotation")
+            assertSame(annotationClass, testClass.interfaceTypes().single().resolveClass(codebase))
+
+            // Make sure that the super type of all annotations is treated as an interface.
+            assertEquals(ClassKind.INTERFACE, annotationClass.classKind)
         }
     }
 

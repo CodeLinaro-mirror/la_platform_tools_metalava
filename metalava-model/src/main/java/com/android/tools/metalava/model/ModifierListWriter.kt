@@ -29,11 +29,15 @@ private constructor(
     private val annotationFormatter: AnnotationFormatter,
     private val runtimeAnnotationsOnly: Boolean,
     private val skipNullnessAnnotations: Boolean,
+    private val normalizeFinal: Boolean = true,
+    private val normalizeAbstract: Boolean = true,
 ) {
     companion object {
         fun forSignature(
             writer: Writer,
             skipNullnessAnnotations: Boolean,
+            normalizeFinal: Boolean,
+            normalizeAbstract: Boolean,
         ): ModifierListWriter {
             val target = AnnotationTarget.SIGNATURE_FILE
             return ModifierListWriter(
@@ -42,6 +46,8 @@ private constructor(
                 annotationFormatter = AnnotationFormatter.legacyAnnotationFormatter(target),
                 runtimeAnnotationsOnly = false,
                 skipNullnessAnnotations = skipNullnessAnnotations,
+                normalizeFinal = normalizeFinal,
+                normalizeAbstract = normalizeAbstract,
             )
         }
 
@@ -72,29 +78,12 @@ private constructor(
         }
 
         /**
-         * Checks whether the `abstract` modifier should be ignored on the method item when
-         * generating stubs.
-         *
-         * Methods that are in annotations are implicitly `abstract`. Methods in an enum can be
-         * `abstract` which requires them to be implemented in each Enum constant but the stubs do
-         * not generate overrides in the enum constants so the method needs to be concrete otherwise
-         * the stubs will not compile.
-         */
-        private fun mustIgnoreAbstractInStubs(methodItem: MethodItem): Boolean {
-            val containingClass = methodItem.containingClass()
-
-            // Need to filter out abstract from the modifiers list and turn it into
-            // a concrete method to make the stub compile
-            return containingClass.isEnum() || containingClass.isAnnotationType()
-        }
-
-        /**
          * Checks whether the method requires a body to be generated in the stubs.
          * * Methods that are annotations are implicitly `abstract` but the body is provided by the
          *   runtime, so they never need bodies.
          * * Native methods never need bodies.
          * * Abstract methods do not need bodies unless they are enums in which case see
-         *   [mustIgnoreAbstractInStubs] for an explanation as to why they need bodies.
+         *   [MethodItem.allowAbstract] for an explanation as to why they need bodies.
          */
         fun requiresMethodBodyInStubs(methodItem: MethodItem): Boolean {
             val modifiers = methodItem.modifiers
@@ -108,16 +97,13 @@ private constructor(
     }
 
     /** Write the modifier list (possibly including annotations) to the supplied [writer]. */
-    fun write(
-        item: Item,
-        normalizeFinal: Boolean = false,
-    ) {
+    fun write(item: Item) {
         writeAnnotations(item)
-        writeKeywords(item, normalizeFinal = normalizeFinal)
+        writeKeywords(item)
     }
 
     /** Write the modifier keywords. */
-    fun writeKeywords(item: Item, normalizeFinal: Boolean = false) {
+    fun writeKeywords(item: Item) {
         if (
             item is PackageItem ||
                 (target != AnnotationTarget.SIGNATURE_FILE &&
@@ -132,8 +118,8 @@ private constructor(
         // Kotlin order:
         //   https://kotlinlang.org/docs/reference/coding-conventions.html#modifiers
 
-        // Abstract: should appear in interfaces if in compat mode
         val classItem = item as? ClassItem
+        val classKind = classItem?.classKind
         val methodItem = item as? MethodItem
 
         val list = item.modifiers
@@ -143,22 +129,9 @@ private constructor(
             writer.write("$modifier ")
         }
 
-        val isInterface =
-            classItem?.isInterface() == true || methodItem?.containingClass()?.isInterface() == true
-
+        // Abstract: should appear in interfaces if in compat mode
         val isAbstract = list.isAbstract()
-        val ignoreAbstract =
-            isAbstract &&
-                target != AnnotationTarget.SIGNATURE_FILE &&
-                methodItem?.let { mustIgnoreAbstractInStubs(methodItem) } ?: false
-
-        if (
-            isAbstract &&
-                !ignoreAbstract &&
-                classItem?.isEnum() != true &&
-                classItem?.isAnnotationType() != true &&
-                !isInterface
-        ) {
+        if (isAbstract && allowAbstract(classKind, methodItem)) {
             writer.write("abstract ")
         }
 
@@ -166,7 +139,7 @@ private constructor(
             writer.write("default ")
         }
 
-        if (list.isStatic() && (classItem == null || !classItem.isEnum())) {
+        if (list.isStatic() && classKind?.implicitlyStatic != true) {
             writer.write("static ")
         }
 
@@ -175,7 +148,7 @@ private constructor(
                 // Don't show final on parameters: that's an implementation detail
                 item !is ParameterItem &&
                 // Don't add final on enum or enum members as they are implicitly final.
-                classItem?.isEnum() != true &&
+                classKind?.implicitlyFinal != true &&
                 // If normalizing and the current item is a method and its containing class is final
                 // then do not write out the final keyword.
                 (!normalizeFinal || methodItem?.containingClass()?.modifiers?.isFinal() != true)
@@ -231,6 +204,41 @@ private constructor(
 
         if (list.isFunctional()) {
             writer.write("fun ")
+        }
+    }
+
+    /** Determine whether the `abstract` modifier is required on [classKind] or [methodItem]. */
+    private fun allowAbstract(classKind: ClassKind?, methodItem: MethodItem?) =
+        classKind?.allowAbstract ?: methodItem?.allowAbstract() ?: true
+
+    /**
+     * Determine whether the `abstract` modifier is allowed on this [MethodItem].
+     *
+     * In signature files, only interface methods disallow `abstract` modifier. Annotation and enum
+     * methods could also disallow them but are inconsistent.
+     *
+     * In all other files, including but not limited to stubs, neither interfaces, annotation types,
+     * nor enums allow `abstract` modifier. In fact only normal class kinds allow them.
+     *
+     * Interface and annotation types do not allow the `abstract` modifier on methods because while
+     * they are usable on their methods they are unnecessary.
+     *
+     * Methods in an enum can also be `abstract` but that requires them to be implemented in each
+     * Enum constant. However, the stubs do not generate overrides of those methods for the enum
+     * constants so they must always to be concrete otherwise the stubs for the enum class will not
+     * compile.
+     */
+    private fun MethodItem.allowAbstract(): Boolean {
+        val containingClassKind = containingClass().classKind
+        return when {
+            target == AnnotationTarget.SIGNATURE_FILE && !normalizeAbstract ->
+                // Signature files only disallow `abstract` on interfaces when not normalizing
+                // abstract.
+                containingClassKind != ClassKind.INTERFACE
+            else ->
+                // All other files disallow `abstract` on methods iff it is disallowed on the
+                // method's containing class.
+                containingClassKind.allowAbstract
         }
     }
 

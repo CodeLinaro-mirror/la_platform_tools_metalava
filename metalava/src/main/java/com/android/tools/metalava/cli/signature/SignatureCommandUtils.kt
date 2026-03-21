@@ -18,6 +18,7 @@ package com.android.tools.metalava.cli.signature
 
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.text.ApiFile
+import com.android.tools.metalava.model.text.EmitFileHeader
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.SignatureFile
 import com.android.tools.metalava.model.text.SignatureWriter
@@ -44,11 +45,13 @@ internal fun writeSignatureFile(
     codebase: Codebase,
     outputFormat: FileFormat,
     printWriter: PrintWriter,
+    emitFileHeader: EmitFileHeader = EmitFileHeader.ALWAYS,
 ) {
     val signatureWriter =
         SignatureWriter(
             writer = printWriter,
             fileFormat = outputFormat,
+            emitHeader = emitFileHeader,
         )
 
     // Create a visitor suitable for writing signatures. It will ensure correct ordering for
