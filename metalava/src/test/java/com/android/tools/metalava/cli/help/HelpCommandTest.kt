@@ -112,8 +112,8 @@ Usage: metalava help signature-file-formats
   the file contains. The exact meaning of the API surface name is determined by the owner, metalava simply uses this as
   an identifier for comparison.
 
-  * `language = java|kotlin` - Deprecated, will be replaced with a general mechanism for defining named sets of
-  defaults.
+  * `style = java|kotlin` - The name of a predefined set of properties to apply as defaults. They override version
+  defaults but are themselves overridden by properties listed in the file.
 
   * `include-default-parameter-values = yes|no` - If `no` then the signature file will not include any information about
   default parameter values. If `yes` then it will use the pseudo modifier `optional` to indicate a parameter that has a
@@ -162,6 +162,14 @@ Usage: metalava help signature-file-formats
 
   * `add-additional-overrides = yes|no` - If `yes` then add additional overrides into the signature file that are needed
   in order to create compilable stubs from the signature file.
+
+  * `flagged-api-inheritance = none|nested-classes` - Specifies whether `@FlaggedApi` annotations are inherited in
+  signature files.
+
+  `none` (default) - they are not inherited. This can make it difficult to determine whether a nested class is flagged
+  when reviewin as the containing class may be out of view or even in another file altogether.
+
+  `nested-classes` - they are inherited onto nested classes that do not have their own `@FlaggedApi` annotation.
 
   * `normalize-abstract-modifier = yes|no` - Specifies how the `abstract` modifier is handled on `abstract` methods. If
   this is `yes` and the method's containing class does not allow `abstract` then the `abstract` modifier is not written
@@ -216,17 +224,12 @@ Usage: metalava help signature-file-formats
 
   Currently, metalava supports the following versions:
 
-  * `2.0` - This is the base version (more details in `FORMAT.md`) on which all the others are based. It sets the
-  properties as follows:
+  * `2.0` - This is the base version for all the others.
 
-  + kotlin-style-nulls = no
-  + include-default-parameter-values = no
+  * `4.0` - Introduced support for improved Kotlin tracking. This is `2.0` plus the following properties:
 
-  * `4.0` - This is `2.0` plus `kotlin-style-nulls = yes` and `include-default-parameter-values = yes` giving the
-  following properties:
-
-  + kotlin-style-nulls = yes
   + include-default-parameter-values = yes
+  + kotlin-style-nulls = yes
 
   * `5.0` - This is the first version that has full support for properties in the signature header. As such it does not
   add any new defaults to `4.0`. The intent is that properties will be explicitly defined in the signature file avoiding
@@ -238,6 +241,7 @@ Usage: metalava help signature-file-formats
   following properties:
 
   + add-additional-overrides = yes
+  + flagged-api-inheritance = nested-classes
   + normalize-abstract-modifier = yes
   + normalize-final-modifier = yes
   + overloaded-method-order = signature

@@ -21,11 +21,11 @@ import com.android.tools.metalava.model.text.CustomizableProperty.Companion.INCL
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.INCLUDE_TYPE_USE_ANNOTATIONS
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.KOTLIN_NAME_TYPE_ORDER
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.KOTLIN_STYLE_NULLS
-import com.android.tools.metalava.model.text.CustomizableProperty.Companion.LANGUAGE
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.MIGRATING
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.NAME
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.OVERLOADED_METHOD_ORDER
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.STRIP_JAVA_LANG_PREFIX
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.STYLE
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.SURFACE
 import java.io.LineNumberReader
 import java.io.StringReader
@@ -38,6 +38,7 @@ import org.junit.Test
 val DEFAULTABLE_PROPERTY_NAMES =
     listOf(
         "add-additional-overrides",
+        "flagged-api-inheritance",
         "normalize-abstract-modifier",
         "normalize-final-modifier",
         "overloaded-method-order",
@@ -523,18 +524,18 @@ class FileFormatTest {
     }
 
     @Test
-    fun `Check header and specifier - v5 + language=java`() {
+    fun `Check header and specifier - v5 + style=java`() {
         headerAndSpecifierTest(
             header =
                 """
                 // Signature format: 5.0
-                // - language=java
+                // - style=java
 
             """,
-            specifier = "5.0:language=java",
+            specifier = "5.0:style=java",
             format =
                 FileFormat.V5.buildCopy {
-                    this[LANGUAGE] = FileFormat.Language.JAVA
+                    this[STYLE] = FileFormat.NamedStyle.JAVA
                     this[INCLUDE_DEFAULT_PARAMETER_VALUES] = false
                     this[KOTLIN_STYLE_NULLS] = false
                 },
@@ -542,19 +543,19 @@ class FileFormatTest {
     }
 
     @Test
-    fun `Check header and specifier - v5 + kotlin-style-nulls=yes,language=java`() {
+    fun `Check header and specifier - v5 + kotlin-style-nulls=yes,style=java`() {
         headerAndSpecifierTest(
             header =
                 """
                 // Signature format: 5.0
-                // - language=java
+                // - style=java
                 // - kotlin-style-nulls=yes
 
             """,
-            specifier = "5.0:language=java,kotlin-style-nulls=yes",
+            specifier = "5.0:style=java,kotlin-style-nulls=yes",
             format =
                 FileFormat.V5.buildCopy {
-                    this[LANGUAGE] = FileFormat.Language.JAVA
+                    this[STYLE] = FileFormat.NamedStyle.JAVA
                     this[INCLUDE_DEFAULT_PARAMETER_VALUES] = false
                     this[KOTLIN_STYLE_NULLS] = true
                 },
@@ -562,33 +563,33 @@ class FileFormatTest {
     }
 
     @Test
-    fun `Check header and specifier - v5 + language=kotlin`() {
+    fun `Check header and specifier - v5 + style=kotlin`() {
         headerAndSpecifierTest(
             header =
                 """
                 // Signature format: 5.0
-                // - language=kotlin
+                // - style=kotlin
 
             """,
-            specifier = "5.0:language=kotlin",
-            format = FileFormat.V5.buildCopy { this[LANGUAGE] = FileFormat.Language.KOTLIN },
+            specifier = "5.0:style=kotlin",
+            format = FileFormat.V5.buildCopy { this[STYLE] = FileFormat.NamedStyle.KOTLIN },
         )
     }
 
     @Test
-    fun `Check header and specifier - v5 + include-default-parameter-values=no,language=kotlin`() {
+    fun `Check header and specifier - v5 + include-default-parameter-values=no,style=kotlin`() {
         headerAndSpecifierTest(
             header =
                 """
                 // Signature format: 5.0
-                // - language=kotlin
+                // - style=kotlin
                 // - include-default-parameter-values=no
 
             """,
-            specifier = "5.0:language=kotlin,include-default-parameter-values=no",
+            specifier = "5.0:style=kotlin,include-default-parameter-values=no",
             format =
                 FileFormat.V5.buildCopy {
-                    this[LANGUAGE] = FileFormat.Language.KOTLIN
+                    this[STYLE] = FileFormat.NamedStyle.KOTLIN
                     this[INCLUDE_DEFAULT_PARAMETER_VALUES] = false
                 },
         )
@@ -821,6 +822,7 @@ class FileFormatTest {
         assertEquals(
             """
                 add-additional-overrides=no
+                flagged-api-inheritance=none
                 include-default-parameter-values=no
                 include-type-use-annotations=no
                 kotlin-name-type-order=no

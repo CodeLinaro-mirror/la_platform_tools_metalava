@@ -31,6 +31,7 @@ private constructor(
     private val skipNullnessAnnotations: Boolean,
     private val normalizeFinal: Boolean = true,
     private val normalizeAbstract: Boolean = true,
+    private val flaggedApiInheritance: FlaggedApiInheritance = FlaggedApiInheritance.NONE,
 ) {
     companion object {
         fun forSignature(
@@ -38,6 +39,7 @@ private constructor(
             skipNullnessAnnotations: Boolean,
             normalizeFinal: Boolean,
             normalizeAbstract: Boolean,
+            flaggedApiInheritance: FlaggedApiInheritance,
         ): ModifierListWriter {
             val target = AnnotationTarget.SIGNATURE_FILE
             return ModifierListWriter(
@@ -48,6 +50,7 @@ private constructor(
                 skipNullnessAnnotations = skipNullnessAnnotations,
                 normalizeFinal = normalizeFinal,
                 normalizeAbstract = normalizeAbstract,
+                flaggedApiInheritance = flaggedApiInheritance,
             )
         }
 
@@ -242,6 +245,39 @@ private constructor(
         }
     }
 
+    /** Find the [ANDROID_FLAGGED_API] in this list of [AnnotationItem]s, if there is one. */
+    private fun List<AnnotationItem>.findFlaggedApiAnnotation() = find {
+        it.qualifiedName == ANDROID_FLAGGED_API
+    }
+
+    /** Get the [ANDROID_FLAGGED_API] [AnnotationItem] to add to [item]'s [annotations], if any. */
+    private fun flaggedApiAnnotationToInherit(
+        item: Item,
+        annotations: List<AnnotationItem>,
+    ): AnnotationItem? {
+        // If they are not required to be inherited onto nested classes then return null.
+        if (flaggedApiInheritance != FlaggedApiInheritance.NESTED_CLASSES) return null
+
+        // If the item is not a nested class then return null.
+        if (item !is ClassItem) return null
+        var containingClassItem: ClassItem? = item.containingClass() ?: return null
+
+        // If this already has an [ANDROID_FLAGGED_API] annotation
+        if (annotations.findFlaggedApiAnnotation() != null) return null
+
+        // Find the closest enclosing [ANDROID_FLAGGED_API] annotation in [item]'s containing
+        // [ClassItem], if there is one.
+        while (containingClassItem != null) {
+            containingClassItem.modifiers.annotations().findFlaggedApiAnnotation()?.let {
+                return it
+            }
+            containingClassItem = containingClassItem.containingClass()
+        }
+
+        // Otherwise, no flagged api annotation needs adding.
+        return null
+    }
+
     private fun writeAnnotations(item: Item) {
         // Generate annotations on separate lines in stub files for packages, classes and
         // methods and also for enum constants.
@@ -272,6 +308,13 @@ private constructor(
 
         val list = item.modifiers
         var annotations = list.annotations()
+
+        // Check to see if a FlaggedApi annotation needs to be inherited onto this item and if it
+        // does add it to this list. It will be sorted into the correct position below.
+        flaggedApiAnnotationToInherit(item, annotations)?.let { flaggedApiAnnotation ->
+            annotations = annotations + flaggedApiAnnotation
+        }
+
         if (annotations.isEmpty()) {
             return
         }
@@ -408,3 +451,15 @@ const val SUPPRESS_COMPATIBILITY_ANNOTATION = "SuppressCompatibility"
  */
 val SUPPRESS_COMPATIBILITY_ANNOTATION_QUALIFIED =
     AnnotationItem.unshortenAnnotation(SUPPRESS_COMPATIBILITY_ANNOTATION)
+
+/** Determines how [ModifierListWriter] handles `@FlaggedApi` inheritance. */
+enum class FlaggedApiInheritance {
+    /** @FlaggedApi annotations are not inherited. */
+    NONE,
+
+    /**
+     * @FlaggedApi annotations are inherited onto nested classes that do not have their own
+     *   annotation.
+     */
+    NESTED_CLASSES,
+}
