@@ -19,8 +19,6 @@ package com.android.tools.metalava.model.testsuite.typealiasitem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.PrimitiveTypeItem
-import com.android.tools.metalava.model.testing.FilterAction
-import com.android.tools.metalava.model.testing.FilterByProvider
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.createAndroidModuleDescription
 import com.android.tools.metalava.testing.createCommonModuleDescription
@@ -399,8 +397,6 @@ class CommonTypeAliasItemTest : BaseModelTest() {
     }
 
     @Test
-    // K1 does not have full typealias support.
-    @FilterByProvider("psi", "k1", action = FilterAction.EXCLUDE)
     fun `Origin for typealias`() {
         runCodebaseTest(
             inputSet(

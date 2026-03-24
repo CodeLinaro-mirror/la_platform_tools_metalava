@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.annotation.AnnotationClass
 import com.android.tools.metalava.model.api.flags.ApiFlag
 import com.android.tools.metalava.model.api.flags.ApiFlags
 
@@ -55,6 +56,12 @@ interface AnnotationInfo {
     val apiFlag: ApiFlag?
 
     val suppressCompatibility: Boolean
+
+    /**
+     * The [AnnotationClass] that provides information about the annotation class of the
+     * [AnnotationItem] instance to which this corresponds.
+     */
+    val annotationClass: AnnotationClass?
 }
 
 /** Compute the [TypeNullability], if any, for the annotation with [qualifiedName]. */

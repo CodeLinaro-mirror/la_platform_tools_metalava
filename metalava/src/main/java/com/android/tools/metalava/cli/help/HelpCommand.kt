@@ -23,7 +23,6 @@ import com.android.tools.metalava.cli.common.MetalavaHelpFormatter
 import com.android.tools.metalava.cli.common.buildDefinitionListHelp
 import com.android.tools.metalava.cli.common.stdout
 import com.android.tools.metalava.cli.common.terminal
-import com.android.tools.metalava.cli.signature.ARG_FORMAT
 import com.android.tools.metalava.model.text.FileFormat
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.context
@@ -105,13 +104,6 @@ private fun signatureFileFormatsHelp(): CliktCommand {
             append('`')
             append(versionNumber)
             append('`')
-            if (legacyCommandLineAlias != null) {
-                append(" (")
-                append(ARG_FORMAT)
-                append("=")
-                append(legacyCommandLineAlias)
-                append(")")
-            }
         }
 
         return buildDefinitionListHelp(

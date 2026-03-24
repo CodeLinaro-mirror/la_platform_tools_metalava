@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.testsuite.memberitem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.testsuite.BaseModelTest
+import com.android.tools.metalava.model.testsuite.InputSet
 
 /**
  * Base class for tests for [MemberItem.duplicate] and [ClassItem.inheritMethodFromNonApiAncestor].

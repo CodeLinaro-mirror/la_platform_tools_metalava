@@ -42,12 +42,8 @@ class PreviouslyReleasedApiTest : TemporaryFolderOwner {
 
     @Test
     fun `check multiple signature files`() {
-        val file1 =
-            signature("released1.txt", "// Signature format: 2.0\n")
-                .createFile(temporaryFolder.root)
-        val file2 =
-            signature("released2.txt", "// Signature format: 2.0\n")
-                .createFile(temporaryFolder.root)
+        val file1 = signature("released1.txt", "// Signature format: 2.0\n").toFile()
+        val file2 = signature("released2.txt", "// Signature format: 2.0\n").toFile()
 
         val previouslyReleasedApi =
             PreviouslyReleasedApi.optionalPreviouslyReleasedApi(OPTION_NAME, listOf(file1, file2))
@@ -59,7 +55,7 @@ class PreviouslyReleasedApiTest : TemporaryFolderOwner {
      * Create a fake jar file. It is ok that it is not actually a jar file as its contents are not
      * read.
      */
-    private fun fakeJar(name: String) = source(name, "PK...").createFile(temporaryFolder.root)
+    private fun fakeJar(name: String) = source(name, "PK...").toFile()
 
     @Test
     fun `check jar file`() {
@@ -94,8 +90,7 @@ class PreviouslyReleasedApiTest : TemporaryFolderOwner {
     @Test
     fun `check mixture of signature and jar`() {
         val jarFile = fakeJar("some.jar")
-        val signatureFile =
-            signature("removed.txt", "// Signature format: 2.0\n").createFile(temporaryFolder.root)
+        val signatureFile = signature("removed.txt", "// Signature format: 2.0\n").toFile()
 
         val exception =
             assertThrows(IllegalStateException::class.java) {

@@ -108,7 +108,8 @@ interface Reporter {
  * Abstract implementation of a [Reporter] that performs no filtering and delegates the handling of
  * a report to [handleFormattedMessage].
  */
-abstract class AbstractBasicReporter : Reporter {
+abstract class AbstractBasicReporter(private val excludedIssues: Set<Issues.Issue> = emptySet()) :
+    Reporter {
     override fun report(
         id: Issues.Issue,
         reportable: Reportable?,
@@ -116,6 +117,10 @@ abstract class AbstractBasicReporter : Reporter {
         location: FileLocation,
         maximumSeverity: Severity,
     ): Boolean {
+        if (excludedIssues.contains(id)) {
+            return false
+        }
+
         val formattedMessage = buildString {
             val usableLocation = reportable?.fileLocation ?: location
             append(usableLocation.path)
@@ -172,7 +177,9 @@ class BasicReporter(private val stderr: PrintWriter) : AbstractBasicReporter() {
 }
 
 /** A [Reporter] which will record issues in an internal buffer, accessible through [issues]. */
-class RecordingReporter : AbstractBasicReporter() {
+class RecordingReporter(
+    excludedIssues: Set<Issues.Issue> = emptySet(),
+) : AbstractBasicReporter(excludedIssues) {
     private val stringWriter = StringWriter()
 
     override fun handleFormattedMessage(formattedMessage: String): Boolean {

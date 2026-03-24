@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.CodebaseFragment
 import com.android.tools.metalava.model.snapshot.EmittableDelegatingVisitor
 import com.android.tools.metalava.model.source.EnvironmentManager
+import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.reporter.ThrowingReporter
 import com.android.tools.metalava.testing.TestFileCache
@@ -103,7 +104,7 @@ class ApiUpdateConsistencyTest : DriverTest() {
     private fun versionedSignatureApi(contents: String): VersionedApiFactory {
         return { version ->
             val testFile = signature("$version.txt", contents)
-            val file = testFile.createFile(temporaryFolder.root)
+            val file = testFile.toFile()
             VersionedSignatureApi(
                 DefaultSignatureFileLoader(Codebase.Config.NOOP),
                 listOf(file),
@@ -128,12 +129,15 @@ class ApiUpdateConsistencyTest : DriverTest() {
                 listOf(
                     getAndroidJar(30),
                 )
-            val codebase =
-                parser.parseSources(
+
+            val inputs =
+                SourceParser.Inputs(
                     sourceSet,
                     "version $version",
                     classPath,
                 )
+
+            val codebase = parser.parseSources(inputs)
 
             assertNotNull(codebase, message = "Codebase was not created")
 

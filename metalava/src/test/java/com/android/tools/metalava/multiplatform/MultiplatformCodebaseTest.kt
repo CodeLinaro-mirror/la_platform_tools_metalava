@@ -19,8 +19,6 @@ package com.android.tools.metalava.multiplatform
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.provider.Capability
-import com.android.tools.metalava.model.testing.FilterAction
-import com.android.tools.metalava.model.testing.FilterByProvider
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.testing.createAndroidModuleDescription
 import com.android.tools.metalava.testing.createCommonModuleDescription
@@ -32,9 +30,6 @@ import com.google.common.truth.Truth.assertThat
 import org.junit.Test
 
 @RequiresCapabilities(Capability.KOTLIN, Capability.MULTIPLATFORM)
-// K1 does not support KMP, but the capabilities above are configured for psi altogether and not
-// differentiated between K1 and K2.
-@FilterByProvider("psi", "k1", action = FilterAction.EXCLUDE)
 class MultiplatformCodebaseTest : DriverTest() {
     @Test
     fun `Test creation of multiplatform codebase`() {

@@ -17,34 +17,36 @@
 package com.android.tools.metalava.model.turbine
 
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
+import com.android.tools.metalava.model.source.AbstractSourceParser
 import com.android.tools.metalava.model.source.SourceParser
-import com.android.tools.metalava.model.source.SourceSet
+import com.google.turbine.binder.ClassPathBinder
+import com.google.turbine.binder.JimageClassBinder
 import com.google.turbine.diag.TurbineError
 import java.io.File
 
 internal class TurbineSourceParser(
     private val codebaseConfig: Codebase.Config,
-) : SourceParser {
+    private val jdkHome: File?,
+) : AbstractSourceParser(codebaseConfig.reporter) {
     /**
      * Returns a codebase initialized from the given Java source files, with the given description.
      */
-    override fun parseSources(
-        sourceSet: SourceSet,
-        description: String,
-        classPath: List<File>,
-        apiPackages: PackageFilter?,
-        projectDescription: File?,
-        compiledSourceJar: File?,
-    ): Codebase? {
-        if (projectDescription != null) {
+    override fun processInputs(inputs: SourceParser.Inputs): Codebase? {
+        if (inputs.projectDescription != null) {
             error("Turbine model does not support --project")
         }
-        if (compiledSourceJar != null) {
+        if (inputs.compiledSourceJar != null) {
             error("Turbine model does not support --compiled-jar")
         }
+
+        val classpath = ClassPathBinder.bindClasspath(inputs.classPath.map { it.toPath() })
+        val bootclasspath =
+            jdkHome?.let { home -> JimageClassBinder.bind(home.path) }
+                ?: ClassPathBinder.bindClasspath(listOf())
+
+        val sourceSet = inputs.sourceSet
 
         val rootDir = sourceSet.sourcePath.firstOrNull() ?: File("").canonicalFile
 
@@ -53,7 +55,7 @@ internal class TurbineSourceParser(
                 codebaseFactory = { assembler ->
                     DefaultCodebase(
                         location = rootDir,
-                        description = description,
+                        description = inputs.description,
                         preFiltered = false,
                         config = codebaseConfig,
                         trustedApi = false,
@@ -61,12 +63,13 @@ internal class TurbineSourceParser(
                         assembler = assembler,
                     )
                 },
-                classpath = classPath,
+                bootclasspath = bootclasspath,
+                classpath = classpath,
             )
 
         try {
             // Initialize the codebase.
-            assembler.initialize(sourceSet, apiPackages)
+            assembler.initialize(sourceSet, inputs.apiPackages)
         } catch (_: TurbineError) {
             // Processing was aborted so the `codebase` is not valid so return `null`.
             return null
@@ -74,10 +77,6 @@ internal class TurbineSourceParser(
 
         // Return the newly created and initialized codebase.
         return assembler.codebase
-    }
-
-    override fun loadFromJar(apiJar: File, classPath: List<File>): Codebase {
-        TODO("b/299044569 handle this")
     }
 
     override fun createMultiplatformCodebase(projectDescription: File): MultiplatformCodebase {

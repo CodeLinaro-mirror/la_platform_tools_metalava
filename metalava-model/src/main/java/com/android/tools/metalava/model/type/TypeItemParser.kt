@@ -106,9 +106,10 @@ open class TypeItemParser(
             splitNullabilitySuffix(
                 unannotated,
                 // If forceClassToBeNonNull is true then a plain class type without any nullability
-                // suffix must be treated as if it was not null, which is just how it would be
-                // treated when kotlinStyleNulls is true. So, pretend that kotlinStyleNulls is true.
-                kotlinStyleNulls || forceClassToBeNonNull,
+                // suffix must be treated as if it was not null. That is just how it is in Kotlin
+                // so this pretends that when forceClassToBeNonNull is true that kotlinStyleNulls is
+                // true.
+                forceClassToBeNonNull,
                 errorReporter,
             )
         val trimmed = withoutNullability.trim()
@@ -164,7 +165,8 @@ open class TypeItemParser(
         if (nullability != null && nullability != TypeNullability.NONNULL) {
             errorReporter.report("Invalid nullability suffix on primitive: $original")
         }
-        return TypeItem.createPrimitiveType(modifiers(annotations, TypeNullability.NONNULL), kind)
+        val typeModifiers = createModifiers(annotations, TypeNullability.NONNULL)
+        return TypeItem.createPrimitiveType(typeModifiers, kind)
     }
 
     /**
@@ -256,7 +258,7 @@ open class TypeItemParser(
         // from innermost array modifiers to outermost array modifiers.
         val allModifiers =
             allAnnotations.zip(allNullability.reversed()).map { (annotations, nullability) ->
-                modifiers(annotations, nullability)
+                createModifiers(annotations, nullability)
             }
         // The final modifiers are in the list apply to the outermost array.
         val componentModifiers = allModifiers.dropLast(1)
@@ -288,24 +290,24 @@ open class TypeItemParser(
         // See if this is a wildcard
         if (!type.startsWith("?")) return null
 
-        val modifiers = modifiers(annotations, TypeNullability.UNDEFINED)
+        val typeModifiers = createModifiers(annotations, TypeNullability.UNDEFINED)
 
         // Unbounded wildcard type: there is an implicit Object extends bound
-        if (type == "?") return TypeItem.createWildcardType(modifiers, objectType, null)
+        if (type == "?") return TypeItem.createWildcardType(typeModifiers, objectType, null)
 
         // If there's a bound, the nullability suffix applies there instead.
         val bound = type.substring(2) + nullability?.suffix.orEmpty()
         return if (bound.startsWith("extends")) {
             val extendsBound = bound.substring(8)
             TypeItem.createWildcardType(
-                modifiers,
+                typeModifiers,
                 getWildcardBound(extendsBound, typeParameterScope),
                 null,
             )
         } else if (bound.startsWith("super")) {
             val superBound = bound.substring(6)
             TypeItem.createWildcardType(
-                modifiers,
+                typeModifiers,
                 // All wildcards have an implicit Object extends bound
                 objectType,
                 getWildcardBound(superBound, typeParameterScope),
@@ -314,7 +316,7 @@ open class TypeItemParser(
             errorReporter.report("Type starts with \"?\" but doesn't appear to be wildcard: $type")
 
             // Ignore the part after the "?" and treat it as an unbounded wildcard.
-            TypeItem.createWildcardType(modifiers, objectType, null)
+            TypeItem.createWildcardType(typeModifiers, objectType, null)
         }
     }
 
@@ -334,7 +336,13 @@ open class TypeItemParser(
         nullability: TypeNullability?
     ): VariableTypeItem? {
         val param = typeParameterScope.findTypeParameter(type) ?: return null
-        return TypeItem.createVariableType(modifiers(annotations, nullability), param)
+        val typeModifiers =
+            createModifiers(
+                annotations,
+                nullability,
+                defaultNullability = TypeNullability.UNDEFINED,
+            )
+        return TypeItem.createVariableType(typeModifiers, param)
     }
 
     /**
@@ -378,9 +386,9 @@ open class TypeItemParser(
         // the leading annotations (they belong to the nested class type).
         val classModifiers =
             if (remainder != null) {
-                modifiers(classAnnotations, TypeNullability.NONNULL)
+                createModifiers(classAnnotations, TypeNullability.NONNULL)
             } else {
-                modifiers(classAnnotations + annotations, nullability)
+                createModifiers(classAnnotations + annotations, nullability)
             }
 
         // Construct a qualified name to use for the class.
@@ -434,21 +442,38 @@ open class TypeItemParser(
     /**
      * Create a [TypeModifiers].
      *
-     * If [knownNullability] is `null` then this will compute nullability from the [annotations], if
-     * any, and if not then default to platform nullness.
+     * If [knownNullability] is `null` then this will compute a non-null [TypeNullability] as
+     * follows:
+     *
+     * If [kotlinStyleNulls] is `true` then this will use the first non-null [TypeNullability] found
+     * in the following steps:
+     * 1. [defaultNullability]
+     * 2. [TypeNullability.NONNULL].
+     *
+     * Otherwise, it will use the first non-null [TypeNullability] found in the following steps:
+     * 1. The [TypeNullability] of a [AnnotationItem.isNullnessAnnotation] annotation in
+     *    [annotations].
+     * 2. [defaultNullability]
+     * 3. [TypeNullability.PLATFORM].
      */
-    private fun modifiers(
+    private fun createModifiers(
         annotations: List<AnnotationItem>,
-        knownNullability: TypeNullability?
+        knownNullability: TypeNullability?,
+        defaultNullability: TypeNullability? = null,
     ): TypeModifiers {
         // Use the known nullability, or find if there is a nullness annotation on the type,
         // defaulting to platform nullness if not.
         val nullability =
             knownNullability
-                ?: annotations
-                    .firstOrNull { it.isNullnessAnnotation() }
-                    ?.let { TypeNullability.ofAnnotation(it) }
-                ?: TypeNullability.PLATFORM
+                ?: if (kotlinStyleNulls) {
+                    defaultNullability ?: TypeNullability.NONNULL
+                } else {
+                    annotations
+                        .firstOrNull { it.isNullnessAnnotation() }
+                        ?.let { TypeNullability.ofAnnotation(it) }
+                        ?: defaultNullability
+                        ?: TypeNullability.PLATFORM
+                }
 
         return TypeModifiers.create(annotations, nullability)
     }
@@ -593,7 +618,7 @@ open class TypeItemParser(
         fun splitNullabilitySuffix(
             type: String,
             kotlinStyleNulls: Boolean,
-            errorReporter: TypeItemParserErrorReporter = TypeItemParserErrorReporter.THROWING,
+            errorReporter: TypeItemParserErrorReporter,
         ): Pair<String, TypeNullability?> {
             return if (kotlinStyleNulls) {
                 // Don't interpret the wildcard type `?` as a nullability marker.
@@ -604,7 +629,7 @@ open class TypeItemParser(
                 } else if (type.endsWith("!")) {
                     Pair(type.dropLast(1), TypeNullability.PLATFORM)
                 } else {
-                    Pair(type, TypeNullability.NONNULL)
+                    Pair(type, null)
                 }
             } else if (((type.length > 1) && type.endsWith("?")) || type.endsWith("!")) {
                 errorReporter.report("Format does not support Kotlin-style null type syntax: $type")

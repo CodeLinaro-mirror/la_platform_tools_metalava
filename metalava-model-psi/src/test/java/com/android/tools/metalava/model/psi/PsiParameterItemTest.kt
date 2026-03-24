@@ -106,7 +106,10 @@ class PsiParameterItemTest : BaseModelTest() {
             val classItem = codebase.assertClass("Test")
             assertSame(actualFile, classItem.sourceFile())
 
-            val constructorItem = classItem.constructors().single()
+            // When a default constructor has a single optional parameter the compiler generates a
+            // no-args constructor overload.
+            classItem.assertConstructor(emptyList())
+            val constructorItem = classItem.assertConstructor(listOf("java.lang.String"))
             with(constructorItem) {
                 val parameter = parameters().single()
                 assertTrue(parameter.hasDefaultValue())

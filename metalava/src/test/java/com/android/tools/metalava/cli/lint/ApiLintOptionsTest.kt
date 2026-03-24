@@ -62,8 +62,7 @@ class ApiLintOptionsTest :
 
     @Test
     fun `api lint previous api`() {
-        val file =
-            signature("released.txt", "// Signature format: 2.0\n").createFile(temporaryFolder.root)
+        val file = signature("released.txt", "// Signature format: 2.0\n").toFile()
         runTest(ARG_API_LINT_PREVIOUS_API, file.path) {
             assertThat(options.apiLintPreviousApis).isEqualTo(listOf(file))
         }

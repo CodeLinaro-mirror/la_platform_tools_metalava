@@ -25,6 +25,9 @@ object KnownSourceFiles {
         TestFiles.java(
             """
                 package not.type.use;
+                import java.lang.annotation.*;
+                import static java.lang.annotation.ElementType.*;
+                @Target({METHOD, PARAMETER, FIELD})
                 public @interface NonNull {
                 }
             """
@@ -34,6 +37,9 @@ object KnownSourceFiles {
         TestFiles.java(
             """
                 package not.type.use;
+                import java.lang.annotation.*;
+                import static java.lang.annotation.ElementType.*;
+                @Target({METHOD, PARAMETER, FIELD})
                 public @interface Nullable {
                 }
             """
@@ -63,76 +69,100 @@ object KnownSourceFiles {
             """
         )
 
+    val mixedUseNonNullSource: TestFile =
+        TestFiles.java(
+            """
+                package mixed.use;
+                import java.lang.annotation.*;
+                import static java.lang.annotation.ElementType.*;
+                @Target({METHOD, PARAMETER, FIELD, TYPE_USE})
+                public @interface NonNull {
+                }
+            """
+        )
+
+    val mixedUseNullableSource: TestFile =
+        TestFiles.java(
+            """
+                package mixed.use;
+                import java.lang.annotation.*;
+                import static java.lang.annotation.ElementType.*;
+                @Target({METHOD, PARAMETER, FIELD, TYPE_USE})
+                public @interface Nullable {
+                }
+            """
+        )
+
     val nonNullSource: TestFile =
         TestFiles.java(
             """
-    package android.annotation;
-    import java.lang.annotation.*;
-    import static java.lang.annotation.ElementType.*;
-    import static java.lang.annotation.RetentionPolicy.CLASS;
-    /**
-     * Denotes that a parameter, field or method return value can never be null.
-     * @paramDoc This value must never be {@code null}.
-     * @returnDoc This value will never be {@code null}.
-     * @hide
-     */
-    @SuppressWarnings({"WeakerAccess", "JavaDoc"})
-    @Retention(CLASS)
-    @Target({METHOD, PARAMETER, FIELD, TYPE_USE})
-    public @interface NonNull {
-    }
-    """
+                package android.annotation;
+                import java.lang.annotation.*;
+                import static java.lang.annotation.ElementType.*;
+                import static java.lang.annotation.RetentionPolicy.CLASS;
+                /**
+                 * Denotes that a parameter, field or method return value can never be null.
+                 * @paramDoc This value must never be {@code null}.
+                 * @returnDoc This value will never be {@code null}.
+                 * @hide
+                 */
+                @SuppressWarnings({"WeakerAccess", "JavaDoc"})
+                @Retention(CLASS)
+                @Target({METHOD, PARAMETER, FIELD})
+                public @interface NonNull {
+                }
+            """
         )
 
     val nullableSource: TestFile =
         TestFiles.java(
             """
-    package android.annotation;
-    import java.lang.annotation.*;
-    import static java.lang.annotation.ElementType.*;
-    import static java.lang.annotation.RetentionPolicy.CLASS;
-    /**
-     * Denotes that a parameter, field or method return value can be null.
-     * @paramDoc This value may be {@code null}.
-     * @returnDoc This value may be {@code null}.
-     * @hide
-     */
-    @SuppressWarnings({"WeakerAccess", "JavaDoc"})
-    @Retention(CLASS)
-    @Target({METHOD, PARAMETER, FIELD, TYPE_USE})
-    public @interface Nullable {
-    }
-    """
+                package android.annotation;
+                import java.lang.annotation.*;
+                import static java.lang.annotation.ElementType.*;
+                import static java.lang.annotation.RetentionPolicy.CLASS;
+                /**
+                 * Denotes that a parameter, field or method return value can be null.
+                 * @paramDoc This value may be {@code null}.
+                 * @returnDoc This value may be {@code null}.
+                 * @hide
+                 */
+                @SuppressWarnings({"WeakerAccess", "JavaDoc"})
+                @Retention(CLASS)
+                @Target({METHOD, PARAMETER, FIELD})
+                public @interface Nullable {
+                }
+            """
         )
 
     val libcoreNonNullSource: TestFile =
         TestFiles.java(
             """
-    package libcore.util;
-    import static java.lang.annotation.ElementType.*;
-    import static java.lang.annotation.RetentionPolicy.SOURCE;
-    import java.lang.annotation.*;
-    @Documented
-    @Retention(SOURCE)
-    @Target({TYPE_USE})
-    public @interface NonNull {
-    }
-    """
+                package libcore.util;
+                import static java.lang.annotation.ElementType.*;
+                import static java.lang.annotation.RetentionPolicy.SOURCE;
+                import java.lang.annotation.*;
+                @Documented
+                @Retention(SOURCE)
+                @Target({FIELD, METHOD, PARAMETER, TYPE_USE})
+                public @interface NonNull {
+                }
+            """
         )
 
     val libcoreNullableSource: TestFile =
         TestFiles.java(
             """
-    package libcore.util;
-    import static java.lang.annotation.ElementType.*;
-    import static java.lang.annotation.RetentionPolicy.SOURCE;
-    import java.lang.annotation.*;
-    @Documented
-    @Retention(SOURCE)
-    @Target({TYPE_USE})
-    public @interface Nullable {
-    }
-    """
+                package libcore.util;
+                import static java.lang.annotation.ElementType.*;
+                import static java.lang.annotation.RetentionPolicy.SOURCE;
+                import java.lang.annotation.*;
+                @Documented
+                @Retention(SOURCE)
+                @Target({FIELD, METHOD, PARAMETER, TYPE_USE})
+                public @interface Nullable {
+                }
+            """
         )
 
     /**
@@ -145,6 +175,36 @@ object KnownSourceFiles {
     package org.jetbrains.annotations;
     @java.lang.annotation.Target({ java.lang.annotation.ElementType.METHOD, java.lang.annotation.ElementType.FIELD, java.lang.annotation.ElementType.PARAMETER, java.lang.annotation.ElementType.LOCAL_VARIABLE, java.lang.annotation.ElementType.TYPE_USE })
     public @interface Nullable {}
+            """
+        )
+
+    val androidxNonNullJavaSource: TestFile =
+        TestFiles.java(
+            """
+                package androidx.annotation;
+                import java.lang.annotation.*;
+                import static java.lang.annotation.ElementType.*;
+                import static java.lang.annotation.RetentionPolicy.SOURCE;
+                @SuppressWarnings("WeakerAccess")
+                @Retention(SOURCE)
+                @Target({METHOD, PARAMETER, FIELD, PACKAGE, TYPE_PARAMETER})
+                public @interface NonNull {
+                }
+            """
+        )
+
+    val androidxNullableJavaSource: TestFile =
+        TestFiles.java(
+            """
+                package androidx.annotation;
+                import java.lang.annotation.*;
+                import static java.lang.annotation.ElementType.*;
+                import static java.lang.annotation.RetentionPolicy.SOURCE;
+                @SuppressWarnings("WeakerAccess")
+                @Retention(SOURCE)
+                @Target({METHOD, PARAMETER, FIELD, PACKAGE, TYPE_PARAMETER})
+                public @interface Nullable {
+                }
             """
         )
 

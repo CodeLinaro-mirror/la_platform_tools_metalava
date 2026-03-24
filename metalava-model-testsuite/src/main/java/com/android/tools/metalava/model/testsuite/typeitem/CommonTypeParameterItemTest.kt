@@ -21,13 +21,40 @@ import com.android.tools.metalava.model.StripJavaLangPrefix
 import com.android.tools.metalava.model.TypeStringConfiguration
 import com.android.tools.metalava.model.testing.classTypeItem
 import com.android.tools.metalava.model.testsuite.BaseModelTest
+import com.android.tools.metalava.testing.TestFileCache
+import com.android.tools.metalava.testing.TestFileCacheRule
+import com.android.tools.metalava.testing.cacheIn
+import com.android.tools.metalava.testing.jarFromSources
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import com.google.common.truth.Truth.assertThat
 import com.google.common.truth.Truth.assertWithMessage
+import org.junit.ClassRule
 import org.junit.Test
 
 class CommonTypeParameterItemTest : BaseModelTest() {
+
+    companion object {
+        /** Create a [TestFileCache] whose lifespan encompasses all the tests in this class. */
+        @ClassRule @JvmField val testFileCacheRule = TestFileCacheRule()
+
+        /** Jar file containing an `other.pkg.Other` class with a `Nested` class. */
+        @Suppress("TypeParameterExplicitlyExtendsObject")
+        private val typeParametersJar =
+            jarFromSources(
+                    "type-parameters.jar",
+                    java(
+                        """
+                            package test.pkg;
+                            public class Test<A, B extends Object, C extends Comparable<C>, D extends Object & Comparable<D>> {
+                                private Test() {}
+                            }
+                        """
+                    ),
+                )
+                .cacheIn(testFileCacheRule)
+    }
+
     @Test
     fun `Test typeBounds no extends`() {
         runCodebaseTest(
@@ -57,8 +84,7 @@ class CommonTypeParameterItemTest : BaseModelTest() {
             val fooClass = codebase.assertClass("test.pkg.Foo")
             val typeParameter = fooClass.typeParameterList.single()
             assertThat(typeParameter.toSource()).isEqualTo("T")
-            val typeBounds = typeParameter.typeBounds()
-            assertThat(typeBounds.size).isEqualTo(0)
+            typeParameter.assertUsesDefaultTypeBounds()
         }
     }
 
@@ -133,6 +159,32 @@ class CommonTypeParameterItemTest : BaseModelTest() {
             assertThat((first as ClassTypeItem).qualifiedName).isEqualTo("java.lang.Object")
             assertThat(second).isInstanceOf(ClassTypeItem::class.java)
             assertThat((second as ClassTypeItem).qualifiedName).isEqualTo("java.lang.Comparable")
+        }
+    }
+
+    @Test
+    fun `Test typeBounds on jar`() {
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+                    public class Placeholder {}
+                """
+            ),
+            testFixture =
+                TestFixture(
+                    additionalClassPath = listOf(typeParametersJar.toFile()),
+                ),
+        ) {
+            val testClass = codebase.assertResolvedClass("test.pkg.Test")
+            testClass.assertTypeParameterListBounds(
+                """
+                    A -> [java.lang.Object!]
+                    B -> [java.lang.Object!]
+                    C -> [java.lang.Comparable<C>!]
+                    D -> [java.lang.Object!, java.lang.Comparable<D>!]
+                """
+            )
         }
     }
 
@@ -228,7 +280,7 @@ class CommonTypeParameterItemTest : BaseModelTest() {
             bBound.assertReferencesTypeParameter(a)
 
             // C
-            assertThat(c.typeBounds()).isEmpty()
+            c.assertUsesDefaultTypeBounds()
         }
     }
 
@@ -342,7 +394,7 @@ class CommonTypeParameterItemTest : BaseModelTest() {
     }
 
     @Test
-    fun `Test explicit Object bound`() {
+    fun `Test explicit Object bound - java`() {
         runCodebaseTest(
             java(
                 """
@@ -380,6 +432,28 @@ class CommonTypeParameterItemTest : BaseModelTest() {
             // Since this is not a single object bound, it is still included
             assertThat(typeParameterU.toSource())
                 .isEqualTo("U extends java.lang.Object & java.lang.Comparable<U>")
+        }
+    }
+
+    @Test
+    fun `Test explicit Any bounds - kotlin`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                    package test.pkg
+                    class Foo<T: Any?, U: Any>
+                """
+            ),
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+            // TODO(b/488322332): This is wrong, U should not be nullable. That is happening because
+            //   Kotlin is dropping Any, even if it non-nullable.
+            fooClass.assertTypeParameterListBounds(
+                """
+                    T -> [java.lang.Object?]
+                    U -> [java.lang.Object?]
+                """
+            )
         }
     }
 

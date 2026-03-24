@@ -20,11 +20,11 @@ import com.android.tools.metalava.ARG_EXCLUDE_ALL_ANNOTATIONS
 import com.android.tools.metalava.ARG_EXCLUDE_ANNOTATION
 import com.android.tools.metalava.ARG_PASS_THROUGH_ANNOTATION
 import com.android.tools.metalava.TYPE_USE_FORMAT
-import com.android.tools.metalava.androidxNullableSource
 import com.android.tools.metalava.libcoreNonNullSource
 import com.android.tools.metalava.model.SUPPORT_TYPE_USE_ANNOTATIONS
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.requiresApiSource
+import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import org.junit.Test
 
@@ -286,7 +286,7 @@ class StubsAnnotationTest : AbstractStubsTest() {
             api =
                 """
                     package libcore.util {
-                      @java.lang.annotation.Documented @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.SOURCE) @java.lang.annotation.Target({java.lang.annotation.ElementType.TYPE_USE}) public @interface NonNull {
+                      @java.lang.annotation.Documented @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.SOURCE) @java.lang.annotation.Target({java.lang.annotation.ElementType.FIELD, java.lang.annotation.ElementType.METHOD, java.lang.annotation.ElementType.PARAMETER, java.lang.annotation.ElementType.TYPE_USE}) public @interface NonNull {
                       }
                     }
                     package my.pkg {
@@ -294,7 +294,7 @@ class StubsAnnotationTest : AbstractStubsTest() {
                         ctor public String(@libcore.util.NonNull char[]);
                       }
                     }
-                    """,
+                """,
             stubFiles =
                 arrayOf(
                     java(
@@ -332,7 +332,7 @@ class StubsAnnotationTest : AbstractStubsTest() {
                     """
                     ),
                     requiresApiSource,
-                    androidxNullableSource,
+                    KnownSourceFiles.androidxNullableJavaSource,
                 ),
             source =
                 """

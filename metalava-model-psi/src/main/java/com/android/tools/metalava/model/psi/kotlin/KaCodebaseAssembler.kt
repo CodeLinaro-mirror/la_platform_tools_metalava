@@ -27,7 +27,6 @@ import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ExceptionTypeItem
-import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.JVM_NAME
 import com.android.tools.metalava.model.KOTLIN_DEPRECATED
@@ -43,6 +42,7 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.model.WellKnownTypes
 import com.android.tools.metalava.model.createImmutableModifiers
 import com.android.tools.metalava.model.createMutableModifiers
 import com.android.tools.metalava.model.item.CodebaseAssembler
@@ -55,6 +55,7 @@ import com.android.tools.metalava.model.psi.PsiBasedCodebase
 import com.android.tools.metalava.model.psi.PsiFileLocation
 import com.android.tools.metalava.model.psi.createItemDocumentation
 import com.android.tools.metalava.model.psi.isKotlin
+import com.android.tools.metalava.model.source.toItemDocumentationFactory
 import com.android.tools.metalava.model.type.MethodFingerprint
 import com.android.tools.metalava.model.type.TypeParameterListAndFactory
 import com.android.tools.metalava.model.value.ArrayValue
@@ -666,7 +667,7 @@ private constructor(
                 fileLocation = PsiFileLocation.fromPsiElement(constructorSymbol.psi),
                 targetLanguages = TargetLanguageSet.KOTLIN_ONLY,
                 modifiers = modifiers,
-                documentationFactory = ItemDocumentation.NONE_FACTORY,
+                documentationFactory = constructorSymbol.getDocumentation(),
                 name = containingClass.simpleName(),
                 containingClass = containingClass,
                 typeParameterList = typeParameterListAndFactory.typeParameterList,
@@ -822,7 +823,7 @@ private constructor(
                 fileLocation = PsiFileLocation.fromPsiElement(functionSymbol.psi),
                 targetLanguages = targetLanguages,
                 modifiers = modifiers,
-                documentationFactory = ItemDocumentation.NONE_FACTORY,
+                documentationFactory = functionSymbol.getDocumentation(),
                 name = name,
                 containingClass = containingClass,
                 typeParameterList = typeParameterListAndFactory.typeParameterList,
@@ -1150,9 +1151,10 @@ private constructor(
 
     /** Creates documentation for the symbol through psi, if possible. */
     private fun KaSymbol.getDocumentation(): ItemDocumentationFactory {
-        return psiCodebase?.let { psiCodebase ->
-            psi?.let { psi -> psi.createItemDocumentation(psiCodebase) }
-        } ?: ItemDocumentation.NONE_FACTORY
+        return psiCodebase?.let { psiCodebase -> psi?.createItemDocumentation(psiCodebase) }
+            ?:
+            // b/476391844: using NONE_FACTORY here causes issues when stubs are generated
+            "".toItemDocumentationFactory()
     }
 
     /**
@@ -1238,7 +1240,12 @@ private constructor(
             },
             // Get the bounds of the type parameter from the symbols
             { typeItemFactory, typeParameterSymbol ->
-                typeParameterSymbol.upperBounds.map { typeItemFactory.getBoundsType(it) }
+                val upperBounds = typeParameterSymbol.upperBounds
+                if (upperBounds.isEmpty()) {
+                    WellKnownTypes.defaultTypeParameterBounds(forKotlin = true)
+                } else {
+                    upperBounds.map { typeItemFactory.getBoundsType(it) }
+                }
             },
         )
     }
