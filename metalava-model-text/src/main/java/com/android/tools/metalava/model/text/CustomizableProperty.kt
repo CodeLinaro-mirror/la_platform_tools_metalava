@@ -16,10 +16,11 @@
 
 package com.android.tools.metalava.model.text
 
+import com.android.tools.metalava.model.FlaggedApiInheritance
 import com.android.tools.metalava.model.StripJavaLangPrefix
 import com.android.tools.metalava.model.text.FileFormat.Builder
 import com.android.tools.metalava.model.text.FileFormat.Companion.parseSpecifier
-import com.android.tools.metalava.model.text.FileFormat.Language
+import com.android.tools.metalava.model.text.FileFormat.NamedStyle
 import com.android.tools.metalava.model.text.FileFormat.OverloadedMethodOrder
 import com.android.tools.metalava.model.text.FileFormat.TypeArgumentSpacing
 import java.util.Locale
@@ -43,7 +44,7 @@ private constructor(
     val valueSyntax: String,
     /** Help text to use on the command line. */
     val help: String,
-    internal val valueToString: (T & Any).() -> String,
+    val valueToString: (T & Any).() -> String,
     private val stringToValue: FromString.() -> T,
 ) : ReadOnlyProperty<CustomizableProperty.Companion, CustomizableProperty<T>> {
 
@@ -204,14 +205,15 @@ private constructor(
                     """,
             )
 
-        /** language=[java|kotlin] */
-        val LANGUAGE by
-            optionalEnumProperty<Language>(
+        /** style=[java|kotlin] */
+        val STYLE by
+            optionalEnumProperty<NamedStyle>(
                 defaultValue = null,
                 help =
                     """
-                        Deprecated, will be replaced with a general mechanism for defining named
-                        sets of defaults.
+                        The name of a predefined set of properties to apply as defaults. They
+                        override version defaults but are themselves overridden by properties listed
+                        in the file.
                     """,
             )
 
@@ -225,6 +227,24 @@ private constructor(
                     """
                         If `yes` then add additional overrides into the signature file that are
                         needed in order to create compilable stubs from the signature file.
+                    """,
+            )
+
+        val FLAGGED_API_INHERITANCE by
+            enumProperty<FlaggedApiInheritance>(
+                defaultable = true,
+                defaultValue = FlaggedApiInheritance.NONE,
+                help =
+                    """
+                        Specifies whether `@FlaggedApi` annotations are inherited in signature
+                        files.
+
+                        `none` (default) - they are not inherited. This can make it difficult to
+                        determine whether a nested class is flagged when reviewin as the containing
+                        class may be out of view or even in another file altogether.
+
+                        `nested-classes` - they are inherited onto nested classes that do not have
+                        their own `@FlaggedApi` annotation.
                     """,
             )
 
@@ -528,7 +548,7 @@ abstract class BasePropertyMap : Iterable<CustomizableProperty<*>> {
     override fun toString() = buildString {
         append('{')
         var separator = ""
-        for (property in this@BasePropertyMap) {
+        for (property in CustomizableProperty.entries) {
             val valueAsString = propertyAsString(property) ?: continue
             append(separator)
             append(property.propertyName)

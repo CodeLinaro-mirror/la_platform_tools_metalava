@@ -192,7 +192,7 @@ def default_jdiff_files():
         "out/soong/.intermediates/cts/tests/signature/api/cts-android-test-base-current-api-gz/gen/android-test-base-current.api.gz",
         "out/soong/.intermediates/cts/tests/signature/api/cts-android-test-mock-current-api-gz/gen/android-test-mock-current.api.gz",
         "out/soong/.intermediates/cts/tests/signature/api/cts-android-test-runner-current-api-gz/gen/android-test-runner-current.api.gz",
-        "out/soong/.intermediates/cts/tests/signature/api/cts-apache-http-legacy-current-api-gz/gen/apache-http-legacy-current.api.gz",
+        "out/soong/.intermediates/cts/tests/signature/api/cts-apache-http-legacy-current-srcs-or-latest-prebuilt-api-gz/gen/apache-http-legacy-current.api.gz",
         "out/soong/.intermediates/cts/tests/signature/api/cts-car-system-current-api-gz/gen/car-system-current.api.gz",
         "out/soong/.intermediates/cts/tests/signature/api/cts-current-api-gz/android_common/gen/current.api.gz",
         "out/soong/.intermediates/cts/tests/signature/api/cts-system-current-api-gz/android_common/gen/system-current.api.gz",

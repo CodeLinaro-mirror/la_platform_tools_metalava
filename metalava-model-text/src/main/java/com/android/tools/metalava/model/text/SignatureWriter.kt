@@ -37,6 +37,7 @@ import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeStringConfiguration
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.FLAGGED_API_INHERITANCE
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.INCLUDE_DEFAULT_PARAMETER_VALUES
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.INCLUDE_TYPE_USE_ANNOTATIONS
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.KOTLIN_NAME_TYPE_ORDER
@@ -87,6 +88,7 @@ class SignatureWriter(
             skipNullnessAnnotations = fileFormat[KOTLIN_STYLE_NULLS],
             normalizeFinal = fileFormat[NORMALIZE_FINAL_MODIFIER],
             normalizeAbstract = fileFormat[NORMALIZE_ABSTRACT_MODIFIER],
+            flaggedApiInheritance = fileFormat[FLAGGED_API_INHERITANCE],
         )
 
     internal fun write(text: String) {
