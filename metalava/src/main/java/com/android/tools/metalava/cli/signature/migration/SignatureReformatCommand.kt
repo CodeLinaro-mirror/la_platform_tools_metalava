@@ -14,14 +14,16 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.cli.signature
+package com.android.tools.metalava.cli.signature.migration
 
 import com.android.tools.metalava.cli.common.MetalavaSubCommand
 import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.stderr
+import com.android.tools.metalava.cli.signature.ARG_USE_SAME_FORMAT_AS
+import com.android.tools.metalava.cli.signature.SignatureFormatOptions
+import com.android.tools.metalava.cli.signature.readSignatureFiles
+import com.android.tools.metalava.cli.signature.writeSignatureFile
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.text.CustomizableProperty
-import com.android.tools.metalava.model.text.EmitFileHeader
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.SignatureFile
 import com.github.ajalt.clikt.parameters.arguments.argument
@@ -29,8 +31,6 @@ import com.github.ajalt.clikt.parameters.arguments.multiple
 import com.github.ajalt.clikt.parameters.groups.provideDelegate
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
-import java.io.PrintWriter
-import java.io.StringWriter
 
 class SignatureReformatCommand :
     MetalavaSubCommand(
@@ -96,16 +96,18 @@ class SignatureReformatCommand :
             .multiple(required = true)
 
     /**
-     * Compute the output [FileFormat] to use.
+     * Compute the output [com.android.tools.metalava.model.text.FileFormat] to use.
      *
      * Returns [targetFormat] unless [preserveStructure] is `true` in which case this will use
-     * [FileStructurePreserver] to create a [FileFormat] from [targetFormat] with settings from
-     * [currentFormat] needed to preserve the structure.
+     * [FileStructurePreserver] to create a [com.android.tools.metalava.model.text.FileFormat] from
+     * [targetFormat] with settings from [currentFormat] needed to preserve the structure.
      *
-     * @param currentFormat the current [FileFormat] for the file.
-     * @param targetFormat the target [FileFormat] to which the file is to be reformatted.
-     * @param codebase the [Codebase] loaded from the signature file. Used to determine whether a
-     *   property setting affects the structure of the file.
+     * @param currentFormat the current [com.android.tools.metalava.model.text.FileFormat] for the
+     *   file.
+     * @param targetFormat the target [com.android.tools.metalava.model.text.FileFormat] to which
+     *   the file is to be reformatted.
+     * @param codebase the [com.android.tools.metalava.model.Codebase] loaded from the signature
+     *   file. Used to determine whether a property setting affects the structure of the file.
      */
     private fun computeOutputFormat(
         currentFormat: FileFormat,
@@ -143,106 +145,4 @@ class SignatureReformatCommand :
             file.printWriter().use { writer -> writeSignatureFile(codebase, outputFormat, writer) }
         }
     }
-}
-
-/**
- * Encapsulates logic to compute the [FileFormat] that will preserve the file structure of
- * [codebase] formatted with [currentFormat] while setting as many of the properties in
- * [targetFormat] as possible.
- */
-private class FileStructurePreserver(
-    private val currentFormat: FileFormat,
-    private val targetFormat: FileFormat,
-    private val codebase: Codebase,
-) {
-    /**
-     * The current contents of the signature file against which the effect of property settings will
-     * be compared. Initialized lazily as it can be expensive to compute and may not be needed.
-     */
-    private val currentContents by
-        lazy(LazyThreadSafetyMode.NONE) { codebase.toSignatureNoHeader(currentFormat) }
-
-    /**
-     * Format this [Codebase] as a signature file using [format] but without the header, returning
-     * the [String] result.
-     */
-    private fun Codebase.toSignatureNoHeader(format: FileFormat): String {
-        val stringWriter = StringWriter()
-        PrintWriter(stringWriter).use { printWriter ->
-            writeSignatureFile(this, format, printWriter, emitFileHeader = EmitFileHeader.NEVER)
-        }
-        return stringWriter.toString()
-    }
-
-    /**
-     * Check to see whether this should preserve the property from [currentFormat] or see if it can
-     * use the property from [targetFormat] instead.
-     */
-    private fun <T> copyPropertyPreservingStructure(
-        builder: FileFormat.Builder,
-        property: CustomizableProperty<T>,
-    ) {
-        // Get the current value of the property, including any defaults. If it is not set
-        // then it will have no impact on the resulting format so return.
-        val currentValue = currentFormat[property] ?: return
-
-        // Get the target value, including any defaults.
-        val targetValue = targetFormat[property]
-        if (targetValue == null) {
-            // The target value is null so use the value from the current file.
-            builder[property] = currentValue
-        } else if (targetValue != currentValue) {
-            // The target value is different from the current value so see whether it needs
-            // to be changed.
-            if (property.defaultable) {
-                // Defaultable properties should only be specified if needed. Check to see
-                // if its value has any impact on the generated signature file.
-
-                // Build a [FileFormat] that is the same as the [currentFormat] but with
-                // its [property] set to the [targetFormat]'s value.
-                val currentFormatWithTargetValue =
-                    currentFormat.buildCopy { this[property] = targetValue }
-
-                // Generate the signature contents with that format.
-                val contentsWithProperty =
-                    codebase.toSignatureNoHeader(currentFormatWithTargetValue)
-
-                // If the contents are different with the target value then keep the current
-                // value.
-                if (currentContents != contentsWithProperty) {
-                    builder[property] = currentValue
-                }
-            } else {
-                // Always keep the current value for non-defaultable properties as they are
-                // significant even if they do not affect the current signature file.
-                // e.g. if the current sets `kotlin-style-nulls=no` and the target sets
-                // `kotlin-style-nulls=yes` this cannot just use the latter even if it has
-                // no impact on the current structure that is a fundamental change in the
-                // information that will be recorded.
-                builder[property] = currentValue
-            }
-        }
-    }
-
-    /**
-     * Compute a [FileFormat] that will preserve the structure of the original [currentFormat] while
-     * incorporating changes from [targetFormat].
-     *
-     * This assumes that every property difference between [currentFormat] and [targetFormat] could
-     * result in structural changes.
-     *
-     * The [codebase] is used to determine whether a specific property setting affects the file
-     * structure by generated signature file contents with and without that setting and comparing
-     * the result.
-     */
-    fun computeFormat() =
-        // Create a new FileFormat based on the [targetFormat] with properties copied from
-        // [currentFormat] where necessary.
-        targetFormat.buildCopy {
-            // Iterate over all the properties checking to see if the [targetFormat] value needs to
-            // be replaced with the [currentFormat] value.
-            for (property in CustomizableProperty.entries) {
-                copyPropertyPreservingStructure(this, property)
-            }
-        }
 }

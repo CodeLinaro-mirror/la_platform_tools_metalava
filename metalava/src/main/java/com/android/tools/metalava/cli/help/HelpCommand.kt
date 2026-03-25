@@ -133,6 +133,8 @@ private fun <T> StringBuilder.appendPropertyDeltaDescription(
     }
 }
 
+private val sortedCustomizableProperties = CustomizableProperty.entries.sortedBy { it.propertyName }
+
 /**
  * Construct the help for [version].
  *
@@ -142,9 +144,8 @@ fun constructVersionHelp(version: FileFormat.Version): String = buildString {
     append(version.help.trimIndent())
     val baseVersion = version.baseVersion
     val delta = buildString {
-        val sortedEntries = CustomizableProperty.entries.sortedBy { it.propertyName }
         val baseDefaults = baseVersion?.defaults
-        for (property in sortedEntries) {
+        for (property in sortedCustomizableProperties) {
             appendPropertyDeltaDescription(version, property, baseDefaults)
         }
     }
@@ -179,14 +180,13 @@ private fun signatureFileFormatsHelp(): CliktCommand {
      *
      * @param filter filter the properties for which help will be provided.
      */
-    fun customizablePropertyHelp(filter: (CustomizableProperty<*>) -> Boolean): String {
+    fun customizablePropertyHelp(): String {
         fun CustomizableProperty<*>.labelGetter() = "`$propertyName = $valueSyntax`"
         return buildDefinitionListHelp(
-            CustomizableProperty.entries.mapNotNull {
-                if (!filter(it)) return@mapNotNull null
-                val help = it.help
-                if (help == "") return@mapNotNull null
-                it.labelGetter() to help.trimIndent()
+            sortedCustomizableProperties.map { property ->
+                val help = property.help
+                if (help == "") error("No help provided for $property")
+                property.labelGetter() to help.trimIndent()
             },
             termPrefix = "* ",
         )
@@ -205,11 +205,7 @@ that will be output to the API signature file and how it is represented. A forma
 a set of defaults for those properties.
 
 The supported properties are:
-${customizablePropertyHelp {!it.defaultable}}
-
-Plus the following properties which can have their default changed using the `--format-defaults`
-option.
-${customizablePropertyHelp {it.defaultable}}
+${customizablePropertyHelp()}
 
 Currently, metalava supports the following versions:
 ${versionHelp()}
