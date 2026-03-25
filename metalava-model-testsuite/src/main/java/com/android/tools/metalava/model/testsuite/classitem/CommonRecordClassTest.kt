@@ -16,106 +16,11 @@
 
 package com.android.tools.metalava.model.testsuite.classitem
 
-import com.android.tools.metalava.model.ClassKind
-import com.android.tools.metalava.model.ModifierKeyword
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
-import kotlin.test.assertEquals
 import org.junit.Test
 
 class CommonRecordClassTest : BaseModelTest() {
-    @Test
-    fun `Test simple record class`() {
-        runSourceCodebaseTest(
-            java(
-                """
-                    package test.pkg;
-
-                    public record Test(int a, String b) {
-                    }
-                """
-            ),
-            signature(
-                """
-                    // Signature format: 6.0
-                    // - style=java
-                    package test.pkg {
-                      public record Test {
-                        ctor public Test(int a, String b);
-                      }
-                    }
-                """
-            ),
-            testFixture =
-                TestFixture(
-                    javaLanguageLevel = "17",
-                ),
-        ) {
-            val testClass = codebase.assertClass("test.pkg.Test")
-            assertEquals(ClassKind.RECORD, testClass.classKind)
-
-            assertEquals(
-                listOf(ModifierKeyword.PUBLIC_KEYWORD, ModifierKeyword.FINAL_KEYWORD),
-                testClass.modifiers.keywordList
-            )
-        }
-    }
-
-    @Test
-    fun `Test record class without explicit Object method overrides`() {
-        runSourceCodebaseTest(
-            java(
-                """
-                    package test.pkg;
-
-                    public record Test(int a) {
-                    }
-                """
-            ),
-            testFixture =
-                TestFixture(
-                    javaLanguageLevel = "17",
-                ),
-        ) {
-            val testClass = codebase.assertClass("test.pkg.Test")
-            val methodNames = testClass.methods().map { it.name() }.sorted()
-
-            assertEquals(listOf("a"), methodNames)
-        }
-    }
-
-    @Test
-    fun `Test record class with explicit Object method overrides`() {
-        runSourceCodebaseTest(
-            java(
-                """
-                    package test.pkg;
-
-                    public record Test(int a) {
-                        @Override public boolean equals(Object obj) {
-                            return false;
-                        }
-                        @Override public int hashCode() {
-                            return 0;
-                        }
-                        @Override public @NonNull String toString() {
-                            return "";
-                        }
-                    }
-                """
-            ),
-            testFixture =
-                TestFixture(
-                    javaLanguageLevel = "17",
-                ),
-        ) {
-            val testClass = codebase.assertClass("test.pkg.Test")
-            val methodNames = testClass.methods().map { it.name() }.sorted()
-
-            assertEquals(listOf("a", "equals", "hashCode", "toString"), methodNames)
-        }
-    }
-
     @Test
     fun `Test record with compact constructor and implicit constructor parameters`() {
         runSourceCodebaseTest(

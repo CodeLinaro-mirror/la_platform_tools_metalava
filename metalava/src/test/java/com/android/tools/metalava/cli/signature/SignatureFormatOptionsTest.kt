@@ -32,10 +32,7 @@ import kotlin.test.assertEquals
 import org.junit.Assert.assertThrows
 import org.junit.Test
 
-val SIGNATURE_FORMAT_OPTIONS_HELP = signatureFormatOptionsHelp(defaultFileFormat = FileFormat.V2)
-
-/** Get the [SignatureFormatOptions] when using [defaultFileFormat]. */
-fun signatureFormatOptionsHelp(defaultFileFormat: FileFormat) =
+val SIGNATURE_FORMAT_OPTIONS_HELP =
     """
 Signature Format Output:
 
@@ -46,16 +43,11 @@ Signature Format Output:
   --format-defaults <defaults>               Specifies defaults for format properties.
 
                                              A comma separated list of `<property>=<value>` assignments where
-                                             `<property>` is one of the following:
-                                             * `add-additional-overrides`
-                                             * `flagged-api-inheritance`
-                                             * `java-record-classes`
-                                             * `normalize-abstract-modifier`
-                                             * `normalize-final-modifier`
-                                             * `overloaded-method-order`
-                                             * `sort-whole-extends-list`
-                                             * `strip-java-lang-prefix`
-                                             * `type-argument-spacing`
+                                             `<property>` is one of the following: 'add-additional-overrides',
+                                             'flagged-api-inheritance', 'normalize-abstract-modifier',
+                                             'normalize-final-modifier', 'overloaded-method-order',
+                                             'sort-whole-extends-list', 'strip-java-lang-prefix',
+                                             'type-argument-spacing'.
 
                                              See `metalava help signature-file-formats` for more information on the
                                              properties.
@@ -66,7 +58,7 @@ Signature Format Output:
                                              <version>[:<property>=<value>[,<property>=<value>]*]
 
                                              See `metalava help signature-file-formats` for more help including a list
-                                             of the available `<version>`s and `<property>=<value>`s. (default: ${defaultFileFormat.specifier()})
+                                             of the available `<version>`s and `<property>=<value>`s. (default: 2.0)
   --use-same-format-as <file>                Specifies that the output format should be the same as the format used in
                                              the specified file. It is an error if the file does not exist. If the file
                                              is empty then this will behave as if it was not specified. If the file is

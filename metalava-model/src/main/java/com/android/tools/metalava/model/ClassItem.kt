@@ -313,12 +313,6 @@ interface ClassItem :
             Comparator.comparing { it.qualifiedName() }
 
         fun classNameSorter(): Comparator<in ClassItem> = qualifiedComparator
-
-        /**
-         * The name used for a fake class which is a container for top level functions and
-         * properties in a non-JVM API surface.
-         */
-        const val TOP_LEVEL_DECLARATION_FACADE_NAME = "\$TopLevelDeclarations"
     }
 
     fun findMethod(

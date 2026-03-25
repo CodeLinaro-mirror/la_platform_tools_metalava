@@ -489,13 +489,6 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
             return NO_ANNOTATION_TARGETS
         }
 
-        if (qualifiedName.startsWith("android.processor.devicepolicy.")) {
-            // We don't want to export device policy definition annotations.
-            // Skip them from checking into the API signature, external
-            // annotations, stubs, etc.
-            return NO_ANNOTATION_TARGETS
-        }
-
         // @RecentlyNullable and @RecentlyNonNull are specially recognized annotations by the
         // Kotlin
         // compiler: they always go in the stubs.

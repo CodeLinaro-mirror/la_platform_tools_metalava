@@ -68,7 +68,7 @@ class SignatureInputOutputTest : Assertions {
         expectedOutput: String = signature,
         codebaseTest: CodebaseContext.() -> Unit = {},
     ) {
-        val fullSignature = prepareSignatureFileForTest(signature, fileFormat)
+        val fullSignature = fileFormat.header() + signature
         val signatureFile = SignatureFile.fromText("test", fullSignature)
         val codebase = ApiFile.parseApi(listOf(signatureFile))
 
@@ -971,52 +971,6 @@ class SignatureInputOutputTest : Assertions {
             }
             """
         runInputOutputTest(api, FileFormat.V5)
-    }
-
-    @Test
-    fun `Test record classes, java-record-classes=yes`() {
-        val api =
-            """
-                package test.pkg {
-                  public record Test {
-                    ctor public Test(int, String);
-                    method public int a();
-                    method public String b();
-                  }
-                }
-            """
-        runInputOutputTest(
-            api,
-            FORMAT_V6_WITH_JAVA_RECORD_CLASSES,
-        )
-    }
-
-    @Test
-    fun `Test record classes, java-record-classes=no`() {
-        val api =
-            """
-                package test.pkg {
-                  public record Test {
-                    ctor public Test(int, String);
-                    method public int a();
-                    method public String b();
-                  }
-                }
-            """
-        runInputOutputTest(
-            api,
-            FORMAT_V6_WITHOUT_JAVA_RECORD_CLASSES,
-            expectedOutput =
-                """
-                    package test.pkg {
-                      public class Test {
-                        ctor public Test(int, String);
-                        method public int a();
-                        method public String b();
-                      }
-                    }
-                """,
-        )
     }
 
     companion object {

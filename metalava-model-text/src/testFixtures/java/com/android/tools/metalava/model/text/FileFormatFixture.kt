@@ -18,16 +18,12 @@
 
 package com.android.tools.metalava.model.text
 
-import com.android.tools.metalava.model.text.CustomizableProperty.Companion.JAVA_RECORD_CLASSES
-import com.android.tools.metalava.model.text.CustomizableProperty.Companion.STYLE
-
 private val FILE_FORMAT_PROPERTY_NAMES =
     listOf(
         "add-additional-overrides",
         "flagged-api-inheritance",
         "include-default-parameter-values",
         "include-type-use-annotations",
-        "java-record-classes",
         "kotlin-name-type-order",
         "kotlin-style-nulls",
         "migrating",
@@ -43,15 +39,3 @@ private val FILE_FORMAT_PROPERTY_NAMES =
     )
 
 val FILE_FORMAT_PROPERTIES = FILE_FORMAT_PROPERTY_NAMES.joinToString { "'$it'" }
-
-val FORMAT_V6_WITH_JAVA_RECORD_CLASSES =
-    FileFormat.V6.buildCopy {
-        this[STYLE] = FileFormat.NamedStyle.JAVA
-        this[JAVA_RECORD_CLASSES] = true
-    }
-
-val FORMAT_V6_WITHOUT_JAVA_RECORD_CLASSES =
-    FileFormat.V6.buildCopy {
-        this[STYLE] = FileFormat.NamedStyle.JAVA
-        this[JAVA_RECORD_CLASSES] = false
-    }

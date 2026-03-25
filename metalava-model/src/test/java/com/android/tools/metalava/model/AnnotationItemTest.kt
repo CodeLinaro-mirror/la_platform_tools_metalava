@@ -39,8 +39,7 @@ class AnnotationItemTest {
 
     @Test
     fun `Test shortenAnnotation and unshortenAnnotation`() {
-        checkShortenAnnotation("NonNull", "androidx.annotation.NonNull")
-        checkShortenAnnotation("Nullable", "androidx.annotation.Nullable")
+        checkShortenAnnotation("Nullable", "android.annotation.Nullable")
         checkShortenAnnotation("Deprecated", "java.lang.Deprecated")
         checkShortenAnnotation("SystemService", "android.annotation.SystemService")
         checkShortenAnnotation("TargetApi", "android.annotation.TargetApi")

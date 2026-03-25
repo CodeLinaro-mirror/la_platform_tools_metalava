@@ -48,8 +48,6 @@ object WellKnownTypes {
     val JAVA_LANG_OBJECT_NON_NULL_TYPE = JAVA_LANG_OBJECT.nonNullClassType()
     val JAVA_LANG_OBJECT_NULLABLE_TYPE = JAVA_LANG_OBJECT.nullableClassType()
 
-    val JAVA_LANG_RECORD_NON_NULL_TYPE = JAVA_LANG_RECORD.nonNullClassType()
-
     /** The default type parameter bounds when none is provided in Kotlin source. */
     private val DEFAULT_JAVA_TYPE_PARAMETER_BOUNDS = listOf(JAVA_LANG_OBJECT_PLATFORM_TYPE)
 

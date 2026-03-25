@@ -94,16 +94,26 @@ Usage: metalava help signature-file-formats
 
   The supported properties are:
 
-  * `add-additional-overrides = yes|no` - If `yes` then add additional overrides into the signature file that are needed
-  in order to create compilable stubs from the signature file.
+  * `name = <identifier>` - Specifies the name of the API.
 
-  * `flagged-api-inheritance = none|nested-classes` - Specifies whether `@FlaggedApi` annotations are inherited in
-  signature files.
+  It must start with a lower case letter, contain any number of lower case letters, numbers and hyphens, and end with
+  either a lowercase letter or number.
 
-  `none` (default) - they are not inherited. This can make it difficult to determine whether a nested class is flagged
-  when reviewin as the containing class may be out of view or even in another file altogether.
+  Its purpose is to provide information to metalava and to a lesser extent the owner of the file about which API the
+  file contains. The exact meaning of the API name is determined by the owner, metalava simply uses this as an
+  identifier for comparison.
 
-  `nested-classes` - they are inherited onto nested classes that do not have their own `@FlaggedApi` annotation.
+  * `surface = <identifier>` - Specifies the name of the API surface.
+
+  It must start with a lower case letter, contain any number of lower case letters, numbers and hyphens, and end with
+  either a lowercase letter or number.
+
+  Its purpose is to provide information to metalava and to a lesser extent the owner of the file about which API surface
+  the file contains. The exact meaning of the API surface name is determined by the owner, metalava simply uses this as
+  an identifier for comparison.
+
+  * `style = java|kotlin` - The name of a predefined set of properties to apply as defaults. They override version
+  defaults but are themselves overridden by properties listed in the file.
 
   * `include-default-parameter-values = yes|no` - If `no` then the signature file will not include any information about
   default parameter values. If `yes` then it will use the pseudo modifier `optional` to indicate a parameter that has a
@@ -112,12 +122,6 @@ Usage: metalava help signature-file-formats
   * `include-type-use-annotations = yes|no` - Whether to include type-use annotations in the signature file. Type-use
   annotations can only be included when `kotlin-name-type-order=true`, because the Java order makes it ambiguous whether
   an annotation is type-use.
-
-  * `java-record-classes = yes|no` - Whether to include java record classes in the signature file.
-
-  If `yes` then the signature file will include `record` class type keyword and property items representing the record
-  components, along with the constructor and methods. If `no` then record classes will be represented as normal classes
-  without any properties but sill with the same constructor and methods.
 
   * `kotlin-name-type-order = yes|no` - Whether to order the names and types of APIs using Kotlin-style syntax (`name:
   type`) or Java-style syntax (`type name`).
@@ -154,14 +158,18 @@ Usage: metalava help signature-file-formats
   This value cannot use `,` (because it is a separator between properties in [specifier]) or `\n` (because it is the
   terminator of the signature format line).
 
-  * `name = <identifier>` - Specifies the name of the API.
+  Plus the following properties which can have their default changed using the `--format-defaults` option.
 
-  It must start with a lower case letter, contain any number of lower case letters, numbers and hyphens, and end with
-  either a lowercase letter or number.
+  * `add-additional-overrides = yes|no` - If `yes` then add additional overrides into the signature file that are needed
+  in order to create compilable stubs from the signature file.
 
-  Its purpose is to provide information to metalava and to a lesser extent the owner of the file about which API the
-  file contains. The exact meaning of the API name is determined by the owner, metalava simply uses this as an
-  identifier for comparison.
+  * `flagged-api-inheritance = none|nested-classes` - Specifies whether `@FlaggedApi` annotations are inherited in
+  signature files.
+
+  `none` (default) - they are not inherited. This can make it difficult to determine whether a nested class is flagged
+  when reviewin as the containing class may be out of view or even in another file altogether.
+
+  `nested-classes` - they are inherited onto nested classes that do not have their own `@FlaggedApi` annotation.
 
   * `normalize-abstract-modifier = yes|no` - Specifies how the `abstract` modifier is handled on `abstract` methods. If
   this is `yes` and the method's containing class does not allow `abstract` then the `abstract` modifier is not written
@@ -200,18 +208,6 @@ Usage: metalava help signature-file-formats
   `always` - always strip off `java.lang.` prefixes.
 
   Note: This does not affect annotation names, e.g. `java.lang.SafeVarargs`. They are always fully qualified.
-
-  * `style = java|kotlin` - The name of a predefined set of properties to apply as defaults. They override version
-  defaults but are themselves overridden by properties listed in the file.
-
-  * `surface = <identifier>` - Specifies the name of the API surface.
-
-  It must start with a lower case letter, contain any number of lower case letters, numbers and hyphens, and end with
-  either a lowercase letter or number.
-
-  Its purpose is to provide information to metalava and to a lesser extent the owner of the file about which API surface
-  the file contains. The exact meaning of the API surface name is determined by the owner, metalava simply uses this as
-  an identifier for comparison.
 
   * `type-argument-spacing = legacy|none|space` - Specifies the spacing between the type arguments of a generic type.
   e.g. `Map<String, Integer>`. The default is `legacy`.

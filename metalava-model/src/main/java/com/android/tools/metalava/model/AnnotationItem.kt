@@ -314,7 +314,9 @@ sealed interface AnnotationItem {
                 annotationClassName == "SystemService" ||
                     annotationClassName == "TargetApi" ||
                     annotationClassName == "SuppressLint" ||
-                    annotationClassName == "FlaggedApi" ->
+                    annotationClassName == "FlaggedApi" ||
+                    annotationClassName == "Nullable" ||
+                    annotationClassName == "NonNull" ->
                     "$ANDROID_ANNOTATION_PREFIX$annotationClassName"
                 // If the first character of the name is lower-case, then assume it's a package
                 // name, so no need to shorten it.

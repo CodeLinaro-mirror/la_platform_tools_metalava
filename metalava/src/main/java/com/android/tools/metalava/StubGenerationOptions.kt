@@ -250,9 +250,7 @@ class StubGenerationOptions :
         apiVersionToLabel[version] ?: version.toString()
 
     /** Construct a [StubGenerator.Config] based on these options. */
-    internal fun generatorConfig(
-        javaRecordClasses: Boolean = false,
-    ): StubGenerator.Config {
+    internal fun generatorConfig(): StubGenerator.Config {
         // Always include documentations in the doc stubs and include documentation in the normal
         // stubs unless explicitly excluded.
         val includeDocumentationInStubs = !excludeDocumentationFromStubs || docStubsDir != null
@@ -282,7 +280,6 @@ class StubGenerationOptions :
             stubWriterConfig =
                 StubWriterConfig(
                     includeDocumentationInStubs = includeDocumentationInStubs,
-                    javaRecordClasses = javaRecordClasses,
                 ),
 
             // Enhance the documentation if explicitly requested of generating the doc stubs.

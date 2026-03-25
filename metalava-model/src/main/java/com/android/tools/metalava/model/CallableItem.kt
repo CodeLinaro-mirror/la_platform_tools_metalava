@@ -165,11 +165,7 @@ interface CallableItem : MemberItem, TypeParameterListOwner {
     ): CallableItem?
 
     override fun baselineElementId() = buildString {
-        if (containingClass().simpleName() != ClassItem.TOP_LEVEL_DECLARATION_FACADE_NAME) {
-            append(containingClass().qualifiedName())
-        } else {
-            append(containingPackage().qualifiedName())
-        }
+        append(containingClass().qualifiedName())
         append("#")
         append(name())
         append("(")

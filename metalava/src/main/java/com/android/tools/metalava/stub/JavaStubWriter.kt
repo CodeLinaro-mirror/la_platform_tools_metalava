@@ -18,7 +18,6 @@ package com.android.tools.metalava.stub
 
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassOrVariableTypeItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.ConstructorItem
@@ -43,12 +42,6 @@ internal class JavaStubWriter(
     private val stubConstructorManager: StubConstructorManager,
 ) : DelegatedVisitor {
 
-    /**
-     * If true then include Java record class related information in the generated stubs. Otherwise,
-     * treat record classes as normal classes as much as possible.
-     */
-    private val javaRecordClasses = config.javaRecordClasses
-
     override fun visitClass(cls: ClassItem) {
         if (cls.isTopLevelClass()) {
             val qualifiedName = cls.containingPackage().qualifiedName()
@@ -64,12 +57,7 @@ internal class JavaStubWriter(
 
         appendModifiers(cls)
 
-        val classKind =
-            when (val kind = cls.classKind) {
-                // Only use RECORD if java-record-classes=true
-                ClassKind.RECORD -> if (javaRecordClasses) kind else ClassKind.CLASS
-                else -> kind
-            }
+        val classKind = cls.classKind
         writer.print(classKind.signatureKeyword)
         writer.print(" ")
         writer.print(cls.simpleName())
