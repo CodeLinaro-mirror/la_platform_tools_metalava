@@ -451,6 +451,7 @@ internal class PsiClassBuilder(
             psiClass.isAnnotationType -> ClassKind.ANNOTATION_TYPE
             psiClass.isInterface -> ClassKind.INTERFACE
             psiClass.isEnum -> ClassKind.ENUM
+            psiClass.isRecord -> ClassKind.RECORD
             psiClass is PsiTypeParameter ->
                 error("Must not call this with a PsiTypeParameter - $psiClass")
             else -> ClassKind.CLASS

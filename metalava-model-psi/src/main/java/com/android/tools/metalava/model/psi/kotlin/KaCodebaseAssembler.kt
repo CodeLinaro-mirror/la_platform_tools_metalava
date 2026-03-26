@@ -564,7 +564,8 @@ private constructor(
      */
     private fun findOrCreateFacadeClass(containingPackage: PackageItem): SkeletonClassItem {
         // Create a fake class name to contain the top level items.
-        val qualifiedName = containingPackage.qualifiedName() + ".\$TopLevelDeclarations"
+        val qualifiedName =
+            containingPackage.qualifiedName() + ".${ClassItem.TOP_LEVEL_DECLARATION_FACADE_NAME}"
         codebase.findClassInCodebase(qualifiedName)?.let {
             return it
         }

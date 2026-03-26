@@ -63,8 +63,16 @@ interface PropertyItem : MemberItem, TypeParameterListOwner, InheritableItem {
     private fun receiverString(): String =
         receiver?.let { it.toTypeString(TypeStringConfiguration.DEFAULT_KOTLIN_NULLS) + "." } ?: ""
 
-    override fun baselineElementId() =
-        containingClass().qualifiedName() + "#" + receiverString() + name()
+    override fun baselineElementId() = buildString {
+        if (containingClass().simpleName() != ClassItem.TOP_LEVEL_DECLARATION_FACADE_NAME) {
+            append(containingClass().qualifiedName())
+        } else {
+            append(containingPackage().qualifiedName())
+        }
+        append("#")
+        append(receiverString())
+        append(name())
+    }
 
     override fun accept(visitor: ItemVisitor) {
         visitor.visit(this)
