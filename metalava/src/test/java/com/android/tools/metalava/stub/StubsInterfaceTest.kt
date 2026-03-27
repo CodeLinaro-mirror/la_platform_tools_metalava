@@ -48,7 +48,6 @@ class StubsInterfaceTest : AbstractStubsTest() {
                 public void foo();
                 }
                 """,
-            checkTextStubEquivalence = true
         )
     }
 
@@ -100,7 +99,6 @@ class StubsInterfaceTest : AbstractStubsTest() {
                 public static final java.lang.String CONSTANT = "MyConstant";
                 }
                 """,
-            checkTextStubEquivalence = true
         )
     }
 
@@ -133,7 +131,6 @@ class StubsInterfaceTest : AbstractStubsTest() {
                 public static final java.lang.String CONSTANT4 = java.lang.String.valueOf(0);
                 }
                 """,
-            checkTextStubEquivalence = true,
         )
     }
 
@@ -283,7 +280,9 @@ class StubsInterfaceTest : AbstractStubsTest() {
                 public void publicMethod2() { throw new RuntimeException("Stub!"); }
                 public static final int MY_CONSTANT = 5;
                 }
-                """
+                """,
+            // Includes inherited methods so cannot match what is generated from signature file.
+            checkTextStubEquivalence = false,
         )
     }
 
@@ -490,7 +489,6 @@ class StubsInterfaceTest : AbstractStubsTest() {
                 public void run();
                 }
                 """,
-            checkTextStubEquivalence = true
         )
     }
 

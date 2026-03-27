@@ -17,9 +17,8 @@
 package com.android.tools.metalava.stub
 
 import com.android.tools.lint.checks.infrastructure.TestFile
-import com.android.tools.metalava.ARG_EXCLUDE_ANNOTATION
 import com.android.tools.metalava.DriverTest
-import com.android.tools.metalava.model.ANDROIDX_NONNULL
+import com.android.tools.metalava.model.text.FORMAT_V5_WITH_JAVA_STYLE
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.testing.java
 import org.intellij.lang.annotations.Language
@@ -36,14 +35,17 @@ abstract class AbstractStubsTest : DriverTest() {
         docStubs: Boolean = false,
         showAnnotations: Array<String> = emptyArray(),
         skipEmitPackages: List<String>? = null,
-        format: FileFormat = FileFormat.V5,
+        format: FileFormat = FORMAT_V5_WITH_JAVA_STYLE,
         sourceFiles: Array<TestFile> = emptyArray(),
         signatureSources: Array<String> = emptyArray(),
         checkCompilation: Boolean = true,
-        checkTextStubEquivalence: Boolean = false,
-        filterBlankLinesFromStubFiles: Boolean = true,
+        checkTextStubEquivalence: Boolean? = null,
     ) {
         val stubFilesArr = if (source.isNotEmpty()) arrayOf(java(source)) else stubFiles
+        if (stubFilesArr.isEmpty()) {
+            error("must provide at least one expected stub files")
+        }
+
         check(
             sourceFiles = sourceFiles,
             signatureSources = signatureSources,
@@ -56,30 +58,20 @@ abstract class AbstractStubsTest : DriverTest() {
             docStubs = docStubs,
             skipEmitPackages = skipEmitPackages,
             format = format,
-            filterBlankLinesFromStubFiles = filterBlankLinesFromStubFiles,
         )
-        if (checkTextStubEquivalence) {
-            if (stubFilesArr.isEmpty()) {
-                addError(
-                    "Stub files may not be empty when checkTextStubEquivalence is set to true."
-                )
-                return
-            }
-            if (docStubs) {
-                addError("From-text stub generation is not supported for documentation stub.")
-                return
-            }
-            if (stubFilesArr.any { it !is TestFile.JavaTestFile }) {
-                addError("From-text stub generation is only supported for Java stubs.")
-                return
-            }
+        if (checkTextStubEquivalence == true) {
+            error("checkTextStubEquivalence defaults to true where possible")
+        }
+        if (checkTextStubEquivalence ?: !docStubs) {
             check(
                 signatureSources = arrayOf(readFileFilterBlankLines(getApiFile())),
                 showAnnotations = showAnnotations,
                 stubFiles = stubFilesArr,
-                expectedIssues = warnings,
+                // Signature files do not contain parameter names so ignore them when comparing stub
+                // files.
+                ignoreParameterNamesInStubFiles = true,
                 checkCompilation = checkCompilation,
-                extraArguments = arrayOf(*extraArguments, ARG_EXCLUDE_ANNOTATION, ANDROIDX_NONNULL),
+                extraArguments = arrayOf(*extraArguments),
                 skipEmitPackages = skipEmitPackages,
                 format = format
             )

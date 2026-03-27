@@ -79,7 +79,9 @@ class StubsClassTest : AbstractStubsTest() {
                 /** My field doc */
                 protected static final java.lang.String field = "a\nb\n\"test\"";
                 }
-                """
+                """,
+            // Includes documentation so cannot match what is generated from signature file.
+            checkTextStubEquivalence = false,
         )
     }
 
@@ -118,7 +120,9 @@ class StubsClassTest : AbstractStubsTest() {
                 public void base() { throw new RuntimeException("Stub!"); }
                 public void child() { throw new RuntimeException("Stub!"); }
                 }
-                """
+                """,
+            // Includes inherited methods so cannot match what is generated from signature file.
+            checkTextStubEquivalence = false,
         )
     }
 
@@ -232,7 +236,6 @@ class StubsClassTest : AbstractStubsTest() {
                     public static final java.lang.String CONSTANT = "MyConstant";
                     }
                 """,
-            checkTextStubEquivalence = true
         )
     }
 

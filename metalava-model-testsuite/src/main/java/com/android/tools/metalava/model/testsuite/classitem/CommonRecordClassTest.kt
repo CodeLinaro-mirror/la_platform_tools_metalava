@@ -229,4 +229,88 @@ class CommonRecordClassTest : BaseModelTest() {
             testClass.assertConstructor(listOf("int", "java.lang.String"))
         }
     }
+
+    @Test
+    fun `Test record with generic component type`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    public record Test<T>(T t) {
+                    }
+                """
+            ),
+            signature(
+                """
+                    // Signature format: 6.0
+                    // - style=java
+                    package test.pkg {
+                      public record Test<T> {
+                        record_component #0 c: T;
+                        ctor public Test(T);
+                        method public T c();
+                      }
+                    }
+                """
+            ),
+            testFixture =
+                TestFixture(
+                    javaLanguageLevel = "17",
+                ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            testClass.assertTypeParameter("T")
+        }
+    }
+
+    @Test
+    fun `Test record implements interface`() {
+        runSourceCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+
+                        public interface Interface {
+                            int c();
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+
+                        public record Test(int c) implements Interface {
+                        }
+                    """
+                ),
+            ),
+            inputSet(
+                signature(
+                    """
+                        // Signature format: 6.0
+                        // - style=java
+                        package test.pkg {
+                          public interface Interface {
+                            method public int c();
+                          }
+                          public record Test implements test.pkg.Interface {
+                            record_component #0 c: int;
+                            ctor public Test(int);
+                            method public int c();
+                          }
+                        }
+                    """
+                ),
+            ),
+            testFixture =
+                TestFixture(
+                    javaLanguageLevel = "17",
+                ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            assertEquals(listOf(classTypeItem("test.pkg.Interface")), testClass.interfaceTypes())
+        }
+    }
 }

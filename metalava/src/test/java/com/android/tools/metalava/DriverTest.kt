@@ -375,15 +375,13 @@ abstract class DriverTest :
         removedApi: String? = null,
         /** Expected stubs (corresponds to --stubs) */
         stubFiles: Array<TestFile> = emptyArray(),
+        /**
+         * Whether to ignore parameter names when comparing stub files. Should only be true when
+         * generating stubs from signature files.
+         */
+        ignoreParameterNamesInStubFiles: Boolean = false,
         /** Expected paths of stub files created */
         stubPaths: Array<String>? = null,
-        /**
-         * Controls whether blank lines are filtered from stub files before comparing against the
-         * expected content.
-         *
-         * Defaults to `true`.
-         */
-        filterBlankLinesFromStubFiles: Boolean = false,
         /**
          * Whether the stubs should be written as documentation stubs instead of plain stubs.
          * Decides whether the stubs include @doconly elements, uses rewritten/migration
@@ -1253,13 +1251,16 @@ abstract class DriverTest :
                             "Found these files: \n${stubsCreated!!.prependIndent("  ")}"
                     )
                 }
-                val actualContents =
-                    if (filterBlankLinesFromStubFiles) readFileFilterBlankLines(actual)
-                    else readFile(actual)
+                val actualContents = readFile(actual)
                 val stubSource = if (sourceFiles.isEmpty()) "text" else "source"
                 val message =
                     "Generated from-$stubSource stub contents does not match expected contents"
-                assertEquals(message, expected.contents, actualContents)
+                compareStubFileContent(
+                    message,
+                    expected.contents,
+                    actualContents,
+                    ignoreParameterNamesInStubFiles
+                )
             }
         }
 
@@ -1437,6 +1438,39 @@ abstract class DriverTest :
                 if (!file.isFile) return file
             } while (true)
         }
+
+        /**
+         * Compare stubs contents, checking that [expected] and [actual] match, reporting [message]
+         * if they do not.
+         *
+         * How they match depends on [ignoreParameterNamesInStubFiles]. If that is `false` they have
+         * to be character for character identical. If it is `true` then [removeParameterNames] is
+         * applied to both beforehand to remove parameter names.
+         */
+        private fun compareStubFileContent(
+            message: String,
+            expected: String,
+            actual: String,
+            ignoreParameterNamesInStubFiles: Boolean,
+        ) {
+            if (ignoreParameterNamesInStubFiles) {
+                val expectedWithout = expected.removeParameterNames()
+                val actualWithout = actual.removeParameterNames()
+                assertEquals("$message (without parameter names)", expectedWithout, actualWithout)
+            } else {
+                assertEquals(message, expected, actual)
+            }
+        }
+
+        /**
+         * Remove parameter names from stub file.
+         *
+         * This is not 100% accurate, it assumes that parameter names are preceded by a ` `, start
+         * with a lower case letter, contain alphanumerics only and is immediately followed by a `,`
+         * or `)`. However, given the strict formatting of stub files that should be sufficient.
+         */
+        private fun String.removeParameterNames() =
+            replace(Regex(""" [a-z][a-zA-Z0-9_]*([,)])"""), "$1")
     }
 }
 

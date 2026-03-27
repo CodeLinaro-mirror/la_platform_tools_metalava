@@ -2038,17 +2038,16 @@ private constructor(
             token = tokenizer.current
 
             val typeString: String
-            val name: String
             val publicName: String?
             if (kotlinNameTypeOrder) {
                 // Kotlin style: parse the name (only considered a public name if it is not `_`,
                 // which is used as a placeholder for params without public names), then the type.
-                name = parseNameWithColon(token, tokenizer)
+                val nameOrPlaceholder = parseNameWithColon(token, tokenizer)
                 publicName =
-                    if (name == "_") {
+                    if (nameOrPlaceholder == "_") {
                         null
                     } else {
-                        name
+                        nameOrPlaceholder
                     }
                 tokenizer.requireToken()
                 // Token should now represent the type
@@ -2059,11 +2058,9 @@ private constructor(
                 typeString = scanForTypeString(tokenizer)
                 token = tokenizer.current
                 if (Tokenizer.isIdent(token)) {
-                    name = token
-                    publicName = name
+                    publicName = token
                     token = tokenizer.requireToken()
                 } else {
-                    name = "arg" + (index + 1)
                     publicName = null
                 }
             }
@@ -2080,6 +2077,7 @@ private constructor(
                 }
             }
 
+            val name = publicName ?: "arg${index + 1}"
             parameters.add(
                 ParameterInfo(
                     name,
