@@ -246,6 +246,7 @@ Usage: metalava help signature-file-formats
 
   + add-additional-overrides = yes
   + flagged-api-inheritance = nested-classes
+  + java-record-classes = yes
   + normalize-abstract-modifier = yes
   + normalize-final-modifier = yes
   + overloaded-method-order = signature
