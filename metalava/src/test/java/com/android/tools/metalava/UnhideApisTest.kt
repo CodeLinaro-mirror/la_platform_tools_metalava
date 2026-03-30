@@ -20,7 +20,6 @@ package com.android.tools.metalava
 
 import com.android.tools.metalava.cli.common.ARG_ERROR
 import com.android.tools.metalava.cli.common.ARG_HIDE
-import com.android.tools.metalava.lint.DefaultLintErrorMessage
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.testing.java
 import org.junit.Test
@@ -56,7 +55,6 @@ class UnhideApisTest : DriverTest() {
             src/test/pkg/Foo.java:8: error: Class test.pkg.Hidden1 is not public but was referenced (in return type) from public method test.pkg.Foo.getHidden1() [ReferencesHidden]
             src/test/pkg/Foo.java:9: error: Class test.pkg.Hidden2 is hidden but was referenced (in return type) from public method test.pkg.Foo.getHidden2() [ReferencesHidden]
             """,
-            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(
@@ -168,7 +166,6 @@ class UnhideApisTest : DriverTest() {
                     src/test/pkg1/Usage.java:12: warning: Parameter myargs references hidden type test.pkg1.Class9. [HiddenTypeParameter]
                     src/test/pkg1/Usage.java:12: error: Class test.pkg1.Class9 is not public but was referenced (in parameter type) from public parameter myargs in test.pkg1.Usage.arrayType(test.pkg1.Class9[] myargs) [ReferencesHidden]
                     """,
-            expectedFail = DefaultLintErrorMessage,
             api =
                 """
                     package test.pkg1 {

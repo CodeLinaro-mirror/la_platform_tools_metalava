@@ -96,7 +96,6 @@ class ArrayCheckTest : DriverTest() {
     fun `Allow arrays for kotlin only APIs`() {
         check(
             apiLint = "",
-            expectedFail = DefaultLintErrorMessage,
             expectedIssues =
                 """
                     src/test/pkg/ConstructorCanBeUsedFromJava.kt:2: warning: Method parameter should be Collection<Number> (or subclass) instead of raw array; was `java.lang.Number[]` [ArrayReturn]

@@ -38,7 +38,6 @@ class ManagerCheckTest : DriverTest() {
                     src/android/pkg/MyFirstManager.java:15: error: Managers must always be obtained from Context (`error3`) [ManagerLookup]
                     src/android/pkg/MySecondManager.java:8: error: Managers must always be obtained from Context (`error1`) [ManagerLookup]
                 """,
-            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(

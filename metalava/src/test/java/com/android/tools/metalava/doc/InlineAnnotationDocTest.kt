@@ -17,7 +17,6 @@
 package com.android.tools.metalava.doc
 
 import com.android.tools.metalava.DriverTest
-import com.android.tools.metalava.lint.DefaultLintErrorMessage
 import com.android.tools.metalava.testing.java
 import org.junit.Test
 
@@ -137,7 +136,6 @@ class InlineAnnotationDocTest : DriverTest() {
                         """
                     )
                 ),
-            expectedFail = DefaultLintErrorMessage,
             expectedIssues =
                 "src/test/pkg/Anno.java:3: error: unclosed inline '@code' tag [UnclosedInlineTag]",
         )

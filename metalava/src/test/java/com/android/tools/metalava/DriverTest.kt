@@ -94,6 +94,7 @@ import java.io.PrintStream
 import java.io.PrintWriter
 import java.io.StringWriter
 import java.net.URI
+import junit.framework.ComparisonFailure
 import kotlin.text.Charsets.UTF_8
 import org.intellij.lang.annotations.Language
 import org.junit.Assert.assertEquals
@@ -130,12 +131,24 @@ abstract class DriverTest :
         return File(temporaryFolder.root.path, "public-api.txt")
     }
 
+    /**
+     * Run the Metalava main command.
+     *
+     * This provides for three separate ways to handle the failure message:
+     * 1. Not expected to fail. In this case `expectedToFail = false` and `expectedFailureMessage =
+     *    null`.
+     * 2. Expected to fail but do not care about the message as that is not what is being tested. In
+     *    this case `expectedToFail = true` and `expectedFailureMessage = null`.
+     * 3. Expected to fail with specific message. In this case `expectedToFail = true` and
+     *    `expectedFailureMessage = "...expected message..."`.
+     */
     private fun runDriver(
         // The SameParameterValue check reports that this is passed the same value because the first
         // value that is passed is always the same but this is a varargs parameter so other values
         // that are passed matter, and they are not the same.
         args: Array<String>,
-        expectedFail: String,
+        expectedToFail: Boolean,
+        expectedFailureMessage: String?,
         reporterEnvironment: ReporterEnvironment,
         testEnvironment: TestEnvironment,
     ): String {
@@ -164,47 +177,34 @@ abstract class DriverTest :
                 )
             val exitCode = Driver.run(executionEnvironment, args)
             if (exitCode == 0) {
-                assertTrue(
-                    "Test expected to fail but didn't. Expected failure: $expectedFail",
-                    expectedFail.isEmpty()
-                )
+                if (expectedToFail) {
+                    val message =
+                        expectedFailureMessage?.let {
+                            "expected to fail with following message but did not:\n${expectedFailureMessage.prependIndent("    ")}"
+                        } ?: "expected to fail but did not"
+                    errorCollector.addError(AssertionError(message))
+                }
             } else {
-                val actualFail = cleanupString(sw.toString(), null)
-                if (
-                    cleanupString(expectedFail, null).replace(".", "").trim() !=
-                        actualFail.replace(".", "").trim()
-                ) {
-                    val reportedCompatError =
-                        actualFail.startsWith(
-                            "Aborting: Found compatibility problems checking the "
-                        )
+                val actualFailureMessage = cleanupString(sw.toString(), null).trim()
+                if (expectedToFail) {
                     if (
-                        expectedFail == "Aborting: Found compatibility problems" &&
-                            reportedCompatError
+                        expectedFailureMessage != null &&
+                            expectedFailureMessage != actualFailureMessage
                     ) {
-                        // Special case for compat checks; we don't want to force each one of them
-                        // to pass in the right string (which may vary based on whether writing out
-                        // the signature was passed at the same time
-                        // ignore
-                    } else {
-                        if (reportedCompatError) {
-                            // if a compatibility error was unexpectedly reported, then mark that as
-                            // an error but keep going, so we can see the actual compatibility error
-                            if (expectedFail.trimIndent() != actualFail) {
-                                addError(
-                                    "ComparisonFailure: expected failure $expectedFail, actual $actualFail"
-                                )
-                            }
-                        } else {
-                            // no compatibility error; check for other errors now, and
-                            // if one is found, fail right away
-                            assertEquals(
-                                "expectedFail does not match actual failures",
-                                expectedFail.trimIndent(),
-                                actualFail
+                        // If the failure was unexpected then report an error but carry on so that
+                        // other checks can be performed.
+                        val failure =
+                            ComparisonFailure(
+                                "expectedFailure mismatch",
+                                expectedFailureMessage,
+                                actualFailureMessage,
                             )
-                        }
+                        errorCollector.addError(failure)
                     }
+                } else {
+                    val message =
+                        "did not expect it to fail but it failed with the following message:\n${actualFailureMessage.prependIndent("    ")}"
+                    errorCollector.addError(AssertionError(message))
                 }
             }
 
@@ -390,7 +390,14 @@ abstract class DriverTest :
         docStubs: Boolean = false,
         /** Signature file format */
         format: FileFormat = FileFormat.V5,
-        /** All expected issues to be generated when analyzing these sources */
+        /**
+         * All expected issues to be generated when analyzing these sources.
+         *
+         * If this contains an issue of severity error then this will expect the command to fail but
+         * will not check the actual failure message unless a non-empty [expectedFail] is provided.
+         *
+         * @see expectedFail
+         */
         expectedIssues: String? = "",
         /** Expected [Severity.ERROR] issues to be generated when analyzing these sources */
         errorSeverityExpectedIssues: String? = null,
@@ -458,7 +465,17 @@ abstract class DriverTest :
         extraArguments: Array<out String> = emptyArray(),
         /** Expected output (stdout and stderr combined). If null, don't check. */
         expectedOutput: String? = null,
-        /** Expected fail message and state, if any */
+        /**
+         * Expected fail message and state, if any.
+         *
+         * If this is set to a non-empty string then this will expect the command to fail with that
+         * exact message (after [cleanupString] is called on it).
+         *
+         * This only needs to be set by tests that actually care about the failure message that is
+         * output. Otherwise, leaving this unset will not check the failure message.
+         *
+         * @see expectedIssues
+         */
         expectedFail: String? = null,
         /** Optional manifest to load and associate with the codebase */
         @Language("XML") manifest: String? = null,
@@ -593,15 +610,12 @@ abstract class DriverTest :
                 newBasename = "removed-released-api.txt",
             )
 
-        val actualExpectedFail =
-            when {
-                expectedFail != null -> expectedFail
-                (releasedApiCheck.required() || releasedRemovedApiCheck.required()) &&
-                    expectedIssues?.contains(": error:") == true -> {
-                    "Aborting: Found compatibility problems"
-                }
-                else -> ""
-            }
+        // This is expected to fail if the expectedIssues contains an error issue or expectedFail
+        // is not null and not empty.
+        val expectedToFail = expectedIssues.containsErrorIssue() || !expectedFail.isNullOrEmpty()
+
+        // Get the expected failure message.
+        val expectedFailureMessage = expectedFail?.trimIndent()
 
         // Unit test which checks that a signature file is as expected
         val androidJar = getAndroidJar()
@@ -1113,7 +1127,8 @@ abstract class DriverTest :
         val actualOutput =
             runDriver(
                 args = args,
-                expectedFail = actualExpectedFail,
+                expectedToFail = expectedToFail,
+                expectedFailureMessage = expectedFailureMessage,
                 reporterEnvironment = reporterEnvironment,
                 testEnvironment = testEnvironment,
             )
@@ -1471,6 +1486,13 @@ abstract class DriverTest :
          */
         private fun String.removeParameterNames() =
             replace(Regex(""" [a-z][a-zA-Z0-9_]*([,)])"""), "$1")
+
+        /** Regex for finding an issue of severity error. */
+        private val containsErrorSeverityIssueRegex = Regex("""\berror: """)
+
+        /** Check to see whether this [String] contains an issue of error severity. */
+        private fun String?.containsErrorIssue() =
+            this != null && contains(containsErrorSeverityIssueRegex)
     }
 }
 

@@ -35,7 +35,6 @@ class EqualsAndHashCodeTest : DriverTest() {
                 src/android/pkg/MissingEquals.java:4: error: Must override both equals and hashCode; missing one in android.pkg.MissingEquals [EqualsAndHashCode]
                 src/android/pkg/MissingHashCode.java:6: error: Must override both equals and hashCode; missing one in android.pkg.MissingHashCode [EqualsAndHashCode]
                 """,
-            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(

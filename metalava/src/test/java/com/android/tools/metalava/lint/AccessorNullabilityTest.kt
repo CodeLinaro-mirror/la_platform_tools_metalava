@@ -36,13 +36,6 @@ class AccessorNullabilityTest : DriverTest() {
         val expectedIssues: String? = null,
     ) {
         override fun toString() = name
-
-        val expectedFail =
-            if (expectedIssues == null) {
-                null
-            } else {
-                DefaultLintErrorMessage
-            }
     }
 
     companion object {
@@ -209,7 +202,6 @@ class AccessorNullabilityTest : DriverTest() {
                     ARG_HIDE,
                     "NullableCollectionElement",
                 ),
-            expectedFail = params.expectedFail,
             expectedIssues = params.expectedIssues,
         )
     }

@@ -764,8 +764,6 @@ class ExtractAnnotationsTest : DriverTest() {
             extractAnnotations =
                 mapOf(
                     "test.pkg" to
-                        // TODO(b/329116156): One of the IntDef annotations should be on
-                        //  PublicNestedClassB
                         """
                             <?xml version="1.0" encoding="UTF-8"?>
                             <root>
