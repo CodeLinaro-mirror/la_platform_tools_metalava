@@ -218,6 +218,7 @@ class ConvertJarsToSignatureFiles(
                     base = extendedCodebase,
                     codebaseFragment = jarCodebaseFragment,
                     checkMemberItemEquivalence = false,
+                    allowClassModifierChanges = false,
                 )
             }
 

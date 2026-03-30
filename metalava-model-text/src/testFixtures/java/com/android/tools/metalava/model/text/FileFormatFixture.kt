@@ -46,14 +46,7 @@ val FILE_FORMAT_PROPERTIES = FILE_FORMAT_PROPERTY_NAMES.joinToString { "'$it'" }
 
 val FORMAT_V5_WITH_JAVA_STYLE = FileFormat.V5.buildCopy { this[STYLE] = FileFormat.NamedStyle.JAVA }
 
-val FORMAT_V6_WITH_JAVA_RECORD_CLASSES =
-    FileFormat.V6.buildCopy {
-        this[STYLE] = FileFormat.NamedStyle.JAVA
-        this[JAVA_RECORD_CLASSES] = true
-    }
+val FORMAT_V6_WITH_JAVA_STYLE = FileFormat.V6.buildCopy { this[STYLE] = FileFormat.NamedStyle.JAVA }
 
 val FORMAT_V6_WITHOUT_JAVA_RECORD_CLASSES =
-    FileFormat.V6.buildCopy {
-        this[STYLE] = FileFormat.NamedStyle.JAVA
-        this[JAVA_RECORD_CLASSES] = false
-    }
+    FORMAT_V6_WITH_JAVA_STYLE.buildCopy { this[JAVA_RECORD_CLASSES] = false }

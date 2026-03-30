@@ -208,6 +208,7 @@ class ApiFile
 private constructor(
     private val assembler: TextCodebaseAssembler,
     private val formatForLegacyFiles: FileFormat?,
+    private val allowClassModifierChanges: Boolean,
 ) {
 
     private val codebase = assembler.codebase
@@ -320,6 +321,8 @@ private constructor(
             description: String? = null,
             classPathResolver: ClassPathResolver? = null,
             formatForLegacyFiles: FileFormat? = null,
+            /** Whether different signature files can have non-equivalent modifiers for a class. */
+            allowClassModifierChanges: Boolean = false,
             // Provides the called with access to the ApiFile.
             apiStatsConsumer: (Stats) -> Unit = {},
         ): Codebase {
@@ -343,7 +346,7 @@ private constructor(
                     codebaseConfig = codebaseConfig,
                     classPathResolver = classPathResolver,
                 )
-            val parser = ApiFile(assembler, formatForLegacyFiles)
+            val parser = ApiFile(assembler, formatForLegacyFiles, allowClassModifierChanges)
             val apiSurfaces = codebaseConfig.apiSurfaces
             var first = true
             for (signatureFile in signatureFiles) {
@@ -922,7 +925,12 @@ private constructor(
         // Make sure the new class characteristics are compatible with the old class
         // characteristic.
         val existingCharacteristics = ClassCharacteristics.of(existingClass)
-        if (!existingCharacteristics.isCompatible(newClassCharacteristics)) {
+        if (
+            !existingCharacteristics.isCompatible(
+                newClassCharacteristics,
+                allowModifierChanges = allowClassModifierChanges
+            )
+        ) {
             throw ApiParseException(
                 "Incompatible $existingClass definitions",
                 newClassCharacteristics.fileLocation
@@ -945,6 +953,17 @@ private constructor(
         val extraAnnotations = newClassAnnotations.subtract(existingClassAnnotations)
         if (extraAnnotations.isNotEmpty()) {
             existingClass.mutateModifiers { mutateAnnotations { addAll(extraAnnotations) } }
+        }
+
+        // If the class modifiers are allowed to change and have, update them.
+        if (
+            allowClassModifierChanges &&
+                !newClassCharacteristics.modifiers.equivalentTo(
+                    existingClass,
+                    existingClass.modifiers
+                )
+        ) {
+            existingClass.mutateModifiers { makeEquivalentTo(newClassCharacteristics.modifiers) }
         }
 
         // Use the latest super class.

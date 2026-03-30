@@ -16,14 +16,17 @@
 
 package com.android.tools.metalava.model.testsuite.classitem
 
+import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
+import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JAVA_LANG_STRING
 import com.android.tools.metalava.model.ModifierKeyword
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.testing.classTypeItem
 import com.android.tools.metalava.model.testing.primitiveTypeForKind
+import com.android.tools.metalava.model.testing.testTypeString
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
 import kotlin.test.assertEquals
@@ -145,6 +148,11 @@ class CommonRecordClassTest : BaseModelTest() {
             testClass.assertRecord(
                 component("a", primitiveTypeForKind(PrimitiveTypeItem.Primitive.INT)),
                 component("b", classTypeItem(JAVA_LANG_STRING)),
+            )
+
+            assertEquals(
+                "record component test.pkg.Test#a",
+                testClass.recordComponents!!["a"]!!.describe()
             )
         }
     }
@@ -311,6 +319,126 @@ class CommonRecordClassTest : BaseModelTest() {
         ) {
             val testClass = codebase.assertClass("test.pkg.Test")
             assertEquals(listOf(classTypeItem("test.pkg.Interface")), testClass.interfaceTypes())
+        }
+    }
+
+    @Test
+    fun `Test record annotated component`() {
+        runSourceCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+
+                        import java.lang.annotation.ElementType;
+                        import java.lang.annotation.Target;
+
+                        public record Test(
+                            @RecordAnno
+                            @FieldAnno
+                            @MethodAnno
+                            @ParameterAnno
+                            @TypeAnno
+                            @MixedAnno
+                            int c
+                        )  {
+                        }
+
+                        @Target(ElementType.FIELD)
+                        public @interface FieldAnno {
+                        }
+
+                        @Target(ElementType.METHOD)
+                        public @interface MethodAnno {
+                        }
+
+                        @Target(ElementType.PARAMETER)
+                        public @interface ParameterAnno {
+                        }
+
+                        @Target(ElementType.RECORD_COMPONENT)
+                        public @interface RecordAnno {
+                        }
+
+                        @Target(ElementType.TYPE_USE)
+                        public @interface TypeAnno {
+                        }
+
+                        @Target({ElementType.FIELD, ElementType.METHOD, ElementType.PARAMETER, ElementType.RECORD_COMPONENT, ElementType.TYPE_USE})
+                        public @interface MixedAnno {
+                        }
+                    """
+                ),
+            ),
+            inputSet(
+                signature(
+                    """
+                        // Signature format: 6.0
+                        // - style=java
+                        // - include-type-use-annotations=yes
+                        // - kotlin-name-type-order=yes
+                        package test.pkg {
+                          public record Test implements test.pkg.Interface {
+                            record_component #0 @test.pkg.RecordAnno @test.pkg.MixedAnno c: @test.pkg.TypeAnno @test.pkg.MixedAnno int;
+                            ctor public Test(@test.pkg.ParameterAnno @test.pkg.MixedAnno c: @test.pkg.TypeAnno @test.pkg.MixedAnno int);
+                            method @test.pkg.MethodAnno @test.pkg.MixedAnno public c(): @test.pkg.TypeAnno @test.pkg.MixedAnno int;
+                          }
+                        }
+                    """
+                ),
+            ),
+            testFixture =
+                TestFixture(
+                    javaLanguageLevel = "17",
+                ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+
+            val annotations = buildString {
+                testClass.accept(
+                    object : BaseItemVisitor() {
+                        override fun visitItem(item: Item) {
+                            append(item.describe())
+                            append("\n")
+                            for (annotationName in item.annotationNames()) {
+                                append("    @")
+                                append(annotationName)
+                                append("\n")
+                            }
+
+                            item.type()?.let { type ->
+                                // Ignore type for class and constructor.
+                                if (type is PrimitiveTypeItem) {
+                                    append("    type: ")
+                                    append(type.testTypeString(annotations = true))
+                                    append("\n")
+                                }
+                            }
+                        }
+                    }
+                )
+            }
+
+            assertEquals(
+                """
+                    class test.pkg.Test
+                    constructor test.pkg.Test(int)
+                    parameter c in test.pkg.Test(int c)
+                        @test.pkg.ParameterAnno
+                        @test.pkg.MixedAnno
+                        type: @test.pkg.TypeAnno @test.pkg.MixedAnno int
+                    method test.pkg.Test.c()
+                        @test.pkg.MethodAnno
+                        @test.pkg.MixedAnno
+                        type: @test.pkg.TypeAnno @test.pkg.MixedAnno int
+                    record component test.pkg.Test#c
+                        @test.pkg.RecordAnno
+                        @test.pkg.MixedAnno
+                        type: @test.pkg.TypeAnno @test.pkg.MixedAnno int
+                """
+                    .trimIndent(),
+                annotations.trim()
+            )
         }
     }
 }

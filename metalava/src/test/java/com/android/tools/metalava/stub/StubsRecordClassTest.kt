@@ -17,7 +17,7 @@
 package com.android.tools.metalava.stub
 
 import com.android.tools.metalava.model.text.FORMAT_V6_WITHOUT_JAVA_RECORD_CLASSES
-import com.android.tools.metalava.model.text.FORMAT_V6_WITH_JAVA_RECORD_CLASSES
+import com.android.tools.metalava.model.text.FORMAT_V6_WITH_JAVA_STYLE
 import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import org.junit.Test
@@ -69,7 +69,7 @@ class StubsRecordClassTest : AbstractStubsTest() {
     @Test
     fun `Test record class with int components and additional String constructor`() {
         checkStubs(
-            format = FORMAT_V6_WITH_JAVA_RECORD_CLASSES,
+            format = FORMAT_V6_WITH_JAVA_STYLE,
             sourceFiles =
                 arrayOf(
                     KnownSourceFiles.typeUseOnlyNonNullSource,
@@ -122,7 +122,7 @@ class StubsRecordClassTest : AbstractStubsTest() {
     @Test
     fun `Test record class with String components and additional int constructor`() {
         checkStubs(
-            format = FORMAT_V6_WITH_JAVA_RECORD_CLASSES,
+            format = FORMAT_V6_WITH_JAVA_STYLE,
             sourceFiles =
                 arrayOf(
                     KnownSourceFiles.typeUseOnlyNonNullSource,
@@ -178,7 +178,7 @@ class StubsRecordClassTest : AbstractStubsTest() {
     @Test
     fun `Test record class with int component and overrides of Object methods`() {
         checkStubs(
-            format = FORMAT_V6_WITH_JAVA_RECORD_CLASSES,
+            format = FORMAT_V6_WITH_JAVA_STYLE,
             sourceFiles =
                 arrayOf(
                     KnownSourceFiles.typeUseOnlyNonNullSource,
@@ -237,7 +237,7 @@ class StubsRecordClassTest : AbstractStubsTest() {
     @Test
     fun `Test record class with generic component`() {
         checkStubs(
-            format = FORMAT_V6_WITH_JAVA_RECORD_CLASSES,
+            format = FORMAT_V6_WITH_JAVA_STYLE,
             sourceFiles =
                 arrayOf(
                     java(
@@ -276,7 +276,7 @@ class StubsRecordClassTest : AbstractStubsTest() {
     @Test
     fun `Test record class implementing an interface`() {
         checkStubs(
-            format = FORMAT_V6_WITH_JAVA_RECORD_CLASSES,
+            format = FORMAT_V6_WITH_JAVA_STYLE,
             sourceFiles =
                 arrayOf(
                     java(

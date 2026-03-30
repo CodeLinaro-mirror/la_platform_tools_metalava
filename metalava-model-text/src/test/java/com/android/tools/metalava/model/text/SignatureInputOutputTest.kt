@@ -102,6 +102,7 @@ class SignatureInputOutputTest : Assertions {
         signature: String,
         fileFormat: FileFormat,
         expectedOutput: String = signature,
+        writeTargetLanguages: Boolean = true,
         codebaseTest: CodebaseContext.() -> Unit = {},
     ) {
         val fullSignature = prepareSignatureFileForTest(signature, fileFormat)
@@ -130,6 +131,7 @@ class SignatureInputOutputTest : Assertions {
                             writer = printWriter,
                             emitHeader = EmitFileHeader.IF_NONEMPTY_FILE,
                             fileFormat = fileFormat,
+                            writeTargetLanguages = writeTargetLanguages,
                         )
 
                     fragment.accept(signatureWriter)
@@ -1027,7 +1029,7 @@ class SignatureInputOutputTest : Assertions {
             """
         runInputOutputTest(
             api,
-            FORMAT_V6_WITH_JAVA_RECORD_CLASSES,
+            FORMAT_V6_WITH_JAVA_STYLE,
         )
     }
 
@@ -1077,7 +1079,35 @@ class SignatureInputOutputTest : Assertions {
             """
         runInputOutputTest(
             api,
-            FORMAT_V6_WITH_JAVA_RECORD_CLASSES,
+            FORMAT_V6_WITH_JAVA_STYLE,
+        )
+    }
+
+    @Test
+    fun `Test not writing target languages`() {
+        runInputOutputTest(
+            writeTargetLanguages = false,
+            fileFormat = FileFormat.V5,
+            signature =
+                """
+                package test.pkg {
+                  public class Test {
+                    method public void all();
+                    method @BytecodeOnly public void bytecodeOnly();
+                    method @KotlinOnly public void kotlinOnly();
+                  }
+                }
+                """,
+            expectedOutput =
+                """
+                package test.pkg {
+                  public class Test {
+                    method public void all();
+                    method public void bytecodeOnly();
+                    method public void kotlinOnly();
+                  }
+                }
+                """
         )
     }
 }

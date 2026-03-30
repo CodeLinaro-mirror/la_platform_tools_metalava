@@ -45,9 +45,16 @@ import com.android.tools.metalava.model.snapshot.NonFilteringDelegatingVisitor
  * If [checkMemberItemEquivalence] is true, then [MemberItem]s are emitted when there is a change
  * between the base and extension members. If it is false, [MemberItem]s are not emitted when they
  * are present in both the base and extension, even if there is some difference between them.
+ *
+ * If [allowClassModifierChanges] is true, a [ClassItem] will be emitted if its modifiers are not
+ * equivalent between the base and extension codebase.
  */
 class SnapshotDeltaMaker
-private constructor(private val base: Codebase, private val checkMemberItemEquivalence: Boolean) :
+private constructor(
+    private val base: Codebase,
+    private val checkMemberItemEquivalence: Boolean,
+    private val allowClassModifierChanges: Boolean
+) :
     BaseItemVisitor(
         preserveClassNesting = true,
         visitParameterItems = false,
@@ -118,6 +125,11 @@ private constructor(private val base: Codebase, private val checkMemberItemEquiv
             // this class.
             if (!equivalentAnnotations(baseClass, cls)) {
                 return@let
+            }
+
+            if (allowClassModifierChanges) {
+                // If the modifiers are different then drop out to emit this class.
+                if (!cls.modifiers.equivalentTo(baseClass, baseClass.modifiers)) return@let
             }
 
             // If the class has changed to a typealias then drop out to emit it (no other class kind
@@ -241,11 +253,15 @@ private constructor(private val base: Codebase, private val checkMemberItemEquiv
          * then [MemberItem]s will be emitted if they differ. When being parsed back by [ApiFile],
          * the definition from the extension file will be used and the [base] definition will be
          * ignored.
+         *
+         * If [allowClassModifierChanges] is true, a [ClassItem] will be emitted if its modifiers
+         * are not equivalent between [base] and [codebaseFragment].
          */
         fun createDelta(
             base: Codebase,
             codebaseFragment: CodebaseFragment,
             checkMemberItemEquivalence: Boolean,
+            allowClassModifierChanges: Boolean,
         ): CodebaseFragment {
             // Take a snapshot.
             val snapshotFragment =
@@ -267,7 +283,8 @@ private constructor(private val base: Codebase, private val checkMemberItemEquiv
             // Mark those items that are new (or different) to be emitted. Also, marks their
             // containers, e.g. class members and nested classes will mark their containing class,
             // classes will mark their containing package.
-            val deltaMaker = SnapshotDeltaMaker(base, checkMemberItemEquivalence)
+            val deltaMaker =
+                SnapshotDeltaMaker(base, checkMemberItemEquivalence, allowClassModifierChanges)
             snapshot.accept(deltaMaker)
 
             return CodebaseFragment.create(

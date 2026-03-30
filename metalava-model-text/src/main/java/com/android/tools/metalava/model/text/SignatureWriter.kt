@@ -62,6 +62,7 @@ class SignatureWriter(
     private val writer: PrintWriter,
     private var emitHeader: EmitFileHeader = EmitFileHeader.ALWAYS,
     private val fileFormat: FileFormat,
+    private val writeTargetLanguages: Boolean = true,
 ) : DelegatedVisitor {
 
     init {
@@ -316,6 +317,7 @@ class SignatureWriter(
     }
 
     private fun writeTargetLanguage(item: SelectableItem) {
+        if (!writeTargetLanguages) return
         // Properties and type aliases are always only for Kotlin use, so don't bother writing it.
         if (item is PropertyItem || (item is ClassItem && item.classKind == ClassKind.TYPEALIAS))
             return
