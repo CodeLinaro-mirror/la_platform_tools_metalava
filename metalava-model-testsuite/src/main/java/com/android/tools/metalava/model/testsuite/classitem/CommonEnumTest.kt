@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.testsuite.classitem
 
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.JAVA_ENUM_VALUES
 import com.android.tools.metalava.model.JAVA_ENUM_VALUE_OF
 import com.android.tools.metalava.model.testsuite.BaseModelTest
@@ -61,6 +62,9 @@ class CommonEnumTest : BaseModelTest() {
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
             val enumClass = codebase.assertResolvedClass("java.lang.Enum")
+
+            // Make sure that the enum class is not itself treated as a ClassKind.ENUM
+            assertEquals(ClassKind.CLASS, enumClass.classKind)
 
             assertSame(enumClass, fooClass.superClassType()?.resolveClass(codebase))
             assertSame(enumClass, fooClass.superClass())

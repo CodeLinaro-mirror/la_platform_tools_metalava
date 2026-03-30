@@ -60,6 +60,7 @@ import com.android.tools.metalava.model.snapshot.NonFilteringDelegatingVisitor
 import com.android.tools.metalava.model.source.EnvironmentManager
 import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.source.SourceSet
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.ADD_ADDITIONAL_OVERRIDES
 import com.android.tools.metalava.model.text.SignatureFile
 import com.android.tools.metalava.model.text.SignatureWriter
 import com.android.tools.metalava.model.text.createFilteringVisitorForSignatures
@@ -282,7 +283,7 @@ class Driver(
     private val apiPredicateConfig by lazy {
         ApiPredicate.Config(
             ignoreShown = apiSelectionOptions.showUnannotated,
-            addAdditionalOverrides = signatureFormatOptions.fileFormat.addAdditionalOverrides,
+            addAdditionalOverrides = signatureFormatOptions.fileFormat[ADD_ADDITIONAL_OVERRIDES],
         )
     }
 

@@ -271,35 +271,16 @@ internal class PsiClassBuilder(
             if (psiMethod.hasAnnotation(ANDROIDX_COMPOSABLE)) continue
 
             if (psiMethod.isConstructor) {
-                // Kotlin value class primary constructors cannot be called from Java, so they will
-                // be generated later by the KaCodebaseAssembler. For K1, these constructors aren't
-                // fake UAST elements, so they won't have already been filtered out.
-                // TODO(b/427783483): remove this workaround
-                if (classItem.modifiers.isValue() && (psiMethod as UMethod).isPrimaryConstructor) {
-                    continue
-                }
-
                 val constructor = createConstructor(classItem, psiMethod, classTypeItemFactory)
 
-                // Constructors with value class type parameters may or may not be fake UAST
-                // elements depending on whether K1 or K2 is used.
-                // TODO(b/427783483): remove this workaround
+                // TODO(b/491407270): checking parameter types is still required because
+                //  constructors with value class type parameters incorrectly exist as UElements.
                 if (constructor.parameters().any { it.type().isValueClassType }) {
                     continue
                 }
 
                 classItem.addConstructor(constructor)
             } else {
-                // With K1, value class property accessors are present as [PsiMethod]s and with K2
-                // they are not. These accessor methods can't actually be used from Java, so this
-                // forces the K2 behavior and filters them out for K1.
-                // TODO(b/427783483): remove this workaround
-                if (
-                    classItem.modifiers.isValue() && psiMethod.sourceElement is KtPropertyAccessor
-                ) {
-                    continue
-                }
-
                 // Property accessors can't be resolved from kotlin, direct access is used instead.
                 val targetLanguages =
                     if (
@@ -330,11 +311,13 @@ internal class PsiClassBuilder(
                     method.targetLanguages -= TargetLanguage.KOTLIN
                 }
 
-                // With K2, any methods using value class types which don't use JvmName
-                // will already have been filtered out because they are represented with fake UAST
-                // elements. With K1, value class types are not treated differently so the elements
-                // are not fake UAST. Filter those value class type property accessors here.
-                // TODO(b/427783483): remove this workaround
+                // If a function has a value class return type which is not explicitly declared in
+                // source it will still incorrectly exist as a UElement (see
+                // https://youtrack.jetbrains.com/issue/KT-74205).
+                // TODO(b/491407270): checking parameter types is still required because
+                //  constructors with value class type parameters incorrectly exist as UElements,
+                //  and a data class copy method has the constructor as its source element so it
+                //  will also still exist as a UElement when it has a value class parameter type.
                 if (
                     (method.returnType().isValueClassType ||
                         method.parameters().any { it.type().isValueClassType } ||

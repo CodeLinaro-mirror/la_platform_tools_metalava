@@ -18,6 +18,11 @@ package com.android.tools.metalava.cli.signature
 
 import com.android.tools.metalava.cli.common.BaseOptionGroupTest
 import com.android.tools.metalava.model.text.ApiParseException
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.ADD_ADDITIONAL_OVERRIDES
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.INCLUDE_DEFAULT_PARAMETER_VALUES
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.KOTLIN_STYLE_NULLS
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.MIGRATING
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.OVERLOADED_METHOD_ORDER
 import com.android.tools.metalava.model.text.FILE_FORMAT_PROPERTIES
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.testing.source
@@ -39,6 +44,7 @@ Signature Format Output:
 
                                              A comma separated list of `<property>=<value>` assignments where
                                              `<property>` is one of the following: 'add-additional-overrides',
+                                             'flagged-api-inheritance', 'normalize-abstract-modifier',
                                              'normalize-final-modifier', 'overloaded-method-order',
                                              'sort-whole-extends-list', 'strip-java-lang-prefix',
                                              'type-argument-spacing'.
@@ -121,7 +127,7 @@ class SignatureFormatOptionsTest :
             "--format-defaults",
             "overloaded-method-order=source"
         ) {
-            assertThat(options.fileFormat.overloadedMethodOrder)
+            assertThat(options.fileFormat[OVERLOADED_METHOD_ORDER])
                 .isEqualTo(FileFormat.OverloadedMethodOrder.SOURCE)
         }
     }
@@ -194,7 +200,7 @@ class SignatureFormatOptionsTest :
         runTest("--format", "2.0", "--format-defaults", "overloaded-method-order=source") {
             assertEquals(
                 FileFormat.OverloadedMethodOrder.SOURCE,
-                options.fileFormat.overloadedMethodOrder
+                options.fileFormat[OVERLOADED_METHOD_ORDER]
             )
         }
     }
@@ -202,7 +208,7 @@ class SignatureFormatOptionsTest :
     @Test
     fun `--format with no properties and --format-defaults add-additional-overrides=yes`() {
         runTest("--format", "2.0", "--format-defaults", "add-additional-overrides=yes") {
-            assertEquals(true, options.fileFormat.addAdditionalOverrides)
+            assertEquals(true, options.fileFormat[ADD_ADDITIONAL_OVERRIDES])
         }
     }
 
@@ -210,9 +216,9 @@ class SignatureFormatOptionsTest :
     fun `--format with overloaded-method-order=signature`() {
         runTest("--format", "2.0:overloaded-method-order=signature") {
             assertEquals(
-                FileFormat.V2.copy(
-                    specifiedOverloadedMethodOrder = FileFormat.OverloadedMethodOrder.SIGNATURE,
-                ),
+                FileFormat.V2.buildCopy {
+                    this[OVERLOADED_METHOD_ORDER] = FileFormat.OverloadedMethodOrder.SIGNATURE
+                },
                 options.fileFormat
             )
         }
@@ -228,7 +234,7 @@ class SignatureFormatOptionsTest :
         ) {
             assertEquals(
                 FileFormat.OverloadedMethodOrder.SIGNATURE,
-                options.fileFormat.overloadedMethodOrder
+                options.fileFormat[OVERLOADED_METHOD_ORDER]
             )
         }
     }
@@ -240,11 +246,11 @@ class SignatureFormatOptionsTest :
             "2.0:kotlin-style-nulls=yes,include-default-parameter-values=yes,overloaded-method-order=source",
         ) {
             assertEquals(
-                FileFormat.V2.copy(
-                    specifiedOverloadedMethodOrder = FileFormat.OverloadedMethodOrder.SOURCE,
-                    kotlinStyleNulls = true,
-                    includeDefaultParameterValues = true,
-                ),
+                FileFormat.V2.buildCopy {
+                    this[OVERLOADED_METHOD_ORDER] = FileFormat.OverloadedMethodOrder.SOURCE
+                    this[KOTLIN_STYLE_NULLS] = true
+                    this[INCLUDE_DEFAULT_PARAMETER_VALUES] = true
+                },
                 options.fileFormat
             )
         }
@@ -257,9 +263,7 @@ class SignatureFormatOptionsTest :
             "2.0:add-additional-overrides=yes",
         ) {
             assertEquals(
-                FileFormat.V2.copy(
-                    specifiedAddAdditionalOverrides = true,
-                ),
+                FileFormat.V2.buildCopy { this[ADD_ADDITIONAL_OVERRIDES] = true },
                 options.fileFormat
             )
         }
@@ -337,11 +341,11 @@ class SignatureFormatOptionsTest :
             optionGroup = SignatureFormatOptions(migratingAllowed = true),
         ) {
             assertEquals(
-                FileFormat.V2.copy(
-                    kotlinStyleNulls = true,
-                    includeDefaultParameterValues = true,
-                    migrating = "See b/295577788"
-                ),
+                FileFormat.V2.buildCopy {
+                    this[KOTLIN_STYLE_NULLS] = true
+                    this[INCLUDE_DEFAULT_PARAMETER_VALUES] = true
+                    this[MIGRATING] = "See b/295577788"
+                },
                 options.fileFormat
             )
         }
@@ -369,10 +373,10 @@ class SignatureFormatOptionsTest :
             optionGroup = SignatureFormatOptions(migratingAllowed = true),
         ) {
             assertEquals(
-                FileFormat.V5.copy(
-                    kotlinStyleNulls = false,
-                    includeDefaultParameterValues = false,
-                ),
+                FileFormat.V5.buildCopy {
+                    this[KOTLIN_STYLE_NULLS] = false
+                    this[INCLUDE_DEFAULT_PARAMETER_VALUES] = false
+                },
                 options.fileFormat
             )
         }
@@ -386,11 +390,11 @@ class SignatureFormatOptionsTest :
             optionGroup = SignatureFormatOptions(migratingAllowed = true),
         ) {
             assertEquals(
-                FileFormat.V5.copy(
-                    kotlinStyleNulls = false,
-                    includeDefaultParameterValues = false,
-                    migrating = "See b/295577788",
-                ),
+                FileFormat.V5.buildCopy {
+                    this[KOTLIN_STYLE_NULLS] = false
+                    this[INCLUDE_DEFAULT_PARAMETER_VALUES] = false
+                    this[MIGRATING] = "See b/295577788"
+                },
                 options.fileFormat
             )
         }

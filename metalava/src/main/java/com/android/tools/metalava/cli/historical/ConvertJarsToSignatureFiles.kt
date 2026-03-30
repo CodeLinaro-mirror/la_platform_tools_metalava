@@ -43,6 +43,7 @@ import com.android.tools.metalava.model.SUPPORT_TYPE_USE_ANNOTATIONS
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
 import com.android.tools.metalava.model.api.surface.ApiSurface
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.ADD_ADDITIONAL_OVERRIDES
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.SignatureWriter
 import com.android.tools.metalava.model.text.SnapshotDeltaMaker
@@ -206,7 +207,7 @@ class ConvertJarsToSignatureFiles(
                         showUnannotated = false,
                         apiPredicateConfig =
                             ApiPredicate.Config(
-                                addAdditionalOverrides = fileFormat.addAdditionalOverrides,
+                                addAdditionalOverrides = fileFormat[ADD_ADDITIONAL_OVERRIDES],
                             ),
                     )
                 }

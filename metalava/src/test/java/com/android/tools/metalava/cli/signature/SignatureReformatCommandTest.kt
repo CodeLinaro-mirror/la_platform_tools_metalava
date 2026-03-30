@@ -47,6 +47,14 @@ Usage: metalava signature-reformat [options] <files>...
   signature file then the signature file must be regenerated from the sources in order to include the new information.
 
 Options:
+  --preserve-structure                       Preserve the structure of the file while changing the format.
+
+                                             Changes the format of the signature file while preserving the properties
+                                             from the previous version of the signature file preserving the signature
+                                             file structure.
+
+                                             `--format-defaults` should have the same value as that used when the
+                                             signature files was last updated to ensure that the structure is preserved.
   -h, -?, --help                             Show this message and exit
 
 $SIGNATURE_FORMAT_OPTIONS_HELP
@@ -175,6 +183,64 @@ class SignatureReformatCommandTest :
                         // - name=fred
                         // - surface=public
                         // - add-additional-overrides=yes
+                    """
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `Reformat signature - v2 to v6 --preserve-structure with --format-defaults and --format-overrides`() {
+        commandTest {
+            args +=
+                listOf(
+                    "signature-reformat",
+                )
+
+            val inputFile =
+                inputFile(
+                    "api.txt",
+                    """
+                        // Signature format: 2.0
+                        package pkg {
+                            public class Test {
+                                method public java.util.Map<java.lang.String,java.lang.String> method();
+                            }
+                        }
+                    """
+                        .trimIndent()
+                )
+
+            // Preserve the structure of the existing file.
+            args += "--preserve-structure"
+
+            // Apply defaults that were applied when the input signature file was created. Shows
+            // that these are applied correctly and reflected in the resulting file output.
+            args += "--format-defaults"
+            args += "add-additional-overrides=yes,overloaded-method-order=source"
+
+            // Provide additional properties. Shows that this can be used to override some
+            // properties while still preserving the structure.
+            args += "--format"
+            args += "6.0:name=fred,surface=public"
+
+            args += inputFile
+
+            verify {
+                inputFile.assertSignatureContents(
+                    """
+                        // Signature format: 6.0
+                        // - name=fred
+                        // - surface=public
+                        // - include-default-parameter-values=no
+                        // - kotlin-style-nulls=no
+                        // - strip-java-lang-prefix=legacy
+                        // - type-argument-spacing=legacy
+                        package pkg {
+                          public class Test {
+                            method public java.util.Map<java.lang.String,java.lang.String> method();
+                          }
+                        }
                     """
                 )
             }
