@@ -912,413 +912,6 @@ class CommonClassItemTest : BaseModelTest() {
     }
 
     @Test
-    fun `Test basic mapTypeVariables`() {
-        runCodebaseTest(
-            inputSet(
-                java(
-                    """
-                        package test.pkg;
-                        public class Parent<M, N> {}
-                    """
-                ),
-                java(
-                    """
-                        package test.pkg;
-                        public class Child<X, Y> extends Parent<X, Y> {}
-                    """
-                )
-            ),
-            inputSet(
-                signature(
-                    """
-                        // Signature format: 5.0
-                        package test.pkg {
-                          public class Child<X, Y> extends test.pkg.Parent<X,Y> {
-                          }
-                          public class Parent<M, N> {
-                          }
-                        }
-                    """
-                )
-            ),
-            inputSet(
-                kotlin(
-                    """
-                        package test.pkg
-                        open class Parent<M, N>
-                        class Child<X, Y> : Parent<X, Y>()
-                    """
-                )
-            )
-        ) {
-            val parent = codebase.assertClass("test.pkg.Parent")
-            val parentTypeParams = parent.typeParameterList
-            val m = parentTypeParams[0]
-            val n = parentTypeParams[1]
-
-            val child = codebase.assertClass("test.pkg.Child")
-            val childTypeParams = child.typeParameterList
-            val x = childTypeParams[0].type()
-            val y = childTypeParams[1].type()
-
-            assertEquals(mapOf(m to x, n to y), child.mapTypeVariables(parent))
-
-            // Not valid uses of mapTypeVariables
-            assertEquals(emptyMap(), parent.mapTypeVariables(child))
-            assertEquals(emptyMap(), child.mapTypeVariables(child))
-        }
-    }
-
-    @Test
-    fun `Test mapTypeVariables with multiple layers of super classes`() {
-        runCodebaseTest(
-            inputSet(
-                java(
-                    """
-                        package test.pkg;
-                        public class Class4<I> {}
-                    """
-                ),
-                java(
-                    """
-                        package test.pkg;
-                        public class Class3<G, H> extends Class4<G> {}
-                    """
-                ),
-                java(
-                    """
-                        package test.pkg;
-                        public class Class2<D, E, F> extends Class3<D, F> {}
-                    """
-                ),
-                java(
-                    """
-                        package test.pkg;
-                        public class Class1<A, B, C> extends Class2<B, C, A> {}
-                    """
-                )
-            ),
-            inputSet(
-                signature(
-                    """
-                        // Signature format: 5.0
-                        package test.pkg {
-                          public class Class1<A, B, C> extends test.pkg.Class2<B,C,A> {
-                          }
-                          public class Class2<D, E, F> extends test.pkg.Class3<D,F> {
-                          }
-                          public class Class3<G, H> extends test.pkg.Class4<G> {
-                          }
-                          public class Class4<I> {
-                          }
-                        }
-                    """
-                )
-            ),
-            inputSet(
-                kotlin(
-                    """
-                        package test.pkg
-                        open class Class4<I>
-                        open class Class3<G, H> : Class4<G>
-                        open class Class2<D, E, F> : Class3<D, F>
-                        class Class1<A, B, C> : Class2<B, C, A>
-                    """
-                )
-            )
-        ) {
-            val c4 = codebase.assertClass("test.pkg.Class4")
-            val i = c4.typeParameterList[0]
-
-            val c3 = codebase.assertClass("test.pkg.Class3")
-            val c3TypeParams = c3.typeParameterList
-            val g = c3TypeParams[0]
-            val gType = g.type()
-            val h = c3TypeParams[1]
-
-            val c2 = codebase.assertClass("test.pkg.Class2")
-            val c2TypeParams = c2.typeParameterList
-            val d = c2TypeParams[0]
-            val dType = d.type()
-            val e = c2TypeParams[1]
-            val f = c2TypeParams[2]
-            val fType = f.type()
-
-            val c1 = codebase.assertClass("test.pkg.Class1")
-            val c1TypeParams = c1.typeParameterList
-            val aType = c1TypeParams[0].type()
-            val bType = c1TypeParams[1].type()
-            val cType = c1TypeParams[2].type()
-
-            assertEquals(mapOf(i to gType), c3.mapTypeVariables(c4))
-
-            assertEquals(mapOf(g to dType, h to fType), c2.mapTypeVariables(c3))
-            assertEquals(mapOf(i to dType), c2.mapTypeVariables(c4))
-
-            assertEquals(mapOf(d to bType, e to cType, f to aType), c1.mapTypeVariables(c2))
-            assertEquals(mapOf(g to bType, h to aType), c1.mapTypeVariables(c3))
-            assertEquals(mapOf(i to bType), c1.mapTypeVariables(c4))
-        }
-    }
-
-    @Test
-    fun `Test mapTypeVariables with concrete classes`() {
-        runCodebaseTest(
-            inputSet(
-                java(
-                    """
-                        package test.pkg;
-                        public class Grandparent<A, B> {}
-                    """
-                ),
-                java(
-                    """
-                        package test.pkg;
-                        public class Parent<T> extends Grandparent<T, Parent<T>> {}
-                    """
-                ),
-                java(
-                    """
-                        package test.pkg;
-                        public class Child extends Parent<Child> {}
-                    """
-                )
-            ),
-            inputSet(
-                signature(
-                    """
-                        // Signature format: 5.0
-                        package test.pkg {
-                          public class Child extends test.pkg.Parent<test.pkg.Child> {
-                          }
-                          public class Grandparent<A, B> {
-                          }
-                          public class Parent<T> extends test.pkg.Grandparent<T,test.pkg.Parent<T>> {
-                          }
-                        }
-                    """
-                )
-            ),
-            inputSet(
-                kotlin(
-                    """
-                        package test.pkg
-                        open class Grandparent<A, B>
-                        open class Parent<T> : Grandparent<T, Parent<T>>
-                        class Child : Parent<Child>
-                    """
-                )
-            )
-        ) {
-            val grandparent = codebase.assertClass("test.pkg.Grandparent")
-            val grandparentTypeParams = grandparent.typeParameterList
-            val a = grandparentTypeParams[0]
-            val b = grandparentTypeParams[1]
-
-            val parent = codebase.assertClass("test.pkg.Parent")
-            val t = parent.typeParameterList[0]
-            val tType = t.type()
-
-            val child = codebase.assertClass("test.pkg.Child")
-
-            val parentType = parent.type()
-            val erasedParentType =
-                parentType.substitute(
-                    outerClassType = null,
-                    arguments = emptyList(),
-                )
-            assertEquals(
-                mapOf(a to tType, b to erasedParentType),
-                parent.mapTypeVariables(grandparent)
-            )
-            assertEquals(mapOf(t to child.type()), child.mapTypeVariables(parent))
-            assertEquals(
-                mapOf(a to child.type(), b to erasedParentType),
-                child.mapTypeVariables(grandparent)
-            )
-        }
-    }
-
-    @Test
-    fun `Test mapTypeVariables with interfaces`() {
-        runCodebaseTest(
-            inputSet(
-                java(
-                    """
-                        package test.pkg;
-                        public interface Interface3<G, H> {}
-                    """
-                ),
-                java(
-                    """
-                        package test.pkg;
-                        public interface Interface2<E, F> extends Interface3<E, F> {}
-                    """
-                ),
-                java(
-                    """
-                        package test.pkg;
-                        public interface Interface1<C, D> {}
-                    """
-                ),
-                java(
-                    """
-                        package test.pkg;
-                        public class Class<A, B> implements Interface1<A, B>, Interface2<B, A>{}
-                    """
-                )
-            ),
-            inputSet(
-                signature(
-                    """
-                        // Signature format: 5.0
-                        package test.pkg {
-                          public class Class<A, B> implements test.pkg.Interface1<A,B> test.pkg.Interface2<B,A> {
-                          }
-                          public interface Interface1<C, D> {
-                          }
-                          public interface Interface2<E, F> extends test.pkg.Interface3<E,F> {
-                          }
-                          public interface Interface3<G, H> {
-                          }
-                        }
-                    """
-                )
-            ),
-            inputSet(
-                kotlin(
-                    """
-                        package test.pkg
-                        interface Interface3<G, H>
-                        interface Interface2<E, F> : Interface3<E, F>
-                        interface Interface1<C, D>
-                        class Class<A, B> : Interface1<A, B>, Interface2<B, A>
-                    """
-                )
-            )
-        ) {
-            val i3 = codebase.assertClass("test.pkg.Interface3")
-            val i3TypeParams = i3.typeParameterList
-            val g = i3TypeParams[0]
-            val h = i3TypeParams[1]
-
-            val i2 = codebase.assertClass("test.pkg.Interface2")
-            val i2TypeParams = i2.typeParameterList
-            val e = i2TypeParams[0]
-            val eType = e.type()
-            val f = i2TypeParams[1]
-            val fType = f.type()
-
-            val i1 = codebase.assertClass("test.pkg.Interface1")
-            val i1TypeParams = i1.typeParameterList
-            val c = i1TypeParams[0]
-            val d = i1TypeParams[1]
-
-            val cls = codebase.assertClass("test.pkg.Class")
-            val clsTypeParams = cls.typeParameterList
-            val aType = clsTypeParams[0].type()
-            val bType = clsTypeParams[1].type()
-
-            assertEquals(mapOf(c to aType, d to bType), cls.mapTypeVariables(i1))
-
-            assertEquals(mapOf(g to eType, h to fType), i2.mapTypeVariables(i3))
-            assertEquals(mapOf(e to bType, f to aType), cls.mapTypeVariables(i2))
-            assertEquals(mapOf(g to bType, h to aType), cls.mapTypeVariables(i3))
-        }
-    }
-
-    @Test
-    fun `Test mapTypeVariables with diamond interface`() {
-        runCodebaseTest(
-            inputSet(
-                java(
-                    """
-                        package test.pkg;
-                        public interface Root<T> {}
-                    """
-                ),
-                java(
-                    """
-                        package test.pkg;
-                        public interface Interface1<T1> extends Root<T1> {}
-                    """
-                ),
-                java(
-                    """
-                        package test.pkg;
-                        public interface Interface2<T2> extends Root<T2> {}
-                    """
-                ),
-                java(
-                    """
-                        package test.pkg;
-                        public class Child<X, Y> implements Interface1<X>, Interface2<Y> {}
-                    """
-                )
-            ),
-            inputSet(
-                signature(
-                    """
-                        // Signature format: 5.0
-                        package test.pkg {
-                          public class Child<X, Y> implements test.pkg.Interface1<X> test.pkg.Interface2<Y> {
-                          }
-                          public interface Interface1<T1> extends test.pkg.Root<T1> {
-                          }
-                          public interface Interface2<T2> extends test.pkg.Root<T2> {
-                          }
-                          public interface Root<T> {
-                          }
-                        }
-                    """
-                )
-            ),
-            inputSet(
-                kotlin(
-                    """
-                        package test.pkg
-                        interface Root<T>
-                        interface Interface1<T1> : Root<T1>
-                        interface Interface2<T2> : Root<T2>
-                        class Child<X, Y> : Interface1<X>, Interface2<Y>
-                    """
-                )
-            )
-        ) {
-            val root = codebase.assertClass("test.pkg.Root")
-            val t = root.typeParameterList[0]
-
-            val i1 = codebase.assertClass("test.pkg.Interface1")
-            val t1 = i1.typeParameterList[0]
-            val t1Type = t1.type()
-
-            val i2 = codebase.assertClass("test.pkg.Interface2")
-            val t2 = i2.typeParameterList[0]
-            val t2Type = t2.type()
-
-            val child = codebase.assertClass("test.pkg.Child")
-            val childParameterList = child.typeParameterList
-            val xType = childParameterList[0].type()
-            val yType = childParameterList[1].type()
-
-            assertEquals(mapOf(t to t1Type), i1.mapTypeVariables(root))
-            assertEquals(mapOf(t to t2Type), i2.mapTypeVariables(root))
-            assertEquals(
-                mapOf(t1 to xType),
-                child.mapTypeVariables(i1),
-            )
-            assertEquals(
-                mapOf(t2 to yType),
-                child.mapTypeVariables(i2),
-            )
-            assertEquals(
-                mapOf(t to xType),
-                child.mapTypeVariables(root),
-            )
-        }
-    }
-
-    @Test
     fun `Test duplicate without type substitutions`() {
         runSourceCodebaseTest(
             inputSet(
@@ -1377,16 +970,14 @@ class CommonClassItemTest : BaseModelTest() {
                         package test.pkg;
                         import java.util.List;
                         import type.use.only.*;
-                        class HiddenClass<T extends @Nullable Object, S extends @Nullable Object> {
+                        class HiddenClass<T extends @Nullable Object> {
                             public void t(T t) {}
                             public void optionalT(@Nullable T optionalT) {}
+                            public void requiredT(@NonNull T requiredT) {}
+
                             public void listOfT(@NonNull List<? extends T> listOfT) {}
                             public void listOfOptionalT(@NonNull List<? extends @Nullable T>listOfOptionalT) {}
-
-                            public void s(S s) {}
-                            public void optionalS(@Nullable S optionalS) {}
-                            public void listOfS(@NonNull List<? extends S> listOfS) {}
-                            public void listOfOptionalS(@NonNull List<? extends @Nullable S> listOfOptionalS) {}
+                            public void listOfRequiredT(@NonNull List<? extends @NonNull T>listOfRequiredT) {}
                         }
                     """
                 ),
@@ -1394,7 +985,26 @@ class CommonClassItemTest : BaseModelTest() {
                     """
                         package test.pkg;
                         import type.use.only.*;
-                        public class PublicClass extends HiddenClass<@NonNull String, @Nullable Integer> {}
+                        public class NonNullStringClass extends HiddenClass<@NonNull String> {}
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        import type.use.only.*;
+                        public class NullableIntegerClass extends HiddenClass<@Nullable Integer> {}
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        public class UndefinedTypeVariableClass<U> extends HiddenClass<U> {}
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        public class PlatformNumberClass extends HiddenClass<Number> {}
                     """
                 ),
             ),
@@ -1402,53 +1012,119 @@ class CommonClassItemTest : BaseModelTest() {
                 kotlin(
                     """
                         package test.pkg
-                        internal class HiddenClass<T, S> {
+                        internal class HiddenClass<T> {
                             fun t(t: T) {}
                             fun optionalT(optionalT: T?) {}
+                            fun requiredT(requiredT: T & Any) {}
+
                             fun listOfT(listOfT: List<T>) {}
                             fun listOfOptionalT(listOfOptionalT: List<T?>) {}
-
-                            fun s(s: S) {}
-                            fun optionalS(optionalS: S?) {}
-                            fun listOfS(listOfS: List<S>) {}
-                            fun listOfOptionalS(listOfOptionalS: List<S?>) {}
+                            fun listOfRequiredT(listOfRequiredT: List<T & Any>) {}
                         }
                     """
                 ),
                 kotlin(
                     """
                         package test.pkg
-                        class PublicClass: HiddenClass<String, Integer?>()
+                        class NonNullStringClass: HiddenClass<String>()
+                    """
+                ),
+                kotlin(
+                    """
+                        package test.pkg
+                        class NullableIntegerClass: HiddenClass<Integer?>()
+                    """
+                ),
+                kotlin(
+                    """
+                        package test.pkg
+                        class UndefinedTypeVariableClass<U>: HiddenClass<U>()
+                    """
+                ),
+                // Need to use Java here as there is no way in Kotlin to specify a type with
+                // platform nullability.
+                java(
+                    """
+                        package test.pkg;
+                        public class PlatformNumberClass extends HiddenClass<Number> {}
                     """
                 ),
             ),
         ) {
             val hiddenClass = codebase.assertResolvedClass("test.pkg.HiddenClass")
-            val publicClass = codebase.assertClass("test.pkg.PublicClass")
 
-            val expectedTypes =
-                mapOf(
-                    "t" to "java.lang.String",
-                    "optionalT" to "java.lang.String?",
-                    "listOfT" to "java.util.List<? extends java.lang.String>",
-                    "listOfOptionalT" to "java.util.List<? extends java.lang.String?>",
-                    "s" to "java.lang.Integer?",
-                    "optionalS" to "java.lang.Integer?",
-                    "listOfS" to "java.util.List<? extends java.lang.Integer?>",
-                    "listOfOptionalS" to "java.util.List<? extends java.lang.Integer?>",
-                )
+            /**
+             * Append the result of duplicating `hiddenClass` into [destinationClassName] to this
+             * [StringBuilder].
+             */
+            fun StringBuilder.appendResultOfDuplicatingInto(destinationClassName: String) {
+                val destinationClass = codebase.assertClass(destinationClassName)
+                append("Duplicating into $destinationClass\n")
+                for (method in hiddenClass.methods().sortedBy { it.name() }.reversed()) {
+                    val name = method.name()
+                    val inheritedMethod = method.duplicate(destinationClass)
+                    assertSame(hiddenClass, inheritedMethod.inheritedFrom)
+                    assertTrue(inheritedMethod.inheritedFromAncestor)
 
-            for (method in hiddenClass.methods().sortedBy { it.name() }) {
-                val name = method.name()
-                val inheritedMethod = method.duplicate(publicClass)
-                assertSame(hiddenClass, inheritedMethod.inheritedFrom)
-                assertTrue(inheritedMethod.inheritedFromAncestor)
-
-                val parameterType = inheritedMethod.parameters().single().type()
-                assertWithMessage("testing type of $name")
-                    .that(parameterType.testTypeString(kotlinStyleNulls = true))
-                    .isEqualTo(expectedTypes[name])
+                    val parameterType = inheritedMethod.parameters().single().type()
+                    append("  ")
+                    append(name)
+                    append(" -> ")
+                    append(parameterType.testTypeString(kotlinStyleNulls = true))
+                    append("\n")
+                }
+                append("\n")
             }
+
+            // Concatenate result of duplicating HiddenClass into different classes with different
+            // substitution types.
+            val result = buildString {
+                appendResultOfDuplicatingInto("test.pkg.NonNullStringClass")
+                appendResultOfDuplicatingInto("test.pkg.NullableIntegerClass")
+                appendResultOfDuplicatingInto("test.pkg.UndefinedTypeVariableClass")
+                appendResultOfDuplicatingInto("test.pkg.PlatformNumberClass")
+            }
+
+            // Check the result.
+            // TODO(b/483318672): Non-null type variables are not marked as non-null (i.e. by
+            //   appending ` & Any` to make it a non-null intersection type).
+            assertEquals(
+                """
+                    Duplicating into class test.pkg.NonNullStringClass
+                      t -> java.lang.String
+                      requiredT -> java.lang.String
+                      optionalT -> java.lang.String?
+                      listOfT -> java.util.List<? extends java.lang.String>
+                      listOfRequiredT -> java.util.List<? extends java.lang.String>
+                      listOfOptionalT -> java.util.List<? extends java.lang.String?>
+
+                    Duplicating into class test.pkg.NullableIntegerClass
+                      t -> java.lang.Integer?
+                      requiredT -> java.lang.Integer
+                      optionalT -> java.lang.Integer?
+                      listOfT -> java.util.List<? extends java.lang.Integer?>
+                      listOfRequiredT -> java.util.List<? extends java.lang.Integer>
+                      listOfOptionalT -> java.util.List<? extends java.lang.Integer?>
+
+                    Duplicating into class test.pkg.UndefinedTypeVariableClass
+                      t -> U
+                      requiredT -> U
+                      optionalT -> U?
+                      listOfT -> java.util.List<? extends U>
+                      listOfRequiredT -> java.util.List<? extends U>
+                      listOfOptionalT -> java.util.List<? extends U?>
+
+                    Duplicating into class test.pkg.PlatformNumberClass
+                      t -> java.lang.Number!
+                      requiredT -> java.lang.Number
+                      optionalT -> java.lang.Number?
+                      listOfT -> java.util.List<? extends java.lang.Number!>
+                      listOfRequiredT -> java.util.List<? extends java.lang.Number>
+                      listOfOptionalT -> java.util.List<? extends java.lang.Number?>
+                  """
+                    .trimIndent(),
+                result.trim()
+            )
         }
     }
 

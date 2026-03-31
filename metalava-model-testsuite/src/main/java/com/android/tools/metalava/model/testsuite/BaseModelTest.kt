@@ -22,14 +22,18 @@ import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.Assertions
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.PackageFilter
+import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
 import com.android.tools.metalava.model.api.flags.ApiFlags
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
+import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.source.DEFAULT_JAVA_LANGUAGE_LEVEL
 import com.android.tools.metalava.model.testing.CodebaseCreatorConfig
 import com.android.tools.metalava.model.testing.CodebaseCreatorConfigAware
+import com.android.tools.metalava.model.testing.testTypeString
+import com.android.tools.metalava.reporter.Issues.Issue
 import com.android.tools.metalava.reporter.RecordingReporter
 import com.android.tools.metalava.testing.TemporaryFolderOwner
 import java.io.File
@@ -55,7 +59,10 @@ import org.junit.runners.Parameterized.Parameter
  */
 @RunWith(ModelTestSuiteRunner::class)
 abstract class BaseModelTest() :
-    CodebaseCreatorConfigAware<ModelSuiteRunner>, TemporaryFolderOwner, Assertions {
+    CodebaseCreatorConfigAware<ModelSuiteRunner>,
+    TemporaryFolderOwner,
+    Assertions,
+    InputSetFactory {
 
     /**
      * Set by injection by [Parameterized] after class initializers are called.
@@ -97,63 +104,6 @@ abstract class BaseModelTest() :
         get() = codebaseCreatorConfig.inputFormat!!
 
     @get:Rule override val temporaryFolder = TemporaryFolder()
-
-    /**
-     * Set of inputs for a test.
-     *
-     * Currently, this is limited to one file but in future it may be more.
-     */
-    data class InputSet(
-        /** The [InputFormat] of the [testFiles]. */
-        val inputFormat: InputFormat,
-
-        /** The [TestFile]s to explicitly pass to code being tested. */
-        val testFiles: List<TestFile>,
-
-        /** The optional [TestFile]s to pass on source path. */
-        val additionalTestFiles: List<TestFile>?,
-    )
-
-    /** Create an [InputSet] from a list of [TestFile]s. */
-    fun inputSet(testFiles: List<TestFile>): InputSet = inputSet(*testFiles.toTypedArray())
-
-    /**
-     * Create an [InputSet].
-     *
-     * It is an error if [testFiles] is empty or if [testFiles] have a mixture of source
-     * ([InputFormat.JAVA] or [InputFormat.KOTLIN]) and signature ([InputFormat.SIGNATURE]). If it
-     * contains both [InputFormat.JAVA] and [InputFormat.KOTLIN] then the latter will be used.
-     */
-    fun inputSet(vararg testFiles: TestFile, sourcePathFiles: List<TestFile>? = null): InputSet {
-        if (testFiles.isEmpty()) {
-            throw IllegalStateException("Must provide at least one source file")
-        }
-
-        // Get the paths for the TestFiles.
-        val paths = testFiles.map { it.targetRelativePath }
-
-        // Fail if there are any name collisions.
-        val uniquePaths = paths.groupBy { it }
-        if (uniquePaths.size != testFiles.size) {
-            val colliding = uniquePaths.mapNotNull { if (it.value.size == 1) null else it.key }
-            error(
-                "The following test files in the input set have the same name as another test file:\n${colliding.joinToString("\n") { "    $it" }}"
-            )
-        }
-
-        val inputFormat =
-            paths
-                .asSequence()
-                // Ignore HTML files.
-                .filter { !it.endsWith(".html") }
-                // Map to InputFormat.
-                .map { InputFormat.fromFilename(it) }
-                // Combine InputFormats to produce a single one, may throw an exception if they
-                // are incompatible.
-                .reduce { if1, if2 -> if1.combineWith(if2) }
-
-        return InputSet(inputFormat, testFiles.toList(), sourcePathFiles)
-    }
 
     /**
      * Context within which the main body of tests that check the state of the [Codebase] or
@@ -271,9 +221,12 @@ abstract class BaseModelTest() :
 
         /** The Java language level. */
         val javaLanguageLevel: String = DEFAULT_JAVA_LANGUAGE_LEVEL,
+
+        /** The set of [Issue] to exclude from the [recordingReporter]. */
+        val excludedIssues: Set<Issue> = emptySet(),
     ) {
         /** The [RecordingReporter] used by the test. */
-        val recordingReporter = RecordingReporter()
+        val recordingReporter = RecordingReporter(excludedIssues)
 
         /** The [Codebase.Config] to use when creating a [Codebase] to test. */
         val codebaseConfig
@@ -500,4 +453,107 @@ abstract class BaseModelTest() :
     /** Create a signature [TestFile] with the supplied [contents] in a file with a path of [to]. */
     fun signature(to: String, contents: String): TestFile =
         TestFiles.source(to, contents.trimIndent())
+
+    data class JarSupportContext(val jarSupport: JarSupport)
+
+    /** Run a test that uses [JarSupport]. */
+    fun runJarSupportTest(test: JarSupportContext.() -> Unit) {
+        if (jarSupportCapabilities.none { it in runner.capabilities }) {
+            error(
+                "Provider ${runner.providerName} does not support jars; please add one of ${jarSupportCapabilities.joinToString { "@RequiresCapabilities(Capability.$it)" }}` to the test"
+            )
+        }
+        runner.createJarSupportAndRun { jarSupport ->
+            val context = JarSupportContext(jarSupport)
+            context.test()
+        }
+    }
+
+    /** Check to make sure that this uses the default type bounds. */
+    fun TypeParameterItem.assertUsesDefaultTypeBounds() {
+        val expected =
+            if (inputFormat == InputFormat.KOTLIN) {
+                "java.lang.Object?"
+            } else {
+                "java.lang.Object!"
+            }
+        assertEquals(
+            expected,
+            typeBounds().joinToString {
+                it.testTypeString(
+                    annotations = true,
+                    kotlinStyleNulls = true,
+                )
+            }
+        )
+    }
+
+    companion object {
+        /** The set of [Capability] instances supported by [JarSupport]. */
+        private val jarSupportCapabilities = setOf(Capability.CLASS_PATH_RESOLVER)
+    }
+}
+
+/**
+ * Set of inputs for a test.
+ *
+ * Currently, this is limited to one file but in future it may be more.
+ */
+data class InputSet(
+    /** The [InputFormat] of the [testFiles]. */
+    val inputFormat: InputFormat,
+
+    /** The [TestFile]s to explicitly pass to code being tested. */
+    val testFiles: List<TestFile>,
+
+    /** The optional [TestFile]s to pass on source path. */
+    val additionalTestFiles: List<TestFile>?,
+)
+
+/** Provides support for creating [InputSet]s */
+interface InputSetFactory {
+    /** Create an [InputSet] from a list of [TestFile]s. */
+    fun inputSet(testFiles: List<TestFile>): InputSet = inputSet(*testFiles.toTypedArray())
+
+    /**
+     * Create an [InputSet].
+     *
+     * It is an error if [testFiles] is empty or if [testFiles] have a mixture of source
+     * ([InputFormat.JAVA] or [InputFormat.KOTLIN]) and signature ([InputFormat.SIGNATURE]). If it
+     * contains both [InputFormat.JAVA] and [InputFormat.KOTLIN] then the latter will be used.
+     */
+    fun inputSet(vararg testFiles: TestFile, sourcePathFiles: List<TestFile>? = null): InputSet {
+        if (testFiles.isEmpty()) {
+            throw IllegalStateException("Must provide at least one source file")
+        }
+
+        // Get the paths for the TestFiles.
+        val paths = testFiles.map { it.targetRelativePath }
+
+        // Fail if there are any name collisions.
+        val uniquePaths = paths.groupBy { it }
+        if (uniquePaths.size != testFiles.size) {
+            val colliding = uniquePaths.mapNotNull { if (it.value.size == 1) null else it.key }
+            error(
+                "The following test files in the input set have the same name as another test file:\n${
+                    colliding.joinToString(
+                        "\n"
+                    ) { "    $it" }
+                }"
+            )
+        }
+
+        val inputFormat =
+            paths
+                .asSequence()
+                // Ignore HTML files.
+                .filter { !it.endsWith(".html") }
+                // Map to InputFormat.
+                .map { InputFormat.fromFilename(it) }
+                // Combine InputFormats to produce a single one, may throw an exception if they
+                // are incompatible.
+                .reduce { if1, if2 -> if1.combineWith(if2) }
+
+        return InputSet(inputFormat, testFiles.toList(), sourcePathFiles)
+    }
 }

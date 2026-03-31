@@ -169,7 +169,7 @@ class AccessorNullabilityTest : DriverTest() {
                     getterType = "@NonNull T",
                     setterType = "T",
                     expectedIssues =
-                        "src/test/pkg/Foo.java:7: error: Nullability of T in getter method test.pkg.Foo.getValue() does not match T! in corresponding setter method test.pkg.Foo.setValue(T) [GetterSetterNullability]",
+                        "src/test/pkg/Foo.java:7: error: Nullability of T in getter method test.pkg.Foo.getValue() does not match T in corresponding setter method test.pkg.Foo.setValue(T) [GetterSetterNullability]",
                 ),
             )
     }

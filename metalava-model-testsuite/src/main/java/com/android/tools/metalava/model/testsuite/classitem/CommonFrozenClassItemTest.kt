@@ -17,6 +17,8 @@
 package com.android.tools.metalava.model.testsuite.classitem
 
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassOrigin
+import com.android.tools.metalava.model.SkeletonClassItem
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
@@ -186,6 +188,47 @@ class CommonFrozenClassItemTest : BaseModelTest() {
                     publicClass.addMethod(duplicateMethod)
                 }
             assertEquals("Cannot modify frozen class test.pkg.PublicClass", error.message)
+        }
+    }
+
+    @Test
+    fun `Test writable origin`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Test {
+                      }
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+
+                    public class Test {
+                        private Test() {}
+                    }
+                """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test") as SkeletonClassItem
+            assertEquals(ClassOrigin.COMMAND_LINE, testClass.origin)
+
+            // Modify the origin.
+            testClass.origin = ClassOrigin.CLASS_PATH
+            assertEquals(ClassOrigin.CLASS_PATH, testClass.origin)
+
+            // Freeze the class.
+            testClass.freeze()
+
+            // Try and modify the origin again.
+            val error =
+                assertThrows(IllegalStateException::class.java) {
+                    testClass.origin = ClassOrigin.SOURCE_PATH
+                }
+            assertEquals("Cannot modify frozen class test.pkg.Test", error.message)
         }
     }
 }

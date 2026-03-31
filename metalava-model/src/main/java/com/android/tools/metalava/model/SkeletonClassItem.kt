@@ -23,6 +23,9 @@ package com.android.tools.metalava.model
  * aspects.
  */
 interface SkeletonClassItem : ClassItem {
+    /** The origin of this class. */
+    override var origin: ClassOrigin
+
     /** Support changing after construction. */
     override var classKind: ClassKind
 

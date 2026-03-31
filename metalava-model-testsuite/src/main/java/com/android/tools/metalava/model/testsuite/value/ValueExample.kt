@@ -1655,6 +1655,62 @@ constructor(
                             jar { common = literalValue(-278L) }
                         },
                 ),
+                // Check a long value from an int expression.
+                ValueExample(
+                    name = "long - int expression",
+                    javaType = "long",
+                    javaExpression = "-(1 << 27) + 1",
+                    kotlinExpression = "-(1 shl 27) + 1",
+                    expectedLegacySource =
+                        expectations {
+                            common = "-134217727L"
+                            source {
+                                attributeDefaultValue = "-134217727"
+                                annotationToSource = "0xf8000001"
+                            }
+                        },
+                    expectedKotlinLegacySource =
+                        expectations { annotationToSource = "-134217727L" },
+                    validForInputFormats = notValidForSignature,
+                    expectedValue =
+                        expectations {
+                            common =
+                                primitiveValueForKind(
+                                    Primitive.LONG,
+                                    -134217727,
+                                    nonLiteralInSource = true
+                                )
+                            jar { common = literalValue(-134217727L) }
+                        },
+                ),
+                // Check a long value from an int expression using a field.
+                ValueExample(
+                    name = "long - int field expression",
+                    javaType = "long",
+                    javaExpression = "Constants.INT_CONSTANT - 1",
+                    kotlinType = "Long",
+                    validForInputFormats = notValidForSignature,
+                    expectedLegacySource =
+                        expectations {
+                            common = "36L"
+
+                            source {
+                                attributeDefaultValue = "36"
+                                annotationToSource = "0x24"
+                            }
+                        },
+                    expectedKotlinLegacySource = expectations { annotationToSource = "36L" },
+                    expectedValue =
+                        expectations {
+                            common =
+                                primitiveValueForKind(
+                                    Primitive.LONG,
+                                    36,
+                                    nonLiteralInSource = true,
+                                )
+                            jar { common = literalValue(36L) }
+                        },
+                ),
                 // Check a simple long with an upper case suffix.
                 ValueExample(
                     name = "long with upper L",

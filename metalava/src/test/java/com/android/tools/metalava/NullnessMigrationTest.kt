@@ -43,8 +43,8 @@ class NullnessMigrationTest : DriverTest() {
                             }
                         """
                     ),
-                    androidxNonNullSource,
-                    androidxNullableSource,
+                    KnownSourceFiles.androidxNonNullJavaSource,
+                    KnownSourceFiles.androidxNullableJavaSource,
                 ),
             api =
                 """
@@ -80,8 +80,8 @@ class NullnessMigrationTest : DriverTest() {
                             }
                         """
                     ),
-                    androidxNonNullSource,
-                    androidxNullableSource,
+                    KnownSourceFiles.androidxNonNullJavaSource,
+                    KnownSourceFiles.androidxNullableJavaSource,
                 ),
             migrateNullsApi =
                 """
@@ -132,8 +132,8 @@ class NullnessMigrationTest : DriverTest() {
                             }
                         """
                     ),
-                    androidxNonNullSource,
-                    androidxNullableSource,
+                    KnownSourceFiles.androidxNonNullJavaSource,
+                    KnownSourceFiles.androidxNullableJavaSource,
                 ),
             migrateNullsApi =
                 """
@@ -187,8 +187,8 @@ class NullnessMigrationTest : DriverTest() {
                             }
                         """
                     ),
-                    androidxNonNullSource,
-                    androidxNullableSource,
+                    KnownSourceFiles.androidxNonNullJavaSource,
+                    KnownSourceFiles.androidxNullableJavaSource,
                 ),
             migrateNullsApi =
                 """
@@ -260,8 +260,8 @@ class NullnessMigrationTest : DriverTest() {
                             }
                         """
                     ),
-                    androidxNonNullSource,
-                    androidxNullableSource,
+                    KnownSourceFiles.androidxNonNullJavaSource,
+                    KnownSourceFiles.androidxNullableJavaSource,
                 ),
             migrateNullsApi =
                 """
@@ -340,7 +340,7 @@ class NullnessMigrationTest : DriverTest() {
     }
 
     @Test
-    fun `Check type use annotations`() {
+    fun `Check type use only nullability annotations`() {
         check(
             format = TYPE_USE_FORMAT,
             sourceFiles =
@@ -348,8 +348,8 @@ class NullnessMigrationTest : DriverTest() {
                     java(
                         """
                             package test.pkg;
-                            import androidx.annotation.Nullable;
-                            import androidx.annotation.NonNull;
+                            import type.use.only.Nullable;
+                            import type.use.only.NonNull;
                             import java.util.List;
                             public class Test {
                                 public @Nullable Integer compute1(@Nullable java.util.List<@Nullable String> list) {
@@ -364,8 +364,50 @@ class NullnessMigrationTest : DriverTest() {
                             }
                         """
                     ),
-                    androidxNonNullSource,
-                    androidxNullableSource,
+                    KnownSourceFiles.typeUseOnlyNonNullSource,
+                    KnownSourceFiles.typeUseOnlyNullableSource,
+                ),
+            api =
+                """
+                    package test.pkg {
+                      public class Test {
+                        ctor public Test();
+                        method @Nullable public compute1(@Nullable _: java.util.@Nullable List<@Nullable String>): @Nullable Integer;
+                        method @Nullable public compute2(@Nullable _: java.util.@Nullable List<java.util.@Nullable List<?>>): @Nullable Integer;
+                        method public compute3(@Nullable _: @NonNull String @Nullable [] @Nullable []): Integer;
+                      }
+                    }
+                """,
+        )
+    }
+
+    @Test
+    fun `Check mixed use nullability annotations`() {
+        check(
+            format = TYPE_USE_FORMAT,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            import mixed.use.Nullable;
+                            import mixed.use.NonNull;
+                            import java.util.List;
+                            public class Test {
+                                public @Nullable Integer compute1(@Nullable java.util.List<@Nullable String> list) {
+                                    return 5;
+                                }
+                                public @Nullable Integer compute2(@Nullable java.util.List<@Nullable List<?>> list) {
+                                    return 5;
+                                }
+                                public Integer compute3(@NonNull String @Nullable [] @Nullable [] array) {
+                                    return 5;
+                                }
+                            }
+                        """
+                    ),
+                    KnownSourceFiles.mixedUseNonNullSource,
+                    KnownSourceFiles.mixedUseNullableSource,
                 ),
             api =
                 """
@@ -403,16 +445,16 @@ class NullnessMigrationTest : DriverTest() {
                             }
                         """
                     ),
-                    androidxNonNullSource,
-                    androidxNullableSource,
+                    KnownSourceFiles.androidxNonNullJavaSource,
+                    KnownSourceFiles.androidxNullableJavaSource,
                 ),
             api =
                 """
                     package test.pkg {
                       public class Test {
                         ctor public Test();
-                        method @Nullable public compute1(@Nullable _: java.util.@Nullable List<@Nullable String>): @Nullable Integer;
-                        method @Nullable public compute2(@NonNull _: java.util.@NonNull List<java.util.@NonNull List<?>>): @Nullable Integer;
+                        method @Nullable public compute1(@Nullable _: java.util.List<@Nullable String>): Integer;
+                        method @Nullable public compute2(@NonNull _: java.util.List<java.util.@NonNull List<?>>): Integer;
                       }
                     }
                 """,
@@ -439,8 +481,8 @@ class NullnessMigrationTest : DriverTest() {
                             }
                         """
                     ),
-                    androidxNonNullSource,
-                    androidxNullableSource,
+                    KnownSourceFiles.androidxNonNullJavaSource,
+                    KnownSourceFiles.androidxNullableJavaSource,
                 ),
             // TODO: Handle multiple nullness annotations
             migrateNullsApi =
@@ -511,8 +553,8 @@ class NullnessMigrationTest : DriverTest() {
                             }
                         """
                     ),
-                    androidxNonNullSource,
-                    androidxNullableSource,
+                    KnownSourceFiles.androidxNonNullJavaSource,
+                    KnownSourceFiles.androidxNullableJavaSource,
                 ),
             // TODO: Handle multiple nullness annotations
             migrateNullsApi =
@@ -584,8 +626,8 @@ class NullnessMigrationTest : DriverTest() {
                             }
                         """
                     ),
-                    androidxNonNullSource,
-                    androidxNullableSource,
+                    KnownSourceFiles.androidxNonNullJavaSource,
+                    KnownSourceFiles.androidxNullableJavaSource,
                 ),
             migrateNullsApi =
                 """
@@ -683,8 +725,8 @@ class NullnessMigrationTest : DriverTest() {
                             }
                         """
                     ),
-                    androidxNonNullSource,
-                    androidxNullableSource,
+                    KnownSourceFiles.androidxNonNullJavaSource,
+                    KnownSourceFiles.androidxNullableJavaSource,
                     KnownSourceFiles.systemApiSource,
                 ),
             migrateNullsApiList =
@@ -843,8 +885,8 @@ class NullnessMigrationTest : DriverTest() {
                             }
                         """
                     ),
-                    androidxNonNullSource,
-                    androidxNullableSource,
+                    KnownSourceFiles.androidxNonNullJavaSource,
+                    KnownSourceFiles.androidxNullableJavaSource,
                 ),
             stubFiles =
                 arrayOf(

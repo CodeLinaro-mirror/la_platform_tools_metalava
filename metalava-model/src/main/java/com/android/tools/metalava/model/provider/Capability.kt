@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.provider
 
 import com.android.tools.metalava.model.ApiVariantSelectors
+import com.android.tools.metalava.model.ClassPathResolver
 import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
 
 /** The set of different capabilities that a codebase creator can provide. */
@@ -38,6 +39,9 @@ enum class Capability {
 
     /** Can load additional APIs from a jar file. */
     LOAD_JAR,
+
+    /** Can create a [ClassPathResolver]. */
+    CLASS_PATH_RESOLVER,
 
     /** Can load additional APIs from a jar file when creating an API from source files. */
     JAR_WITH_SOURCES,

@@ -19,6 +19,7 @@ package com.android.tools.metalava
 import com.android.tools.metalava.cli.common.ARG_WARNING
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import org.junit.Test
 
@@ -35,8 +36,8 @@ class AnnotationsMergerTest : DriverTest() {
             format = FileFormat.V2,
             sourceFiles =
                 arrayOf(
-                    androidxNullableSource,
-                    androidxNonNullSource,
+                    KnownSourceFiles.androidxNullableJavaSource,
+                    KnownSourceFiles.androidxNonNullJavaSource,
                     java(
                         """
                             package test.pkg;
@@ -85,8 +86,8 @@ class AnnotationsMergerTest : DriverTest() {
             format = FileFormat.V2,
             sourceFiles =
                 arrayOf(
-                    androidxNullableSource,
-                    androidxNonNullSource,
+                    KnownSourceFiles.androidxNullableJavaSource,
+                    KnownSourceFiles.androidxNonNullJavaSource,
                     java(
                         """
                             package test.pkg;
@@ -153,8 +154,8 @@ class AnnotationsMergerTest : DriverTest() {
                     ),
                     uiThreadSource,
                     intRangeAnnotationSource,
-                    androidxNonNullSource,
-                    androidxNullableSource,
+                    KnownSourceFiles.androidxNonNullJavaSource,
+                    KnownSourceFiles.androidxNullableJavaSource,
                 ),
             api =
                 """
@@ -932,7 +933,7 @@ class AnnotationsMergerTest : DriverTest() {
                     }
                     """
                     ),
-                    androidxNonNullSource,
+                    KnownSourceFiles.androidxNonNullJavaSource,
                 ),
             mergeXmlAnnotations =
                 """<?xml version="1.0" encoding="UTF-8"?>

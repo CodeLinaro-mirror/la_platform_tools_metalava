@@ -16,22 +16,26 @@
 
 package com.android.tools.metalava.model.psi
 
-import com.android.SdkConstants
 import com.android.tools.lint.UastEnvironment
 import com.android.tools.lint.annotations.Extractor
+import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ApiVariantSelectors
+import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.JAVA_PACKAGE_INFO
+import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.SkeletonClassItem
 import com.android.tools.metalava.model.SourceLanguage
+import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.item.DefaultItemFactory
+import com.android.tools.metalava.model.mapIfNotSameNotNull
 import com.android.tools.metalava.model.psi.kotlin.KaCodebaseAssembler
 import com.android.tools.metalava.model.source.SourceCodebaseAssembler
 import com.android.tools.metalava.model.source.SourcePackageInfo
@@ -49,13 +53,9 @@ import com.intellij.psi.PsiFile
 import com.intellij.psi.PsiImportStatement
 import com.intellij.psi.PsiJavaFile
 import com.intellij.psi.PsiPackage
-import com.intellij.psi.PsiSubstitutor
 import com.intellij.psi.PsiTypeParameter
 import com.intellij.psi.javadoc.PsiDocComment
 import com.intellij.psi.search.GlobalSearchScope
-import java.io.File
-import java.io.IOException
-import java.util.zip.ZipFile
 import kotlin.collections.forEach
 import kotlin.collections.set
 import org.jetbrains.kotlin.asJava.classes.KtLightClassForFacade
@@ -122,9 +122,6 @@ internal class PsiCodebaseAssembler(
 
     private fun getFactory() = JavaPsiFacade.getElementFactory(project)
 
-    override fun getClassType(psiClass: PsiClass) =
-        getFactory().createType(psiClass, PsiSubstitutor.EMPTY)
-
     override fun createPsiType(sourceType: String, context: PsiElement?) =
         getFactory().createTypeFromText(sourceType, context)
 
@@ -187,10 +184,7 @@ internal class PsiCodebaseAssembler(
      * [ClassItem] may be created for it later if needed, e.g. if it is a super class of an
      * accessible class.
      */
-    private fun createPossibleApiClass(
-        psiClass: PsiClass,
-        origin: ClassOrigin,
-    ): ClassItem? {
+    private fun createPossibleApiClass(psiClass: PsiClass): ClassItem? {
         if (psiClass.containingClass != null) error("$psiClass is not a top level class")
 
         // Ignore inaccessible classes.
@@ -200,7 +194,12 @@ internal class PsiCodebaseAssembler(
             return null
         }
 
-        return createTopLevelClassAndContents(psiClass, origin, modifiers)
+        return createTopLevelClassAndContents(
+            psiClass,
+            // Sources always come from the command line.
+            ClassOrigin.COMMAND_LINE,
+            modifiers
+        )
     }
 
     /** Create a top level class, their inner classes and all the other members. */
@@ -267,7 +266,9 @@ internal class PsiCodebaseAssembler(
         return if (uastEnvironment.isKMP && kaCodebaseAssembler != null) {
             kaCodebaseAssembler!!.findClassInModule(finder, qualifiedName)
         } else {
-            finder.findClass(qualifiedName, projectSearchScope)
+            finder.findClass(qualifiedName, projectSearchScope)?.takeIf {
+                it.qualifiedName == qualifiedName
+            }
         }
     }
 
@@ -370,51 +371,6 @@ internal class PsiCodebaseAssembler(
         }
     }
 
-    internal fun initializeFromJar(jarFile: File) {
-        // Extract the list of class names from the jar file.
-        val classNames = buildList {
-            try {
-                ZipFile(jarFile).use { jar ->
-                    for (entry in jar.entries().iterator()) {
-                        val fileName = entry.name
-                        if (fileName.contains("$")) {
-                            // skip inner classes
-                            continue
-                        }
-                        if (!fileName.endsWith(SdkConstants.DOT_CLASS)) {
-                            // skip entries that are not .class files.
-                            continue
-                        }
-
-                        val qualifiedName =
-                            fileName.removeSuffix(SdkConstants.DOT_CLASS).replace('/', '.')
-                        if (qualifiedName.endsWith(".package-info")) {
-                            // skip package-info files.
-                            continue
-                        }
-
-                        add(qualifiedName)
-                    }
-                }
-            } catch (e: IOException) {
-                reporter.report(Issues.IO_ERROR, jarFile, e.message ?: e.toString())
-            }
-        }
-
-        // Find all classes referenced from the class
-        val facade = JavaPsiFacade.getInstance(project)
-        val scope = GlobalSearchScope.allScope(project)
-
-        val isFromClassPath = codebase.isFromClassPath()
-        val origin = if (isFromClassPath) ClassOrigin.CLASS_PATH else ClassOrigin.COMMAND_LINE
-        for (className in classNames) {
-            val psiClass = facade.findClass(className, scope) ?: continue
-
-            val classItem = createPossibleApiClass(psiClass, origin) ?: continue
-            codebase.addTopLevelClassFromSource(classItem)
-        }
-    }
-
     /** Lists all packages in the psi project. */
     private fun allPackages(): Set<String> {
         fun listPackages(psiPackage: PsiPackage): List<String> {
@@ -428,6 +384,7 @@ internal class PsiCodebaseAssembler(
     internal fun initializeFromSources(
         sourceSet: SourceSet,
         apiPackages: PackageFilter?,
+        includeKotlinInCodebase: Boolean,
     ) {
         // Get the list of `PsiFile`s from the `SourceSet`.
         val psiFiles = Extractor.createUnitsForFiles(uastEnvironment.ideaProject, sourceSet.sources)
@@ -440,9 +397,14 @@ internal class PsiCodebaseAssembler(
 
         // Add type aliases.
         val kotlinFiles = psiFiles.filterIsInstance<KtFile>()
-        kaCodebaseAssembler =
-            psiCodebase.mainAnalysisModule?.let { KaCodebaseAssembler(kotlinFiles, psiCodebase) }
-        kaCodebaseAssembler?.let { kaCodebaseAssembler ->
+        if (includeKotlinInCodebase) {
+            kaCodebaseAssembler =
+                psiCodebase.mainAnalysisModule?.let {
+                    KaCodebaseAssembler(kotlinFiles, psiCodebase)
+                }
+        }
+
+        kaCodebaseAssembler?.apply {
             // Provide a list of all packages when all typealiases are needed in order to inline
             // usages. If that isn't necessary, just typealiases from source will be processed.
             val allPackages =
@@ -451,7 +413,7 @@ internal class PsiCodebaseAssembler(
                 } else {
                     null
                 }
-            kaCodebaseAssembler.createTypeAliases(allPackages)
+            createTypeAliases(allPackages)
         }
 
         // Tracker for which source files of `@JvmMultifileClass`es have already been processed.
@@ -467,6 +429,14 @@ internal class PsiCodebaseAssembler(
         // example in ApiAnalyzer) wouldn't be possible because non-visible classes are no longer
         // accessible from there.
         determineIfInaccessibleClassesMakeSuperClassesNonExhaustive(psiClasses)
+
+        // Copy type use only nullness annotations to items.
+        copyTypeUseOnlyNullnessAnnotationsToItems()
+
+        // Psi does not correctly track annotations in some cases so fix them up. Done here as it
+        // cannot fix them up earlier because it requires resolving annotation classes and doing it
+        // earlier would result in annotation classes being loaded multiple times.
+        correctIncorrectlyAppliedAnnotations()
 
         // Add kotlin-only APIs.
         kaCodebaseAssembler?.assemble()
@@ -531,6 +501,102 @@ internal class PsiCodebaseAssembler(
     }
 
     /**
+     * Correct any incorrectly applied annotations.
+     *
+     * At the moment declaration annotations which are placed between a generic method's type
+     * parameters list and the return type are not applied correctly. Psi treats them as type use
+     * only annotations. This will add declaration only annotations to the method and remove any
+     * non-type use annotations from the type.
+     */
+    fun correctIncorrectlyAppliedAnnotations() {
+        // Iterate over all the classes in all the packages.
+        for (classItem in codebase.getPackages().allClasses()) {
+            // Ignore any Kotlin classes as Kotlin syntax unambiguously differentiates between
+            // type use and declaration annotations so does not have the problem of incorrectly
+            // applied annotations.
+            if (classItem.sourceLanguage == SourceLanguage.KOTLIN) continue
+
+            // Iterate over all the methods in each class.
+            for (methodItem in classItem.methods()) {
+                // Ignore methods that have no type parameters.
+                if (methodItem.typeParameterList.isEmpty()) continue
+
+                // Get the return type.
+                val returnType = methodItem.returnType()
+
+                // Add any declaration annotations in the closest part of the return type to method
+                // item and remove any non-type use annotations. The closest part of the return type
+                // is the return type itself, unless it is an array in which case it is the
+                // innermost component type.
+                val newReturnType = returnType.correctUseOfDeclarationAnnotations(methodItem)
+
+                // If any changes were made to the return type then update the method item type.
+                if (newReturnType !== returnType) {
+                    methodItem.setType(newReturnType)
+                }
+            }
+        }
+    }
+
+    /**
+     * Correct use of declaration annotations in this [TypeItem], adding them to the [item]
+     * annotations and remove non-type use annotations from this.
+     *
+     * This only affects annotations on this type, unless it is an array in which case it affects
+     * the annotations on the innermost component type. That matches the definition of `closest
+     * type` from https://docs.oracle.com/javase/specs/jls/se21/html/jls-9.html#jls-9.7.4.
+     */
+    private fun TypeItem.correctUseOfDeclarationAnnotations(item: MethodItem): TypeItem {
+        return when (this) {
+            is ArrayTypeItem -> {
+                val newComponentType = componentType.correctUseOfDeclarationAnnotations(item)
+                substitute(componentType = newComponentType)
+            }
+            else -> {
+                val typeAnnotations = modifiers.annotations
+
+                // Iterate over the type annotations adding any declaration annotations to item if
+                // they do not already exist there and removing any non-type use annotations.
+                val newTypeAnnotations =
+                    typeAnnotations.mapIfNotSameNotNull { annotation ->
+                        // If the annotation should be copied to the item, and it does not already
+                        // exist in its annotations then add it to them.
+                        if (shouldCopyTypeAnnotationToMethodItem(annotation)) {
+                            val itemAnnotations = item.modifiers.annotations()
+                            if (annotation !in itemAnnotations) {
+                                item.mutateModifiers { mutateAnnotations { add(annotation) } }
+                            }
+                        }
+
+                        // If the annotation is usable in a type context then keep it in the type
+                        // annotations, otherwise return null and discard it.
+                        annotation.takeIf { it.annotationUse.usableInTypeContext }
+                    }
+
+                // If the new type annotations are not the same as the old type annotations then
+                // create new type modifiers with them and substitute them in the type.
+                if (newTypeAnnotations !== typeAnnotations) {
+                    val newTypeModifiers = modifiers.substitute(annotations = newTypeAnnotations)
+                    substitute(newTypeModifiers)
+                } else {
+                    this
+                }
+            }
+        }
+    }
+
+    /**
+     * Check to see whether [typeAnnotation] should be copied to its associated [MethodItem].
+     *
+     * Only annotations that are usable in a declaration context should be copied to the method
+     * item.
+     *
+     * Similar to the behavior of [PsiModifierItem.filterIncorrectTypeUseAnnotations].
+     */
+    internal fun shouldCopyTypeAnnotationToMethodItem(typeAnnotation: AnnotationItem) =
+        typeAnnotation.annotationUse.usableInDeclarationContext
+
+    /**
      * Adds a class to the codebase based on the [psiClass].
      *
      * For handling of [JvmMultifileClass]es, [multiFileClasses] is a map from qualified class name
@@ -593,12 +659,7 @@ internal class PsiCodebaseAssembler(
             if (!apiPackages.matches(packageName)) return
         }
 
-        val classItem =
-            createPossibleApiClass(
-                psiClass,
-                // Sources always come from the command line.
-                ClassOrigin.COMMAND_LINE,
-            ) ?: return
+        val classItem = createPossibleApiClass(psiClass) ?: return
         codebase.addTopLevelClassFromSource(classItem)
     }
 

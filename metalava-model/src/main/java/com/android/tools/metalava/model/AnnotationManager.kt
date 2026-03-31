@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.annotation.AnnotationClass
+
 /** Provides support for managing annotations within Metalava. */
 interface AnnotationManager {
 
@@ -142,9 +144,8 @@ internal class NoOpAnnotationManager : BaseAnnotationManager() {
         return annotationItem.qualifiedName
     }
 
-    override fun computeAnnotationInfo(annotationItem: AnnotationItem): AnnotationInfo {
-        return NoOpAnnotationInfo(annotationItem.qualifiedName)
-    }
+    override fun computeAnnotationInfo(annotationItem: AnnotationItem) =
+        NoOpAnnotationInfo(annotationItem)
 
     override fun normalizeInputName(qualifiedName: String): String {
         return qualifiedName
@@ -164,9 +165,11 @@ internal class NoOpAnnotationManager : BaseAnnotationManager() {
  * [qualifiedName]. Any other properties are set to the default, usually `false`.
  */
 internal class NoOpAnnotationInfo(
-    /** The fully qualified and normalized name of the annotation class. */
-    val qualifiedName: String,
+    /** The [AnnotationItem], needed for retrieving the [AnnotationClass]. */
+    private val annotationItem: AnnotationItem,
 ) : AnnotationInfo {
+    /** The fully qualified and normalized name of the annotation class. */
+    private val qualifiedName: String = annotationItem.qualifiedName
 
     override val targets
         get() = ANNOTATION_IN_ALL_STUBS
@@ -181,6 +184,14 @@ internal class NoOpAnnotationInfo(
 
     override val suppressCompatibility
         get() = qualifiedName == SUPPRESS_COMPATIBILITY_ANNOTATION_QUALIFIED
+
+    override val annotationClass: AnnotationClass?
+        get() = annotationItem.resolve()?.annotationClass
 }
 
-val noOpAnnotationManager: AnnotationManager = NoOpAnnotationManager()
+/**
+ * Get a [NoOpAnnotationManager], creates a new one on each call as it caches information specific
+ * to a [Codebase].
+ */
+val noOpAnnotationManager: AnnotationManager
+    get() = NoOpAnnotationManager()

@@ -26,16 +26,9 @@ plugins {
 
 dependencies {
     implementation(project(":metalava-model-source"))
-    implementation(libs.turbine) {
-        exclude(group = "com.google.protobuf")
-        constraints {
-            implementation(libs.errorProneAnnotations) {
-                because(
-                    "It requires 2.42.0 but that is not available in prebuilts/androidx/external but 2.44.0 is."
-                )
-            }
-        }
-    }
+    implementation(libs.turbine) { exclude(group = "com.google.protobuf") }
+    // Needed as some Turbine classes use jspecify nullability annotations
+    implementation(libs.jspecify)
 
     // Pick up the SourceModelSuiteRunner service to run the `metalava-model-testsuite`.
     testImplementation(testFixtures(project(":metalava-model-source")))

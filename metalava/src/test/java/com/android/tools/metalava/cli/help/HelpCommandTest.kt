@@ -134,14 +134,14 @@ Usage: metalava help signature-file-formats
 
   Currently, metalava supports the following versions:
 
-  * `2.0` (--format=v2) - This is the base version (more details in `FORMAT.md`) on which all the others are based. It
-  sets the properties as follows:
+  * `2.0` - This is the base version (more details in `FORMAT.md`) on which all the others are based. It sets the
+  properties as follows:
 
   + kotlin-style-nulls = no
   + include-default-parameter-values = no
 
-  * `4.0` (--format=v4) - This is `2.0` plus `kotlin-style-nulls = yes` and `include-default-parameter-values = yes`
-  giving the following properties:
+  * `4.0` - This is `2.0` plus `kotlin-style-nulls = yes` and `include-default-parameter-values = yes` giving the
+  following properties:
 
   + kotlin-style-nulls = yes
   + include-default-parameter-values = yes

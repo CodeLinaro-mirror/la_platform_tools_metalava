@@ -348,7 +348,7 @@ abstract class BaseCommonParameterizedValueTest(
                 ),
                 testFixture =
                     TestFixture(
-                        additionalClassPath = listOf(cachedJarFile.createFile(temporaryFolder.root))
+                        additionalClassPath = listOf(cachedJarFile.toFile()),
                     ),
             ) {
                 runTestCase(testCase, legacyValueUseSite, test)

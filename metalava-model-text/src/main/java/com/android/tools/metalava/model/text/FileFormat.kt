@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.StripJavaLangPrefix
+import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.reporter.FileLocation
 import java.io.LineNumberReader
 import java.io.Reader
@@ -225,8 +226,6 @@ data class FileFormat(
     enum class Version(
         /** The version number of this as a string, e.g. "3.0". */
         val versionNumber: String,
-        /** The optional legacy alias used on the command line, for the `--format` option. */
-        val legacyCommandLineAlias: String? = null,
 
         /** Indicates whether the version supports properties fully or just for migrating. */
         internal val propertySupport: PropertySupport = PropertySupport.FOR_MIGRATING_ONLY,
@@ -241,7 +240,6 @@ data class FileFormat(
     ) {
         V2(
             versionNumber = "2.0",
-            legacyCommandLineAlias = "v2",
             factory = { version ->
                 FileFormat(
                     version = version,
@@ -261,7 +259,6 @@ data class FileFormat(
         ),
         V4(
             versionNumber = "4.0",
-            legacyCommandLineAlias = "v4",
             factory = { version ->
                 V2.defaults.copy(
                     version = version,
@@ -523,7 +520,7 @@ data class FileFormat(
             formatForLegacyFiles: FileFormat? = null
         ): FileFormat? {
             val lineNumberReader =
-                if (reader is LineNumberReader) reader else LineNumberReader(reader, BUFFER_SIZE)
+                reader as? LineNumberReader ?: LineNumberReader(reader, BUFFER_SIZE)
 
             try {
                 return parseHeader(lineNumberReader, formatForLegacyFiles)
@@ -634,18 +631,14 @@ data class FileFormat(
          * @param specifier the specifier string that defines a [FileFormat].
          * @param migratingAllowed indicates whether the `migrating` property is allowed in the
          *   specifier.
-         * @param extraVersions extra versions to add to the error message if a version is not
-         *   supported but otherwise ignored. This allows the caller to handle some additional
-         *   versions first but still report a helpful message.
          */
         fun parseSpecifier(
             specifier: String,
             migratingAllowed: Boolean = false,
-            extraVersions: Set<String> = emptySet(),
         ): FileFormat {
             val specifierParts = specifier.split(VERSION_PROPERTIES_SEPARATOR, limit = 2)
             val versionNumber = specifierParts[0]
-            val version = getVersionFromNumber(versionNumber, extraVersions)
+            val version = getVersionFromNumber(versionNumber)
             val versionDefaults = version.defaults
             if (specifierParts.size == 1) {
                 return versionDefaults
@@ -669,17 +662,11 @@ data class FileFormat(
          * Get the [Version] from the number.
          *
          * @param versionNumber the version number as a string.
-         * @param extraVersions extra versions to add to the error message if a version is not
-         *   supported but otherwise ignored. This allows the caller to handle some additional
-         *   versions first but still report a helpful message.
          */
-        private fun getVersionFromNumber(
-            versionNumber: String,
-            extraVersions: Set<String> = emptySet(),
-        ): Version =
+        private fun getVersionFromNumber(versionNumber: String): Version =
             versionByNumber[versionNumber]
                 ?: let {
-                    val allVersions = versionByNumber.keys + extraVersions
+                    val allVersions = versionByNumber.keys
                     val possibilities = allVersions.joinToString { "'$it'" }
                     throw ApiParseException(
                         "invalid version, found '$versionNumber', expected one of $possibilities"
@@ -752,8 +739,9 @@ data class FileFormat(
                 parsePropertyAssignment(
                     builder,
                     it,
-                    { it.defaultable },
-                )
+                ) {
+                    it.defaultable
+                }
             }
             return builder.build()
         }

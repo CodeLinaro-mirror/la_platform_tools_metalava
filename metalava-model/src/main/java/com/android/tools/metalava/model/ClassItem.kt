@@ -54,9 +54,6 @@ interface ClassItem :
     /** Is this a top level class? */
     fun isTopLevelClass(): Boolean = containingClass() == null
 
-    /** The origin of this class. */
-    override val origin: ClassOrigin
-
     /** This [ClassItem] and all of its nested classes, recursively */
     fun allClasses(): Sequence<ClassItem> {
         return sequenceOf(this).plus(nestedClasses().asSequence().flatMap { it.allClasses() })
