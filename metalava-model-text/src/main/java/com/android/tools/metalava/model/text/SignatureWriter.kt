@@ -22,6 +22,8 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassOrVariableTypeItem
 import com.android.tools.metalava.model.ClassTypeItem
+import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.CodebaseFragment
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DelegatedVisitor
 import com.android.tools.metalava.model.FieldItem
@@ -150,6 +152,12 @@ class SignatureWriter(
     }
 
     override fun visitProperty(property: PropertyItem) {
+        // Treat record component properties specially.
+        if (property.isRecordComponent()) {
+            writeRecordComponent(property)
+            return
+        }
+
         write("    property ")
         writeModifiers(property)
         writeTypeParameterList(property.typeParameterList, addSpace = true)
@@ -172,6 +180,21 @@ class SignatureWriter(
             }
             write(property.name())
         }
+        write(";\n")
+    }
+
+    /** Write [property] as a record component, if allowed. */
+    private fun writeRecordComponent(property: PropertyItem) {
+        // If the signature file does not support record classes then do not write the component.
+        if (!javaRecordClasses) return
+
+        write("    record_component #")
+        write(property.recordComponentIndex.toString())
+        write(" ")
+        writeAnnotations(property)
+        write(property.name())
+        write(": ")
+        writeType(property.type())
         write(";\n")
     }
 
@@ -286,6 +309,10 @@ class SignatureWriter(
     private fun writeModifiers(item: Item) {
         (item as? SelectableItem)?.let { writeTargetLanguage(it) }
         modifierListWriter.write(item)
+    }
+
+    private fun writeAnnotations(item: Item) {
+        modifierListWriter.writeAnnotations(item)
     }
 
     private fun writeTargetLanguage(item: SelectableItem) {
@@ -494,12 +521,35 @@ private fun getInterfacesInOrder(
     return sortedInterfaces
 }
 
+/** Create a [CodebaseFragment] suitable for writing to a signature file. */
+fun createCodebaseFragmentForSignatureFile(
+    codebase: Codebase,
+    fileFormat: FileFormat,
+    apiType: ApiType,
+    preFiltered: Boolean,
+    showUnannotated: Boolean,
+    apiPredicateConfig: ApiPredicate.Config,
+) =
+    CodebaseFragment.create(
+        codebase,
+        callableComparator = fileFormat[OVERLOADED_METHOD_ORDER].comparator,
+    ) { delegate ->
+        createFilteringVisitorForSignatures(
+            delegate,
+            fileFormat,
+            apiType,
+            preFiltered,
+            showUnannotated,
+            apiPredicateConfig,
+        )
+    }
+
 /**
  * Create an [ApiVisitor] that will filter the [Item] to which is applied according to the supplied
  * parameters and in a manner appropriate for writing signatures, e.g. flattening nested classes. It
  * will delegate any visitor calls that pass through its filter to this [SignatureWriter] instance.
  */
-fun createFilteringVisitorForSignatures(
+private fun createFilteringVisitorForSignatures(
     delegate: DelegatedVisitor,
     fileFormat: FileFormat,
     apiType: ApiType,
@@ -515,7 +565,6 @@ fun createFilteringVisitorForSignatures(
     return FilteringApiVisitor(
         delegate = delegate,
         inlineInheritedFields = true,
-        callableComparator = fileFormat[OVERLOADED_METHOD_ORDER].comparator,
         interfaceListSorter = interfaceListSorter,
         interfaceListComparator = interfaceListComparator,
         apiFilters = apiFilters,

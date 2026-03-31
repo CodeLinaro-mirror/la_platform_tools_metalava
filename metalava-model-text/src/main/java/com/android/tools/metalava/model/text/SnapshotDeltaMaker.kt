@@ -270,7 +270,10 @@ private constructor(private val base: Codebase, private val checkMemberItemEquiv
             val deltaMaker = SnapshotDeltaMaker(base, checkMemberItemEquivalence)
             snapshot.accept(deltaMaker)
 
-            return CodebaseFragment.create(snapshot, ::EmittableDelegatingVisitor)
+            return CodebaseFragment.create(
+                snapshot,
+                factory = ::EmittableDelegatingVisitor,
+            )
         }
     }
 }

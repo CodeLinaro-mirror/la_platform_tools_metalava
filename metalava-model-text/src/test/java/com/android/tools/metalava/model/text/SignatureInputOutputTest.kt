@@ -20,9 +20,11 @@ import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.Assertions
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.CodebaseFragment
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.StripJavaLangPrefix
 import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.model.snapshot.NonFilteringDelegatingVisitor
 import com.android.tools.metalava.model.testing.value.fieldReferenceValue
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.INCLUDE_TYPE_USE_ANNOTATIONS
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.KOTLIN_NAME_TYPE_ORDER
@@ -38,12 +40,46 @@ import com.google.common.truth.Truth.assertThat
 import java.io.PrintWriter
 import java.io.StringWriter
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.junit.runners.Parameterized
 
 /**
  * Tests [SignatureWriter] and [ApiFile] by round tripping a signature file and make sure that it
  * matches the original.
  */
+@RunWith(Parameterized::class)
 class SignatureInputOutputTest : Assertions {
+
+    /** The kind of [Codebase] to use. */
+    @Parameterized.Parameter(0) lateinit var codebaseKind: CodebaseKind
+
+    enum class CodebaseKind {
+        /** Use a [CodebaseFragment] as is. */
+        FRAGMENT {
+            override fun transformFragment(fragment: CodebaseFragment) = fragment
+        },
+
+        /** Use a snapshot of the [CodebaseFragment]. */
+        SNAPSHOT {
+            override fun transformFragment(fragment: CodebaseFragment) =
+                fragment.snapshotIncludingRevertedItems(::NonFilteringDelegatingVisitor)
+        },
+        ;
+
+        /** Transform the basic [fragment] into the one that will actually be used. */
+        abstract fun transformFragment(fragment: CodebaseFragment): CodebaseFragment
+
+        override fun toString() = name.lowercase()
+    }
+
+    companion object {
+        @JvmStatic
+        @Parameterized.Parameters(name = "{0}")
+        internal fun params() = CodebaseKind.entries
+
+        private val kotlinStyleFormat =
+            FileFormat.V5.buildCopy { this[KOTLIN_NAME_TYPE_ORDER] = true }
+    }
 
     /**
      * Context against which test code is run.
@@ -74,6 +110,18 @@ class SignatureInputOutputTest : Assertions {
 
         CodebaseContext(codebase).codebaseTest()
 
+        val baseFragment =
+            createCodebaseFragmentForSignatureFile(
+                codebase,
+                fileFormat = fileFormat,
+                apiType = ApiType.ALL,
+                preFiltered = true,
+                showUnannotated = false,
+                apiPredicateConfig = ApiPredicate.Config()
+            )
+
+        val fragment = codebaseKind.transformFragment(baseFragment)
+
         val output =
             StringWriter().use { stringWriter ->
                 PrintWriter(stringWriter).use { printWriter ->
@@ -84,17 +132,7 @@ class SignatureInputOutputTest : Assertions {
                             fileFormat = fileFormat,
                         )
 
-                    val visitor =
-                        createFilteringVisitorForSignatures(
-                            delegate = signatureWriter,
-                            fileFormat = fileFormat,
-                            apiType = ApiType.ALL,
-                            preFiltered = true,
-                            showUnannotated = false,
-                            apiPredicateConfig = ApiPredicate.Config()
-                        )
-
-                    codebase.accept(visitor)
+                    fragment.accept(signatureWriter)
                 }
                 stringWriter.toString()
             }
@@ -979,6 +1017,8 @@ class SignatureInputOutputTest : Assertions {
             """
                 package test.pkg {
                   public record Test {
+                    record_component #0 a: int;
+                    record_component #1 b: String;
                     ctor public Test(int, String);
                     method public int a();
                     method public String b();
@@ -997,6 +1037,8 @@ class SignatureInputOutputTest : Assertions {
             """
                 package test.pkg {
                   public record Test {
+                    record_component #0 a: int;
+                    record_component #1 b: String;
                     ctor public Test(int, String);
                     method public int a();
                     method public String b();
@@ -1019,8 +1061,23 @@ class SignatureInputOutputTest : Assertions {
         )
     }
 
-    companion object {
-        private val kotlinStyleFormat =
-            FileFormat.V5.buildCopy { this[KOTLIN_NAME_TYPE_ORDER] = true }
+    @Test
+    fun `Test record classes, not in alphabetical order`() {
+        val api =
+            """
+                package test.pkg {
+                  public record Test {
+                    record_component #0 b: int;
+                    record_component #1 a: String;
+                    ctor public Test(int, String);
+                    method public int a();
+                    method public String b();
+                  }
+                }
+            """
+        runInputOutputTest(
+            api,
+            FORMAT_V6_WITH_JAVA_RECORD_CLASSES,
+        )
     }
 }

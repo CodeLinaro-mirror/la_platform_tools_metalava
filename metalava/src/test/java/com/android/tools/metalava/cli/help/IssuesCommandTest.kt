@@ -125,6 +125,7 @@ Available Issues                             |  Category                        
   InternalError                              |  unknown                              |   error
   InternalField                              |  api_lint                             |   error
   InvalidBlockTagUse                         |  documentation                        |   error
+  InvalidDevicePolicyAnnotation              |  documentation                        |   error
   InvalidDocThrowsType                       |  documentation                        |   error
   InvalidFeatureEnforcement                  |  documentation                        |   error
   InvalidIfTag                               |  documentation                        |   error

@@ -16,14 +16,99 @@
 
 package com.android.tools.metalava.model.testsuite.classitem
 
+import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
+import com.android.tools.metalava.model.JAVA_LANG_STRING
 import com.android.tools.metalava.model.ModifierKeyword
+import com.android.tools.metalava.model.PrimitiveTypeItem
+import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.testing.classTypeItem
+import com.android.tools.metalava.model.testing.primitiveTypeForKind
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
+import kotlin.test.assertTrue
 import org.junit.Test
 
 class CommonRecordClassTest : BaseModelTest() {
+
+    /** Info available for a record component. */
+    data class RecordComponentInfo(val name: String, val type: TypeItem)
+
+    /** Assert that this [ClassItem] is a record class with [expectedComponents]. */
+    fun ClassItem.assertRecord(vararg expectedComponents: RecordComponentInfo) {
+        // Check the kind.
+        assertEquals(ClassKind.RECORD, classKind, message = "class kind")
+
+        // Check the modifiers.
+        assertEquals(
+            listOf(ModifierKeyword.PUBLIC_KEYWORD, ModifierKeyword.FINAL_KEYWORD),
+            modifiers.keywordList,
+            message = "keywords",
+        )
+
+        // Extract the components and check against the expected components.
+        val components = recordComponents?.map { RecordComponentInfo(it.name, it.type) }
+        assertEquals(expectedComponents.toList(), components, message = "components")
+
+        // Find the canonical constructor.
+        val canonicalConstructor =
+            constructors().find {
+                it.parameters().zip(expectedComponents).all { (parameter, component) ->
+                    parameter.type() == component.type
+                }
+            }
+        assertNotNull(canonicalConstructor, message = "canonical constructor")
+        assertTrue(canonicalConstructor.isPrimary, message = "canonical constructor is primary")
+
+        // Check for the accessor methods.
+        for (component in expectedComponents) {
+            val method = assertMethod(component.name, emptyList())
+            assertEquals(
+                component.type,
+                method.returnType(),
+                message = "method ${component.name} return type"
+            )
+        }
+    }
+
+    /** Create a [RecordComponentInfo]. */
+    fun component(name: String, type: TypeItem) = RecordComponentInfo(name, type)
+
+    @Test
+    fun `Test empty record class`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    public record Test() {
+                    }
+                """
+            ),
+            signature(
+                """
+                    // Signature format: 6.0
+                    // - style=java
+                    package test.pkg {
+                      public record Test {
+                        ctor public Test();
+                      }
+                    }
+                """
+            ),
+            testFixture =
+                TestFixture(
+                    javaLanguageLevel = "17",
+                ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+
+            testClass.assertRecord()
+        }
+    }
+
     @Test
     fun `Test simple record class`() {
         runSourceCodebaseTest(
@@ -41,7 +126,11 @@ class CommonRecordClassTest : BaseModelTest() {
                     // - style=java
                     package test.pkg {
                       public record Test {
-                        ctor public Test(int a, String b);
+                        record_component #0 a: int;
+                        record_component #1 b: String;
+                        ctor public Test(int, String);
+                        method public int a();
+                        method public String b();
                       }
                     }
                 """
@@ -52,11 +141,10 @@ class CommonRecordClassTest : BaseModelTest() {
                 ),
         ) {
             val testClass = codebase.assertClass("test.pkg.Test")
-            assertEquals(ClassKind.RECORD, testClass.classKind)
 
-            assertEquals(
-                listOf(ModifierKeyword.PUBLIC_KEYWORD, ModifierKeyword.FINAL_KEYWORD),
-                testClass.modifiers.keywordList
+            testClass.assertRecord(
+                component("a", primitiveTypeForKind(PrimitiveTypeItem.Primitive.INT)),
+                component("b", classTypeItem(JAVA_LANG_STRING)),
             )
         }
     }

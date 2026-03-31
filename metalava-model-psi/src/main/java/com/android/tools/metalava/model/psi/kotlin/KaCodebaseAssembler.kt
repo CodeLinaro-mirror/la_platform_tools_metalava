@@ -97,6 +97,7 @@ import org.jetbrains.kotlin.asJava.toLightElements
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.psi.KtAnnotationEntry
+import org.jetbrains.kotlin.psi.KtConstructor
 import org.jetbrains.kotlin.psi.KtElement
 import org.jetbrains.kotlin.psi.KtFile
 
@@ -625,10 +626,7 @@ private constructor(
         // should be generated. Only skip constructors when adding to a PsiBasedCodebase.
         if (!addingToPsiCodebase) return true
         // If a constructor has a corresponding UElement it shouldn't be created as kotlin only.
-        // TODO(b/491407270): checking parameter types is still required because constructors with
-        //  value class type parameters incorrectly exist as UElements.
-        if (constructorSymbol.existsAsUElement() && !hasValueClassTypeParameter(constructorSymbol))
-            return false
+        if (existsAsUElement(constructorSymbol)) return false
         return true
     }
 
@@ -737,15 +735,7 @@ private constructor(
         // only, but if a function has a value class return type which is not explicitly declared in
         // source it will still incorrectly exist as a UElement (see
         // https://youtrack.jetbrains.com/issue/KT-74205).
-        // TODO(b/491407270): checking parameter types is still required because constructors with
-        //  value class type parameters incorrectly exist as UElements, and a data class copy method
-        //  has the constructor as its source element so it will also still exist as a UElement when
-        //  it has a value class parameter type.
-        if (
-            functionSymbol.existsAsUElement() &&
-                !hasValueClassTypeParameter(functionSymbol) &&
-                !isValueClassType(functionSymbol.returnType)
-        )
+        if (existsAsUElement(functionSymbol) && !isValueClassType(functionSymbol.returnType))
             return false
 
         return true
@@ -1278,8 +1268,13 @@ private constructor(
      * Checks if there are any UElements corresponding to the symbol. If there are, this symbol
      * usually shouldn't have a kotlin-only item generated from it.
      */
-    private fun KaSymbol.existsAsUElement() =
-        (psi as? KtElement)?.toLightElements()?.isNotEmpty() == true
+    private fun KaSession.existsAsUElement(symbol: KaSymbol): Boolean =
+        (symbol.psi as? KtElement)?.toLightElements()?.isNotEmpty() == true &&
+            // Constructors with value class type parameters exist as private UElements, but that
+            // shouldn't be counted because the visibility doesn't match the source element.
+            !(symbol.psi is KtConstructor<*> &&
+                symbol is KaFunctionSymbol &&
+                hasValueClassTypeParameter(symbol))
 
     /**
      * Checks if the [kaType] represents a value class. Value classes generally cannot be used from

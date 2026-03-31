@@ -50,7 +50,7 @@ class SnapshotTest : DriverTest() {
 
         val snapshot =
             CodebaseSnapshotTaker.takeSnapshot(
-                codebase,
+                codebase!!,
                 definitionVisitorFactory = factory,
                 referenceVisitorFactory = factory,
                 includeDocumentation = true,
