@@ -539,6 +539,12 @@ abstract class DriverTest :
         /** Whether to create a multiplatform codebase. Only supported with psi. */
         enableMultiplatform: Boolean = false,
         /**
+         * If true, this does not include arguments specifying source files (from [sourceFiles]) in
+         * the command run by Driver. This allows creating a multiplatform codebase (when
+         * [enableMultiplatform] is true) without creating a regular codebase.
+         */
+        skipSourceArgs: Boolean = false,
+        /**
          * Called on a [CheckerContext] after the analysis phase in the metalava main command.
          *
          * This allows testing of the internal state of the metalava main command. Ideally, tests
@@ -1021,6 +1027,17 @@ abstract class DriverTest :
         // Run optional additional setup steps on the project directory
         projectSetup?.invoke(project)
 
+        val sourceArgs =
+            if (skipSourceArgs) {
+                emptyArray()
+            } else {
+                arrayOf(
+                    ARG_SOURCE_PATH,
+                    sourcePath,
+                    *sourceList,
+                )
+            }
+
         val args =
             arrayOf(
                 ARG_NO_COLOR,
@@ -1028,9 +1045,7 @@ abstract class DriverTest :
                 // Annotation generation temporarily turned off by default while integrating with
                 // SDK builds; tests need these
                 ARG_INCLUDE_ANNOTATIONS,
-                ARG_SOURCE_PATH,
-                sourcePath,
-                *sourceList,
+                *sourceArgs,
                 *configFileArgs,
                 *removedArgs,
                 *apiArgs,

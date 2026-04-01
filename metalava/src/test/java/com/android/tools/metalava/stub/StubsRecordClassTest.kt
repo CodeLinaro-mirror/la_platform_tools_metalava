@@ -37,6 +37,8 @@ class StubsRecordClassTest : AbstractStubsTest() {
                         // - style=java
                         package test.pkg {
                           public record Test {
+                            record_component #0 a: int;
+                            record_component #1 b: String;
                             ctor public Test(int, String);
                             method public int a();
                             method public String b();
@@ -62,8 +64,7 @@ class StubsRecordClassTest : AbstractStubsTest() {
                     """
                         package test.pkg;
                         @SuppressWarnings({"unchecked", "deprecation", "all"})
-                        public record Test {
-                        public Test(int arg1, java.lang.String arg2) { throw new RuntimeException("Stub!"); }
+                        public record Test(int a, java.lang.String b) {
                         public int a() { throw new RuntimeException("Stub!"); }
                         public java.lang.String b() { throw new RuntimeException("Stub!"); }
                         }

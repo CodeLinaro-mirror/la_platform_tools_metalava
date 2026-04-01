@@ -199,6 +199,11 @@ internal class TurbineClassBuilder(
         // Create constructors
         createConstructors(classItem, typeBoundClass.methods(), classTypeItemFactory)
 
+        // Create record components.
+        if (classKind == ClassKind.RECORD) {
+            createRecordComponents(classItem, typeBoundClass.components(), classTypeItemFactory)
+        }
+
         // Create InnerClasses.
         val children = typeBoundClass.children()
         createNestedClasses(classItem, children.values.asList(), classTypeItemFactory)
@@ -666,6 +671,38 @@ internal class TurbineClassBuilder(
             // element-by-element comparison to see if the signature matches, and that should match
             // overrides even if they specify their elements in different orders.
             .sortedWith(ClassOrVariableTypeItem.fullNameComparator)
+
+    private fun createRecordComponents(
+        classItem: SkeletonClassItem,
+        components: List<TypeBoundClass.RecordComponentInfo>,
+        classTypeItemFactory: TurbineTypeItemFactory,
+    ) {
+        for ((index, componentInfo) in components.withIndex()) {
+            val modifiers =
+                createModifiers(
+                    ItemKind.PROPERTY,
+                    componentInfo.access(),
+                    componentInfo.annotations()
+                )
+            modifiers.setVisibilityLevel(VisibilityLevel.PUBLIC)
+
+            val type = classTypeItemFactory.getGeneralType(componentInfo.type())
+
+            val propertyItem =
+                itemFactory.createRecordComponentItem(
+                    fileLocation = classItem.fileLocation,
+                    modifiers = modifiers,
+                    name = componentInfo.name(),
+                    containingClass = classItem,
+                    type = type,
+                    recordComponentIndex = index,
+                )
+
+            classItem.addProperty(propertyItem)
+        }
+
+        classItem.initializeRecordComponents()
+    }
 
     /** Get an [ItemDocumentationFactory] for [decl] in [classItem]. */
     private fun itemDocumentationFactoryForDecl(classItem: ClassItem, decl: Tree?) =

@@ -116,6 +116,7 @@ object Issues {
     val BROADCAST_BEHAVIOR by Issue(Severity.ERROR, Category.DOCUMENTATION)
     val SDK_CONSTANT by Issue(Severity.ERROR, Category.DOCUMENTATION)
     val TODO by Issue(Severity.ERROR, Category.DOCUMENTATION)
+    val INVALID_DEVICE_POLICY_ANNOTATION by Issue(Severity.ERROR, Category.DOCUMENTATION)
 
     // Metalava warnings (not from doclava)
 
