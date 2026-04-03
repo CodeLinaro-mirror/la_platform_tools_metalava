@@ -473,7 +473,7 @@ class StubsAnnotationTest : AbstractStubsTest() {
                     method public abstract char[] letters2() default {'a', 'b', 'c'};
                     method public abstract int math() default 7;
                     method public abstract short medium() default 1;
-                    method public abstract Class<? extends java.lang.Number!> myCls() default java.lang.Integer.class;
+                    method public abstract Class<? extends java.lang.Number> myCls() default java.lang.Integer.class;
                     method public abstract String prefix() default "";
                     method public abstract boolean resolveId() default false;
                     method public abstract byte small() default 1;
@@ -535,7 +535,8 @@ class StubsAnnotationTest : AbstractStubsTest() {
                 }
                 }
                 """,
-            filterBlankLinesFromStubFiles = false,
+            // Includes documentation so cannot match what is generated from signature file.
+            checkTextStubEquivalence = false,
         )
     }
 

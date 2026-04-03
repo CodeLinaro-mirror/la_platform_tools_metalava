@@ -234,7 +234,6 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
         val surface: Surface,
         val flagged: Flagged,
         val expectedApi: String,
-        val expectedFail: String = "",
         val expectedIssues: String = "",
         val expectedStubs: Array<TestFile> = emptyArray(),
         val expectedStubPaths: Array<String>? = null,
@@ -330,7 +329,6 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
             api = expectations.expectedApi,
             stubFiles = expectations.expectedStubs,
             stubPaths = expectations.expectedStubPaths,
-            expectedFail = expectations.expectedFail,
             expectedIssues = expectations.expectedIssues,
             // Do not include flags in the output but do not mark them as hide or removed.
             // This is needed to verify that the code to always inline the values of

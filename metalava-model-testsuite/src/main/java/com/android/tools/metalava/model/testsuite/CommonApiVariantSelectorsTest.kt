@@ -38,7 +38,7 @@ class CommonApiVariantSelectorsTest : BaseModelTest() {
      * [expectedState]
      */
     fun ApiVariantSelectors.assertEquals(expectedState: TestableSelectorsState, message: String) {
-        assertEquals(expectedState.createSelectorsforTesting(), this, message = message)
+        assertEquals(expectedState.createSelectorsForTesting(), this, message = message)
 
         // The preceding check will verify that val properties like originallyHidden are either set
         // or not set as expected. The following checks test to make that they have the expected

@@ -239,6 +239,14 @@ internal sealed class DefaultBaseModifierList(
         return false
     }
 
+    /**
+     * Returns the flags for the modifiers from this list which are considered significant, as
+     * defined by [EQUIVALENCE_MASK].
+     */
+    internal fun significantFlags(): Int {
+        return flags and EQUIVALENCE_MASK
+    }
+
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is DefaultBaseModifierList) return false
@@ -529,6 +537,16 @@ internal class DefaultMutableModifierList(
         val mutable = annotations.toMutableList()
         mutable.mutator()
         annotations = mutable.toList()
+    }
+
+    override fun makeEquivalentTo(other: ModifierList) {
+        other as DefaultBaseModifierList
+        // For any flags in the equivalence mask, the new value should be the value from other.
+        val significantFlagsFromOther = other.significantFlags()
+        // For any flags not in the equivalence mask, the new value should be the same.
+        val insignificantFlagsFromThis = flags and EQUIVALENCE_MASK.inv()
+        // Combine the significant flags from other and the insignificant flags from this.
+        flags = significantFlagsFromOther or insignificantFlagsFromThis
     }
 }
 

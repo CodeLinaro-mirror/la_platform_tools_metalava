@@ -105,12 +105,24 @@ enum class ClassKind(
         allowAbstract = true,
     ),
 
+    /** A java record class */
+    RECORD(
+        supportsInitializerBlock = false,
+        signatureKeyword = "record",
+        implicitSuperClassType = WellKnownTypes.JAVA_LANG_RECORD_NON_NULL_TYPE,
+        // Records have an implicit super class and do not allow a super class to be provided
+        // explicitly.
+        allowsExplicitSuperClass = false,
+        // Record classes can never be subclasses so are implicitly final.
+        implicitlyFinal = true,
+    ),
+
     /** A typealias */
     TYPEALIAS(
         supportsInitializerBlock = false,
         signatureKeyword = "typealias",
-        // Typealiases do not have super classes, explicit or otherwise..
-        allowsExplicitSuperClass = true,
+        // Typealiases do not have super classes, explicit or otherwise.
+        allowsExplicitSuperClass = false,
     ),
     ;
 

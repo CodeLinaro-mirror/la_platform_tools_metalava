@@ -55,7 +55,7 @@ class ApiSurfacesTest : DriverTest() {
                 ),
             extraArguments = arguments,
             postAnalysisChecker = {
-                val apiSurfaces = codebase.config.apiSurfaces
+                val apiSurfaces = codebase!!.config.apiSurfaces
                 val context = ApiSurfacesContext(apiSurfaces)
                 context.checker()
             },
@@ -137,7 +137,7 @@ class ApiSurfacesTest : DriverTest() {
                     "system",
                 ),
         ) {
-            val apiSurfaces = codebase.config.apiSurfaces
+            val apiSurfaces = codebase!!.config.apiSurfaces
             apiSurfaces.assertBaseWasCreated()
         }
     }

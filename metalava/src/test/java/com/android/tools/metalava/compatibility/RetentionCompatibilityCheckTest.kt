@@ -25,7 +25,6 @@ class RetentionCompatibilityCheckTest : DriverTest() {
     fun `Don't throw compatibility error when annotation retentions are equivalent - source retention`() {
         check(
             expectedIssues = "",
-            expectedFail = "",
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
@@ -47,7 +46,6 @@ class RetentionCompatibilityCheckTest : DriverTest() {
     fun `Don't throw compatibility error when annotation retentions are equivalent - class vs binary retention`() {
         check(
             expectedIssues = "",
-            expectedFail = "",
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
@@ -69,7 +67,6 @@ class RetentionCompatibilityCheckTest : DriverTest() {
     fun `Don't throw compatibility error when annotation retentions are equivalent - runtime retention`() {
         check(
             expectedIssues = "",
-            expectedFail = "",
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
@@ -91,7 +88,6 @@ class RetentionCompatibilityCheckTest : DriverTest() {
     fun `Don't throw compatibility error when annotation retention becomes less restrictive - class to runtime`() {
         check(
             expectedIssues = "",
-            expectedFail = "",
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
@@ -113,7 +109,6 @@ class RetentionCompatibilityCheckTest : DriverTest() {
     fun `Don't throw compatibility error when annotation retention becomes less restrictive - source to runtime`() {
         check(
             expectedIssues = "",
-            expectedFail = "",
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
@@ -139,8 +134,6 @@ class RetentionCompatibilityCheckTest : DriverTest() {
                 load-api.txt:3: error: Class test.pkg.RestrictTo incompatibly changed its retention from BINARY to SOURCE [ChangedAnnotationRetention]
             """
                     .trimIndent(),
-            expectedFail =
-                "Aborting: Found compatibility problems checking the public API (TESTROOT/project/load-api.txt) against the API in TESTROOT/project/released-api.txt",
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
@@ -166,8 +159,6 @@ class RetentionCompatibilityCheckTest : DriverTest() {
                 load-api.txt:3: error: Class test.pkg.RestrictTo incompatibly changed its retention from RUNTIME to CLASS [ChangedAnnotationRetention]
             """
                     .trimIndent(),
-            expectedFail =
-                "Aborting: Found compatibility problems checking the public API (TESTROOT/project/load-api.txt) against the API in TESTROOT/project/released-api.txt",
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
@@ -193,8 +184,6 @@ class RetentionCompatibilityCheckTest : DriverTest() {
                 load-api.txt:3: error: Class test.pkg.RestrictTo incompatibly changed its retention from RUNTIME to SOURCE [ChangedAnnotationRetention]
             """
                     .trimIndent(),
-            expectedFail =
-                "Aborting: Found compatibility problems checking the public API (TESTROOT/project/load-api.txt) against the API in TESTROOT/project/released-api.txt",
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {

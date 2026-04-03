@@ -278,7 +278,7 @@ private constructor(
         return null
     }
 
-    private fun writeAnnotations(item: Item) {
+    fun writeAnnotations(item: Item) {
         // Generate annotations on separate lines in stub files for packages, classes and
         // methods and also for enum constants.
         val separateLines =

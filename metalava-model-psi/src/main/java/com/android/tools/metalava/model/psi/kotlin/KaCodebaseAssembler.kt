@@ -63,6 +63,8 @@ import com.android.tools.metalava.model.value.ClassObjectValue
 import com.android.tools.metalava.reporter.FileLocation
 import com.intellij.psi.JavaPsiFacade
 import com.intellij.psi.PsiClass
+import com.intellij.psi.PsiFileSystemItem
+import com.intellij.psi.PsiJavaFile
 import java.io.File
 import org.jetbrains.kotlin.analysis.api.KaExperimentalApi
 import org.jetbrains.kotlin.analysis.api.KaSession
@@ -97,6 +99,7 @@ import org.jetbrains.kotlin.asJava.toLightElements
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.psi.KtAnnotationEntry
+import org.jetbrains.kotlin.psi.KtConstructor
 import org.jetbrains.kotlin.psi.KtElement
 import org.jetbrains.kotlin.psi.KtFile
 
@@ -166,6 +169,10 @@ internal class KaCodebaseAssembler(
             location: File,
             config: Codebase.Config,
         ): MultiplatformCodebase {
+            // Aggregate the packages defined in all modules, because when analyzing one module both
+            // the packages in the module and the packages in the modules it depends on are needed.
+            @OptIn(KaExperimentalApi::class)
+            val allPackages = packageNames(modules.flatMap { it.psiRoots }).toList()
             val commonModules = modules.filter { it.directDependsOnDependencies.isEmpty() }
             val leafModules =
                 modules.filter { potentialEdgeModule ->
@@ -187,11 +194,35 @@ internal class KaCodebaseAssembler(
                                     assembler = assembler,
                                 )
                             }
-                        processor.assemble()
+                        processor.assemble(allPackages)
                         processor.codebase
                     }
                 ),
             )
+        }
+
+        /** Returns the names of all the packages represented by the files in [items]. */
+        private fun packageNames(items: List<PsiFileSystemItem>): Set<FqName> {
+            return buildSet {
+                fun process(item: PsiFileSystemItem) {
+                    // Add the package declaration from a java or kotlin files.
+                    when (item) {
+                        is KtFile -> add(item.packageFqName)
+                        is PsiJavaFile -> add(FqName(item.packageName))
+                    }
+                    // If this is a directory, check recursively for java/kotlin files.
+                    if (item.isDirectory) {
+                        item.processChildren {
+                            process(it)
+                            // Continue processing.
+                            return@processChildren true
+                        }
+                    }
+                }
+                for (item in items) {
+                    process(item)
+                }
+            }
         }
     }
 }
@@ -294,16 +325,6 @@ private constructor(
         }
     }
 
-    @OptIn(KaExperimentalApi::class)
-    private fun KaSession.allPackages(): Sequence<KaPackageSymbol> {
-        fun childPackages(packageSymbol: KaPackageSymbol): Sequence<KaPackageSymbol> {
-            return sequenceOf(packageSymbol) +
-                packageSymbol.packageScope.getPackageSymbols().flatMap { childPackages(it) }
-        }
-
-        return childPackages(rootPackageSymbol)
-    }
-
     /** Analyze all packages from [allPackageNames] to add type aliases to the codebase. */
     fun createTypeAliases(allPackageNames: List<FqName>) {
         analyze(kaModule) {
@@ -323,14 +344,10 @@ private constructor(
     /**
      * Analyze the [KaModule] to add items to the codebase for this [kaModule] (except type aliases,
      * which are added by [createTypeAliases]).
-     *
-     * If [packageNames] is provided, specifically processes those packages, otherwise processes all
-     * packages in the module (which includes packages from the classpath).
      */
-    fun assemble(packageNames: List<FqName>? = null) {
+    fun assemble(packageNames: List<FqName>) {
         analyze(kaModule) {
-            val packages =
-                packageNames?.mapNotNull { findPackage(it) }?.asSequence() ?: allPackages()
+            val packages = packageNames.mapNotNull { findPackage(it) }
             for (packageSymbol in packages) {
                 processPackage(packageSymbol)
             }
@@ -564,7 +581,8 @@ private constructor(
      */
     private fun findOrCreateFacadeClass(containingPackage: PackageItem): SkeletonClassItem {
         // Create a fake class name to contain the top level items.
-        val qualifiedName = containingPackage.qualifiedName() + ".\$TopLevelDeclarations"
+        val qualifiedName =
+            containingPackage.qualifiedName() + ".${ClassItem.TOP_LEVEL_DECLARATION_FACADE_NAME}"
         codebase.findClassInCodebase(qualifiedName)?.let {
             return it
         }
@@ -624,10 +642,7 @@ private constructor(
         // should be generated. Only skip constructors when adding to a PsiBasedCodebase.
         if (!addingToPsiCodebase) return true
         // If a constructor has a corresponding UElement it shouldn't be created as kotlin only.
-        // TODO(b/491407270): checking parameter types is still required because constructors with
-        //  value class type parameters incorrectly exist as UElements.
-        if (constructorSymbol.existsAsUElement() && !hasValueClassTypeParameter(constructorSymbol))
-            return false
+        if (existsAsUElement(constructorSymbol)) return false
         return true
     }
 
@@ -736,15 +751,7 @@ private constructor(
         // only, but if a function has a value class return type which is not explicitly declared in
         // source it will still incorrectly exist as a UElement (see
         // https://youtrack.jetbrains.com/issue/KT-74205).
-        // TODO(b/491407270): checking parameter types is still required because constructors with
-        //  value class type parameters incorrectly exist as UElements, and a data class copy method
-        //  has the constructor as its source element so it will also still exist as a UElement when
-        //  it has a value class parameter type.
-        if (
-            functionSymbol.existsAsUElement() &&
-                !hasValueClassTypeParameter(functionSymbol) &&
-                !isValueClassType(functionSymbol.returnType)
-        )
+        if (existsAsUElement(functionSymbol) && !isValueClassType(functionSymbol.returnType))
             return false
 
         return true
@@ -1277,8 +1284,13 @@ private constructor(
      * Checks if there are any UElements corresponding to the symbol. If there are, this symbol
      * usually shouldn't have a kotlin-only item generated from it.
      */
-    private fun KaSymbol.existsAsUElement() =
-        (psi as? KtElement)?.toLightElements()?.isNotEmpty() == true
+    private fun KaSession.existsAsUElement(symbol: KaSymbol): Boolean =
+        (symbol.psi as? KtElement)?.toLightElements()?.isNotEmpty() == true &&
+            // Constructors with value class type parameters exist as private UElements, but that
+            // shouldn't be counted because the visibility doesn't match the source element.
+            !(symbol.psi is KtConstructor<*> &&
+                symbol is KaFunctionSymbol &&
+                hasValueClassTypeParameter(symbol))
 
     /**
      * Checks if the [kaType] represents a value class. Value classes generally cannot be used from

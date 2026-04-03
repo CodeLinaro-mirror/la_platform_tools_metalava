@@ -162,6 +162,7 @@ class SignatureToJDiffCommand :
                     baseApi,
                     signatureFragment,
                     checkMemberItemEquivalence = false,
+                    allowClassModifierChanges = false,
                 )
             } else {
                 signatureFragment

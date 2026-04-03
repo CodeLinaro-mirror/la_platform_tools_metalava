@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.testsuite.multiplatform
 
+import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.multiplatform.transformValues
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.createAndroidModuleDescription
@@ -349,6 +350,41 @@ class CommonMultiplatformPropertyItemTest : BaseModelTest() {
             // properties are not included in the multiplatform model.
             assertThat(testPkg.topLevelClasses()).isEmpty()
             assertThat(testPkg.allClasses().toList()).isEmpty()
+        }
+    }
+
+    @Test
+    fun `Baseline id for top level regular PropertyItem`() {
+        val commonSource =
+            kotlin(
+                "commonMain/src/test/pkg/Foo.kt",
+                """
+                package test.pkg
+                val foo = 0
+                val String.foo
+                    get() = 0
+                """
+            )
+        runMultiplatformCodebaseTest(
+            inputSet(commonSource),
+            projectDescription =
+                createProjectDescription(
+                    createCommonModuleDescription(arrayOf(commonSource)),
+                )
+        ) {
+            val commonCodebase = multiplatformCodebase.sourceSetToCodebase["commonMain"]!!
+            val facadeClass =
+                commonCodebase.assertClass(
+                    "test.pkg.${ClassItem.TOP_LEVEL_DECLARATION_FACADE_NAME}"
+                )
+
+            val topLevelVal = facadeClass.assertProperty("foo")
+            assertThat(topLevelVal.baselineElementId()).isEqualTo("test.pkg#foo")
+
+            val topLevelExtensionVal =
+                facadeClass.assertProperty("foo", receiverTypeString = "kotlin.String")
+            assertThat(topLevelExtensionVal.baselineElementId())
+                .isEqualTo("test.pkg#kotlin.String.foo")
         }
     }
 }

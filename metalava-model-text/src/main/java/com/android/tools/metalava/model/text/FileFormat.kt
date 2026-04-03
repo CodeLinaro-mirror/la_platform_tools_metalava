@@ -24,6 +24,7 @@ import com.android.tools.metalava.model.text.CustomizableProperty.Companion.ADD_
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.FLAGGED_API_INHERITANCE
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.INCLUDE_DEFAULT_PARAMETER_VALUES
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.INCLUDE_TYPE_USE_ANNOTATIONS
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.JAVA_RECORD_CLASSES
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.KOTLIN_NAME_TYPE_ORDER
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.KOTLIN_STYLE_NULLS
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.MIGRATING
@@ -182,6 +183,7 @@ data class FileFormat(
                     this.version = version
                     this[ADD_ADDITIONAL_OVERRIDES] = true
                     this[FLAGGED_API_INHERITANCE] = FlaggedApiInheritance.NESTED_CLASSES
+                    this[JAVA_RECORD_CLASSES] = true
                     this[NORMALIZE_ABSTRACT_MODIFIER] = true
                     this[NORMALIZE_FINAL_MODIFIER] = true
                     this[OVERLOADED_METHOD_ORDER] = OverloadedMethodOrder.SIGNATURE

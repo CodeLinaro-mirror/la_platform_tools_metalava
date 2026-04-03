@@ -51,6 +51,16 @@ interface PropertyItem : MemberItem, TypeParameterListOwner, InheritableItem {
      */
     val setterVisibility: VisibilityLevel?
 
+    /**
+     * The 0-based index of this within the list of record components of a [ClassKind.RECORD] class.
+     *
+     * Is -1 for properties that are not record components.
+     */
+    val recordComponentIndex: Int
+
+    /** Check to see whether this is a record component. */
+    fun isRecordComponent(): Boolean = recordComponentIndex >= 0
+
     override fun findCorrespondingItemIn(
         codebase: Codebase,
         superMethods: Boolean,
@@ -63,8 +73,16 @@ interface PropertyItem : MemberItem, TypeParameterListOwner, InheritableItem {
     private fun receiverString(): String =
         receiver?.let { it.toTypeString(TypeStringConfiguration.DEFAULT_KOTLIN_NULLS) + "." } ?: ""
 
-    override fun baselineElementId() =
-        containingClass().qualifiedName() + "#" + receiverString() + name()
+    override fun baselineElementId() = buildString {
+        if (containingClass().simpleName() != ClassItem.TOP_LEVEL_DECLARATION_FACADE_NAME) {
+            append(containingClass().qualifiedName())
+        } else {
+            append(containingPackage().qualifiedName())
+        }
+        append("#")
+        append(receiverString())
+        append(name())
+    }
 
     override fun accept(visitor: ItemVisitor) {
         visitor.visit(this)
@@ -83,8 +101,17 @@ interface PropertyItem : MemberItem, TypeParameterListOwner, InheritableItem {
         return Objects.hash(name(), receiver)
     }
 
-    override fun toStringForItem(): String =
-        "property ${containingClass().qualifiedName()}#${receiverString()}${name()}"
+    override fun toStringForItem(): String = buildString {
+        if (isRecordComponent()) {
+            append("record component ")
+        } else {
+            append("property ")
+        }
+        append(containingClass().qualifiedName())
+        append("#")
+        append(receiverString())
+        append(name())
+    }
 
     // Inherit deprecation from the getter
     override val effectivelyDeprecated: Boolean
@@ -97,9 +124,16 @@ interface PropertyItem : MemberItem, TypeParameterListOwner, InheritableItem {
                 }
 
     companion object {
-        val comparator: java.util.Comparator<PropertyItem> = Comparator { a, b ->
-            a.name().compareTo(b.name())
-        }
+        /**
+         * Defines an order on [PropertyItem]s.
+         * * They are first ordered by their [PropertyItem.recordComponentIndex]. That means that
+         *   non-record component [PropertyItem]s come first (as they have an index of `-1`) and
+         *   record component [PropertyItem]s are ordered by their index.
+         * * They are then ordered by their [PropertyItem.name].
+         */
+        val comparator: Comparator<PropertyItem> =
+            Comparator.comparing<PropertyItem, Int> { it.recordComponentIndex }
+                .thenComparing { it.name() }
 
         /** Returns whether the two types should be considered equal property receivers. */
         fun equalReceivers(receiver1: TypeItem?, receiver2: TypeItem?): Boolean {

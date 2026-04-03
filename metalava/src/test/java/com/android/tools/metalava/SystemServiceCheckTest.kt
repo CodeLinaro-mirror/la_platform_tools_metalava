@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava
 
-import com.android.tools.metalava.lint.DefaultLintErrorMessage
 import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import org.junit.Test
@@ -106,7 +105,6 @@ class SystemServiceCheckTest : DriverTest() {
     @Test
     fun `Check SystemService -- no permission annotation`() {
         check(
-            expectedFail = DefaultLintErrorMessage,
             expectedIssues =
                 "src/test/pkg/MyTest1.java:4: error: Method 'myMethod2' must be protected with a system permission. [RequiresPermission]",
             // TODO(b/412743564): Use includeSystemApiAnnotations = SystemApiType.PRIVILEGED_APPS
@@ -173,7 +171,6 @@ class SystemServiceCheckTest : DriverTest() {
     @Test
     fun `Check SystemService such that at least one permission must be defined with anyOf`() {
         check(
-            expectedFail = DefaultLintErrorMessage,
             expectedIssues =
                 """
                 src/test/pkg/MyTest2.java:6: error: Method 'myMethod1' must be protected with a system permission. [RequiresPermission]
@@ -209,7 +206,6 @@ class SystemServiceCheckTest : DriverTest() {
     @Test
     fun `Check SystemService -- missing one permission with allOf`() {
         check(
-            expectedFail = DefaultLintErrorMessage,
             expectedIssues =
                 "src/test/pkg/MyTest2.java:6: error: Permission 'foo.bar.PERMISSION2' is not defined by manifest TESTROOT/manifest.xml. [RequiresPermission]",
             // TODO(b/412743564): Use includeSystemApiAnnotations = SystemApiType.PRIVILEGED_APPS
@@ -248,7 +244,6 @@ class SystemServiceCheckTest : DriverTest() {
     @Test
     fun `Check SystemService -- must be system permission, not normal`() {
         check(
-            expectedFail = DefaultLintErrorMessage,
             expectedIssues =
                 "src/test/pkg/MyTest2.java:7: error: Method 'test' must be protected with a system " +
                     "permission; it currently allows non-system callers holding [foo.bar.PERMISSION1, " +
@@ -294,7 +289,6 @@ class SystemServiceCheckTest : DriverTest() {
     @Test
     fun `Check SystemService -- missing manifest permissions`() {
         check(
-            expectedFail = DefaultLintErrorMessage,
             expectedIssues =
                 """
                 src/test/pkg/MyTest2.java:8: error: Method 'test' must be protected with a system permission. [RequiresPermission]
@@ -333,7 +327,6 @@ class SystemServiceCheckTest : DriverTest() {
     @Test
     fun `Invalid manifest`() {
         check(
-            expectedFail = DefaultLintErrorMessage,
             expectedIssues =
                 """
                 manifest.xml: error: Failed to parse TESTROOT/manifest.xml: The markup in the document preceding the root element must be well-formed. [ParseError]

@@ -20,7 +20,6 @@ import com.android.tools.lint.checks.infrastructure.TestFiles.base64gzip
 import com.android.tools.metalava.cli.common.ARG_ERROR
 import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.cli.common.ARG_SKIP_READING_COMMENTS
-import com.android.tools.metalava.lint.DefaultLintErrorMessage
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.text.FileFormat
@@ -141,7 +140,6 @@ class ApiAnalyzerTest : DriverTest() {
                     src/test/pkg/PublicClass.java:6: error: badPackagePrivateMethod cannot be hidden and abstract when PublicClass has a visible constructor, in case a third-party attempts to subclass it. [HiddenAbstractMethod]
                     src/test/pkg/SystemApiClass.java:7: error: badAbstractHiddenMethod cannot be hidden and abstract when SystemApiClass has a visible constructor, in case a third-party attempts to subclass it. [HiddenAbstractMethod]
                 """,
-            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(
@@ -219,7 +217,6 @@ class ApiAnalyzerTest : DriverTest() {
                     src/test/pkg/PublicClass.java:6: error: badPackagePrivateMethod cannot be hidden and abstract when PublicClass has a visible constructor, in case a third-party attempts to subclass it. [HiddenAbstractMethod]
                     src/test/pkg/PublicClass.java:9: error: badAbstractSystemHiddenMethod cannot be hidden and abstract when PublicClass has a visible constructor, in case a third-party attempts to subclass it. [HiddenAbstractMethod]
                 """,
-            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(
@@ -250,7 +247,6 @@ class ApiAnalyzerTest : DriverTest() {
                     src/test/pkg/MyClass.java:23: error: Method test.pkg.MyClass.notInheritedNoComment(): @Deprecated annotation (present) and @deprecated doc tag (not present) do not match [DeprecationMismatch]
                     src/test/pkg/MyInterface.java:17: error: Method test.pkg.MyInterface.inheritedNoCommentInParent(): @Deprecated annotation (present) and @deprecated doc tag (not present) do not match [DeprecationMismatch]
                 """,
-            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(
@@ -321,7 +317,6 @@ class ApiAnalyzerTest : DriverTest() {
                     src/test/pkg/Foo.java:6: warning: Field Foo.fieldReferencesHidden4 references hidden type test.pkg.Hidden. [HiddenTypeParameter]
                     src/test/pkg/Foo.java:6: error: Class test.pkg.Hidden is hidden but was referenced (in field type) from public field test.pkg.Foo.fieldReferencesHidden4 [ReferencesHidden]
                 """,
-            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(
@@ -554,7 +549,6 @@ class ApiAnalyzerTest : DriverTest() {
                     ),
                 ),
             format = FileFormat.V4,
-            expectedFail = DefaultLintErrorMessage,
             expectedIssues =
                 """
                     src/test/pkg/TestClass.kt:20: error: Parameter references deprecated type test.pkg.TestClass in test.pkg.TestClassKt.getCommentDeprecated(): this method should also be deprecated [ReferencesDeprecated]
@@ -644,7 +638,6 @@ class ApiAnalyzerTest : DriverTest() {
                       }
                     }
                 """,
-            expectedFail = DefaultLintErrorMessage,
             expectedIssues =
                 """
                     src/test/pkg/HiddenInterface.kt:5: warning: Method test.pkg.PublicClass.returnsHiddenInterface() references hidden type test.pkg.HiddenInterface. [HiddenTypeParameter]
@@ -729,7 +722,6 @@ class ApiAnalyzerTest : DriverTest() {
                 """,
             extraArguments =
                 arrayOf(ARG_ERROR, "ReferencesDeprecated", ARG_ERROR, "ExtendsDeprecated"),
-            expectedFail = DefaultLintErrorMessage,
             expectedIssues =
                 """
                     src/test/pkg/NotDeprecatedClass.java:2: error: Extending deprecated super class class test.pkg.DeprecatedOuterClass from test.pkg.NotDeprecatedClass: this class should also be deprecated [ExtendsDeprecated]
@@ -779,7 +771,6 @@ class ApiAnalyzerTest : DriverTest() {
                 """,
             extraArguments =
                 arrayOf(ARG_ERROR, "ReferencesDeprecated", ARG_ERROR, "ExtendsDeprecated"),
-            expectedFail = DefaultLintErrorMessage,
             expectedIssues =
                 """
                     src/test/pkg/NotDeprecatedClass.java:2: error: Extending deprecated super class class test.pkg.DeprecatedOuterClass.EffectivelyDeprecatedInnerClass from test.pkg.NotDeprecatedClass: this class should also be deprecated [ExtendsDeprecated]
@@ -827,7 +818,6 @@ class ApiAnalyzerTest : DriverTest() {
                     }
                 """,
             extraArguments = arrayOf(ARG_ERROR, "ReferencesDeprecated"),
-            expectedFail = DefaultLintErrorMessage,
             expectedIssues =
                 """
                     src/test/pkg/NotDeprecatedClass.java:4: error: Parameter references deprecated type test.pkg.DeprecatedClass in test.pkg.NotDeprecatedClass.usesDeprecated(): this method should also be deprecated [ReferencesDeprecated]
@@ -985,7 +975,6 @@ class ApiAnalyzerTest : DriverTest() {
                 src/test/pkg/IntValue.kt:8: warning: Return type of unavailable type test.pkg.HiddenClass in test.pkg.Foo.usesHiddenTypeAndValueClass() [UnavailableSymbol]
                 src/test/pkg/IntValue.kt:8: error: Class test.pkg.HiddenClass is hidden but was referenced (in return type) from public method test.pkg.Foo.usesHiddenTypeAndValueClass(test.pkg.IntValue) [ReferencesHidden]
                 """,
-            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     kotlin(

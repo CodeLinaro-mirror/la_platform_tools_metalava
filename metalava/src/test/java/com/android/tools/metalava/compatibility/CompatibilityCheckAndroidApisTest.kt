@@ -271,10 +271,6 @@ abstract class CompatibilityCheckAndroidApisTest(
 
             val apiLevel = apiLevelCheck.apiLevel
             val expectedIssues = apiLevelCheck.expectedIssues
-            val expectedFail =
-                if (expectedIssues.contains("error: Binary breaking change: "))
-                    "Aborting: Found compatibility problems"
-                else ""
             val extraArgs = apiLevelCheck.extraArgs.toTypedArray()
 
             val current = getAndroidTxt(apiLevel)
@@ -283,7 +279,6 @@ abstract class CompatibilityCheckAndroidApisTest(
             check(
                 extraArguments = extraArgs,
                 expectedIssues = expectedIssues,
-                expectedFail = expectedFail,
                 checkCompatibilityApiReleased = previous.readText(),
                 signatureSource = current.readText(),
                 skipEmitPackages = emptyList(),

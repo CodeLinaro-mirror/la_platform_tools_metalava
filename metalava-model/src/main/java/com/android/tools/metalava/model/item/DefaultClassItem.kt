@@ -30,6 +30,8 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
+import com.android.tools.metalava.model.RecordComponentItem
+import com.android.tools.metalava.model.RecordComponents
 import com.android.tools.metalava.model.ReferencableMethodSet
 import com.android.tools.metalava.model.SkeletonClassItem
 import com.android.tools.metalava.model.SourceFile
@@ -320,6 +322,8 @@ internal class DefaultClassItem(
         replaceOrAddItem(property, mutableProperties)
     }
 
+    override var recordComponents: RecordComponents? = null
+
     /** The mutable list of nested [ClassItem] that backs [nestedClasses]. */
     private val mutableNestedClasses = mutableListOf<ClassItem>()
 
@@ -401,6 +405,58 @@ internal class DefaultClassItem(
             }
             return optionalAliasedType!!
         }
+
+    override fun initializeRecordComponents() {
+        require(classKind == ClassKind.RECORD)
+        recordComponents =
+            RecordComponents(
+                properties()
+                    .filter { it.isRecordComponent() }
+                    .filterIsInstance<RecordComponentItem>()
+            )
+
+        // Find the canonical constructor and set it as the primary constructor.
+        //
+        // This purposely does not fail if it cannot find it because that can fail when processing
+        // java header classes created by Turbine as that can create a private nested class with no
+        // constructors.
+        mutableConstructors
+            .find { it.isCanonicalRecordConstructor() }
+            ?.let { canonicalConstructor ->
+                (canonicalConstructor as DefaultConstructorItem).isPrimary = true
+            }
+    }
+
+    companion object {
+        /**
+         * Check to see if this [ConstructorItem] is the canonical constructor of a record class.
+         *
+         * This will return `true` iff [ConstructorItem.parameters] has the same number and types as
+         * the record components.
+         */
+        fun ConstructorItem.isCanonicalRecordConstructor(): Boolean {
+            val containingClass = containingClass()
+            if (containingClass.classKind != ClassKind.RECORD) {
+                return false
+            }
+            val parameters = parameters()
+            val components = containingClass.recordComponents ?: return false
+            val count = components.size
+            if (count != parameters.size) {
+                return false
+            }
+
+            for (index in 0..<count) {
+                val component = components[index]
+                val parameter = parameters[index]
+                if (component.type != parameter.type()) {
+                    return false
+                }
+            }
+
+            return true
+        }
+    }
 }
 
 /**

@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.testsuite.multiplatform
 
+import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.multiplatform.transformValues
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.createAndroidModuleDescription
@@ -521,6 +522,39 @@ class CommonMultiplatformCallableItemTest : BaseModelTest() {
             fooFunction.modifiers
                 .transformValues { it.isSuspend() }
                 .assertSourceSetValues("commonMain" to true)
+        }
+    }
+
+    @Test
+    fun `Baseline id for top level regular MethodItem`() {
+        val commonSource =
+            kotlin(
+                "commonMain/src/test/pkg/Foo.kt",
+                """
+                package test.pkg
+                fun foo() = 0
+                fun String.foo() = 0
+                """
+            )
+        runMultiplatformCodebaseTest(
+            inputSet(commonSource),
+            projectDescription =
+                createProjectDescription(
+                    createCommonModuleDescription(arrayOf(commonSource)),
+                )
+        ) {
+            val commonCodebase = multiplatformCodebase.sourceSetToCodebase["commonMain"]!!
+            val facadeClass =
+                commonCodebase.assertClass(
+                    "test.pkg.${ClassItem.TOP_LEVEL_DECLARATION_FACADE_NAME}"
+                )
+
+            val topLevelFun = facadeClass.assertMethod("foo", emptyList())
+            assertThat(topLevelFun.baselineElementId()).isEqualTo("test.pkg#foo()")
+
+            val topLevelExtensionFun = facadeClass.assertMethod("foo", listOf("kotlin.String"))
+            assertThat(topLevelExtensionFun.baselineElementId())
+                .isEqualTo("test.pkg#foo(kotlin.String)")
         }
     }
 }

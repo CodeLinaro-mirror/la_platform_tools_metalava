@@ -31,7 +31,6 @@ import com.android.tools.metalava.model.ANDROIDX_NULLABLE
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.CodebaseFragment
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.Item
@@ -47,7 +46,7 @@ import com.android.tools.metalava.model.text.CustomizableProperty.Companion.ADD_
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.SignatureWriter
 import com.android.tools.metalava.model.text.SnapshotDeltaMaker
-import com.android.tools.metalava.model.text.createFilteringVisitorForSignatures
+import com.android.tools.metalava.model.text.createCodebaseFragmentForSignatureFile
 import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiType
 import com.android.tools.metalava.model.visitors.ApiVisitor
@@ -196,21 +195,16 @@ class ConvertJarsToSignatureFiles(
         }
 
         val jarCodebaseFragment =
-            CodebaseFragment.create(
+            createCodebaseFragmentForSignatureFile(
                 jarCodebase,
-                { delegate ->
-                    createFilteringVisitorForSignatures(
-                        delegate = delegate,
-                        fileFormat = fileFormat,
-                        apiType = ApiType.PUBLIC_API,
-                        preFiltered = jarCodebase.preFiltered,
-                        showUnannotated = false,
-                        apiPredicateConfig =
-                            ApiPredicate.Config(
-                                addAdditionalOverrides = fileFormat[ADD_ADDITIONAL_OVERRIDES],
-                            ),
-                    )
-                }
+                fileFormat = fileFormat,
+                apiType = ApiType.PUBLIC_API,
+                preFiltered = jarCodebase.preFiltered,
+                showUnannotated = false,
+                apiPredicateConfig =
+                    ApiPredicate.Config(
+                        addAdditionalOverrides = fileFormat[ADD_ADDITIONAL_OVERRIDES],
+                    ),
             )
 
         val extendsInfo = surfaceInfo.extends
@@ -224,6 +218,7 @@ class ConvertJarsToSignatureFiles(
                     base = extendedCodebase,
                     codebaseFragment = jarCodebaseFragment,
                     checkMemberItemEquivalence = false,
+                    allowClassModifierChanges = false,
                 )
             }
 

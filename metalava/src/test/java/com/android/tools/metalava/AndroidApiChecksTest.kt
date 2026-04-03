@@ -17,7 +17,6 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.cli.common.ARG_WARNING
-import com.android.tools.metalava.lint.DefaultLintErrorMessage
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.testing.KnownSourceFiles.sdkConstantSource
 import com.android.tools.metalava.testing.java
@@ -27,7 +26,6 @@ class AndroidApiChecksTest : DriverTest() {
     @Test
     fun `Flag TODO documentation`() {
         check(
-            expectedFail = DefaultLintErrorMessage,
             expectedIssues =
                 """
                 src/android/pkg/Test.java:4: error: Documentation mentions 'TODO' [Todo]
@@ -73,7 +71,6 @@ class AndroidApiChecksTest : DriverTest() {
     @Test
     fun `Document Permissions`() {
         check(
-            expectedFail = DefaultLintErrorMessage,
             expectedIssues =
                 """
                 src/android/pkg/PermissionTest.java:14: error: Method 'test0' documentation mentions permissions without declaring @RequiresPermission [RequiresPermission]
@@ -201,7 +198,6 @@ class AndroidApiChecksTest : DriverTest() {
     @Test
     fun `Document Intent Actions`() {
         check(
-            expectedFail = DefaultLintErrorMessage,
             expectedIssues =
                 """
                 src/android/pkg/IntentActionTest.java:19: error: Field 'FOO_BAR_ERROR_ACTION' is missing @BroadcastBehavior [BroadcastBehavior]

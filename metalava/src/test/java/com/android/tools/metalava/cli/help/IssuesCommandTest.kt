@@ -125,6 +125,7 @@ Available Issues                             |  Category                        
   InternalError                              |  unknown                              |   error
   InternalField                              |  api_lint                             |   error
   InvalidBlockTagUse                         |  documentation                        |   error
+  InvalidDevicePolicyAnnotation              |  documentation                        |   error
   InvalidDocThrowsType                       |  documentation                        |   error
   InvalidFeatureEnforcement                  |  documentation                        |   error
   InvalidIfTag                               |  documentation                        |   error
@@ -254,6 +255,7 @@ Available Issues                             |  Category                        
   UseParcelFileDescriptor                    |  api_lint                             |   error
   UserHandle                                 |  api_lint                             |   warning
   UserHandleName                             |  api_lint                             |   warning
+  UsingJavaLangRecord                        |  binary_and_source_compatibility      |   error
   ValueClassDefinition                       |  api_lint                             |   error
   ValueClassUsageFromConstructor             |  api_lint                             |   hidden
   ValueClassUsageWithoutJvmName              |  api_lint                             |   hidden

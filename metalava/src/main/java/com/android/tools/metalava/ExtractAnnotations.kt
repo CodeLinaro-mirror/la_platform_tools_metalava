@@ -61,7 +61,7 @@ class ExtractAnnotations(
     private val codebase: Codebase,
     private val reporter: Reporter,
     private val outputFile: File,
-    private val apiPredicateConfig: ApiPredicate.Config,
+    apiPredicateConfig: ApiPredicate.Config,
 ) :
     ApiVisitor(
         apiPredicateConfig = apiPredicateConfig,
@@ -309,7 +309,7 @@ class ExtractAnnotations(
 
     private fun writeAnnotation(writer: PrintWriter, item: Item, annotationItem: AnnotationItem) {
         // Retrieve the attributes from the annotation item.
-        val attributes = retrieveAttributes(item, annotationItem)
+        val attributes = retrieveAttributes(annotationItem)
 
         // Some annotations need to keep field references and some need to replace them with their
         // constant value.
@@ -394,10 +394,7 @@ class ExtractAnnotations(
     }
 
     /** Retrieve the attributes from [annotationItem]. */
-    private fun retrieveAttributes(
-        item: Item,
-        annotationItem: AnnotationItem
-    ): List<AnnotationAttribute> {
+    private fun retrieveAttributes(annotationItem: AnnotationItem): List<AnnotationAttribute> {
         val qualifiedName = annotationItem.qualifiedName
 
         // Ensure consistent ordering.
