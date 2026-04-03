@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.BaseModifierList
+import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JAVA_LANG_ANNOTATION_TARGET
 import com.android.tools.metalava.model.JAVA_LANG_TYPE_USE_TARGET
 import com.android.tools.metalava.model.ModifierFlags.Companion.ABSTRACT
@@ -48,12 +49,15 @@ import com.android.tools.metalava.model.ModifierFlags.Companion.VALUE
 import com.android.tools.metalava.model.ModifierFlags.Companion.VARARG
 import com.android.tools.metalava.model.ModifierFlags.Companion.VOLATILE
 import com.android.tools.metalava.model.MutableModifierList
+import com.android.tools.metalava.model.RecordComponentItem
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.createMutableModifiers
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.isNullnessAnnotation
 import com.android.tools.metalava.model.isRetention
+import com.intellij.codeInsight.AnnotationTargetUtil
 import com.intellij.psi.PsiAnnotation
+import com.intellij.psi.PsiAnnotation.TargetType
 import com.intellij.psi.PsiAnnotationMemberValue
 import com.intellij.psi.PsiArrayInitializerMemberValue
 import com.intellij.psi.PsiElement
@@ -64,6 +68,7 @@ import com.intellij.psi.PsiModifierList
 import com.intellij.psi.PsiModifierListOwner
 import com.intellij.psi.PsiParameter
 import com.intellij.psi.PsiPrimitiveType
+import com.intellij.psi.PsiRecordComponent
 import com.intellij.psi.PsiReferenceExpression
 import com.intellij.psi.impl.light.LightModifierList
 import org.jetbrains.annotations.NotNull
@@ -129,14 +134,10 @@ internal object PsiModifierItem {
     private fun shouldRemoveNullnessAnnotations(
         modifiers: BaseModifierList,
     ): Boolean {
-        // Kotlin varargs are not nullable but can sometimes and up with an @Nullable annotation
+        // Kotlin varargs are not nullable but can sometimes and up with a @Nullable annotation
         // added to the [PsiParameter] so remove it from the modifiers. Only Kotlin varargs have a
         // `vararg` modifier.
-        if (modifiers.isVarArg()) {
-            return true
-        }
-
-        return false
+        return modifiers.isVarArg()
     }
 
     private fun hasDeprecatedAnnotation(modifiers: BaseModifierList) =
@@ -431,11 +432,31 @@ internal object PsiModifierItem {
         }
     }
 
+    /**
+     * Filter out any unsupported annotations if [forOwner] is a [PsiRecordComponent].
+     *
+     * [PsiRecordComponent] allows annotations for fields, methods, record components and types to
+     * be used. However, the [RecordComponentItem] must only have those targeted explicitly at
+     * record components applied to it as the other annotations are added to the appropriate [Item]
+     * that was created from the record component.
+     */
+    internal fun List<PsiAnnotation>.filterRecordComponentAnnotations(
+        forOwner: PsiModifierListOwner,
+    ): List<PsiAnnotation> {
+        // Nothing to do if forOwner is not a PsiRecordComponent.
+        if (forOwner !is PsiRecordComponent) return this
+
+        return filter { psiAnnotation -> psiAnnotation.isSuitableForRecordComponent() }
+    }
+
+    private fun PsiAnnotation.isSuitableForRecordComponent(): Boolean =
+        AnnotationTargetUtil.findAnnotationTarget(this, TargetType.RECORD_COMPONENT) != null
+
     private fun createFromPsiElement(
         codebase: PsiBasedCodebase,
         element: PsiModifierListOwner
     ): MutableModifierList {
-        var flags =
+        val flags =
             element.modifierList?.let { modifierList -> computeFlag(element, modifierList) }
                 ?: PACKAGE_PRIVATE
 
@@ -450,6 +471,8 @@ internal object PsiModifierItem {
                     .distinct()
                     // Remove any type-use annotations that psi incorrectly applied to the item.
                     .filterIncorrectTypeUseAnnotations(element)
+                    // Remove any annotations that are not suitable for a PsiRecordComponent.
+                    .filterRecordComponentAnnotations(element)
                     .mapNotNull { PsiAnnotationItem.create(codebase, it) }
             createMutableModifiers(flags, annotations)
         }
@@ -468,7 +491,7 @@ internal object PsiModifierItem {
                 ?: (annotated.javaPsi as? PsiModifierListOwner)?.annotations
                 ?: PsiAnnotation.EMPTY_ARRAY
 
-        var flags = computeFlag(element, modifierList)
+        val flags = computeFlag(element, modifierList)
 
         // The below code remedies a problem where companion objects as fields don't have
         // annotations in signature files (b/401235591). This code takes the annotations
@@ -479,7 +502,7 @@ internal object PsiModifierItem {
             // The following checks if the field is indeed a companion object. Companion objects
             // are the only case where there is a field that has sourcePsi being a UClass, and
             // that UClass's sourcePsi is a KtObjectDeclaration. Other field types (e.g.
-            // primitives, lambdas, etc) don't have this property.
+            // primitives, lambdas, etc.) don't have this property.
             if (
                 companionObjectClass is UClass &&
                     companionObjectClass.sourcePsi is KtObjectDeclaration &&
@@ -513,7 +536,7 @@ internal object PsiModifierItem {
         } else {
             val isPrimitiveVariable = element is UVariable && element.type is PsiPrimitiveType
 
-            var annotations =
+            val annotations =
                 uAnnotations
                     // Uast sometimes puts nullability annotations on primitives!?
                     .filter {

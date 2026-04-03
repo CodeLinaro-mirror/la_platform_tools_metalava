@@ -399,6 +399,7 @@ internal class TurbineClassBuilder(
         fields: ImmutableList<FieldInfo>,
         typeItemFactory: TurbineTypeItemFactory,
     ) {
+        val ignorePrivateMemberFields = classItem.classKind == ClassKind.RECORD
         for (field in fields) {
             val flags = field.access()
             val decl = field.decl()
@@ -408,6 +409,15 @@ internal class TurbineClassBuilder(
                     flags,
                     field.annotations(),
                 )
+
+            // Ignore private member fields in records.
+            if (
+                ignorePrivateMemberFields &&
+                    fieldModifierItem.isPrivate() &&
+                    !fieldModifierItem.isStatic()
+            )
+                continue
+
             val isEnumConstant = (flags and TurbineFlag.ACC_ENUM) != 0
             val type =
                 typeItemFactory.getFieldType(

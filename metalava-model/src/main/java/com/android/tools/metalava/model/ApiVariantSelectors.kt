@@ -25,7 +25,7 @@ typealias ApiVariantSelectorsFactory = (Item) -> ApiVariantSelectors
 sealed class ApiVariantSelectors {
     /**
      * Indicates whether the item was explicitly hidden in the source, e.g. via an `@hide` javadoc
-     * tag in its [Item.documentation], or a hide annotation directly on the [Item].
+     * tag in its [SelectableItem.documentation], or a hide annotation directly on the [Item].
      */
     abstract val originallyHidden: Boolean
 
@@ -40,7 +40,7 @@ sealed class ApiVariantSelectors {
     /**
      * Indicates whether the [Item] is accessible, and its enclosing classes are accessible.
      *
-     * An [Item] is accessible if it is either `public` or `protected`. In Kotlin it is also
+     * An [Item] is accessible if it is either `public` or `protected`. In Kotlin, it is also
      * accessible if it is `internal` as long as it is annotated with `@PublishedApi`. However, that
      * annotation is not treated specially in Metalava, instead it relies on the user to specify
      * `@PublishedApi` as a show annotation and this just assumes that any show annotation is enough
@@ -59,16 +59,16 @@ sealed class ApiVariantSelectors {
     /**
      * Indicates whether the [Item] should be included in the doc only API surface variant.
      *
-     * Initially set to `true` if the [Item.documentation] contains `@doconly` but updated due to
-     * inheritance.
+     * Initially set to `true` if the [SelectableItem.documentation] contains `@doconly` but updated
+     * due to inheritance.
      */
     abstract val docOnly: Boolean
 
     /**
      * Indicates whether the [Item] should be in the removed API surface variant.
      *
-     * Initially set to `true` if the [Item.documentation] contains `@removed` but updated due to
-     * inheritance.
+     * Initially set to `true` if the [SelectableItem.documentation] contains `@removed` but updated
+     * due to inheritance.
      */
     abstract val removed: Boolean
 
@@ -249,19 +249,20 @@ sealed class ApiVariantSelectors {
         private fun lazySet(propertyBitMask: Int, value: Boolean) {
             // Record that the property has been set.
             propertyHasBeenSetBits = propertyHasBeenSetBits or propertyBitMask
-            if (value) {
-                // The value is true so set the bit.
-                propertyValueBits = propertyValueBits or propertyBitMask
-            } else {
-                // The value is false so clear the bit.
-                propertyValueBits = propertyValueBits and propertyBitMask.inv()
-            }
+            propertyValueBits =
+                if (value) {
+                    // The value is true so set the bit.
+                    propertyValueBits or propertyBitMask
+                } else {
+                    // The value is false so clear the bit.
+                    propertyValueBits and propertyBitMask.inv()
+                }
         }
 
         override val originallyHidden: Boolean
             get() =
                 lazyGet(ORIGINALLY_HIDDEN_BIT_MASK) {
-                    // The item is originally hidden if the javadoc contains @hide or similar, or
+                    // The item is originally hidden if the Javadoc contains @hide or similar, or
                     // it is tagged with a hide annotation. That is true even if the hide annotation
                     // is superseded by a show annotation.
                     item.documentation?.isHidden == true || item.hasHideAnnotation()
@@ -329,7 +330,7 @@ sealed class ApiVariantSelectors {
             }
 
         /** Cache of [showability]. */
-        internal var _showability: Showability? = null
+        @Suppress("PropertyName") var _showability: Showability? = null
 
         override val showability: Showability
             get() =
@@ -347,7 +348,7 @@ sealed class ApiVariantSelectors {
          * This uses [lazyGet] and [lazySet] to be consistent with other properties and makes it
          * easy to include the information in the [toString] result.
          */
-        internal var inheritIntoWasCalled
+        var inheritIntoWasCalled
             get() = lazyGet(INHERIT_INTO_BIT_MASK) { false }
             set(value) {
                 lazySet(INHERIT_INTO_BIT_MASK, value)
@@ -449,8 +450,8 @@ sealed class ApiVariantSelectors {
         }
 
         /**
-         * Ensure that the parents of a visible [Item], i.e. one whose [Item.hidden] property is
-         * `false` are themselves visible.
+         * Ensure that the parents of a visible [SelectableItem], i.e. one whose
+         * [SelectableItem.hidden] property is `false` are themselves visible.
          *
          * Note: This will only be called when [item] is a class, constructor, method or field. In
          * particular, it does not apply to [PackageItem]s as they are completely separate from one
@@ -593,7 +594,7 @@ sealed class ApiVariantSelectors {
      *
      * The `val` properties like [originallyHidden] cannot be set to a specific value. So, all that
      * this can do is force it to be initialized. That means that the [ApiVariantSelectors] returned
-     * from [createSelectorsforTesting] will only verify whether it is set or not-set as expected.
+     * from [createSelectorsForTesting] will only verify whether it is set or not-set as expected.
      * It cannot test if the value is expected. That will need to be done by the caller.
      */
     data class TestableSelectorsState(
@@ -611,7 +612,7 @@ sealed class ApiVariantSelectors {
          * Create a [Mutable] instance whose state matches this that can be used as the expected
          * state in a test.
          */
-        fun createSelectorsforTesting(): ApiVariantSelectors =
+        fun createSelectorsForTesting(): ApiVariantSelectors =
             Mutable(item).also { selectors ->
                 // If originally hidden is set then force it to be initialized.
                 originallyHidden?.let {

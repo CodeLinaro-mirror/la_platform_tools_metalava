@@ -102,6 +102,7 @@ class SignatureInputOutputTest : Assertions {
         signature: String,
         fileFormat: FileFormat,
         expectedOutput: String = signature,
+        writeTargetLanguages: Boolean = true,
         codebaseTest: CodebaseContext.() -> Unit = {},
     ) {
         val fullSignature = prepareSignatureFileForTest(signature, fileFormat)
@@ -130,6 +131,7 @@ class SignatureInputOutputTest : Assertions {
                             writer = printWriter,
                             emitHeader = EmitFileHeader.IF_NONEMPTY_FILE,
                             fileFormat = fileFormat,
+                            writeTargetLanguages = writeTargetLanguages,
                         )
 
                     fragment.accept(signatureWriter)
@@ -401,7 +403,7 @@ class SignatureInputOutputTest : Assertions {
 
             assertThat(method.parameters()).hasSize(1)
             val param = method.parameters().single()
-            assertThat(param.name()).isEqualTo("_")
+            assertThat(param.name()).isEqualTo("arg1")
             assertThat(param.publicName()).isNull()
             assertThat((param.type() as PrimitiveTypeItem).kind)
                 .isEqualTo(PrimitiveTypeItem.Primitive.INT)
@@ -425,7 +427,7 @@ class SignatureInputOutputTest : Assertions {
 
             assertThat(method.parameters()).hasSize(1)
             val param = method.parameters().single()
-            assertThat(param.name()).isEqualTo("_")
+            assertThat(param.name()).isEqualTo("arg1")
             assertThat(param.publicName()).isNull()
             assertThat((param.type() as ClassTypeItem).qualifiedName).isEqualTo("test.pkg.Foo")
             assertThat(param.modifiers.isVolatile()).isTrue()
@@ -493,14 +495,14 @@ class SignatureInputOutputTest : Assertions {
 
             // _: int
             val p0 = method.parameters()[0]
-            assertThat(p0.name()).isEqualTo("_")
+            assertThat(p0.name()).isEqualTo("arg1")
             assertThat(p0.publicName()).isNull()
             assertThat((p0.type() as PrimitiveTypeItem).kind)
                 .isEqualTo(PrimitiveTypeItem.Primitive.INT)
 
             // _: java.util.Map<java.lang.String, java.lang.Object>
             val p1 = method.parameters()[1]
-            assertThat(p1.name()).isEqualTo("_")
+            assertThat(p1.name()).isEqualTo("arg2")
             assertThat(p1.publicName()).isNull()
             val mapType = p1.type() as ClassTypeItem
             assertThat(mapType.qualifiedName).isEqualTo("java.util.Map")
@@ -510,7 +512,7 @@ class SignatureInputOutputTest : Assertions {
 
             // _: String[]
             val p2 = method.parameters()[2]
-            assertThat(p2.name()).isEqualTo("_")
+            assertThat(p2.name()).isEqualTo("arg3")
             assertThat(p2.publicName()).isNull()
             assertThat((p2.type() as ArrayTypeItem).componentType.isString()).isTrue()
         }
@@ -1027,7 +1029,7 @@ class SignatureInputOutputTest : Assertions {
             """
         runInputOutputTest(
             api,
-            FORMAT_V6_WITH_JAVA_RECORD_CLASSES,
+            FORMAT_V6_WITH_JAVA_STYLE,
         )
     }
 
@@ -1077,7 +1079,35 @@ class SignatureInputOutputTest : Assertions {
             """
         runInputOutputTest(
             api,
-            FORMAT_V6_WITH_JAVA_RECORD_CLASSES,
+            FORMAT_V6_WITH_JAVA_STYLE,
+        )
+    }
+
+    @Test
+    fun `Test not writing target languages`() {
+        runInputOutputTest(
+            writeTargetLanguages = false,
+            fileFormat = FileFormat.V5,
+            signature =
+                """
+                package test.pkg {
+                  public class Test {
+                    method public void all();
+                    method @BytecodeOnly public void bytecodeOnly();
+                    method @KotlinOnly public void kotlinOnly();
+                  }
+                }
+                """,
+            expectedOutput =
+                """
+                package test.pkg {
+                  public class Test {
+                    method public void all();
+                    method public void bytecodeOnly();
+                    method public void kotlinOnly();
+                  }
+                }
+                """
         )
     }
 }

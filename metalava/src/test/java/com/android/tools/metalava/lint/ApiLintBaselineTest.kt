@@ -131,7 +131,6 @@ class ApiLintBaselineTest : DriverTest() {
                 """
                 src/android/pkg/MyEnum.java:3: error: Enums are discouraged in Android APIs [Enum]
                 """,
-            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(
@@ -199,7 +198,6 @@ class ApiLintBaselineTest : DriverTest() {
                     """
                     )
                 ),
-            expectedFail = DefaultLintErrorMessage,
             expectedOutput = DefaultLintErrorMessage
         )
     }

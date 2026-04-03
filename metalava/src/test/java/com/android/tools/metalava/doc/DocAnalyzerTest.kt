@@ -23,7 +23,6 @@ import com.android.tools.metalava.ARG_ENHANCE_DOCUMENTATION
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.SystemApiType
 import com.android.tools.metalava.columnSource
-import com.android.tools.metalava.lint.DefaultLintErrorMessage
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.nonNullSource
@@ -325,7 +324,6 @@ class DocAnalyzerTest : DriverTest() {
                     requiresPermissionSource
                 ),
             checkCompilation = false, // needs androidx.annotations in classpath
-            expectedFail = DefaultLintErrorMessage,
             expectedIssues =
                 "src/test/pkg/PermissionTest.java:33: error: Unrecognized permission `carier priviliges`; did you mean `carrier privileges`? [MissingPermission]", // NOTYPO
             stubFiles =
@@ -475,7 +473,6 @@ class DocAnalyzerTest : DriverTest() {
                     workerThreadSource
                 ),
             checkCompilation = true,
-            expectedFail = DefaultLintErrorMessage,
             expectedIssues =
                 "src/test/pkg/RangeTest.java:6: error: Found more than one threading annotation on method test.pkg.RangeTest.test1(); the auto-doc feature does not handle this correctly [MultipleThreadAnnotations]",
             docStubs = true,
@@ -507,7 +504,6 @@ class DocAnalyzerTest : DriverTest() {
         check(
             expectedIssues =
                 "src/android/widget/Toolbar2.java:18: error: Documentation should not specify @apiSince manually; it's computed and injected at build time by metalava [ForbiddenTag]",
-            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(
@@ -646,7 +642,6 @@ class DocAnalyzerTest : DriverTest() {
                 ),
             checkCompilation = true,
             docStubs = true,
-            expectedFail = DefaultLintErrorMessage,
             expectedIssues =
                 "src/test/pkg/RangeTest.java:5: error: Cannot find permission field for \"MyPermission\" required by method test.pkg.RangeTest.test1() (may be hidden or removed) [MissingPermission]",
             stubFiles =

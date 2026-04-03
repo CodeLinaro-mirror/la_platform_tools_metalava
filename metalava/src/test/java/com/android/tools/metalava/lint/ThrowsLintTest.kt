@@ -41,7 +41,6 @@ class ThrowsLintTest : DriverTest() {
                 src/android/pkg/MyClass.java:8: error: Methods must not throw generic exceptions (`java.lang.Error`) [GenericException]
                 src/android/pkg/MyClass.java:11: error: Methods calling system APIs should rethrow `RemoteException` as `RuntimeException` (but do not list it in the throws clause) [RethrowRemoteException]
                 """,
-            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(
@@ -104,7 +103,6 @@ class ThrowsLintTest : DriverTest() {
                 src/test/pkg/Foo.java:53: error: Unchecked exception java.lang.AssertionError does not need to be listed in the method throws clause (only in documentation) [BannedThrow]
                 """,
             apiLint = "",
-            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(
@@ -203,7 +201,6 @@ class ThrowsLintTest : DriverTest() {
                 """
                 src/test/pkg/Test.java:9: error: Unchecked exception X does not need to be listed in the method throws clause (only in documentation) [BannedThrow]
                 """,
-            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(
@@ -231,7 +228,6 @@ class ThrowsLintTest : DriverTest() {
         // It is ok to throw unchecked exceptions, they just don't need to be in the throws clause
         check(
             apiLint = "", // enabled
-            expectedFail = DefaultLintErrorMessage,
             expectedIssues =
                 """
                 src/test/pkg/Foo.java:3: error: Unchecked exception java.lang.NullPointerException does not need to be listed in the method throws clause (only in documentation) [BannedThrow]

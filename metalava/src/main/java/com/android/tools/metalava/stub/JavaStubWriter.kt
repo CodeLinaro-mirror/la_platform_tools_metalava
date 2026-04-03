@@ -75,13 +75,17 @@ internal class JavaStubWriter(
         writer.print(" ")
         writer.print(cls.simpleName())
 
+        generateTypeParameterList(typeList = cls.typeParameterList, addSpace = false)
+
+        // Record class is special as it declares components after the class name and type
+        // declarations and before interfaces.
         if (classKind == ClassKind.RECORD) {
             cls.recordComponents?.let { generateRecordComponents(it) }
-        } else {
-            generateTypeParameterList(typeList = cls.typeParameterList, addSpace = false)
-            generateSuperClassDeclaration(cls)
-            generateInterfaceList(cls)
         }
+
+        generateSuperClassDeclaration(cls)
+        generateInterfaceList(cls)
+
         writer.println(" {")
 
         // Enum constants must be written out first.
