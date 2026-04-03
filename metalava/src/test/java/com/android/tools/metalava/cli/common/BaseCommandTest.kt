@@ -248,7 +248,9 @@ class CommandTestConfig<C : CliktCommand>(private val test: BaseCommandTest<C>) 
         val (executionEnvironment, stdout, stderr) = ExecutionEnvironment.forTest(stdin)
 
         // Runs the command
-        command = test.commandFactory(executionEnvironment)
+        if (!::command.isInitialized) {
+            command = test.commandFactory(executionEnvironment)
+        }
         exitCode = runCommand(executionEnvironment, command)
 
         // Add checks of the expected stderr and stdout at the head of the list of verifiers.

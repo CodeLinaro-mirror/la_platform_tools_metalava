@@ -471,7 +471,7 @@ private constructor(
     private fun checkClassNames(cls: ClassItem) {
         // Don't check the name for the class generated to hold top level declarations, which isn't
         // a real class.
-        if (cls.simpleName() == "\$TopLevelDeclarations") return
+        if (cls.simpleName() == ClassItem.TOP_LEVEL_DECLARATION_FACADE_NAME) return
         // Existing violations
         val qualifiedName = cls.qualifiedName()
         if (

@@ -22,12 +22,11 @@ import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.newFile
 import com.android.tools.metalava.cli.common.progressTracker
 import com.android.tools.metalava.createOutputFileFromCodebaseFragment
-import com.android.tools.metalava.model.CodebaseFragment
 import com.android.tools.metalava.model.text.ApiFile
 import com.android.tools.metalava.model.text.ApiParseException
 import com.android.tools.metalava.model.text.SignatureFile
 import com.android.tools.metalava.model.text.SignatureWriter
-import com.android.tools.metalava.model.text.createFilteringVisitorForSignatures
+import com.android.tools.metalava.model.text.createCodebaseFragmentForSignatureFile
 import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiType
 import com.github.ajalt.clikt.parameters.arguments.argument
@@ -83,16 +82,14 @@ class MergeSignaturesCommand :
             val codebase = ApiFile.parseApi(SignatureFile.fromFiles(files))
             val fileFormat = signatureFormat.fileFormat
             val codebaseFragment =
-                CodebaseFragment.create(codebase) { delegatedVisitor ->
-                    createFilteringVisitorForSignatures(
-                        delegate = delegatedVisitor,
-                        fileFormat = fileFormat,
-                        apiType = ApiType.ALL,
-                        preFiltered = true,
-                        showUnannotated = false,
-                        apiPredicateConfig = ApiPredicate.Config(),
-                    )
-                }
+                createCodebaseFragmentForSignatureFile(
+                    codebase,
+                    fileFormat = fileFormat,
+                    apiType = ApiType.ALL,
+                    preFiltered = true,
+                    showUnannotated = false,
+                    apiPredicateConfig = ApiPredicate.Config(),
+                )
             createOutputFileFromCodebaseFragment(
                 progressTracker,
                 codebaseFragment,

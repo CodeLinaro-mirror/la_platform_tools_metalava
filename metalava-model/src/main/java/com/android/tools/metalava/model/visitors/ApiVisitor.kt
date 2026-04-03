@@ -17,15 +17,12 @@
 package com.android.tools.metalava.model.visitors
 
 import com.android.tools.metalava.model.BaseItemVisitor
-import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
-import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.ItemVisitor
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.PackageItem
-import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TargetLanguageSet
@@ -43,9 +40,6 @@ open class ApiVisitor(
 
     /** Whether to include inherited fields too */
     private val inlineInheritedFields: Boolean = true,
-
-    /** Comparator to sort callables with. */
-    private val callableComparator: Comparator<CallableItem> = CallableItem.comparator,
 
     /** The filters to use to determine what parts of the API will be visited. */
     private val apiFilters: ApiFilters,
@@ -236,62 +230,32 @@ open class ApiVisitor(
      * `visitClass(...)`.
      */
     private inner class VisitCandidate(val cls: ClassItem) : ClassItem by cls {
+        /** The backing field of [members]. */
+        private lateinit var _members: List<MemberItem>
 
-        /**
-         * If the list this is called upon is empty then just return [emptyList], else apply the
-         * [transform] to the list and return that.
-         */
-        private inline fun <T> List<T>.mapIfNotEmpty(transform: List<T>.() -> List<T>) =
-            if (isEmpty()) emptyList() else transform(this)
+        /** Get the members. */
+        private val members: List<MemberItem>
+            get() {
+                if (!::_members.isInitialized) {
+                    // Construct a single list of all members.
+                    _members = buildList {
+                        cls.constructors().filterTo(this) { filterEmit.test(it) }
+                        cls.methods().filterTo(this) { filterEmit.test(it) }
+                        cls.properties().filterTo(this) { filterEmit.test(it) }
 
-        /**
-         * Sort the sequence into a [List].
-         *
-         * The standard [Sequence.sortedWith] will sort it into a list and then return a sequence
-         * wrapper which would then have to be converted back into a list. Instead, this just sorts
-         * it into a [List] and returns that.
-         */
-        private fun <T> Sequence<T>.sortToList(comparator: Comparator<in T>) =
-            if (none()) emptyList()
-            else
-                toMutableList().let {
-                    // Sort the list in place.
-                    it.sortWith(comparator)
-                    // Return the sorter list.
-                    it
+                        if (inlineInheritedFields) {
+                            addAll(cls.filteredFields(filterEmit, showUnannotated))
+                        } else {
+                            cls.fields().filterTo(this) { filterEmit.test(it) }
+                        }
+                    }
                 }
 
-        private val constructors =
-            cls.constructors().mapIfNotEmpty {
-                asSequence().filter { filterEmit.test(it) }.sortToList(callableComparator)
+                return _members
             }
 
-        private val methods =
-            cls.methods().mapIfNotEmpty {
-                asSequence().filter { filterEmit.test(it) }.sortToList(callableComparator)
-            }
-
-        private val fields by
-            lazy(LazyThreadSafetyMode.NONE) {
-                val fieldSequence =
-                    if (inlineInheritedFields) {
-                        cls.filteredFields(filterEmit, showUnannotated).asSequence()
-                    } else {
-                        cls.fields().asSequence().filter { filterEmit.test(it) }
-                    }
-
-                // Sort the fields so that enum constants come first.
-                fieldSequence.sortToList(FieldItem.comparatorEnumConstantFirst)
-            }
-
-        private val properties =
-            cls.properties().mapIfNotEmpty {
-                asSequence().filter { filterEmit.test(it) }.sortToList(PropertyItem.comparator)
-            }
-
-        /** Whether the class body contains any emmittable [MemberItem]s. */
-        fun containsNoEmittableMembers() =
-            constructors.isEmpty() && methods.isEmpty() && fields.isEmpty() && properties.isEmpty()
+        /** Whether the class body contains any emittable [MemberItem]s. */
+        fun containsNoEmittableMembers() = members.isEmpty()
 
         /**
          * Intercepts the call to visit this class and instead of using the default implementation
@@ -309,19 +273,8 @@ open class ApiVisitor(
             wrapBodyWithCallsToVisitMethodsForSelectableItem(cls) {
                 visitClass(cls)
 
-                for (constructor in constructors) {
-                    constructor.accept(this@ApiVisitor)
-                }
-
-                for (method in methods) {
-                    method.accept(this@ApiVisitor)
-                }
-
-                for (property in properties) {
-                    property.accept(this@ApiVisitor)
-                }
-                for (field in fields) {
-                    field.accept(this@ApiVisitor)
+                for (member in members) {
+                    member.accept(this@ApiVisitor)
                 }
 
                 if (preserveClassNesting) { // otherwise done in visit(PackageItem)

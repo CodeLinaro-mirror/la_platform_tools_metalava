@@ -40,9 +40,10 @@ import com.android.tools.metalava.cli.multiplatform.MultiplatformOptions
 import com.android.tools.metalava.cli.signature.MergeSignaturesCommand
 import com.android.tools.metalava.cli.signature.SignatureCatCommand
 import com.android.tools.metalava.cli.signature.SignatureFormatOptions
-import com.android.tools.metalava.cli.signature.SignatureReformatCommand
 import com.android.tools.metalava.cli.signature.SignatureToDexCommand
 import com.android.tools.metalava.cli.signature.SignatureToJDiffCommand
+import com.android.tools.metalava.cli.signature.migration.SignatureMigrateCommand
+import com.android.tools.metalava.cli.signature.migration.SignatureReformatCommand
 import com.android.tools.metalava.compatibility.CompatibilityCheck
 import com.android.tools.metalava.jar.JarCodebaseLoader
 import com.android.tools.metalava.lint.ApiLint
@@ -53,7 +54,6 @@ import com.android.tools.metalava.model.ClassPathResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.CodebaseFragment
 import com.android.tools.metalava.model.DelegatedVisitor
-import com.android.tools.metalava.model.ItemVisitor
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
 import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
 import com.android.tools.metalava.model.snapshot.NonFilteringDelegatingVisitor
@@ -61,9 +61,11 @@ import com.android.tools.metalava.model.source.EnvironmentManager
 import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.ADD_ADDITIONAL_OVERRIDES
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.JAVA_RECORD_CLASSES
+import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.SignatureFile
 import com.android.tools.metalava.model.text.SignatureWriter
-import com.android.tools.metalava.model.text.createFilteringVisitorForSignatures
+import com.android.tools.metalava.model.text.createCodebaseFragmentForSignatureFile
 import com.android.tools.metalava.model.visitors.ApiFilters
 import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiType
@@ -177,6 +179,7 @@ class Driver(
                 MakeAnnotationsPackagePrivateCommand(),
                 MergeSignaturesCommand(),
                 SignatureCatCommand(),
+                SignatureMigrateCommand(),
                 SignatureReformatCommand(),
                 SignatureToDexCommand(),
                 SignatureToJDiffCommand(),
@@ -290,7 +293,7 @@ class Driver(
     internal fun processFlags() {
         val stopwatch = Stopwatch.createStarted()
 
-        val codebase = createCodebaseFromOptions() ?: return
+        val codebase = createCodebaseFromOptions()
 
         // Create a multiplatform codebase if requested.
         val multiplatformCodebase = createOptionalMultiplatformCodebase()
@@ -307,6 +310,14 @@ class Driver(
             "$PROGRAM_NAME analyzed API in ${stopwatch.elapsed(SECONDS)} seconds\n"
         )
 
+        // Run operations on the regular codebase, if it exists.
+        codebase?.let { runCodebaseChecks(stopwatch, codebase) }
+
+        // Run additional operations on the multiplatform codebase, if it exists.
+        multiplatformCodebase?.let { runMultiplatformCodebaseChecks(multiplatformCodebase) }
+    }
+
+    private fun runCodebaseChecks(stopwatch: Stopwatch, codebase: Codebase) {
         generateApiHistoryFromOptions(codebase)
 
         // Generate signature files based on provided input flags (i.e. if api file locations were
@@ -359,7 +370,10 @@ class Driver(
 
         // Generate the stubs. This must be done as the last operation in this method as it can
         // modify the [codebase].
-        val generatorConfig = stubGenerationOptions.generatorConfig()
+        val generatorConfig =
+            stubGenerationOptions.generatorConfig(
+                javaRecordClasses = signatureFormatOptions.fileFormat[JAVA_RECORD_CLASSES],
+            )
         StubGenerator(
                 generatorConfig,
                 codebase,
@@ -370,9 +384,6 @@ class Driver(
                 apiPredicateConfig,
             )
             .generateStubs()
-
-        // Run additional operations on the multiplatform codebase, if it exists.
-        multiplatformCodebase?.let { runMultiplatformCodebaseChecks(multiplatformCodebase) }
 
         val packageCount = codebase.size()
         progressTracker.progress(
@@ -407,16 +418,12 @@ class Driver(
     private fun createApiSignatureFilesFromOptions(codebase: Codebase) {
         val fileFormat = signatureFormatOptions.fileFormat
         val codebaseFragment =
-            createCodeFragmentForSignatureFile(codebase) { delegate ->
-                createFilteringVisitorForSignatures(
-                    delegate = delegate,
-                    fileFormat = fileFormat,
-                    apiType = ApiType.PUBLIC_API,
-                    preFiltered = codebase.preFiltered,
-                    showUnannotated = apiSelectionOptions.showUnannotated,
-                    apiPredicateConfig = apiPredicateConfig,
-                )
-            }
+            createSignatureFileFragment(
+                codebase,
+                fileFormat = fileFormat,
+                apiType = ApiType.PUBLIC_API,
+                preFiltered = codebase.preFiltered,
+            )
 
         runApiChecksFromOptions(codebase) { _, previouslyReleasedCodebase ->
             val flaggedApiLintVisitor =
@@ -440,16 +447,12 @@ class Driver(
 
         signatureFileOptions.removedApiFile?.let { apiSignatureFile ->
             val removedApiCodebaseFragment =
-                createCodeFragmentForSignatureFile(codebase) { delegate ->
-                    createFilteringVisitorForSignatures(
-                        delegate = delegate,
-                        fileFormat = fileFormat,
-                        apiType = ApiType.REMOVED,
-                        preFiltered = false,
-                        showUnannotated = apiSelectionOptions.showUnannotated,
-                        apiPredicateConfig = apiPredicateConfig,
-                    )
-                }
+                createSignatureFileFragment(
+                    codebase,
+                    fileFormat = fileFormat,
+                    apiType = ApiType.REMOVED,
+                    preFiltered = false,
+                )
 
             createOutputFileFromCodebaseFragment(
                 progressTracker,
@@ -467,11 +470,21 @@ class Driver(
         }
     }
 
-    private fun createCodeFragmentForSignatureFile(
+    private fun createSignatureFileFragment(
         codebase: Codebase,
-        fragmentFactory: (DelegatedVisitor) -> ItemVisitor
+        fileFormat: FileFormat,
+        apiType: ApiType,
+        preFiltered: Boolean,
     ): CodebaseFragment {
-        var codebaseFragment = CodebaseFragment.create(codebase, fragmentFactory)
+        var codebaseFragment =
+            createCodebaseFragmentForSignatureFile(
+                codebase,
+                fileFormat = fileFormat,
+                apiType = apiType,
+                preFiltered = preFiltered,
+                showUnannotated = apiSelectionOptions.showUnannotated,
+                apiPredicateConfig = apiPredicateConfig,
+            )
 
         // If reverting some changes then create a snapshot that combines the items from the sources
         // for any un-reverted changes and items from the previously released API for any reverted
@@ -524,16 +537,38 @@ class Driver(
         if (apiLintOptions.apiLintEnabled) {
             MultiplatformLint(reporter).check(multiplatformCodebase)
 
-            // For the regular, non-multiplatform codebase operations, either the android or jvm
-            // source set was used. Find which one of these it was.
-            val (mainSourceSet, mainCodebase) =
+            // For the regular, non-multiplatform codebase operations, if they happened, either the
+            // android or jvm source set would have been used. Find which one of these it was.
+            // If neither exist, treat the common source set as the main one.
+            val mainCodebaseEntry =
                 multiplatformCodebase.sourceSetToCodebase.entries.singleOrNull {
                     it.key == "androidMain"
                 }
                     ?: multiplatformCodebase.sourceSetToCodebase.entries.singleOrNull {
                         it.key == "jvmMain"
                     }
-                    ?: error("Multiplatform codebase must have main android or jvm source set")
+                    ?: multiplatformCodebase.sourceSetToCodebase.entries.singleOrNull {
+                        it.key == "commonMain"
+                    }
+            val mainSourceSet = mainCodebaseEntry?.key
+            val mainCodebase = mainCodebaseEntry?.value
+
+            // If there isn't an android or jvm source set, API lint won't have run yet for common.
+            // Run it here so that the common source set can be treated as the "old" codebase in
+            // the checks below, and any lint issues in common will only be reported once here
+            // instead of being duplicated.
+            if (mainSourceSet == "commonMain") {
+                ApiLint.check(
+                    mainCodebase!!,
+                    null,
+                    reporter,
+                    apiPredicateConfig,
+                    ApiLint.Config(
+                        manifest = miscellaneousOptions.manifest,
+                        allowedAcronyms = apiLintOptions.allowedAcronyms,
+                    ),
+                )
+            }
 
             // Run regular API lint checks for each source set.
             for ((sourceSet, codebase) in multiplatformCodebase.sourceSetToCodebase) {
@@ -544,9 +579,9 @@ class Driver(
                 runApiChecksFromOptions(codebase) { codebase, _ ->
                     ApiLint.check(
                         codebase,
-                        // By making the main android/jvm codebase the "oldCodebase", any issues
-                        // which have already been reported for the main codebase through the non-
-                        // multiplatform checks will be skipped.
+                        // By making the main android/jvm/common codebase the "oldCodebase", any
+                        // issues which have already been reported for the main codebase through the
+                        // non-multiplatform checks or the common check above will be skipped.
                         oldCodebase = mainCodebase,
                         reporter,
                         apiPredicateConfig,

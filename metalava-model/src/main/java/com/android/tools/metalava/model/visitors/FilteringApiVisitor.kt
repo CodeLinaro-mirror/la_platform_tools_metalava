@@ -51,7 +51,6 @@ import com.android.tools.metalava.model.typeUseAnnotationFilter
 class FilteringApiVisitor(
     val delegate: DelegatedVisitor,
     inlineInheritedFields: Boolean = true,
-    callableComparator: Comparator<CallableItem> = CallableItem.comparator,
     /**
      * Optional lambda for sorting the filtered, list of interface types from a [ClassItem].
      *
@@ -88,7 +87,6 @@ class FilteringApiVisitor(
         // if and only if their containing method is included.
         visitParameterItems = false,
         inlineInheritedFields = inlineInheritedFields,
-        callableComparator = callableComparator,
         apiFilters = apiFilters,
         showUnannotated = showUnannotated,
         targetLanguages = targetLanguages,

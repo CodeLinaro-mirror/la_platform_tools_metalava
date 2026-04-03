@@ -270,6 +270,21 @@ private constructor(
                     """,
             )
 
+        val JAVA_RECORD_CLASSES by
+            booleanProperty(
+                defaultable = true,
+                help =
+                    """
+                        Whether to include java record classes in the signature file.
+
+                        If `yes` then the signature file will include `record` class type keyword
+                        and property items representing the record components, along with the
+                        constructor and methods. If `no` then record classes will be represented as
+                        normal classes without any properties but sill with the same constructor and
+                        methods.
+                    """
+            )
+
         /** kotlin-name-type-order=[yes|no] */
         val KOTLIN_NAME_TYPE_ORDER by
             booleanProperty(
