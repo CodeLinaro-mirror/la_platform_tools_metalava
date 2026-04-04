@@ -39,6 +39,7 @@ class HeavyBitSetTest : DriverTest() {
                     src/android/pkg/MyClass.java:16: error: Type must not use heavy BitSet (parameter c in android.pkg.MyClass.collectionExtends(java.util.Collection<? extends java.util.BitSet> c)) [HeavyBitSet]
                     src/android/pkg/MyClass.java:17: error: Type must not use heavy BitSet (parameter c in android.pkg.MyClass.collectionSuper(java.util.Collection<? super java.util.BitSet> c)) [HeavyBitSet]
                 """,
+            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(

@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava
 
+import com.android.tools.metalava.lint.DefaultLintErrorMessage
 import com.android.tools.metalava.testing.java
 import org.junit.Test
 
@@ -85,6 +86,7 @@ class RequiresFeatureTest : DriverTest() {
                             .replace("\n\n", "\n")
                     ),
                 ),
+            expectedFail = if (expectedIssues.isBlank()) "" else DefaultLintErrorMessage,
             expectedIssues = expectedIssues,
         )
     }

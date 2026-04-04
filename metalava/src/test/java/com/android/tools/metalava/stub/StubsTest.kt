@@ -107,6 +107,7 @@ class StubsTest : AbstractStubsTest() {
                 static { field19 = 0; }
                 }
                 """,
+            checkTextStubEquivalence = true
         )
     }
 
@@ -177,9 +178,7 @@ class StubsTest : AbstractStubsTest() {
                 public static void method4() { throw new RuntimeException("Stub!"); }
                 }
                 }
-                """,
-            // Includes documentation so cannot match what is generated from signature file.
-            checkTextStubEquivalence = false,
+                """
         )
     }
 
@@ -212,6 +211,7 @@ class StubsTest : AbstractStubsTest() {
                 protected void finalize2() throws java.io.IOException, java.lang.IllegalArgumentException { throw new RuntimeException("Stub!"); }
                 }
                 """,
+            checkTextStubEquivalence = true
         )
     }
 
@@ -345,6 +345,7 @@ class StubsTest : AbstractStubsTest() {
                 """
                     )
                 ),
+            checkTextStubEquivalence = true
         )
     }
 
@@ -389,8 +390,7 @@ class StubsTest : AbstractStubsTest() {
                     public HeaderComments() { throw new RuntimeException("Stub!"); }
                     }
                     """,
-            // Includes comments so cannot match what is generated from signature file.
-            checkTextStubEquivalence = false,
+            filterBlankLinesFromStubFiles = false,
         )
     }
 
@@ -706,6 +706,7 @@ class StubsTest : AbstractStubsTest() {
                     }
                     }
                     """,
+            checkTextStubEquivalence = true
         )
     }
 
@@ -783,9 +784,7 @@ class StubsTest : AbstractStubsTest() {
                     protected abstract void onLayout(boolean changed, int l, int t, int r, int b);
                     }
                     }
-                    """,
-            // Includes an extra override that is not present in the signature file.
-            checkTextStubEquivalence = false,
+                    """
         )
     }
 
@@ -949,9 +948,7 @@ class StubsTest : AbstractStubsTest() {
                 protected static void onCreate(java.util.List<java.lang.String> parameter1) { throw new RuntimeException("Stub!"); }
                 protected static final java.lang.String field = "a\nb\n\"test\"";
                 }
-                """,
-            // Includes documentation so cannot match what is generated from signature file.
-            checkTextStubEquivalence = false,
+                """
         )
     }
 

@@ -197,6 +197,7 @@ class StubsGenericTest : AbstractStubsTest() {
                 public static void assertEquals(java.util.Set<?> arg1, java.util.Set<?> arg2) { throw new RuntimeException("Stub!"); }
                 }
                 """,
+            checkTextStubEquivalence = true
         )
     }
 

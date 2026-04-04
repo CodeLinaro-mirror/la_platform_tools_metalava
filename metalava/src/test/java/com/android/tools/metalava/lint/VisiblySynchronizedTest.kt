@@ -78,6 +78,12 @@ class VisiblySynchronizedTest : DriverTest() {
                         """,
                     silentUpdate = false,
                 ),
+            expectedFail =
+                """
+                    metalava wrote updated baseline to TESTROOT/update-baseline-api-lint.txt
+
+                """
+                    .trimIndent() + DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(
@@ -171,6 +177,12 @@ class VisiblySynchronizedTest : DriverTest() {
                         """,
                     silentUpdate = false,
                 ),
+            expectedFail =
+                """
+                    metalava wrote updated baseline to TESTROOT/update-baseline-api-lint.txt
+
+                """
+                    .trimIndent() + DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(

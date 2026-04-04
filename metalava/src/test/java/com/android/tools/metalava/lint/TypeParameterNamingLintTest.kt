@@ -118,6 +118,7 @@ class TypeParameterNamingLintTest : DriverTest() {
                 """
                 src/android/pkg/TestClassKotlin.kt:3: error: Invalid type parameter name "KotlinTypeParam". Type parameter names must follow the Google naming guidelines specified here: https://developer.android.com/kotlin/style-guide#type_variable_names [TypeParameterName]
                 """,
+            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     kotlin(
@@ -141,6 +142,7 @@ class TypeParameterNamingLintTest : DriverTest() {
                 """
                 src/android/pkg/TestClassKotlin.kt:4: error: Invalid type parameter name "MyGeneric". Type parameter names must follow the Google naming guidelines specified here: https://developer.android.com/kotlin/style-guide#type_variable_names [TypeParameterName]
                 """,
+            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     kotlin(
@@ -205,6 +207,7 @@ class TypeParameterNamingLintTest : DriverTest() {
                 """
                 src/android/pkg/TestClassJava.java:3: error: Invalid type parameter name "JavaTypeParam". Type parameter names must follow the Google naming guidelines specified here: https://developer.android.com/kotlin/style-guide#type_variable_names [TypeParameterName]
                 """,
+            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(
@@ -228,6 +231,7 @@ class TypeParameterNamingLintTest : DriverTest() {
                 """
                 src/android/pkg/TestClassJava.java:4: error: Invalid type parameter name "MyBadMethodParam". Type parameter names must follow the Google naming guidelines specified here: https://developer.android.com/kotlin/style-guide#type_variable_names [TypeParameterName]
                 """,
+            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(

@@ -160,6 +160,7 @@ class StubsPackageInfoTest : AbstractStubsTest() {
                     )
                 ),
             docStubs = true,
+            filterBlankLinesFromStubFiles = false,
         )
     }
 
@@ -256,8 +257,6 @@ class StubsPackageInfoTest : AbstractStubsTest() {
                  */
                 package test.pkg;
                 """,
-            // Includes documentation so cannot match what is generated from signature file.
-            checkTextStubEquivalence = false,
         )
     }
 }

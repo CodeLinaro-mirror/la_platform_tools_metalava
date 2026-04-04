@@ -101,17 +101,8 @@ interface PropertyItem : MemberItem, TypeParameterListOwner, InheritableItem {
         return Objects.hash(name(), receiver)
     }
 
-    override fun toStringForItem(): String = buildString {
-        if (isRecordComponent()) {
-            append("record component ")
-        } else {
-            append("property ")
-        }
-        append(containingClass().qualifiedName())
-        append("#")
-        append(receiverString())
-        append(name())
-    }
+    override fun toStringForItem(): String =
+        "property ${containingClass().qualifiedName()}#${receiverString()}${name()}"
 
     // Inherit deprecation from the getter
     override val effectivelyDeprecated: Boolean

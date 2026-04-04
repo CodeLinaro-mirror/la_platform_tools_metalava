@@ -208,7 +208,6 @@ class ApiFile
 private constructor(
     private val assembler: TextCodebaseAssembler,
     private val formatForLegacyFiles: FileFormat?,
-    private val allowClassModifierChanges: Boolean,
 ) {
 
     private val codebase = assembler.codebase
@@ -321,8 +320,6 @@ private constructor(
             description: String? = null,
             classPathResolver: ClassPathResolver? = null,
             formatForLegacyFiles: FileFormat? = null,
-            /** Whether different signature files can have non-equivalent modifiers for a class. */
-            allowClassModifierChanges: Boolean = false,
             // Provides the called with access to the ApiFile.
             apiStatsConsumer: (Stats) -> Unit = {},
         ): Codebase {
@@ -346,7 +343,7 @@ private constructor(
                     codebaseConfig = codebaseConfig,
                     classPathResolver = classPathResolver,
                 )
-            val parser = ApiFile(assembler, formatForLegacyFiles, allowClassModifierChanges)
+            val parser = ApiFile(assembler, formatForLegacyFiles)
             val apiSurfaces = codebaseConfig.apiSurfaces
             var first = true
             for (signatureFile in signatureFiles) {
@@ -925,12 +922,7 @@ private constructor(
         // Make sure the new class characteristics are compatible with the old class
         // characteristic.
         val existingCharacteristics = ClassCharacteristics.of(existingClass)
-        if (
-            !existingCharacteristics.isCompatible(
-                newClassCharacteristics,
-                allowModifierChanges = allowClassModifierChanges
-            )
-        ) {
+        if (!existingCharacteristics.isCompatible(newClassCharacteristics)) {
             throw ApiParseException(
                 "Incompatible $existingClass definitions",
                 newClassCharacteristics.fileLocation
@@ -953,17 +945,6 @@ private constructor(
         val extraAnnotations = newClassAnnotations.subtract(existingClassAnnotations)
         if (extraAnnotations.isNotEmpty()) {
             existingClass.mutateModifiers { mutateAnnotations { addAll(extraAnnotations) } }
-        }
-
-        // If the class modifiers are allowed to change and have, update them.
-        if (
-            allowClassModifierChanges &&
-                !newClassCharacteristics.modifiers.equivalentTo(
-                    existingClass,
-                    existingClass.modifiers
-                )
-        ) {
-            existingClass.mutateModifiers { makeEquivalentTo(newClassCharacteristics.modifiers) }
         }
 
         // Use the latest super class.
@@ -2057,16 +2038,17 @@ private constructor(
             token = tokenizer.current
 
             val typeString: String
+            val name: String
             val publicName: String?
             if (kotlinNameTypeOrder) {
                 // Kotlin style: parse the name (only considered a public name if it is not `_`,
                 // which is used as a placeholder for params without public names), then the type.
-                val nameOrPlaceholder = parseNameWithColon(token, tokenizer)
+                name = parseNameWithColon(token, tokenizer)
                 publicName =
-                    if (nameOrPlaceholder == "_") {
+                    if (name == "_") {
                         null
                     } else {
-                        nameOrPlaceholder
+                        name
                     }
                 tokenizer.requireToken()
                 // Token should now represent the type
@@ -2077,9 +2059,11 @@ private constructor(
                 typeString = scanForTypeString(tokenizer)
                 token = tokenizer.current
                 if (Tokenizer.isIdent(token)) {
-                    publicName = token
+                    name = token
+                    publicName = name
                     token = tokenizer.requireToken()
                 } else {
+                    name = "arg" + (index + 1)
                     publicName = null
                 }
             }
@@ -2096,7 +2080,6 @@ private constructor(
                 }
             }
 
-            val name = publicName ?: "arg${index + 1}"
             parameters.add(
                 ParameterInfo(
                     name,

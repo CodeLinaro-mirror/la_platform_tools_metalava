@@ -364,6 +364,7 @@ class SealedClassCompatibilityCheckTest : DriverTest() {
                     load-api.txt:6: error: Sealed interface can no longer be exhaustively matched because an inaccessible subclass was added. [SealedClassExhaustivityChanged]
                 """
                     .trimIndent(),
+            expectedFail = "",
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
@@ -395,6 +396,7 @@ class SealedClassCompatibilityCheckTest : DriverTest() {
                 load-api.txt:6: error: Sealed class can no longer be exhaustively matched because an inaccessible subclass was added. [SealedClassExhaustivityChanged]
             """
                     .trimIndent(),
+            expectedFail = "",
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
@@ -456,6 +458,7 @@ class SealedClassCompatibilityCheckTest : DriverTest() {
                     load-api.txt:3: error: Added a subclass to a sealed interface that can be exhaustively matched [AddedSubclassToSealedClass]
                 """
                     .trimIndent(),
+            expectedFail = "",
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
@@ -490,6 +493,7 @@ class SealedClassCompatibilityCheckTest : DriverTest() {
                 load-api.txt:3: error: Added a subclass to a sealed class that can be exhaustively matched [AddedSubclassToSealedClass]
             """
                     .trimIndent(),
+            expectedFail = "",
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
@@ -524,6 +528,7 @@ class SealedClassCompatibilityCheckTest : DriverTest() {
                 load-api.txt:3: error: Added a subclass to a sealed class that can be exhaustively matched [AddedSubclassToSealedClass]
             """
                     .trimIndent(),
+            expectedFail = "",
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {

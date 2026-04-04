@@ -376,9 +376,8 @@ internal class PsiClassBuilder(
         }
         if (psiFields.isNotEmpty()) {
             for (psiField in psiFields) {
-                createField(classItem, psiField, classTypeItemFactory)?.let { fieldItem ->
-                    classItem.addField(fieldItem)
-                }
+                val fieldItem = createField(classItem, psiField, classTypeItemFactory)
+                classItem.addField(fieldItem)
             }
         }
     }
@@ -500,17 +499,9 @@ internal class PsiClassBuilder(
         containingClass: ClassItem,
         psiField: PsiField,
         enclosingClassTypeItemFactory: PsiTypeItemFactory,
-    ): FieldItem? {
+    ): FieldItem {
         val name = psiField.name
         val modifiers = createModifiers(psiField)
-
-        // Ignore private member fields in records.
-        if (
-            containingClass.classKind == ClassKind.RECORD &&
-                modifiers.isPrivate() &&
-                !modifiers.isStatic()
-        )
-            return null
 
         val isEnumConstant = psiField is PsiEnumConstant
 

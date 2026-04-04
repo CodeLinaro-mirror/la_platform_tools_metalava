@@ -59,6 +59,7 @@ class MultiplatformLintTest : DriverTest() {
             hideAnnotations = hideAnnotations,
             suppressCompatibilityMetaAnnotations = suppressCompatibilityMetaAnnotations,
             extraArguments = extraArguments,
+            expectedFail = DefaultLintErrorMessage.takeIf { expectedIssues != null },
             expectedIssues = expectedIssues,
         )
     }
@@ -686,6 +687,7 @@ class MultiplatformLintTest : DriverTest() {
                 ),
             enableMultiplatform = true,
             apiLint = "", // enabled
+            expectedFail = DefaultLintErrorMessage,
             expectedIssues =
                 """
                 androidMain/src/test/pkg/Mismatch.kt:2: error: multiplatform class test.pkg.Mismatch has different origins in different source sets: COMMAND_LINE in [androidMain], CLASS_PATH in [jvmMain] [KmpOriginMismatch]
@@ -836,6 +838,7 @@ class MultiplatformLintTest : DriverTest() {
             enableMultiplatform = true,
             skipSourceArgs = true, // Don't create a regular Codebase
             apiLint = "", // Enabled
+            expectedFail = DefaultLintErrorMessage,
             expectedIssues =
                 """
                 commonMain/src/test/pkg/common.kt:2: error: Class must start with uppercase char: common [StartWithUpper]

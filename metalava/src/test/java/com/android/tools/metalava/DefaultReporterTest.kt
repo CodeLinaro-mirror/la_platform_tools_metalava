@@ -49,6 +49,7 @@ class DefaultReporterTest : DriverTest() {
                 """
                 src/test/pkg/foo.java:2: error: Class must start with uppercase char: foo [StartWithUpper]
             """,
+            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(
@@ -74,6 +75,7 @@ class DefaultReporterTest : DriverTest() {
                 src/test/pkg/Bar.kt:10: error: Method name must start with lowercase char: Unsuppressed [StartWithLower]
                 src/test/pkg/Foo.java:10: error: Method name must start with lowercase char: Unsuppressed [StartWithLower]
             """,
+            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(

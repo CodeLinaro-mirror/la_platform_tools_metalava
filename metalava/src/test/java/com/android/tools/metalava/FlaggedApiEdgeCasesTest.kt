@@ -17,6 +17,7 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.cli.common.ARG_STUB_PACKAGES
+import com.android.tools.metalava.lint.DefaultLintErrorMessage
 import com.android.tools.metalava.model.ANDROID_FLAGGED_API
 import com.android.tools.metalava.model.ANDROID_SYSTEM_API
 import com.android.tools.metalava.model.FlaggedApiInheritance
@@ -55,6 +56,7 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
                     ),
                     flaggedApiSource
                 ),
+            expectedFail = DefaultLintErrorMessage,
             expectedIssues =
                 """
                     src/test/pkg/Test.java:5: error: Cannot revert class test.pkg.Test (or any other API item) as no previously released API has been provided [NoPreviouslyReleasedApi]

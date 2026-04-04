@@ -49,9 +49,7 @@ class StubsEnumTest : AbstractStubsTest() {
                 @Deprecated
                 B;
                 }
-                """,
-            // Includes documentation so cannot match what is generated from signature file.
-            checkTextStubEquivalence = false,
+                """
         )
     }
 
@@ -102,9 +100,7 @@ class StubsEnumTest : AbstractStubsTest() {
                 public static int field1;
                 public int field2;
                 }
-                """,
-            // Includes documentation so cannot match what is generated from signature file.
-            checkTextStubEquivalence = false,
+                """
         )
     }
 
@@ -204,9 +200,7 @@ class StubsEnumTest : AbstractStubsTest() {
                 public java.lang.String valueOf(int x) { throw new RuntimeException("Stub!"); }
                 public java.lang.String values(java.lang.String separator) { throw new RuntimeException("Stub!"); }
                 }
-            """,
-            // Includes an extra override that is not present in the signature file.
-            checkTextStubEquivalence = false,
+            """
         )
     }
 }

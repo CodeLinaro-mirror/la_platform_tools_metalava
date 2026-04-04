@@ -64,8 +64,6 @@ import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.InheritableItem
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.JAVA_LANG_OBJECT
-import com.android.tools.metalava.model.JAVA_LANG_RECORD
 import com.android.tools.metalava.model.JAVA_LANG_STRING
 import com.android.tools.metalava.model.JAVA_LANG_THROWABLE
 import com.android.tools.metalava.model.MemberItem
@@ -261,18 +259,11 @@ private constructor(
             checkExceptions(callable, filterReference)
             checkContextFirst(callable)
             checkListenerLast(callable)
-
-            for (typeParameterItem in callable.typeParameterList) {
-                checkEveryType(typeParameterItem.type(), callable, TypeUseSite.TYPE_PARAMETER)
-            }
-
             val returnType = callable.returnType()
-            checkEveryType(returnType, callable, TypeUseSite.RETURN)
-
-            checkNullableCollections(returnType, callable, TypeUseSite.RETURN)
+            checkType(returnType, callable)
+            checkNullableCollections(returnType, callable)
             for (parameter in callable.parameters()) {
-                val parameterType = parameter.type()
-                checkEveryType(parameterType, parameter, TypeUseSite.PARAMETER)
+                checkType(parameter.type(), parameter)
             }
             checkParameterOrder(callable)
         }
@@ -301,8 +292,7 @@ private constructor(
     override fun visitField(field: FieldItem) {
         filteredReporter.withContext(field) {
             checkField(field)
-            val type = field.type()
-            checkEveryType(type, field, TypeUseSite.FIELD)
+            checkType(field.type(), field)
             kotlinInterop.checkField(field)
         }
     }
@@ -311,34 +301,11 @@ private constructor(
         filteredReporter.withContext(property) { kotlinInterop.checkProperty(property) }
     }
 
-    /**
-     * Called for every type in the source.
-     *
-     * @param type the type being checked.
-     * @param item the [Item] to which the [type] belongs.
-     * @param typeUseSite indicates where [item] uses [type].
-     */
-    private fun checkEveryType(type: TypeItem, item: Item, typeUseSite: TypeUseSite) {
-        if (typeUseSite.legacyCheckType) {
-            legacyCheckType(type, item, typeUseSite)
-        }
-
-        checkForJavaLangRecordTypeUse(type, item, typeUseSite)
-    }
-
-    /**
-     * Legacy type checks.
-     *
-     * These were added before proper support for types so do not handle all the possible types in
-     * the source.
-     *
-     * DO NOT ADD ANY MORE CHECKS TO THIS, ADD THEM TO [checkEveryType] INSTEAD.
-     */
-    private fun legacyCheckType(type: TypeItem, item: Item, typeUseSite: TypeUseSite) {
+    private fun checkType(type: TypeItem, item: Item) {
         val typeString = type.toTypeString()
         checkPfd(typeString, item)
         checkNumbers(typeString, item)
-        checkCollections(type, item, typeUseSite)
+        checkCollections(type, item)
         checkCollectionsOverArrays(type, typeString, item)
         checkBoxed(type, item)
         checkIcu(type, typeString, item)
@@ -346,7 +313,6 @@ private constructor(
         checkHasNullability(item)
         checkUri(typeString, item)
         checkFutures(typeString, item)
-        // DO NOT ADD ANY MORE CHECKS TO THIS, ADD THEM TO [checkEveryType] INSTEAD.
     }
 
     // Enforce type parameter naming rules:
@@ -435,17 +401,6 @@ private constructor(
         checkTypedef(cls)
         checkAccessorNullabilityMatches(methods)
         checkDataClass(cls)
-
-        // Check class types.
-        for (typeParameterItem in cls.typeParameterList) {
-            checkEveryType(typeParameterItem.type(), cls, TypeUseSite.TYPE_PARAMETER)
-        }
-        superClass?.let {
-            cls.superClassType()?.let { checkEveryType(it, cls, TypeUseSite.SUPER_CLASS) }
-        }
-        for (interfaceType in interfaces) {
-            checkEveryType(interfaceType, cls, TypeUseSite.INTERFACE)
-        }
     }
 
     private fun checkField(field: FieldItem) {
@@ -459,7 +414,7 @@ private constructor(
         checkServices(field)
         checkFieldName(field)
         checkSettingKeys(field)
-        checkNullableCollections(field.type(), field, TypeUseSite.FIELD)
+        checkNullableCollections(field.type(), field)
     }
 
     private fun checkEnums(cls: ClassItem) {
@@ -661,7 +616,7 @@ private constructor(
 
         for (parameter in method.parameters()) {
             // We require nonnull collections as parameters to callback methods
-            checkNullableCollections(parameter.type(), parameter, TypeUseSite.PARAMETER)
+            checkNullableCollections(parameter.type(), parameter)
         }
     }
 
@@ -1704,7 +1659,7 @@ private constructor(
         }
     }
 
-    private fun checkCollections(type: TypeItem, item: Item, typeUseSite: TypeUseSite) {
+    private fun checkCollections(type: TypeItem, item: Item) {
         // Primitive types cannot be collections.
         if (type is PrimitiveTypeItem) {
             return
@@ -1721,16 +1676,22 @@ private constructor(
 
         // If the types uses one of the concrete collection classes then it is a problem.
         if (type.usesAnyClassIn(CONCRETE_COLLECTION_CLASSES)) {
+            val where =
+                when (item) {
+                    is MethodItem -> "Return type"
+                    is FieldItem -> "Field type"
+                    else -> "Parameter type"
+                }
             val erased = type.toErasedTypeString()
             report(
                 CONCRETE_COLLECTION,
                 item,
-                "$typeUseSite is concrete collection (`$erased`); must be higher-level interface"
+                "$where is concrete collection (`$erased`); must be higher-level interface"
             )
         }
     }
 
-    private fun checkNullableCollections(type: TypeItem, item: Item, typeUseSite: TypeUseSite) {
+    private fun checkNullableCollections(type: TypeItem, item: Item) {
         val superItem: Item? =
             when (item) {
                 is MethodItem -> item.findPredicateSuperMethod(filterReference)
@@ -1750,24 +1711,23 @@ private constructor(
             object : MultipleTypeVisitor() {
                 override fun visitType(type: TypeItem, other: List<TypeItem>) {
                     // type is from the main type, other is from the supertype
-                    checkNullableCollections(type, item, other.singleOrNull(), typeUseSite)
+                    checkNullableCollections(type, item, other.singleOrNull())
                 }
             },
             listOfNotNull(superType)
         )
     }
 
-    private fun checkNullableCollections(
-        type: TypeItem,
-        item: Item,
-        superType: TypeItem?,
-        typeUseSite: TypeUseSite,
-    ) {
+    private fun checkNullableCollections(type: TypeItem, item: Item, superType: TypeItem?) {
         if (!type.isCollection()) return
 
         // Allow a nullable collection when it is present in the super type
         if (type.modifiers.isNullable && superType?.modifiers?.isNullable != true) {
-            val where = typeUseSite.describe(item)
+            val where =
+                when (item) {
+                    is MethodItem -> "Return type of ${item.describe()}"
+                    else -> "Type of ${item.describe()}"
+                }
 
             val erased = type.toErasedTypeString()
             report(
@@ -1910,8 +1870,6 @@ private constructor(
                     }
                 }
             }
-
-            checkEveryType(throwableType, callable, TypeUseSite.THROWS)
         }
     }
 
@@ -3200,72 +3158,6 @@ private constructor(
                         "or a combination of OutcomeReceiver<R,E>, Executor, and CancellationSignal (platform) instead of $it (${item.describe()})"
                 )
             }
-    }
-
-    /** Checks whether a [TypeItem] uses [JAVA_LANG_RECORD] type. */
-    private class JavaLangRecordTypeChecker : BaseTypeVisitor() {
-        private var found: Boolean = false
-
-        /** Returns `true` if [type] uses [JAVA_LANG_RECORD] type. */
-        fun typeReferencesJavaLangRecord(type: TypeItem): Boolean {
-            found = false
-            type.accept(this)
-            return found
-        }
-
-        override fun visitClassType(classType: ClassTypeItem) {
-            if (classType.qualifiedName == JAVA_LANG_RECORD) {
-                found = true
-            }
-        }
-    }
-
-    /**
-     * Instance of [JavaLangRecordTypeChecker], shared across all calls to
-     * [checkForJavaLangRecordTypeUse].
-     */
-    private val javaLangRecordTypeChecker = JavaLangRecordTypeChecker()
-
-    /**
-     * Reports [Issues.USING_JAVA_LANG_RECORD] if [type] uses the [JAVA_LANG_RECORD] type.
-     *
-     * This check is needed because Apps which target Android versions that do not support `record`
-     * classes will have any `record` classes of their own desugared. That will add implementations
-     * for all the standard `record` methods that the compiler creates and change the super class to
-     * a special `...RecordTag` class. That means it would not be possible to pass a desugared
-     * record to an API that takes a `java.lang.Record` type. At best that would be picked up by the
-     * Android linter (if it checks for that), at worst it would result in a runtime error.
-     *
-     * This check avoids that by disallowing use of the `java.lang.Record` type in the API at all
-     * and forcing developers to use `java.lang.Object`. That is not a big limitation as the
-     * `java.lang.Record` provides nothing of value over the `java.lang.Object` class. By default,
-     * it does provide implementations of `Object` methods that adhere to a specific contract but
-     * that behavior is not guaranteed for `java.lang.Record` subclasses as implementations can
-     * provide their own implementations of those methods.
-     */
-    private fun checkForJavaLangRecordTypeUse(
-        type: TypeItem,
-        item: Item,
-        typeUseSite: TypeUseSite
-    ) {
-        // If is ok for record classes to implicitly use java.lang.Record as their super class as
-        // record classes in the API will never be desugared so will always have java.lang.Record
-        // as their super class.
-        if (
-            typeUseSite == TypeUseSite.SUPER_CLASS &&
-                type is ClassTypeItem &&
-                type.qualifiedName == JAVA_LANG_RECORD
-        ) {
-            return
-        }
-
-        if (javaLangRecordTypeChecker.typeReferencesJavaLangRecord(type)) {
-            report(
-                Issues.USING_JAVA_LANG_RECORD,
-                item,
-                "${typeUseSite.describe(item)} contains $JAVA_LANG_RECORD, that can cause issues for desugared record classes, please use $JAVA_LANG_OBJECT instead"
-            )
-        }
     }
 
     private fun checkMethodSuffixListenableFutureReturn(method: MethodItem) {
