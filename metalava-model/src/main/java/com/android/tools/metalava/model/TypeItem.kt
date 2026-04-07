@@ -288,9 +288,6 @@ interface TypeItem {
 
 /** Different ways of handling `java.lang.` prefix stripping in [TypeItem.toTypeString]. */
 enum class StripJavaLangPrefix {
-    /** Never strip java.lang. prefixes when */
-    NEVER,
-
     /**
      * Only strip java.lang. prefixes from the start of the type as long as they are not a generic
      * varargs parameter.
@@ -308,6 +305,9 @@ enum class StripJavaLangPrefix {
      * type.
      */
     VARARGS,
+
+    /** Never strip java.lang. prefixes when */
+    NEVER,
 
     /** Always strip java.lang. prefixes from the type. */
     ALWAYS,

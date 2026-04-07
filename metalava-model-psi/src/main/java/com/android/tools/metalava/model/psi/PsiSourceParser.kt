@@ -33,7 +33,6 @@ import org.jetbrains.kotlin.analysis.api.projectStructure.KaModule
 import org.jetbrains.kotlin.analysis.api.projectStructure.KaSourceModule
 import org.jetbrains.kotlin.analysis.api.standalone.base.projectStructure.KotlinStaticProjectStructureProvider
 import org.jetbrains.kotlin.config.ApiVersion
-import org.jetbrains.kotlin.config.JVMConfigurationKeys
 import org.jetbrains.kotlin.config.LanguageVersion
 import org.jetbrains.kotlin.config.LanguageVersionSettings
 import org.jetbrains.kotlin.config.LanguageVersionSettingsImpl
@@ -70,8 +69,7 @@ internal class PsiSourceParser(
     override fun processInputs(inputs: SourceParser.Inputs): Codebase {
         val sourceSet = inputs.sourceSet
 
-        @Suppress("DEPRECATION") // b/427783483: to be removed when K1 support is dropped
-        val config = UastEnvironment.Configuration.create(useFirUast = true)
+        val config = UastEnvironment.Configuration.create()
         config.javaLanguageLevel = javaLanguageLevel
 
         when (val projectDescription = inputs.projectDescription) {
@@ -80,13 +78,6 @@ internal class PsiSourceParser(
             }
             else -> {
                 configureUastEnvironmentFromProjectDescription(config, projectDescription)
-            }
-        }
-        // K1 UAST: loading of JDK (via compiler config, i.e., only for FE1.0), when using JDK9+
-        jdkHome?.let {
-            if (isJdkModular(it)) {
-                config.kotlinCompilerConfig.put(JVMConfigurationKeys.JDK_HOME, it)
-                config.kotlinCompilerConfig.put(JVMConfigurationKeys.NO_JDK, false)
             }
         }
 
@@ -156,9 +147,7 @@ internal class PsiSourceParser(
         val environment =
             psiEnvironmentManager.initialEnvironment
                 ?: run {
-                    // b/427783483: to be removed when K1 support is dropped
-                    @Suppress("DEPRECATION")
-                    val config = UastEnvironment.Configuration.create(useFirUast = true)
+                    val config = UastEnvironment.Configuration.create()
                     config.javaLanguageLevel = javaLanguageLevel
                     configureUastEnvironmentFromProjectDescription(config, projectDescription)
                     psiEnvironmentManager.createEnvironment(config)
@@ -181,8 +170,7 @@ internal class PsiSourceParser(
 
     /** Initializes a UAST environment using the [apiJars] as classpath roots. */
     private fun loadUastFromJars(apiJars: List<File>): UastEnvironment {
-        @Suppress("DEPRECATION") // b/427783483: to be removed when K1 support is dropped
-        val config = UastEnvironment.Configuration.create(useFirUast = true)
+        val config = UastEnvironment.Configuration.create()
         val sourceRoots = emptyList<File>()
         configureUastEnvironment(config, sourceRoots, apiJars)
 
@@ -215,7 +203,7 @@ internal class PsiSourceParser(
             listOf(
                 UastEnvironment.Module(
                     lintProject,
-                    // K2 UAST: building KtSdkModule for JDK
+                    // Building KtSdkModule for JDK
                     jdkHome,
                     includeTests = false,
                     includeTestFixtureSources = false,
@@ -293,7 +281,7 @@ internal class PsiSourceParser(
                 lintProject.kotlinLanguageLevel = kotlinLanguageLevel
                 UastEnvironment.Module(
                     lintProject,
-                    // K2 UAST: building KtSdkModule for JDK
+                    // Building KtSdkModule for JDK
                     jdkHome,
                     includeTests = false,
                     includeTestFixtureSources = false,

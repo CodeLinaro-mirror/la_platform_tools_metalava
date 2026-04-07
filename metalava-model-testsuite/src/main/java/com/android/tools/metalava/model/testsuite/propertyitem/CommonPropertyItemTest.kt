@@ -1332,4 +1332,75 @@ class CommonPropertyItemTest : BaseModelTest() {
             assertThat(stringReceiverHashCode).isNotEqualTo(typeParamReceiverHashCode)
         }
     }
+
+    @Test
+    fun `Test properties from the classpath`() {
+        /*
+        Compiled from the following file:
+        package other.pkg
+        open class ClasspathParent<T> {
+            private val privateVal: T? = null
+            val publicVal: T? = null
+        }
+        class ClasspathChild: ClasspathParent<Int>()
+         */
+        val classpathGzip =
+            base64gzip(
+                "test.jar",
+                // kotlinc version info: kotlinc-jvm 1.9.23 (JRE 21.0.9+10-b1163.91)
+                "" +
+                    "H4sIAAAAAAAA/wvwZmYRYeDg4GBgYFBkQAYiDCwMvq4hjrqefm76vo5+nm6u" +
+                    "wSF6vm7/TjEwfPY9c9rHW1fvIq+3rta5M+c3BxlcMX7wtEjPy1fH0/di6aot" +
+                    "QR+8dAu1vM6c0Q77cE7/5Mkzj58+esrEEODNzrFeWHO9JdACcyAOwGm9PBDn" +
+                    "l2SkFukXZKfrO+ckFhcXJJZkBCQWpeaV6CWD+KVBsdnCjiK2m3f/vLXsrdoy" +
+                    "09y/27KEDq49yn4x6IKTokC2p7PAJxPPtpRZb/NuzGSRb7Y/Gr9AgcPO48Vi" +
+                    "e689k9m6Mn8Xnd/7vO7czb+fv1/PZ1j/YU6i8qVawd+HHc/bc+wIcl73+7iN" +
+                    "2EK/RsMp36Tys5bXnPnb0G77P/l3SMmX239XizRvP7H0gYHK9xSNr3bNsVrm" +
+                    "mz2Unio1mjQv/h1kmHM1z6YhLa3aSb7/VuMbk8oDARpT19+eozFVmvfQ2yiR" +
+                    "73+CF942nL7wU6WE26xsyYn1JlxM9/hYpqa2TRf+HP489aHi9MZWm2brnqcz" +
+                    "sg1Xb033LtrquIRZ8pd8y7PYdZaF127eUHOcaSiZfOAA25H6aWq3FNf/nrTQ" +
+                    "dO6aHWEXi5YLX//U46l++fXRl0seLVku3P82yvra7yM/ry95evPrnuc5Vq7f" +
+                    "qqx+lvw7qnhp4TyX2rPe5zIXxTjnWr2cMt1Muywzu3nm05+smvE8Jnt/u3xz" +
+                    "Wue+UeHm68UBp40DeY8HeV56endp2JdcvkV6omuvpWj0uaXnCpr3lLmtW3G4" +
+                    "Wa1/aefzJdVCvY/6LKao3ZjBnxcn2d2+JLPpiUJqoENfQbXY2oeciZPOxame" +
+                    "kf6ZfyKy5Qv7xFqvifkhaj4hdUqfa6fVmemb1XXmfFvEoDeNo1hE/3Bcxr/G" +
+                    "6Ptis+Zmz9J/F/nzvVz1uVsa5z8YarW0T4ldvu+27o1QkdU3ViQJRz955Cda" +
+                    "XriedVmBPH/UCQ2diQZc/SJBXKytc5qWTwiN+McOSnks35g/6DIxMCxjxpfy" +
+                    "5LCnPOeMzJwUaMIL8PU+7CBQO3tLpvTqaz+u/qr9/DhhFYeciCO3k0LXii+X" +
+                    "LmdNL8vdNfFNmM237T/4bTjlllR8ce+c/MLzy4b8e3sqd282lp+/Pp/h24Zj" +
+                    "Ab2+4Sr/atc/Nlda99XW/K5buNtbJgln2z+Law4KLzyTWHFcfod84dWPzKku" +
+                    "7irs7uw8W+vzRSYkF/AtnfSs4+C9GznTHi54oNSv5HyuZGlaxI/Vyd8Uq6q1" +
+                    "3hxVm3TKXrht+86HSyL/ss9uS9ScEsTA/HriP43La/zW7D28wU7Kb0fY1V92" +
+                    "UxdZS4W5H767aPrnNbtC09V/flc/vurGytrpiR//H1ypvvVD3crbts7GJo+2" +
+                    "JczgWSr0vPlfr8e6n74uXeLHtttkfXJZ9rM/Ytck2aNnFRTfxR1tfhI259SW" +
+                    "gN0yGsq/F2luVXm+MWjjQ7djXsnsYmtfp58qqW7hnvIzku/J9riAKrWkxIkX" +
+                    "Trqwe7c8zWeO6QncsnHOzpw1KRvbQrt+P9GcnL6H1fqAS8NJBlEfwVbxBClj" +
+                    "XYPeyDNbJ1yWuDzj+ooskX3gsiTO20+8jZGBIYgJX4xKAzG8KMtNzMzTy84v" +
+                    "ycnMi8/NTynNSU1OSEhIA2KWJD82jYCkC0kMYLO/Ku3ZKwzUKQEupxiZRBgQ" +
+                    "piOXYaCCEhXgKjbRTUFOj/IoJtQTLv3QDUMOCjkUw34yEUrQ6GYhe10axazT" +
+                    "LHiDMsCblQ2kjAUINYCOUWcF8QBTsgZbZQYAAA=="
+            )
+        runCodebaseTest(
+            kotlin(
+                """
+                package test.pkg
+                import other.pkg.ClasspathChild
+                class SourceClass {
+                    fun foo(): ClasspathChild? = null
+                }
+                """
+            ),
+            testFixture = TestFixture(additionalClassPath = listOf(classpathGzip.toFile()))
+        ) {
+            val sourceClass = codebase.assertClass("test.pkg.SourceClass")
+            val classpathClassType = sourceClass.assertMethod("foo", emptyList()).returnType()
+            classpathClassType.assertClassTypeItem {
+                val classpathClass = resolveClass(codebase)!!
+                val property = classpathClass.assertProperty("publicVal")
+                property.type().assertClassTypeItem {
+                    assertThat(qualifiedName).isEqualTo("java.lang.Integer")
+                }
+            }
+        }
+    }
 }

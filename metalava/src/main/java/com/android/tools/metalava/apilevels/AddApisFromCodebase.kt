@@ -19,6 +19,7 @@ package com.android.tools.metalava.apilevels
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
+import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.CodebaseFragment
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DelegatedVisitor
@@ -60,35 +61,19 @@ fun addApisFromCodebase(
                     )
                 currentClass = newClass
 
-                when (cls.classKind) {
-                    ClassKind.CLASS -> {
-                        val superClass = cls.superClass()
-                        if (superClass != null) {
-                            newClass.updateSuperClass(superClass.nameInApi(), updater)
-                        }
+                // Add the super class, if available.
+                val superClass = cls.superClass()
+                if (superClass == null) {
+                    // If no explicit super class has been provided then see if the ClassKind can
+                    // provide one.
+                    cls.classKind.binarySuperClassType?.let { superClassType ->
+                        newClass.updateSuperClass(superClassType.nameInApi(), updater)
                     }
-                    ClassKind.INTERFACE -> {
-                        // Implicit super class; match convention from bytecode
-                        newClass.updateSuperClass(objectClass, updater)
-                    }
-                    ClassKind.ENUM -> {
-                        // Implicit super class; match convention from bytecode
-                        if (newClass.name != enumClass) {
-                            newClass.updateSuperClass(enumClass, updater)
-                        }
-                    }
-                    ClassKind.ANNOTATION_TYPE -> {
-                        // Implicit super class; match convention from bytecode
-                        if (newClass.name != annotationClass) {
-                            newClass.updateSuperClass(objectClass, updater)
-                            newClass.updateInterface(annotationClass, updater)
-                        }
-                    }
-                    // Typealiases aren't like regular classes and don't have a super class or
-                    // interfaces.
-                    ClassKind.TYPEALIAS -> {}
+                } else {
+                    newClass.updateSuperClass(superClass.nameInApi(), updater)
                 }
 
+                // Add the interfaces, if any.
                 for (interfaceType in cls.interfaceTypes()) {
                     val interfaceClass = interfaceType.resolveClass(cls.codebase) ?: return
                     newClass.updateInterface(interfaceClass.nameInApi(), updater)
@@ -153,16 +138,18 @@ fun addApisFromCodebase(
                 }
             }
 
-            // The names of some common classes, based on [useInternalNames]
-            val objectClass = nameForClass("java", "lang", "Object")
-            val annotationClass = nameForClass("java", "lang", "annotation", "Annotation")
-            val enumClass = nameForClass("java", "lang", "Enum")
-
-            /** Generates a class name from the package and class names in [nameParts] */
-            fun nameForClass(vararg nameParts: String): String {
-                val separator = if (useInternalNames) "/" else "."
-                return nameParts.joinToString(separator)
-            }
+            /**
+             * The name of this class type in this [Api], based on [Api.useInternalNames].
+             *
+             * This does not work on nested classes, but it should only ever be called on the
+             * [ClassKind.binarySuperClassType].
+             */
+            fun ClassTypeItem.nameInApi() =
+                if (useInternalNames) {
+                    qualifiedName.replace('.', '/')
+                } else {
+                    qualifiedName
+                }
         }
 
     codebaseFragment.accept(delegatedVisitor)

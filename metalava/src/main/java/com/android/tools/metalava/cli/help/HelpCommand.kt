@@ -23,6 +23,7 @@ import com.android.tools.metalava.cli.common.MetalavaHelpFormatter
 import com.android.tools.metalava.cli.common.buildDefinitionListHelp
 import com.android.tools.metalava.cli.common.stdout
 import com.android.tools.metalava.cli.common.terminal
+import com.android.tools.metalava.model.text.CustomizableProperty
 import com.android.tools.metalava.model.text.FileFormat
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.context
@@ -113,14 +114,14 @@ private fun signatureFileFormatsHelp(): CliktCommand {
     }
 
     /**
-     * Construct help for the different [FileFormat.CustomizableProperty]s.
+     * Construct help for the different [CustomizableProperty]s.
      *
      * @param filter filter the properties for which help will be provided.
      */
-    fun customizablePropertyHelp(filter: (FileFormat.CustomizableProperty) -> Boolean): String {
-        fun FileFormat.CustomizableProperty.labelGetter() = "`$propertyName = $valueSyntax`"
+    fun customizablePropertyHelp(filter: (CustomizableProperty<*>) -> Boolean): String {
+        fun CustomizableProperty<*>.labelGetter() = "`$propertyName = $valueSyntax`"
         return buildDefinitionListHelp(
-            FileFormat.CustomizableProperty.entries.mapNotNull {
+            CustomizableProperty.entries.mapNotNull {
                 if (!filter(it)) return@mapNotNull null
                 val help = it.help
                 if (help == "") return@mapNotNull null
