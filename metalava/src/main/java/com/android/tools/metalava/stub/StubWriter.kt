@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.stub
 
-import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DelegatedVisitor
@@ -282,11 +281,6 @@ fun createFilteringVisitorForStubs(
     return FilteringApiVisitor(
         delegate = delegate,
         inlineInheritedFields = true,
-        // Sort methods in stubs based on their signature. The order of methods in stubs is
-        // irrelevant, e.g. it does not affect compilation or document generation. However, having a
-        // consistent order will prevent churn in the generated stubs caused by changes to Metalava
-        // itself or changes to the order of methods in the sources.
-        callableComparator = CallableItem.comparator,
         apiFilters = apiFilters,
         preFiltered = preFiltered,
         ignoreEmit = ignoreEmit,

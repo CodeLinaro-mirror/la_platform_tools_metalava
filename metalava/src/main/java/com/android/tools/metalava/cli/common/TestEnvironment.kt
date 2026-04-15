@@ -57,7 +57,7 @@ class TestEnvironment(
  */
 class CheckerContext(
     val driver: Driver,
-    val codebase: Codebase,
+    val codebase: Codebase?,
     val multiplatformCodebase: MultiplatformCodebase?,
 )
 

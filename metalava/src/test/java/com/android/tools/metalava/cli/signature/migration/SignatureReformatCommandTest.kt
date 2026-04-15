@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2025 The Android Open Source Project
+ * Copyright (C) 2026 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,13 +14,15 @@
  * limitations under the License.
  */
 
-package com.android.tools.metalava.cli.signature
+package com.android.tools.metalava.cli.signature.migration
 
 import com.android.tools.metalava.cli.common.BaseCommandTest
+import com.android.tools.metalava.cli.signature.ARG_USE_SAME_FORMAT_AS
+import com.android.tools.metalava.cli.signature.SIGNATURE_FORMAT_OPTIONS_HELP
 import com.android.tools.metalava.model.text.assertSignatureContents
 import org.junit.Test
 
-private val signatureCatHelp =
+private val signatureReformatHelp =
     """
 Usage: metalava signature-reformat [options] <files>...
 
@@ -72,7 +74,7 @@ class SignatureReformatCommandTest :
         commandTest {
             args += listOf("signature-reformat", "--help")
 
-            expectedStdout = signatureCatHelp
+            expectedStdout = signatureReformatHelp
         }
     }
 

@@ -79,22 +79,8 @@ open class BaseItemVisitor(
                 property.accept(this)
             }
 
-            if (cls.isEnum()) {
-                // In enums, visit the enum constants first, then the fields
-                for (field in cls.fields()) {
-                    if (field.isEnumConstant()) {
-                        field.accept(this)
-                    }
-                }
-                for (field in cls.fields()) {
-                    if (!field.isEnumConstant()) {
-                        field.accept(this)
-                    }
-                }
-            } else {
-                for (field in cls.fields()) {
-                    field.accept(this)
-                }
+            for (field in cls.fields()) {
+                field.accept(this)
             }
 
             if (preserveClassNesting) {

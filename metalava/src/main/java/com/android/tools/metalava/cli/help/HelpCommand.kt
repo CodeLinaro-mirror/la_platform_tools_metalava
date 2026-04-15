@@ -97,7 +97,69 @@ will match `foo` and `foo.bar` and `foo.bar.baz` but not `foobar`.
                 .trimIndent()
     )
 
+/**
+ * Append a line to this [StringBuilder] describing the [change], the [property] and its [value]
+ * between a [FileFormat.Version] and its base [FileFormat.Version]. if any.
+ */
+private fun <T> StringBuilder.appendPropertyLine(
+    change: String,
+    property: CustomizableProperty<T>,
+    value: T & Any,
+) {
+    append(change)
+    append(property.propertyName)
+    append(" = ")
+    append(property.valueToString(value))
+    append("\n")
+}
+
+/**
+ * Append a description to this [StringBuilder] of the delta between [baseDefaults] and [version].
+ */
+private fun <T> StringBuilder.appendPropertyDeltaDescription(
+    version: FileFormat.Version,
+    property: CustomizableProperty<T>,
+    baseDefaults: FileFormat?
+) {
+    val value = version.defaults.propertyMap[property]
+    val baseValue = baseDefaults?.propertyMap?.get(property)
+    if (baseValue == value) return
+
+    if (baseValue != null) {
+        appendPropertyLine("+ ", property, baseValue)
+    }
+    if (value != null) {
+        appendPropertyLine("+ ", property, value)
+    }
+}
+
+private val sortedCustomizableProperties = CustomizableProperty.entries.sortedBy { it.propertyName }
+
+/**
+ * Construct the help for [version].
+ *
+ * Automatically describes the delta between this version and its predecessor.
+ */
+fun constructVersionHelp(version: FileFormat.Version): String = buildString {
+    append(version.help.trimIndent())
+    val baseVersion = version.baseVersion
+    val delta = buildString {
+        val baseDefaults = baseVersion?.defaults
+        for (property in sortedCustomizableProperties) {
+            appendPropertyDeltaDescription(version, property, baseDefaults)
+        }
+    }
+    if (delta.isNotEmpty()) {
+        append("\n")
+        append("This is `${baseVersion!!.versionNumber}` plus the following properties:\n")
+        append("```\n")
+        append(delta)
+        append("```\n")
+    }
+}
+
 private fun signatureFileFormatsHelp(): CliktCommand {
+
     /** Construct help for the different [FileFormat.Version]s. */
     fun versionHelp(): String {
         /** Generate a label for a [FileFormat.Version]. */
@@ -108,7 +170,7 @@ private fun signatureFileFormatsHelp(): CliktCommand {
         }
 
         return buildDefinitionListHelp(
-            FileFormat.versions.map { it.labelGetter() to it.help.trimIndent() },
+            FileFormat.versions.map { it.labelGetter() to constructVersionHelp(it) },
             termPrefix = "* ",
         )
     }
@@ -118,14 +180,13 @@ private fun signatureFileFormatsHelp(): CliktCommand {
      *
      * @param filter filter the properties for which help will be provided.
      */
-    fun customizablePropertyHelp(filter: (CustomizableProperty<*>) -> Boolean): String {
+    fun customizablePropertyHelp(): String {
         fun CustomizableProperty<*>.labelGetter() = "`$propertyName = $valueSyntax`"
         return buildDefinitionListHelp(
-            CustomizableProperty.entries.mapNotNull {
-                if (!filter(it)) return@mapNotNull null
-                val help = it.help
-                if (help == "") return@mapNotNull null
-                it.labelGetter() to help.trimIndent()
+            sortedCustomizableProperties.map { property ->
+                val help = property.help
+                if (help == "") error("No help provided for $property")
+                property.labelGetter() to help.trimIndent()
             },
             termPrefix = "* ",
         )
@@ -144,11 +205,7 @@ that will be output to the API signature file and how it is represented. A forma
 a set of defaults for those properties.
 
 The supported properties are:
-${customizablePropertyHelp {!it.defaultable}}
-
-Plus the following properties which can have their default changed using the `--format-defaults`
-option.
-${customizablePropertyHelp {it.defaultable}}
+${customizablePropertyHelp()}
 
 Currently, metalava supports the following versions:
 ${versionHelp()}

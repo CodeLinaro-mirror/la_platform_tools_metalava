@@ -133,7 +133,7 @@ class FlaggedApiLint(
 
     private fun checkFlaggedApiLiteral(item: Item) {
         if (item.codebase.preFiltered) {
-            // Flag constants aren't ever API, so prefiltered codebases would always only contain
+            // Flag constants aren't ever API, so prefitered codebases would always only contain
             // literals.
             return
         }

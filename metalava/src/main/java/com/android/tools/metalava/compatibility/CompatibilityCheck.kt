@@ -47,6 +47,7 @@ import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeStringConfiguration
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.findAnnotation
+import com.android.tools.metalava.model.value.Value
 import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiType
 import com.android.tools.metalava.reporter.FileLocation
@@ -917,6 +918,9 @@ class CompatibilityCheck(
         }
     }
 
+    /** Describe the value for use in [compareMethodItems]. */
+    private fun Value?.description() = this?.toValueString() ?: "nothing"
+
     override fun compareMethodItems(old: MethodItem, new: MethodItem) {
         val oldModifiers = old.modifiers
         val newModifiers = new.modifiers
@@ -937,31 +941,18 @@ class CompatibilityCheck(
         if (
             new.containingClass().isAnnotationType() &&
                 old.containingClass().isAnnotationType() &&
-                new.legacyDefaultValue() != old.legacyDefaultValue()
+                new.defaultValue != old.defaultValue
         ) {
-            val prevValue = old.legacyDefaultValue()
-            val prevString =
-                if (prevValue.isEmpty()) {
-                    "nothing"
-                } else {
-                    prevValue
-                }
-
-            val newValue = new.legacyDefaultValue()
-            val newString =
-                if (newValue.isEmpty()) {
-                    "nothing"
-                } else {
-                    newValue
-                }
-            val message =
-                "${new.describeCallableItem(capitalize = true)} has changed value from $prevString to $newString"
-
             // Adding a default value to an annotation method is safe
             val annotationMethodAddingDefaultValue =
-                new.containingClass().isAnnotationType() && old.legacyDefaultValue().isEmpty()
+                new.containingClass().isAnnotationType() && old.defaultValue == null
 
             if (!annotationMethodAddingDefaultValue) {
+                val oldString = old.defaultValue.description()
+                val newString = new.defaultValue.description()
+                val message =
+                    "${new.describeCallableItem(capitalize = true)} has changed value from $oldString to $newString"
+
                 report(Issues.CHANGED_VALUE, new, message, oldItem = old)
             }
         }
@@ -1310,7 +1301,7 @@ class CompatibilityCheck(
             // two interfaces that each now define methods with the same signature.
             // Annotation types cannot implement other interfaces, however, so it is permitted to
             // add new default methods to annotation types.
-            if (new.containingClass().isAnnotationType() && new.legacyDefaultValue() != "") {
+            if (new.containingClass().isAnnotationType() && new.defaultValue != null) {
                 return
             }
         }

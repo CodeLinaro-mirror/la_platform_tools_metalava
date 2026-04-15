@@ -63,4 +63,13 @@ interface SkeletonClassItem : ClassItem {
      * the list of methods.
      */
     fun replaceOrAddMethod(method: MethodItem)
+
+    /**
+     * Create a [RecordComponents] object and store it in [ClassItem.recordComponents].
+     *
+     * Must only be called on a [ClassItem] whose [classKind] is [ClassKind.RECORD]. Will construct
+     * the [RecordComponents] from all [properties] whose [PropertyItem.isRecordComponent] returns
+     * `true`.
+     */
+    fun initializeRecordComponents()
 }
