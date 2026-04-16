@@ -24,6 +24,7 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.SkeletonClassItem
 import com.android.tools.metalava.model.SourceLanguage
+import com.android.tools.metalava.model.WellKnownTypes.JAVA_LANG_ANNOTATION_NON_NULL_TYPE
 import com.android.tools.metalava.model.bestGuessAtFullName
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.item.DefaultCodebaseAssembler
@@ -203,6 +204,10 @@ internal class TextCodebaseAssembler(
                     },
                     classPathResolver = classPathResolver,
                 )
+
+            // Make sure that if a stub class needs to be generated for the
+            // `java.lang.annotation.Annotation` class, that it is marked as an interface.
+            assembler.requireStubKindFor(JAVA_LANG_ANNOTATION_NON_NULL_TYPE, StubKind.INTERFACE)
 
             return assembler
         }

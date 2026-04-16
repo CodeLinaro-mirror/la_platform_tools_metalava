@@ -505,7 +505,7 @@ internal class PsiValueFactory(
 
         if (uExpression is ULiteralExpression) {
             uExpression.value?.let { underlyingValue ->
-                // Get the original source value, undoing any int -> long conversions done by K2.
+                // Get the original source value, undoing any int -> long conversions.
                 val originalSourceValue =
                     when (underlyingValue) {
                         // Byte and short always use an integer literal as there are no byte or
@@ -546,8 +546,8 @@ internal class PsiValueFactory(
 
         // All others expressions are evaluated to a literal, if possible and returned.
         ConstantEvaluator.evaluate(null, uExpression)?.let { value ->
-            // Get the original source value, undoing any int -> long conversions done by K2. This
-            // is only done for unary minus expressions, i.e. of the form `-<expr>`.
+            // Get the original source value, undoing any int -> long conversions. This is only done
+            // for unary minus expressions, i.e. of the form `-<expr>`.
             val originalSourceValue =
                 if (
                     uExpression is UPrefixExpression &&
@@ -574,8 +574,6 @@ internal class PsiValueFactory(
      * That is needed to enable consistent processing with legacy value handling which often uses
      * the source type directly, e.g. when parsing `longValue = 1` it may write it as `longValue =
      * 1` instead of the more consistent `longValue = 1L`.
-     *
-     * This generally only affects K2 as K1 does not bother casting to the correct type.
      */
     private fun undoConversionOfSourceIntIfNeeded(
         underlyingValue: Long,

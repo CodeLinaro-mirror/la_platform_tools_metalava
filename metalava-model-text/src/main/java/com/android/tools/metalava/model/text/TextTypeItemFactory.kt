@@ -18,14 +18,8 @@ package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassTypeItem
-import com.android.tools.metalava.model.JAVA_LANG_ANNOTATION
-import com.android.tools.metalava.model.JAVA_LANG_ENUM
-import com.android.tools.metalava.model.JAVA_LANG_OBJECT
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterScope
-import com.android.tools.metalava.model.WellKnownTypes.JAVA_LANG_ANNOTATION_NON_NULL_TYPE
-import com.android.tools.metalava.model.WellKnownTypes.JAVA_LANG_ENUM_NON_NULL_TYPE
-import com.android.tools.metalava.model.WellKnownTypes.JAVA_LANG_OBJECT_NON_NULL_TYPE
 import com.android.tools.metalava.model.type.ContextNullability
 import com.android.tools.metalava.model.type.DefaultTypeItemFactory
 
@@ -34,23 +28,6 @@ internal class TextTypeItemFactory(
     private val typeParser: TextTypeParser,
     typeParameterScope: TypeParameterScope = TypeParameterScope.empty,
 ) : DefaultTypeItemFactory<String, TextTypeItemFactory>(typeParameterScope) {
-
-    /** A [JAVA_LANG_ANNOTATION] suitable for use as a super type. */
-    val superAnnotationType
-        get() =
-            JAVA_LANG_ANNOTATION_NON_NULL_TYPE.also {
-                // Make sure that if a stub class needs to be generated for this that it is marked
-                // as an interface.
-                assembler.requireStubKindFor(it, StubKind.INTERFACE)
-            }
-
-    /** A [JAVA_LANG_ENUM] suitable for use as a super type. */
-    val superEnumType
-        get() = JAVA_LANG_ENUM_NON_NULL_TYPE
-
-    /** A [JAVA_LANG_OBJECT] suitable for use as a super type. */
-    val superObjectType
-        get() = JAVA_LANG_OBJECT_NON_NULL_TYPE
 
     override fun self() = this
 

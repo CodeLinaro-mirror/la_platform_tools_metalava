@@ -36,7 +36,7 @@ abstract class AbstractStubsTest : DriverTest() {
         docStubs: Boolean = false,
         showAnnotations: Array<String> = emptyArray(),
         skipEmitPackages: List<String>? = null,
-        format: FileFormat = FileFormat.LATEST,
+        format: FileFormat = FileFormat.V5,
         sourceFiles: Array<TestFile> = emptyArray(),
         signatureSources: Array<String> = emptyArray(),
         checkCompilation: Boolean = true,

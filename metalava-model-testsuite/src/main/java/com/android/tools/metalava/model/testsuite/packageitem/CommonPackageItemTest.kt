@@ -498,8 +498,8 @@ class CommonPackageItemTest : BaseModelTest() {
         ) {
             codebase.assertClass("test.pkg.Foo")
             // Make sure that if any errors are reported that they are included in this list of
-            // known errors. This is needed because K1 produces both errors, but K2 only produces
-            // the first error. This test is currently broken for Turbine.
+            // known errors. This is needed because psi produces both errors, but turbine only
+            // produces the first error
             assertContains(
                 """
                     MAIN_SRC/src/test/other/Foo.java: error: Unable to determine the package name. This usually means that a source file was where the directory does not seem to match the package declaration; we expected the path MAIN_SRC/src/test/other/Foo.java to end with /test/pkg/Foo.java [IoError]

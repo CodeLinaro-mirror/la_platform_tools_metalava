@@ -437,12 +437,7 @@ private constructor(
             processConstructor(constructorSymbol, classItem, classTypeItemFactory)
         }
         for (callableSymbol in filterExpects(memberScope.callables)) {
-            // K1 includes delegate symbols in the combinedDeclaredMemberScope, K2 does not.
-            // Don't add delegate symbols here because they're processed from the
-            // delegatedMemberScope below, and they shouldn't be duplicated for K1.
-            if (callableSymbol.origin != KaSymbolOrigin.DELEGATED) {
-                processCallable(callableSymbol, classItem, classTypeItemFactory)
-            }
+            processCallable(callableSymbol, classItem, classTypeItemFactory)
         }
         for (nestedClassifierSymbol in
             memberScope.classifiers.filterIsInstance<KaNamedClassSymbol>()) {
@@ -619,26 +614,18 @@ private constructor(
         )
     }
 
-    /**
-     * Whether to create a constructor item in the [containingClass] based on the
-     * [constructorSymbol].
-     */
+    /** Whether to create a constructor item based on the [constructorSymbol]. */
     private fun KaSession.shouldGenerateConstructor(
         constructorSymbol: KaConstructorSymbol,
-        containingClass: ClassItem,
     ): Boolean {
         // Deprecation level hidden items can't be resolved from source.
         if (constructorSymbol.isDeprecatedHidden()) return false
         // If this codebase is being created just from the KaModule, all other source constructors
         // should be generated. Only skip constructors when adding to a PsiBasedCodebase.
         if (!addingToPsiCodebase) return true
-
-        // Value class primary constructors are always kotlin only.
-        if (constructorSymbol.isPrimary && containingClass.modifiers.isValue()) return true
-        // If a constructor has a corresponding UElement it generally shouldn't be created as kotlin
-        // only, but with K1 value class types weren't handled differently from other types so there
-        // might be a UElement for a constructor using a value class type even though it should be
-        // kotlin only.
+        // If a constructor has a corresponding UElement it shouldn't be created as kotlin only.
+        // TODO(b/491407270): checking parameter types is still required because constructors with
+        //  value class type parameters incorrectly exist as UElements.
         if (constructorSymbol.existsAsUElement() && !hasValueClassTypeParameter(constructorSymbol))
             return false
         return true
@@ -652,7 +639,7 @@ private constructor(
         containingClass: SkeletonClassItem,
         enclosingTypeItemFactory: KaTypeItemFactory,
     ) {
-        if (!shouldGenerateConstructor(constructorSymbol, containingClass)) return
+        if (!shouldGenerateConstructor(constructorSymbol)) return
 
         val typeParameterListAndFactory =
             typeParameterListAndFactory(
@@ -745,15 +732,18 @@ private constructor(
         // Generate functions annotated with JvmName.
         if (functionSymbol.annotations.any { it.classId?.asFqNameString() == JVM_NAME }) return true
 
-        // If a constructor has a corresponding UElement it generally shouldn't be created as kotlin
-        // only, but with K1 value class types weren't handled differently from other types so there
-        // might be a UElement for a constructor using a value class type even though it should be
-        // kotlin only.
+        // If a function has a corresponding UElement it generally shouldn't be created as kotlin
+        // only, but if a function has a value class return type which is not explicitly declared in
+        // source it will still incorrectly exist as a UElement (see
+        // https://youtrack.jetbrains.com/issue/KT-74205).
+        // TODO(b/491407270): checking parameter types is still required because constructors with
+        //  value class type parameters incorrectly exist as UElements, and a data class copy method
+        //  has the constructor as its source element so it will also still exist as a UElement when
+        //  it has a value class parameter type.
         if (
             functionSymbol.existsAsUElement() &&
                 !hasValueClassTypeParameter(functionSymbol) &&
-                !isValueClassType(functionSymbol.returnType) &&
-                functionSymbol.receiverType?.let { isValueClassType(it) } != true
+                !isValueClassType(functionSymbol.returnType)
         )
             return false
 
@@ -893,6 +883,12 @@ private constructor(
                         addingToPsiCodebase,
                     )
                 for (property in properties) {
+                    // There might be properties included on the class with a signature from a
+                    // parent. Skip these, which can be created through the parent class.
+                    val callableId = property.callableId ?: continue
+                    val containingClassForProperty =
+                        callableId.packageName.asString() + "." + callableId.className?.asString()
+                    if (containingClassForProperty != classItem.qualifiedName()) continue
                     processProperty(property, classItem, typeItemFactory)
                 }
             }

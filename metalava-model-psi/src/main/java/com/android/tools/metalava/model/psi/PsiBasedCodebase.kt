@@ -54,8 +54,7 @@ internal class PsiBasedCodebase(
      * Whether types should be checked to see if there are any references to typealiases, and have
      * the references replaced with the aliased type.
      *
-     * This is necessary when processing multiplatform sources with K2. With K1 psi, all typealiases
-     * are already replaced by the aliased type, but with K2 typealias usages may not have been
+     * This is necessary when processing multiplatform sources. Typealias usages may not have been
      * replaced with the aliased type, particularly if the typealias is defined in a different
      * module from the usage.
      */

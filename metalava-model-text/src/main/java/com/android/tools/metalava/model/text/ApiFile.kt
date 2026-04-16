@@ -48,6 +48,7 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterList
+import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.WellKnownTypes
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
@@ -60,6 +61,8 @@ import com.android.tools.metalava.model.item.PackageInfo
 import com.android.tools.metalava.model.parser.FileLocationTracker
 import com.android.tools.metalava.model.parser.TokenPurpose
 import com.android.tools.metalava.model.parser.Tokenizer
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.KOTLIN_NAME_TYPE_ORDER
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.KOTLIN_STYLE_NULLS
 import com.android.tools.metalava.model.type.MethodFingerprint
 import com.android.tools.metalava.model.type.TypeItemParser
 import com.android.tools.metalava.model.type.TypeItemParserErrorReporter
@@ -87,7 +90,7 @@ sealed class SignatureFile {
     /**
      * Indicates whether [file] is for the main API surface, i.e. the one that is being created.
      *
-     * This will be stored in [Item.emit].
+     * This will be stored in [SelectableItem.emit].
      */
     protected open val forMainApiSurface: Boolean
         get() = true
@@ -253,12 +256,15 @@ private constructor(
         )
 
     /**
-     * Whether types should be interpreted to be in Kotlin format (e.g. ? suffix means nullable, !
-     * suffix means unknown, and absence of a suffix means not nullable.
+     * Whether types should be interpreted to be in Kotlin format (e.g. `?` suffix means nullable,
+     * `!` suffix means unknown, and absence of a suffix means not nullable).
      *
      * Updated based on the header of the signature file being parsed.
      */
     private var kotlinStyleNulls: Boolean? = null
+
+    /** See [KOTLIN_NAME_TYPE_ORDER]. */
+    private var kotlinNameTypeOrder: Boolean = false
 
     /** The file format of the file being parsed. */
     lateinit var format: FileFormat
@@ -432,17 +438,19 @@ private constructor(
         codebase.reporter.report(issue, null, message, location)
     }
 
+    /** See [SignatureFile.forMainApiSurface]. */
+    private val forMainApiSurface
+        get() = apiVariant.surface.isMain
+
     /**
      * Mark this [SelectableItem] as being part of the main API surface, i.e. the one that is being
      * created.
-     *
-     * See [SignatureFile.forMainApiSurface].
      *
      * This will set [SelectableItem.emit] to [forMainApiSurface] and should only be called on
      * [SelectableItem]s which have been created from the main signature file.
      */
     private fun SelectableItem.markForMainApiSurface() {
-        emit = apiVariant.surface.isMain
+        emit = forMainApiSurface
         markSelectedApiVariant()
     }
 
@@ -460,9 +468,10 @@ private constructor(
      * It is only necessary to mark an existing class as being part of the main API surface, if it
      * should be but is not already.
      *
-     * This will set [Item.emit] to `true` iff it was previously `false` and [forMainApiSurface] is
-     * `true`. That ensures that a class that is not in the main API surface can be included in it
-     * by another signature file, but once it is included it cannot be removed.
+     * This will set [SelectableItem.emit] to `true` iff it was previously `false` and
+     * [forMainApiSurface] is `true`. That ensures that a class that is not in the main API surface
+     * can be included in it by another signature file, but once it is included it cannot be
+     * removed.
      *
      * e.g. Imagine that there are two files, `public.txt` and `system.txt` where the second extends
      * the first. When generating the system API classes in the `public.txt` will not be considered
@@ -471,7 +480,7 @@ private constructor(
      * behavior irrespective of the order.
      */
     private fun ClassItem.markExistingClassForMainApiSurface() {
-        if (!emit && apiVariant.surface.isMain) {
+        if (!emit && forMainApiSurface) {
             markForMainApiSurface()
         }
 
@@ -520,14 +529,16 @@ private constructor(
         fileLocationTracker = tokenizer
 
         // Disallow a mixture of kotlinStyleNulls settings.
-        if (kotlinStyleNulls != null && kotlinStyleNulls != format.kotlinStyleNulls) {
+        val kotlinStyleNullsForThisFile = format[KOTLIN_STYLE_NULLS]
+        if (kotlinStyleNulls != null && kotlinStyleNulls != kotlinStyleNullsForThisFile) {
             val precedingFile = precedingTracker!!.fileLocation().path
             reportIssue(
                 Issues.SIGNATURE_FILE_ERROR,
                 "Preceding file $precedingFile has different setting of kotlin-style-nulls which may cause issues"
             )
         }
-        kotlinStyleNulls = format.kotlinStyleNulls
+        kotlinStyleNulls = kotlinStyleNullsForThisFile
+        kotlinNameTypeOrder = format[KOTLIN_NAME_TYPE_ORDER]
 
         while (true) {
             val token = tokenizer.getToken() ?: break
@@ -555,7 +566,7 @@ private constructor(
             // If the same package showed up multiple times, make sure they have the same modifiers.
             // (Packages can't have public/private/etc., but they can have annotations, which are
             // part of ModifierList.)
-            var existingAnnotations = existing.modifiers.annotations()
+            val existingAnnotations = existing.modifiers.annotations()
             if (annotations != existingAnnotations) {
                 throw ApiParseException(
                     String.format(
@@ -699,8 +710,6 @@ private constructor(
 
     private fun parseClass(pkg: PackageItem, tokenizer: Tokenizer, startingToken: String) {
         var token = startingToken
-        var classKind = ClassKind.CLASS
-        var superClassType: ClassTypeItem? = null
 
         val (modifiers, targetLanguages) = parseModifiersAndTargetLanguages(tokenizer, token)
         // Remember this position as this seems like a good place to use to report issues with the
@@ -708,40 +717,25 @@ private constructor(
         val classPosition = tokenizer.fileLocation()
 
         token = tokenizer.current
-        when (token) {
-            "class" -> {
-                token = tokenizer.requireToken()
-            }
-            "interface" -> {
-                classKind = ClassKind.INTERFACE
-                modifiers.setAbstract(true)
-                token = tokenizer.requireToken()
-            }
-            "@interface" -> {
-                classKind = ClassKind.ANNOTATION_TYPE
-                modifiers.setAbstract(true)
-                token = tokenizer.requireToken()
-            }
-            "enum" -> {
-                classKind = ClassKind.ENUM
-                modifiers.setFinal(true)
-                modifiers.setStatic(true)
-                superClassType = globalTypeItemFactory.superEnumType
-                token = tokenizer.requireToken()
-            }
-            "typealias" -> {
-                // Type aliases aren't classes, but they are defined at the same level as classes
-                parseTypeAlias(pkg, tokenizer, modifiers, classPosition)
-                // Don't continue creating a class item
-                return
-            }
-            else -> {
-                throw ApiParseException(
-                    "expected one of class, interface, @interface, enum, or typealias; found: $token",
+        val classKind =
+            ClassKind.bySignatureKeyword(token)
+                ?: throw ApiParseException(
+                    "expected one of ${ClassKind.entries.joinToString { it.signatureKeyword }}; found: $token",
                     tokenizer
                 )
-            }
+
+        if (classKind == ClassKind.TYPEALIAS) {
+            // Type aliases aren't classes, but they are defined at the same level as classes
+            parseTypeAlias(pkg, tokenizer, modifiers, classPosition)
+            // Don't continue creating a class item
+            return
         }
+
+        classKind.setImplicitModifiers(modifiers)
+
+        var superClassType = classKind.implicitSuperClassType
+
+        token = tokenizer.requireToken()
         tokenizer.assertIdent(token)
 
         // The declaredClassType consists of the full name (i.e. preceded by the containing class's
@@ -769,6 +763,10 @@ private constructor(
         }
 
         val interfaceTypes = mutableSetOf<ClassTypeItem>()
+
+        // Add any ClassKind specific implicit interface types.
+        classKind.implicitInterfaceType?.let { interfaceType -> interfaceTypes.add(interfaceType) }
+
         if ("implements" == token || "extends" == token) {
             token = tokenizer.requireToken()
             while (true) {
@@ -783,21 +781,6 @@ private constructor(
                     token = tokenizer.requireToken()
                 }
             }
-        }
-        if (superClassType == globalTypeItemFactory.superEnumType) {
-            // This can be taken either for an enum class, or a normal class that extends
-            // java.lang.Enum (which was the old way of representing an enum in the API signature
-            // files.
-            classKind = ClassKind.ENUM
-        } else if (classKind == ClassKind.ANNOTATION_TYPE) {
-            // If the annotation was defined using @interface then add the implicit
-            // "implements java.lang.annotation.Annotation".
-            interfaceTypes.add(globalTypeItemFactory.superAnnotationType)
-        } else if (globalTypeItemFactory.superAnnotationType in interfaceTypes) {
-            // A normal class that implements java.lang.annotation.Annotation which was the old way
-            // of representing an annotation in the API signature files. So, update the class kind
-            // to match.
-            classKind = ClassKind.ANNOTATION_TYPE
         }
 
         if ("{" != token) {
@@ -833,7 +816,7 @@ private constructor(
                 superClassType == null &&
                 qualifiedClassName != JAVA_LANG_OBJECT
         ) {
-            superClassType = globalTypeItemFactory.superObjectType
+            superClassType = WellKnownTypes.JAVA_LANG_OBJECT_NON_NULL_TYPE
         }
 
         // Create the DefaultClassItem and set its package but do not add it to the package or
@@ -1343,7 +1326,7 @@ private constructor(
         val returnTypeString: String
         val parameters: List<ParameterInfo>
         val name: String
-        if (format.kotlinNameTypeOrder) {
+        if (kotlinNameTypeOrder) {
             // Kotlin style: parse the name, the parameter list, then the return type.
             name = token
             parameters = parseParameterList(tokenizer)
@@ -1452,7 +1435,7 @@ private constructor(
 
         val typeString: String
         val name: String
-        if (format.kotlinNameTypeOrder) {
+        if (kotlinNameTypeOrder) {
             // Kotlin style: parse the name, then the type.
             name = parseNameWithColon(token, tokenizer)
             token = tokenizer.requireToken()
@@ -1553,7 +1536,7 @@ private constructor(
      */
     private fun parseModifiers(tokenizer: Tokenizer, startingToken: String): MutableModifierList {
         val annotations = getAnnotations(tokenizer, startingToken)
-        val modifiers = createModifiers(VisibilityLevel.PACKAGE_PRIVATE, annotations)
+        val modifiers = createModifiers(annotations)
         parseKeywordModifiers(tokenizer, modifiers)
         return modifiers
     }
@@ -1685,11 +1668,8 @@ private constructor(
     }
 
     /** Creates a [MutableModifierList], setting the deprecation based on the [annotations]. */
-    private fun createModifiers(
-        visibility: VisibilityLevel,
-        annotations: List<AnnotationItem>
-    ): MutableModifierList {
-        val modifiers = createMutableModifiers(visibility, annotations)
+    private fun createModifiers(annotations: List<AnnotationItem>): MutableModifierList {
+        val modifiers = createMutableModifiers(VisibilityLevel.PACKAGE_PRIVATE, annotations)
         // @Deprecated is also treated as a "modifier"
         if (annotations.any { it.qualifiedName == JAVA_LANG_DEPRECATED }) {
             modifiers.setDeprecated(true)
@@ -1713,7 +1693,7 @@ private constructor(
 
         val typeString: String
         val receiverNamePair: Pair<TypeItem?, String>
-        if (format.kotlinNameTypeOrder) {
+        if (kotlinNameTypeOrder) {
             // Kotlin style: parse the name, then the type.
             receiverNamePair = parsePropertyReceiverAndName(tokenizer, typeItemFactory)
             token = tokenizer.current
@@ -1782,7 +1762,7 @@ private constructor(
         }
 
         val name =
-            if (format.kotlinNameTypeOrder) {
+            if (kotlinNameTypeOrder) {
                 parseNameWithColon(namePossiblyWithColon, tokenizer)
             } else {
                 tokenizer.assertIdent(namePossiblyWithColon)
@@ -1957,7 +1937,7 @@ private constructor(
             val typeString: String
             val name: String
             val publicName: String?
-            if (format.kotlinNameTypeOrder) {
+            if (kotlinNameTypeOrder) {
                 // Kotlin style: parse the name (only considered a public name if it is not `_`,
                 // which is used as a placeholder for params without public names), then the type.
                 name = parseNameWithColon(token, tokenizer)

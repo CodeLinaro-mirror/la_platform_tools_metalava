@@ -65,7 +65,7 @@ internal class KaValueFactory(
                 )
             is KaAnnotationValue.ClassLiteralValue ->
                 createClassObjectValue(
-                    // If a class has type parameters, K2 models the type with unbounded wildcards
+                    // If a class has type parameters, the type is modeled with unbounded wildcards
                     // for the type arguments. However, the value creation enforces that there are
                     // no type arguments on a class value.
                     globalTypeItemFactory

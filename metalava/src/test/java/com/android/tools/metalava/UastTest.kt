@@ -1913,11 +1913,8 @@ class UastTest : DriverTest() {
         )
     }
 
-    // b/324521456: need to set kotlin-stdlib-common for common module
     @Test
     fun `actual typealias`() {
-        // https://youtrack.jetbrains.com/issue/KT-55085
-        // TODO: https://youtrack.jetbrains.com/issue/KTIJ-26853
         val commonSource =
             kotlin(
                 "commonMain/src/test/pkg/PointerEvent.kt",
@@ -1952,7 +1949,15 @@ class UastTest : DriverTest() {
             projectDescription =
                 createProjectDescription(
                     createAndroidModuleDescription(arrayOf(androidSource)),
-                    createCommonModuleDescription(arrayOf(commonSource)),
+                    // The common module uses a jvm annotation, so it needs to be set up so that it
+                    // has jvm types in the classpath.
+                    createModuleDescription(
+                        moduleName = "commonMain",
+                        android = true,
+                        kotlinPlatforms = defaultJvmPlatforms,
+                        sourceFiles = arrayOf(commonSource),
+                        dependsOn = emptyList()
+                    ),
                 ),
             api =
                 """
@@ -1962,7 +1967,7 @@ class UastTest : DriverTest() {
                     property public test.pkg.PointerKeyboardModifiers keyboardModifiers;
                   }
                   @kotlin.jvm.JvmInline public final value class PointerKeyboardModifiers {
-                    ctor public PointerKeyboardModifiers(test.pkg.NativePointerKeyboardModifiers packedValue);
+                    ctor @KotlinOnly public PointerKeyboardModifiers(int packedValue);
                   }
                 }
                 """

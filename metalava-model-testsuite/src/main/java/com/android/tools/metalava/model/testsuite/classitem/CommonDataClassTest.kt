@@ -282,7 +282,7 @@ class CommonDataClassTest : BaseModelTest() {
             val internalCtor = internalCtorClass.assertConstructor(listOf("int"))
             assertThat(internalCtor.modifiers.getVisibilityLevel())
                 .isEqualTo(VisibilityLevel.INTERNAL)
-            // The copy method gets a mangled name with K2 (copy$<module name>).
+            // The copy method gets a mangled name (copy$<module name>).
             val internalCtorCopy =
                 internalCtorClass.methods().single { it.name().startsWith("copy") }
             assertThat(internalCtorCopy.modifiers.getVisibilityLevel())
@@ -294,7 +294,7 @@ class CommonDataClassTest : BaseModelTest() {
             assertThat(internalPublishedCtor.modifiers.getVisibilityLevel())
                 .isEqualTo(VisibilityLevel.INTERNAL)
             assertThat(internalPublishedCtor.annotationNames()).contains("kotlin.PublishedApi")
-            // The copy method gets a mangled name with K2 (copy$<module name>).
+            // The copy method gets a mangled name (copy$<module name>).
             val internalPublishedCtorCopy =
                 internalPublishedCtorClass.methods().single { it.name().startsWith("copy") }
             assertThat(internalPublishedCtorCopy.modifiers.getVisibilityLevel())

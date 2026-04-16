@@ -19,6 +19,7 @@
 package com.android.tools.metalava
 
 import com.android.tools.lint.checks.infrastructure.TestFile
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.ADD_ADDITIONAL_OVERRIDES
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.testing.java
 import org.junit.Test
@@ -42,7 +43,7 @@ class AddAdditionalOverridesTest : DriverTest() {
 
         // Signature content with additional overrides check
         check(
-            format = format.copy(specifiedAddAdditionalOverrides = true),
+            format = format.buildCopy { this[ADD_ADDITIONAL_OVERRIDES] = true },
             sourceFiles = sourceFiles,
             api = apiWithAdditionalOverrides,
             extraArguments = extraArguments,

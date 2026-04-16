@@ -28,6 +28,7 @@ private val FILE_FORMAT_PROPERTY_NAMES =
         "language",
         "migrating",
         "name",
+        "normalize-abstract-modifier",
         "normalize-final-modifier",
         "overloaded-method-order",
         "sort-whole-extends-list",
