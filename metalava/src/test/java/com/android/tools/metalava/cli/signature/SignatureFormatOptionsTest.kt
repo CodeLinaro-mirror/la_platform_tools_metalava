@@ -18,6 +18,11 @@ package com.android.tools.metalava.cli.signature
 
 import com.android.tools.metalava.cli.common.BaseOptionGroupTest
 import com.android.tools.metalava.model.text.ApiParseException
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.ADD_ADDITIONAL_OVERRIDES
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.INCLUDE_DEFAULT_PARAMETER_VALUES
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.KOTLIN_STYLE_NULLS
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.MIGRATING
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.OVERLOADED_METHOD_ORDER
 import com.android.tools.metalava.model.text.FILE_FORMAT_PROPERTIES
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.testing.source
@@ -39,42 +44,21 @@ Signature Format Output:
 
                                              A comma separated list of `<property>=<value>` assignments where
                                              `<property>` is one of the following: 'add-additional-overrides',
+                                             'flagged-api-inheritance', 'normalize-abstract-modifier',
                                              'normalize-final-modifier', 'overloaded-method-order',
                                              'sort-whole-extends-list', 'strip-java-lang-prefix',
                                              'type-argument-spacing'.
 
                                              See `metalava help signature-file-formats` for more information on the
                                              properties.
-  --format [v2|v4|latest|recommended|<specifier>]
-                                             Specifies the output signature file format.
-
-                                             The preferred way of specifying the format is to use one of the following
-                                             values (in no particular order):
-
-                                             latest - The latest in the supported versions. Only use this if you want to
-                                             have the very latest and are prepared to update signature files on a
-                                             continuous basis.
-
-                                             recommended (default) - The recommended version to use. This is currently
-                                             set to `v2` and will only change very infrequently so can be considered
-                                             stable.
+  --format <specifier>                       Specifies the output signature file format.
 
                                              <specifier> - which has the following syntax:
 
                                              <version>[:<property>=<value>[,<property>=<value>]*]
 
-                                             Where:
-
-                                             The following values are still supported but should be considered
-                                             deprecated.
-
-                                             v2 - The main version used in Android.
-
-                                             v4 - Adds support for using kotlin style syntax to embed nullability
-                                             information instead of using explicit and verbose @NonNull and @Nullable
-                                             annotations. This can be used for Java files and Kotlin files alike. Also,
-                                             adds support for recording that a parameter has a default value by using
-                                             the pseudo-modifier `optional`. (default: recommended)
+                                             See `metalava help signature-file-formats` for more help including a list
+                                             of the available `<version>`s and `<property>=<value>`s. (default: 2.0)
   --use-same-format-as <file>                Specifies that the output format should be the same as the format used in
                                              the specified file. It is an error if the file does not exist. If the file
                                              is empty then this will behave as if it was not specified. If the file is
@@ -89,6 +73,15 @@ Signature Format Output:
                                              for new empty API files (e.g. created using `touch`) while this option is
                                              used to specify the format for generating updates to the existing non-empty
                                              files.
+  --format-overrides <overrides>             Specifies overrides for format properties. Intended for use with
+                                             --use-same-format-as to change individual properties within a signature
+                                             file.
+
+                                             A comma separated list of `<property>=<value>` assignments where
+                                             `<property>` can be any property supported by signature file formats.
+
+                                             See `metalava help signature-file-formats` for more information on the
+                                             properties.
     """
         .trimIndent()
 
@@ -104,7 +97,7 @@ class SignatureFormatOptionsTest :
         runTest("--format=v1") {
             assertThat(stderr)
                 .startsWith(
-                    """Invalid value for "--format": invalid version, found 'v1', expected one of '2.0', '4.0', '5.0', 'v2', 'v4', 'latest', 'recommended'"""
+                    """Invalid value for "--format": invalid version, found 'v1', expected one of '2.0', '4.0', '5.0'"""
                 )
         }
     }
@@ -112,7 +105,7 @@ class SignatureFormatOptionsTest :
     @Test
     fun `--use-same-format-as reads from a valid file and ignores --format`() {
         val path = source("api.txt", "// Signature format: 4.0\n").toFile()
-        runTest("--use-same-format-as", path.path, "--format", "v4") {
+        runTest("--use-same-format-as", path.path, "--format", "5.0") {
             assertThat(options.fileFormat).isEqualTo(FileFormat.V4)
         }
     }
@@ -120,7 +113,7 @@ class SignatureFormatOptionsTest :
     @Test
     fun `--use-same-format-as ignores empty file and falls back to format`() {
         val path = source("api.txt", "").toFile()
-        runTest("--use-same-format-as", path.path, "--format", "v4") {
+        runTest("--use-same-format-as", path.path, "--format", "4.0") {
             assertThat(options.fileFormat).isEqualTo(FileFormat.V4)
         }
     }
@@ -134,7 +127,7 @@ class SignatureFormatOptionsTest :
             "--format-defaults",
             "overloaded-method-order=source"
         ) {
-            assertThat(options.fileFormat.overloadedMethodOrder)
+            assertThat(options.fileFormat[OVERLOADED_METHOD_ORDER])
                 .isEqualTo(FileFormat.OverloadedMethodOrder.SOURCE)
         }
     }
@@ -167,6 +160,37 @@ class SignatureFormatOptionsTest :
     }
 
     @Test
+    fun `--use-same-format-as with overrides`() {
+        val path =
+            source(
+                    "api.txt",
+                    """
+                        // Signature format: 5.0
+                        // - add-additional-overrides=no
+                    """
+                        .trimIndent()
+                )
+                .toFile()
+        runTest(
+            "--use-same-format-as",
+            path.path,
+            "--format-overrides",
+            "add-additional-overrides=yes,name=fred,surface=public"
+        ) {
+            assertEquals(
+                """
+                    // Signature format: 5.0
+                    // - name=fred
+                    // - surface=public
+                    // - add-additional-overrides=yes
+                """
+                    .trimIndent(),
+                options.fileFormat.header().trim()
+            )
+        }
+    }
+
+    @Test
     fun `--format with no properties`() {
         runTest("--format", "2.0") { assertEquals(FileFormat.V2, options.fileFormat) }
     }
@@ -176,7 +200,7 @@ class SignatureFormatOptionsTest :
         runTest("--format", "2.0", "--format-defaults", "overloaded-method-order=source") {
             assertEquals(
                 FileFormat.OverloadedMethodOrder.SOURCE,
-                options.fileFormat.overloadedMethodOrder
+                options.fileFormat[OVERLOADED_METHOD_ORDER]
             )
         }
     }
@@ -184,7 +208,7 @@ class SignatureFormatOptionsTest :
     @Test
     fun `--format with no properties and --format-defaults add-additional-overrides=yes`() {
         runTest("--format", "2.0", "--format-defaults", "add-additional-overrides=yes") {
-            assertEquals(true, options.fileFormat.addAdditionalOverrides)
+            assertEquals(true, options.fileFormat[ADD_ADDITIONAL_OVERRIDES])
         }
     }
 
@@ -192,9 +216,9 @@ class SignatureFormatOptionsTest :
     fun `--format with overloaded-method-order=signature`() {
         runTest("--format", "2.0:overloaded-method-order=signature") {
             assertEquals(
-                FileFormat.V2.copy(
-                    specifiedOverloadedMethodOrder = FileFormat.OverloadedMethodOrder.SIGNATURE,
-                ),
+                FileFormat.V2.buildCopy {
+                    this[OVERLOADED_METHOD_ORDER] = FileFormat.OverloadedMethodOrder.SIGNATURE
+                },
                 options.fileFormat
             )
         }
@@ -210,7 +234,7 @@ class SignatureFormatOptionsTest :
         ) {
             assertEquals(
                 FileFormat.OverloadedMethodOrder.SIGNATURE,
-                options.fileFormat.overloadedMethodOrder
+                options.fileFormat[OVERLOADED_METHOD_ORDER]
             )
         }
     }
@@ -222,11 +246,11 @@ class SignatureFormatOptionsTest :
             "2.0:kotlin-style-nulls=yes,include-default-parameter-values=yes,overloaded-method-order=source",
         ) {
             assertEquals(
-                FileFormat.V2.copy(
-                    specifiedOverloadedMethodOrder = FileFormat.OverloadedMethodOrder.SOURCE,
-                    kotlinStyleNulls = true,
-                    includeDefaultParameterValues = true,
-                ),
+                FileFormat.V2.buildCopy {
+                    this[OVERLOADED_METHOD_ORDER] = FileFormat.OverloadedMethodOrder.SOURCE
+                    this[KOTLIN_STYLE_NULLS] = true
+                    this[INCLUDE_DEFAULT_PARAMETER_VALUES] = true
+                },
                 options.fileFormat
             )
         }
@@ -239,9 +263,7 @@ class SignatureFormatOptionsTest :
             "2.0:add-additional-overrides=yes",
         ) {
             assertEquals(
-                FileFormat.V2.copy(
-                    specifiedAddAdditionalOverrides = true,
-                ),
+                FileFormat.V2.buildCopy { this[ADD_ADDITIONAL_OVERRIDES] = true },
                 options.fileFormat
             )
         }
@@ -319,11 +341,11 @@ class SignatureFormatOptionsTest :
             optionGroup = SignatureFormatOptions(migratingAllowed = true),
         ) {
             assertEquals(
-                FileFormat.V2.copy(
-                    kotlinStyleNulls = true,
-                    includeDefaultParameterValues = true,
-                    migrating = "See b/295577788"
-                ),
+                FileFormat.V2.buildCopy {
+                    this[KOTLIN_STYLE_NULLS] = true
+                    this[INCLUDE_DEFAULT_PARAMETER_VALUES] = true
+                    this[MIGRATING] = "See b/295577788"
+                },
                 options.fileFormat
             )
         }
@@ -351,10 +373,10 @@ class SignatureFormatOptionsTest :
             optionGroup = SignatureFormatOptions(migratingAllowed = true),
         ) {
             assertEquals(
-                FileFormat.V5.copy(
-                    kotlinStyleNulls = false,
-                    includeDefaultParameterValues = false,
-                ),
+                FileFormat.V5.buildCopy {
+                    this[KOTLIN_STYLE_NULLS] = false
+                    this[INCLUDE_DEFAULT_PARAMETER_VALUES] = false
+                },
                 options.fileFormat
             )
         }
@@ -368,11 +390,11 @@ class SignatureFormatOptionsTest :
             optionGroup = SignatureFormatOptions(migratingAllowed = true),
         ) {
             assertEquals(
-                FileFormat.V5.copy(
-                    kotlinStyleNulls = false,
-                    includeDefaultParameterValues = false,
-                    migrating = "See b/295577788",
-                ),
+                FileFormat.V5.buildCopy {
+                    this[KOTLIN_STYLE_NULLS] = false
+                    this[INCLUDE_DEFAULT_PARAMETER_VALUES] = false
+                    this[MIGRATING] = "See b/295577788"
+                },
                 options.fileFormat
             )
         }
@@ -388,6 +410,28 @@ class SignatureFormatOptionsTest :
             assertEquals(
                 """Invalid value for "--format": invalid format specifier: '5.0:kotlin-style-nulls=no,include-default-parameter-values=no,migrating=See b/295577788' - must not contain a 'migrating' property""",
                 stderr
+            )
+        }
+    }
+
+    @Test
+    fun `--format with overrides`() {
+        runTest(
+            "--format",
+            "5.0:kotlin-style-nulls=no,include-default-parameter-values=no",
+            "--format-overrides",
+            "name=fred,surface=public,kotlin-style-nulls=yes",
+            optionGroup = SignatureFormatOptions(migratingAllowed = false),
+        ) {
+            assertEquals(
+                """
+                    // Signature format: 5.0
+                    // - name=fred
+                    // - surface=public
+                    // - include-default-parameter-values=no
+                """
+                    .trimIndent(),
+                options.fileFormat.header().trim()
             )
         }
     }

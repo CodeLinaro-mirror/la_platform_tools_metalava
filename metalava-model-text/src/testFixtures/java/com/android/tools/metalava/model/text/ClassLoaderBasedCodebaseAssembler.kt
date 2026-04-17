@@ -165,11 +165,19 @@ internal class ClassLoaderBasedCodebaseAssembler(
         val cls = findClassInClassLoader(qualifiedName) ?: return null
         val packageName = cls.`package`.name
 
+        val classKind =
+            when {
+                cls.isAnnotation -> ClassKind.ANNOTATION_TYPE
+                cls.isInterface -> ClassKind.INTERFACE
+                cls.isEnum -> ClassKind.ENUM
+                else -> ClassKind.CLASS
+            }
+
         val packageItem = codebase.findOrCreatePackage(packageName)
         return itemFactory.createClassItem(
             fileLocation = FileLocation.UNKNOWN,
             modifiers = createImmutableModifiers(VisibilityLevel.PACKAGE_PRIVATE),
-            classKind = ClassKind.CLASS,
+            classKind = classKind,
             containingClass = null,
             containingPackage = packageItem,
             qualifiedName = cls.canonicalName,

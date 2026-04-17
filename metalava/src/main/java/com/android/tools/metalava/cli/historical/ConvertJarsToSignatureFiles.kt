@@ -36,12 +36,14 @@ import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JAVA_LANG_DEPRECATED
+import com.android.tools.metalava.model.JavaConstants
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SUPPORT_TYPE_USE_ANNOTATIONS
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
 import com.android.tools.metalava.model.api.surface.ApiSurface
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.ADD_ADDITIONAL_OVERRIDES
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.SignatureWriter
 import com.android.tools.metalava.model.text.SnapshotDeltaMaker
@@ -205,7 +207,7 @@ class ConvertJarsToSignatureFiles(
                         showUnannotated = false,
                         apiPredicateConfig =
                             ApiPredicate.Config(
-                                addAdditionalOverrides = fileFormat.addAdditionalOverrides,
+                                addAdditionalOverrides = fileFormat[ADD_ADDITIONAL_OVERRIDES],
                             ),
                     )
                 }
@@ -246,7 +248,7 @@ class ConvertJarsToSignatureFiles(
                         val enumeration = jar.entries()
                         while (enumeration.hasMoreElements()) {
                             val entry = enumeration.nextElement()
-                            if (entry.name.endsWith(SdkConstants.DOT_CLASS)) {
+                            if (entry.name.endsWith(JavaConstants.DOT_CLASS)) {
                                 try {
                                     jar.getInputStream(entry).use { inputStream ->
                                         val bytes = inputStream.readBytes()
@@ -267,7 +269,7 @@ class ConvertJarsToSignatureFiles(
                 val listFiles = file.listFiles()
                 listFiles?.forEach { markDeprecated(codebase, it, it.path) }
             }
-            file.path.endsWith(SdkConstants.DOT_CLASS) -> {
+            file.path.endsWith(JavaConstants.DOT_CLASS) -> {
                 val bytes = file.readBytes()
                 markDeprecated(codebase, bytes, file.path)
             }

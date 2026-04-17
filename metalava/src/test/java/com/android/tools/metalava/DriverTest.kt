@@ -61,13 +61,16 @@ import com.android.tools.metalava.model.Assertions
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.StripJavaLangPrefix
 import com.android.tools.metalava.model.provider.Capability
-import com.android.tools.metalava.model.psi.PsiModelOptions
 import com.android.tools.metalava.model.source.SourceModelProvider
 import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.model.source.utils.DOT_KT
 import com.android.tools.metalava.model.testing.CodebaseCreatorConfig
 import com.android.tools.metalava.model.testing.CodebaseCreatorConfigAware
 import com.android.tools.metalava.model.text.ApiFile
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.INCLUDE_TYPE_USE_ANNOTATIONS
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.KOTLIN_NAME_TYPE_ORDER
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.KOTLIN_STYLE_NULLS
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.STRIP_JAVA_LANG_PREFIX
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.SignatureFile
 import com.android.tools.metalava.model.text.assertSignatureFilesMatch
@@ -112,15 +115,6 @@ abstract class DriverTest :
 
     /** The [CodebaseCreatorConfig] under which this test will be run. */
     final override lateinit var codebaseCreatorConfig: CodebaseCreatorConfig<SourceModelProvider>
-
-    /**
-     * The setting of [PsiModelOptions.useK2Uast]. Is computed lazily as it depends on
-     * [codebaseCreatorConfig] which is set after object initialization.
-     */
-    protected val isK2 by
-        lazy(LazyThreadSafetyMode.NONE) {
-            codebaseCreatorConfig.modelOptions[PsiModelOptions.useK2Uast]
-        }
 
     @Before
     fun setup() {
@@ -397,7 +391,7 @@ abstract class DriverTest :
          */
         docStubs: Boolean = false,
         /** Signature file format */
-        format: FileFormat = FileFormat.LATEST,
+        format: FileFormat = FileFormat.V5,
         /** All expected issues to be generated when analyzing these sources */
         expectedIssues: String? = "",
         /** Expected [Severity.ERROR] issues to be generated when analyzing these sources */
@@ -542,7 +536,7 @@ abstract class DriverTest :
         compiledSourceJar: TestFile? = null,
         /** [ARG_REPEAT_ERRORS_MAX] */
         repeatErrorsMax: Int = 0,
-        /** Whether to create a multiplatform codebase. Only supported with K2 psi. */
+        /** Whether to create a multiplatform codebase. Only supported with psi. */
         enableMultiplatform: Boolean = false,
         /**
          * Called on a [CheckerContext] after the analysis phase in the metalava main command.
@@ -1649,38 +1643,6 @@ val broadcastBehaviorSource: TestFile =
         )
         .indented()
 
-val androidxNonNullSource: TestFile =
-    java(
-            """
-    package androidx.annotation;
-    import java.lang.annotation.*;
-    import static java.lang.annotation.ElementType.*;
-    import static java.lang.annotation.RetentionPolicy.SOURCE;
-    @SuppressWarnings("WeakerAccess")
-    @Retention(SOURCE)
-    @Target({METHOD, PARAMETER, FIELD, LOCAL_VARIABLE, TYPE_USE, ANNOTATION_TYPE, PACKAGE})
-    public @interface NonNull {
-    }
-    """
-        )
-        .indented()
-
-val androidxNullableSource: TestFile =
-    java(
-            """
-    package androidx.annotation;
-    import java.lang.annotation.*;
-    import static java.lang.annotation.ElementType.*;
-    import static java.lang.annotation.RetentionPolicy.SOURCE;
-    @SuppressWarnings("WeakerAccess")
-    @Retention(SOURCE)
-    @Target({METHOD, PARAMETER, FIELD, LOCAL_VARIABLE, TYPE_USE, ANNOTATION_TYPE, PACKAGE})
-    public @interface Nullable {
-    }
-    """
-        )
-        .indented()
-
 val recentlyNonNullSource: TestFile =
     java(
             """
@@ -1908,18 +1870,22 @@ val DEFAULT_SKIP_EMIT_PACKAGES =
         ANDROIDX_ANNOTATION_PACKAGE,
         // Ditto for libcore.util.
         "libcore.util",
+        // Ditto for test only nullability annotations.
+        "mixed.use",
+        "not.type.use",
+        "type.use.only",
     )
 
 /**
  * A special [FileFormat] used by tests that want to output type use annotations to signature files.
  */
 val TYPE_USE_FORMAT =
-    FileFormat.V5.copy(
-        kotlinNameTypeOrder = true,
-        includeTypeUseAnnotations = true,
-        kotlinStyleNulls = false,
-        specifiedStripJavaLangPrefix = StripJavaLangPrefix.ALWAYS,
-    )
+    FileFormat.V5.buildCopy {
+        this[INCLUDE_TYPE_USE_ANNOTATIONS] = true
+        this[KOTLIN_NAME_TYPE_ORDER] = true
+        this[KOTLIN_STYLE_NULLS] = false
+        this[STRIP_JAVA_LANG_PREFIX] = StripJavaLangPrefix.ALWAYS
+    }
 
 /**
  * Enumeration of the different types of system APIs used in Android.

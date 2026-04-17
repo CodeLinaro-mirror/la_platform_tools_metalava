@@ -40,9 +40,9 @@ import com.android.tools.metalava.cli.multiplatform.MultiplatformOptions
 import com.android.tools.metalava.cli.signature.MergeSignaturesCommand
 import com.android.tools.metalava.cli.signature.SignatureCatCommand
 import com.android.tools.metalava.cli.signature.SignatureFormatOptions
+import com.android.tools.metalava.cli.signature.SignatureReformatCommand
 import com.android.tools.metalava.cli.signature.SignatureToDexCommand
 import com.android.tools.metalava.cli.signature.SignatureToJDiffCommand
-import com.android.tools.metalava.cli.signature.UpdateSignatureHeaderCommand
 import com.android.tools.metalava.compatibility.CompatibilityCheck
 import com.android.tools.metalava.jar.JarCodebaseLoader
 import com.android.tools.metalava.lint.ApiLint
@@ -56,10 +56,11 @@ import com.android.tools.metalava.model.DelegatedVisitor
 import com.android.tools.metalava.model.ItemVisitor
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
 import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
-import com.android.tools.metalava.model.psi.PsiModelOptions
 import com.android.tools.metalava.model.snapshot.NonFilteringDelegatingVisitor
 import com.android.tools.metalava.model.source.EnvironmentManager
+import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.source.SourceSet
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.ADD_ADDITIONAL_OVERRIDES
 import com.android.tools.metalava.model.text.SignatureFile
 import com.android.tools.metalava.model.text.SignatureWriter
 import com.android.tools.metalava.model.text.createFilteringVisitorForSignatures
@@ -176,9 +177,9 @@ class Driver(
                 MakeAnnotationsPackagePrivateCommand(),
                 MergeSignaturesCommand(),
                 SignatureCatCommand(),
+                SignatureReformatCommand(),
                 SignatureToDexCommand(),
                 SignatureToJDiffCommand(),
-                UpdateSignatureHeaderCommand(),
                 VersionCommand(),
             )
             return command
@@ -282,7 +283,7 @@ class Driver(
     private val apiPredicateConfig by lazy {
         ApiPredicate.Config(
             ignoreShown = apiSelectionOptions.showUnannotated,
-            addAdditionalOverrides = signatureFormatOptions.fileFormat.addAdditionalOverrides,
+            addAdditionalOverrides = signatureFormatOptions.fileFormat[ADD_ADDITIONAL_OVERRIDES],
         )
     }
 
@@ -552,7 +553,6 @@ class Driver(
                         ApiLint.Config(
                             manifest = miscellaneousOptions.manifest,
                             allowedAcronyms = apiLintOptions.allowedAcronyms,
-                            useK2Uast = sourceOptions.modelOptions[PsiModelOptions.useK2Uast],
                         ),
                     )
                 }
@@ -713,15 +713,18 @@ class Driver(
             }
 
         progressTracker.progress("Reading Codebase: ")
-        val codebase =
-            sourceParser.parseSources(
+
+        val inputs =
+            SourceParser.Inputs(
                 sourceSet,
                 "Codebase loaded from source folders",
                 classPath = sourceOptions.classpath,
                 apiPackages = sourceOptions.apiPackageFilter,
                 projectDescription = sourceOptions.projectDescription,
-                compiledSourceJar = sourceOptions.compiledSourceJar
-            ) ?: return null
+                compiledSourceJar = sourceOptions.compiledSourceJar,
+            )
+
+        val codebase = sourceParser.parseSources(inputs) ?: return null
 
         progressTracker.progress("Analyzing API: ")
 
@@ -772,7 +775,6 @@ class Driver(
                 ApiLint.Config(
                     manifest = miscellaneousOptions.manifest,
                     allowedAcronyms = apiLintOptions.allowedAcronyms,
-                    useK2Uast = sourceOptions.modelOptions[PsiModelOptions.useK2Uast],
                 ),
             )
         }

@@ -39,7 +39,7 @@ import org.jetbrains.kotlin.analysis.api.projectStructure.KaModule
  * After creation, a list of PSI file is passed to [PsiCodebaseAssembler.initializeFromSources] or a
  * JAR file is passed to [PsiCodebaseAssembler.initializeFromJar]. This creates package and class
  * items along with their members. Any classes defined in those files will have [ClassItem.origin]
- * set based on [fromClasspath].
+ * set to [ClassOrigin.COMMAND_LINE].
  *
  * Classes that are created through [findOrCreateClass] will have [ClassItem.origin] set to
  * [ClassOrigin.SOURCE_PATH] or [ClassOrigin.CLASS_PATH] depending on whether the class is defined
@@ -49,14 +49,12 @@ internal class PsiBasedCodebase(
     location: File,
     description: String = "Unknown",
     config: Codebase.Config,
-    val fromClasspath: Boolean = false,
     assembler: PsiCodebaseAssembler,
     /**
      * Whether types should be checked to see if there are any references to typealiases, and have
      * the references replaced with the aliased type.
      *
-     * This is necessary when processing multiplatform sources with K2. With K1 psi, all typealiases
-     * are already replaced by the aliased type, but with K2 typealias usages may not have been
+     * This is necessary when processing multiplatform sources. Typealias usages may not have been
      * replaced with the aliased type, particularly if the typealias is defined in a different
      * module from the usage.
      */
@@ -104,8 +102,6 @@ internal class PsiBasedCodebase(
     }
 
     internal fun findOrCreateClass(psiClass: PsiClass) = psiAssembler.findOrCreateClass(psiClass)
-
-    override fun isFromClassPath() = fromClasspath
 
     /**
      * Override to allow access to the [AnnotationDefaults] without having to resolve a [ClassItem]

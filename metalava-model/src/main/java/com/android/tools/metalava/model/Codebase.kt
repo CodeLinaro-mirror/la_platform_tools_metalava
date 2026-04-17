@@ -58,12 +58,6 @@ interface Codebase : ClassPathResolver, AnnotationContext {
     fun getTopLevelClassesFromSource(): List<ClassItem>
 
     /**
-     * Return `true` if this whole [Codebase] was created from the class path, i.e. not from
-     * sources.
-     */
-    fun isFromClassPath(): Boolean = false
-
-    /**
      * Freeze all the classes loaded from sources, along with their super classes.
      *
      * This does not prevent adding new classes and does automatically freeze classes added after

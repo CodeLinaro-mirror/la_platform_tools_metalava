@@ -22,14 +22,18 @@ import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.Assertions
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.PackageFilter
+import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
 import com.android.tools.metalava.model.api.flags.ApiFlags
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
+import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.source.DEFAULT_JAVA_LANGUAGE_LEVEL
 import com.android.tools.metalava.model.testing.CodebaseCreatorConfig
 import com.android.tools.metalava.model.testing.CodebaseCreatorConfigAware
+import com.android.tools.metalava.model.testing.testTypeString
+import com.android.tools.metalava.reporter.Issues.Issue
 import com.android.tools.metalava.reporter.RecordingReporter
 import com.android.tools.metalava.testing.TemporaryFolderOwner
 import java.io.File
@@ -217,9 +221,12 @@ abstract class BaseModelTest() :
 
         /** The Java language level. */
         val javaLanguageLevel: String = DEFAULT_JAVA_LANGUAGE_LEVEL,
+
+        /** The set of [Issue] to exclude from the [recordingReporter]. */
+        val excludedIssues: Set<Issue> = emptySet(),
     ) {
         /** The [RecordingReporter] used by the test. */
-        val recordingReporter = RecordingReporter()
+        val recordingReporter = RecordingReporter(excludedIssues)
 
         /** The [Codebase.Config] to use when creating a [Codebase] to test. */
         val codebaseConfig
@@ -446,6 +453,45 @@ abstract class BaseModelTest() :
     /** Create a signature [TestFile] with the supplied [contents] in a file with a path of [to]. */
     fun signature(to: String, contents: String): TestFile =
         TestFiles.source(to, contents.trimIndent())
+
+    data class JarSupportContext(val jarSupport: JarSupport)
+
+    /** Run a test that uses [JarSupport]. */
+    fun runJarSupportTest(test: JarSupportContext.() -> Unit) {
+        if (jarSupportCapabilities.none { it in runner.capabilities }) {
+            error(
+                "Provider ${runner.providerName} does not support jars; please add one of ${jarSupportCapabilities.joinToString { "@RequiresCapabilities(Capability.$it)" }}` to the test"
+            )
+        }
+        runner.createJarSupportAndRun { jarSupport ->
+            val context = JarSupportContext(jarSupport)
+            context.test()
+        }
+    }
+
+    /** Check to make sure that this uses the default type bounds. */
+    fun TypeParameterItem.assertUsesDefaultTypeBounds() {
+        val expected =
+            if (inputFormat == InputFormat.KOTLIN) {
+                "java.lang.Object?"
+            } else {
+                "java.lang.Object!"
+            }
+        assertEquals(
+            expected,
+            typeBounds().joinToString {
+                it.testTypeString(
+                    annotations = true,
+                    kotlinStyleNulls = true,
+                )
+            }
+        )
+    }
+
+    companion object {
+        /** The set of [Capability] instances supported by [JarSupport]. */
+        private val jarSupportCapabilities = setOf(Capability.CLASS_PATH_RESOLVER)
+    }
 }
 
 /**

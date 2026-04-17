@@ -17,6 +17,8 @@
 package com.android.tools.metalava
 
 import com.android.tools.lint.checks.infrastructure.TestFile
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.INCLUDE_TYPE_USE_ANNOTATIONS
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.KOTLIN_NAME_TYPE_ORDER
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
@@ -31,10 +33,10 @@ class TypeUseAnnotationFilteringTest : DriverTest() {
     ) {
         check(
             format =
-                FileFormat.V5.copy(
-                    kotlinNameTypeOrder = true,
-                    includeTypeUseAnnotations = true,
-                ),
+                FileFormat.V5.buildCopy {
+                    this[INCLUDE_TYPE_USE_ANNOTATIONS] = true
+                    this[KOTLIN_NAME_TYPE_ORDER] = true
+                },
             sourceFiles =
                 arrayOf(
                     KnownSourceFiles.nonNullSource,
@@ -82,7 +84,6 @@ class TypeUseAnnotationFilteringTest : DriverTest() {
 
     @Test
     fun `Keep type use annotations`() {
-        // TODO: The type use annotations seem to be in the wrong place.
         runTypeUseTest(
             typeUseAnnotationVisibility = "public",
             api =
@@ -96,14 +97,15 @@ class TypeUseAnnotationFilteringTest : DriverTest() {
                     }
                     package test.pkg {
                       public abstract class Class extends java.lang.@test.annotation.TypeUse Exception implements test.pkg.Interface<java.lang.@test.annotation.TypeUse String,java.lang.Integer?> {
-                        ctor public Class(@test.annotation.TypeUse _: @test.annotation.TypeUse float) throws java.lang.IllegalStateException;
-                        field @test.annotation.TypeUse public field: @test.annotation.TypeUse long;
+                        ctor public Class(_: @test.annotation.TypeUse float) throws java.lang.IllegalStateException;
+                        field public field: @test.annotation.TypeUse long;
                       }
                       public interface Interface<T, S> extends java.util.Map.Entry<@test.annotation.TypeUse T,S?> java.lang.@test.annotation.TypeUse Runnable {
-                        method @test.annotation.TypeUse public method(@test.annotation.TypeUse _: @test.annotation.TypeUse int): @test.annotation.TypeUse T throws java.lang.IllegalStateException;
+                        method public method(_: @test.annotation.TypeUse int): @test.annotation.TypeUse T throws java.lang.IllegalStateException;
                       }
                     }
                 """,
+            // TODO: Stub writer does not support type use annotations.
             stubFiles =
                 arrayOf(
                     java(
@@ -111,8 +113,8 @@ class TypeUseAnnotationFilteringTest : DriverTest() {
                             package test.pkg;
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
                             public abstract class Class extends java.lang.Exception implements test.pkg.Interface<java.lang.String,java.lang.Integer> {
-                            public Class(@test.annotation.TypeUse float f) throws java.lang.IllegalStateException { throw new RuntimeException("Stub!"); }
-                            @test.annotation.TypeUse public long field;
+                            public Class(float f) throws java.lang.IllegalStateException { throw new RuntimeException("Stub!"); }
+                            public long field;
                             }
                         """
                     ),
@@ -122,8 +124,7 @@ class TypeUseAnnotationFilteringTest : DriverTest() {
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
                             public interface Interface<T, S> extends java.util.Map.Entry<T,S>, java.lang.Runnable {
                             @android.annotation.NonNull
-                            @test.annotation.TypeUse
-                            public T method(@test.annotation.TypeUse int p) throws java.lang.IllegalStateException;
+                            public T method(int p) throws java.lang.IllegalStateException;
                             }
                         """
                     ),

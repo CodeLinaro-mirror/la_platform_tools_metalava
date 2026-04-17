@@ -93,7 +93,7 @@ internal class KaModifierFactory(private val processor: KaModuleProcessor) {
         setter: MethodItem?,
         backingField: FieldItem?,
     ) {
-        // Correct visibility of accessors (work around K2 bugs with value class type properties)
+        // Correct visibility of accessors (work around bugs with value class type properties)
         // https://youtrack.jetbrains.com/issue/KT-74205
         // The getter must have the same visibility as the property
         val propertyVisibility = modifiers.getVisibilityLevel()

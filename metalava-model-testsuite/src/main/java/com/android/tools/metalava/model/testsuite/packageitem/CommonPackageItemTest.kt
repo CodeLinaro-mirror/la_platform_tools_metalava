@@ -18,11 +18,10 @@ package com.android.tools.metalava.model.testsuite.packageitem
 
 import com.android.tools.lint.checks.infrastructure.TestFiles.source
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.testsuite.BaseModelTest
-import com.android.tools.metalava.testing.KnownSourceFiles.nonNullSource
+import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.TestFileCache
 import com.android.tools.metalava.testing.TestFileCacheRule
 import com.android.tools.metalava.testing.cacheIn
@@ -154,10 +153,10 @@ class CommonPackageItemTest : BaseModelTest() {
     fun `Test nullability annotation in package info`() {
         runSourceCodebaseTest(
             inputSet(
-                nonNullSource,
+                KnownSourceFiles.androidxNonNullJavaSource,
                 java(
                     """
-                        @android.annotation.NonNull
+                        @androidx.annotation.NonNull
                         package test.pkg;
                     """
                 ),
@@ -169,16 +168,10 @@ class CommonPackageItemTest : BaseModelTest() {
                     """
                 ),
             ),
-            testFixture =
-                TestFixture(
-                    // Use the noOpAnnotationManager to avoid annotation name normalizing as the
-                    // annotation names are important for this test.
-                    annotationManager = noOpAnnotationManager,
-                ),
         ) {
             val packageItem = codebase.assertPackage("test.pkg")
             assertEquals(
-                "@android.annotation.NonNull",
+                "@androidx.annotation.NonNull",
                 packageItem.modifiers.annotations().single().toString()
             )
         }
@@ -428,16 +421,19 @@ class CommonPackageItemTest : BaseModelTest() {
                         }
                     """
                 ),
-                html(
-                    "src/other/pkg/package.html",
-                    """
-                        <HTML>
-                        <BODY>
-                        Some text.
-                        </BODY>
-                        </HTML>
-                    """
-                ),
+                sourcePathFiles =
+                    listOf(
+                        html(
+                            "src/other/pkg/package.html",
+                            """
+                                <HTML>
+                                <BODY>
+                                Some text.
+                                </BODY>
+                                </HTML>
+                            """
+                        ),
+                    ),
             ),
         ) {
             val packageItem = codebase.findPackage("other.pkg")
@@ -502,8 +498,8 @@ class CommonPackageItemTest : BaseModelTest() {
         ) {
             codebase.assertClass("test.pkg.Foo")
             // Make sure that if any errors are reported that they are included in this list of
-            // known errors. This is needed because K1 produces both errors, but K2 only produces
-            // the first error. This test is currently broken for Turbine.
+            // known errors. This is needed because psi produces both errors, but turbine only
+            // produces the first error
             assertContains(
                 """
                     MAIN_SRC/src/test/other/Foo.java: error: Unable to determine the package name. This usually means that a source file was where the directory does not seem to match the package declaration; we expected the path MAIN_SRC/src/test/other/Foo.java to end with /test/pkg/Foo.java [IoError]
@@ -615,6 +611,49 @@ class CommonPackageItemTest : BaseModelTest() {
                         MAIN_SRC/src/test/pkg/package-info.java: warning: It is illegal to provide both a package-info.java file and a package.html file for the same package [BothPackageInfoAndHtml]
                     """
             )
+        }
+    }
+
+    @RequiresCapabilities(Capability.JAVA)
+    @Test
+    fun `Test overlapping source path dirs`() {
+        // Tests what happens when the source path contains overlapping source roots.
+        runCodebaseTest(
+            inputSet(
+                // Adds TEST-ROOT/src/a-really-long-dir-name on the source path.
+                java(
+                    "a-really-long-dir-name/test/pkg/Test.java",
+                    """
+                        package test.pkg;
+                        public class Test {}
+                    """
+                ),
+                // Adds TEST-ROOT/src/a-really-long-dir-name/shorter-dir-name on the source path.
+                java(
+                    "a-really-long-dir-name/shorter-dir-name/other/pkg/Other.java",
+                    """
+                        package other.pkg;
+                        public class Other {}
+                    """
+                ),
+                // Should be treated as being relative to the containing directory with the longest
+                // path, i.e. `TEST-ROOT/src/a-really-long-dir-name/shorter-dir-name` and so be
+                // applicable to the `other` package.
+                html(
+                    "a-really-long-dir-name/shorter-dir-name/other/package.html",
+                    """
+                        <HTML>
+                        <BODY>
+                        Some text
+                        </BODY>
+                        </HTML>
+                    """
+                ),
+            )
+        ) {
+            val packageItem = codebase.assertPackage("other")
+
+            packageItem.assertPrintedDocumentation(expectedOutput = "/** Some text */")
         }
     }
 }

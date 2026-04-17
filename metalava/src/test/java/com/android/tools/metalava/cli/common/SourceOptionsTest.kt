@@ -17,8 +17,6 @@
 package com.android.tools.metalava.cli.common
 
 import com.google.common.truth.Truth.assertThat
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertThrows
 import org.junit.Test
 
 val SOURCE_OPTIONS_HELP =
@@ -27,6 +25,7 @@ Sources:
 
   Options that control which source files will be processed.
 
+  --source-model-provider [psi|turbine]      (default: psi)
   --source-path <path>                       A : separated list of directories containing source files (organized in a
                                              standard Java package hierarchy).
   --source-files <files>                     A comma separated list of source files to be parsed. Can also be @ followed
@@ -61,8 +60,6 @@ Sources:
                                              inclusion in the API to be written out, i.e. show and hide. The only format
                                              supported is Java stub files.
   --ignore-comments                          Ignore any comments in source files.
-  --Xuse-k1-uast                             Specifies whether the K1 compiler is used. (default: K1)
-  --Xuse-k2-uast                             Specifies whether the K2 compiler is used. (default: K1)
     """
         .trimIndent()
 
@@ -84,19 +81,6 @@ class SourceOptionsTest :
     fun `Test source model provider - turbine`() {
         runTest(ARG_SOURCE_MODEL_PROVIDER, "turbine") {
             assertThat(options.sourceModelProvider.providerName).isEqualTo("turbine")
-        }
-    }
-
-    @Test
-    fun `Test K1 and K2`() {
-        runTest(ARG_USE_K1_UAST, ARG_USE_K2_UAST) {
-            val exception =
-                assertThrows(MetalavaCliException::class.java) {
-                    // Get the model options which should trigger the exception.
-                    options.modelOptions
-                }
-
-            assertEquals("Cannot specify both --Xuse-k1-uast and --Xuse-k2-uast", exception.message)
         }
     }
 }

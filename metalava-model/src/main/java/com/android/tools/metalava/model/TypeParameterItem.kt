@@ -27,6 +27,11 @@ interface TypeParameterItem : ReferencableItem {
     /** The [VariableTypeItem] representing the type of this type parameter. */
     fun type(): VariableTypeItem
 
+    /**
+     * Get the type bounds for this [TypeParameterItem].
+     *
+     * The returned list will always contain at least one entry.
+     */
     fun typeBounds(): List<BoundsTypeItem>
 
     /**

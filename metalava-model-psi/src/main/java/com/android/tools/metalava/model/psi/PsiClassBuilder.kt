@@ -41,6 +41,7 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.model.WellKnownTypes
 import com.android.tools.metalava.model.WildcardTypeItem
 import com.android.tools.metalava.model.addDefaultRetentionPolicyAnnotation
 import com.android.tools.metalava.model.hasAnnotation
@@ -70,11 +71,9 @@ import org.jetbrains.kotlin.asJava.classes.KtLightClassForFacade
 import org.jetbrains.kotlin.asJava.elements.KotlinLightTypeParameterBuilder
 import org.jetbrains.kotlin.asJava.elements.KtLightDeclaration
 import org.jetbrains.kotlin.lexer.KtTokens
-import org.jetbrains.kotlin.name.JvmStandardClassIds
 import org.jetbrains.kotlin.psi.KtAnnotated
 import org.jetbrains.kotlin.psi.KtClassOrObject
 import org.jetbrains.kotlin.psi.KtConstructor
-import org.jetbrains.kotlin.psi.KtFunction
 import org.jetbrains.kotlin.psi.KtParameter
 import org.jetbrains.kotlin.psi.KtPrimaryConstructor
 import org.jetbrains.kotlin.psi.KtProperty
@@ -272,36 +271,16 @@ internal class PsiClassBuilder(
             if (psiMethod.hasAnnotation(ANDROIDX_COMPOSABLE)) continue
 
             if (psiMethod.isConstructor) {
-                // Kotlin value class primary constructors cannot be called from Java, so they will
-                // be generated later by the KaCodebaseAssembler. For K1, these constructors aren't
-                // fake UAST elements, so they won't have already been filtered out.
-                // TODO(b/427783483): remove this workaround
-                if (classItem.modifiers.isValue() && (psiMethod as UMethod).isPrimaryConstructor) {
-                    continue
-                }
-
                 val constructor = createConstructor(classItem, psiMethod, classTypeItemFactory)
 
-                // Constructors with value class type parameters may or may not be fake UAST
-                // elements depending on whether K1 or K2 is used.
-                // TODO(b/427783483): remove this workaround
+                // TODO(b/491407270): checking parameter types is still required because
+                //  constructors with value class type parameters incorrectly exist as UElements.
                 if (constructor.parameters().any { it.type().isValueClassType }) {
                     continue
                 }
 
-                addOverloadedKotlinCallablesIfNecessary(classItem, constructor, psiMethod)
                 classItem.addConstructor(constructor)
             } else {
-                // With K1, value class property accessors are present as [PsiMethod]s and with K2
-                // they are not. These accessor methods can't actually be used from Java, so this
-                // forces the K2 behavior and filters them out for K1.
-                // TODO(b/427783483): remove this workaround
-                if (
-                    classItem.modifiers.isValue() && psiMethod.sourceElement is KtPropertyAccessor
-                ) {
-                    continue
-                }
-
                 // Property accessors can't be resolved from kotlin, direct access is used instead.
                 val targetLanguages =
                     if (
@@ -332,11 +311,13 @@ internal class PsiClassBuilder(
                     method.targetLanguages -= TargetLanguage.KOTLIN
                 }
 
-                // With K2, any methods using value class types which don't use JvmName
-                // will already have been filtered out because they are represented with fake UAST
-                // elements. With K1, value class types are not treated differently so the elements
-                // are not fake UAST. Filter those value class type property accessors here.
-                // TODO(b/427783483): remove this workaround
+                // If a function has a value class return type which is not explicitly declared in
+                // source it will still incorrectly exist as a UElement (see
+                // https://youtrack.jetbrains.com/issue/KT-74205).
+                // TODO(b/491407270): checking parameter types is still required because
+                //  constructors with value class type parameters incorrectly exist as UElements,
+                //  and a data class copy method has the constructor as its source element so it
+                //  will also still exist as a UElement when it has a value class parameter type.
                 if (
                     (method.returnType().isValueClassType ||
                         method.parameters().any { it.type().isValueClassType } ||
@@ -354,7 +335,6 @@ internal class PsiClassBuilder(
                 }
 
                 if (!method.isEnumSyntheticMethod()) {
-                    addOverloadedKotlinCallablesIfNecessary(classItem, method, psiMethod)
                     classItem.addMethod(method)
                 }
             }
@@ -484,71 +464,6 @@ internal class PsiClassBuilder(
      */
     private fun hasImplicitDefaultConstructor(classItem: ClassItem): Boolean {
         return classItem.isJava() && classItem.constructors().isEmpty() && classItem.isClass()
-    }
-
-    /**
-     * Returns true if overloads of this callable should be created separately.
-     *
-     * This works around the issue of actual callable not generating overloads for @JvmOverloads
-     * annotation when the default is specified on expect side
-     * (https://youtrack.jetbrains.com/issue/KT-57537).
-     */
-    private fun shouldExpandOverloads(callable: CallableItem, psiMethod: PsiMethod): Boolean {
-        val ktFunction = (psiMethod as? UMethod)?.sourcePsi as? KtFunction ?: return false
-        return callable.modifiers.isActual() &&
-            psiMethod.hasAnnotation(JvmStandardClassIds.JVM_OVERLOADS_FQ_NAME.asString()) &&
-            // It is /technically/ invalid to have actual functions with default values, but
-            // some places suppress the compiler error, so we should handle it here too.
-            ktFunction.valueParameters.none { it.hasDefaultValue() } &&
-            callable.parameters().any { it.hasDefaultValue() }
-    }
-
-    /**
-     * Add overloads of [callable] if necessary.
-     *
-     * Workaround for https://youtrack.jetbrains.com/issue/KT-57537.
-     *
-     * For each parameter with a default value in [callable] this adds a [CallableItem] that
-     * excludes that parameter and all following parameters with default values.
-     */
-    private fun addOverloadedKotlinCallablesIfNecessary(
-        classItem: SkeletonClassItem,
-        callable: CallableItem,
-        psiMethod: PsiMethod,
-    ) {
-        if (!shouldExpandOverloads(callable, psiMethod)) {
-            return
-        }
-
-        val parameters = callable.parameters()
-
-        // Create an overload of the constructor for each parameter that has a default value. The
-        // constructor will exclude that parameter and all following parameters that have default
-        // values.
-        for (currentParameterIndex in parameters.indices) {
-            val currentParameter = parameters[currentParameterIndex]
-            // There is no need to create an overload if the parameter does not have default value.
-            if (!currentParameter.hasDefaultValue()) continue
-
-            val overloadParameters =
-                parameters.mapIndexedNotNull { index, parameterItem ->
-                    // Ignore the current parameter as well as any following parameters
-                    // with default values.
-                    if (index >= currentParameterIndex && parameterItem.hasDefaultValue()) null
-                    else parameterItem
-                }
-
-            // Create an overloaded callable.
-            val overload = callable.createOverload(overloadParameters)
-            when (overload) {
-                is ConstructorItem -> {
-                    classItem.addConstructor(overload)
-                }
-                is MethodItem -> {
-                    classItem.addMethod(overload)
-                }
-            }
-        }
     }
 
     internal fun createField(
@@ -1010,7 +925,7 @@ internal class PsiClassBuilder(
             { typeItemFactory, psiTypeParameter ->
                 val refs = psiTypeParameter.extendsList.referencedTypes
                 if (refs.isEmpty()) {
-                    emptyList()
+                    WellKnownTypes.defaultTypeParameterBounds(psiTypeParameter.isKotlin())
                 } else {
                     refs.mapNotNull { typeItemFactory.getBoundsType(PsiTypeInfo(it)) }
                 }

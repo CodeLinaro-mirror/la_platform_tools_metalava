@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.transformer.CodebaseTransformer
+import com.android.tools.metalava.model.testsuite.JarSupport
 import com.android.tools.metalava.model.testsuite.ModelSuiteRunner
 import com.android.tools.metalava.testing.getAndroidJar
 import java.io.File
@@ -72,6 +73,10 @@ class TextModelSuiteRunner : ModelSuiteRunner {
         test: (MultiplatformCodebase?) -> Unit
     ) {
         TODO("b/407735666")
+    }
+
+    override fun createJarSupportAndRun(test: (JarSupport) -> Unit) {
+        error("should never be called")
     }
 
     override fun toString() = providerName

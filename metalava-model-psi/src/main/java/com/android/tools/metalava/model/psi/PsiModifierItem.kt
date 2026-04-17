@@ -78,7 +78,6 @@ import org.jetbrains.kotlin.psi.KtDeclaration
 import org.jetbrains.kotlin.psi.KtElement
 import org.jetbrains.kotlin.psi.KtModifierList
 import org.jetbrains.kotlin.psi.KtModifierListOwner
-import org.jetbrains.kotlin.psi.KtNamedFunction
 import org.jetbrains.kotlin.psi.KtObjectDeclaration
 import org.jetbrains.kotlin.psi.KtPrimaryConstructor
 import org.jetbrains.kotlin.psi.KtPropertyAccessor
@@ -238,11 +237,11 @@ internal object PsiModifierItem {
                 }
             }
 
-            // With K2, the source psi of a data class copy method is the primary constructor, so
-            // that gets used to determine internal visibility above. That works if the data class
-            // is annotated with @ConsistentCopyVisibility (pre Kotlin 2.3), or is not annotated
-            // with @ExposedCopyVisibility (Kotlin 2.3 or later). Otherwise, the copy method should
-            // be public. If the copy method is supposed to be internal, it will get a mangled name
+            // The source psi of a data class copy method is the primary constructor, so that gets
+            // used to determine internal visibility above. That works if the data class is
+            // annotated with @ConsistentCopyVisibility (pre Kotlin 2.3), or is not annotated with
+            // @ExposedCopyVisibility (Kotlin 2.3 or later). Otherwise, the copy method should be
+            // public. If the copy method is supposed to be internal, it will get a mangled name
             // (`copy$<module name>`), so if the name is just plain "copy", that means it should not
             // be internal. Reset the visibility to public in that case.
             if (
@@ -251,20 +250,6 @@ internal object PsiModifierItem {
                     sourcePsi.containingClass()?.hasModifier(KtTokens.DATA_KEYWORD) == true &&
                     visibilityFlags == INTERNAL
             ) {
-                visibilityFlags = PUBLIC
-            }
-        }
-
-        if (ktModifierList?.hasModifier(KtTokens.INLINE_KEYWORD) == true) {
-            // Workaround for b/117565118:
-            val func = sourcePsi as? KtNamedFunction
-            if (
-                func != null &&
-                    (func.typeParameterList?.text ?: "").contains(KtTokens.REIFIED_KEYWORD.value) &&
-                    !ktModifierList.hasModifier(KtTokens.PRIVATE_KEYWORD) &&
-                    !ktModifierList.hasModifier(KtTokens.INTERNAL_KEYWORD)
-            ) {
-                // Switch back from private to public
                 visibilityFlags = PUBLIC
             }
         }
@@ -386,12 +371,32 @@ internal object PsiModifierItem {
      */
     private fun PsiAnnotationMemberValue.targets(): List<String> {
         return when (this) {
-            is PsiReferenceExpression -> listOf(qualifiedName)
-            is PsiArrayInitializerMemberValue ->
-                initializers.mapNotNull { (it as? PsiReferenceExpression)?.qualifiedName }
+            is PsiReferenceExpression -> {
+                // Note: This does not use canonicalText because while its documentation says that
+                // it should provide a fully qualified reference independent of imports that is not
+                // always true.
+
+                // Resolve the reference to what should be a field in ElementType.
+                val psiField = resolve() as? PsiField
+
+                // Return a list of the qualified field name, falling back to the inline text just
+                // in case it cannot be resolved.
+                val qualifiedName = psiField?.qualifiedName() ?: qualifiedName
+                listOf(qualifiedName)
+            }
+            is PsiArrayInitializerMemberValue -> {
+                // Combine the targets from each item in the array.
+                initializers.flatMap { it.targets() }
+            }
             else -> emptyList()
         }
     }
+
+    /**
+     * Get the qualified name of the [PsiField], returning `null` if the containing class could not
+     * be found.
+     */
+    private fun PsiField.qualifiedName() = containingClass?.qualifiedName?.let { "$it.$name" }
 
     /**
      * Annotations which are only `TYPE_USE` should only apply to types, not the owning item of the
@@ -403,8 +408,10 @@ internal object PsiModifierItem {
      *
      * To work around psi incorrectly applying exclusively `TYPE_USE` annotations to non-type items,
      * this filters all annotations which should apply to types but not the [forOwner] item.
+     *
+     * Similar to the behavior of [PsiCodebaseAssembler.shouldCopyTypeAnnotationToMethodItem].
      */
-    private fun List<PsiAnnotation>.filterIncorrectTypeUseAnnotations(
+    internal fun List<PsiAnnotation>.filterIncorrectTypeUseAnnotations(
         forOwner: PsiModifierListOwner
     ): List<PsiAnnotation> {
         val expectedTarget =
@@ -420,9 +427,7 @@ internal object PsiModifierItem {
             // If the annotation is not type use, it has been correctly applied to the item.
             !applicableTargets.contains(JAVA_LANG_TYPE_USE_TARGET) ||
                 // If the annotation has the item type as a target, it should be applied here.
-                applicableTargets.contains(expectedTarget) ||
-                // For now, leave in nullness annotations until they are specially handled.
-                isNullnessAnnotation(annotation.qualifiedName.orEmpty())
+                applicableTargets.contains(expectedTarget)
         }
     }
 
@@ -457,16 +462,7 @@ internal object PsiModifierItem {
     ): MutableModifierList {
         val modifierList =
             element.modifierList ?: return createMutableModifiers(VisibilityLevel.PACKAGE_PRIVATE)
-        val uAnnotations =
-            if (annotated is UField && annotated.sourcePsi is KtObjectDeclaration) {
-                    // UAST is adding annotations on object declarations to the UField representing
-                    // the instance of the object, but the compiler does not apply annotations to
-                    // instance fields. Keep the annotation added for the field nullability.
-                    annotated.uAnnotations.filter { it.isKotlinNullabilityAnnotation }
-                } else {
-                    annotated.uAnnotations
-                }
-                .toMutableList()
+        val uAnnotations = annotated.uAnnotations.toMutableList()
         val psiAnnotations =
             modifierList.annotations.takeIf { it.isNotEmpty() }
                 ?: (annotated.javaPsi as? PsiModifierListOwner)?.annotations

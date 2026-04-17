@@ -23,7 +23,7 @@ import com.android.tools.metalava.cli.common.MetalavaHelpFormatter
 import com.android.tools.metalava.cli.common.buildDefinitionListHelp
 import com.android.tools.metalava.cli.common.stdout
 import com.android.tools.metalava.cli.common.terminal
-import com.android.tools.metalava.cli.signature.ARG_FORMAT
+import com.android.tools.metalava.model.text.CustomizableProperty
 import com.android.tools.metalava.model.text.FileFormat
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.context
@@ -97,7 +97,68 @@ will match `foo` and `foo.bar` and `foo.bar.baz` but not `foobar`.
                 .trimIndent()
     )
 
+/**
+ * Append a line to this [StringBuilder] describing the [change], the [property] and its [value]
+ * between a [FileFormat.Version] and its base [FileFormat.Version]. if any.
+ */
+private fun <T> StringBuilder.appendPropertyLine(
+    change: String,
+    property: CustomizableProperty<T>,
+    value: T & Any,
+) {
+    append(change)
+    append(property.propertyName)
+    append(" = ")
+    append(property.valueToString(value))
+    append("\n")
+}
+
+/**
+ * Append a description to this [StringBuilder] of the delta between [baseDefaults] and [version].
+ */
+private fun <T> StringBuilder.appendPropertyDeltaDescription(
+    version: FileFormat.Version,
+    property: CustomizableProperty<T>,
+    baseDefaults: FileFormat?
+) {
+    val value = version.defaults.propertyMap[property]
+    val baseValue = baseDefaults?.propertyMap?.get(property)
+    if (baseValue == value) return
+
+    if (baseValue != null) {
+        appendPropertyLine("+ ", property, baseValue)
+    }
+    if (value != null) {
+        appendPropertyLine("+ ", property, value)
+    }
+}
+
+/**
+ * Construct the help for [version].
+ *
+ * Automatically describes the delta between this version and its predecessor.
+ */
+fun constructVersionHelp(version: FileFormat.Version): String = buildString {
+    append(version.help.trimIndent())
+    val baseVersion = version.baseVersion
+    val delta = buildString {
+        val sortedEntries = CustomizableProperty.entries.sortedBy { it.propertyName }
+        val baseDefaults = baseVersion?.defaults
+        for (property in sortedEntries) {
+            appendPropertyDeltaDescription(version, property, baseDefaults)
+        }
+    }
+    if (delta.isNotEmpty()) {
+        append("\n")
+        append("This is `${baseVersion!!.versionNumber}` plus the following properties:\n")
+        append("```\n")
+        append(delta)
+        append("```\n")
+    }
+}
+
 private fun signatureFileFormatsHelp(): CliktCommand {
+
     /** Construct help for the different [FileFormat.Version]s. */
     fun versionHelp(): String {
         /** Generate a label for a [FileFormat.Version]. */
@@ -105,30 +166,23 @@ private fun signatureFileFormatsHelp(): CliktCommand {
             append('`')
             append(versionNumber)
             append('`')
-            if (legacyCommandLineAlias != null) {
-                append(" (")
-                append(ARG_FORMAT)
-                append("=")
-                append(legacyCommandLineAlias)
-                append(")")
-            }
         }
 
         return buildDefinitionListHelp(
-            FileFormat.versions.map { it.labelGetter() to it.help.trimIndent() },
+            FileFormat.versions.map { it.labelGetter() to constructVersionHelp(it) },
             termPrefix = "* ",
         )
     }
 
     /**
-     * Construct help for the different [FileFormat.CustomizableProperty]s.
+     * Construct help for the different [CustomizableProperty]s.
      *
      * @param filter filter the properties for which help will be provided.
      */
-    fun customizablePropertyHelp(filter: (FileFormat.CustomizableProperty) -> Boolean): String {
-        fun FileFormat.CustomizableProperty.labelGetter() = "`$propertyName = $valueSyntax`"
+    fun customizablePropertyHelp(filter: (CustomizableProperty<*>) -> Boolean): String {
+        fun CustomizableProperty<*>.labelGetter() = "`$propertyName = $valueSyntax`"
         return buildDefinitionListHelp(
-            FileFormat.CustomizableProperty.entries.mapNotNull {
+            CustomizableProperty.entries.mapNotNull {
                 if (!filter(it)) return@mapNotNull null
                 val help = it.help
                 if (help == "") return@mapNotNull null

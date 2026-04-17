@@ -24,19 +24,21 @@ import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.cli.common.ARG_KOTLIN_SOURCE
 import com.android.tools.metalava.lint.DefaultLintErrorMessage
 import com.android.tools.metalava.model.provider.Capability
-import com.android.tools.metalava.model.testing.FilterAction
-import com.android.tools.metalava.model.testing.FilterByProvider
 import com.android.tools.metalava.model.testing.RequiresCapabilities
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.INCLUDE_TYPE_USE_ANNOTATIONS
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.KOTLIN_NAME_TYPE_ORDER
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.OVERLOADED_METHOD_ORDER
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.SORT_WHOLE_EXTENDS_LIST
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.FileFormat.OverloadedMethodOrder
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.testing.KnownJarFiles
+import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.createAndroidModuleDescription
 import com.android.tools.metalava.testing.createCommonModuleDescription
 import com.android.tools.metalava.testing.createProjectDescription
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
-import com.android.tools.metalava.testing.source
 import org.junit.Test
 
 class ApiFileTest : DriverTest() {
@@ -937,8 +939,8 @@ class ApiFileTest : DriverTest() {
                     }
                     """
                     ),
-                    androidxNonNullSource,
-                    androidxNullableSource,
+                    KnownSourceFiles.androidxNonNullJavaSource,
+                    KnownSourceFiles.androidxNullableJavaSource,
                 ),
             api =
                 """
@@ -1208,8 +1210,8 @@ class ApiFileTest : DriverTest() {
                     inline operator fun <F, S> PlatformJavaPair<F, S>.component1() = first
                     """
                     ),
-                    androidxNonNullSource,
-                    androidxNullableSource,
+                    KnownSourceFiles.androidxNonNullJavaSource,
+                    KnownSourceFiles.androidxNullableJavaSource,
                 ),
             api =
                 """
@@ -1363,8 +1365,8 @@ class ApiFileTest : DriverTest() {
                     """
                         )
                         .indented(),
-                    androidxNonNullSource,
-                    androidxNullableSource,
+                    KnownSourceFiles.androidxNonNullJavaSource,
+                    KnownSourceFiles.androidxNullableJavaSource,
                 ),
             api =
                 """
@@ -3429,7 +3431,7 @@ class ApiFileTest : DriverTest() {
     @Test
     fun `Test whether partial or total ordering -  sort-whole-extends-list=yes`() {
         check(
-            format = FileFormat.V2.copy(specifiedSortWholeExtendsList = true),
+            format = FileFormat.V2.buildCopy { this[SORT_WHOLE_EXTENDS_LIST] = true },
             checkCompilation = true,
             sourceFiles =
                 arrayOf(
@@ -3556,7 +3558,7 @@ class ApiFileTest : DriverTest() {
     fun `Extend from multiple interfaces - sort-whole-extends-list=yes`() {
         // Real-world example: XmlResourceParser
         check(
-            format = FileFormat.V2.copy(specifiedSortWholeExtendsList = true),
+            format = FileFormat.V2.buildCopy { this[SORT_WHOLE_EXTENDS_LIST] = true },
             checkCompilation = true,
             sourceFiles =
                 arrayOf(
@@ -4108,7 +4110,7 @@ class ApiFileTest : DriverTest() {
                     }
                     """
                     ),
-                    androidxNonNullSource,
+                    KnownSourceFiles.androidxNonNullJavaSource,
                 ),
             expectedIssues = "",
             api =
@@ -4246,9 +4248,9 @@ class ApiFileTest : DriverTest() {
             signatureSources = arrayOf(source1, source2),
             api = expected,
             format =
-                FileFormat.V2.copy(
-                    specifiedOverloadedMethodOrder = OverloadedMethodOrder.SOURCE,
-                ),
+                FileFormat.V2.buildCopy {
+                    this[OVERLOADED_METHOD_ORDER] = FileFormat.OverloadedMethodOrder.SOURCE
+                },
         )
     }
 
@@ -4775,8 +4777,8 @@ class ApiFileTest : DriverTest() {
                     }
                     """
                     ),
-                    androidxNullableSource,
-                    androidxNonNullSource,
+                    KnownSourceFiles.androidxNullableJavaSource,
+                    KnownSourceFiles.androidxNonNullJavaSource,
                 ),
             api =
                 """
@@ -4927,14 +4929,6 @@ class ApiFileTest : DriverTest() {
     @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Value class`() {
-        // With K1, the value class functions which can't be used from Java source are not properly
-        // marked as kotlin only, because K1 psi does not handle value classes differently.
-        val doSomethingTargetLanguages =
-            if (isK2) {
-                "@KotlinOnly "
-            } else {
-                ""
-            }
         check(
             format = FileFormat.V4,
             sourceFiles =
@@ -5030,7 +5024,7 @@ class ApiFileTest : DriverTest() {
                     method @BytecodeOnly public int compareTo-fPRv1QM(float);
                     method @BytecodeOnly public static int compareTo-fPRv1QM(float, float);
                     method @BytecodeOnly public static float constructor-impl(float);
-                    method ${doSomethingTargetLanguages}public void doSomething();
+                    method @KotlinOnly public void doSomething();
                     method @BytecodeOnly public static void doSomething-impl(float);
                     method @BytecodeOnly public static int getSomeBits-impl(float);
                     method @InaccessibleFromKotlin public float getValue();
@@ -5147,13 +5141,10 @@ class ApiFileTest : DriverTest() {
     @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Kotlin expect-actual with JvmOverloads constructors`() {
-        check(
-            format = FileFormat.V4,
-            sourceFiles =
-                arrayOf(
-                    kotlin(
-                        "src/commonMain/test/pkg/Expect.kt",
-                        """
+        val commonSource =
+            kotlin(
+                "src/commonMain/test/pkg/Expect.kt",
+                """
                         package test.pkg
 
                         expect class AllOptionalJvmOverloads @JvmOverloads constructor(
@@ -5174,10 +5165,11 @@ class ApiFileTest : DriverTest() {
                             private val bar: Int = 0
                         )
                     """
-                    ),
-                    kotlin(
-                        "src/jvmMain/test/pkg/Actual.kt",
-                        """
+            )
+        val androidSource =
+            kotlin(
+                "src/androidMain/test/pkg/Actual.kt",
+                """
                         package test.pkg
 
                         actual class AllOptionalJvmOverloads @JvmOverloads actual constructor(
@@ -5198,7 +5190,14 @@ class ApiFileTest : DriverTest() {
                             private val bar: Int = 0
                         )
                     """
-                    )
+            )
+        check(
+            format = FileFormat.V4,
+            sourceFiles = arrayOf(commonSource, androidSource),
+            projectDescription =
+                createProjectDescription(
+                    createCommonModuleDescription(arrayOf(commonSource)),
+                    createAndroidModuleDescription(arrayOf(androidSource)),
                 ),
             api =
                 """
@@ -6498,7 +6497,10 @@ class ApiFileTest : DriverTest() {
                     )
                 ),
             format =
-                FileFormat.V5.copy(kotlinNameTypeOrder = true, includeTypeUseAnnotations = true),
+                FileFormat.V5.buildCopy {
+                    this[INCLUDE_TYPE_USE_ANNOTATIONS] = true
+                    this[KOTLIN_NAME_TYPE_ORDER] = true
+                },
             api =
                 """
                     package test.pkg {
@@ -6732,8 +6734,6 @@ class ApiFileTest : DriverTest() {
         )
     }
 
-    // With K1 there is an incorrect extra copy of the no-args constructor, annotated @A
-    @FilterByProvider("psi", "k1", action = FilterAction.EXCLUDE)
     @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Test primary constructor with defaults and secondary constructor with JvmOverloads`() {
@@ -6773,8 +6773,6 @@ class ApiFileTest : DriverTest() {
     }
 
     @RequiresCapabilities(Capability.KOTLIN)
-    // K1 does not have full typealias support.
-    @FilterByProvider("psi", "k1", action = FilterAction.EXCLUDE)
     @Test
     fun `Test typealiases from classpath are not listed`() {
         check(

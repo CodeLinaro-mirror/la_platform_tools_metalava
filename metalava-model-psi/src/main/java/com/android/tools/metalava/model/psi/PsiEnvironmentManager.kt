@@ -136,7 +136,6 @@ internal class PsiEnvironmentManager(
             codebaseConfig = codebaseConfig,
             javaLanguageLevel = javaLanguageLevelFromString(javaLanguageLevel),
             kotlinLanguageLevel = kotlinLanguageVersionSettings(kotlinLanguageLevel),
-            useK2Uast = modelOptions[PsiModelOptions.useK2Uast],
             jdkHome = jdkHome,
         )
     }

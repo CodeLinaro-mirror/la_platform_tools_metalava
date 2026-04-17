@@ -28,6 +28,18 @@ internal open class DefaultClassTypeItem(
     final override val outerClassType: ClassTypeItem?,
     isValueClassType: Boolean = false,
 ) : ClassTypeItem, DefaultTypeItem(modifiers, isValueClassType) {
+
+    init {
+        // Make sure that if an outer class type is provided that its qualified name is the outer
+        // class of this type's qualified name.
+        if (outerClassType != null) {
+            val outerClassName = outerClassType.qualifiedName
+            require(outerClassName.isOuterClassOf(qualifiedName)) {
+                "$outerClassName is not a valid outer class type for $qualifiedName"
+            }
+        }
+    }
+
     override val className: String = ClassTypeItem.computeClassName(qualifiedName)
 
     /**
@@ -59,3 +71,11 @@ internal open class DefaultClassTypeItem(
             )
         } else this
 }
+
+/**
+ * Check to see whether this [String] is the outer class of [qualifiedName].
+ *
+ * i.e. is this [String] with "." appended to it a prefix of [qualifiedName].
+ */
+private fun String.isOuterClassOf(qualifiedName: String) =
+    qualifiedName.length > length && qualifiedName[length] == '.' && qualifiedName.startsWith(this)

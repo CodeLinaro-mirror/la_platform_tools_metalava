@@ -53,3 +53,7 @@ const val JAVA_PACKAGE_INFO = "package-info.java"
 
 const val KOTLIN_CONTINUATION = "kotlin.coroutines.Continuation"
 const val KOTLIN_DEPRECATED = "kotlin.Deprecated"
+
+object JavaConstants {
+    const val DOT_CLASS = ".class"
+}
