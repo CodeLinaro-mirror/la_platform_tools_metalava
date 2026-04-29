@@ -28,7 +28,7 @@ class SnapshotCodebaseTransformer : CodebaseTransformer {
             CodebaseFragment.create(
                     codebase,
                     // Copy every Item from the input.
-                    ::NonFilteringDelegatingVisitor,
+                    factory = ::NonFilteringDelegatingVisitor,
                 )
                 .snapshotIncludingRevertedItems(
                     // Allow references to any Item in the original.

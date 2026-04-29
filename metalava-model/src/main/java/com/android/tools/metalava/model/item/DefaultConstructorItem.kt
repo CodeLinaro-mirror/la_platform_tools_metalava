@@ -54,7 +54,7 @@ internal class DefaultConstructorItem(
     throwsTypes: List<ExceptionTypeItem>,
     callableBodyFactory: CallableBodyFactory,
     private val implicitConstructor: Boolean,
-    override val isPrimary: Boolean = false,
+    isPrimary: Boolean = false,
 ) :
     DefaultCallableItem(
         codebase = codebase,
@@ -73,6 +73,9 @@ internal class DefaultConstructorItem(
         callableBodyFactory = callableBodyFactory,
     ),
     ConstructorItem {
+
+    override var isPrimary: Boolean = isPrimary
+        internal set
 
     /** Override to specialize the return type. */
     override fun returnType() = super.returnType() as ClassTypeItem

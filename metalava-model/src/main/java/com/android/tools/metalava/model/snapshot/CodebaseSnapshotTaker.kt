@@ -259,6 +259,16 @@ private constructor(
         newClass.copySelectedApiVariants(classToSnapshot)
     }
 
+    /** Override to perform actions after all class members have been snapshotted. */
+    override fun afterVisitClass(cls: ClassItem) {
+        // If the class is a record then make sure to initialize the [ClassItem.recordComponents]
+        // in the snapshot class.
+        if (cls.classKind == ClassKind.RECORD) {
+            val snapshotClass = cls.getSnapshotClass()
+            snapshotClass.initializeRecordComponents()
+        }
+    }
+
     /** Execute [body] within [SnapshotTypeItemFactoryContext]. */
     private inline fun <T> SnapshotTypeItemFactory.inScope(
         body: SnapshotTypeItemFactoryContext.() -> T
@@ -405,6 +415,7 @@ private constructor(
                     receiver = property.receiver?.snapshot(),
                     typeParameterList = typeParameterList,
                     setterVisibility = property.setterVisibility,
+                    recordComponentIndex = propertyToSnapshot.recordComponentIndex,
                 )
             }
         newProperty.copySelectedApiVariants(propertyToSnapshot)

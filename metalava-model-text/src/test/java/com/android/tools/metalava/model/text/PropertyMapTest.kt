@@ -52,6 +52,21 @@ class PropertyMapTest {
     }
 
     @Test
+    fun `Test add order does not affect toString`() {
+        val propertyMap1 = buildPropertyMap {
+            this[KOTLIN_STYLE_NULLS] = true
+            this[SURFACE] = "public"
+        }
+        val propertyMap2 = buildPropertyMap {
+            this[SURFACE] = "public"
+            this[KOTLIN_STYLE_NULLS] = true
+        }
+
+        assertEquals(propertyMap1, propertyMap2)
+        assertEquals(propertyMap1.toString(), propertyMap2.toString())
+    }
+
+    @Test
     fun `Test equals and hashCode`() {
         val propertyMap1 = buildPropertyMap {
             this[SURFACE] = "public"

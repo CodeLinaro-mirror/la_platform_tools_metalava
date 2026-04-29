@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.testsuite
 
+import com.android.tools.metalava.model.FlaggedApiInheritance
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ModifierListWriter
 import com.android.tools.metalava.testing.java
@@ -37,6 +38,7 @@ class CommonModifierListWriterTest : BaseModelTest() {
                 skipNullnessAnnotations = true,
                 normalizeFinal = normalizeFinal,
                 normalizeAbstract = normalizeAbstract,
+                flaggedApiInheritance = FlaggedApiInheritance.NONE,
             )
         writer.writeKeywords(this)
         return stringWriter.toString().trimEnd()

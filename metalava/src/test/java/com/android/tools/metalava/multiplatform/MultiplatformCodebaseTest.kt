@@ -127,4 +127,40 @@ class MultiplatformCodebaseTest : DriverTest() {
                 .isEqualTo(TypeNullability.NONNULL)
         }
     }
+
+    @Test
+    fun `Test creation of multiplatform codebase with no regular codebase`() {
+        val commonSource =
+            kotlin(
+                "commonMain/src/test/pkg/Foo.kt",
+                """
+                package test.pkg
+                expect class Foo
+                """
+            )
+        val nativeSource =
+            kotlin(
+                "nativeMain/src/test/pkg/Foo.kt",
+                """
+                package test.pkg
+                actual class Foo
+                """
+            )
+        check(
+            sourceFiles = arrayOf(commonSource, nativeSource),
+            projectDescription =
+                createProjectDescription(
+                    createCommonModuleDescription(arrayOf(commonSource)),
+                    createNativeModuleDescription(arrayOf(nativeSource)),
+                ),
+            enableMultiplatform = true,
+            skipSourceArgs = true,
+        ) {
+            assertThat(codebase).isNull()
+            assertThat(multiplatformCodebase).isNotNull()
+
+            multiplatformCodebase!!.assertSourceSets("commonMain", "nativeMain")
+            multiplatformCodebase.assertClass("test.pkg.Foo")
+        }
+    }
 }
