@@ -3206,7 +3206,7 @@ class UastTest : DriverTest() {
             // This class exists on the classpath for both androidMain and jvmMain. Each definition
             // has a different method name. The codebase created should be based on the androidMain
             // source set, so the resolved class here should be the android version.
-            val conflictingClass = codebase.assertResolvedClass("other.pkg.ConflictingClass")
+            val conflictingClass = codebase!!.assertResolvedClass("other.pkg.ConflictingClass")
             val method = conflictingClass.methods().single()
             assertEquals(method.name(), "android")
         }

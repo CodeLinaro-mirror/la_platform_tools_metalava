@@ -51,7 +51,10 @@ interface ConstructorItem : CallableItem {
         duplicate: Boolean,
     ) = containingClass().findCorrespondingItemIn(codebase)?.findConstructor(this)
 
-    /** True if this is the primary constructor in Kotlin. */
+    /**
+     * True if this is the primary constructor in Kotlin, or the canonical constructor of a Java
+     * record class.
+     */
     val isPrimary: Boolean
 
     /**

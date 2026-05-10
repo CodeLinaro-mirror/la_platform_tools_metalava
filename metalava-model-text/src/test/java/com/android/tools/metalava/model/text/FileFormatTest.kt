@@ -39,6 +39,7 @@ val DEFAULTABLE_PROPERTY_NAMES =
     listOf(
         "add-additional-overrides",
         "flagged-api-inheritance",
+        "java-record-classes",
         "normalize-abstract-modifier",
         "normalize-final-modifier",
         "overloaded-method-order",
@@ -825,6 +826,7 @@ class FileFormatTest {
                 flagged-api-inheritance=none
                 include-default-parameter-values=no
                 include-type-use-annotations=no
+                java-record-classes=no
                 kotlin-name-type-order=no
                 kotlin-style-nulls=no
                 normalize-abstract-modifier=no

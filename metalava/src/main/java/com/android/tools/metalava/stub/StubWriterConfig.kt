@@ -23,4 +23,10 @@ package com.android.tools.metalava.stub
 internal data class StubWriterConfig(
     /** If true then include documentation in the generated stubs. */
     val includeDocumentationInStubs: Boolean = false,
+
+    /**
+     * If true then include Java record class related information in the generated stubs. Otherwise,
+     * treat record classes as normal classes as much as possible.
+     */
+    val javaRecordClasses: Boolean = false,
 )

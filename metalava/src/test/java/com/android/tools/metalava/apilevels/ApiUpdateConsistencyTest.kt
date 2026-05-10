@@ -141,7 +141,11 @@ class ApiUpdateConsistencyTest : DriverTest() {
 
             assertNotNull(codebase, message = "Codebase was not created")
 
-            val codebaseFragment = CodebaseFragment.create(codebase, ::EmittableDelegatingVisitor)
+            val codebaseFragment =
+                CodebaseFragment.create(
+                    codebase,
+                    factory = ::EmittableDelegatingVisitor,
+                )
             VersionedSourceApi({ codebaseFragment }, version)
         }
     }

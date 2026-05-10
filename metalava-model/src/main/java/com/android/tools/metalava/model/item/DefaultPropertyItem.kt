@@ -26,6 +26,7 @@ import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
+import com.android.tools.metalava.model.RecordComponentItem
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeItem
@@ -43,9 +44,9 @@ internal class DefaultPropertyItem(
     documentationFactory: ItemDocumentationFactory,
     variantSelectorsFactory: ApiVariantSelectorsFactory,
     modifiers: BaseModifierList,
-    name: String,
+    override val name: String,
     containingClass: ClassItem,
-    private var type: TypeItem,
+    type: TypeItem,
     override val getter: MethodItem?,
     override val setter: MethodItem?,
     override val constructorParameter: ParameterItem?,
@@ -53,6 +54,7 @@ internal class DefaultPropertyItem(
     override val receiver: TypeItem?,
     override val typeParameterList: TypeParameterList,
     override val setterVisibility: VisibilityLevel?,
+    override val recordComponentIndex: Int,
 ) :
     DefaultMemberItem(
         codebase,
@@ -67,12 +69,18 @@ internal class DefaultPropertyItem(
         name,
         containingClass,
     ),
-    PropertyItem {
+    PropertyItem,
+    RecordComponentItem {
 
-    override fun type(): TypeItem = type
+    private var _type = type
+
+    override fun type(): TypeItem = _type
+
+    override val type: TypeItem
+        get() = _type
 
     override fun setType(type: TypeItem) {
-        this.type = type
+        this._type = type
     }
 
     override val containingScope: ReferencableNameScope?
@@ -108,6 +116,7 @@ internal class DefaultPropertyItem(
                 receiver = receiver,
                 typeParameterList = typeParameterList,
                 setterVisibility = setterVisibility,
+                recordComponentIndex = recordComponentIndex,
             )
             .also { duplicated -> duplicated.inheritedFrom = containingClass() }
     }

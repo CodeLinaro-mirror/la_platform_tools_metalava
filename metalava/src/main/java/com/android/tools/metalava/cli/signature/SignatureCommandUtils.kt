@@ -22,7 +22,7 @@ import com.android.tools.metalava.model.text.EmitFileHeader
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.SignatureFile
 import com.android.tools.metalava.model.text.SignatureWriter
-import com.android.tools.metalava.model.text.createFilteringVisitorForSignatures
+import com.android.tools.metalava.model.text.createCodebaseFragmentForSignatureFile
 import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiType
 import com.android.tools.metalava.reporter.BasicReporter
@@ -56,9 +56,9 @@ internal fun writeSignatureFile(
 
     // Create a visitor suitable for writing signatures. It will ensure correct ordering for
     // signature files for the outputFormat.
-    val apiWriter =
-        createFilteringVisitorForSignatures(
-            delegate = signatureWriter,
+    val codebaseFragment =
+        createCodebaseFragmentForSignatureFile(
+            codebase,
             fileFormat = outputFormat,
             apiType = ApiType.ALL,
             preFiltered = true,
@@ -66,5 +66,5 @@ internal fun writeSignatureFile(
             apiPredicateConfig = ApiPredicate.Config(),
         )
 
-    codebase.accept(apiWriter)
+    codebaseFragment.accept(signatureWriter)
 }
