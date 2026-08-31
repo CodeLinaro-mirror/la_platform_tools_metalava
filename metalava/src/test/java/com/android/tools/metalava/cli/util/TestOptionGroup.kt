@@ -16,6 +16,11 @@
 
 package com.android.tools.metalava.cli.util
 
+import com.android.tools.metalava.ARG_API_SURFACE
+import com.android.tools.metalava.KnownApiSurface
+import com.android.tools.metalava.testing.TemporaryFolderOwner
+import org.intellij.lang.annotations.Language
+
 /**
  * Encapsulates a set of CLI options for a test and validations to run after the test based on the
  * option values.
@@ -26,4 +31,44 @@ abstract class TestOptionGroup {
 
     /** Validation to run after the test command has executed. */
     abstract fun check()
+}
+
+/** Represents a set of [TestOptionGroup]s for a single [apiSurface]. */
+class SingleSurfaceOptions
+private constructor(
+    val apiSurface: KnownApiSurface,
+    private vararg val optionGroups: TestOptionGroup,
+) {
+    /** CLI arguments needed to run `SingleSurfaceCommand` for this [apiSurface]. */
+    val args = buildList {
+        add("single-surface")
+        add(ARG_API_SURFACE)
+        add(apiSurface.surface)
+        for (optionGroup in optionGroups) {
+            addAll(optionGroup.args)
+        }
+    }
+
+    /** Validates that all expectations are met. */
+    fun check() {
+        for (optionGroup in optionGroups) {
+            optionGroup.check()
+        }
+    }
+
+    companion object {
+        /** Creates [SingleSurfaceOptions] for an [apiSurface] based on the provided inputs. */
+        fun TemporaryFolderOwner.optionsForSurface(
+            apiSurface: KnownApiSurface,
+            @Language("TEXT") expectedApiSignature: String? = null,
+        ): SingleSurfaceOptions {
+            return SingleSurfaceOptions(
+                apiSurface,
+                signatureOptions(
+                    expectedApiSignature = expectedApiSignature,
+                    name = apiSurface.surface,
+                )
+            )
+        }
+    }
 }
