@@ -35,6 +35,7 @@ import org.jetbrains.kotlin.config.CommonConfigurationKeys
 internal class PsiEnvironmentManager(
     private val disableStderrDumping: Boolean = false,
     private val forTesting: Boolean = false,
+    private val reuseEnvironment: Boolean,
 ) : EnvironmentManager {
     init {
         openManagerCount++
@@ -61,6 +62,21 @@ internal class PsiEnvironmentManager(
     /** The first environment created by the manager. */
     var initialEnvironment: UastEnvironment? = null
         private set
+
+    /**
+     * If [reuseEnvironment] is true and there is an [initialEnvironment], returns it. Otherwise,
+     * returns null.
+     *
+     * Reusing an existing [UastEnvironment] when processing the same sources is faster than
+     * creating a new one.
+     */
+    fun getEnvironmentForReuse(): UastEnvironment? {
+        return if (reuseEnvironment) {
+            initialEnvironment
+        } else {
+            null
+        }
+    }
 
     /** The list of available environments. */
     private val uastEnvironments = mutableListOf<UastEnvironment>()

@@ -28,6 +28,7 @@ import com.android.tools.metalava.model.psi.kotlin.KaCodebaseAssembler
 import com.android.tools.metalava.model.psi.kotlin.KotlinBytecodeApis
 import com.android.tools.metalava.model.source.AbstractSourceParser
 import com.android.tools.metalava.model.source.SourceParser
+import com.android.tools.metalava.model.source.SourceSet
 import com.intellij.pom.java.LanguageLevel
 import java.io.File
 import org.jetbrains.kotlin.analysis.api.KaPlatformInterface
@@ -73,29 +74,8 @@ internal class PsiSourceParser(
     override fun processInputs(inputs: SourceParser.Inputs): Codebase {
         val sourceSet = inputs.sourceSet
 
-        val config =
-            tracer.trace("UastEnvironment.Configuration.create") {
-                UastEnvironment.Configuration.create()
-            }
-        config.javaLanguageLevel = javaLanguageLevel
-
-        tracer.trace("configureUastEnvironment") {
-            when (val projectDescription = inputs.projectDescription) {
-                null -> {
-                    configureUastEnvironment(config, sourceSet.sourcePath, inputs.classPath)
-                }
-                else -> {
-                    configureUastEnvironmentFromProjectDescription(config, projectDescription)
-                }
-            }
-        }
-
         val environment =
-            tracer.trace("psiEnvironmentManager.createEnvironment") {
-                psiEnvironmentManager.createEnvironment(config)
-            }
-        val kotlinFiles = sourceSet.sources.filter { it.path.endsWith(SdkConstants.DOT_KT) }
-        tracer.trace("environment.analyzeFiles") { environment.analyzeFiles(kotlinFiles) }
+            getOrCreateEnvironment(inputs.projectDescription, inputs.sourceSet, inputs.classPath)
 
         val location = sourceSet.sourcePath.firstOrNull() ?: File("").canonicalFile
         val assembler =
@@ -130,6 +110,47 @@ internal class PsiSourceParser(
         SealedClassImplicitPermitTypesUpdater.updateImplicitPermitTypes(codebase)
 
         return codebase
+    }
+
+    /**
+     * If there is already an existing [UastEnvironment] for reuse, returns it.
+     *
+     * Otherwise, initializes a new [UastEnvironment] based on the [projectDescription],
+     * [sourceSet], and [classpath] provided.
+     */
+    private fun getOrCreateEnvironment(
+        projectDescription: File?,
+        sourceSet: SourceSet,
+        classpath: List<File>,
+    ): UastEnvironment {
+        psiEnvironmentManager.getEnvironmentForReuse()?.let {
+            return it
+        }
+
+        val config =
+            tracer.trace("UastEnvironment.Configuration.create") {
+                UastEnvironment.Configuration.create()
+            }
+        config.javaLanguageLevel = javaLanguageLevel
+
+        tracer.trace("configureUastEnvironment") {
+            when (val projectDescription = projectDescription) {
+                null -> {
+                    configureUastEnvironment(config, sourceSet.sourcePath, classpath)
+                }
+                else -> {
+                    configureUastEnvironmentFromProjectDescription(config, projectDescription)
+                }
+            }
+        }
+
+        val environment =
+            tracer.trace("psiEnvironmentManager.createEnvironment") {
+                psiEnvironmentManager.createEnvironment(config)
+            }
+        val kotlinFiles = sourceSet.sources.filter { it.path.endsWith(SdkConstants.DOT_KT) }
+        tracer.trace("environment.analyzeFiles") { environment.analyzeFiles(kotlinFiles) }
+        return environment
     }
 
     /** Lists all of the [KaModule]s that exist in this project. */

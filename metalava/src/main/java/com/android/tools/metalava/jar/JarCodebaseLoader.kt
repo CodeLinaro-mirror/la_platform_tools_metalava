@@ -140,6 +140,9 @@ private constructor(
             val environmentManager =
                 sourceModelProvider.createEnvironmentManager(
                     disableStderrDumping,
+                    // This environment manager is used to process different sets of jar sources, so
+                    // it can't reuse the same environment.
+                    reuseEnvironment = false,
                 )
 
             val annotationManager =
