@@ -99,6 +99,9 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
          * [ApiFlag] for every provided flag and will use a default for any others.
          */
         val apiFlags: ApiFlags? = null,
+
+        /** Map from annotation class qualified name to its targets. */
+        val annotationClassTargets: Map<String, Set<AnnotationTarget>> = emptyMap(),
     )
 
     override val apiSurfaceSelector = config.apiSurfaceSelector
@@ -375,6 +378,18 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
          ANNOTATION_EXTERNAL
         else ANNOTATION_EXTERNAL_ONLY
 
+    /** Map of annotation class qualified name to its targets. */
+    private val annotationClassTargets: Map<String, Set<AnnotationTarget>> = buildMap {
+        putAll(DEFAULT_ANNOTATION_CLASS_TARGETS)
+        // The typedef annotations are special: they should not be in the signature
+        // files, but we want to include them in the external annotations file such that
+        // tools can enforce them.
+        for (name in TYPEDEF_ANNOTATION_NAMES) {
+            put(name, typedefAnnotationTargets)
+        }
+        putAll(config.annotationClassTargets)
+    }
+
     /**
      * The applicable targets for the [annotation].
      *
@@ -387,91 +402,13 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
         if (config.passThroughAnnotations.contains(qualifiedName)) {
             return ANNOTATION_IN_ALL_STUBS
         }
-        when (qualifiedName) {
-            // The typedef annotations are special: they should not be in the signature
-            // files, but we want to include them in the external annotations file such that
-            // tools can enforce them.
-            "android.annotation.IntDef",
-            "androidx.annotation.IntDef",
-            "android.annotation.StringDef",
-            "androidx.annotation.StringDef",
-            "android.annotation.LongDef",
-            "androidx.annotation.LongDef" -> return typedefAnnotationTargets
-            "android.annotation.RestrictedForEnvironment" -> return ANNOTATION_EXTERNAL
-
-            // Not directly API relevant
-            "android.view.ViewDebug.ExportedProperty",
-            "android.view.ViewDebug.CapturedViewProperty" -> return ANNOTATION_STUBS_ONLY
-
-            // Retained in the sdk/jar stub source code so that SdkConstant files can be
-            // extracted from those. This is useful for modularizing the main SDK stubs without
-            // having to add a separate module SDK artifact for sdk constants.
-            "android.annotation.SdkConstant" -> return ANNOTATION_SDK_STUBS_ONLY
-            ANDROID_REQUIRES_FLAG,
-            ANDROID_FLAGGED_API -> {
-                return annotation.apiFlag?.annotationTargets ?: ANNOTATION_IN_ALL_STUBS
-            }
-            // Skip known annotations that we (a) never want in external annotations and (b) we
-            // are specially overwriting anyway in the stubs (and which are (c) not API significant)
-            "com.android.modules.annotation.MinSdk",
-            "java.lang.annotation.Native",
-            "java.lang.SuppressWarnings",
-            "java.lang.Override",
-            "kotlin.Suppress",
-            "androidx.annotation.experimental.UseExperimental",
-            "androidx.annotation.OptIn",
-            "kotlin.UseExperimental",
-            "kotlin.OptIn" -> return NO_ANNOTATION_TARGETS
-
-            // These optimization-related annotations shouldn't be exported.
-            "dalvik.annotation.optimization.CriticalNative",
-            "dalvik.annotation.optimization.FastNative",
-            "dalvik.annotation.optimization.NeverCompile",
-            "dalvik.annotation.optimization.NeverInline",
-            "dalvik.annotation.optimization.ReachabilitySensitive" -> return NO_ANNOTATION_TARGETS
-
-            // TODO(aurimas): consider using annotation directly instead of modifiers
-            KOTLIN_DEPRECATED ->
-                return NO_ANNOTATION_TARGETS // tracked separately as a pseudo-modifier
-            JAVA_LANG_DEPRECATED, // tracked separately as a pseudo-modifier
-
-            // Below this when-statement we perform the correct lookup: check API predicate, and
-            // check that retention is class or runtime, but we've hardcoded the answers here
-            // for some common annotations.
-
-            "android.widget.RemoteViews.RemoteView",
-            "kotlin.annotation.Target",
-            "kotlin.annotation.Retention",
-            "kotlin.annotation.Repeatable",
-            "kotlin.annotation.MustBeDocumented",
-            "kotlin.DslMarker",
-            "kotlin.PublishedApi",
-            "kotlin.ExtensionFunctionType",
-            "java.lang.FunctionalInterface",
-            "java.lang.SafeVarargs",
-            "java.lang.annotation.Documented",
-            "java.lang.annotation.Inherited",
-            "java.lang.annotation.Repeatable",
-            "java.lang.annotation.Retention",
-            "java.lang.annotation.Target" -> return ANNOTATION_IN_ALL_STUBS
-
-            // Metalava already tracks all the methods that get generated due to these  annotations.
-            "kotlin.jvm.JvmOverloads",
-            JVM_FIELD,
-            JVM_STATIC,
-            KOTLIN_METADATA,
-            JVM_NAME -> return NO_ANNOTATION_TARGETS
+        if (qualifiedName == ANDROID_REQUIRES_FLAG || qualifiedName == ANDROID_FLAGGED_API) {
+            return annotation.apiFlag?.annotationTargets ?: ANNOTATION_IN_ALL_STUBS
         }
 
-        // @android.annotation.Nullable and NonNullable specially recognized annotations by the
-        // Kotlin compiler 1.3 and above: they always go in the stubs.
-        if (
-            qualifiedName == ANDROID_NULLABLE ||
-                qualifiedName == ANDROID_NONNULL ||
-                qualifiedName == ANDROIDX_NULLABLE ||
-                qualifiedName == ANDROIDX_NONNULL
-        ) {
-            return ANNOTATION_IN_ALL_STUBS
+        val targets = annotationClassTargets[qualifiedName]
+        if (targets != null) {
+            return targets
         }
 
         if (qualifiedName.startsWith("android.annotation.")) {
@@ -485,12 +422,6 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
             // Skip them from checking into the API signature, external
             // annotations, stubs, etc.
             return NO_ANNOTATION_TARGETS
-        }
-
-        // @RecentlyNullable and @RecentlyNonNull are specially recognized annotations by the
-        // Kotlin compiler: they always go in the stubs.
-        if (qualifiedName == RECENTLY_NULLABLE || qualifiedName == RECENTLY_NONNULL) {
-            return ANNOTATION_IN_ALL_STUBS
         }
 
         // Determine the retention of the annotation: source retention annotations go
@@ -665,6 +596,103 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
     }
 
     override val typedefMode: TypedefMode = config.typedefMode
+
+    companion object {
+        private val TYPEDEF_ANNOTATION_NAMES =
+            setOf(
+                "android.annotation.IntDef",
+                "androidx.annotation.IntDef",
+                "android.annotation.StringDef",
+                "androidx.annotation.StringDef",
+                "android.annotation.LongDef",
+                "androidx.annotation.LongDef",
+            )
+
+        private val DEFAULT_ANNOTATION_CLASS_TARGETS =
+            buildMap<String, Set<AnnotationTarget>> {
+                // Not directly API relevant
+                put("android.view.ViewDebug.ExportedProperty", ANNOTATION_STUBS_ONLY)
+                put("android.view.ViewDebug.CapturedViewProperty", ANNOTATION_STUBS_ONLY)
+
+                // Retained in the sdk/jar stub source code so that SdkConstant files can be
+                // extracted from those. This is useful for modularizing the main SDK stubs without
+                // having to add a separate module SDK artifact for sdk constants.
+                put("android.annotation.SdkConstant", ANNOTATION_SDK_STUBS_ONLY)
+
+                put("android.annotation.RestrictedForEnvironment", ANNOTATION_EXTERNAL)
+
+                // Skip known annotations that we (a) never want in external annotations and (b) we
+                // are specially overwriting anyway in the stubs (and which are (c) not API
+                // significant)
+                val noAnnotationTargets =
+                    listOf(
+                        "com.android.modules.annotation.MinSdk",
+                        "java.lang.annotation.Native",
+                        "java.lang.SuppressWarnings",
+                        "java.lang.Override",
+                        "kotlin.Suppress",
+                        "androidx.annotation.experimental.UseExperimental",
+                        "androidx.annotation.OptIn",
+                        "kotlin.UseExperimental",
+                        "kotlin.OptIn",
+                        // These optimization-related annotations shouldn't be exported.
+                        "dalvik.annotation.optimization.CriticalNative",
+                        "dalvik.annotation.optimization.FastNative",
+                        "dalvik.annotation.optimization.NeverCompile",
+                        "dalvik.annotation.optimization.NeverInline",
+                        "dalvik.annotation.optimization.ReachabilitySensitive",
+                        // TODO(aurimas): consider using annotation directly instead of modifiers
+                        KOTLIN_DEPRECATED,
+                        JAVA_LANG_DEPRECATED, // tracked separately as a pseudo-modifier
+                        // Metalava already tracks all the methods that get generated due to these
+                        // annotations.
+                        "kotlin.jvm.JvmOverloads",
+                        JVM_FIELD,
+                        JVM_STATIC,
+                        KOTLIN_METADATA,
+                        JVM_NAME,
+                    )
+                for (name in noAnnotationTargets) {
+                    put(name, NO_ANNOTATION_TARGETS)
+                }
+
+                // Below this we perform the correct lookup: check API predicate, and
+                // check that retention is class or runtime, but we've hardcoded the answers here
+                // for some common annotations.
+                val inAllStubs =
+                    listOf(
+                        "android.widget.RemoteViews.RemoteView",
+                        "kotlin.annotation.Target",
+                        "kotlin.annotation.Retention",
+                        "kotlin.annotation.Repeatable",
+                        "kotlin.annotation.MustBeDocumented",
+                        "kotlin.DslMarker",
+                        "kotlin.PublishedApi",
+                        "kotlin.ExtensionFunctionType",
+                        "java.lang.FunctionalInterface",
+                        "java.lang.SafeVarargs",
+                        "java.lang.annotation.Documented",
+                        "java.lang.annotation.Inherited",
+                        "java.lang.annotation.Repeatable",
+                        "java.lang.annotation.Retention",
+                        "java.lang.annotation.Target",
+                        // @android.annotation.Nullable and NonNullable specially recognized
+                        // annotations by the Kotlin compiler 1.3 and above: they always go in the
+                        // stubs.
+                        ANDROID_NULLABLE,
+                        ANDROID_NONNULL,
+                        ANDROIDX_NULLABLE,
+                        ANDROIDX_NONNULL,
+                        // @RecentlyNullable and @RecentlyNonNull are specially recognized
+                        // annotations by the Kotlin compiler: they always go in the stubs.
+                        RECENTLY_NULLABLE,
+                        RECENTLY_NONNULL,
+                    )
+                for (name in inAllStubs) {
+                    put(name, ANNOTATION_IN_ALL_STUBS)
+                }
+            }
+    }
 }
 
 /**
