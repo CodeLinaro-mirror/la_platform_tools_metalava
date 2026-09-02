@@ -212,6 +212,9 @@ class Driver(
                     }
                 },
                 apiFlags = apiFlags,
+                annotationClassTargets =
+                    configFileOptions.config.annotationClasses?.toAnnotationClassTargets()
+                        ?: emptyMap(),
             )
         )
     }

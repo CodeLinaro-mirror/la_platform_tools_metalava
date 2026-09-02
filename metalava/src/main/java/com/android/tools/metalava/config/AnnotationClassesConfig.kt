@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava.config
 
+import com.android.tools.metalava.model.AnnotationTarget
+import com.android.tools.metalava.model.NO_ANNOTATION_TARGETS
 import com.fasterxml.jackson.annotation.JsonValue
 import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlProperty
 
@@ -27,6 +29,10 @@ data class AnnotationClassesConfig(
     override fun combineWith(other: AnnotationClassesConfig) =
         AnnotationClassesConfig(annotationClasses + other.annotationClasses)
 
+    /** Convert to a map of annotation class qualified name to its targets. */
+    fun toAnnotationClassTargets(): Map<String, Set<AnnotationTarget>> =
+        annotationClasses.associate { it.name to it.targets.annotationTargets }
+
     /** Validate this object, i.e. check to make sure that the contained objects are consistent. */
     fun validate() {}
 }
@@ -35,8 +41,12 @@ data class AnnotationClassConfig(
     @field:JacksonXmlProperty(isAttribute = true) val name: String,
     @field:JacksonXmlProperty(isAttribute = true) val targets: TargetsConfig,
 ) {
-    enum class TargetsConfig(private val configFileValue: String) {
-        NONE("none"),
+    enum class TargetsConfig(
+        private val configFileValue: String,
+        /** The set of [AnnotationTarget]s where matching annotations should be included. */
+        val annotationTargets: Set<AnnotationTarget>,
+    ) {
+        NONE("none", NO_ANNOTATION_TARGETS),
         ;
 
         /** Name to use when serializing and deserializing this [TargetsConfig] instance. */
