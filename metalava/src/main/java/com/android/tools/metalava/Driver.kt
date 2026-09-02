@@ -205,7 +205,7 @@ class Driver(
                     apiSelectionOptions.suppressCompatibilityMetaAnnotations,
                 excludeAnnotations = apiSelectionOptions.excludeAnnotations,
                 typedefMode = apiSelectionOptions.typedefMode,
-                apiPredicate = ApiPredicate(config = apiPredicateConfig),
+                apiPredicate = ApiPredicate(config = apiPredicateConfig.forWholeApiSurface()),
                 previouslyReleasedCodebaseProvider = {
                     compatibilityCheckOptions.previouslyReleasedApi?.load {
                         signatureFileCache.load(it)

@@ -1023,7 +1023,7 @@ class ShowAnnotationTest : DriverTest() {
     }
 
     @Test
-    fun `Annotation that is part of API is ignored when generating system api`() {
+    fun `Annotation that is part of API is included when generating system api`() {
         check(
             apiSurface = KnownApiSurface.TEST_SYSTEM_API_SURFACE,
             sourceFiles =
@@ -1050,15 +1050,10 @@ class ShowAnnotationTest : DriverTest() {
                     ),
                 ),
             expectedApiSignature =
-                // TODO(b/556343677): AnApiAnnotation is part of the API so should be included in
-                // the
-                //  signature. It is currently ignored when generating system api due to a problem
-                // in
-                //  DefaultAnnotationManager.
                 """
                     // Signature format: 5.0
                     package test.pkg {
-                      public class TestClass {
+                      @test.pkg.AnApiAnnotation public class TestClass {
                       }
                     }
                 """,
