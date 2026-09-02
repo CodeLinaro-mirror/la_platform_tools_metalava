@@ -54,8 +54,19 @@ class ApiPredicate(
     private val includeApisForStubPurposes: Boolean = true,
 
     /** Configuration that may be provided by command line options. */
-    private val config: Config,
+    config: Config,
 ) : FilterPredicate {
+    /**
+     * Set if the value of [SelectableItem.hasShowAnnotation] should be ignored. That is, this
+     * predicate will assume that all encountered members match the "shown" requirement.
+     */
+    private val ignoreShown: Boolean = config.ignoreShown
+
+    /**
+     * Whether overriding methods essential for compiling the stubs should be considered as APIs or
+     * not.
+     */
+    private val addAdditionalOverrides: Boolean = config.addAdditionalOverrides
 
     /**
      * Contains configuration for [ApiPredicate] that can, or at least could, come from command line
@@ -102,7 +113,7 @@ class ApiPredicate(
         }
 
         val visibleForAdditionalOverridePurpose =
-            if (config.addAdditionalOverrides) {
+            if (addAdditionalOverrides) {
                 item is MethodItem && item.isRequiredOverridingMethodForTextStub()
             } else {
                 false
@@ -148,7 +159,7 @@ class ApiPredicate(
         // then ignore this item.
         if (!ignoreRemoved && itemSelectors.removed != matchRemoved) return false
 
-        if (!config.ignoreShown && !hasShowAnnotation(item)) {
+        if (!ignoreShown && !hasShowAnnotation(item)) {
             return false
         }
 
