@@ -393,4 +393,45 @@ class KeepFileTest : DriverTest() {
                 ),
         )
     }
+
+    @Test
+    fun `Proguard file does not contain public API items when generated for system API`() {
+        check(
+            apiSurface = KnownApiSurface.TEST_SYSTEM_API_SURFACE,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            public class PublicClass {
+                                public void publicMethod() {}
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+
+                            import test.annotation.SystemApi;
+
+                            @SystemApi
+                            public class SystemClass {
+                                public void systemMethod() {}
+                            }
+                        """
+                    ),
+                ),
+            proguard =
+                // TODO: The proguard file should contain all items in the whole API surface (i.e.
+                //  including public API items), but currently only contains items in the target
+                //  API surface.
+                """
+                -keep class test.pkg.SystemClass {
+                    <init>();
+                    public void systemMethod();
+                }
+                """,
+        )
+    }
 }
