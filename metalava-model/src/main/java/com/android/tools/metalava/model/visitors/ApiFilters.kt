@@ -31,6 +31,9 @@ class ApiFilters(
      */
     val reference: FilterPredicate,
 ) {
+    /** Use [predicate] for both [emit] and [reference]. */
+    constructor(predicate: FilterPredicate) : this(emit = predicate, reference = predicate)
+
     companion object {
         /**
          * Emits all [SelectableItem]s whose [SelectableItem.emit] is `true` and references any

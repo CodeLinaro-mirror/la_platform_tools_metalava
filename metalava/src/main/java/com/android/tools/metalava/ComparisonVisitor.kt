@@ -720,8 +720,8 @@ object CodebaseComparator {
 
         for (codebase in codebases) {
             val acceptAll = codebase.preFiltered || filter == null
-            val predicate = if (acceptAll) FilterPredicate { true } else filter!!
-            val apiFilters = ApiFilters(emit = predicate, reference = predicate)
+            val predicate = if (acceptAll) FilterPredicate { true } else filter
+            val apiFilters = ApiFilters(predicate)
             codebase.accept(
                 object :
                     ApiVisitor(

@@ -139,7 +139,7 @@ class ApiAnalyzer(
                 config = config.apiPredicateConfig.forWholeApiSurface(),
             )
 
-        val apiFilters = ApiFilters(predicate, predicate)
+        val apiFilters = ApiFilters(predicate)
 
         codebase.accept(
             object : ApiVisitor(visitParameterItems = false, apiFilters = apiFilters) {
