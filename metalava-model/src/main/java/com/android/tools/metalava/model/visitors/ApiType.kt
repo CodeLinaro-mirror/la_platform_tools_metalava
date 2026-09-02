@@ -36,7 +36,7 @@ enum class ApiType(val flagName: String, val displayName: String = flagName) {
             // Emitted APIs can reference types (such as superclasses, interfaces, parameter types,
             // or thrown exceptions) that belong to any API surface extended by the target surface,
             // so references must match across the whole API surface.
-            return ApiPredicate(config = apiPredicateConfig.forWholeApiSurface())
+            return ApiPredicate(config = apiPredicateConfig)
         }
     },
 
@@ -57,7 +57,7 @@ enum class ApiType(val flagName: String, val displayName: String = flagName) {
             // References in removed APIs can refer to types across the whole API surface.
             return ApiPredicate(
                 ignoreRemoved = true,
-                config = apiPredicateConfig.forWholeApiSurface(),
+                config = apiPredicateConfig,
             )
         }
     },

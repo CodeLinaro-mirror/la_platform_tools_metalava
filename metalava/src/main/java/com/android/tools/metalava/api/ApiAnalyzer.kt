@@ -136,7 +136,7 @@ class ApiAnalyzer(
                 includeDocOnly = true,
                 // Match the whole API surface so deprecation is updated for items in extended/base
                 // surfaces as well.
-                config = config.apiPredicateConfig.forWholeApiSurface(),
+                config = config.apiPredicateConfig,
             )
 
         val apiFilters = ApiFilters(predicate)

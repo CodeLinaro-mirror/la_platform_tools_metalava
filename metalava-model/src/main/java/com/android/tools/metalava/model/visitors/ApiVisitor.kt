@@ -66,7 +66,7 @@ open class ApiVisitor(
         ) =
             ApiFilters(
                 ApiPredicate(
-                    config = apiPredicateConfig.forWholeApiSurface(),
+                    config = apiPredicateConfig,
                 ),
             )
     }

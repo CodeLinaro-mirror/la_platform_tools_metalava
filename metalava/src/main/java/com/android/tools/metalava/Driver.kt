@@ -205,7 +205,7 @@ class Driver(
                     apiSelectionOptions.suppressCompatibilityMetaAnnotations,
                 excludeAnnotations = apiSelectionOptions.excludeAnnotations,
                 typedefMode = apiSelectionOptions.typedefMode,
-                apiPredicate = ApiPredicate(config = apiPredicateConfig.forWholeApiSurface()),
+                apiPredicate = ApiPredicate(config = apiPredicateConfig),
                 previouslyReleasedCodebaseProvider = {
                     compatibilityCheckOptions.previouslyReleasedApi?.load {
                         signatureFileCache.load(it)
@@ -352,8 +352,7 @@ class Driver(
                     // ProGuard rules emit items matching the whole API surface, and referenced
                     // types (e.g. superclasses and interfaces) can belong to any surface across the
                     // whole API surface.
-                    val apiReference =
-                        ApiPredicate(config = apiPredicateConfig.forWholeApiSurface())
+                    val apiReference = ApiPredicate(config = apiPredicateConfig)
                     val apiEmit = MatchOverridingMethodPredicate(apiReference)
                     ApiFilters(emit = apiEmit, reference = apiReference)
                 }
@@ -891,7 +890,7 @@ class Driver(
 
         // Handling file facade classes and generating inherited stubs operates on the entire API
         // surface across all surfaces in the codebase, not just a specific delta surface.
-        val apiEmitAndReference = ApiPredicate(config = apiPredicateConfig.forWholeApiSurface())
+        val apiEmitAndReference = ApiPredicate(config = apiPredicateConfig)
 
         tracer.trace("analyzer.handleFileFacadeClassesAndExperimentalPackages") {
             analyzer.handleFileFacadeClassesAndExperimentalPackages(apiEmitAndReference)

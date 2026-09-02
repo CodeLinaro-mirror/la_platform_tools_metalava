@@ -621,7 +621,7 @@ class AnnotationsMerger(
                             // only variants.
                             val filterEmit =
                                 ApiPredicate(
-                                    config = config.apiPredicateConfig.forWholeApiSurface(),
+                                    config = config.apiPredicateConfig,
                                 )
 
                             // Attempt with reflection

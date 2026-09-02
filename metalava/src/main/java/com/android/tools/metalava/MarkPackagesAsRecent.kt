@@ -37,7 +37,7 @@ class MarkPackagesAsRecent(
     config: ApiPredicate.Config,
 ) :
     ApiVisitor(
-        apiFilters = ApiFilters(ApiPredicate(config = config.forWholeApiSurface())),
+        apiFilters = ApiFilters(ApiPredicate(config = config)),
     ) {
     override fun include(cls: ClassItem): Boolean {
         return filter.matches(cls.containingPackage())

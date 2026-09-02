@@ -152,7 +152,7 @@ internal class StubGenerator(
                 val filterReference =
                     ApiPredicate(
                         includeDocOnly = isDocStubs,
-                        config = apiPredicateConfig.forWholeApiSurface(),
+                        config = apiPredicateConfig,
                     )
                 val filterEmit = MatchOverridingMethodPredicate(filterReference)
 
@@ -195,7 +195,7 @@ internal class StubGenerator(
             } else {
                 ApiPredicate(
                     // Stub constructors must be added to all classes across the whole API surface.
-                    config = apiPredicateConfig.forWholeApiSurface(),
+                    config = apiPredicateConfig,
                 )
             }
         val stubConstructorManager = StubConstructorManager(codebaseFragment.codebase)

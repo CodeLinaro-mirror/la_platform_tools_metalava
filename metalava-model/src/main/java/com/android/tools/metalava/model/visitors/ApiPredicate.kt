@@ -59,8 +59,23 @@ class ApiPredicate(
     /**
      * Set if the value of [SelectableItem.hasShowAnnotation] should be ignored. That is, this
      * predicate will assume that all encountered members match the "shown" requirement.
+     *
+     * When [includeApisForStubPurposes] is true, the predicate matches items across the whole API
+     * surface (e.g. for stub generation, reference resolution, or ProGuard keep file generation),
+     * so it uses [Config.ignoreShownForWholeApiSurface] which accounts for whether unannotated
+     * items are part of the target surface or any surface it extends.
+     *
+     * When [includeApisForStubPurposes] is false, the predicate matches items strictly within the
+     * target API surface delta (i.e. for signature file generation), so it uses
+     * [Config.ignoreShown] which only considers whether unannotated items are part of the target
+     * surface itself.
      */
-    private val ignoreShown: Boolean = config.ignoreShown
+    private val ignoreShown: Boolean =
+        if (includeApisForStubPurposes) {
+            config.ignoreShownForWholeApiSurface
+        } else {
+            config.ignoreShown
+        }
 
     /**
      * Whether overriding methods essential for compiling the stubs should be considered as APIs or
@@ -83,8 +98,7 @@ class ApiPredicate(
         val ignoreShown: Boolean = true,
 
         /**
-         * The value to use for [ignoreShown] when creating a [Config] for the whole API surface via
-         * [forWholeApiSurface].
+         * The value to use for [ignoreShown] when matching the whole API surface.
          *
          * This is set to true when the current API surface (or an API surface that it extends)
          * includes unannotated items, so that unannotated items are matched across the whole API
@@ -97,13 +111,7 @@ class ApiPredicate(
          * or not.
          */
         val addAdditionalOverrides: Boolean = false,
-    ) {
-        /**
-         * Create a [Config] instance that will cause an [ApiPredicate] to match the whole API
-         * surface, i.e. including any items in an API surface that this surface extends.
-         */
-        fun forWholeApiSurface() = copy(ignoreShown = ignoreShownForWholeApiSurface)
-    }
+    )
 
     override fun test(item: SelectableItem): Boolean {
         // non-class, i.e., (literally) member declaration w/o emit flag, e.g., due to `expect`
