@@ -68,6 +68,13 @@
                         </xs:documentation>
                     </xs:annotation>
                 </xs:element>
+                <xs:element name="annotation-classes" type="config:AnnotationClassesType" minOccurs="0">
+                    <xs:annotation>
+                        <xs:documentation>
+                            The definitions of a set of annotation classes.
+                        </xs:documentation>
+                    </xs:annotation>
+                </xs:element>
             </xs:choice>
         </xs:complexType>
 
@@ -102,6 +109,15 @@
          !-->
         <xs:key name="BuildPropertyName">
             <xs:selector xpath=".//config:build-property"/>
+            <xs:field xpath="@name"/>
+        </xs:key>
+
+        <!--
+         ! A key that makes sure that Annotation Class names are unique within the containing
+         ! file.
+         !-->
+        <xs:key name="AnnotationClassName">
+            <xs:selector xpath=".//config:annotation-class"/>
             <xs:field xpath="@name"/>
         </xs:key>
 
@@ -588,6 +604,71 @@
             <xs:enumeration value="warning"/>
             <xs:enumeration value="error-when-new"/>
             <xs:enumeration value="error"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:complexType name="AnnotationClassesType">
+        <xs:annotation>
+            <xs:documentation>
+                The type of the `annotation-classes` element defined inside `config`.
+            </xs:documentation>
+        </xs:annotation>
+        <xs:choice>
+            <xs:element name="annotation-class" type="config:AnnotationClassType" minOccurs="0" maxOccurs="unbounded">
+                <xs:annotation>
+                    <xs:documentation>
+                        Annotation class configuration.
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+        </xs:choice>
+    </xs:complexType>
+
+    <xs:complexType name="AnnotationClassType">
+        <xs:annotation>
+            <xs:documentation>
+                The type of the `annotation-class` element defined inside `AnnotationClassesType`.
+            </xs:documentation>
+        </xs:annotation>
+        <xs:attribute name="name" type="config:AnnotationClassNameType" use="required">
+            <xs:annotation>
+                <xs:documentation>
+                    The required name of the annotation class.
+                </xs:documentation>
+            </xs:annotation>
+        </xs:attribute>
+        <xs:attribute name="targets" type="config:AnnotationClassTargetsType" use="required">
+            <xs:annotation>
+                <xs:documentation>
+                    The required targets of the annotation class.
+                </xs:documentation>
+            </xs:annotation>
+        </xs:attribute>
+    </xs:complexType>
+
+    <xs:simpleType name="AnnotationClassNameType">
+        <xs:annotation>
+            <xs:documentation>
+                The type of an annotation class name.
+            </xs:documentation>
+        </xs:annotation>
+        <xs:restriction base="xs:string"/>
+    </xs:simpleType>
+
+    <xs:simpleType name="AnnotationClassTargetsType">
+        <xs:annotation>
+            <xs:documentation>
+                The targets where an annotation class should be included.
+            </xs:documentation>
+        </xs:annotation>
+        <xs:restriction base="xs:string">
+            <xs:enumeration value="none">
+                <xs:annotation>
+                    <xs:documentation>
+                        Do not include the annotation in any output files.
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:enumeration>
         </xs:restriction>
     </xs:simpleType>
 </xs:schema>

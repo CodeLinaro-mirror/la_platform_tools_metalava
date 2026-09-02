@@ -34,6 +34,8 @@ data class Config(
     val buildProperties: BuildPropertiesConfig? = null,
     @field:JacksonXmlProperty(localName = "issues", namespace = CONFIG_NAMESPACE)
     val issues: IssuesConfig? = null,
+    @field:JacksonXmlProperty(localName = "annotation-classes", namespace = CONFIG_NAMESPACE)
+    val annotationClasses: AnnotationClassesConfig? = null,
 ) : CombinableConfig<Config> {
 
     /** Combine this [Config] with another returning a [Config] object that combines them both. */
@@ -43,6 +45,7 @@ data class Config(
             apiSurfaces = combine(apiSurfaces, other.apiSurfaces),
             buildProperties = combine(buildProperties, other.buildProperties),
             issues = combine(issues, other.issues),
+            annotationClasses = combine(annotationClasses, other.annotationClasses),
         )
 
     /** Validate this object, i.e. check to make sure that the contained objects are consistent. */
@@ -50,6 +53,7 @@ data class Config(
         apiFlags?.validate()
         apiSurfaces?.validate()
         buildProperties?.validate()
+        annotationClasses?.validate()
     }
 }
 
