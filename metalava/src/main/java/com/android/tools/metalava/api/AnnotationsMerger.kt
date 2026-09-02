@@ -70,7 +70,6 @@ import com.android.tools.metalava.model.typeNullability
 import com.android.tools.metalava.model.value.Value
 import com.android.tools.metalava.model.value.ValueParser
 import com.android.tools.metalava.model.visitors.ApiPredicate
-import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
@@ -617,7 +616,13 @@ class AnnotationsMerger(
 
                         // Attempt to sort in reflection order
                         if (reflectionFields != null) {
-                            val filterEmit = ApiVisitor.defaultEmitFilter(config.apiPredicateConfig)
+                            // Create predicate that matches core variants across all the API
+                            // surfaces. It will not include items that only have removed or doc
+                            // only variants.
+                            val filterEmit =
+                                ApiPredicate(
+                                    config = config.apiPredicateConfig.forWholeApiSurface(),
+                                )
 
                             // Attempt with reflection
                             var first = true

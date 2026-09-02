@@ -88,27 +88,19 @@ open class ApiVisitor(
     }
 
     companion object {
-        /** Get the default [ApiFilters] to use with [ApiVisitor]. */
+        /**
+         * Get the default [ApiFilters] to use with [ApiVisitor].
+         *
+         * They match core variants across all the API surfaces. Does not include removed or doc
+         * only variants.
+         */
         fun defaultFilters(
             apiPredicateConfig: ApiPredicate.Config,
-        ): ApiFilters {
-            return ApiFilters(
-                emit = defaultEmitFilter(apiPredicateConfig),
-                reference =
-                    ApiPredicate(
-                        // References in the default visitor can match across the whole API surface.
-                        config = apiPredicateConfig.forWholeApiSurface(),
-                    ),
-            )
-        }
-
-        /** Get the default emit filter to use with [ApiVisitor]. */
-        fun defaultEmitFilter(apiPredicateConfig: ApiPredicate.Config) =
-            ApiPredicate(
-                // The default visitor emits items from the whole API surface without restricting to
-                // a specific delta surface (e.g. for api-versions.xml or general codebase
-                // traversal).
-                config = apiPredicateConfig.forWholeApiSurface(),
+        ) =
+            ApiFilters(
+                ApiPredicate(
+                    config = apiPredicateConfig.forWholeApiSurface(),
+                ),
             )
     }
 
