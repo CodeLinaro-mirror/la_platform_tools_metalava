@@ -2293,24 +2293,28 @@ data class KnownApiSurface(
                 java(
                     """
                         package test.annotation;
+                        @Hide
                         public @interface Hide {}
                     """
                 ),
                 java(
                     """
                         package test.annotation;
+                        @Hide
                         public @interface SystemApi {}
                     """
                 ),
                 java(
                     """
                         package test.annotation;
+                        @Hide
                         public @interface TestApi {}
                     """
                 ),
                 java(
                     """
                         package test.annotation;
+                        @Hide
                         public @interface ModuleApi {}
                     """
                 ),
