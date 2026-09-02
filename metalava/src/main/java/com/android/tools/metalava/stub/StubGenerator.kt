@@ -194,7 +194,6 @@ internal class StubGenerator(
                 FilterPredicate { true }
             } else {
                 ApiPredicate(
-                    ignoreRemoved = false,
                     // Stub constructors must be added to all classes across the whole API surface.
                     config = apiPredicateConfig.forWholeApiSurface(),
                 )

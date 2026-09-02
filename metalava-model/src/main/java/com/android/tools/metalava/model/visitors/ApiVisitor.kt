@@ -96,7 +96,6 @@ open class ApiVisitor(
                 emit = defaultEmitFilter(apiPredicateConfig),
                 reference =
                     ApiPredicate(
-                        ignoreRemoved = false,
                         // References in the default visitor can match across the whole API surface.
                         config = apiPredicateConfig.forWholeApiSurface(),
                     ),
@@ -106,8 +105,6 @@ open class ApiVisitor(
         /** Get the default emit filter to use with [ApiVisitor]. */
         fun defaultEmitFilter(apiPredicateConfig: ApiPredicate.Config) =
             ApiPredicate(
-                matchRemoved = false,
-                includeApisForStubPurposes = true,
                 // The default visitor emits items from the whole API surface without restricting to
                 // a specific delta surface (e.g. for api-versions.xml or general codebase
                 // traversal).
