@@ -241,8 +241,8 @@ class MainCommand(
             // Create the file name.
             val fileName = buildString {
                 // Prefix with the API surface name, if provided.
-                apiSelectionOptions.apiSurface?.let { apiSurface ->
-                    append(apiSurface)
+                apiSelectionOptions.apiSurfaceName?.let { apiSurfaceName ->
+                    append(apiSurfaceName)
                     append("-")
                 }
                 append(DEFAULT_BASELINE_NAME)

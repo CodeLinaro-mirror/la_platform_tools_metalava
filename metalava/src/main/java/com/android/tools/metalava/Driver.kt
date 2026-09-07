@@ -273,7 +273,7 @@ class Driver(
             skipEmitPackages = skipEmitPackages,
             mergeQualifierAnnotations = sourceOptions.mergeQualifierAnnotations,
             mergeInclusionAnnotations = sourceOptions.mergeInclusionAnnotations,
-            apiSurface = apiSelectionOptions.apiSurface,
+            apiSurfaceName = apiSelectionOptions.apiSurfaceName,
             apiPredicateConfig = apiPredicateConfig,
             annotationsMergerConfig =
                 AnnotationsMerger.Config(
@@ -291,7 +291,7 @@ class Driver(
             // contribute to it are automatically treated as hidden. e.g. when generating the public
             // API, @SystemApi is treated as a hide annotation. That means there is no need to
             // perform the UnhiddenSystemApi check.
-            needUnhiddenSystemApiCheck = apiSelectionOptions.apiSurface == null,
+            needUnhiddenSystemApiCheck = apiSelectionOptions.apiSurfaceName == null,
         )
     }
 
@@ -836,7 +836,7 @@ class Driver(
         val apiName =
             if (apiType == ApiType.REMOVED) {
                 "removed"
-            } else apiSelectionOptions.apiSurface
+            } else apiSelectionOptions.apiSurfaceName
 
         // If configured, compares the new API with the previous API and reports any
         // incompatibilities.

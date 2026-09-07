@@ -95,7 +95,7 @@ class ApiSelectionOptions(
     /** Return true if at least one `--show*-annotation` option was specified. */
     private fun atLeastOneShowAnnotationOptionWasSpecified() = showAnnotationValues.isNotEmpty()
 
-    internal val apiSurface by
+    internal val apiSurfaceName by
         option(
             ARG_API_SURFACE,
             metavar = "<surface>",
@@ -230,7 +230,7 @@ class ApiSelectionOptions(
     internal fun createApiSurfaceRulesFromConfig(): ApiSurfaceRules? {
         // If --api-surface has not been specified then rules cannot be created even if there is
         // configuration.
-        if (apiSurface == null) return null
+        if (apiSurfaceName == null) return null
 
         // If there is no configuration then they cannot be created.
         val surfacesConfig = apiSurfacesConfig ?: return null
@@ -503,7 +503,7 @@ class ApiSelectionOptions(
 
     val apiSurfaces by
         lazy(LazyThreadSafetyMode.NONE) {
-            if (apiSurface != null && atLeastOneApiSelectionOptionWasSpecified()) {
+            if (apiSurfaceName != null && atLeastOneApiSelectionOptionWasSpecified()) {
                 cliError(
                     "$ARG_API_SURFACE is mutually exclusive with $ARG_SHOW_UNANNOTATED, $ARG_SHOW_ANNOTATION and $ARG_HIDE_ANNOTATION"
                 )
@@ -511,7 +511,7 @@ class ApiSelectionOptions(
 
             createApiSurfaces(
                 showUnannotatedOption,
-                apiSurface,
+                apiSurfaceName,
                 apiSurfacesConfig,
             )
         }
@@ -530,13 +530,13 @@ class ApiSelectionOptions(
          *
          * @param showUnannotated true if unannotated items should be included in the API, false
          *   otherwise.
-         * @param targetApiSurface the optional name of the target API surface to be created. If
+         * @param targetApiSurfaceName the optional name of the target API surface to be created. If
          *   supplied it MUST reference an [ApiSurfaceConfig] in [apiSurfacesConfig].
          * @param apiSurfacesConfig the optional [ApiSurfacesConfig].
          */
         private fun createApiSurfaces(
             showUnannotated: Boolean,
-            targetApiSurface: String?,
+            targetApiSurfaceName: String?,
             apiSurfacesConfig: ApiSurfacesConfig?,
         ): ApiSurfaces {
             // A base API surface is needed if and only if the main API surface being generated
@@ -570,7 +570,7 @@ class ApiSelectionOptions(
 
             // If no --api-surface option was provided, then create the ApiSurfaces from the command
             // line options.
-            if (targetApiSurface == null) {
+            if (targetApiSurfaceName == null) {
                 return ApiSurfaces.create(
                     needsBase = needsBase,
                 )
@@ -584,14 +584,14 @@ class ApiSelectionOptions(
             }
 
             val targetApiSurfaceConfig =
-                apiSurfacesConfig.getByNameOrError(targetApiSurface) {
+                apiSurfacesConfig.getByNameOrError(targetApiSurfaceName) {
                     "$ARG_API_SURFACE (`$it`) does not match an <api-surface> in a --config-file"
                 }
 
             // Create the ApiSurfaces from the configured API surfaces.
             return apiSurfacesFromConfig(
                 apiSurfacesConfig.contributesTo(targetApiSurfaceConfig),
-                targetApiSurface
+                targetApiSurfaceName
             )
         }
     }

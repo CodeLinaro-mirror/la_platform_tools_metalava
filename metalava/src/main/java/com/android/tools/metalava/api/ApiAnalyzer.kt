@@ -97,7 +97,7 @@ class ApiAnalyzer(
         val mergeInclusionAnnotations: List<File> = emptyList(),
 
         /** The API surface name. */
-        val apiSurface: String? = null,
+        val apiSurfaceName: String? = null,
 
         /** Configuration for any [ApiPredicate] instances this needs to create. */
         val apiPredicateConfig: ApiPredicate.Config = ApiPredicate.Config(),
@@ -417,7 +417,7 @@ class ApiAnalyzer(
 
         val checkSystemPermissions =
             !reporter.isSuppressed(Issues.REQUIRES_SYSTEM_PERMISSION) &&
-                config.apiSurface == "system" &&
+                config.apiSurfaceName == "system" &&
                 !config.manifest.isEmpty()
 
         // Only check for hidden show annotations if it is needed and it is not suppressed.
