@@ -41,6 +41,7 @@ import com.android.tools.metalava.model.SUPPRESS_COMPATIBILITY_ANNOTATION_QUALIF
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.api.surface.ApiSurfacePredicate
 import com.android.tools.metalava.model.doc.DocContentPredicate
 import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.source.doc.DocContentPredicates
@@ -130,16 +131,10 @@ class ApiAnalyzer(
         // Since Javadoc parsing is expensive, we defer checking and updating the deprecation status
         // from `@deprecated` block tags until we run this API analysis phase, and only visit items
         // that match the API filter.
-        val predicate =
-            ApiPredicate(
-                ignoreRemoved = true,
-                includeDocOnly = true,
-                // Match the whole API surface so deprecation is updated for items in extended/base
-                // surfaces as well.
-                config = config.apiPredicateConfig,
-            )
-
-        val apiFilters = ApiFilters(predicate)
+        // Match the whole API surface so deprecation is updated for items in extended/base
+        // surfaces as well.
+        val predicate = ApiSurfacePredicate.wholeApiPredicate()
+        val apiFilters = ApiFilters(predicate, predicate)
 
         codebase.accept(
             object : ApiVisitor(visitParameterItems = false, apiFilters = apiFilters) {
