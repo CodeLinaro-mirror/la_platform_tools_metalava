@@ -326,7 +326,13 @@ interface ClassItem :
         private val qualifiedComparator: Comparator<ClassItem> =
             Comparator.comparing { it.qualifiedName() }
 
-        fun classNameSorter(): Comparator<in ClassItem> = qualifiedComparator
+        /**
+         * A comparator that orders [ClassItem]s by [ClassItem.qualifiedName], placing all
+         * [ClassKind.TYPEALIAS] items after all non-typealias classes.
+         */
+        fun classNameSorterTypeAliasesLast(): Comparator<in ClassItem> =
+            Comparator.comparing<ClassItem, Boolean> { it.classKind == ClassKind.TYPEALIAS }
+                .thenComparing(qualifiedComparator)
 
         /**
          * The name used for a fake class which is a container for top level functions and
