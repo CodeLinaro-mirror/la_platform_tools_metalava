@@ -39,14 +39,6 @@ open class ApiVisitor(
     private val apiFilters: ApiFilters?,
 
     /**
-     * Whether this visitor should visit elements that have not been annotated with one of the
-     * annotations passed in using the --show-annotation flag. This is normally true, but signature
-     * files sometimes sets this to false so the signature file only contains the "diff" of the
-     * annotated API relative to the base API.
-     */
-    protected val showUnannotated: Boolean = true,
-
-    /**
      * The target languages to consider. If an item's target languages do not include any of these
      * languages, it will be skipped.
      */

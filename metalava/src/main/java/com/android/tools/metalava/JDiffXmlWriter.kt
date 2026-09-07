@@ -302,5 +302,4 @@ fun createFilteringVisitorForJDiffWriter(
         delegate,
         interfaceListComparator = TypeItem.totalComparator,
         apiFilters = apiFilters,
-        showUnannotated = false,
     )

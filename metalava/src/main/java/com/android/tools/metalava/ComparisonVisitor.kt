@@ -730,20 +730,6 @@ object CodebaseComparator {
                         // [dispatchToCompare].
                         visitParameterItems = false,
                         apiFilters = apiFilters,
-                        // Whenever a caller passes arguments of "--show-annotation 'SomeAnnotation'
-                        // --check-compatibility:api:released $oldApi",
-                        // really what they mean is:
-                        // 1. Definitions:
-                        //  1.1 Define the SomeAnnotation API as the set of APIs that are either
-                        // public or are annotated with @SomeAnnotation
-                        //  1.2 $oldApi was previously the difference between the SomeAnnotation api
-                        // and the public api
-                        // 2. The caller would like Metalava to verify that all APIs that are known
-                        // to have previously been part of the SomeAnnotation api remain part of the
-                        // SomeAnnotation api
-                        // So, when doing compatibility checking we want to consider public APIs
-                        // even if the caller didn't explicitly pass --show-unannotated
-                        showUnannotated = true,
                     ) {
 
                     /**

@@ -607,6 +607,5 @@ private fun createFilteringVisitorForSignatures(
         interfaceListSorter = interfaceListSorter,
         interfaceListComparator = interfaceListComparator,
         apiFilters = apiFilters,
-        showUnannotated = showUnannotated,
     )
 }

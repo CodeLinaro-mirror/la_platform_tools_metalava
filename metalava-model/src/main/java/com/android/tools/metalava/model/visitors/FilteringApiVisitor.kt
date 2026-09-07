@@ -72,7 +72,6 @@ class FilteringApiVisitor(
      */
     private val interfaceListComparator: Comparator<TypeItem>? = null,
     apiFilters: ApiFilters?,
-    showUnannotated: Boolean = true,
     private val ignoreEmit: Boolean = false,
 ) :
     ApiVisitor(
@@ -81,7 +80,6 @@ class FilteringApiVisitor(
         // if and only if their containing method is included.
         visitParameterItems = false,
         apiFilters = apiFilters ?: ApiFilters.ALL,
-        showUnannotated = showUnannotated,
     ),
     ItemVisitor {
 
