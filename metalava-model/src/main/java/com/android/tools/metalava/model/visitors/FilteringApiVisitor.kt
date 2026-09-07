@@ -30,8 +30,6 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
-import com.android.tools.metalava.model.TargetLanguage
-import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeTransformer
 import com.android.tools.metalava.model.typeUseAnnotationFilter
@@ -76,7 +74,6 @@ class FilteringApiVisitor(
     apiFilters: ApiFilters?,
     showUnannotated: Boolean = true,
     private val ignoreEmit: Boolean = false,
-    targetLanguages: Set<TargetLanguage> = TargetLanguageSet.ALL,
 ) :
     ApiVisitor(
         preserveClassNesting = delegate.requiresClassNesting,
@@ -85,7 +82,6 @@ class FilteringApiVisitor(
         visitParameterItems = false,
         apiFilters = apiFilters ?: ApiFilters.ALL,
         showUnannotated = showUnannotated,
-        targetLanguages = targetLanguages,
     ),
     ItemVisitor {
 
