@@ -75,7 +75,6 @@ import com.android.tools.metalava.model.text.createCodebaseFragmentForSignatureF
 import com.android.tools.metalava.model.visitors.ApiFilters
 import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiType
-import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.model.visitors.FilteringApiVisitor
 import com.android.tools.metalava.model.visitors.MatchOverridingMethodPredicate
 import com.android.tools.metalava.reporter.Issues
@@ -735,7 +734,7 @@ class Driver(
                 CodebaseFragment.create(codebase) { delegatedVisitor ->
                     FilteringApiVisitor(
                         delegate = delegatedVisitor,
-                        apiFilters = ApiVisitor.defaultFilters(apiPredicateConfig),
+                        apiFilters = apiPredicateConfig.defaultFilters(),
                     )
                 }
 

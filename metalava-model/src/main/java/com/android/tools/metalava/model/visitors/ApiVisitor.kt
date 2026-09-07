@@ -45,7 +45,7 @@ open class ApiVisitor(
         apiPredicateConfig: ApiPredicate.Config,
     ) : this(
         visitParameterItems = visitParameterItems,
-        apiFilters = defaultFilters(apiPredicateConfig),
+        apiFilters = apiPredicateConfig.defaultFilters(),
     )
 
     /** The filter to use to determine if we should emit an item */
@@ -53,23 +53,6 @@ open class ApiVisitor(
 
     /** The filter to use to determine if we should emit a reference to an item */
     protected val filterReference: FilterPredicate? = apiFilters?.reference
-
-    companion object {
-        /**
-         * Get the default [ApiFilters] to use with [ApiVisitor].
-         *
-         * They match core variants across all the API surfaces. Does not include removed or doc
-         * only variants.
-         */
-        fun defaultFilters(
-            apiPredicateConfig: ApiPredicate.Config,
-        ) =
-            ApiFilters(
-                ApiPredicate(
-                    config = apiPredicateConfig,
-                ),
-            )
-    }
 
     /**
      * Visit a [List] of [ClassItem]s after sorting it into order defined by

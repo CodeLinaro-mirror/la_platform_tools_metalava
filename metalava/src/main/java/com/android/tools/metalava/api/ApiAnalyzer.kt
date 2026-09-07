@@ -429,7 +429,8 @@ class ApiAnalyzer(
                 ApiVisitor(
                     // Don't run checks on elements that only exist in bytecode.
                     apiFilters =
-                        ApiVisitor.defaultFilters(config.apiPredicateConfig)
+                        config.apiPredicateConfig
+                            .defaultFilters()
                             .forTargetLanguages(TargetLanguageSet.SOURCE),
                 ) {
 

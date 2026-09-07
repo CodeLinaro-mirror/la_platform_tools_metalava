@@ -115,7 +115,20 @@ class ApiPredicate(
          * or not.
          */
         val addAdditionalOverrides: Boolean = false,
-    )
+    ) {
+        /**
+         * Get the default [ApiFilters] to use with [ApiVisitor].
+         *
+         * They match core variants across all the API surfaces. Does not include removed or doc
+         * only variants.
+         */
+        fun defaultFilters() =
+            ApiFilters(
+                ApiPredicate(
+                    config = this,
+                ),
+            )
+    }
 
     override fun test(item: SelectableItem): Boolean {
         // non-class, i.e., (literally) member declaration w/o emit flag, e.g., due to `expect`
