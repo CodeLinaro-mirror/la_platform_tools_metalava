@@ -1880,7 +1880,6 @@ class CompatibilityCheck(
             apiCompatAnnotations: Set<String>,
             apiName: String?,
             apiPredicateConfig: ApiPredicate.Config,
-            showUnannotated: Boolean,
         ) {
             val filter = getFilter(apiType, apiPredicateConfig)
 
@@ -1894,7 +1893,7 @@ class CompatibilityCheck(
                 )
 
             val oldFullCodebase =
-                if (showUnannotated && apiType == ApiType.PUBLIC_API) {
+                if (apiPredicateConfig.ignoreShown && apiType == ApiType.PUBLIC_API) {
                     MergedCodebase(listOf(oldCodebase))
                 } else {
                     // To avoid issues with partial oldCodeBase we fill gaps with newCodebase, the

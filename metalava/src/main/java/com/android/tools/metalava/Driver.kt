@@ -851,7 +851,6 @@ class Driver(
             compatibilityCheckOptions.apiCompatAnnotations,
             apiName,
             apiPredicateConfig,
-            apiSelectionOptions.showUnannotated,
         )
     }
 
