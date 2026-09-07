@@ -34,26 +34,3 @@ typealias FilterPredicate = Predicate<SelectableItem>
  * invoking [Predicate.test] on [item].
  */
 fun FilterPredicate?.testOrTrue(item: SelectableItem) = this?.test(item) ?: true
-
-/**
- * Combine this [FilterPredicate] with an optional [other] to produce a [FilterPredicate] that is
- * the logical AND of the two [FilterPredicate]s.
- *
- * AND-ing anything with `true` has no effect. So, when [other] is `null` (which is equivalent to `{
- * true }`) this [FilterPredicate] will be returned.
- */
-fun FilterPredicate.andNullable(other: FilterPredicate?): FilterPredicate =
-    if (other == null) {
-        this
-    } else {
-        and(other)
-    }
-
-/**
- * Combine this optional [FilterPredicate] with an optional [other] to produce a [FilterPredicate]
- * that is the logical AND of the two [FilterPredicate]s.
- *
- * If this is `null` then it returns [other], otherwise it calls [andNullable] on [other].
- */
-fun FilterPredicate?.nullableAndNullable(other: FilterPredicate?) =
-    this?.andNullable(other) ?: other

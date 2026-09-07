@@ -25,7 +25,6 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TargetLanguageSet
-import com.android.tools.metalava.model.nullableAndNullable
 import com.android.tools.metalava.model.testOrTrue
 
 open class ApiVisitor(
@@ -66,13 +65,11 @@ open class ApiVisitor(
     protected val filterReference: FilterPredicate?
 
     init {
-        // Create an optional [FilterPredicate] that will ignore any items that do not target at
-        // least one language in targetLanguages.
-        val targetLanguagesInclusionFilter = targetLanguages.inclusionFilter()
+        // Combine the optional filters with the target language filter.
+        val filterWithTargetLanguages = apiFilters?.forTargetLanguages(targetLanguages)
 
-        // Combine the filters with the target language filter.
-        filterEmit = apiFilters?.emit.nullableAndNullable(targetLanguagesInclusionFilter)
-        filterReference = apiFilters?.reference.nullableAndNullable(targetLanguagesInclusionFilter)
+        filterEmit = filterWithTargetLanguages?.emit
+        filterReference = filterWithTargetLanguages?.reference
     }
 
     companion object {
@@ -254,6 +251,6 @@ open class ApiVisitor(
  *
  * If this set is all [TargetLanguage]s then it returns `null` to avoid any filtering.
  */
-private fun Set<TargetLanguage>.inclusionFilter() =
+internal fun Set<TargetLanguage>.inclusionFilter() =
     if (this == TargetLanguageSet.ALL) null
     else FilterPredicate { item -> item.targetLanguages.intersect(this).isNotEmpty() }
