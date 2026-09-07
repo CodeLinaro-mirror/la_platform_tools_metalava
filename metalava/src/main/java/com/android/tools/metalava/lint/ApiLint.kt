@@ -216,8 +216,9 @@ private constructor(
 ) :
     ApiVisitor(
         visitParameterItems = false,
-        apiFilters = ApiType.PUBLIC_API.getNonElidingApiFilters(apiPredicateConfig),
-        targetLanguages = TargetLanguageSet.SOURCE,
+        apiFilters =
+            ApiType.PUBLIC_API.getNonElidingApiFilters(apiPredicateConfig)
+                .forTargetLanguages(TargetLanguageSet.SOURCE),
     ) {
 
     data class Config(

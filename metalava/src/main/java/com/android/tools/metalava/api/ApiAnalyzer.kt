@@ -432,9 +432,10 @@ class ApiAnalyzer(
         codebase.accept(
             object :
                 ApiVisitor(
-                    apiPredicateConfig = config.apiPredicateConfig,
                     // Don't run checks on elements that only exist in bytecode.
-                    targetLanguages = TargetLanguageSet.SOURCE,
+                    apiFilters =
+                        ApiVisitor.defaultFilters(config.apiPredicateConfig)
+                            .forTargetLanguages(TargetLanguageSet.SOURCE),
                 ) {
 
                 /** A [FilterPredicate] that will match removed items. */

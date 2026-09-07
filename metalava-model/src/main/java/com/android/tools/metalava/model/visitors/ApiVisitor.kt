@@ -35,13 +35,7 @@ open class ApiVisitor(
     visitParameterItems: Boolean = true,
 
     /** The filters to use to determine what parts of the API will be visited. */
-    private val apiFilters: ApiFilters?,
-
-    /**
-     * The target languages to consider. If an item's target languages do not include any of these
-     * languages, it will be skipped.
-     */
-    targetLanguages: Set<TargetLanguage> = TargetLanguageSet.ALL,
+    apiFilters: ApiFilters?,
 ) : BaseItemVisitor(preserveClassNesting, visitParameterItems) {
     constructor(
         /** @see BaseItemVisitor.visitParameterItems */
@@ -49,28 +43,16 @@ open class ApiVisitor(
 
         /** Configuration that may come from the command line. */
         apiPredicateConfig: ApiPredicate.Config,
-
-        /** The target languages to consider. */
-        targetLanguages: Set<TargetLanguage> = TargetLanguageSet.ALL,
     ) : this(
         visitParameterItems = visitParameterItems,
         apiFilters = defaultFilters(apiPredicateConfig),
-        targetLanguages = targetLanguages,
     )
 
     /** The filter to use to determine if we should emit an item */
-    protected val filterEmit: FilterPredicate?
+    protected val filterEmit: FilterPredicate? = apiFilters?.emit
 
     /** The filter to use to determine if we should emit a reference to an item */
-    protected val filterReference: FilterPredicate?
-
-    init {
-        // Combine the optional filters with the target language filter.
-        val filterWithTargetLanguages = apiFilters?.forTargetLanguages(targetLanguages)
-
-        filterEmit = filterWithTargetLanguages?.emit
-        filterReference = filterWithTargetLanguages?.reference
-    }
+    protected val filterReference: FilterPredicate? = apiFilters?.reference
 
     companion object {
         /**
