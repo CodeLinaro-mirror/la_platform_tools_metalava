@@ -210,7 +210,6 @@ class ConvertJarsToSignatureFiles(
                 jarCodebase,
                 fileFormat = fileFormat,
                 apiFilters = apiFilters,
-                showUnannotated = false,
             )
 
         val extendsInfo = surfaceInfo.extends

@@ -87,7 +87,6 @@ class MergeSignaturesCommand :
                     fileFormat = fileFormat,
                     // Pre-filtered so does not need any filters.
                     apiFilters = null,
-                    showUnannotated = false,
                 )
             tracer.trace("createOutputFileFromCodebaseFragment merged files") {
                 createOutputFileFromCodebaseFragment(

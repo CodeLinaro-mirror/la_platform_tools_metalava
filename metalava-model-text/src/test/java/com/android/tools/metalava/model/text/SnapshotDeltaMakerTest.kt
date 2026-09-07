@@ -821,7 +821,6 @@ class SnapshotDeltaMakerTest : BaseTextCodebaseTest() {
                     fileFormat,
                     // Pre-filtered so does not need any filters.
                     apiFilters = null,
-                    showUnannotated = true,
                 )
             deltaFragment.accept(signatureWriter)
         }

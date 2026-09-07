@@ -115,7 +115,6 @@ class SignatureInputOutputTest : Assertions {
                 fileFormat = fileFormat,
                 // Pre-filtered so does not need any filters.
                 apiFilters = null,
-                showUnannotated = false,
             )
 
         val fragment = codebaseKind.transformFragment(baseFragment)

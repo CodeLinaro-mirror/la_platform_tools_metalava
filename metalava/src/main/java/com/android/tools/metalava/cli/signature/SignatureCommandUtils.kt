@@ -60,7 +60,6 @@ internal fun writeSignatureFile(
             fileFormat = outputFormat,
             // Pre-filtered so does not need any filters.
             apiFilters = null,
-            showUnannotated = true,
         )
 
     codebaseFragment.accept(signatureWriter)

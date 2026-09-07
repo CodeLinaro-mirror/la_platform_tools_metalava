@@ -514,7 +514,6 @@ class Driver(
                 codebase,
                 fileFormat = fileFormat,
                 apiFilters = apiFilters,
-                showUnannotated = apiSelectionOptions.showUnannotated,
             )
 
         // If reverting some changes then create a snapshot that combines the items from the sources

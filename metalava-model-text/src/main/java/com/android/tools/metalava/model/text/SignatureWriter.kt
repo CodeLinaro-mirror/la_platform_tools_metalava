@@ -574,7 +574,6 @@ fun createCodebaseFragmentForSignatureFile(
     codebase: Codebase,
     fileFormat: FileFormat,
     apiFilters: ApiFilters?,
-    showUnannotated: Boolean,
 ) =
     CodebaseFragment.create(
         codebase,
@@ -584,7 +583,6 @@ fun createCodebaseFragmentForSignatureFile(
             delegate,
             fileFormat,
             apiFilters,
-            showUnannotated,
         )
     }
 
@@ -597,7 +595,6 @@ private fun createFilteringVisitorForSignatures(
     delegate: DelegatedVisitor,
     fileFormat: FileFormat,
     apiFilters: ApiFilters?,
-    showUnannotated: Boolean,
 ): ApiVisitor {
     val (interfaceListSorter, interfaceListComparator) =
         if (fileFormat[SORT_WHOLE_EXTENDS_LIST]) Pair(null, TypeItem.totalComparator)
