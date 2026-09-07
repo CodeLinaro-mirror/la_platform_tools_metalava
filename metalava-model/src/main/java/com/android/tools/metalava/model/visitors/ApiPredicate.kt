@@ -50,8 +50,12 @@ class ApiPredicate(
     /** Whether we should include doc-only items */
     private val includeDocOnly: Boolean = false,
 
-    /** Whether to include "for stub purposes" APIs. See [AnnotationItem.isShowForStubPurposes] */
-    private val includeApisForStubPurposes: Boolean = true,
+    /**
+     * Whether to include API surfaces that contribute to the one currently being generated.
+     *
+     * See [AnnotationItem.isShowForStubPurposes].
+     */
+    private val includeContributingSurfaces: Boolean = true,
 
     /** Configuration that may be provided by command line options. */
     config: Config,
@@ -60,18 +64,18 @@ class ApiPredicate(
      * Set if the value of [SelectableItem.hasShowAnnotation] should be ignored. That is, this
      * predicate will assume that all encountered members match the "shown" requirement.
      *
-     * When [includeApisForStubPurposes] is true, the predicate matches items across the whole API
+     * When [includeContributingSurfaces] is true, the predicate matches items across the whole API
      * surface (e.g. for stub generation, reference resolution, or ProGuard keep file generation),
      * so it uses [Config.ignoreShownForWholeApiSurface] which accounts for whether unannotated
      * items are part of the target surface or any surface it extends.
      *
-     * When [includeApisForStubPurposes] is false, the predicate matches items strictly within the
+     * When [includeContributingSurfaces] is false, the predicate matches items strictly within the
      * target API surface delta (i.e. for signature file generation), so it uses
      * [Config.ignoreShown] which only considers whether unannotated items are part of the target
      * surface itself.
      */
     private val ignoreShown: Boolean =
-        if (includeApisForStubPurposes) {
+        if (includeContributingSurfaces) {
             config.ignoreShownForWholeApiSurface
         } else {
             config.ignoreShown
@@ -156,7 +160,7 @@ class ApiPredicate(
         // This check must come after the superclass check above so that any affected subclass whose
         // superclass belongs to the target API surface is still included to accurately preserve the
         // class hierarchy, even if the subclass itself is marked only for stub purposes.
-        if (!includeApisForStubPurposes && item.includeOnlyForStubPurposes()) {
+        if (!includeContributingSurfaces && item.includeOnlyForStubPurposes()) {
             return false
         }
 

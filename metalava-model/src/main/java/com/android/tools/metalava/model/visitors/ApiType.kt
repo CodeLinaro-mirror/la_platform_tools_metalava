@@ -27,7 +27,7 @@ enum class ApiType(val flagName: String, val displayName: String = flagName) {
             // This filter is for API signature files, where we don't need the "for stub purposes"
             // APIs.
             return ApiPredicate(
-                includeApisForStubPurposes = false,
+                includeContributingSurfaces = false,
                 config = apiPredicateConfig,
             )
         }
@@ -47,7 +47,7 @@ enum class ApiType(val flagName: String, val displayName: String = flagName) {
             // This filter is for API signature files, where we don't need the "for stub purposes"
             // APIs.
             return ApiPredicate(
-                includeApisForStubPurposes = false,
+                includeContributingSurfaces = false,
                 matchRemoved = true,
                 config = apiPredicateConfig,
             )
