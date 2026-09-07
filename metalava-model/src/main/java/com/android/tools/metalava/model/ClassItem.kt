@@ -186,13 +186,13 @@ interface ClassItem :
     /** The fields in this class */
     @MetalavaApi fun fields(): List<FieldItem>
 
-    /** The members in this class: constructors, methods, fields/enum constants, properties */
+    /** The members in this class: constructors, methods, properties, fields/enum constants */
     fun members(): Sequence<MemberItem> {
-        return fields()
+        return constructors()
             .asSequence()
-            .plus(constructors().asSequence())
             .plus(methods().asSequence())
             .plus(properties().asSequence())
+            .plus(fields().asSequence())
     }
 
     val classKind: ClassKind
