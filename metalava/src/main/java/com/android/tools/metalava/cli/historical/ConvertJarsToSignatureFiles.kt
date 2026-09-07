@@ -139,7 +139,7 @@ class ConvertJarsToSignatureFiles(
             jarCodebase.accept(
                 object :
                     ApiVisitor(
-                        apiPredicateConfig = ApiPredicate.Config(),
+                        apiFilters = ApiPredicate.Config().defaultFilters(),
                     ) {
                     override fun visitItem(item: Item) {
                         unmarkRecent(item)

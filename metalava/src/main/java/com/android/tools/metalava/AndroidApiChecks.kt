@@ -68,7 +68,7 @@ class AndroidApiChecks(
         packageItem.accept(
             object :
                 ApiVisitor(
-                    apiPredicateConfig = apiPredicateConfig,
+                    apiFilters = apiPredicateConfig.defaultFilters(),
                 ) {
 
                 override fun visitSelectableItem(item: SelectableItem) {

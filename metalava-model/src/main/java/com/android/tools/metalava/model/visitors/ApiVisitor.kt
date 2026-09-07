@@ -37,16 +37,6 @@ open class ApiVisitor(
     /** The filters to use to determine what parts of the API will be visited. */
     apiFilters: ApiFilters?,
 ) : BaseItemVisitor(preserveClassNesting, visitParameterItems) {
-    constructor(
-        /** @see BaseItemVisitor.visitParameterItems */
-        visitParameterItems: Boolean = true,
-
-        /** Configuration that may come from the command line. */
-        apiPredicateConfig: ApiPredicate.Config,
-    ) : this(
-        visitParameterItems = visitParameterItems,
-        apiFilters = apiPredicateConfig.defaultFilters(),
-    )
 
     /** The filter to use to determine if we should emit an item */
     protected val filterEmit: FilterPredicate? = apiFilters?.emit

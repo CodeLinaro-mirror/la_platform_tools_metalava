@@ -64,7 +64,7 @@ class ExtractAnnotations(
     apiPredicateConfig: ApiPredicate.Config,
 ) :
     ApiVisitor(
-        apiPredicateConfig = apiPredicateConfig,
+        apiFilters = apiPredicateConfig.defaultFilters(),
     ) {
     // Used linked hash map for order such that we always emit parameters after their surrounding
     // method etc

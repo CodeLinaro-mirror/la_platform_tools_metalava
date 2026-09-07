@@ -155,7 +155,7 @@ class DocAnalyzer(
         // like an unreasonable burden.
 
         codebase.accept(
-            object : ApiVisitor(apiPredicateConfig = apiPredicateConfig) {
+            object : ApiVisitor(apiFilters = apiPredicateConfig.defaultFilters()) {
                 /** Contextual information for [BaseDevicePolicyAnnotationHandler]s. */
                 private val devicePolicyContext = DevicePolicyContext(filterReference)
 
@@ -751,7 +751,7 @@ class DocAnalyzer(
                 ApiVisitor(
                     // Only SelectableItems have documentation associated with them.
                     visitParameterItems = false,
-                    apiPredicateConfig = apiPredicateConfig,
+                    apiFilters = apiPredicateConfig.defaultFilters(),
                 ) {
 
                 override fun visitCallable(callable: CallableItem) {
