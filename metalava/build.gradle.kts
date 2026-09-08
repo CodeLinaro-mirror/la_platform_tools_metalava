@@ -59,6 +59,7 @@ dependencies {
     testImplementation(libs.junit4)
     testImplementation(libs.truth)
     testImplementation(libs.kotlinTest)
+    testImplementation(libs.kotlinTestJUnit)
 }
 
 /** The location into which a fake representation of the prebuilts/sdk directory will be written. */

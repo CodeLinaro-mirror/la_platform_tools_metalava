@@ -28,6 +28,7 @@ plugins {
 dependencies {
     testFixturesImplementation(libs.junit4)
     testFixturesImplementation(libs.kotlinTest)
+    testFixturesImplementation(libs.kotlinTestJUnit)
     testFixturesImplementation(testFixtures(project(":metalava-model")))
     testFixturesImplementation(project(":metalava-model-testsuite"))
     testFixturesImplementation(project(":metalava-testing"))
@@ -39,4 +40,5 @@ dependencies {
     testImplementation(libs.junit4)
     testImplementation(libs.truth)
     testImplementation(libs.kotlinTest)
+    testImplementation(libs.kotlinTestJUnit)
 }

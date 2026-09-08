@@ -30,6 +30,7 @@ kotlinGradlePlugin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", ver
 kotlinMetadataJvm = { module = "org.jetbrains.kotlin:kotlin-metadata-jvm", version.ref = "kotlin" }
 kotlinStdlib = { module = "org.jetbrains.kotlin:kotlin-stdlib", version.ref = "kotlin" }
 kotlinTest = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
+kotlinTestJUnit = { module = "org.jetbrains.kotlin:kotlin-test-junit", version.ref = "kotlin" }
 mockitoKotlin = { module = "org.mockito.kotlin:mockito-kotlin", version = "4.0.0" }
 tracing = { module = "androidx.tracing:tracing", version.ref = "tracing" }
 tracingWire = { module = "androidx.tracing:tracing-wire", version.ref = "tracing" }
