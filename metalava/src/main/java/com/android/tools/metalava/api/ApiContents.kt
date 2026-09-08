@@ -98,14 +98,12 @@ internal class ApiContents(
      * Override to ensure that when an outer class is skipped then its nested classes are not
      * visited.
      */
-    override fun skip(item: SelectableItem): Boolean {
-        if (item is ClassItem) {
-            // If a class is not public or protected, hidden, or not marked for emitting then it
-            // not part of the API and neither are its nested classes.
-            if (!item.isApiCandidate() || !item.emit) return true
-        }
+    override fun visit(cls: ClassItem) {
+        // If a class is not public or protected, hidden, or not marked for emitting then it is not
+        // part of the API and neither are its nested classes.
+        if (!cls.isApiCandidate() || !cls.emit) return
 
-        return false
+        super.visit(cls)
     }
 
     /**
