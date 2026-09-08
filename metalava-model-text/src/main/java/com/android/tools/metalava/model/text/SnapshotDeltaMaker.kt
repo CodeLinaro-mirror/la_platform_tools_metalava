@@ -101,7 +101,7 @@ private constructor(
     override fun skipPackage(pkg: PackageItem) = false
 
     /** Override to skip any non-public or protected items. */
-    override fun skip(item: Item): Boolean = !item.modifiers.isPublicOrProtected()
+    override fun skip(item: SelectableItem): Boolean = !item.modifiers.isPublicOrProtected()
 
     override fun visitClass(cls: ClassItem) {
         cls.findCorrespondingItemIn(base)?.let { baseClass ->

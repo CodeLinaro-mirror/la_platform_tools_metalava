@@ -195,10 +195,6 @@ open class BaseItemVisitor(
     open fun skipPackage(pkg: PackageItem) = !pkg.emit
 
     override fun visit(parameter: ParameterItem) {
-        if (skip(parameter)) {
-            return
-        }
-
         wrapBodyWithCallsToVisitMethodsForItem(parameter) { visitParameter(parameter) }
     }
 
@@ -218,7 +214,15 @@ open class BaseItemVisitor(
         }
     }
 
-    open fun skip(item: Item): Boolean = false
+    /**
+     * Override to skip specific [SelectableItem]s.
+     *
+     * This intentionally does not support skipping [ParameterItem]s as they generally are not
+     * conditionally skipped as they are an integral part of [CallableItem]s. If [ParameterItem]s
+     * should not be visited then set [visitParameterItems] to `false`. If [ParameterItem]s are
+     * visited then filter them in their [visitParameter] method.
+     */
+    open fun skip(item: SelectableItem): Boolean = false
 
     /**
      * Visits any [Item].
