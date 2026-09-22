@@ -160,7 +160,7 @@ internal class PsiTypeItemFactory(
     ): TypeItem {
         val kotlinTypeInfo =
             if (context != null && isKotlin(context)) {
-                KotlinTypeInfo.fromContext(context)
+                KotlinTypeInfo.fromContext(context, codebase.mainAnalysisModule)
             } else {
                 null
             }
