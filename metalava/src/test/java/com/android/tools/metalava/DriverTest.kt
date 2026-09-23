@@ -25,18 +25,14 @@ import com.android.tools.lint.checks.infrastructure.TestFiles.java
 import com.android.tools.lint.checks.infrastructure.TestFiles.kotlin
 import com.android.tools.lint.checks.infrastructure.stripComments
 import com.android.tools.lint.client.api.LintClient
-import com.android.tools.metalava.cli.common.ARG_CLASS_PATH
-import com.android.tools.metalava.cli.common.ARG_COMPILED_SOURCES
 import com.android.tools.metalava.cli.common.ARG_ERROR
 import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.cli.common.ARG_JAVA_SOURCE
 import com.android.tools.metalava.cli.common.ARG_MERGE_INCLUSION_ANNOTATIONS
 import com.android.tools.metalava.cli.common.ARG_MERGE_QUALIFIER_ANNOTATIONS
 import com.android.tools.metalava.cli.common.ARG_NO_COLOR
-import com.android.tools.metalava.cli.common.ARG_PROJECT
 import com.android.tools.metalava.cli.common.ARG_QUIET
 import com.android.tools.metalava.cli.common.ARG_REPEAT_ERRORS_MAX
-import com.android.tools.metalava.cli.common.ARG_SOURCE_PATH
 import com.android.tools.metalava.cli.common.ARG_TRACE_FILE
 import com.android.tools.metalava.cli.common.ARG_VERBOSE
 import com.android.tools.metalava.cli.common.ARG_WARNING
@@ -61,6 +57,7 @@ import com.android.tools.metalava.cli.multiplatform.ARG_MULTIPLATFORM_CHECK_COMP
 import com.android.tools.metalava.cli.multiplatform.ARG_MULTIPLATFORM_ENABLED
 import com.android.tools.metalava.cli.signature.ARG_FORMAT
 import com.android.tools.metalava.cli.util.configFileOptions
+import com.android.tools.metalava.cli.util.testSources
 import com.android.tools.metalava.model.ANDROIDX_ANNOTATION_PACKAGE
 import com.android.tools.metalava.model.ANDROID_ANNOTATION_PACKAGE
 import com.android.tools.metalava.model.Assertions
@@ -93,8 +90,6 @@ import com.android.tools.metalava.testing.JavacHelper
 import com.android.tools.metalava.testing.KnownJarFiles
 import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.createFiles
-import com.android.tools.metalava.testing.getAndroidJar
-import com.android.tools.metalava.testing.getKotlinStdlibPaths
 import com.android.tools.metalava.testing.xml
 import com.android.utils.SdkUtils
 import com.google.common.io.Closeables
@@ -636,6 +631,36 @@ abstract class DriverTest :
             }
         }
 
+        // Verify that a compiled source jar is only used with a provider that supports it
+        if (
+            compiledSourceJar != null &&
+                Capability.JAR_WITH_SOURCES !in codebaseCreatorConfig.creator.capabilities
+        ) {
+            error(
+                "Provider ${codebaseCreatorConfig.providerName} does not support compiled " +
+                    "sources; please add `@RequiresCapabilities(Capability.JAR_WITH_SOURCES)` to " +
+                    "the test"
+            )
+        }
+
+        val allSignatureSources =
+            buildList {
+                    addAll(signatureSources)
+                    signatureSource?.let { add(it) }
+                }
+                .toTypedArray()
+        val sourceOptions =
+            testSources(
+                sourceFiles = allSourceFiles,
+                additionalSourcePathFiles = additionalSourcePathFiles,
+                projectDescription = projectDescription,
+                compiledSourceJar = compiledSourceJar,
+                classpath = classpath,
+                signatureSources = allSignatureSources,
+                skipSourceArgs = skipSourceArgs
+            )
+        val projectDir = sourceOptions.projectDir
+
         val releasedApiCheck =
             CompatibilityCheckRequest.create(
                 optionName = ARG_CHECK_COMPATIBILITY_API_RELEASED,
@@ -657,97 +682,6 @@ abstract class DriverTest :
 
         // Get the expected failure message.
         val expectedFailureMessage = expectedFail?.trimIndent()
-
-        // Unit test which checks that a signature file is as expected
-        val androidJar = getAndroidJar()
-
-        // Create the main project directory containing the source files.
-        val projectDir = createProjectDir(allSourceFiles)
-
-        val sourcePathDir = File(projectDir, "src")
-        if (!sourcePathDir.isDirectory) {
-            sourcePathDir.mkdirs()
-        }
-
-        var sourcePath = sourcePathDir.path
-
-        // Make it easy to configure a source path with more than one source root: src and src2
-        if (allSourceFiles.any { it.targetPath.startsWith("src2") }) {
-            sourcePath = sourcePath + File.pathSeparator + sourcePath + "2"
-        }
-
-        // Add any additional sources onto the source path.
-        if (additionalSourcePathFiles.isNotEmpty()) {
-            // Get the directory for the folder.
-            val dir = getOrCreateFolder("extra-source-files")
-
-            // Create the files. Note, that Java files are created in a `src` subdirectory of the
-            // dir passed in to createFiles(File).
-            additionalSourcePathFiles.createFiles(dir)
-
-            // Create a file for the `src` subdirectory.
-            val srcDir = dir.resolve("src")
-
-            // Add a label for it.
-            temporaryFolder.addTestLabelForFile(srcDir, "ADDITIONAL-SOURCE-PATH")
-
-            // Add it to the source path.
-            sourcePath = sourcePath + File.pathSeparator + srcDir
-        }
-
-        fun pathUnderProject(path: String): String = File(projectDir, path).path
-
-        val projectDescriptionFile = projectDescription?.createFile(projectDir)
-
-        val compiledSourceJarFile = compiledSourceJar?.createFile(projectDir)
-        if (
-            compiledSourceJarFile != null &&
-                Capability.JAR_WITH_SOURCES !in codebaseCreatorConfig.creator.capabilities
-        ) {
-            error(
-                "Provider ${codebaseCreatorConfig.providerName} does not support compiled " +
-                    "sources; please add `@RequiresCapabilities(Capability.JAR_WITH_SOURCES)` to " +
-                    "the test"
-            )
-        }
-
-        val sourceList =
-            if (signatureSources.isNotEmpty() || signatureSource != null) {
-                sourcePathDir.mkdirs()
-
-                // if signatureSource is set, add it to signatureSources.
-                val sources = signatureSources.toMutableList()
-                signatureSource?.let { sources.add(it) }
-
-                var num = 0
-                val args = mutableListOf<String>()
-                sources.forEach { file ->
-                    val signatureFile =
-                        File(projectDir, "load-api${ if (++num == 1) "" else num.toString() }.txt")
-                    signatureFile.writeSignatureText(file)
-                    args.add(signatureFile.path)
-                }
-                args.toTypedArray()
-            } else {
-                allSourceFiles
-                    .asSequence()
-                    .map { pathUnderProject(it.targetPath) }
-                    .toList()
-                    .toTypedArray()
-            }
-
-        val classpathArgs: Array<String> =
-            if (classpath != null) {
-                val classpathString =
-                    classpath
-                        .map { it.createFile(projectDir) }
-                        .map { it.path }
-                        .joinToString(separator = File.pathSeparator) { it }
-
-                arrayOf(ARG_CLASS_PATH, classpathString)
-            } else {
-                emptyArray()
-            }
 
         val allReportedIssues = StringBuilder()
         val errorSeverityReportedIssues = StringBuilder()
@@ -1006,8 +940,6 @@ abstract class DriverTest :
             importedPackageArgs.add(it)
         }
 
-        val kotlinPathArgs = findKotlinStdlibPathArgs(sourceList)
-
         val sdkFilesDir: File?
         val sdkFilesArgs: Array<String>
         if (
@@ -1140,17 +1072,6 @@ abstract class DriverTest :
         // Run optional additional setup steps on the project directory
         projectSetup?.invoke(projectDir)
 
-        val sourceArgs =
-            if (skipSourceArgs) {
-                emptyArray()
-            } else {
-                arrayOf(
-                    ARG_SOURCE_PATH,
-                    sourcePath,
-                    *sourceList,
-                )
-            }
-
         val languageLevelArgs =
             if (javaLanguageLevel != null) {
                 arrayOf(ARG_JAVA_SOURCE, javaLanguageLevel)
@@ -1171,7 +1092,7 @@ abstract class DriverTest :
                 // Annotation generation temporarily turned off by default while integrating with
                 // SDK builds; tests need these
                 ARG_INCLUDE_ANNOTATIONS,
-                *sourceArgs,
+                *sourceOptions.args,
                 *configFileOptions(*configFiles, apiSurface?.configFile),
                 *removedArgs,
                 *apiArgs,
@@ -1211,26 +1132,7 @@ abstract class DriverTest :
                 *multiplatformSignatureSourceOptions,
                 *multiplatformCompatibilityArgs,
                 *languageLevelArgs,
-            ) +
-                buildList {
-                        if (projectDescriptionFile != null) {
-                            // Classpath isn't needed when it is specified through the project xml
-                            add(ARG_PROJECT)
-                            add(projectDescriptionFile.absolutePath)
-                            // When project description is provided,
-                            // skip listing (common) sources
-                        } else {
-                            add(ARG_CLASS_PATH)
-                            add(androidJar.path)
-                            addAll(classpathArgs)
-                            addAll(kotlinPathArgs)
-                        }
-                        if (compiledSourceJarFile != null) {
-                            add(ARG_COMPILED_SOURCES)
-                            add(compiledSourceJarFile.absolutePath)
-                        }
-                    }
-                    .toTypedArray()
+            )
 
         val testEnvironment =
             TestEnvironment(
@@ -1744,21 +1646,8 @@ private fun FileFormat.outputFlags(): String {
     return "$ARG_FORMAT=${specifier()}"
 }
 
-private fun File.writeSignatureText(contents: String) {
+fun File.writeSignatureText(contents: String) {
     writeText(prepareSignatureFileForTest(contents, FileFormat.V2))
-}
-
-/** Returns the paths of the Kotlin stdlib jars as metalava args expected by SourceOptions. */
-fun findKotlinStdlibPathArgs(sources: Array<String>): Array<String> {
-    // If there are no Kotlin files, don't include the stdlib in the classpath.
-    if (sources.none { it.endsWith(DOT_KT) }) return emptyArray()
-    val kotlinPaths = getKotlinStdlibPaths()
-    return if (kotlinPaths.isEmpty()) emptyArray()
-    else
-        arrayOf(
-            ARG_CLASS_PATH,
-            kotlinPaths.joinToString(separator = File.pathSeparator) { it.path }
-        )
 }
 
 val intRangeAnnotationSource = KnownSourceFiles.intRangeAnnotationSource
