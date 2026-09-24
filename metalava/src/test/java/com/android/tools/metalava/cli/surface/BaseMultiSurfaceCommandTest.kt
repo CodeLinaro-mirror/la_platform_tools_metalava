@@ -22,6 +22,7 @@ import com.android.tools.metalava.cli.common.CommonOptions
 import com.android.tools.metalava.cli.util.SingleSurfaceOptions
 import com.android.tools.metalava.cli.util.configFileOptions
 import com.android.tools.metalava.cli.util.testSources
+import com.android.tools.metalava.cli.util.tracingOptions
 import com.github.ajalt.clikt.core.subcommands
 import kotlin.collections.addAll
 
@@ -42,6 +43,7 @@ abstract class BaseMultiSurfaceCommandTest :
         sourceFiles: Array<TestFile>,
         expectedOutput: String,
         vararg surfaceExpectations: SingleSurfaceOptions,
+        enableTracing: Boolean = false,
     ) {
         val surfaces = surfaceExpectations.map { it.apiSurface }
         // Aggregate all extra source files needed for the surfaces
@@ -57,7 +59,11 @@ abstract class BaseMultiSurfaceCommandTest :
                 skipSourceArgs = false,
             )
 
+        val tracingOptions = tracingOptions(enableTracing)
+
         val multiSurfaceArgs = buildList {
+            addAll(tracingOptions.args)
+
             add("multi-surface")
             addAll(sourceOptions.args)
 
@@ -74,6 +80,7 @@ abstract class BaseMultiSurfaceCommandTest :
             args += multiSurfaceArgs
             expectedStdout = expectedOutput
         }
+        tracingOptions.check()
         for (surface in surfaceExpectations) {
             surface.check()
         }

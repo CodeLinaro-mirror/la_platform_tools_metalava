@@ -33,7 +33,6 @@ import com.android.tools.metalava.cli.common.ARG_MERGE_QUALIFIER_ANNOTATIONS
 import com.android.tools.metalava.cli.common.ARG_NO_COLOR
 import com.android.tools.metalava.cli.common.ARG_QUIET
 import com.android.tools.metalava.cli.common.ARG_REPEAT_ERRORS_MAX
-import com.android.tools.metalava.cli.common.ARG_TRACE_FILE
 import com.android.tools.metalava.cli.common.ARG_VERBOSE
 import com.android.tools.metalava.cli.common.ARG_WARNING
 import com.android.tools.metalava.cli.common.CheckerContext
@@ -58,6 +57,7 @@ import com.android.tools.metalava.cli.multiplatform.ARG_MULTIPLATFORM_ENABLED
 import com.android.tools.metalava.cli.util.configFileOptions
 import com.android.tools.metalava.cli.util.signatureOptions
 import com.android.tools.metalava.cli.util.testSources
+import com.android.tools.metalava.cli.util.tracingOptions
 import com.android.tools.metalava.model.ANDROIDX_ANNOTATION_PACKAGE
 import com.android.tools.metalava.model.ANDROID_ANNOTATION_PACKAGE
 import com.android.tools.metalava.model.Assertions
@@ -101,7 +101,6 @@ import java.io.PrintStream
 import java.io.PrintWriter
 import java.io.StringWriter
 import java.net.URI
-import java.nio.file.Files
 import junit.framework.ComparisonFailure
 import kotlin.text.Charsets.UTF_8
 import org.intellij.lang.annotations.Language
@@ -1049,15 +1048,7 @@ abstract class DriverTest :
                 emptyArray()
             }
 
-        val traceFile: File?
-        val tracingArguments =
-            if (enableTracing) {
-                traceFile = File(projectDir, "trace.perfetto-trace")
-                arrayOf(ARG_TRACE_FILE, traceFile.path)
-            } else {
-                traceFile = null
-                emptyArray()
-            }
+        val tracingOptions = tracingOptions(enableTracing)
 
         // Run optional additional setup steps on the project directory
         projectSetup?.invoke(projectDir)
@@ -1074,7 +1065,7 @@ abstract class DriverTest :
                 // Common options.
                 ARG_NO_COLOR,
                 *quiet,
-                *tracingArguments,
+                *tracingOptions.args,
 
                 // The sub-command to run.
                 "main",
@@ -1309,10 +1300,7 @@ abstract class DriverTest :
             )
         }
 
-        if (traceFile != null) {
-            assertTrue("Trace file exists", traceFile.exists())
-            assertTrue("Trace file is not empty", Files.size(traceFile.toPath()) > 0)
-        }
+        tracingOptions.check()
     }
 
     /** Encapsulates information needed to request a compatibility check. */

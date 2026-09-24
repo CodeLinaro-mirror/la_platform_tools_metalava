@@ -175,4 +175,29 @@ class MultiSurfaceCommandTest : BaseMultiSurfaceCommandTest() {
             )
         )
     }
+
+    @Test
+    fun `Test tracing for multi-surface`() {
+        runTest(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                        package test.pkg;
+                        class Foo {}
+                        """
+                    )
+                ),
+            expectedOutput =
+                """
+                The multi-surface command is currently experimental
+                The single-surface command is currently experimental
+                The single-surface command is currently experimental
+                """
+                    .trimIndent(),
+            optionsForSurface(KnownApiSurface.TEST_PUBLIC_API_SURFACE),
+            optionsForSurface(KnownApiSurface.TEST_SYSTEM_API_SURFACE),
+            enableTracing = true,
+        )
+    }
 }
