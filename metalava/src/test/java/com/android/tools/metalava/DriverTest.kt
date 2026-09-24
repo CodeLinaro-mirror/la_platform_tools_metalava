@@ -93,8 +93,8 @@ import com.android.tools.metalava.testing.JavacHelper
 import com.android.tools.metalava.testing.KnownJarFiles
 import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.createFiles
-import com.android.tools.metalava.testing.findKotlinStdlibPaths
 import com.android.tools.metalava.testing.getAndroidJar
+import com.android.tools.metalava.testing.getKotlinStdlibPaths
 import com.android.tools.metalava.testing.xml
 import com.android.utils.SdkUtils
 import com.google.common.io.Closeables
@@ -1748,10 +1748,11 @@ private fun File.writeSignatureText(contents: String) {
     writeText(prepareSignatureFileForTest(contents, FileFormat.V2))
 }
 
-/** Returns the paths returned by [findKotlinStdlibPaths] as metalava args expected by Options. */
+/** Returns the paths of the Kotlin stdlib jars as metalava args expected by SourceOptions. */
 fun findKotlinStdlibPathArgs(sources: Array<String>): Array<String> {
-    val kotlinPaths = findKotlinStdlibPaths(sources)
-
+    // If there are no Kotlin files, don't include the stdlib in the classpath.
+    if (sources.none { it.endsWith(DOT_KT) }) return emptyArray()
+    val kotlinPaths = getKotlinStdlibPaths()
     return if (kotlinPaths.isEmpty()) emptyArray()
     else
         arrayOf(

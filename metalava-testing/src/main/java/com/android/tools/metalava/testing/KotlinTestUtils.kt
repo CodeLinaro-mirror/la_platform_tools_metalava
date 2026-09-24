@@ -20,8 +20,6 @@ import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.lint.checks.infrastructure.TestFiles.toBase64gzip
 import java.io.File
 
-private const val DOT_KT = ".kt"
-
 /** Get Kotlin stdlib paths. */
 fun getKotlinStdlibPaths(): MutableList<File> {
     val classPath: String = System.getProperty("java.class.path")
@@ -37,16 +35,6 @@ fun getKotlinStdlibPaths(): MutableList<File> {
         error("Did not find kotlin-stdlib-jre8 in classpath: $classPath")
     }
     return paths
-}
-
-/** Get the Kotlin stdlib paths if needed for [sources]. */
-fun findKotlinStdlibPaths(sources: Array<String>): List<File> {
-    val paths = getKotlinStdlibPaths()
-    return if (sources.asSequence().any { it.endsWith(DOT_KT) }) {
-        paths
-    } else {
-        emptyList()
-    }
 }
 
 /**
