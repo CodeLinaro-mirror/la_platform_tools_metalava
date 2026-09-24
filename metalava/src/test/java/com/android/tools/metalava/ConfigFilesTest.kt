@@ -58,7 +58,7 @@ class ConfigFilesTest : DriverTest() {
             expectedFail =
                 """
                     Aborting: Errors found while parsing configuration file(s):
-                        file:TESTROOT/config.xml:1: cvc-elt.1.a: Cannot find the declaration of element 'invalid'.
+                        file:TESTROOT/config/config.xml:1: cvc-elt.1.a: Cannot find the declaration of element 'invalid'.
                 """,
         )
     }

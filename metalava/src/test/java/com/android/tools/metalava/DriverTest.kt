@@ -60,6 +60,7 @@ import com.android.tools.metalava.cli.multiplatform.ARG_MULTIPLATFORM_API_SOURCE
 import com.android.tools.metalava.cli.multiplatform.ARG_MULTIPLATFORM_CHECK_COMPATIBILITY
 import com.android.tools.metalava.cli.multiplatform.ARG_MULTIPLATFORM_ENABLED
 import com.android.tools.metalava.cli.signature.ARG_FORMAT
+import com.android.tools.metalava.cli.util.configFileOptions
 import com.android.tools.metalava.model.ANDROIDX_ANNOTATION_PACKAGE
 import com.android.tools.metalava.model.ANDROID_ANNOTATION_PACKAGE
 import com.android.tools.metalava.model.Assertions
@@ -763,11 +764,6 @@ abstract class DriverTest :
                 }
             }
 
-        val configFileArgs =
-            configFiles
-                .flatMap { listOf(ARG_CONFIG_FILE, it.indented().createFile(projectDir).path) }
-                .toTypedArray()
-
         val mergeAnnotationsArgs =
             if (mergeXmlAnnotations != null) {
                 val merged = File(projectDir, "merged-annotations.xml")
@@ -886,8 +882,6 @@ abstract class DriverTest :
                 listOf(
                         ARG_API_SURFACE,
                         apiSurface.surface,
-                        ARG_CONFIG_FILE,
-                        apiSurface.configFile.createFile(projectDir).path,
                     )
                     .toTypedArray()
             } else {
@@ -1178,7 +1172,7 @@ abstract class DriverTest :
                 // SDK builds; tests need these
                 ARG_INCLUDE_ANNOTATIONS,
                 *sourceArgs,
-                *configFileArgs,
+                *configFileOptions(*configFiles, apiSurface?.configFile),
                 *removedArgs,
                 *apiArgs,
                 *stubsArgs,
