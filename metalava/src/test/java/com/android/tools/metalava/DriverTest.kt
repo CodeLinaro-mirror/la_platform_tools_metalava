@@ -55,8 +55,8 @@ import com.android.tools.metalava.cli.multiplatform.ARG_MULTIPLATFORM_API_DIR
 import com.android.tools.metalava.cli.multiplatform.ARG_MULTIPLATFORM_API_SOURCES
 import com.android.tools.metalava.cli.multiplatform.ARG_MULTIPLATFORM_CHECK_COMPATIBILITY
 import com.android.tools.metalava.cli.multiplatform.ARG_MULTIPLATFORM_ENABLED
-import com.android.tools.metalava.cli.signature.ARG_FORMAT
 import com.android.tools.metalava.cli.util.configFileOptions
+import com.android.tools.metalava.cli.util.signatureOptions
 import com.android.tools.metalava.cli.util.testSources
 import com.android.tools.metalava.model.ANDROIDX_ANNOTATION_PACKAGE
 import com.android.tools.metalava.model.ANDROID_ANNOTATION_PACKAGE
@@ -866,18 +866,8 @@ abstract class DriverTest :
                 emptyArray()
             }
 
-        var removedApiFile: File? = null
-        val removedArgs =
-            if (removedApi != null) {
-                removedApiFile = temporaryFolder.newFile("removed.txt")
-                arrayOf(ARG_REMOVED_API, removedApiFile.path)
-            } else {
-                emptyArray()
-            }
-
         // Always pass apiArgs and generate API text file in runDriver
-        val apiFile: File = getOrCreateFile("public-api.txt")
-        val apiArgs = arrayOf(ARG_API, apiFile.path)
+        val signatureOptions = signatureOptions(expectedApiSignature, removedApi, format)
 
         var stubsDir: File? = null
         val stubsArgs =
@@ -1094,8 +1084,7 @@ abstract class DriverTest :
                 ARG_INCLUDE_ANNOTATIONS,
                 *sourceOptions.args,
                 *configFileOptions(*configFiles, apiSurface?.configFile),
-                *removedArgs,
-                *apiArgs,
+                *signatureOptions.args,
                 *stubsArgs,
                 *mergeAnnotationsArgs,
                 *signatureAnnotationsArgs,
@@ -1121,7 +1110,6 @@ abstract class DriverTest :
                 *extractAnnotationsArgs,
                 *validateNullabilityArgs,
                 *validateNullabilityFromListArgs,
-                format.outputFlags(),
                 *extraArguments,
                 *apiLintArgs,
                 *errorMessageApiLintArgs,
@@ -1174,37 +1162,11 @@ abstract class DriverTest :
             )
         }
 
-        if (expectedApiSignature != null) {
-            assertTrue(
-                "${apiFile.path} does not exist even though --api was used",
-                apiFile.exists()
-            )
-            assertSignatureFilesMatch(
-                expectedApiSignature,
-                apiFile.readText(),
-                expectedFormat = format
-            )
-            // Make sure we can read back the files we write
-            ApiFile.parseApi(SignatureFile.fromFiles(apiFile), Codebase.Config.NOOP)
-        }
+        signatureOptions.check()
 
         baselineCheck.apply()
         baselineApiLintCheck.apply()
         baselineCheckCompatibilityReleasedCheck.apply()
-
-        if (removedApi != null && removedApiFile != null) {
-            assertTrue(
-                "${removedApiFile.path} does not exist even though --removed-api was used",
-                removedApiFile.exists()
-            )
-            assertSignatureFilesMatch(
-                removedApi,
-                removedApiFile.readText(),
-                expectedFormat = format
-            )
-            // Make sure we can read back the files we write
-            ApiFile.parseApi(SignatureFile.fromFiles(removedApiFile), Codebase.Config.NOOP)
-        }
 
         if (proguard != null && proguardFile != null) {
             assertTrue(
@@ -1640,10 +1602,6 @@ abstract class DriverTest :
             }
         }
     }
-}
-
-private fun FileFormat.outputFlags(): String {
-    return "$ARG_FORMAT=${specifier()}"
 }
 
 fun File.writeSignatureText(contents: String) {
