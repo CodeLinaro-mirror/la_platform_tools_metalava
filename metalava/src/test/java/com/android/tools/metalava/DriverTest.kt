@@ -33,7 +33,6 @@ import com.android.tools.metalava.cli.common.ARG_MERGE_QUALIFIER_ANNOTATIONS
 import com.android.tools.metalava.cli.common.ARG_NO_COLOR
 import com.android.tools.metalava.cli.common.ARG_QUIET
 import com.android.tools.metalava.cli.common.ARG_REPEAT_ERRORS_MAX
-import com.android.tools.metalava.cli.common.ARG_TRACE_FILE
 import com.android.tools.metalava.cli.common.ARG_VERBOSE
 import com.android.tools.metalava.cli.common.ARG_WARNING
 import com.android.tools.metalava.cli.common.CheckerContext
@@ -55,9 +54,10 @@ import com.android.tools.metalava.cli.multiplatform.ARG_MULTIPLATFORM_API_DIR
 import com.android.tools.metalava.cli.multiplatform.ARG_MULTIPLATFORM_API_SOURCES
 import com.android.tools.metalava.cli.multiplatform.ARG_MULTIPLATFORM_CHECK_COMPATIBILITY
 import com.android.tools.metalava.cli.multiplatform.ARG_MULTIPLATFORM_ENABLED
-import com.android.tools.metalava.cli.signature.ARG_FORMAT
 import com.android.tools.metalava.cli.util.configFileOptions
+import com.android.tools.metalava.cli.util.signatureOptions
 import com.android.tools.metalava.cli.util.testSources
+import com.android.tools.metalava.cli.util.tracingOptions
 import com.android.tools.metalava.model.ANDROIDX_ANNOTATION_PACKAGE
 import com.android.tools.metalava.model.ANDROID_ANNOTATION_PACKAGE
 import com.android.tools.metalava.model.Assertions
@@ -101,7 +101,6 @@ import java.io.PrintStream
 import java.io.PrintWriter
 import java.io.StringWriter
 import java.net.URI
-import java.nio.file.Files
 import junit.framework.ComparisonFailure
 import kotlin.text.Charsets.UTF_8
 import org.intellij.lang.annotations.Language
@@ -866,18 +865,8 @@ abstract class DriverTest :
                 emptyArray()
             }
 
-        var removedApiFile: File? = null
-        val removedArgs =
-            if (removedApi != null) {
-                removedApiFile = temporaryFolder.newFile("removed.txt")
-                arrayOf(ARG_REMOVED_API, removedApiFile.path)
-            } else {
-                emptyArray()
-            }
-
         // Always pass apiArgs and generate API text file in runDriver
-        val apiFile: File = getOrCreateFile("public-api.txt")
-        val apiArgs = arrayOf(ARG_API, apiFile.path)
+        val signatureOptions = signatureOptions(expectedApiSignature, removedApi, format)
 
         var stubsDir: File? = null
         val stubsArgs =
@@ -1059,15 +1048,7 @@ abstract class DriverTest :
                 emptyArray()
             }
 
-        val traceFile: File?
-        val tracingArguments =
-            if (enableTracing) {
-                traceFile = File(projectDir, "trace.perfetto-trace")
-                arrayOf(ARG_TRACE_FILE, traceFile.path)
-            } else {
-                traceFile = null
-                emptyArray()
-            }
+        val tracingOptions = tracingOptions(enableTracing)
 
         // Run optional additional setup steps on the project directory
         projectSetup?.invoke(projectDir)
@@ -1084,7 +1065,7 @@ abstract class DriverTest :
                 // Common options.
                 ARG_NO_COLOR,
                 *quiet,
-                *tracingArguments,
+                *tracingOptions.args,
 
                 // The sub-command to run.
                 "main",
@@ -1094,8 +1075,7 @@ abstract class DriverTest :
                 ARG_INCLUDE_ANNOTATIONS,
                 *sourceOptions.args,
                 *configFileOptions(*configFiles, apiSurface?.configFile),
-                *removedArgs,
-                *apiArgs,
+                *signatureOptions.args,
                 *stubsArgs,
                 *mergeAnnotationsArgs,
                 *signatureAnnotationsArgs,
@@ -1121,7 +1101,6 @@ abstract class DriverTest :
                 *extractAnnotationsArgs,
                 *validateNullabilityArgs,
                 *validateNullabilityFromListArgs,
-                format.outputFlags(),
                 *extraArguments,
                 *apiLintArgs,
                 *errorMessageApiLintArgs,
@@ -1174,37 +1153,11 @@ abstract class DriverTest :
             )
         }
 
-        if (expectedApiSignature != null) {
-            assertTrue(
-                "${apiFile.path} does not exist even though --api was used",
-                apiFile.exists()
-            )
-            assertSignatureFilesMatch(
-                expectedApiSignature,
-                apiFile.readText(),
-                expectedFormat = format
-            )
-            // Make sure we can read back the files we write
-            ApiFile.parseApi(SignatureFile.fromFiles(apiFile), Codebase.Config.NOOP)
-        }
+        signatureOptions.check()
 
         baselineCheck.apply()
         baselineApiLintCheck.apply()
         baselineCheckCompatibilityReleasedCheck.apply()
-
-        if (removedApi != null && removedApiFile != null) {
-            assertTrue(
-                "${removedApiFile.path} does not exist even though --removed-api was used",
-                removedApiFile.exists()
-            )
-            assertSignatureFilesMatch(
-                removedApi,
-                removedApiFile.readText(),
-                expectedFormat = format
-            )
-            // Make sure we can read back the files we write
-            ApiFile.parseApi(SignatureFile.fromFiles(removedApiFile), Codebase.Config.NOOP)
-        }
 
         if (proguard != null && proguardFile != null) {
             assertTrue(
@@ -1347,10 +1300,7 @@ abstract class DriverTest :
             )
         }
 
-        if (traceFile != null) {
-            assertTrue("Trace file exists", traceFile.exists())
-            assertTrue("Trace file is not empty", Files.size(traceFile.toPath()) > 0)
-        }
+        tracingOptions.check()
     }
 
     /** Encapsulates information needed to request a compatibility check. */
@@ -1640,10 +1590,6 @@ abstract class DriverTest :
             }
         }
     }
-}
-
-private fun FileFormat.outputFlags(): String {
-    return "$ARG_FORMAT=${specifier()}"
 }
 
 fun File.writeSignatureText(contents: String) {

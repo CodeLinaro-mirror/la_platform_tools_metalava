@@ -17,8 +17,9 @@
 package com.android.tools.metalava.cli.common
 
 import com.android.tools.lint.checks.infrastructure.TestFile
+import com.android.tools.metalava.createTraceDriver
 import com.android.tools.metalava.testing.BaseTemporaryFolderOwner
-import com.android.tools.metalava.testing.getNoopTracer
+import com.android.tools.metalava.trace
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.subcommands
 import java.io.File
@@ -271,9 +272,16 @@ class CommandTestConfig<C : CliktCommand>(private val test: BaseCommandTest<C>) 
     }
 
     private fun runCommand(executionEnvironment: ExecutionEnvironment, command: C): Int {
-        val metalavaCommand =
-            MetalavaCommand(executionEnvironment = executionEnvironment, tracer = getNoopTracer())
-        metalavaCommand.subcommands(command)
-        return metalavaCommand.process(args.toTypedArray())
+        val argsArray = args.toTypedArray()
+        val earlyOptions = EarlyOptions.parse(argsArray)
+        // If a trace file was specified, run tracing for the test.
+        val traceDriver = createTraceDriver(earlyOptions.traceFile)
+        traceDriver.use {
+            val metalavaCommand =
+                MetalavaCommand(executionEnvironment = executionEnvironment, tracer = it.tracer)
+
+            metalavaCommand.subcommands(command)
+            return it.tracer.trace("process") { metalavaCommand.process(argsArray) }
+        }
     }
 }

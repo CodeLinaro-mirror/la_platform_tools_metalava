@@ -188,7 +188,8 @@ class Driver(
                 SignatureToDexCommand(),
                 SignatureToJDiffCommand(),
                 VersionCommand(),
-                MultiSurfaceCommand().subcommands(SingleSurfaceCommand()),
+                MultiSurfaceCommand()
+                    .subcommands(SingleSurfaceCommand(command.commonOptions, executionEnvironment)),
             )
             return command
         }
