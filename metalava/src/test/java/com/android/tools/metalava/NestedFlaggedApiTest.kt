@@ -484,4 +484,110 @@ class NestedFlaggedApiTest : DriverTest() {
                 ),
         )
     }
+
+    @Test
+    fun `Test outer revert, nested1 finalize, nested2 revert, nested3 finalize`() {
+        // TODO(b/561433523): Finalizing nested flags when enclosing flags are reverted does not
+        //  make sense as the nested APIs cannot be exposed without the enclosing classes.
+        check(
+            configFiles =
+                arrayOf(
+                    flagsConfigFile(
+                        "outer" to REVERT,
+                        "nested1" to FINALIZE,
+                        "nested2" to REVERT,
+                        "nested3" to FINALIZE,
+                    )
+                ),
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            import $ANDROID_FLAGGED_API;
+
+                            @FlaggedApi("test.pkg.outer")
+                            public class Foo {
+                                public Foo() {}
+
+                                @FlaggedApi("test.pkg.nested1")
+                                public static class Nested1 {
+                                    public Nested1() {}
+
+                                    @FlaggedApi("test.pkg.nested2")
+                                    public static class Nested2 {
+                                        public Nested2() {}
+
+                                        @FlaggedApi("test.pkg.nested3")
+                                        public void method() {}
+                                    }
+                                }
+                            }
+                        """
+                    ),
+                    flaggedApiSource,
+                ),
+            checkCompatibilityApiReleased =
+                """
+                    // Signature format: 5.0
+                """,
+            expectedApiSignature =
+                """
+                    // Signature format: 5.0
+                """,
+            expectedStubFiles = emptyArray(),
+            stubPaths = emptyArray(),
+        )
+    }
+
+    @Test
+    fun `Test outer revert, nested1 revert, nested2 finalize`() {
+        // TODO(b/561433523): Finalizing nested flags when enclosing flags are reverted does not
+        //  make sense as the nested APIs cannot be exposed without the enclosing classes.
+        check(
+            configFiles =
+                arrayOf(
+                    flagsConfigFile(
+                        "outer" to REVERT,
+                        "nested1" to REVERT,
+                        "nested2" to FINALIZE,
+                    )
+                ),
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            import $ANDROID_FLAGGED_API;
+
+                            @FlaggedApi("test.pkg.outer")
+                            public class Foo {
+                                public Foo() {}
+
+                                @FlaggedApi("test.pkg.nested1")
+                                public static class Nested1 {
+                                    public Nested1() {}
+
+                                    @FlaggedApi("test.pkg.nested2")
+                                    public void method() {}
+                                }
+                            }
+                        """
+                    ),
+                    flaggedApiSource,
+                ),
+            checkCompatibilityApiReleased =
+                """
+                    // Signature format: 5.0
+                """,
+            expectedApiSignature =
+                """
+                    // Signature format: 5.0
+                """,
+            expectedStubFiles = emptyArray(),
+            stubPaths = emptyArray(),
+        )
+    }
 }
