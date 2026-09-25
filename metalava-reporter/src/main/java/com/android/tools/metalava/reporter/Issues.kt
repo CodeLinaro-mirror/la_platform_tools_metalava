@@ -308,6 +308,7 @@ object Issues {
     val FLAGGED_API_LITERAL by Issue(Severity.ERROR, Category.API_LINT)
     val UNEXPORTED_FLAGGED_API by Issue(Severity.WARNING_ERROR_WHEN_NEW, Category.API_LINT)
     val MULTIPLE_FLAGGING by Issue(Severity.ERROR, Category.API_LINT)
+    val INVALID_FLAG_NESTING by Issue(Severity.ERROR, Category.API_LINT)
 
     val NO_PREVIOUSLY_RELEASED_API by Issue(Severity.ERROR, Category.API_LINT)
 

@@ -16,10 +16,13 @@
 
 package com.android.tools.metalava.model.api
 
+import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.SourceLanguage
+import com.android.tools.metalava.model.api.flags.ApiFlagAction
 import com.android.tools.metalava.model.api.surface.ApiVariant
 import com.android.tools.metalava.model.api.surface.ApiVariantSet
+import com.android.tools.metalava.reporter.Issues
 
 /** Base [SelectedApi] class for use on [SelectableItem]s created from sources. */
 internal sealed class SourceSelectedApi<S : SelectableItem>(
@@ -95,6 +98,37 @@ internal sealed class SourceSelectedApi<S : SelectableItem>(
      * Initialized by [SelectedApiUpdater.updateSelectedApi] called from [updateFromSelectableItem].
      */
     override var revertItem: SelectableItem? = null
+
+    /**
+     * The maximum valid [ApiFlagAction] (by lifecycle permanence: `REVERT < KEEP < FINALIZE`)
+     * allowed for `@FlaggedApi` annotations on [item] and any items it encloses.
+     *
+     * Initialized from `parent.maxValidFlagAction` by [SelectedApiUpdater.updateSelectedApi] (which
+     * defaults to [ApiFlagAction.FINALIZE] at the root package) and lowered by
+     * [SelectedApiUpdater.checkFlaggedApi] if [item] itself has a `@FlaggedApi` annotation with a
+     * less permanent [ApiFlagAction]. This allows enclosed items with `@FlaggedApi` annotations to
+     * immediately detect whether any enclosing `@FlaggedApi` is in a conflicting (less permanent)
+     * state (`action > parent.maxValidFlagAction`) without walking the ancestor chain.
+     *
+     * Unlike [flaggedApiAnnotation], this is never cleared once set, so subsequent enclosed items
+     * with conflicting `@FlaggedApi` annotations will still detect the conflict even after the
+     * ancestor's annotation has been reported.
+     */
+    var maxValidFlagAction: ApiFlagAction = ApiFlagAction.FINALIZE
+        internal set
+
+    /**
+     * The non-finalized `@FlaggedApi` [AnnotationItem] directly on [item] if it has not yet had
+     * [Issues.INVALID_FLAG_NESTING] reported on it, or `null` otherwise.
+     *
+     * Set by [SelectedApiUpdater.checkFlaggedApi] when a `@FlaggedApi` annotation with an action
+     * other than [ApiFlagAction.FINALIZE] is found on [item], and cleared to `null` by
+     * [SelectedApiUpdater.reportConflictingOuterFlags] once [Issues.INVALID_FLAG_NESTING] has been
+     * reported on it. Clearing this ensures that an outer `@FlaggedApi` annotation is reported at
+     * most once, even if it encloses multiple conflicting `@FlaggedApi` annotations.
+     */
+    var flaggedApiAnnotation: AnnotationItem? = null
+        internal set
 
     /**
      * The [ApiVariantSet] for the [item].

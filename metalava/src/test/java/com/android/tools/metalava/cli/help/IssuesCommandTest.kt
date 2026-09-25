@@ -142,6 +142,7 @@ Available Issues                             |  Category                        
   InvalidDevicePolicyAnnotation              |  documentation                        |   error
   InvalidDocThrowsType                       |  documentation                        |   error
   InvalidFeatureEnforcement                  |  documentation                        |   error
+  InvalidFlagNesting                         |  api_lint                             |   error
   InvalidIfTag                               |  documentation                        |   error
   InvalidJavadoc                             |  documentation                        |   warning_error_when_new
   InvalidJavadocExpr                         |  documentation                        |   error

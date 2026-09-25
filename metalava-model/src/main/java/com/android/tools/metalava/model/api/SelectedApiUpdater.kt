@@ -24,6 +24,8 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.api.SurfaceSelectionRule.Effect
+import com.android.tools.metalava.model.api.flags.ApiFlag
+import com.android.tools.metalava.model.api.flags.ApiFlagAction
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.model.api.surface.ApiVariant
 import com.android.tools.metalava.model.api.surface.ApiVariantSet
@@ -116,6 +118,9 @@ class SelectedApiUpdater(
         // Mark selectedApi as accessible so that enclosed items can inherit accessibility from it.
         selectedApi.accessible = true
 
+        // Inherit the maximum valid @FlaggedApi action from the parent.
+        selectedApi.maxValidFlagAction = parent.maxValidFlagAction
+
         val enclosingApiVariants = parent.inheritableApiVariants
 
         // Keep track of the ApiVariants to which the context item belong. Is `null` to avoid
@@ -170,6 +175,7 @@ class SelectedApiUpdater(
                 }
             }
                 ?: annotationItem.apiFlag?.let { apiFlag ->
+                    checkFlaggedApi(selectedApi, parent, annotationItem, apiFlag)
                     if (apiFlag.revert) {
                         revert = true
                     }
@@ -447,6 +453,76 @@ class SelectedApiUpdater(
             }
     }
 
+    /**
+     * Check `@FlaggedApi` [annotation] on [selectedApi]'s item for invalid flag nesting.
+     *
+     * If [apiFlag] has an [ApiFlagAction] other than [ApiFlagAction.FINALIZE], lowers
+     * [SourceSelectedApi.maxValidFlagAction] on [selectedApi] if necessary and saves [annotation]
+     * in [SourceSelectedApi.flaggedApiAnnotation] so it can be reported if an enclosed item has a
+     * conflicting (more permanent) `@FlaggedApi`.
+     *
+     * If [apiFlag]'s [ApiFlagAction] is more permanent than `parent.maxValidFlagAction`, reports
+     * [Issues.INVALID_FLAG_NESTING] on any unreported enclosing conflicting `@FlaggedApi`
+     * annotations as well as on [annotation].
+     */
+    private fun checkFlaggedApi(
+        selectedApi: SourceSelectedApi<*>,
+        parent: SourceSelectedApi<*>,
+        annotation: AnnotationItem,
+        apiFlag: ApiFlag,
+    ) {
+        // Ignore PropertyItems as their annotations are duplicated from their accessors/backing
+        // fields.
+        val item = selectedApi.item
+        if (item is PropertyItem) return
+
+        val action = apiFlag.action
+        if (action != ApiFlagAction.FINALIZE) {
+            if (action < selectedApi.maxValidFlagAction) {
+                selectedApi.maxValidFlagAction = action
+            }
+            selectedApi.flaggedApiAnnotation = annotation
+        }
+
+        // If this flag's action does not exceed the maximum valid action allowed by enclosing items
+        // then the nesting is valid.
+        if (action <= parent.maxValidFlagAction) return
+
+        // Ensure all enclosing @FlaggedApi annotations in a conflicting state have been reported.
+        parent.reportConflictingOuterFlags(action)
+
+        reporter.report(
+            Issues.INVALID_FLAG_NESTING,
+            item,
+            "@FlaggedApi flag ${apiFlag.qualifiedName} is ${action.stateDescription} but is contained by a flag in a conflicting state",
+            annotation.fileLocation,
+        )
+    }
+
+    /**
+     * Report [Issues.INVALID_FLAG_NESTING] on this [SourceSelectedApi] and any enclosing ancestors
+     * whose `@FlaggedApi` annotation has a less permanent action than [nestedAction], if not
+     * already reported.
+     */
+    private fun SourceSelectedApi<*>.reportConflictingOuterFlags(nestedAction: ApiFlagAction) {
+        // Report outer conflicting ancestors first so errors are reported in outer-to-inner order.
+        if (parent.maxValidFlagAction < nestedAction) {
+            parent.reportConflictingOuterFlags(nestedAction)
+        }
+
+        val annotation = flaggedApiAnnotation ?: return
+        val apiFlag = annotation.apiFlag!!
+        if (apiFlag.action < nestedAction) {
+            flaggedApiAnnotation = null
+            reporter.report(
+                Issues.INVALID_FLAG_NESTING,
+                item,
+                "@FlaggedApi flag ${apiFlag.qualifiedName} is ${apiFlag.action.stateDescription} but contains flags in a conflicting state",
+                annotation.fileLocation,
+            )
+        }
+    }
+
     /** Check if this [SelectableItem] is marked to be reverted. */
     private fun SelectableItem.isMarkedForRevert(): Boolean {
         val sourceSelectedApi = selectedApi as SourceSelectedApi<*>
@@ -486,6 +562,15 @@ class SelectedApiUpdater(
             }
     }
 }
+
+/** Description of this [ApiFlagAction] for use in [Issues.INVALID_FLAG_NESTING] messages. */
+private val ApiFlagAction.stateDescription: String
+    get() =
+        when (this) {
+            ApiFlagAction.REVERT -> "reverted"
+            ApiFlagAction.KEEP -> "not-finalized"
+            ApiFlagAction.FINALIZE -> "finalized"
+        }
 
 /**
  * Workaround: we're pulling in .aidl files from .jar files. These are marked @hide, but since we

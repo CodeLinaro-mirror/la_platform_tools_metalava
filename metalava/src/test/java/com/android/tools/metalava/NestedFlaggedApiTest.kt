@@ -91,6 +91,7 @@ class NestedFlaggedApiTest : DriverTest() {
         nestedAction: ApiFlagAction,
         expectedApiSignature: String,
         expectedStubFiles: Array<TestFile> = emptyArray(),
+        expectedIssues: String = "",
     ) {
         check(
             configFiles =
@@ -134,6 +135,7 @@ class NestedFlaggedApiTest : DriverTest() {
             expectedApiSignature = expectedApiSignature,
             expectedStubFiles = expectedStubFiles,
             stubPaths = expectedStubFiles.map { it.targetRelativePath }.toTypedArray(),
+            expectedIssues = expectedIssues,
         )
     }
 
@@ -152,8 +154,6 @@ class NestedFlaggedApiTest : DriverTest() {
 
     @Test
     fun `Test outer revert and nested keep`() {
-        // TODO(b/561433523): Keeping a nested flag when the outer flag is reverted does not make
-        //  sense as the nested APIs cannot be exposed without the outer class.
         checkNestedFlags(
             outerAction = REVERT,
             nestedAction = KEEP,
@@ -162,13 +162,17 @@ class NestedFlaggedApiTest : DriverTest() {
                     // Signature format: 5.0
                 """,
             expectedStubFiles = emptyArray(),
+            expectedIssues =
+                """
+                    src/test/pkg/Foo.java:5: error: @FlaggedApi flag test.pkg.outer is reverted but contains flags in a conflicting state [InvalidFlagNesting]
+                    src/test/pkg/Foo.java:11: error: @FlaggedApi flag test.pkg.nested is not-finalized but is contained by a flag in a conflicting state [InvalidFlagNesting]
+                    src/test/pkg/Foo.java:19: error: @FlaggedApi flag test.pkg.nested is not-finalized but is contained by a flag in a conflicting state [InvalidFlagNesting]
+                """,
         )
     }
 
     @Test
     fun `Test outer revert and nested finalize`() {
-        // TODO(b/561433523): Finalizing a nested flag when the outer flag is reverted does not make
-        //  sense as the nested APIs cannot be exposed without the outer class.
         checkNestedFlags(
             outerAction = REVERT,
             nestedAction = FINALIZE,
@@ -177,6 +181,12 @@ class NestedFlaggedApiTest : DriverTest() {
                     // Signature format: 5.0
                 """,
             expectedStubFiles = emptyArray(),
+            expectedIssues =
+                """
+                    src/test/pkg/Foo.java:5: error: @FlaggedApi flag test.pkg.outer is reverted but contains flags in a conflicting state [InvalidFlagNesting]
+                    src/test/pkg/Foo.java:11: error: @FlaggedApi flag test.pkg.nested is finalized but is contained by a flag in a conflicting state [InvalidFlagNesting]
+                    src/test/pkg/Foo.java:19: error: @FlaggedApi flag test.pkg.nested is finalized but is contained by a flag in a conflicting state [InvalidFlagNesting]
+                """,
         )
     }
 
@@ -286,11 +296,6 @@ class NestedFlaggedApiTest : DriverTest() {
 
     @Test
     fun `Test outer keep and nested finalize`() {
-        // TODO(b/561433523): Finalizing a nested flag when the outer flag is still mutable (kept)
-        //  does not make sense as the nested APIs cannot be finalized while the outer class is not.
-        //  Notice also that in the stubs below, flaggedMethod() and FlaggedNested have neither
-        //  @RequiresFlag("test.pkg.nested") (stripped by FINALIZE) nor
-        //  @RequiresFlag("test.pkg.outer").
         checkNestedFlags(
             outerAction = KEEP,
             nestedAction = FINALIZE,
@@ -341,6 +346,12 @@ class NestedFlaggedApiTest : DriverTest() {
                         """
                     ),
                 ),
+            expectedIssues =
+                """
+                    src/test/pkg/Foo.java:5: error: @FlaggedApi flag test.pkg.outer is not-finalized but contains flags in a conflicting state [InvalidFlagNesting]
+                    src/test/pkg/Foo.java:11: error: @FlaggedApi flag test.pkg.nested is finalized but is contained by a flag in a conflicting state [InvalidFlagNesting]
+                    src/test/pkg/Foo.java:19: error: @FlaggedApi flag test.pkg.nested is finalized but is contained by a flag in a conflicting state [InvalidFlagNesting]
+                """,
         )
     }
 
@@ -487,8 +498,6 @@ class NestedFlaggedApiTest : DriverTest() {
 
     @Test
     fun `Test outer revert, nested1 finalize, nested2 revert, nested3 finalize`() {
-        // TODO(b/561433523): Finalizing nested flags when enclosing flags are reverted does not
-        //  make sense as the nested APIs cannot be exposed without the enclosing classes.
         check(
             configFiles =
                 arrayOf(
@@ -538,13 +547,18 @@ class NestedFlaggedApiTest : DriverTest() {
                 """,
             expectedStubFiles = emptyArray(),
             stubPaths = emptyArray(),
+            expectedIssues =
+                """
+                    src/test/pkg/Foo.java:5: error: @FlaggedApi flag test.pkg.outer is reverted but contains flags in a conflicting state [InvalidFlagNesting]
+                    src/test/pkg/Foo.java:9: error: @FlaggedApi flag test.pkg.nested1 is finalized but is contained by a flag in a conflicting state [InvalidFlagNesting]
+                    src/test/pkg/Foo.java:13: error: @FlaggedApi flag test.pkg.nested2 is reverted but contains flags in a conflicting state [InvalidFlagNesting]
+                    src/test/pkg/Foo.java:17: error: @FlaggedApi flag test.pkg.nested3 is finalized but is contained by a flag in a conflicting state [InvalidFlagNesting]
+                """,
         )
     }
 
     @Test
     fun `Test outer revert, nested1 revert, nested2 finalize`() {
-        // TODO(b/561433523): Finalizing nested flags when enclosing flags are reverted does not
-        //  make sense as the nested APIs cannot be exposed without the enclosing classes.
         check(
             configFiles =
                 arrayOf(
@@ -588,6 +602,12 @@ class NestedFlaggedApiTest : DriverTest() {
                 """,
             expectedStubFiles = emptyArray(),
             stubPaths = emptyArray(),
+            expectedIssues =
+                """
+                    src/test/pkg/Foo.java:5: error: @FlaggedApi flag test.pkg.outer is reverted but contains flags in a conflicting state [InvalidFlagNesting]
+                    src/test/pkg/Foo.java:9: error: @FlaggedApi flag test.pkg.nested1 is reverted but contains flags in a conflicting state [InvalidFlagNesting]
+                    src/test/pkg/Foo.java:13: error: @FlaggedApi flag test.pkg.nested2 is finalized but is contained by a flag in a conflicting state [InvalidFlagNesting]
+                """,
         )
     }
 }
