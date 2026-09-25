@@ -21,6 +21,8 @@ import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.BoundsTypeItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
+import com.android.tools.metalava.model.JAVA_LANG_ENUM
+import com.android.tools.metalava.model.JAVA_LANG_STRING
 import com.android.tools.metalava.model.KOTLIN_CONTINUATION
 import com.android.tools.metalava.model.LambdaTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
@@ -324,11 +326,14 @@ internal class KaTypeItemFactory(
                     originalQualifiedName
                 }
 
-            // If the outer class is a primitive class, the inner class is a companion which only
-            // exists for kotlin and gets mapped to a java type without an outer class.
+            // If the outer class is a primitive class or String or Enum, the inner class is a
+            // companion which only exists for kotlin and gets mapped to a java type without an
+            // outer class.
             if (
                 mapToJvmTypes &&
-                    PrimitiveTypeItem.Primitive.forWrapperClassName(qualifiedName) != null
+                    (PrimitiveTypeItem.Primitive.forWrapperClassName(qualifiedName) != null ||
+                        qualifiedName == JAVA_LANG_STRING ||
+                        qualifiedName == JAVA_LANG_ENUM)
             )
                 return null
             outerClass =
