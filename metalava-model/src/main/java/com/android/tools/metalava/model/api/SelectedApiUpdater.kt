@@ -108,21 +108,6 @@ class SelectedApiUpdater(
             return
         }
 
-        // If the parent needs to hide its children then mark this child as hidden and return
-        // immediately.
-        if (parent.areChildrenCompletelyHidden()) {
-            // Check if this item has a show annotation while the parent was explicitly hidden,
-            // reporting SHOWING_MEMBER_IN_HIDDEN_CLASS if so.
-            checkParentIsVisible(item, parent)
-
-            // Propagate explicitlyHidden so that if this item is a nested class, its enclosing
-            // state is preserved for its own children.
-            selectedApi.explicitlyHidden = parent.explicitlyHidden
-
-            selectedApi.markAsHidden(revert = false)
-            return
-        }
-
         if (item.isAidlClassThatShouldBeHidden()) {
             selectedApi.markAsHidden(revert = false)
             return
@@ -189,6 +174,23 @@ class SelectedApiUpdater(
                         revert = true
                     }
                 }
+        }
+
+        // If the parent needs to hide its children then mark this child as hidden and return
+        // immediately.
+        if (parent.areChildrenCompletelyHidden()) {
+            // Check if this item has a show annotation while the parent was explicitly hidden,
+            // reporting SHOWING_MEMBER_IN_HIDDEN_CLASS if so.
+            if (itemApiVariants.isNotEmpty()) {
+                checkParentIsVisible(item, parent)
+            }
+
+            // Propagate explicitlyHidden so that if this item is a nested class, its enclosing
+            // state is preserved for its own children.
+            selectedApi.explicitlyHidden = hide || parent.explicitlyHidden || item.hasHideDocTag
+
+            selectedApi.markAsHidden(revert = false)
+            return
         }
 
         if (!revert) {
