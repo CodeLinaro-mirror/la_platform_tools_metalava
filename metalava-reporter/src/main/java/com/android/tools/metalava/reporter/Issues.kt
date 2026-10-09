@@ -110,7 +110,6 @@ object Issues {
     val DEPRECATED by Issue(Severity.HIDDEN, Category.DOCUMENTATION)
     val DEPRECATION_MISMATCH by Issue(Severity.ERROR, Category.DOCUMENTATION)
     val IO_ERROR by Issue(Severity.ERROR)
-    val HIDDEN_TYPE_PARAMETER by Issue(Severity.WARNING, Category.DOCUMENTATION)
     val PRIVATE_SUPERCLASS by Issue(Severity.WARNING, Category.DOCUMENTATION)
     val NULLABLE by Issue(Severity.HIDDEN, Category.DOCUMENTATION)
     val INT_DEF by Issue(Severity.HIDDEN, Category.DOCUMENTATION)

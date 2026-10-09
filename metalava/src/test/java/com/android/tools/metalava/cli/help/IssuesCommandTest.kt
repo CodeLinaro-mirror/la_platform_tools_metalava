@@ -122,7 +122,6 @@ Available Issues                             |  Category                        
   HiddenAbstractMethodInInterface            |  api_lint                             |   hidden
   HiddenShowAnnotation                       |  api_lint                             |   warning_error_when_new
   HiddenSuperclass                           |  documentation                        |   warning
-  HiddenTypeParameter                        |  documentation                        |   warning
   HiddenTypedefConstant                      |  unknown                              |   error
   HidingApiMethodOverride                    |  api_lint                             |   hidden
   HidingApiMethodOverrideClasspath           |  api_lint                             |   hidden
