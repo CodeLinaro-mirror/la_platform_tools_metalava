@@ -121,6 +121,7 @@ Available Issues                             |  Category                        
   HeavyBitSet                                |  api_lint                             |   error
   HiddenAbstractMethod                       |  api_lint                             |   error
   HiddenAbstractMethodInInterface            |  api_lint                             |   hidden
+  HiddenDocReference                         |  documentation                        |   warning_error_when_new
   HiddenShowAnnotation                       |  api_lint                             |   warning_error_when_new
   HiddenSuperclass                           |  documentation                        |   warning
   HiddenTypedefConstant                      |  unknown                              |   error
