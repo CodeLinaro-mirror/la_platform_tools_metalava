@@ -105,7 +105,6 @@ object Issues {
     val UNCLOSED_INLINE_TAG by Issue(Severity.ERROR, Category.DOCUMENTATION)
     val UNRESOLVED_LINK by Issue(Severity.WARNING_ERROR_WHEN_NEW, Category.DOCUMENTATION)
     val INVALID_DOC_THROWS_TYPE by Issue(Severity.ERROR, Category.DOCUMENTATION)
-    val UNAVAILABLE_SYMBOL by Issue(Severity.WARNING, Category.DOCUMENTATION)
     val HIDDEN_SUPERCLASS by Issue(Severity.WARNING, Category.DOCUMENTATION)
     val DEPRECATED by Issue(Severity.HIDDEN, Category.DOCUMENTATION)
     val DEPRECATION_MISMATCH by Issue(Severity.ERROR, Category.DOCUMENTATION)

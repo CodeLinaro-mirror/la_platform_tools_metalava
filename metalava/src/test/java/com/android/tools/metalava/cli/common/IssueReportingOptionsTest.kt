@@ -157,13 +157,13 @@ class IssueReportingOptionsTest :
         // the error options (or vice versa) they would result in different behavior.
         runTest(
             "--hide",
-            "UnavailableSymbol",
+            "PrivateSuperclass",
             "--error",
             "HiddenSuperclass",
             "--hide",
             "HiddenSuperclass",
             "--error",
-            "UnavailableSymbol",
+            "PrivateSuperclass",
         ) {
 
             // Make sure the two issues both default to warning.
@@ -173,7 +173,7 @@ class IssueReportingOptionsTest :
                 expectedSeverity = Severity.WARNING,
             )
             baseConfiguration.assertSeverity(
-                Issues.UNAVAILABLE_SYMBOL,
+                Issues.PRIVATE_SUPERCLASS,
                 expectedSeverity = Severity.WARNING,
             )
 
@@ -184,7 +184,7 @@ class IssueReportingOptionsTest :
                 expectedSeverity = Severity.HIDDEN,
             )
             issueConfiguration.assertSeverity(
-                Issues.UNAVAILABLE_SYMBOL,
+                Issues.PRIVATE_SUPERCLASS,
                 expectedSeverity = Severity.ERROR,
             )
         }
