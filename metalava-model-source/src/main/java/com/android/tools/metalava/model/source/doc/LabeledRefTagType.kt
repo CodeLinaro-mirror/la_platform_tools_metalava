@@ -496,13 +496,25 @@ internal data class AmbiguousMemberSourceReference(val name: String) : ClassMemb
         reporter: LocationSpecificReporter,
         classItem: ClassItem?,
         className: String,
-    ) =
+    ): ResolvedReference {
         // TODO(b/447588621): Check for methods and constructors not just fields.
-        classItem?.findField(name)?.toResolvedReference(context, reporter)
-            // TODO(b/447588621): Report that the field could not be found.
-            // If the field could not be found then fallback to a field reference so that at least
-            // the resolved class will be fully qualified.
-            ?: FieldReference(className, name)
+        val field = classItem?.findField(name)
+        if (field != null) {
+            // Checking the resolved field also accounts for its containing class's visibility.
+            return field.toResolvedReference(context, reporter)
+        }
+
+        // When no matching field is found (e.g. a method reference without `()`), still validate
+        // that the qualifying class itself is accessible.
+        if (classItem != null) {
+            context.checkReference(classItem, reporter)
+        }
+
+        // TODO(b/447588621): Report that the field could not be found.
+        // If the field could not be found then fallback to a field reference so that at least
+        // the resolved class will be fully qualified.
+        return FieldReference(className, name)
+    }
 }
 
 /**
@@ -562,7 +574,11 @@ internal data class CallableSourceReference(
             is ReferencableMethodSet -> {
                 // TODO(b/447588621): Try and find a callable that matches the resolved
                 //  [parameters].
+                // Callable overloads are not yet resolved to a single CallableItem, so at least
+                // validate that their containing class is accessible.
                 val containingClass = resolved.containingClass
+                context.checkReference(containingClass, reporter)
+
                 val resolvedClassName = context.resolveClassReferenceName(containingClass)
                 val unmappedQualifiedCallable =
                     "${containingClass.qualifiedName()}.${resolved.name}"
@@ -585,7 +601,10 @@ internal data class CallableSourceReference(
             }
             is ClassItem -> {
                 // Resolving a callable can return the class in lieu of a set of constructor so
-                // treat it as one and create a reference to the constructor.
+                // treat it as one, validate that the class is accessible, and create a reference
+                // to the constructor.
+                context.checkReference(resolved, reporter)
+
                 val resolvedClassName = context.resolveClassReferenceName(resolved)
                 val sourceCallableName =
                     rewriteMappedSourceClassName(name, resolved, resolvedClassName)
@@ -618,8 +637,13 @@ internal data class CallableSourceReference(
         reporter: LocationSpecificReporter,
         classItem: ClassItem?,
         className: String,
-    ) =
-        createCallableReference(
+    ): CallableReference {
+        // Validate that the qualifying class of the callable reference is accessible.
+        if (classItem != null) {
+            context.checkReference(classItem, reporter)
+        }
+
+        return createCallableReference(
             context,
             reporter,
             className,
@@ -627,6 +651,7 @@ internal data class CallableSourceReference(
             // be qualified so it is safe to use in the callable reference.
             name,
         )
+    }
 
     /**
      * Return a [CallableReference] that uses the fully qualified name of the containing class and
@@ -689,9 +714,13 @@ private fun TypeItem.fullyQualify(context: DocCommentContext, reporter: Location
 
                 val resolvedType =
                     when (resolved) {
-                        is ClassItem ->
+                        is ClassItem -> {
+                            // Validate each parameter class referenced in the callable signature.
+                            context.checkReference(resolved, reporter)
+
                             // Use the resolved class's type.
                             resolved.type()
+                        }
                         else -> {
                             // Report any issues with resolving the class.
                             if (resolved is InvalidReferencableItem) {
@@ -729,10 +758,16 @@ internal data class UriFragmentSourceReference(val uriFragment: String) :
         reporter: LocationSpecificReporter,
         classItem: ClassItem?,
         className: String,
-    ) =
+    ): UriFragmentReference {
+        // Validate that the qualifying class of `Class##uri-fragment` is accessible.
+        if (classItem != null) {
+            context.checkReference(classItem, reporter)
+        }
+
         // TODO(b/447588621): If the source for classItem is available then check it for an
         //  id="<uriFragment>" attribute.
-        UriFragmentReference(className, uriFragment)
+        return UriFragmentReference(className, uriFragment)
+    }
 }
 
 /**

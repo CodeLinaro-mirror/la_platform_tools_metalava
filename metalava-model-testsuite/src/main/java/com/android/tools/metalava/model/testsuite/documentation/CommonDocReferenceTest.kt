@@ -560,10 +560,8 @@ class CommonDocReferenceTest : BaseModelTest() {
                     """,
             )
 
-            // TODO(b/568477816): Member fallback (HiddenClass#method), callable references
-            //  (HiddenClass#method(PackagePrivateClass)), and URI fragments
-            //  (HiddenClass##uri-fragment) do not yet check whether the qualifying or parameter
-            //  classes are hidden.
+            // Line 10 (`HiddenClass#method(PackagePrivateClass)`) reports both the hidden
+            // qualifying class and the package-private parameter class.
             assertAndRemoveReportedIssues(
                 """
                     MAIN_SRC/src/test/pkg/Test.java:4:15: warning: Package hidden.pkg is hidden (ErrorWhenNew) [HiddenDocReference]
@@ -571,6 +569,10 @@ class CommonDocReferenceTest : BaseModelTest() {
                     MAIN_SRC/src/test/pkg/Test.java:6:15: warning: Class test.pkg.PackagePrivateClass is not public (ErrorWhenNew) [HiddenDocReference]
                     MAIN_SRC/src/test/pkg/Test.java:7:15: warning: Class test.pkg.HiddenClass is hidden (ErrorWhenNew) [HiddenDocReference]
                     MAIN_SRC/src/test/pkg/Test.java:8:15: warning: Field test.pkg.HiddenClass.field is hidden (ErrorWhenNew) [HiddenDocReference]
+                    MAIN_SRC/src/test/pkg/Test.java:9:15: warning: Class test.pkg.HiddenClass is hidden (ErrorWhenNew) [HiddenDocReference]
+                    MAIN_SRC/src/test/pkg/Test.java:10:15: warning: Class test.pkg.HiddenClass is hidden (ErrorWhenNew) [HiddenDocReference]
+                    MAIN_SRC/src/test/pkg/Test.java:10:15: warning: Class test.pkg.PackagePrivateClass is not public (ErrorWhenNew) [HiddenDocReference]
+                    MAIN_SRC/src/test/pkg/Test.java:11:15: warning: Class test.pkg.HiddenClass is hidden (ErrorWhenNew) [HiddenDocReference]
                     MAIN_SRC/src/test/pkg/Test.java:12:15: warning: Field test.pkg.Other.hiddenField is hidden (ErrorWhenNew) [HiddenDocReference]
                     MAIN_SRC/src/test/pkg/Test.java:13:15: warning: Field test.pkg.Other.packagePrivateField is not public (ErrorWhenNew) [HiddenDocReference]
                     MAIN_SRC/src/test/pkg/Test.java:14:15: warning: Class test.pkg.Other.HiddenNested is hidden (ErrorWhenNew) [HiddenDocReference]
@@ -697,13 +699,15 @@ class CommonDocReferenceTest : BaseModelTest() {
                         """,
                 )
 
-            // TODO(b/568477816): Callable reference (Hide#value()) does not yet check whether the
-            //  qualifying class is hidden.
+            // Only explicitly hidden fields (`IntDef#HIDDEN_FLAG`), mapped targets that are
+            // themselves `@hide` in the codebase (`androidx.annotation.IntRange`), and unmapped
+            // `@hide` annotations (`android.annotation.Hide`) report `HiddenDocReference`.
             assertAndRemoveReportedIssues(
                 """
                     MAIN_SRC/src/test/pkg/Test.java:11:15: warning: Field android.annotation.IntDef.HIDDEN_FLAG is hidden (ErrorWhenNew) [HiddenDocReference]
                     MAIN_SRC/src/test/pkg/Test.java:16:15: warning: Class androidx.annotation.IntRange is hidden (ErrorWhenNew) [HiddenDocReference]
                     MAIN_SRC/src/test/pkg/Test.java:17:15: warning: Class android.annotation.Hide is hidden (ErrorWhenNew) [HiddenDocReference]
+                    MAIN_SRC/src/test/pkg/Test.java:18:15: warning: Class android.annotation.Hide is hidden (ErrorWhenNew) [HiddenDocReference]
                 """
             )
         }

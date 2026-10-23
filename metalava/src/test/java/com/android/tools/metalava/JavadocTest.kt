@@ -888,7 +888,14 @@ class JavadocTest : DriverTest() {
     fun `Rewrite parameter list`() {
         checkStubs(
             docStubs = true,
-            warnings = "",
+
+            // `test.pkg2.OtherClass1` is package-private, so `{@link OtherClass1#myMethod(...)}`
+            // from public `Test` reports `HiddenDocReference`.
+            warnings =
+                """
+                    src/test/pkg1/Test.java:6: warning: Class test.pkg2.OtherClass1 is not public (ErrorWhenNew) [HiddenDocReference]
+                    src/test/pkg1/Test.java:11: warning: Class test.pkg2.OtherClass1 is not public (ErrorWhenNew) [HiddenDocReference]
+                """,
             sourceFiles =
                 arrayOf(
                     java(
