@@ -448,4 +448,118 @@ class CommonDocReferenceTest : BaseModelTest() {
             assertAndRemoveReportedIssues("")
         }
     }
+
+    /**
+     * Verify how documentation references (`{@link}`, `{@linkplain}`, `@see`, `@throws`) to `@hide`
+     * packages/classes/members and package-private classes/members are resolved, fully qualified
+     * when printed, and checked for `HiddenDocReference`.
+     */
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `Test hidden references`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    "hidden/pkg/package-info.java",
+                    """
+                        /** @hide */
+                        package hidden.pkg;
+                    """
+                ),
+                java(
+                    """
+                        package hidden.pkg;
+                        public class InHiddenPackage {}
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        class PackagePrivateClass {}
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        /** @hide */
+                        public class HiddenClass {
+                            public int field;
+                            public void method(PackagePrivateClass p) {}
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        public class Other {
+                            /** @hide */
+                            public int hiddenField;
+                            int packagePrivateField;
+                            /** @hide */
+                            public class HiddenNested {}
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        public class Test {
+                            /**
+                             * {@link hidden.pkg}
+                             * {@link hidden.pkg.InHiddenPackage}
+                             * {@link PackagePrivateClass}
+                             * {@link HiddenClass}
+                             * {@link HiddenClass#field}
+                             * {@link HiddenClass#method}
+                             * {@link HiddenClass#method(PackagePrivateClass)}
+                             * {@link HiddenClass##uri-fragment}
+                             * {@link Other#hiddenField}
+                             * {@link Other#packagePrivateField}
+                             * {@link Other.HiddenNested}
+                             * {@linkplain HiddenClass}
+                             *
+                             * @see HiddenClass
+                             * @throws HiddenException if hidden exception is thrown.
+                             */
+                            public void method() {}
+
+                            /** @hide */
+                            public static class HiddenException extends RuntimeException {}
+                        }
+                    """
+                ),
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            val testMethod = testClass.methods().single()
+
+            // Even when referencing hidden items, links are still resolved and fully qualified.
+            testMethod.assertPrintedDocumentation(
+                expectedOutput =
+                    """
+                        /**
+                         * {@link hidden.pkg}
+                         * {@link hidden.pkg.InHiddenPackage}
+                         * {@link test.pkg.PackagePrivateClass PackagePrivateClass}
+                         * {@link test.pkg.HiddenClass HiddenClass}
+                         * {@link test.pkg.HiddenClass#field HiddenClass.field}
+                         * {@link test.pkg.HiddenClass#method HiddenClass.method}
+                         * {@link test.pkg.HiddenClass#method(test.pkg.PackagePrivateClass) HiddenClass.method(PackagePrivateClass)}
+                         * {@link test.pkg.HiddenClass##uri-fragment}
+                         * {@link test.pkg.Other#hiddenField Other.hiddenField}
+                         * {@link test.pkg.Other#packagePrivateField Other.packagePrivateField}
+                         * {@link test.pkg.Other.HiddenNested Other.HiddenNested}
+                         * {@linkplain test.pkg.HiddenClass HiddenClass}
+                         *
+                         * @throws test.pkg.Test.HiddenException if hidden exception is thrown.
+                         * @see test.pkg.HiddenClass HiddenClass
+                         */
+                    """,
+            )
+
+            // TODO(b/568477816): Doc references to hidden items do not yet report
+            //  HiddenDocReference.
+            assertAndRemoveReportedIssues("")
+        }
+    }
 }
