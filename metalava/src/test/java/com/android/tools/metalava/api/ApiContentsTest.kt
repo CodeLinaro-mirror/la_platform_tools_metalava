@@ -589,11 +589,11 @@ class ApiContentsTest : DriverTest() {
                 ),
             // `@DocOnly` classes are excluded from normal stubs and signature files, so extending
             // a `@DocOnly` superclass reports `HiddenSuperclass` and returning a `@DocOnly` class
-            // reports `ReferencesHidden`.
+            // reports `ReferencesHidden` with reason `doconly`.
             expectedIssues =
                 """
                     src/test/pkg/PublicClass.java:2: warning: Public class test.pkg.PublicClass stripped of unavailable superclass test.pkg.DocOnlySuper [HiddenSuperclass]
-                    src/test/pkg/PublicClass.java:3: error: Class test.pkg.DocOnlyType is hidden but was referenced (in return type) from public method test.pkg.PublicClass.getDocOnly() [ReferencesHidden]
+                    src/test/pkg/PublicClass.java:3: error: Class test.pkg.DocOnlyType is doconly but was referenced (in return type) from public method test.pkg.PublicClass.getDocOnly() [ReferencesHidden]
                 """,
         )
     }

@@ -26,9 +26,13 @@ import com.android.tools.metalava.model.SelectableItem
  *
  * @property targetSurface The [ApiSurface] (and its [ApiSurface.includedSurfaces]) against which
  *   references are checked.
+ * @property includeDocOnlyInCode If true, [ApiVariantType.DOC_ONLY] targets are treated as valid
+ *   even for [ReferenceKind.CODE] references from [ApiVariantType.CORE] items (e.g. when generating
+ *   doc stubs).
  */
 class TargetSurfaceReferenceStrategy(
     private val targetSurface: ApiSurface,
+    private val includeDocOnlyInCode: Boolean = false,
 ) : ApiReferenceStrategy {
 
     /** The [ApiSurfaces] instance to which [targetSurface] belongs. */
@@ -39,6 +43,15 @@ class TargetSurfaceReferenceStrategy(
 
     /** Bit mask matching [ApiVariantType.CORE] across all [includedSurfaces]. */
     private val coreMask = computeVariantBitMask(ApiVariantType.CORE)
+
+    /** Bit mask matching [ApiVariantType.DOC_ONLY] across all [includedSurfaces]. */
+    private val docOnlyMask = computeVariantBitMask(ApiVariantType.DOC_ONLY)
+
+    /**
+     * Bit mask matching [ApiVariantType.CORE] or [ApiVariantType.DOC_ONLY] across
+     * [includedSurfaces].
+     */
+    private val coreOrDocOnlyMask = coreMask or docOnlyMask
 
     /**
      * Compute an [Int] bit mask matching all [ApiVariant]s of [variantType] across
@@ -61,18 +74,56 @@ class TargetSurfaceReferenceStrategy(
             return ReferenceCheckResult.Valid
         }
 
-        // Fast path: check if the referenced item belongs to the core API of any included surface.
+        // Determine which variant bit mask the target item must match to be considered a valid
+        // reference in this context.
+        val allowedMask =
+            when (kind) {
+                // Documentation references may target either CORE or DOC_ONLY items.
+                ReferenceKind.DOCUMENTATION -> coreOrDocOnlyMask
+                ReferenceKind.CODE -> {
+                    if (includeDocOnlyInCode) {
+                        // When `includeDocOnlyInCode` is enabled (such as when generating doc
+                        // stubs), code references may target either CORE or DOC_ONLY items
+                        // regardless of `from`.
+                        coreOrDocOnlyMask
+                    } else {
+                        // Resolve the enclosing SelectableItem (e.g. a ParameterItem's parent
+                        // CallableItem) to inspect its API variants.
+                        val fromSelectable = (from as? SelectableItem) ?: from?.parent()
+                        val fromBits = fromSelectable?.selectedApi?.itemApiVariants?.bits ?: 0
+                        when {
+                            // References from CORE items in code may only target CORE items.
+                            (fromBits and coreMask) != 0 -> coreMask
+                            // References from DOC_ONLY items in code (such as doc stubs) may target
+                            // either CORE or DOC_ONLY items.
+                            (fromBits and docOnlyMask) != 0 -> coreOrDocOnlyMask
+                            // When `from` is null or does not belong to any variant in
+                            // `includedSurfaces`, default to requiring a CORE target.
+                            else -> coreMask
+                        }
+                    }
+                }
+            }
+
+        // Fast path: check if the referenced item matches any allowed variant in includedSurfaces.
         val toBits = to.selectedApi.itemApiVariants.bits
-        if ((toBits and coreMask) != 0) {
+        if ((toBits and allowedMask) != 0) {
             return ReferenceCheckResult.Valid
         }
 
-        // Otherwise, the referenced item is not part of the target API surface. Distinguish between
-        // items that are public/protected (e.g. excluded via @hide) and items that are
-        // package-private or private.
-        return ReferenceCheckResult.Hidden(
-            isPublicOrProtected = to.modifiers.isPublic() || to.modifiers.isProtected()
-        )
+        // Slow path: classify why the referenced item is not valid in this context.
+        return when {
+            // The referenced item is @doconly in an included surface (and the referencing context
+            // does not allow doconly targets).
+            (toBits and docOnlyMask) != 0 -> ReferenceCheckResult.DocOnly
+            // Otherwise, the referenced item is not part of the target API surface. Distinguish
+            // between items that are public/protected (e.g. excluded via @hide) and items that are
+            // package-private or private.
+            else ->
+                ReferenceCheckResult.Hidden(
+                    isPublicOrProtected = to.modifiers.isPublic() || to.modifiers.isProtected()
+                )
+        }
     }
 
     /** Return `true` if [to] is one of [from]'s containing classes. */

@@ -68,6 +68,11 @@ sealed interface ReferenceCheckResult {
             // Otherwise, it is excluded because of its language-level visibility ("not public").
             get() = if (isPublicOrProtected) "hidden" else "not public"
     }
+
+    /** Target item is `@doconly`, which is invalid when referenced from CORE code. */
+    data object DocOnly : Invalid {
+        override val reasonLabel: String = "doconly"
+    }
 }
 
 /** Strategy for checking whether a reference from one [Item] to a [SelectableItem] is valid. */

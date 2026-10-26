@@ -47,6 +47,8 @@ class ParameterizedApiReferenceStrategyTest(private val params: Params) {
      * Parameters for a single reference strategy test case.
      *
      * @property targetSurface The target [ApiSurface] passed to [TargetSurfaceReferenceStrategy].
+     * @property includeDocOnlyInCode Whether [ApiVariantType.DOC_ONLY] targets are allowed in
+     *   [ReferenceKind.CODE] references from [ApiVariantType.CORE] items.
      * @property from The referencing [SelectableItem], or `null` when checking without a
      *   referencing item.
      * @property to The referenced [ClassItem].
@@ -59,6 +61,7 @@ class ParameterizedApiReferenceStrategyTest(private val params: Params) {
      */
     data class Params(
         val targetSurface: ApiSurface = main,
+        val includeDocOnlyInCode: Boolean = false,
         val from: SelectableItem? = null,
         val to: ClassItem,
         val kind: ReferenceKind = ReferenceKind.CODE,
@@ -68,6 +71,9 @@ class ParameterizedApiReferenceStrategyTest(private val params: Params) {
         override fun toString(): String = buildString {
             if (targetSurface != main) {
                 append("target=${targetSurface.name}, ")
+            }
+            if (includeDocOnlyInCode) {
+                append("includeDocOnlyInCode=true, ")
             }
             val fromName =
                 when (from) {
@@ -250,8 +256,8 @@ class ParameterizedApiReferenceStrategyTest(private val params: Params) {
                     from = null,
                     to = docOnlyItem,
                     kind = ReferenceKind.CODE,
-                    expectedResult = ReferenceCheckResult.Hidden(isPublicOrProtected = true),
-                    expectedReasonLabel = "hidden",
+                    expectedResult = ReferenceCheckResult.DocOnly,
+                    expectedReasonLabel = "doconly",
                 ),
                 Params(
                     from = null,
@@ -277,7 +283,7 @@ class ParameterizedApiReferenceStrategyTest(private val params: Params) {
                     from = coreItem,
                     to = docOnlyItem,
                     kind = ReferenceKind.CODE,
-                    expectedResult = ReferenceCheckResult.Hidden(isPublicOrProtected = true),
+                    expectedResult = ReferenceCheckResult.DocOnly,
                 ),
                 Params(
                     from = coreItem,
@@ -302,7 +308,7 @@ class ParameterizedApiReferenceStrategyTest(private val params: Params) {
                     from = null,
                     to = docOnlyItem,
                     kind = ReferenceKind.DOCUMENTATION,
-                    expectedResult = ReferenceCheckResult.Hidden(isPublicOrProtected = true),
+                    expectedResult = ReferenceCheckResult.Valid,
                 ),
                 Params(
                     from = coreItem,
@@ -314,7 +320,7 @@ class ParameterizedApiReferenceStrategyTest(private val params: Params) {
                     from = coreItem,
                     to = docOnlyItem,
                     kind = ReferenceKind.DOCUMENTATION,
-                    expectedResult = ReferenceCheckResult.Hidden(isPublicOrProtected = true),
+                    expectedResult = ReferenceCheckResult.Valid,
                 ),
                 Params(
                     from = coreItem,
@@ -338,9 +344,9 @@ class ParameterizedApiReferenceStrategyTest(private val params: Params) {
                     from = docOnlyItem,
                     to = docOnlyItem,
                     kind = ReferenceKind.DOCUMENTATION,
-                    expectedResult = ReferenceCheckResult.Hidden(isPublicOrProtected = true),
+                    expectedResult = ReferenceCheckResult.Valid,
                 ),
-                // References from DOC_ONLY in CODE
+                // References from DOC_ONLY in CODE (valid to CORE and DOC_ONLY, invalid to Hidden)
                 Params(
                     from = docOnlyItem,
                     to = coreItem,
@@ -351,13 +357,21 @@ class ParameterizedApiReferenceStrategyTest(private val params: Params) {
                     from = docOnlyItem,
                     to = docOnlyItem,
                     kind = ReferenceKind.CODE,
-                    expectedResult = ReferenceCheckResult.Hidden(isPublicOrProtected = true),
+                    expectedResult = ReferenceCheckResult.Valid,
                 ),
                 Params(
                     from = docOnlyItem,
                     to = hiddenPublicItem,
                     kind = ReferenceKind.CODE,
                     expectedResult = ReferenceCheckResult.Hidden(isPublicOrProtected = true),
+                ),
+                // includeDocOnlyInCode = true (e.g. doc stubs)
+                Params(
+                    includeDocOnlyInCode = true,
+                    from = coreItem,
+                    to = docOnlyItem,
+                    kind = ReferenceKind.CODE,
+                    expectedResult = ReferenceCheckResult.Valid,
                 ),
                 // Target surface `base` only includes `base`, so `coreItem` (in `main`) is hidden
                 Params(
@@ -406,7 +420,11 @@ class ParameterizedApiReferenceStrategyTest(private val params: Params) {
 
     @Test
     fun `Test reference strategy`() {
-        val strategy = TargetSurfaceReferenceStrategy(params.targetSurface)
+        val strategy =
+            TargetSurfaceReferenceStrategy(
+                targetSurface = params.targetSurface,
+                includeDocOnlyInCode = params.includeDocOnlyInCode,
+            )
 
         // Verify checkReference() returns the expected ReferenceCheckResult.
         val result = strategy.checkReference(params.from, params.to, params.kind)
