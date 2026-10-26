@@ -20,6 +20,7 @@ import com.android.tools.lint.checks.infrastructure.TestFiles.base64gzip
 import com.android.tools.lint.checks.infrastructure.TestFiles.source
 import com.android.tools.metalava.ARG_HIDE_ANNOTATION
 import com.android.tools.metalava.DriverTest
+import com.android.tools.metalava.KnownApiSurface
 import com.android.tools.metalava.cli.common.ARG_SOURCE_PATH
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
@@ -553,6 +554,44 @@ class ApiContentsTest : DriverTest() {
                       }
                     }
                 """,
+        )
+    }
+
+    @Test
+    fun `Reference to @DocOnly class from public API`() {
+        check(
+            apiSurface = KnownApiSurface.PUBLIC,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            import android.annotation.DocOnly;
+                            @DocOnly
+                            public class DocOnlySuper {}
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            import android.annotation.DocOnly;
+                            @DocOnly
+                            public class DocOnlyType {}
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            public class PublicClass extends DocOnlySuper {
+                                public DocOnlyType getDocOnly() { return null; }
+                            }
+                        """
+                    ),
+                ),
+            // Currently, no issues are reported when a public API class extends or returns a
+            // `@DocOnly` class because `ApiContents` and `ApiAnalyzer` only check whether the
+            // referenced class is hidden or removed, and not whether it is `@DocOnly`.
+            expectedIssues = "",
         )
     }
 }
