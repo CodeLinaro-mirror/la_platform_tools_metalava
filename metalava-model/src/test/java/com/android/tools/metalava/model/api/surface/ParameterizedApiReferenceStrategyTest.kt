@@ -267,14 +267,14 @@ class ParameterizedApiReferenceStrategyTest(private val params: Params) {
                     expectedReasonLabel = "doconly",
                 ),
 
-                // Baseline: `@removed` items are classified as `Hidden` until `Removed` is
-                // supported.
+                // `@removed` items are invalid targets outside `REMOVED` code and report reason
+                // `"removed"`.
                 Params(
                     from = null,
                     to = removedItem,
                     kind = ReferenceKind.CODE,
-                    expectedResult = ReferenceCheckResult.Hidden(isPublicOrProtected = true),
-                    expectedReasonLabel = "hidden",
+                    expectedResult = ReferenceCheckResult.Removed,
+                    expectedReasonLabel = "removed",
                 ),
                 Params(
                     from = null,
@@ -306,7 +306,7 @@ class ParameterizedApiReferenceStrategyTest(private val params: Params) {
                     from = coreItem,
                     to = removedItem,
                     kind = ReferenceKind.CODE,
-                    expectedResult = ReferenceCheckResult.Hidden(isPublicOrProtected = true),
+                    expectedResult = ReferenceCheckResult.Removed,
                 ),
                 Params(
                     from = coreItem,
@@ -337,7 +337,7 @@ class ParameterizedApiReferenceStrategyTest(private val params: Params) {
                     from = null,
                     to = removedItem,
                     kind = ReferenceKind.DOCUMENTATION,
-                    expectedResult = ReferenceCheckResult.Hidden(isPublicOrProtected = true),
+                    expectedResult = ReferenceCheckResult.Removed,
                 ),
                 Params(
                     from = coreItem,
@@ -355,7 +355,7 @@ class ParameterizedApiReferenceStrategyTest(private val params: Params) {
                     from = coreItem,
                     to = removedItem,
                     kind = ReferenceKind.DOCUMENTATION,
-                    expectedResult = ReferenceCheckResult.Hidden(isPublicOrProtected = true),
+                    expectedResult = ReferenceCheckResult.Removed,
                 ),
                 Params(
                     from = coreItem,
@@ -400,7 +400,7 @@ class ParameterizedApiReferenceStrategyTest(private val params: Params) {
                     from = docOnlyItem,
                     to = removedItem,
                     kind = ReferenceKind.CODE,
-                    expectedResult = ReferenceCheckResult.Hidden(isPublicOrProtected = true),
+                    expectedResult = ReferenceCheckResult.Removed,
                 ),
                 Params(
                     from = docOnlyItem,
@@ -409,8 +409,8 @@ class ParameterizedApiReferenceStrategyTest(private val params: Params) {
                     expectedResult = ReferenceCheckResult.Hidden(isPublicOrProtected = true),
                 ),
 
-                // References from REMOVED in CODE (baseline: `removedItem -> removedItem` is
-                // classified as `Hidden` until `REMOVED` variant support is added)
+                // References from REMOVED in CODE (valid to CORE and REMOVED, invalid to DOC_ONLY
+                // and Hidden)
                 Params(
                     from = removedItem,
                     to = coreItem,
@@ -427,7 +427,7 @@ class ParameterizedApiReferenceStrategyTest(private val params: Params) {
                     from = removedItem,
                     to = removedItem,
                     kind = ReferenceKind.CODE,
-                    expectedResult = ReferenceCheckResult.Hidden(isPublicOrProtected = true),
+                    expectedResult = ReferenceCheckResult.Valid,
                 ),
                 Params(
                     from = removedItem,

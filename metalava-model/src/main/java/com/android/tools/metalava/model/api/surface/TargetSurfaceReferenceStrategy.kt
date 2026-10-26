@@ -47,11 +47,20 @@ class TargetSurfaceReferenceStrategy(
     /** Bit mask matching [ApiVariantType.DOC_ONLY] across all [includedSurfaces]. */
     private val docOnlyMask = computeVariantBitMask(ApiVariantType.DOC_ONLY)
 
+    /** Bit mask matching [ApiVariantType.REMOVED] across all [includedSurfaces]. */
+    private val removedMask = computeVariantBitMask(ApiVariantType.REMOVED)
+
     /**
      * Bit mask matching [ApiVariantType.CORE] or [ApiVariantType.DOC_ONLY] across
      * [includedSurfaces].
      */
     private val coreOrDocOnlyMask = coreMask or docOnlyMask
+
+    /**
+     * Bit mask matching [ApiVariantType.CORE] or [ApiVariantType.REMOVED] across
+     * [includedSurfaces].
+     */
+    private val coreOrRemovedMask = coreMask or removedMask
 
     /**
      * Compute an [Int] bit mask matching all [ApiVariant]s of [variantType] across
@@ -97,6 +106,11 @@ class TargetSurfaceReferenceStrategy(
                             // References from DOC_ONLY items in code (such as doc stubs) may target
                             // either CORE or DOC_ONLY items.
                             (fromBits and docOnlyMask) != 0 -> coreOrDocOnlyMask
+
+                            // References from REMOVED items in code (such as removed signature
+                            // files) may target either CORE or REMOVED items.
+                            (fromBits and removedMask) != 0 -> coreOrRemovedMask
+
                             // When `from` is null or does not belong to any variant in
                             // `includedSurfaces`, default to requiring a CORE target.
                             else -> coreMask
@@ -116,6 +130,11 @@ class TargetSurfaceReferenceStrategy(
             // The referenced item is @doconly in an included surface (and the referencing context
             // does not allow doconly targets).
             (toBits and docOnlyMask) != 0 -> ReferenceCheckResult.DocOnly
+
+            // The referenced item is @removed in an included surface (and the referencing context
+            // does not allow removed targets).
+            (toBits and removedMask) != 0 -> ReferenceCheckResult.Removed
+
             // Otherwise, the referenced item is not part of the target API surface. Distinguish
             // between items that are public/protected (e.g. excluded via @hide) and items that are
             // package-private or private.

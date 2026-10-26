@@ -69,6 +69,14 @@ sealed interface ReferenceCheckResult {
             get() = if (isPublicOrProtected) "hidden" else "not public"
     }
 
+    /**
+     * Target item belongs to an [ApiVariantType.REMOVED] variant (`@removed`) in an included API
+     * surface, which is invalid except in [ReferenceKind.CODE] from another `@removed` item.
+     */
+    data object Removed : Invalid {
+        override val reasonLabel: String = "removed"
+    }
+
     /** Target item is `@doconly`, which is invalid when referenced from CORE code. */
     data object DocOnly : Invalid {
         override val reasonLabel: String = "doconly"

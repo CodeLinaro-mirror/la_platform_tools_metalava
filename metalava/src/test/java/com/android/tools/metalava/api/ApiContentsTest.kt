@@ -625,11 +625,12 @@ class ApiContentsTest : DriverTest() {
                         """
                     ),
                 ),
-            // Currently, `TargetSurfaceReferenceStrategy` classifies `@RemovedFromApi` classes as
-            // `Hidden` rather than `Removed`, so `ApiContents` reports them as `hidden`.
+            // `@RemovedFromApi` classes are in the `REMOVED` variant rather than `CORE`, so
+            // referencing them from a `CORE` public method reports `ReferencesHidden` with reason
+            // `removed`.
             expectedIssues =
                 """
-                    src/test/pkg/PublicClass.java:3: error: Class test.pkg.RemovedType is hidden but was referenced (in return type) from public method test.pkg.PublicClass.getRemoved() [ReferencesHidden]
+                    src/test/pkg/PublicClass.java:3: error: Class test.pkg.RemovedType is removed but was referenced (in return type) from public method test.pkg.PublicClass.getRemoved() [ReferencesHidden]
                 """,
         )
     }
