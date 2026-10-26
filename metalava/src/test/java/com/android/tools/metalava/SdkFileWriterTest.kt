@@ -232,6 +232,7 @@ class SdkFileWriterTest : DriverTest() {
     @Test
     fun `Test generating widgets`() {
         check(
+            apiSurface = KnownApiSurface.PUBLIC,
             sourceFiles =
                 arrayOf(
                     java(
@@ -249,11 +250,31 @@ class SdkFileWriterTest : DriverTest() {
                             }
                         """
                     ),
+                    java(
+                        """
+                            package android.widget;
+
+                            import android.content.Context;
+                            import android.annotation.DocOnly;
+                            import android.annotation.Widget;
+
+                            @DocOnly
+                            @Widget
+                            public class DocOnlyButton extends android.view.View {
+                                public DocOnlyButton(Context context) {
+                                    super(context, null);
+                                }
+                            }
+                        """
+                    ),
                     widgetSource,
                 ),
+            // Currently, `DocOnlyButton` is included in `widgets.txt` because `SdkFileWriter` only
+            // checks `!clazz.isHiddenOrRemoved()`, which is `true` for `@DocOnly` classes.
             sdkWidgets =
                 """
                     Wandroid.widget.MyButton android.view.View java.lang.Object
+                    Wandroid.widget.DocOnlyButton android.view.View java.lang.Object
                 """,
         )
     }
