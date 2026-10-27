@@ -22,8 +22,16 @@ import com.android.tools.metalava.ARG_HIDE_ANNOTATION
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.KnownApiSurface
 import com.android.tools.metalava.cli.common.ARG_SOURCE_PATH
+import com.android.tools.metalava.config.ApiFlagActionConfig.Mutability.IMMUTABLE
+import com.android.tools.metalava.config.ApiFlagActionConfig.Mutability.MUTABLE
+import com.android.tools.metalava.config.ApiFlagActionConfig.Status.ENABLED
+import com.android.tools.metalava.config.ApiFlagConfig
+import com.android.tools.metalava.config.ApiFlagsConfig
+import com.android.tools.metalava.config.Config
+import com.android.tools.metalava.config.toTestFile
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
+import com.android.tools.metalava.testing.KnownSourceFiles.flaggedApiSource
 import com.android.tools.metalava.testing.KnownSourceFiles.restrictToSource
 import com.android.tools.metalava.testing.createCommonModuleDescription
 import com.android.tools.metalava.testing.createNativeModuleDescription
@@ -632,6 +640,85 @@ class ApiContentsTest : DriverTest() {
                 """
                     src/test/pkg/PublicClass.java:3: error: Class test.pkg.RemovedType is removed but was referenced (in return type) from public method test.pkg.PublicClass.getRemoved() [ReferencesHidden]
                 """,
+        )
+    }
+
+    /**
+     * Verify how `ApiContents` checks public API references to an unfinalized `@FlaggedApi` class
+     * from unguarded, same-flag, other-kept-flag, and finalized-flag methods.
+     */
+    @Test
+    fun `Reference to @FlaggedApi class from public API`() {
+        check(
+            apiSurface = KnownApiSurface.PUBLIC,
+            configFiles =
+                arrayOf(
+                    Config(
+                            apiFlags =
+                                ApiFlagsConfig(
+                                    flags =
+                                        listOf(
+                                            // `MUTABLE` + `ENABLED` -> `ApiFlagAction.KEEP`
+                                            // (unfinalized).
+                                            ApiFlagConfig(
+                                                pkg = "test.pkg",
+                                                name = "my_flag",
+                                                mutability = MUTABLE,
+                                                status = ENABLED,
+                                                isExported = true,
+                                            ),
+                                            ApiFlagConfig(
+                                                pkg = "test.pkg",
+                                                name = "other_kept_flag",
+                                                mutability = MUTABLE,
+                                                status = ENABLED,
+                                                isExported = true,
+                                            ),
+
+                                            // `IMMUTABLE` + `ENABLED` -> `ApiFlagAction.FINALIZE`.
+                                            ApiFlagConfig(
+                                                pkg = "test.pkg",
+                                                name = "finalized_flag",
+                                                mutability = IMMUTABLE,
+                                                status = ENABLED,
+                                                isExported = true,
+                                            ),
+                                        )
+                                )
+                        )
+                        .toTestFile("flags-config.xml")
+                ),
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            import android.annotation.FlaggedApi;
+                            @FlaggedApi("test.pkg.my_flag")
+                            public class FlaggedType {}
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            import android.annotation.FlaggedApi;
+                            public class PublicClass {
+                                public FlaggedType getUnguarded() { return null; }
+                                @FlaggedApi("test.pkg.my_flag")
+                                public FlaggedType getGuarded() { return null; }
+                                @FlaggedApi("test.pkg.other_kept_flag")
+                                public FlaggedType getGuardedByOtherKeptFlag() { return null; }
+                                @FlaggedApi("test.pkg.finalized_flag")
+                                public FlaggedType getGuardedByFinalizedFlag() { return null; }
+                            }
+                        """
+                    ),
+                    flaggedApiSource,
+                ),
+
+            // Currently, `ApiContents` does not check whether a referenced `@FlaggedApi` class is
+            // guarded by an unfinalized `@FlaggedApi` annotation on the referencing item.
+            expectedIssues = "",
         )
     }
 }
