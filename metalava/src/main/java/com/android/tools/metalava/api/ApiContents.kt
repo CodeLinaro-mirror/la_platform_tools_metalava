@@ -33,7 +33,9 @@ import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VariableTypeItem
-import com.android.tools.metalava.model.api.surface.ApiSurfacePredicate
+import com.android.tools.metalava.model.api.surface.ApiReferenceStrategy
+import com.android.tools.metalava.model.api.surface.ReferenceCheckResult
+import com.android.tools.metalava.model.api.surface.ReferenceKind
 import com.android.tools.metalava.reporter.Issues
 
 /** Determines all the [ClassItem]s that are part of the API. */
@@ -49,6 +51,12 @@ internal class ApiContents(
         visitParameterItems = false,
     ) {
     private val reporter = codebase.reporter
+
+    /**
+     * The [ApiReferenceStrategy] used to check whether items and referenced classes are valid code
+     * references in the target API surface.
+     */
+    private val referenceStrategy = codebase.apiSurfaces.referenceStrategy
 
     /**
      * The set of [ClassItem]s that are part of the API.
@@ -70,10 +78,11 @@ internal class ApiContents(
             .and { selectableItem ->
                 selectableItem.targetLanguages != TargetLanguageSet.BYTECODE_ONLY
             }
-            // Use the whole API surface so that classes belonging to any API surface in the
-            // hierarchy (such as base surfaces) are recognized as part of the API and not stripped
-            // when referenced.
-            .and(ApiSurfacePredicate.wholeCoreApi(codebase.apiSurfaces.main))
+            // Only include items that are valid code references in the target API surface (or any
+            // of its base surfaces), excluding hidden, removed, and `@DocOnly` items.
+            .and { selectableItem ->
+                referenceStrategy.isValidReference(null, selectableItem, ReferenceKind.CODE)
+            }
 
     /**
      * Computes the transitive closure of the API surface.
@@ -112,12 +121,7 @@ internal class ApiContents(
      * This is called both for top-level classes and nested classes.
      */
     override fun visitClass(cls: ClassItem) {
-        val containingClass = cls.containingClass()
-        if (containingClass == null) {
-            checkClassReferences(cls, cls, "self")
-        } else {
-            checkClassReferences(cls, containingClass, "as nested class")
-        }
+        checkClassReferences(cls, cls, "self")
         if (cls.classKind == ClassKind.TYPEALIAS) {
             checkTypeReferences(cls.aliasedType, cls, "aliased type")
         }
@@ -135,18 +139,14 @@ internal class ApiContents(
         }
 
         // Report issues before checking to see if this class has been visited before so that it
-        // will report all references to the hidden class.
-        if (cl.isHiddenOrRemoved()) {
-            // If the class is public or protected, it would normally be visible in the API,
-            // but has been excluded from this API surface (e.g., via `@hide`), so it is "hidden".
-            // Otherwise, it is excluded simply because of its language-level visibility.
-            val label =
-                if (cl.modifiers.isPublic() || cl.modifiers.isProtected()) "hidden"
-                else "not public"
+        // will report all references to the unavailable class (e.g. hidden, not public, removed, or
+        // `@DocOnly`).
+        val result = referenceStrategy.checkReference(from, cl, ReferenceKind.CODE)
+        if (result is ReferenceCheckResult.Invalid) {
             reporter.report(
                 Issues.REFERENCES_HIDDEN,
                 from,
-                "Class ${cl.qualifiedName()} is $label but was referenced ($usage) from public ${from.describe()}"
+                "Class ${cl.qualifiedName()} is ${result.reasonLabel} but was referenced ($usage) from public ${from.describe()}"
             )
         }
 
@@ -197,8 +197,10 @@ internal class ApiContents(
                 continue
             }
 
+            // Check whether `superItem` is a valid code reference from `cl` in the target API
+            // surface (excluding hidden, removed, or `@DocOnly` superclasses/interfaces).
             if (
-                superItem.isHiddenOrRemoved() &&
+                !referenceStrategy.isValidReference(cl, superItem, ReferenceKind.CODE) &&
                     (superItem.modifiers.isPublic() || superItem.modifiers.isProtected())
             ) {
                 // cl is a public class declared as extending a hidden superclass or implementing
@@ -319,6 +321,10 @@ internal class ApiContents(
     }
 }
 
-/** Returns true if this item is public or protected and so a candidate for inclusion in an API. */
+/**
+ * Returns true if this item is public or protected and is a valid [ReferenceKind.CODE] reference in
+ * the target API surface, making it a candidate for inclusion in an API.
+ */
 internal fun SelectableItem.isApiCandidate() =
-    !isHiddenOrRemoved() && (modifiers.isPublic() || modifiers.isProtected())
+    codebase.apiSurfaces.referenceStrategy.isValidReference(null, this, ReferenceKind.CODE) &&
+        (modifiers.isPublic() || modifiers.isProtected())

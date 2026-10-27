@@ -416,7 +416,6 @@ class ApiContentsTest : DriverTest() {
                 ),
             expectedIssues =
                 """
-                    ADDITIONAL-SOURCE-PATH/test/pkg/Outer.java:4: error: Class test.pkg.Outer is hidden but was referenced (as containing class) from public class test.pkg.Outer.Hidden [ReferencesHidden]
                     src/test/pkg/Test.java:2: error: Class test.pkg.Outer is hidden but was referenced (as type parameter) from public class test.pkg.Test [ReferencesHidden]
                     src/test/pkg/Test.java:2: error: Class test.pkg.Outer.Hidden is hidden but was referenced (as type parameter) from public class test.pkg.Test [ReferencesHidden]
                 """,
@@ -588,10 +587,14 @@ class ApiContentsTest : DriverTest() {
                         """
                     ),
                 ),
-            // Currently, no issues are reported when a public API class extends or returns a
-            // `@DocOnly` class because `ApiContents` and `ApiAnalyzer` only check whether the
-            // referenced class is hidden or removed, and not whether it is `@DocOnly`.
-            expectedIssues = "",
+            // `@DocOnly` classes are excluded from normal stubs and signature files, so extending
+            // a `@DocOnly` superclass reports `HiddenSuperclass` and returning a `@DocOnly` class
+            // reports `ReferencesHidden`.
+            expectedIssues =
+                """
+                    src/test/pkg/PublicClass.java:2: warning: Public class test.pkg.PublicClass stripped of unavailable superclass test.pkg.DocOnlySuper [HiddenSuperclass]
+                    src/test/pkg/PublicClass.java:3: error: Class test.pkg.DocOnlyType is hidden but was referenced (in return type) from public method test.pkg.PublicClass.getDocOnly() [ReferencesHidden]
+                """,
         )
     }
 }
