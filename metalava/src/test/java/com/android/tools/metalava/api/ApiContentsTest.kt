@@ -597,4 +597,40 @@ class ApiContentsTest : DriverTest() {
                 """,
         )
     }
+
+    /**
+     * Verify how `ApiContents` reports a public API method whose return type is an unflagged
+     * `@RemovedFromApi` class.
+     */
+    @Test
+    fun `Reference to @RemovedFromApi class from public API`() {
+        check(
+            apiSurface = KnownApiSurface.PUBLIC,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            import android.annotation.RemovedFromApi;
+                            @RemovedFromApi
+                            public class RemovedType {}
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            public class PublicClass {
+                                public RemovedType getRemoved() { return null; }
+                            }
+                        """
+                    ),
+                ),
+            // Currently, `TargetSurfaceReferenceStrategy` classifies `@RemovedFromApi` classes as
+            // `Hidden` rather than `Removed`, so `ApiContents` reports them as `hidden`.
+            expectedIssues =
+                """
+                    src/test/pkg/PublicClass.java:3: error: Class test.pkg.RemovedType is hidden but was referenced (in return type) from public method test.pkg.PublicClass.getRemoved() [ReferencesHidden]
+                """,
+        )
+    }
 }
