@@ -168,6 +168,13 @@ class ParameterizedApiReferenceStrategyTest(private val params: Params) {
                 variants = listOf(main.variantFor(ApiVariantType.CORE)),
             )
 
+        /** Public class belonging to the `main` surface's DOC_ONLY variant (`@DocOnly`). */
+        private val docOnlyItem =
+            context.createTestClass(
+                "DocOnlyClass",
+                variants = listOf(main.variantFor(ApiVariantType.DOC_ONLY)),
+            )
+
         /** Public class not belonging to any API surface (e.g. `@hide`). */
         private val hiddenPublicItem = context.createTestClass("HiddenPublicClass")
 
@@ -241,6 +248,13 @@ class ParameterizedApiReferenceStrategyTest(private val params: Params) {
                 ),
                 Params(
                     from = null,
+                    to = docOnlyItem,
+                    kind = ReferenceKind.CODE,
+                    expectedResult = ReferenceCheckResult.Hidden(isPublicOrProtected = true),
+                    expectedReasonLabel = "hidden",
+                ),
+                Params(
+                    from = null,
                     to = hiddenPublicItem,
                     kind = ReferenceKind.CODE,
                     expectedResult = ReferenceCheckResult.Hidden(isPublicOrProtected = true),
@@ -261,6 +275,12 @@ class ParameterizedApiReferenceStrategyTest(private val params: Params) {
                 ),
                 Params(
                     from = coreItem,
+                    to = docOnlyItem,
+                    kind = ReferenceKind.CODE,
+                    expectedResult = ReferenceCheckResult.Hidden(isPublicOrProtected = true),
+                ),
+                Params(
+                    from = coreItem,
                     to = hiddenPublicItem,
                     kind = ReferenceKind.CODE,
                     expectedResult = ReferenceCheckResult.Hidden(isPublicOrProtected = true),
@@ -271,7 +291,7 @@ class ParameterizedApiReferenceStrategyTest(private val params: Params) {
                     kind = ReferenceKind.CODE,
                     expectedResult = ReferenceCheckResult.Hidden(isPublicOrProtected = false),
                 ),
-                // References from null and CORE in DOCUMENTATION
+                // References from null, CORE, and DOC_ONLY in DOCUMENTATION
                 Params(
                     from = null,
                     to = coreItem,
@@ -279,10 +299,22 @@ class ParameterizedApiReferenceStrategyTest(private val params: Params) {
                     expectedResult = ReferenceCheckResult.Valid,
                 ),
                 Params(
+                    from = null,
+                    to = docOnlyItem,
+                    kind = ReferenceKind.DOCUMENTATION,
+                    expectedResult = ReferenceCheckResult.Hidden(isPublicOrProtected = true),
+                ),
+                Params(
                     from = coreItem,
                     to = coreItem,
                     kind = ReferenceKind.DOCUMENTATION,
                     expectedResult = ReferenceCheckResult.Valid,
+                ),
+                Params(
+                    from = coreItem,
+                    to = docOnlyItem,
+                    kind = ReferenceKind.DOCUMENTATION,
+                    expectedResult = ReferenceCheckResult.Hidden(isPublicOrProtected = true),
                 ),
                 Params(
                     from = coreItem,
@@ -295,6 +327,37 @@ class ParameterizedApiReferenceStrategyTest(private val params: Params) {
                     to = packagePrivateItem,
                     kind = ReferenceKind.DOCUMENTATION,
                     expectedResult = ReferenceCheckResult.Hidden(isPublicOrProtected = false),
+                ),
+                Params(
+                    from = docOnlyItem,
+                    to = coreItem,
+                    kind = ReferenceKind.DOCUMENTATION,
+                    expectedResult = ReferenceCheckResult.Valid,
+                ),
+                Params(
+                    from = docOnlyItem,
+                    to = docOnlyItem,
+                    kind = ReferenceKind.DOCUMENTATION,
+                    expectedResult = ReferenceCheckResult.Hidden(isPublicOrProtected = true),
+                ),
+                // References from DOC_ONLY in CODE
+                Params(
+                    from = docOnlyItem,
+                    to = coreItem,
+                    kind = ReferenceKind.CODE,
+                    expectedResult = ReferenceCheckResult.Valid,
+                ),
+                Params(
+                    from = docOnlyItem,
+                    to = docOnlyItem,
+                    kind = ReferenceKind.CODE,
+                    expectedResult = ReferenceCheckResult.Hidden(isPublicOrProtected = true),
+                ),
+                Params(
+                    from = docOnlyItem,
+                    to = hiddenPublicItem,
+                    kind = ReferenceKind.CODE,
+                    expectedResult = ReferenceCheckResult.Hidden(isPublicOrProtected = true),
                 ),
                 // Target surface `base` only includes `base`, so `coreItem` (in `main`) is hidden
                 Params(
