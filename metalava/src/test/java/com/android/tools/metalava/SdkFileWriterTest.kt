@@ -269,12 +269,11 @@ class SdkFileWriterTest : DriverTest() {
                     ),
                     widgetSource,
                 ),
-            // Currently, `DocOnlyButton` is included in `widgets.txt` because `SdkFileWriter` only
-            // checks `!clazz.isHiddenOrRemoved()`, which is `true` for `@DocOnly` classes.
+            // `DocOnlyButton` is excluded from `widgets.txt` because it is `@DocOnly` and
+            // therefore not a valid code reference in the public API surface.
             sdkWidgets =
                 """
                     Wandroid.widget.MyButton android.view.View java.lang.Object
-                    Wandroid.widget.DocOnlyButton android.view.View java.lang.Object
                 """,
         )
     }
