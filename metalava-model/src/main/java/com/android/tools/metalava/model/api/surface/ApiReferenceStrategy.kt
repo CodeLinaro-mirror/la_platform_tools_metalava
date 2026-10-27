@@ -81,6 +81,21 @@ sealed interface ReferenceCheckResult {
     data object DocOnly : Invalid {
         override val reasonLabel: String = "doconly"
     }
+
+    /**
+     * Target item is only available in a wider API surface ([toSurface]) than the target API
+     * surface ([fromSurface]).
+     *
+     * @property fromSurface The target API surface against which the reference was checked.
+     * @property toSurface The wider API surface in which the referenced item is available.
+     */
+    data class WiderSurface(
+        val fromSurface: ApiSurface,
+        val toSurface: ApiSurface,
+    ) : Invalid {
+        override val reasonLabel: String =
+            "in a wider API surface (${toSurface.name}) than ${fromSurface.name}"
+    }
 }
 
 /** Strategy for checking whether a reference from one [Item] to a [SelectableItem] is valid. */

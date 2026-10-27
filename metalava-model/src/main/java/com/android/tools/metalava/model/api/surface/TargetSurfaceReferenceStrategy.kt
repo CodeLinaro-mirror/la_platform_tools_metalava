@@ -41,14 +41,20 @@ class TargetSurfaceReferenceStrategy(
     /** The set of [ApiSurface]s included in [targetSurface] (including [targetSurface] itself). */
     private val includedSurfaces = targetSurface.includedSurfaces
 
+    /**
+     * The set of [ApiSurface]s in [apiSurfaces] that are wider than [targetSurface] (i.e. not in
+     * [includedSurfaces]).
+     */
+    private val widerSurfaces = apiSurfaces.all - includedSurfaces.toSet()
+
     /** Bit mask matching [ApiVariantType.CORE] across all [includedSurfaces]. */
-    private val coreMask = computeVariantBitMask(ApiVariantType.CORE)
+    private val coreMask = computeVariantBitMask(includedSurfaces, ApiVariantType.CORE)
 
     /** Bit mask matching [ApiVariantType.DOC_ONLY] across all [includedSurfaces]. */
-    private val docOnlyMask = computeVariantBitMask(ApiVariantType.DOC_ONLY)
+    private val docOnlyMask = computeVariantBitMask(includedSurfaces, ApiVariantType.DOC_ONLY)
 
     /** Bit mask matching [ApiVariantType.REMOVED] across all [includedSurfaces]. */
-    private val removedMask = computeVariantBitMask(ApiVariantType.REMOVED)
+    private val removedMask = computeVariantBitMask(includedSurfaces, ApiVariantType.REMOVED)
 
     /**
      * Bit mask matching [ApiVariantType.CORE] or [ApiVariantType.DOC_ONLY] across
@@ -62,12 +68,27 @@ class TargetSurfaceReferenceStrategy(
      */
     private val coreOrRemovedMask = coreMask or removedMask
 
+    /** Bit mask matching [ApiVariantType.CORE] across all [widerSurfaces]. */
+    private val widerCoreMask = computeVariantBitMask(widerSurfaces, ApiVariantType.CORE)
+
+    /** Bit mask matching [ApiVariantType.DOC_ONLY] across all [widerSurfaces]. */
+    private val widerDocOnlyMask = computeVariantBitMask(widerSurfaces, ApiVariantType.DOC_ONLY)
+
     /**
-     * Compute an [Int] bit mask matching all [ApiVariant]s of [variantType] across
-     * [includedSurfaces].
+     * Bit mask matching [ApiVariantType.CORE] or [ApiVariantType.DOC_ONLY] across [widerSurfaces].
+     *
+     * Note: No wider [ApiVariantType.REMOVED] mask is needed because `@removed` items in wider
+     * surfaces are reported as [ReferenceCheckResult.Hidden] rather than
+     * [ReferenceCheckResult.WiderSurface].
      */
-    private fun computeVariantBitMask(variantType: ApiVariantType): Int {
-        val variants = includedSurfaces.map { it.variantFor(variantType) }
+    private val widerCoreOrDocOnlyMask = widerCoreMask or widerDocOnlyMask
+
+    /** Compute an [Int] bit mask matching all [ApiVariant]s of [variantType] across [surfaces]. */
+    private fun computeVariantBitMask(
+        surfaces: Collection<ApiSurface>,
+        variantType: ApiVariantType,
+    ): Int {
+        val variants = surfaces.map { it.variantFor(variantType) }
         return apiSurfaces.createVariantSet(variants).bits
     }
 
@@ -83,41 +104,63 @@ class TargetSurfaceReferenceStrategy(
             return ReferenceCheckResult.Valid
         }
 
-        // Determine which variant bit mask the target item must match to be considered a valid
-        // reference in this context.
-        val allowedMask =
-            when (kind) {
-                // Documentation references may target either CORE or DOC_ONLY items.
-                ReferenceKind.DOCUMENTATION -> coreOrDocOnlyMask
-                ReferenceKind.CODE -> {
-                    if (includeDocOnlyInCode) {
-                        // When `includeDocOnlyInCode` is enabled (such as when generating doc
-                        // stubs), code references may target either CORE or DOC_ONLY items
-                        // regardless of `from`.
-                        coreOrDocOnlyMask
-                    } else {
-                        // Resolve the enclosing SelectableItem (e.g. a ParameterItem's parent
-                        // CallableItem) to inspect its API variants.
-                        val fromSelectable = (from as? SelectableItem) ?: from?.parent()
-                        val fromBits = fromSelectable?.selectedApi?.itemApiVariants?.bits ?: 0
-                        when {
-                            // References from CORE items in code may only target CORE items.
-                            (fromBits and coreMask) != 0 -> coreMask
-                            // References from DOC_ONLY items in code (such as doc stubs) may target
-                            // either CORE or DOC_ONLY items.
-                            (fromBits and docOnlyMask) != 0 -> coreOrDocOnlyMask
+        // Resolve the enclosing SelectableItem (e.g. a ParameterItem's parent CallableItem) to
+        // inspect its API variants.
+        val fromSelectable = (from as? SelectableItem) ?: from?.parent()
+        val fromBits = fromSelectable?.selectedApi?.itemApiVariants?.bits ?: 0
 
-                            // References from REMOVED items in code (such as removed signature
-                            // files) may target either CORE or REMOVED items.
-                            (fromBits and removedMask) != 0 -> coreOrRemovedMask
+        // Determine which variant bit mask the target item must match in `includedSurfaces` (and
+        // the corresponding mask in `widerSurfaces`) to be considered a valid reference in this
+        // context.
+        val allowedMask: Int
+        val widerAllowedMask: Int
+        when (kind) {
+            // Documentation references may target either CORE or DOC_ONLY items.
+            ReferenceKind.DOCUMENTATION -> {
+                allowedMask = coreOrDocOnlyMask
+                widerAllowedMask = widerCoreOrDocOnlyMask
+            }
+            ReferenceKind.CODE -> {
+                if (includeDocOnlyInCode) {
+                    // When `includeDocOnlyInCode` is enabled (such as when generating doc stubs),
+                    // code references may target either CORE or DOC_ONLY items regardless of
+                    // `from`.
+                    allowedMask = coreOrDocOnlyMask
+                    widerAllowedMask = widerCoreOrDocOnlyMask
+                } else {
+                    when {
+                        // References from CORE items in code may only target CORE items.
+                        (fromBits and coreMask) != 0 -> {
+                            allowedMask = coreMask
+                            widerAllowedMask = widerCoreMask
+                        }
 
-                            // When `from` is null or does not belong to any variant in
-                            // `includedSurfaces`, default to requiring a CORE target.
-                            else -> coreMask
+                        // References from DOC_ONLY items in code (such as doc stubs) may target
+                        // either CORE or DOC_ONLY items.
+                        (fromBits and docOnlyMask) != 0 -> {
+                            allowedMask = coreOrDocOnlyMask
+                            widerAllowedMask = widerCoreOrDocOnlyMask
+                        }
+
+                        // References from REMOVED items in code (such as removed signature files)
+                        // may target either CORE or REMOVED items in includedSurfaces; @removed
+                        // items in wider surfaces are intentionally reported as Hidden rather than
+                        // WiderSurface.
+                        (fromBits and removedMask) != 0 -> {
+                            allowedMask = coreOrRemovedMask
+                            widerAllowedMask = widerCoreMask
+                        }
+
+                        // When `from` is null or does not belong to any variant in
+                        // `includedSurfaces`, default to requiring a CORE target.
+                        else -> {
+                            allowedMask = coreMask
+                            widerAllowedMask = widerCoreMask
                         }
                     }
                 }
             }
+        }
 
         // Fast path: check if the referenced item matches any allowed variant in includedSurfaces.
         val toBits = to.selectedApi.itemApiVariants.bits
@@ -135,8 +178,19 @@ class TargetSurfaceReferenceStrategy(
             // does not allow removed targets).
             (toBits and removedMask) != 0 -> ReferenceCheckResult.Removed
 
-            // Otherwise, the referenced item is not part of the target API surface. Distinguish
-            // between items that are public/protected (e.g. excluded via @hide) and items that are
+            // The referenced item is available in a wider API surface than targetSurface; pick
+            // the narrowest such surface (e.g. `system` rather than `module-lib`).
+            (toBits and widerAllowedMask) != 0 -> {
+                val toSurface =
+                    ApiVariantSet(toBits and widerAllowedMask).narrowestSurfaceFor(apiSurfaces)!!
+                ReferenceCheckResult.WiderSurface(
+                    fromSurface = targetSurface,
+                    toSurface = toSurface,
+                )
+            }
+
+            // Otherwise, the referenced item is not part of any API surface. Distinguish between
+            // items that are public/protected (e.g. excluded via @hide) and items that are
             // package-private or private.
             else ->
                 ReferenceCheckResult.Hidden(

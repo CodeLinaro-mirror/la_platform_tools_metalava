@@ -445,9 +445,8 @@ class ParameterizedApiReferenceStrategyTest(private val params: Params) {
                     expectedResult = ReferenceCheckResult.Valid,
                 ),
 
-                // Target surface `base` only includes `base`; baseline before `WiderSurface`
-                // classifies items only in `main` (`coreItem`, `docOnlyItem`, `removedItem`) as
-                // `Hidden`.
+                // Target surface `base` only includes `base`, so items in `main` report
+                // WiderSurface(fromSurface = base, toSurface = main) when valid in `main`
                 Params(
                     targetSurface = base,
                     from = null,
@@ -460,25 +459,38 @@ class ParameterizedApiReferenceStrategyTest(private val params: Params) {
                     from = null,
                     to = coreItem,
                     kind = ReferenceKind.CODE,
-                    expectedResult = ReferenceCheckResult.Hidden(isPublicOrProtected = true),
-                    expectedReasonLabel = "hidden",
+                    expectedResult =
+                        ReferenceCheckResult.WiderSurface(
+                            fromSurface = base,
+                            toSurface = main,
+                        ),
+                    expectedReasonLabel = "in a wider API surface (main) than base",
                 ),
                 Params(
                     targetSurface = base,
                     from = baseCoreItem,
                     to = coreItem,
                     kind = ReferenceKind.CODE,
-                    expectedResult = ReferenceCheckResult.Hidden(isPublicOrProtected = true),
+                    expectedResult =
+                        ReferenceCheckResult.WiderSurface(
+                            fromSurface = base,
+                            toSurface = main,
+                        ),
                 ),
                 Params(
                     targetSurface = base,
                     from = baseCoreItem,
                     to = docOnlyItem,
                     kind = ReferenceKind.DOCUMENTATION,
-                    expectedResult = ReferenceCheckResult.Hidden(isPublicOrProtected = true),
+                    expectedResult =
+                        ReferenceCheckResult.WiderSurface(
+                            fromSurface = base,
+                            toSurface = main,
+                        ),
                 ),
 
-                // `@removed` items in wider surfaces are hidden from narrower surfaces.
+                // `@removed` items in wider surfaces are still classified as `Hidden` rather than
+                // `WiderSurface`.
                 Params(
                     targetSurface = base,
                     from = baseCoreItem,
