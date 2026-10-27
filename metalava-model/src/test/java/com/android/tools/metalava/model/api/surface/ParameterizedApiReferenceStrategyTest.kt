@@ -444,7 +444,10 @@ class ParameterizedApiReferenceStrategyTest(private val params: Params) {
                     kind = ReferenceKind.CODE,
                     expectedResult = ReferenceCheckResult.Valid,
                 ),
-                // Target surface `base` only includes `base`, so `coreItem` (in `main`) is hidden
+
+                // Target surface `base` only includes `base`; baseline before `WiderSurface`
+                // classifies items only in `main` (`coreItem`, `docOnlyItem`, `removedItem`) as
+                // `Hidden`.
                 Params(
                     targetSurface = base,
                     from = null,
@@ -458,7 +461,32 @@ class ParameterizedApiReferenceStrategyTest(private val params: Params) {
                     to = coreItem,
                     kind = ReferenceKind.CODE,
                     expectedResult = ReferenceCheckResult.Hidden(isPublicOrProtected = true),
+                    expectedReasonLabel = "hidden",
                 ),
+                Params(
+                    targetSurface = base,
+                    from = baseCoreItem,
+                    to = coreItem,
+                    kind = ReferenceKind.CODE,
+                    expectedResult = ReferenceCheckResult.Hidden(isPublicOrProtected = true),
+                ),
+                Params(
+                    targetSurface = base,
+                    from = baseCoreItem,
+                    to = docOnlyItem,
+                    kind = ReferenceKind.DOCUMENTATION,
+                    expectedResult = ReferenceCheckResult.Hidden(isPublicOrProtected = true),
+                ),
+
+                // `@removed` items in wider surfaces are hidden from narrower surfaces.
+                Params(
+                    targetSurface = base,
+                    from = baseCoreItem,
+                    to = removedItem,
+                    kind = ReferenceKind.CODE,
+                    expectedResult = ReferenceCheckResult.Hidden(isPublicOrProtected = true),
+                ),
+
                 // References from a nested class or member to its containing class
                 Params(
                     from = nestedInHiddenPublicItem,
