@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava.model.api.surface
 
+import com.android.tools.metalava.model.ANDROID_FLAGGED_API
+import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassOrigin
@@ -27,7 +29,11 @@ import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
 import com.android.tools.metalava.model.api.SelectedApi
+import com.android.tools.metalava.model.api.flags.ApiFlag
+import com.android.tools.metalava.model.api.flags.ApiFlagAction
+import com.android.tools.metalava.model.api.flags.ApiFlags
 import com.android.tools.metalava.model.api.flags.FlagState
 import com.android.tools.metalava.model.createImmutableModifiers
 import com.android.tools.metalava.model.item.DefaultCodebase
@@ -105,15 +111,27 @@ class ParameterizedApiReferenceStrategyTest(private val params: Params) {
         private val pkg = codebase.findOrCreatePackage("test.pkg")
 
         /**
-         * Create a synthetic [ClassItem] with the given [name], [visibility], [variants], and
-         * optional [containingClass].
+         * Create a synthetic [ClassItem] with the given [name], [visibility], [variants], optional
+         * [containingClass], and optional `@FlaggedApi` [flagName].
          */
         fun createTestClass(
             name: String,
             visibility: VisibilityLevel = VisibilityLevel.PUBLIC,
             variants: List<ApiVariant> = emptyList(),
             containingClass: ClassItem? = null,
+            flagName: String? = null,
         ): ClassItem {
+            val annotations =
+                if (flagName != null) {
+                    listOf(
+                        AnnotationItem.createFromSource(
+                            codebase,
+                            "@$ANDROID_FLAGGED_API(\"$flagName\")",
+                        )!!
+                    )
+                } else {
+                    emptyList()
+                }
             val qualifiedName =
                 if (containingClass != null) {
                     "${containingClass.qualifiedName()}.$name"
@@ -122,7 +140,7 @@ class ParameterizedApiReferenceStrategyTest(private val params: Params) {
                 }
             val classItem =
                 factory.createClassItem(
-                    modifiers = createImmutableModifiers(visibility),
+                    modifiers = createImmutableModifiers(visibility, annotations),
                     classKind = ClassKind.CLASS,
                     containingClass = containingClass,
                     containingPackage = pkg,
@@ -227,8 +245,80 @@ class ParameterizedApiReferenceStrategyTest(private val params: Params) {
                 visibility = VisibilityLevel.PACKAGE_PRIVATE,
             )
 
+        /** Public class in `main` CORE guarded by `@FlaggedApi("test.pkg.flag1")`. */
+        private val flaggedItem =
+            context.createTestClass(
+                "FlaggedClass",
+                variants = listOf(main.variantFor(ApiVariantType.CORE)),
+                flagName = "test.pkg.flag1",
+            )
+
+        /** Public class in `main` CORE guarded by a different kept flag (`"test.pkg.flag2"`). */
+        private val otherFlaggedItem =
+            context.createTestClass(
+                "OtherFlaggedClass",
+                variants = listOf(main.variantFor(ApiVariantType.CORE)),
+                flagName = "test.pkg.flag2",
+            )
+
+        /**
+         * Public class in `main` CORE annotated with `@FlaggedApi("test.pkg.finalized_flag")` whose
+         * flag has [ApiFlagAction.FINALIZE].
+         */
+        private val finalizedFlaggedItem =
+            context.createTestClass(
+                "FinalizedFlaggedClass",
+                variants = listOf(main.variantFor(ApiVariantType.CORE)),
+                flagName = "test.pkg.finalized_flag",
+            )
+
+        /**
+         * Nested public class inside [flaggedItem] without its own `@FlaggedApi` annotation;
+         * inherits `"test.pkg.flag1"` from its enclosing class.
+         */
+        private val nestedInFlaggedItem =
+            context.createTestClass(
+                "NestedInFlaggedClass",
+                variants = listOf(main.variantFor(ApiVariantType.CORE)),
+                containingClass = flaggedItem,
+            )
+
+        /** Public class in `base` CORE guarded by `@FlaggedApi("test.pkg.flag1")`. */
+        private val baseFlaggedItem =
+            context.createTestClass(
+                "BaseFlaggedClass",
+                variants = listOf(base.variantFor(ApiVariantType.CORE)),
+                flagName = "test.pkg.flag1",
+            )
+
+        /**
+         * Nested public class in `main` CORE inside [baseFlaggedItem] (which is in `base` CORE)
+         * without its own `@FlaggedApi` annotation; inherits `"test.pkg.flag1"` from its enclosing
+         * class in `base`.
+         */
+        private val nestedInBaseFlaggedItem =
+            context.createTestClass(
+                "NestedInBaseFlaggedClass",
+                variants = listOf(main.variantFor(ApiVariantType.CORE)),
+                containingClass = baseFlaggedItem,
+            )
+
         /** Create a [TestContext] configured with [apiSurfaces] and mutable [SelectedApi]s. */
         private fun createTestContext(apiSurfaces: ApiSurfaces): TestContext {
+            // Configure `finalized_flag` as FINALIZE; any other flag defaults to KEEP.
+            val apiFlags =
+                ApiFlags(
+                    listOf(
+                        ApiFlag("test.pkg.finalized_flag", ApiFlagAction.FINALIZE),
+                    ),
+                    unknownFlagAction = ApiFlagAction.KEEP,
+                )
+            val annotationManager =
+                DefaultAnnotationManager(
+                    DefaultAnnotationManager.Config(
+                        apiFlags = apiFlags,
+                    )
+                )
             val assembler =
                 object : DefaultCodebaseAssembler() {
                     override val codebase: DefaultCodebase =
@@ -236,7 +326,11 @@ class ParameterizedApiReferenceStrategyTest(private val params: Params) {
                             location = File("test"),
                             description = "Test codebase",
                             preFiltered = false,
-                            config = Codebase.Config.NOOP.copy(apiSurfaces = apiSurfaces),
+                            config =
+                                Codebase.Config.NOOP.copy(
+                                    annotationManager = annotationManager,
+                                    apiSurfaces = apiSurfaces,
+                                ),
                             trustedApi = false,
                             supportsDocumentation = false,
                             assembler = this,
@@ -531,6 +625,122 @@ class ParameterizedApiReferenceStrategyTest(private val params: Params) {
                     from = memberInHiddenPublicItem,
                     to = hiddenPublicItem,
                     kind = ReferenceKind.DOCUMENTATION,
+                    expectedResult = ReferenceCheckResult.Valid,
+                ),
+
+                // References to @FlaggedApi items (baseline: `TargetSurfaceReferenceStrategy`
+                // ignores `@FlaggedApi` annotations until `UnguardedFlaggedApi` is supported).
+                // Global (`from = null`) surface membership checks ignore per-item `@FlaggedApi`.
+                Params(
+                    from = null,
+                    to = flaggedItem,
+                    kind = ReferenceKind.CODE,
+                    expectedResult = ReferenceCheckResult.Valid,
+                ),
+
+                // Unguarded references from an unflagged CORE item in code and documentation.
+                Params(
+                    from = coreItem,
+                    to = flaggedItem,
+                    kind = ReferenceKind.CODE,
+                    expectedResult = ReferenceCheckResult.Valid,
+                ),
+                Params(
+                    from = coreItem,
+                    to = flaggedItem,
+                    kind = ReferenceKind.DOCUMENTATION,
+                    expectedResult = ReferenceCheckResult.Valid,
+                ),
+
+                // Self, nested-to-enclosing, and enclosing-to-nested references under the same
+                // unfinalized flag.
+                Params(
+                    from = flaggedItem,
+                    to = flaggedItem,
+                    kind = ReferenceKind.CODE,
+                    expectedResult = ReferenceCheckResult.Valid,
+                ),
+                Params(
+                    from = nestedInFlaggedItem,
+                    to = flaggedItem,
+                    kind = ReferenceKind.CODE,
+                    expectedResult = ReferenceCheckResult.Valid,
+                ),
+                Params(
+                    from = flaggedItem,
+                    to = nestedInFlaggedItem,
+                    kind = ReferenceKind.CODE,
+                    expectedResult = ReferenceCheckResult.Valid,
+                ),
+
+                // Unguarded reference to a nested class that inherits its enclosing class's flag.
+                Params(
+                    from = coreItem,
+                    to = nestedInFlaggedItem,
+                    kind = ReferenceKind.CODE,
+                    expectedResult = ReferenceCheckResult.Valid,
+                ),
+
+                // Cross-surface flag inheritance from an enclosing class in `base` to a nested
+                // class in `main`.
+                Params(
+                    from = nestedInBaseFlaggedItem,
+                    to = flaggedItem,
+                    kind = ReferenceKind.CODE,
+                    expectedResult = ReferenceCheckResult.Valid,
+                ),
+                Params(
+                    from = coreItem,
+                    to = nestedInBaseFlaggedItem,
+                    kind = ReferenceKind.CODE,
+                    expectedResult = ReferenceCheckResult.Valid,
+                ),
+
+                // Reference between items guarded by two different kept addition flags.
+                Params(
+                    from = otherFlaggedItem,
+                    to = flaggedItem,
+                    kind = ReferenceKind.CODE,
+                    expectedResult = ReferenceCheckResult.Valid,
+                ),
+
+                // Items whose `@FlaggedApi` flag is finalized behave like unflagged permanent APIs.
+                Params(
+                    from = finalizedFlaggedItem,
+                    to = flaggedItem,
+                    kind = ReferenceKind.CODE,
+                    expectedResult = ReferenceCheckResult.Valid,
+                ),
+                Params(
+                    from = coreItem,
+                    to = finalizedFlaggedItem,
+                    kind = ReferenceKind.CODE,
+                    expectedResult = ReferenceCheckResult.Valid,
+                ),
+
+                // Conditional `conditionFlagState` in DOCUMENTATION vs CODE.
+                Params(
+                    from = coreItem,
+                    to = flaggedItem,
+                    kind = ReferenceKind.DOCUMENTATION,
+                    conditionFlagState =
+                        FlagState.additionFlag("test.pkg.flag1", ApiFlagAction.KEEP),
+                    expectedResult = ReferenceCheckResult.Valid,
+                ),
+                Params(
+                    from = coreItem,
+                    to = flaggedItem,
+                    kind = ReferenceKind.DOCUMENTATION,
+                    conditionFlagState =
+                        FlagState.additionFlag("test.pkg.finalized_flag", ApiFlagAction.FINALIZE),
+                    expectedResult = ReferenceCheckResult.Valid,
+                ),
+                Params(
+                    from = coreItem,
+                    to = flaggedItem,
+                    kind = ReferenceKind.CODE,
+                    conditionFlagState =
+                        FlagState.additionFlag("test.pkg.flag1", ApiFlagAction.KEEP),
                     expectedResult = ReferenceCheckResult.Valid,
                 ),
             )
