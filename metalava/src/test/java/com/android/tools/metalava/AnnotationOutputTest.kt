@@ -143,10 +143,9 @@ class AnnotationOutputTest : DriverTest() {
                         """
                     ),
                 ),
-            // Currently, `DocOnlyClass.CONSTANT` is treated as accessible because its `emit`
-            // property is `true`, so a symbolic reference to `test.pkg.DocOnlyClass.CONSTANT` is
-            // emitted in both the signature file and the stub file even though `DocOnlyClass`
-            // itself is omitted from both.
+            // `DocOnlyClass.CONSTANT` is not a valid code reference because `DocOnlyClass` is
+            // `@DocOnly` and omitted from normal stubs and signature files. Therefore, its literal
+            // value (`0x2a` / `42`) is inlined instead of emitting a symbolic reference.
             expectedApiSignature =
                 """
                     // Signature format: 2.0
@@ -154,7 +153,7 @@ class AnnotationOutputTest : DriverTest() {
                       @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface MyAnno {
                         method public abstract int value();
                       }
-                      @test.pkg.MyAnno(test.pkg.DocOnlyClass.CONSTANT) public class TestClass {
+                      @test.pkg.MyAnno(0x2a) public class TestClass {
                         ctor public TestClass();
                       }
                     }
@@ -175,7 +174,7 @@ class AnnotationOutputTest : DriverTest() {
                         """
                             package test.pkg;
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
-                            @test.pkg.MyAnno(test.pkg.DocOnlyClass.CONSTANT)
+                            @test.pkg.MyAnno(42)
                             public class TestClass {
                             public TestClass() { throw new RuntimeException("Stub!"); }
                             }
