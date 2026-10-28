@@ -428,7 +428,15 @@ class DocAnalyzer(
                                     if (v == CARRIER_PRIVILEGES_MARKER) {
                                         // TODO: Warn if using allOf with carrier
                                         sb.append(
-                                            "{@link android.telephony.TelephonyManager#hasCarrierPrivileges carrier privileges}"
+                                            linkToMethod(
+                                                item,
+                                                qualifiedClassName =
+                                                    "android.telephony.TelephonyManager",
+                                                methodName = "hasCarrierPrivileges",
+                                                label = CARRIER_PRIVILEGES_MARKER,
+                                            ) {
+                                                CARRIER_PRIVILEGES_MARKER
+                                            }
                                         )
                                         continue
                                     } else {

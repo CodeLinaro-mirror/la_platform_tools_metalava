@@ -304,7 +304,7 @@ class DocAnalyzerTest : DriverTest() {
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
                             public class PermissionTest {
                             public PermissionTest() { throw new RuntimeException("Stub!"); }
-                            /** Requires {@link android.Manifest.permission#ACCESS_COARSE_LOCATION} or {@link android.telephony.TelephonyManager#hasCarrierPrivileges carrier privileges} */
+                            /** Requires {@link android.Manifest.permission#ACCESS_COARSE_LOCATION} or carrier privileges */
                             public void test() { throw new RuntimeException("Stub!"); }
                             }
                         """
