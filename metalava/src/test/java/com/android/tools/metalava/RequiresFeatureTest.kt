@@ -149,8 +149,7 @@ class RequiresFeatureTest : DriverTest() {
             feature = "OtherFeatureManager.FEATURE_OTHER",
             import = "import android.pkg.other.OtherFeatureManager;",
             enforcement = "android.pkg.other.OtherFeatureManager#missingMethod",
-            expectedText =
-                "Requires the {@link android.pkg.other.OtherFeatureManager#FEATURE_OTHER OtherFeatureManager#FEATURE_OTHER} feature which can be detected using {@link android.pkg.other.OtherFeatureManager#missingMethod(java.lang.String) OtherFeatureManager.missingMethod(String)}.",
+            expectedText = "",
         )
     }
 }

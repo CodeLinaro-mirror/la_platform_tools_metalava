@@ -567,26 +567,38 @@ class DocAnalyzer(
                             ?: DEFAULT_ENFORCEMENT
 
                     // Compute the link uri and text from the enforcement setting.
-                    val regexp = """(?:.*\.)?([^.#]+)#(.*)""".toRegex()
+                    val regexp = """((?:.*\.)?([^.#]+))#(.*)""".toRegex()
                     val match = regexp.matchEntire(enforcement)
-                    val (className, methodName, methodRef) =
+                    val (qualifiedClassName, className, methodName) =
                         if (match == null) {
                             reporter.report(
                                 Issues.INVALID_FEATURE_ENFORCEMENT,
                                 item,
                                 "Invalid 'enforcement' value '$enforcement', must be of the form <qualified-class>#<method-name>, using default"
                             )
-                            Triple("PackageManager", "hasSystemFeature", DEFAULT_ENFORCEMENT)
+                            Triple(
+                                "android.content.pm.PackageManager",
+                                "PackageManager",
+                                "hasSystemFeature"
+                            )
                         } else {
-                            val (className, methodName) = match.destructured
-                            Triple(className, methodName, enforcement)
+                            val (qualifiedClassName, className, methodName) = match.destructured
+                            Triple(qualifiedClassName, className, methodName)
                         }
 
-                    val linkUri = "$methodRef(String)"
-                    val linkText = "$className.$methodName(String)"
+                    val enforcementLink =
+                        linkToMethod(
+                            item,
+                            qualifiedClassName = qualifiedClassName,
+                            methodName = methodName,
+                            parameters = "java.lang.String",
+                            label = "$className.$methodName(String)",
+                        ) {
+                            return
+                        }
 
                     val doc =
-                        "Requires the $featureField feature which can be detected using {@link $linkUri $linkText}."
+                        "Requires the $featureField feature which can be detected using $enforcementLink."
                     appendDocumentation(doc, item, false)
                 }
 
@@ -902,6 +914,43 @@ internal inline fun linkToField(
     return if (referenceStrategy.isValidReference(from, field, ReferenceKind.DOCUMENTATION)) {
         val labelSuffix = if (label == null) "" else " $label"
         "{@link ${field.containingClass().qualifiedName()}#${field.name()}$labelSuffix}"
+    } else {
+        alternate()
+    }
+}
+
+/**
+ * Return a `{@link ...}` to the method [methodName] with [parameters] on [qualifiedClassName] if it
+ * can be resolved and is a valid documentation reference from [from], or the result of calling
+ * [alternate] otherwise.
+ *
+ * @param from the [Item] from whose documentation the method is being referenced.
+ * @param qualifiedClassName the qualified name of the [ClassItem] containing the method.
+ * @param methodName the name of the [MethodItem] to link to.
+ * @param parameters comma-separated erased parameter types for [ClassItem.findBytecodeMethod].
+ * @param label optional label to include in the `{@link ...}` tag.
+ * @param alternate lambda invoked to report an issue and/or return alternate content if the method
+ *   cannot be referenced.
+ */
+internal inline fun linkToMethod(
+    from: Item,
+    qualifiedClassName: String,
+    methodName: String,
+    parameters: String = "",
+    label: String? = null,
+    alternate: () -> String,
+): String {
+    val codebase = from.codebase
+    val cls = codebase.resolveClass(qualifiedClassName)
+    val method = cls?.findBytecodeMethod(methodName, parameters)
+    val referenceStrategy = codebase.apiSurfaces.referenceStrategy
+    return if (
+        method != null &&
+            referenceStrategy.isValidReference(from, method, ReferenceKind.DOCUMENTATION)
+    ) {
+        val paramSuffix = if (parameters.isEmpty()) "" else "($parameters)"
+        val labelSuffix = if (label == null) "" else " $label"
+        "{@link ${cls.qualifiedName()}#${method.name()}$paramSuffix$labelSuffix}"
     } else {
         alternate()
     }
