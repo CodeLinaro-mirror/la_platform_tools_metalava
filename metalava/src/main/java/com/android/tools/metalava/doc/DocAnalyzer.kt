@@ -663,7 +663,7 @@ class DocAnalyzer(
                             item,
                             "Cannot find feature field for ${value.toValueString()} required by $item (may be hidden or removed)"
                         )
-                        sb.append("{@link ${value.toValueString()}}")
+                        return
                     } else {
                         val displayText = "${field.containingClass().simpleName()}#${field.name()}"
                         sb.append(
@@ -673,7 +673,7 @@ class DocAnalyzer(
                                     item,
                                     "Feature field ${value.toValueString()} required by $item is hidden or removed"
                                 )
-                                displayText
+                                return
                             }
                         )
                         sb.append(" ")
