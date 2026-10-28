@@ -121,7 +121,7 @@ fun Reporter.reportOnMissingFields(fieldName: String, item: Item) {
 fun buildEnumValueToCodeReferenceMap(
     intDef: ClassItem?,
     item: Item,
-    filterReference: FilterPredicate?,
+    @Suppress("UNUSED_PARAMETER") filterReference: FilterPredicate?,
 ): Map<Int, String> {
     val reporter = item.codebase.reporter
 
@@ -148,7 +148,7 @@ fun buildEnumValueToCodeReferenceMap(
                 continue
             }
             enumValueToName[fieldValue] =
-                linkToField(item, fieldItem, filterReference) {
+                linkToField(item, fieldItem) {
                     reporter.report(
                         Issues.INVALID_DEVICE_POLICY_ANNOTATION,
                         item,

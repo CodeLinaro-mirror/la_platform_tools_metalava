@@ -41,7 +41,6 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
-import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JAVA_LANG_PREFIX
 import com.android.tools.metalava.model.KOTLIN_DEPRECATED
@@ -53,8 +52,8 @@ import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.annotation.binding.bindTo
 import com.android.tools.metalava.model.api.surface.ApiSurface
 import com.android.tools.metalava.model.api.surface.ApiSurfacePredicate
+import com.android.tools.metalava.model.api.surface.ReferenceKind
 import com.android.tools.metalava.model.doc.DocContentOwner
-import com.android.tools.metalava.model.testOrTrue
 import com.android.tools.metalava.model.value.ArrayElementValue
 import com.android.tools.metalava.model.value.FieldReferenceValue
 import com.android.tools.metalava.model.value.FloatingPointValue
@@ -132,7 +131,7 @@ class DocAnalyzer(
                 val field = resolve()
                 if (field != null) {
                     // Format as a link to the field if it can be referenced.
-                    linkToField(from, field, apiFilters.reference) {
+                    linkToField(from, field) {
                         // Otherwise, format its literal value if available.
                         asLiteralValue()?.forRange(from) ?: toValueString()
                     }
@@ -457,7 +456,7 @@ class DocAnalyzer(
                                 sb.append(value.toValueString())
                             } else {
                                 sb.append(
-                                    linkToField(item, field, filterReference) {
+                                    linkToField(item, field) {
                                         reporter.report(
                                             Issues.MISSING_PERMISSION,
                                             item,
@@ -534,7 +533,7 @@ class DocAnalyzer(
                 ): String? {
                     val field = (value as? FieldReferenceValue)?.resolve()
                     return if (field is FieldItem) {
-                        linkToField(item, field, filterReference) {
+                        linkToField(item, field) {
                             // Typedef annotation references field which isn't part of the API:
                             // don't try to link to it.
                             reporter.report(
@@ -565,7 +564,7 @@ class DocAnalyzer(
                         } else {
                             val displayText =
                                 "${field.containingClass().simpleName()}#${field.name()}"
-                            linkToField(item, field, filterReference, label = displayText) {
+                            linkToField(item, field, label = displayText) {
                                 reporter.report(
                                     Issues.MISSING_PERMISSION,
                                     item,
@@ -668,7 +667,7 @@ class DocAnalyzer(
                     } else {
                         val displayText = "${field.containingClass().simpleName()}#${field.name()}"
                         sb.append(
-                            linkToField(item, field, filterReference, label = displayText) {
+                            linkToField(item, field, label = displayText) {
                                 reporter.report(
                                     Issues.MISSING_COLUMN,
                                     item,
@@ -895,26 +894,26 @@ class DocAnalyzer(
 }
 
 /**
- * Return a `{@link ...}` to [field] if it can be referenced from [from], or the result of calling
- * [alternate] otherwise.
+ * Return a `{@link ...}` to [field] if it is a valid documentation reference from [from], or the
+ * result of calling [alternate] otherwise.
  *
  * @param from the [Item] from whose documentation [field] is being referenced.
  * @param field the [FieldItem] to link to.
- * @param filterReference optional filter to check whether [field] can be referenced.
  * @param label optional label to include in the `{@link ...}` tag.
  * @param alternate lambda invoked to report an issue and/or return alternate content if [field]
  *   cannot be referenced.
  */
 internal inline fun linkToField(
-    @Suppress("UNUSED_PARAMETER") from: Item,
+    from: Item,
     field: FieldItem,
-    filterReference: FilterPredicate? = null,
     label: String? = null,
     alternate: () -> String,
-): String =
-    if (filterReference.testOrTrue(field)) {
+): String {
+    val referenceStrategy = from.codebase.apiSurfaces.referenceStrategy
+    return if (referenceStrategy.isValidReference(from, field, ReferenceKind.DOCUMENTATION)) {
         val labelSuffix = if (label == null) "" else " $label"
         "{@link ${field.containingClass().qualifiedName()}#${field.name()}$labelSuffix}"
     } else {
         alternate()
     }
+}
