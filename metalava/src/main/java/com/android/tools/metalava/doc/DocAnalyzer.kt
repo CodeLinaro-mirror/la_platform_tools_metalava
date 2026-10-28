@@ -650,11 +650,23 @@ class DocAnalyzer(
                     val sb = StringBuilder(100)
                     val field = (value as? FieldReferenceValue)?.resolve()
                     sb.append("This constant represents a column name that can be used with a ")
-                    sb.append("{@link android.content.ContentProvider}")
+                    sb.append(
+                        linkToClass(item, "android.content.ContentProvider") {
+                            return
+                        }
+                    )
                     sb.append(" through a ")
-                    sb.append("{@link android.content.ContentValues}")
+                    sb.append(
+                        linkToClass(item, "android.content.ContentValues") {
+                            return
+                        }
+                    )
                     sb.append(" or ")
-                    sb.append("{@link android.database.Cursor}")
+                    sb.append(
+                        linkToClass(item, "android.database.Cursor") {
+                            return
+                        }
+                    )
                     sb.append(" object. The values stored in this column are ")
                     sb.append("")
                     if (field == null) {
@@ -951,6 +963,32 @@ internal inline fun linkToMethod(
         val paramSuffix = if (parameters.isEmpty()) "" else "($parameters)"
         val labelSuffix = if (label == null) "" else " $label"
         "{@link ${cls.qualifiedName()}#${method.name()}$paramSuffix$labelSuffix}"
+    } else {
+        alternate()
+    }
+}
+
+/**
+ * Return a `{@link ...}` to the class with [qualifiedClassName] if it can be resolved and is a
+ * valid documentation reference from [from], or the result of calling [alternate] otherwise.
+ *
+ * @param from the [Item] from whose documentation the class is being referenced.
+ * @param qualifiedClassName the qualified name of the [ClassItem] to link to.
+ * @param alternate lambda invoked to report an issue and/or return alternate content if the class
+ *   cannot be referenced.
+ */
+internal inline fun linkToClass(
+    from: Item,
+    qualifiedClassName: String,
+    alternate: () -> String,
+): String {
+    val codebase = from.codebase
+    val cls = codebase.resolveClass(qualifiedClassName)
+    val referenceStrategy = codebase.apiSurfaces.referenceStrategy
+    return if (
+        cls != null && referenceStrategy.isValidReference(from, cls, ReferenceKind.DOCUMENTATION)
+    ) {
+        "{@link ${cls.qualifiedName()}}"
     } else {
         alternate()
     }

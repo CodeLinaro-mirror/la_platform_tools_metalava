@@ -1051,7 +1051,6 @@ class DocAnalyzerTest : DriverTest() {
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
                             public class ColumnTest {
                             public ColumnTest() { throw new RuntimeException("Stub!"); }
-                            /** This constant represents a column name that can be used with a {@link android.content.ContentProvider} through a {@link android.content.ContentValues} or {@link android.database.Cursor} object. The values stored in this column are {@link android.database.Cursor#FIELD_TYPE_STRING Cursor#FIELD_TYPE_STRING} . */
                             @android.provider.Column(android.database.Cursor.FIELD_TYPE_STRING) public static final java.lang.String DATA = "_data";
                             }
                         """
