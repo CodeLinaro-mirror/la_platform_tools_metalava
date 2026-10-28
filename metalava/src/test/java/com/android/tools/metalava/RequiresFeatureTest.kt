@@ -142,4 +142,15 @@ class RequiresFeatureTest : DriverTest() {
                 "src/test/pkg/FeatureUser.java:6: error: Invalid 'enforcement' value 'invalid enforcement value', must be of the form <qualified-class>#<method-name>, using default [InvalidFeatureEnforcement]",
         )
     }
+
+    @Test
+    fun `Check RequiresFeature handling - missing enforcement method`() {
+        checkRequiresFeatureHandling(
+            feature = "OtherFeatureManager.FEATURE_OTHER",
+            import = "import android.pkg.other.OtherFeatureManager;",
+            enforcement = "android.pkg.other.OtherFeatureManager#missingMethod",
+            expectedText =
+                "Requires the {@link android.pkg.other.OtherFeatureManager#FEATURE_OTHER OtherFeatureManager#FEATURE_OTHER} feature which can be detected using {@link android.pkg.other.OtherFeatureManager#missingMethod(java.lang.String) OtherFeatureManager.missingMethod(String)}.",
+        )
+    }
 }
