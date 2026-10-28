@@ -30,6 +30,7 @@ class RequiresFeatureTest : DriverTest() {
     ) {
         val attributes =
             if (enforcement == "") feature else """value = $feature, enforcement = "$enforcement""""
+        val expectedClassComment = if (expectedText == "") "" else "/** $expectedText */"
         check(
             sourceFiles =
                 arrayOf(
@@ -73,7 +74,7 @@ class RequiresFeatureTest : DriverTest() {
                     java(
                         """
                             package test.pkg;
-                            /** $expectedText */
+                            $expectedClassComment
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
                             public class FeatureUser {
                             public FeatureUser() { throw new RuntimeException("Stub!"); }
@@ -81,7 +82,7 @@ class RequiresFeatureTest : DriverTest() {
                         """
                             .trimIndent()
                             // Remove the blank line that would have been inserted if
-                            // [expectedImport] was "".
+                            // [expectedClassComment] was "".
                             .replace("\n\n", "\n")
                     ),
                 ),
@@ -102,8 +103,7 @@ class RequiresFeatureTest : DriverTest() {
     fun `Check RequiresFeature handling - missing feature`() {
         checkRequiresFeatureHandling(
             feature = "PackageManager.FEATURE_UNKNOWN",
-            expectedText =
-                "Requires the {@link PackageManager.FEATURE_UNKNOWN} feature which can be detected using {@link android.content.pm.PackageManager#hasSystemFeature(java.lang.String) PackageManager.hasSystemFeature(String)}.",
+            expectedText = "",
             expectedIssues =
                 "src/test/pkg/FeatureUser.java:6: error: Cannot find feature field for PackageManager.FEATURE_UNKNOWN required by class test.pkg.FeatureUser (may be hidden or removed) [MissingPermission]",
         )
@@ -113,8 +113,7 @@ class RequiresFeatureTest : DriverTest() {
     fun `Check RequiresFeature handling - hidden feature`() {
         checkRequiresFeatureHandling(
             feature = "PackageManager.FEATURE_HIDDEN",
-            expectedText =
-                "Requires the PackageManager#FEATURE_HIDDEN feature which can be detected using {@link android.content.pm.PackageManager#hasSystemFeature(java.lang.String) PackageManager.hasSystemFeature(String)}.",
+            expectedText = "",
             expectedIssues =
                 "src/test/pkg/FeatureUser.java:6: error: Feature field android.content.pm.PackageManager.FEATURE_HIDDEN required by class test.pkg.FeatureUser is hidden or removed [MissingPermission]",
         )
