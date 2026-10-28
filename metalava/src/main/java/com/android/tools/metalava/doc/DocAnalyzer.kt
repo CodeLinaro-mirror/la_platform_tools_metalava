@@ -41,6 +41,7 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
+import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JAVA_LANG_PREFIX
 import com.android.tools.metalava.model.KOTLIN_DEPRECATED
@@ -529,9 +530,7 @@ class DocAnalyzer(
                 ): String? {
                     val field = (value as? FieldReferenceValue)?.resolve()
                     return if (field is FieldItem) {
-                        if (filterReference.testOrTrue(field)) {
-                            "{@link ${field.containingClass().qualifiedName()}#${field.name()}}"
-                        } else {
+                        linkToField(item, field, filterReference) {
                             // Typedef annotation references field which isn't part of the API:
                             // don't try to link to it.
                             reporter.report(
@@ -541,7 +540,7 @@ class DocAnalyzer(
                                     "${field.containingClass().qualifiedName()}#${field.name()}"
                             )
                             // Do not include the field in the documentation
-                            null
+                            return null
                         }
                     } else {
                         value.toValueString()
@@ -890,3 +889,28 @@ class DocAnalyzer(
             }
     }
 }
+
+/**
+ * Return a `{@link ...}` to [field] if it can be referenced from [from], or the result of calling
+ * [alternate] otherwise.
+ *
+ * @param from the [Item] from whose documentation [field] is being referenced.
+ * @param field the [FieldItem] to link to.
+ * @param filterReference optional filter to check whether [field] can be referenced.
+ * @param label optional label to include in the `{@link ...}` tag.
+ * @param alternate lambda invoked to report an issue and/or return alternate content if [field]
+ *   cannot be referenced.
+ */
+internal inline fun linkToField(
+    @Suppress("UNUSED_PARAMETER") from: Item,
+    field: FieldItem,
+    filterReference: FilterPredicate? = null,
+    label: String? = null,
+    alternate: () -> String,
+): String =
+    if (filterReference.testOrTrue(field)) {
+        val labelSuffix = if (label == null) "" else " $label"
+        "{@link ${field.containingClass().qualifiedName()}#${field.name()}$labelSuffix}"
+    } else {
+        alternate()
+    }
