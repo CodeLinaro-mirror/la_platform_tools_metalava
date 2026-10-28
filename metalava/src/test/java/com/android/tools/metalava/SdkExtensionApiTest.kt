@@ -150,4 +150,71 @@ class SdkExtensionApiTest : DriverTest() {
                 """,
         )
     }
+
+    @Test
+    fun `Test nested classes inherit closest enclosing SdkExtensionApi in signature files`() {
+        check(
+            extraArguments = arrayOf(ARG_STUB_PACKAGES, "test.pkg*"),
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            import android.os.Build;
+                            import $ANDROID_SDK_EXTENSION_API;
+
+                            @SdkExtensionApi(Build.VERSION_CODES.R)
+                            public class Outer {
+                                public Outer() {}
+                                public void outerMethod() {}
+
+                                public static class UnannotatedNested {
+                                    public UnannotatedNested() {}
+                                    public void nestedMethod() {}
+
+                                    public static class DeeplyNested {
+                                        public DeeplyNested() {}
+                                    }
+                                }
+
+                                @SdkExtensionApi(Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
+                                public static class OverriddenNested {
+                                    public OverriddenNested() {}
+
+                                    public static class DeepUnderOverridden {
+                                        public DeepUnderOverridden() {}
+                                    }
+                                }
+                            }
+                        """
+                    ),
+                    versionCodesSource,
+                    sdkExtensionApiSource,
+                ),
+            expectedApiSignature =
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      @SdkExtensionApi(30) public class Outer {
+                        ctor public Outer();
+                        method public void outerMethod();
+                      }
+                      @SdkExtensionApi(34) public static class Outer.OverriddenNested {
+                        ctor public Outer.OverriddenNested();
+                      }
+                      @SdkExtensionApi(34) public static class Outer.OverriddenNested.DeepUnderOverridden {
+                        ctor public Outer.OverriddenNested.DeepUnderOverridden();
+                      }
+                      @SdkExtensionApi(30) public static class Outer.UnannotatedNested {
+                        ctor public Outer.UnannotatedNested();
+                        method public void nestedMethod();
+                      }
+                      @SdkExtensionApi(30) public static class Outer.UnannotatedNested.DeeplyNested {
+                        ctor public Outer.UnannotatedNested.DeeplyNested();
+                      }
+                    }
+                """,
+        )
+    }
 }

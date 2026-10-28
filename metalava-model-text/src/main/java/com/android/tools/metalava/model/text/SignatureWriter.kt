@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.ANDROID_FLAGGED_API
+import com.android.tools.metalava.model.ANDROID_SDK_EXTENSION_API
 import com.android.tools.metalava.model.AnnotationFormatter
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationTarget
@@ -364,8 +365,8 @@ class SignatureWriter(
     private fun writeModifiers(item: Item) {
         var annotations = item.modifiers.annotations()
 
-        // Target language modifiers and @FlaggedApi inheritance only apply to SelectableItems
-        // (not parameters or record components).
+        // Target language modifiers and @FlaggedApi / @SdkExtensionApi inheritance only apply to
+        // SelectableItems (not parameters or record components).
         if (item is SelectableItem) {
             writeTargetLanguage(item)
 
@@ -377,6 +378,10 @@ class SignatureWriter(
                     ?: flaggedApiAnnotationToInherit(item)?.also { (_, inheritedAnnotation) ->
                         annotations = annotations + inheritedAnnotation
                     }
+
+            sdkExtensionApiAnnotationToInherit(item, annotations)?.let { inheritedAnnotation ->
+                annotations = annotations + inheritedAnnotation
+            }
 
             // If the item has an active @FlaggedApi annotation that will be written to the
             // signature file and the item supplying that @FlaggedApi annotation has a removed
@@ -583,6 +588,34 @@ class SignatureWriter(
                 runtimeAnnotationsOnly = false,
                 skipNullnessAnnotations = false,
             )
+
+        /**
+         * Get the [ANDROID_SDK_EXTENSION_API] [AnnotationItem] from an enclosing [ClassItem] to
+         * inherit onto [item]'s [annotations], if any.
+         */
+        fun sdkExtensionApiAnnotationToInherit(
+            item: Item,
+            annotations: List<AnnotationItem>,
+        ): AnnotationItem? {
+            // If the item is not a nested class then return null.
+            if (item !is ClassItem) return null
+            var containingClassItem: ClassItem? = item.containingClass() ?: return null
+
+            // If this already has an [ANDROID_SDK_EXTENSION_API] annotation then return null.
+            if (annotations.any { it.qualifiedName == ANDROID_SDK_EXTENSION_API }) return null
+
+            // Find the closest enclosing [ANDROID_SDK_EXTENSION_API] annotation in [item]'s
+            // containing [ClassItem], if there is one.
+            while (containingClassItem != null) {
+                containingClassItem.modifiers.findAnnotation(ANDROID_SDK_EXTENSION_API)?.let {
+                    return it
+                }
+                containingClassItem = containingClassItem.containingClass()
+            }
+
+            // Otherwise, no sdk extension api annotation needs adding.
+            return null
+        }
     }
 }
 
