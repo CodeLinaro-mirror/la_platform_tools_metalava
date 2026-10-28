@@ -448,20 +448,16 @@ class DocAnalyzer(
                                 }
                                 sb.append(value.toValueString())
                             } else {
-                                if (filterReference.testOrTrue(field)) {
-                                    sb.append(
-                                        "{@link ${field.containingClass().qualifiedName()}#${field.name()}}"
-                                    )
-                                } else {
-                                    reporter.report(
-                                        Issues.MISSING_PERMISSION,
-                                        item,
-                                        "Permission $value required by $item is hidden or removed"
-                                    )
-                                    sb.append(
+                                sb.append(
+                                    linkToField(item, field, filterReference) {
+                                        reporter.report(
+                                            Issues.MISSING_PERMISSION,
+                                            item,
+                                            "Permission $value required by $item is hidden or removed"
+                                        )
                                         "${field.containingClass().qualifiedName()}.${field.name()}"
-                                    )
-                                }
+                                    }
+                                )
                             }
                         }
 
@@ -559,15 +555,15 @@ class DocAnalyzer(
                             )
                             "{@link ${value.toValueString()}}"
                         } else {
-                            if (filterReference.testOrTrue(field)) {
-                                "{@link ${field.containingClass().qualifiedName()}#${field.name()} ${field.containingClass().simpleName()}#${field.name()}}"
-                            } else {
+                            val displayText =
+                                "${field.containingClass().simpleName()}#${field.name()}"
+                            linkToField(item, field, filterReference, label = displayText) {
                                 reporter.report(
                                     Issues.MISSING_PERMISSION,
                                     item,
                                     "Feature field ${value.toValueString()} required by $item is hidden or removed"
                                 )
-                                "${field.containingClass().simpleName()}#${field.name()}"
+                                displayText
                             }
                         }
 
@@ -662,18 +658,18 @@ class DocAnalyzer(
                         )
                         sb.append("{@link ${value.toValueString()}}")
                     } else {
-                        if (filterReference.testOrTrue(field)) {
-                            sb.append(
-                                "{@link ${field.containingClass().qualifiedName()}#${field.name()} ${field.containingClass().simpleName()}#${field.name()}} "
-                            )
-                        } else {
-                            reporter.report(
-                                Issues.MISSING_COLUMN,
-                                item,
-                                "Feature field ${value.toValueString()} required by $item is hidden or removed"
-                            )
-                            sb.append("${field.containingClass().simpleName()}#${field.name()} ")
-                        }
+                        val displayText = "${field.containingClass().simpleName()}#${field.name()}"
+                        sb.append(
+                            linkToField(item, field, filterReference, label = displayText) {
+                                reporter.report(
+                                    Issues.MISSING_COLUMN,
+                                    item,
+                                    "Feature field ${value.toValueString()} required by $item is hidden or removed"
+                                )
+                                displayText
+                            }
+                        )
+                        sb.append(" ")
                     }
 
                     if (readOnly) {
