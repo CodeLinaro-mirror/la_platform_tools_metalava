@@ -114,7 +114,7 @@ class DocAnalyzer(
     }
 
     /** Format this [Value] for use in handling `IntRange` and `FloatRange` annotations. */
-    private fun Value.forRange(): String =
+    private fun Value.forRange(from: Item): String =
         when (this) {
             is IntegralValue<*> -> {
                 // Format as an int if it will fit, otherwise a long.
@@ -129,8 +129,16 @@ class DocAnalyzer(
                 else asDouble.toString()
             }
             is FieldReferenceValue -> {
-                // Format as a link to the field.
-                "{@link ${qualifiedClassName}#$fieldName}"
+                val field = resolve()
+                if (field != null) {
+                    // Format as a link to the field if it can be referenced.
+                    linkToField(from, field, apiFilters.reference) {
+                        // Otherwise, format its literal value if available.
+                        asLiteralValue()?.forRange(from) ?: toValueString()
+                    }
+                } else {
+                    asLiteralValue()?.forRange(from) ?: toValueString()
+                }
             }
             else -> {
                 // Use default source formatting.
@@ -466,8 +474,8 @@ class DocAnalyzer(
                 }
 
                 private fun handleRange(annotation: AnnotationItem, item: Item) {
-                    val from = annotation.findAttribute("from")?.value?.forRange()
-                    val to = annotation.findAttribute("to")?.value?.forRange()
+                    val from = annotation.findAttribute("from")?.value?.forRange(item)
+                    val to = annotation.findAttribute("to")?.value?.forRange(item)
                     // TODO: inclusive/exclusive attributes on FloatRange!
                     if (from != null || to != null) {
                         val doc =

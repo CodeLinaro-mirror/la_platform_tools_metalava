@@ -420,7 +420,7 @@ class DocAnalyzerRangeTest : DriverTest() {
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
                             public class RangeTest {
                             public RangeTest() { throw new RuntimeException("Stub!"); }
-                            /** @param i1 Value is {@link #HIDDEN_MIN} or greater */
+                            /** @param i1 Value is 10 or greater */
                             public int test1(int i1) { throw new RuntimeException("Stub!"); }
                             }
                         """
