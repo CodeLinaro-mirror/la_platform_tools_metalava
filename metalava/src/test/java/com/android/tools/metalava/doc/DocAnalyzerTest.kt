@@ -1006,6 +1006,60 @@ class DocAnalyzerTest : DriverTest() {
         )
     }
 
+    @Test
+    fun `Test Column annotation with hidden ContentProvider`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            import android.provider.Column;
+                            import android.database.Cursor;
+                            @SuppressWarnings("WeakerAccess")
+                            public class ColumnTest {
+                                @Column(Cursor.FIELD_TYPE_STRING)
+                                public static final String DATA = "_data";
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package android.content;
+                            /** @hide */
+                            public abstract class ContentProvider {
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package android.database;
+                            public interface Cursor {
+                                int FIELD_TYPE_STRING = 3;
+                            }
+                        """
+                    ),
+                    columnSource
+                ),
+            checkCompilation = true,
+            docStubs = true,
+            expectedStubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class ColumnTest {
+                            public ColumnTest() { throw new RuntimeException("Stub!"); }
+                            /** This constant represents a column name that can be used with a {@link android.content.ContentProvider} through a {@link android.content.ContentValues} or {@link android.database.Cursor} object. The values stored in this column are {@link android.database.Cursor#FIELD_TYPE_STRING Cursor#FIELD_TYPE_STRING} . */
+                            @android.provider.Column(android.database.Cursor.FIELD_TYPE_STRING) public static final java.lang.String DATA = "_data";
+                            }
+                        """
+                    )
+                )
+        )
+    }
+
     @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `Enhancing documentation with Kotlin only APIs`() {
