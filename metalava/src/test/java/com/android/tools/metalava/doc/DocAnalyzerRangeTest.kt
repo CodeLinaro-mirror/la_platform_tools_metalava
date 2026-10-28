@@ -388,4 +388,44 @@ class DocAnalyzerRangeTest : DriverTest() {
                 ),
         )
     }
+
+    @Test
+    fun `Test range with hidden field`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            import android.annotation.IntRange;
+                            public class RangeTest {
+                                /** @hide */
+                                public static final int HIDDEN_MIN = 10;
+
+                                public int test1(@IntRange(from = HIDDEN_MIN) int i1) {
+                                    return i1;
+                                }
+                            }
+                        """
+                    ),
+                    intRangeAnnotationSource,
+                ),
+            checkCompilation = true,
+            docStubs = true,
+            expectedStubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class RangeTest {
+                            public RangeTest() { throw new RuntimeException("Stub!"); }
+                            /** @param i1 Value is {@link #HIDDEN_MIN} or greater */
+                            public int test1(int i1) { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                ),
+        )
+    }
 }
