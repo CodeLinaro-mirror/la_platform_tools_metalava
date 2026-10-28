@@ -955,6 +955,8 @@ class DocAnalyzerTest : DriverTest() {
                         public static final String TITLE = "title";
                         @Column(value = Cursor.NONEXISTENT, readOnly = true)
                         public static final String BOGUS = "bogus";
+                        @Column(value = Cursor.FIELD_TYPE_HIDDEN, readOnly = true)
+                        public static final String HIDDEN = "hidden";
                     }
                     """
                     ),
@@ -967,6 +969,8 @@ class DocAnalyzerTest : DriverTest() {
                             int FIELD_TYPE_FLOAT = 2;
                             int FIELD_TYPE_STRING = 3;
                             int FIELD_TYPE_BLOB = 4;
+                            /** @hide */
+                            int FIELD_TYPE_HIDDEN = 5;
                         }
                     """
                     ),
@@ -976,6 +980,7 @@ class DocAnalyzerTest : DriverTest() {
             expectedIssues =
                 """
                     src/test/pkg/ColumnTest.java:13: warning: Cannot find feature field for Cursor.NONEXISTENT required by field test.pkg.ColumnTest.BOGUS (may be hidden or removed) [MissingColumn]
+                    src/test/pkg/ColumnTest.java:15: warning: Feature field android.database.Cursor.FIELD_TYPE_HIDDEN required by field test.pkg.ColumnTest.HIDDEN is hidden or removed [MissingColumn]
                 """,
             docStubs = true,
             expectedStubFiles =
@@ -992,6 +997,8 @@ class DocAnalyzerTest : DriverTest() {
                     @android.provider.Column(android.database.Cursor.FIELD_TYPE_STRING) public static final java.lang.String DATA = "_data";
                     /** This constant represents a column name that can be used with a {@link android.content.ContentProvider} through a {@link android.content.ContentValues} or {@link android.database.Cursor} object. The values stored in this column are {@link android.database.Cursor#FIELD_TYPE_BLOB Cursor#FIELD_TYPE_BLOB} , and are read-only and cannot be mutated. */
                     @android.provider.Column(readOnly=true, value=android.database.Cursor.FIELD_TYPE_BLOB) public static final java.lang.String HASH = "_hash";
+                    /** This constant represents a column name that can be used with a {@link android.content.ContentProvider} through a {@link android.content.ContentValues} or {@link android.database.Cursor} object. The values stored in this column are Cursor#FIELD_TYPE_HIDDEN , and are read-only and cannot be mutated. */
+                    @android.provider.Column(readOnly=true, value=5) public static final java.lang.String HIDDEN = "hidden";
                     /** This constant represents a column name that can be used with a {@link android.content.ContentProvider} through a {@link android.content.ContentValues} or {@link android.database.Cursor} object. The values stored in this column are {@link android.database.Cursor#FIELD_TYPE_STRING Cursor#FIELD_TYPE_STRING} , and are read-only and cannot be mutated. */
                     @android.provider.Column(readOnly=true, value=android.database.Cursor.FIELD_TYPE_STRING) public static final java.lang.String TITLE = "title";
                     }
