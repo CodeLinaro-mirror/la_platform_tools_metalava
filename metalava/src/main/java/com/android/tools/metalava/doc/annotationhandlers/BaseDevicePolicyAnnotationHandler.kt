@@ -16,13 +16,13 @@
 
 package com.android.tools.metalava.doc.annotationhandlers
 
+import com.android.tools.metalava.doc.linkToField
 import com.android.tools.metalava.model.ANDROIDX_INT_DEF
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.annotation.binding.bindTo
-import com.android.tools.metalava.model.testOrTrue
 import com.android.tools.metalava.model.value.FieldReferenceValue
 import com.android.tools.metalava.model.value.asAny
 import com.android.tools.metalava.reporter.Issues
@@ -136,7 +136,6 @@ fun buildEnumValueToCodeReferenceMap(
 
     for (enumValueAttr in enumValueAttrs) {
         if (enumValueAttr is FieldReferenceValue) {
-            val qualifiedClassName = enumValueAttr.qualifiedClassName
             val fieldName = enumValueAttr.fieldName
             val fieldItem = enumValueAttr.resolve()
             val fieldValue = fieldItem?.constantValue?.asAny() as? Int
@@ -148,17 +147,15 @@ fun buildEnumValueToCodeReferenceMap(
                 )
                 continue
             }
-            if (filterReference.testOrTrue(fieldItem)) {
-                val link = "{@link $qualifiedClassName#$fieldName}"
-                enumValueToName[fieldValue] = link
-            } else {
-                reporter.report(
-                    Issues.INVALID_DEVICE_POLICY_ANNOTATION,
-                    item,
-                    "Cannot locate $fieldName required by $item (may be hidden or removed)"
-                )
-                enumValueToName[fieldValue] = fieldName
-            }
+            enumValueToName[fieldValue] =
+                linkToField(item, fieldItem, filterReference) {
+                    reporter.report(
+                        Issues.INVALID_DEVICE_POLICY_ANNOTATION,
+                        item,
+                        "Cannot locate $fieldName required by $item (may be hidden or removed)"
+                    )
+                    fieldName
+                }
         }
     }
     return enumValueToName
