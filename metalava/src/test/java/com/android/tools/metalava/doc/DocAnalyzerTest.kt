@@ -255,6 +255,65 @@ class DocAnalyzerTest : DriverTest() {
     }
 
     @Test
+    fun `Document Permissions with missing hasCarrierPrivileges`() {
+        check(
+            docStubs = true,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            import android.Manifest;
+                            import android.annotation.RequiresPermission;
+
+                            public class PermissionTest {
+                                @RequiresPermission(anyOf = {Manifest.permission.ACCESS_COARSE_LOCATION, "carrier privileges"})
+                                public void test() {
+                                }
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package android;
+
+                            public abstract class Manifest {
+                                public static final class permission {
+                                    public static final String ACCESS_COARSE_LOCATION = "android.permission.ACCESS_COARSE_LOCATION";
+                                }
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package android.telephony;
+
+                            public class TelephonyManager {
+                            }
+                        """
+                    ),
+                    requiresPermissionSource
+                ),
+            checkCompilation = false, // needs androidx.annotations in classpath
+            expectedStubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class PermissionTest {
+                            public PermissionTest() { throw new RuntimeException("Stub!"); }
+                            /** Requires {@link android.Manifest.permission#ACCESS_COARSE_LOCATION} or {@link android.telephony.TelephonyManager#hasCarrierPrivileges carrier privileges} */
+                            public void test() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    )
+                )
+        )
+    }
+
+    @Test
     fun `Conditional Permission`() {
         check(
             sourceFiles =
