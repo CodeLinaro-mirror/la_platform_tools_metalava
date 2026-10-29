@@ -738,15 +738,13 @@ class DocAnalyzer(
     }
 
     /**
-     * Load API history from [apiVersionsFile] using [LintApiHistoryProvider] and apply `@apiSince`,
-     * `@deprecatedSince`, and `@sdkExtSince` documentation tags to items in [codebase].
+     * Load API history from [apiVersionsFile] and apply `@apiSince`, `@deprecatedSince`, and
+     * `@sdkExtSince` documentation tags to items in [codebase].
      */
     fun applyApiVersions(apiVersionsFile: File) {
-        val provider: ApiHistoryProvider =
-            LintApiHistoryProvider(
-                xmlFile = apiVersionsFile,
-                underTest = executionEnvironment.isUnderTest(),
-            )
+        val provider =
+            executionEnvironment.testEnvironment?.apiHistoryProviderLoader?.load(apiVersionsFile)
+                ?: LintApiHistoryProvider(apiVersionsFile, underTest = false)
 
         val packageToVersion = HashMap<PackageItem, ApiVersion>(300)
         codebase.accept(

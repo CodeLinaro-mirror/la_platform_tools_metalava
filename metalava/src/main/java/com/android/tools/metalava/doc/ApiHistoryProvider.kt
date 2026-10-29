@@ -21,6 +21,7 @@ import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
+import java.io.File
 
 /**
  * Represents the SDK extension and version in which an API item was first introduced, used to
@@ -87,4 +88,10 @@ interface ApiHistoryProvider {
      * Get the [ItemApiHistory] for [field], or `null` if [field] is not present in the API history.
      */
     fun getApiHistory(field: FieldItem): ItemApiHistory?
+
+    /** Factory interface for loading an [ApiHistoryProvider] from an `api-versions.xml` file. */
+    fun interface Loader {
+        /** Load an [ApiHistoryProvider] from [xmlFile]. */
+        fun load(xmlFile: File): ApiHistoryProvider
+    }
 }

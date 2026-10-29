@@ -65,6 +65,14 @@ class LintApiHistoryProvider(
 
     override fun getApiHistory(field: FieldItem): ItemApiHistory? =
         apiLookup.getApiHistory(field, elementToSdkExtSinceMap)
+
+    companion object {
+        /** [ApiHistoryProvider.Loader] that creates a [LintApiHistoryProvider]. */
+        val loader =
+            ApiHistoryProvider.Loader { xmlFile ->
+                LintApiHistoryProvider(xmlFile, underTest = true)
+            }
+    }
 }
 
 /** A constraint that will only match for Android Platform SDKs. */
