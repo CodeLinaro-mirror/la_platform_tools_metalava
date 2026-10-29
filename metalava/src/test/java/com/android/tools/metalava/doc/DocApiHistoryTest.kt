@@ -346,6 +346,69 @@ class DocApiHistoryTest : DriverTest() {
     }
 
     @Test
+    fun `Deprecated class members with omitted deprecated attribute`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            /** @deprecated Do not use. */
+                            @Deprecated
+                            public class Foo {
+                                public Foo() {}
+                                public void bar() {}
+                                public static final int FIELD = 1;
+                            }
+                        """
+                    ),
+                ),
+            applyApiLevelsXml =
+                """
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <api version="2">
+                        <class name="test/pkg/Foo" since="5" deprecated="30">
+                            <method name="&lt;init>()V"/>
+                            <method name="bar()V"/>
+                            <field name="FIELD"/>
+                        </class>
+                    </api>
+                """,
+            checkCompilation = true,
+            docStubs = true,
+            expectedStubFiles =
+                arrayOf(
+                    java(
+                        // TODO(b/579134806): Foo(), bar(), and FIELD should have
+                        //  @deprecatedSince 30, but Lint's ApiLookup strips members whose
+                        //  attributes match the containing class when sdks is null and fails to
+                        //  fall back to the class's deprecated version.
+                        """
+                            package test.pkg;
+                            /**
+                             * @deprecated Do not use.
+                             * @apiSince 5
+                             * @deprecatedSince 30
+                             */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            @Deprecated
+                            public class Foo {
+                            /** @apiSince 5 */
+                            @Deprecated
+                            public Foo() { throw new RuntimeException("Stub!"); }
+                            /** @apiSince 5 */
+                            @Deprecated
+                            public void bar() { throw new RuntimeException("Stub!"); }
+                            /** @apiSince 5 */
+                            @Deprecated public static final int FIELD = 1;
+                            }
+                        """
+                    ),
+                ),
+        )
+    }
+
+    @Test
     fun `Api levels around current and preview`() {
         check(
             extraArguments =
