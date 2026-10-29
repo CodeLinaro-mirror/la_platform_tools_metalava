@@ -60,36 +60,33 @@ class ApiSignatureFileConsumerTest {
         val consumerApi = Api(useInternalNames = useInternalNames)
         val codebaseApi = Api(useInternalNames = useInternalNames)
 
-        val versionedApis =
-            versions.mapIndexed { index, versionFiles ->
-                val apiVersion = ApiVersion.fromLevel(index + 1)
-                val updater = ApiHistoryUpdater.forApiVersion(apiVersion)
-                val signatureFiles =
-                    versionFiles.mapIndexed { fileIndex, contents ->
-                        SignatureFile.fromText("$apiVersion-$fileIndex.txt", contents)
-                    }
+        versions.forEachIndexed { index, versionFiles ->
+            val apiVersion = ApiVersion.fromLevel(index + 1)
+            val updater = ApiHistoryUpdater.forApiVersion(apiVersion)
+            val signatureFiles =
+                versionFiles.mapIndexed { fileIndex, contents ->
+                    SignatureFile.fromText("$apiVersion-$fileIndex.txt", contents)
+                }
 
-                ApiFile.consumeApi(
-                    signatureFiles,
-                    ApiSignatureFileConsumer(consumerApi, updater),
+            ApiFile.consumeApi(
+                signatureFiles,
+                ApiSignatureFileConsumer(consumerApi, updater),
+            )
+
+            val codebase = ApiFile.parseApi(signatureFiles)
+            val fragment =
+                CodebaseFragment.create(
+                    codebase,
+                    factory = ::EmittableDelegatingVisitor,
                 )
-
-                val codebase = ApiFile.parseApi(signatureFiles)
-                val fragment =
-                    CodebaseFragment.create(
-                        codebase,
-                        factory = ::EmittableDelegatingVisitor,
-                    )
-                addApisFromCodebase(codebaseApi, updater, fragment)
-
-                VersionedSourceApi({ fragment }, apiVersion)
-            }
+            addApisFromCodebase(codebaseApi, updater, fragment)
+        }
 
         consumerApi.clean()
         codebaseApi.clean()
 
-        val consumerXml = printXml(consumerApi, versionedApis)
-        val codebaseXml = printXml(codebaseApi, versionedApis)
+        val consumerXml = printXml(consumerApi)
+        val codebaseXml = printXml(codebaseApi)
 
         if (expectedXml != null) {
             assertEquals(expectedXml.trimIndent(), consumerXml)
@@ -98,9 +95,9 @@ class ApiSignatureFileConsumerTest {
     }
 
     /** Formats [api] using [ApiXmlPrinter] with 4-space indentation. */
-    private fun printXml(api: Api, versionedApis: List<VersionedApi>): String {
+    private fun printXml(api: Api): String {
         val writer = StringWriter()
-        val printer = ApiXmlPrinter(versionedApis)
+        val printer = ApiXmlPrinter()
         PrintWriter(writer).use { printWriter -> printer.print(api, printWriter) }
         return writer.toString().trimIndent().replace("\t", "    ")
     }

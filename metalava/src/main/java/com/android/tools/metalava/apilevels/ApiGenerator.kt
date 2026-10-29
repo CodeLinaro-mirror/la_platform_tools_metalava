@@ -56,7 +56,7 @@ class ApiGenerator(private val tracer: Tracer) {
         val outputFile = config.outputFile
         val printer =
             when (val extension = outputFile.extension) {
-                "xml" -> ApiXmlPrinter(versionedApis)
+                "xml" -> ApiXmlPrinter()
                 "json" -> ApiJsonPrinter()
                 else ->
                     error(

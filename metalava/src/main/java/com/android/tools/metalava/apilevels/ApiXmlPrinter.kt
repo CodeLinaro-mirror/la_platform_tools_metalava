@@ -17,27 +17,9 @@
 package com.android.tools.metalava.apilevels
 
 import java.io.PrintWriter
-import java.util.TreeSet
 
-/**
- * Printer that will write an XML representation of an [Api] instance.
- *
- * @param versionedApis the list of all the [VersionedApi]s that will provide information for the
- *   [Api]. Must include at least one [VersionedApi]. The API version of the first is used to
- *   populate the `<api min="..."...>` attribute, if it is later than version `1`.
- */
-class ApiXmlPrinter(
-    versionedApis: List<VersionedApi>,
-) : ApiPrinter {
-    /** The set of versions, sorted from lowest to highest. */
-    private val sortedVersions = versionedApis.mapTo(TreeSet()) { it.apiVersion }
-
-    /** Get the first [ApiVersion]. */
-    private val firstApiVersion = sortedVersions.first()
-
-    /** True if the [Api] being printed has any minor versions. */
-    private val hasMinorVersions = sortedVersions.any { it.minor != null }
-
+/** Printer that will write an XML representation of an [Api] instance. */
+class ApiXmlPrinter : ApiPrinter {
     override fun print(api: Api, writer: PrintWriter) {
         writer.println("<?xml version=\"1.0\" encoding=\"utf-8\"?>")
         api.printApi(writer)
@@ -55,7 +37,8 @@ class ApiXmlPrinter(
         val fileVersion = if (hasMinorVersions) 4 else 3
 
         writer.print("<api version=\"$fileVersion\"")
-        if (firstApiVersion > DEFAULT_MIN_VERSION) {
+        val firstApiVersion = minVersion
+        if (firstApiVersion != null && firstApiVersion > DEFAULT_MIN_VERSION) {
             writer.print(" min=\"$firstApiVersion\"")
         }
         writer.println(">")
