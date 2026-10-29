@@ -24,7 +24,6 @@ import com.android.tools.metalava.model.text.assertSignatureContents
 import com.android.tools.metalava.testing.signature
 import com.android.tools.metalava.testing.xml
 import java.io.File
-import org.junit.Assert.assertThrows
 import org.junit.Test
 
 /** Name of the `--output-file` option. */
@@ -1072,45 +1071,27 @@ class FilterSignatureCommandTest :
 
     @Test
     fun `Test nested class implementing undefined nested interface of same outer class`() {
-        // TODO(b/576274184): Filtering a signature file where a nested class extends or implements
-        //  another nested class of the same outer class that is not defined in the signature file
-        //  should not throw a ConcurrentModificationException.
-        assertThrows(ConcurrentModificationException::class.java) {
-            commandTest {
-                args += "filter-signature"
+        commandTest {
+            args += "filter-signature"
 
-                args +=
-                    ARG_CONFIG_FILE to
-                        xml(
-                            "config.xml",
-                            """
-                                <config xmlns="http://www.google.com/tools/metalava/config">
-                                  <api-flags/>
-                                </config>
-                            """,
-                        )
+            args +=
+                ARG_CONFIG_FILE to
+                    xml(
+                        "config.xml",
+                        """
+                            <config xmlns="http://www.google.com/tools/metalava/config">
+                              <api-flags/>
+                            </config>
+                        """,
+                    )
 
-                val output = outputFile("filtered.txt")
-                args += ARG_OUTPUT_FILE to output
+            val output = outputFile("filtered.txt")
+            args += ARG_OUTPUT_FILE to output
 
-                args +=
-                    ARG_API_FILES to
-                        signature(
-                            "api.txt",
-                            """
-                                // Signature format: 2.0
-                                package test.pkg {
-                                  public class Outer {
-                                  }
-                                  public static final class Outer.Nested implements test.pkg.Outer.UndefinedInterface {
-                                    method public void foo();
-                                  }
-                                }
-                            """,
-                        )
-
-                verify {
-                    output.assertSignatureContents(
+            args +=
+                ARG_API_FILES to
+                    signature(
+                        "api.txt",
                         """
                             // Signature format: 2.0
                             package test.pkg {
@@ -1120,9 +1101,24 @@ class FilterSignatureCommandTest :
                                 method public void foo();
                               }
                             }
-                        """
+                        """,
                     )
-                }
+
+            verify {
+                // TODO(b/576274184): Undefined supertypes (fabricated as CLASS_PATH stub classes)
+                //  should not be stripped from extends/implements lists.
+                output.assertSignatureContents(
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          public class Outer {
+                          }
+                          public static final class Outer.Nested {
+                            method public void foo();
+                          }
+                        }
+                    """
+                )
             }
         }
     }

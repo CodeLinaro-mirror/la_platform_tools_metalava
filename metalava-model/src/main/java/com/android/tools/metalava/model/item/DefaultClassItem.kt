@@ -100,24 +100,45 @@ internal class DefaultClassItem(
     private var addedToParent = false
 
     /**
-     * Add the top-level class (either this class or its outermost containing class) to
-     * [containingPackage] if it has not already been added.
+     * Return the outermost containing class of this class, or `this` if this is a top-level class.
+     */
+    private fun topLevelClass(): DefaultClassItem {
+        var topClass = this
+        while (topClass.containingClass != null) {
+            topClass = topClass.containingClass as DefaultClassItem
+        }
+        return topClass
+    }
+
+    /**
+     * Add this class and any enclosing classes to their parent ([containingClass] if nested, or
+     * [containingPackage] if top-level) if they have not already been added.
      *
      * Only classes with [ClassOrigin.COMMAND_LINE] (or outer stub/classpath classes that contain a
      * nested [ClassOrigin.COMMAND_LINE] class, e.g. in partial signature files) should appear in
      * [PackageItem.topLevelClasses] and [PackageItem.allClasses]. Classes resolved on demand from
      * the classpath ([ClassOrigin.CLASS_PATH]) or source path ([ClassOrigin.SOURCE_PATH]) are still
      * registered in [DefaultCodebase] for lookup by name, but are left off the package class list
-     * so they are not traversed by package visitors.
+     * and any command-line containing class's [ClassItem.nestedClasses] list so they are not
+     * traversed by package visitors or mutated during traversal.
      */
-    private fun addTopLevelClassToPackage() {
-        var topClass = this
-        while (topClass.containingClass != null) {
-            topClass = topClass.containingClass as DefaultClassItem
-        }
-        if (!topClass.addedToParent) {
-            topClass.addedToParent = true
-            (containingPackage as DefaultPackageItem).addTopClass(topClass)
+    private fun addToParentHierarchy() {
+        var current = this
+        while (true) {
+            val parent = current.containingClass as? DefaultClassItem
+            if (parent != null) {
+                if (!current.addedToParent) {
+                    current.addedToParent = true
+                    parent.addNestedClass(current)
+                }
+                current = parent
+            } else {
+                if (!current.addedToParent) {
+                    current.addedToParent = true
+                    (containingPackage as DefaultPackageItem).addTopClass(current)
+                }
+                break
+            }
         }
     }
 
@@ -128,10 +149,10 @@ internal class DefaultClassItem(
                 field = value
                 // A class initially resolved with ClassOrigin.CLASS_PATH (e.g. when merging an
                 // --api-path signature file with a command-line signature file in ClassMerger) may
-                // be promoted to ClassOrigin.COMMAND_LINE after creation; ensure its top-level
-                // class is added to the package when promoted.
+                // be promoted to ClassOrigin.COMMAND_LINE after creation; ensure it and its
+                // enclosing classes are added to their parent class/package when promoted.
                 if (value == ClassOrigin.COMMAND_LINE) {
-                    addTopLevelClassToPackage()
+                    addToParentHierarchy()
                 }
             }
         }
@@ -157,12 +178,20 @@ internal class DefaultClassItem(
                 containingPackage.emit = true
             }
 
-            // Only add the top-level class to the package if this class came from the command line.
             if (origin == ClassOrigin.COMMAND_LINE) {
-                addTopLevelClassToPackage()
-            }
-
-            if (containingClass != null) {
+                // Only add the top-level class to the package (and this class to its containing
+                // class hierarchy) if this class came from the command line.
+                addToParentHierarchy()
+            } else if (containingClass != null && !topLevelClass().addedToParent) {
+                // For non-command-line classes (CLASS_PATH or SOURCE_PATH) whose top-level class is
+                // not in the package's topLevelClasses, still record nested classes on their
+                // containing class so that callers inspecting a resolved classpath/source-path
+                // class can see its nested classes. If the top-level class is already in the
+                // package's topLevelClasses, do not add non-command-line nested classes (such as
+                // stub classes fabricated on demand in TextCodebase) as that would include
+                // non-command-line classes in PackageItem.allClasses() and mutate nestedClasses()
+                // during package traversal.
+                addedToParent = true
                 (containingClass as DefaultClassItem).addNestedClass(classItem)
             }
 
