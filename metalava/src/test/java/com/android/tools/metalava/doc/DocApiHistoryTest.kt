@@ -379,10 +379,6 @@ class DocApiHistoryTest : DriverTest() {
             expectedStubFiles =
                 arrayOf(
                     java(
-                        // TODO(b/579134806): Foo(), bar(), and FIELD should have
-                        //  @deprecatedSince 30, but Lint's ApiLookup strips members whose
-                        //  attributes match the containing class when sdks is null and fails to
-                        //  fall back to the class's deprecated version.
                         """
                             package test.pkg;
                             /**
@@ -393,13 +389,22 @@ class DocApiHistoryTest : DriverTest() {
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
                             @Deprecated
                             public class Foo {
-                            /** @apiSince 5 */
+                            /**
+                             * @apiSince 5
+                             * @deprecatedSince 30
+                             */
                             @Deprecated
                             public Foo() { throw new RuntimeException("Stub!"); }
-                            /** @apiSince 5 */
+                            /**
+                             * @apiSince 5
+                             * @deprecatedSince 30
+                             */
                             @Deprecated
                             public void bar() { throw new RuntimeException("Stub!"); }
-                            /** @apiSince 5 */
+                            /**
+                             * @apiSince 5
+                             * @deprecatedSince 30
+                             */
                             @Deprecated public static final int FIELD = 1;
                             }
                         """
