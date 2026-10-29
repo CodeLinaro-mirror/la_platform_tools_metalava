@@ -39,6 +39,8 @@ import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.BaseItemVisitor
+import com.android.tools.metalava.model.ClassContentItem
+import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.CodebaseFragment
 import com.android.tools.metalava.model.FilterPredicate
@@ -434,16 +436,30 @@ class FilterSignatureCommand :
         codebase: Codebase,
         fileFormat: FileFormat,
         apiType: ApiType,
-    ): CodebaseFragment =
-        createCodebaseFragmentForSignatureFile(
+    ): CodebaseFragment {
+        val apiSurface = codebase.config.apiSurfaces.main
+        val referenceFilter = ApiSurfacePredicate.referenceFilter(apiType, apiSurface)
+        return createCodebaseFragmentForSignatureFile(
             codebase,
             fileFormat = fileFormat,
             apiFilters =
-                ApiSurfacePredicate.apiFilters(
-                    apiType,
-                    codebase.config.apiSurfaces.main,
+                ApiFilters(
+                    emit = ApiSurfacePredicate.emitFilter(apiType, apiSurface),
+                    // Stub classes fabricated on demand in TextCodebase for external or undefined
+                    // supertypes have ClassOrigin.CLASS_PATH and an empty
+                    // SelectedApi.itemApiVariants set, so allow ClassOrigin.CLASS_PATH items in
+                    // addition to items matching referenceFilter so they are not stripped from
+                    // extends/implements/throws lists.
+                    reference =
+                        object : FilterPredicate() {
+                            override fun test(item: SelectableItem) =
+                                (item is ClassContentItem &&
+                                    item.origin == ClassOrigin.CLASS_PATH) ||
+                                    referenceFilter.test(item)
+                        },
                 ),
         )
+    }
 
     /**
      * Parse [currentSignatureFiles] into a [Codebase] and filter it using [apiFlags] and
@@ -501,11 +517,19 @@ class FilterSignatureCommand :
             }
         )
 
-        val filterPredicate =
+        val emitPredicate =
             object : FilterPredicate() {
                 override fun test(item: SelectableItem) = item.emit && item !in droppedItems
             }
-        val apiFilters = ApiFilters(emit = filterPredicate, reference = filterPredicate)
+        // Do not require item.emit for references: stub classes fabricated for external or
+        // undefined supertypes have ClassOrigin.CLASS_PATH and emit == false, and must remain
+        // referenceable unless explicitly dropped so they are not stripped when taking the
+        // snapshot.
+        val referencePredicate =
+            object : FilterPredicate() {
+                override fun test(item: SelectableItem) = item !in droppedItems
+            }
+        val apiFilters = ApiFilters(emit = emitPredicate, reference = referencePredicate)
         val fragment =
             createCodebaseFragmentForSignatureFile(
                 codebase,

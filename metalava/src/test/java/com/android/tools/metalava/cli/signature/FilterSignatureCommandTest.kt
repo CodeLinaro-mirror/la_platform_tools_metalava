@@ -1105,15 +1105,13 @@ class FilterSignatureCommandTest :
                     )
 
             verify {
-                // TODO(b/576274184): Undefined supertypes (fabricated as CLASS_PATH stub classes)
-                //  should not be stripped from extends/implements lists.
                 output.assertSignatureContents(
                     """
                         // Signature format: 2.0
                         package test.pkg {
                           public class Outer {
                           }
-                          public static final class Outer.Nested {
+                          public static final class Outer.Nested implements test.pkg.Outer.UndefinedInterface {
                             method public void foo();
                           }
                         }
