@@ -35,12 +35,6 @@ class ApiXmlPrinter(
     /** Get the first [ApiVersion]. */
     private val firstApiVersion = sortedVersions.first()
 
-    /**
-     * Map from version to the next version. This is used to compute the version in which an API
-     * element was removed by finding the version after the version it was last present in.
-     */
-    private val versionToNext = sortedVersions.zipWithNext().toMap()
-
     /** True if the [Api] being printed has any minor versions. */
     private val hasMinorVersions = sortedVersions.any { it.minor != null }
 
@@ -177,12 +171,9 @@ class ApiXmlPrinter(
             writer.print("\" deprecated=\"")
             writer.print(deprecatedIn)
         }
-        if (lastPresentIn < parentApiElement.lastPresentIn) {
-            val removedFrom =
-                versionToNext[lastPresentIn]
-                    ?: error("could not find next version for $lastPresentIn in $name")
+        if (removedIn != null && removedIn != parentApiElement.removedIn) {
             writer.print("\" removed=\"")
-            writer.print(removedFrom)
+            writer.print(removedIn)
         }
         writer.print('"')
         if (closeTag) {

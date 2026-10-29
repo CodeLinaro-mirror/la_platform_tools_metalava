@@ -90,6 +90,29 @@ class ApiClass(name: String, private val isEnum: Boolean) : ApiElement(name) {
     }
 
     /**
+     * Computes [ApiElement.removedIn] for all members of this class that were not present in this
+     * class's [lastPresentIn] version, or inherits this class's [removedIn] version.
+     *
+     * @param versionToNext map from each [ApiVersion] to the next [ApiVersion] in sequence.
+     */
+    fun computeRemovedIn(versionToNext: Map<ApiVersion, ApiVersion>) {
+        for (collection in listOf(superClasses, interfaces, methods, fields)) {
+            for (element in collection) {
+                if (element.lastPresentIn < lastPresentIn) {
+                    val removedFrom =
+                        versionToNext[element.lastPresentIn]
+                            ?: error(
+                                "could not find next version for ${element.lastPresentIn} in ${element.name}"
+                            )
+                    element.updateRemovedIn(removedFrom)
+                } else if (removedIn != null) {
+                    element.updateRemovedIn(removedIn!!)
+                }
+            }
+        }
+    }
+
+    /**
      * Updates an element for [superClassType], creating and adding one if necessary.
      *
      * @param superClassType the name of the super class type.

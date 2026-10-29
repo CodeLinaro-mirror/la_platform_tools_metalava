@@ -33,12 +33,18 @@ class Api(val useInternalNames: Boolean) : ParentApiElement {
      */
     override val since: ApiVersion = ApiVersion.LOWEST
 
-    override var lastPresentIn = since
+    /**
+     * The last platform [ApiVersion] added to this [Api]. Any top-level class whose
+     * [ApiElement.lastPresentIn] is less than this version was removed in a subsequent version.
+     */
+    var lastPresentIn = since
         private set
 
     override val sdks: String? = null
 
     override val deprecatedIn: ApiVersion? = null
+
+    override val removedIn: ApiVersion? = null
 
     /** All [ApiVersion]s that have contributed to this [Api], sorted from lowest to highest. */
     private val allVersions = TreeSet<ApiVersion>()
@@ -114,6 +120,8 @@ class Api(val useInternalNames: Boolean) : ParentApiElement {
         // Add any class dependent members. This is done here, after creating the API, as they need
         // to copy the containing class's state and that changes during creation.
         addClassDependentMembersIfNeeded()
+
+        computeRemovedIn()
     }
 
     val classes: Collection<ApiClass>
@@ -201,6 +209,25 @@ class Api(val useInternalNames: Boolean) : ParentApiElement {
     private fun addClassDependentMembersIfNeeded() {
         for (cls in mClasses.values) {
             cls.addClassDependentMembersIfNeeded()
+        }
+    }
+
+    /**
+     * Computes [ApiElement.removedIn] for all classes and class members that were not present in
+     * their parent's [lastPresentIn] version.
+     */
+    private fun computeRemovedIn() {
+        val versionToNext = allVersions.zipWithNext().toMap()
+        for (cls in mClasses.values) {
+            if (cls.lastPresentIn < lastPresentIn) {
+                val removedFrom =
+                    versionToNext[cls.lastPresentIn]
+                        ?: error(
+                            "could not find next version for ${cls.lastPresentIn} in ${cls.name}"
+                        )
+                cls.updateRemovedIn(removedFrom)
+            }
+            cls.computeRemovedIn(versionToNext)
         }
     }
 
