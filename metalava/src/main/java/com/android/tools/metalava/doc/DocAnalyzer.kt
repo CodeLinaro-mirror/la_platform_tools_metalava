@@ -747,6 +747,10 @@ class DocAnalyzer(
         descriptionOwner.append(tagDescription)
     }
 
+    /**
+     * Load API history from [apiVersionsFile] and apply `@apiSince`, `@deprecatedSince`, and
+     * `@sdkExtSince` documentation tags to items in [codebase].
+     */
     fun applyApiVersions(apiVersionsFile: File) {
         val apiLookup =
             getApiLookup(
@@ -771,24 +775,26 @@ class DocAnalyzer(
                     if (callable is ConstructorItem && callable.isImplicitConstructor()) {
                         return
                     }
-                    addApiVersionDocumentation(apiLookup.getCallableVersion(callable), callable)
-                    val methodName = callable.name()
-                    val key = "${callable.containingClass().qualifiedName()}#$methodName"
-                    elementToSdkExtSinceMap[key]?.let {
-                        addApiExtensionsDocumentation(it, callable)
-                    }
-                    addDeprecatedDocumentation(
-                        apiLookup.getCallableDeprecatedIn(callable),
-                        callable
-                    )
+                    val key = "${callable.containingClass().qualifiedName()}#${callable.name()}"
+                    val history =
+                        ItemApiHistory.create(
+                            since = apiLookup.getCallableVersion(callable),
+                            deprecatedIn = apiLookup.getCallableDeprecatedIn(callable),
+                            sdkExtSince = elementToSdkExtSinceMap[key],
+                        )
+                    applyItemApiHistory(history, callable)
                 }
 
                 override fun visitClass(cls: ClassItem) {
-                    val qualifiedName = cls.qualifiedName()
-                    val since = apiLookup.getClassVersion(cls)
-                    if (since != null) {
-                        addApiVersionDocumentation(since, cls)
+                    val history =
+                        ItemApiHistory.create(
+                            since = apiLookup.getClassVersion(cls),
+                            deprecatedIn = apiLookup.getClassDeprecatedIn(cls),
+                            sdkExtSince = elementToSdkExtSinceMap[cls.qualifiedName()],
+                        ) ?: return
+                    applyItemApiHistory(history, cls)
 
+                    history.since?.let { since ->
                         // Compute since version for the package: it's the min of all the classes in
                         // the package
                         val pkg = cls.containingPackage()
@@ -796,18 +802,17 @@ class DocAnalyzer(
                             packageToVersion[pkg]?.let { existing -> minOf(existing, since) }
                                 ?: since
                     }
-                    elementToSdkExtSinceMap[qualifiedName]?.let {
-                        addApiExtensionsDocumentation(it, cls)
-                    }
-                    addDeprecatedDocumentation(apiLookup.getClassDeprecatedIn(cls), cls)
                 }
 
                 override fun visitField(field: FieldItem) {
-                    addApiVersionDocumentation(apiLookup.getFieldVersion(field), field)
-                    elementToSdkExtSinceMap[
-                            "${field.containingClass().qualifiedName()}#${field.name()}"]
-                        ?.let { addApiExtensionsDocumentation(it, field) }
-                    addDeprecatedDocumentation(apiLookup.getFieldDeprecatedIn(field), field)
+                    val key = "${field.containingClass().qualifiedName()}#${field.name()}"
+                    val history =
+                        ItemApiHistory.create(
+                            since = apiLookup.getFieldVersion(field),
+                            deprecatedIn = apiLookup.getFieldDeprecatedIn(field),
+                            sdkExtSince = elementToSdkExtSinceMap[key],
+                        )
+                    applyItemApiHistory(history, field)
                 }
             }
         )
@@ -815,6 +820,17 @@ class DocAnalyzer(
         for ((pkg, version) in packageToVersion.entries) {
             addApiVersionDocumentation(version, pkg)
         }
+    }
+
+    /**
+     * Apply the API version, SDK extension version, and deprecation version from [history] (if
+     * non-null) to [item]'s documentation.
+     */
+    private fun applyItemApiHistory(history: ItemApiHistory?, item: SelectableItem) {
+        if (history == null) return
+        addApiVersionDocumentation(history.since, item)
+        history.sdkExtSince?.let { addApiExtensionsDocumentation(it, item) }
+        addDeprecatedDocumentation(history.deprecatedIn, item)
     }
 
     /**
@@ -1161,5 +1177,3 @@ private fun createSymbolToSdkExtSinceMap(xmlFile: File): Map<String, SdkAndVersi
 }
 
 private typealias IdAndVersion = Pair<Int, Int>
-
-private data class SdkAndVersion(val name: String, val version: Int)
