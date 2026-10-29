@@ -20,7 +20,7 @@ import com.android.tools.metalava.Driver
 import com.android.tools.metalava.MiscellaneousOptions
 import com.android.tools.metalava.doc.ApiHistoryProvider
 import com.android.tools.metalava.doc.DocAnalyzer
-import com.android.tools.metalava.doc.LintApiHistoryProvider
+import com.android.tools.metalava.doc.MetalavaApiHistoryProvider
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ModelOptions
 import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
@@ -57,7 +57,7 @@ class TestEnvironment(
      * The [ApiHistoryProvider.Loader] to use when loading `api-versions.xml` in
      * [DocAnalyzer.applyApiVersions].
      */
-    val apiHistoryProviderLoader: ApiHistoryProvider.Loader = LintApiHistoryProvider.loader,
+    val apiHistoryProviderLoader: ApiHistoryProvider.Loader = MetalavaApiHistoryProvider.loader,
 )
 
 /**

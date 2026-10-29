@@ -59,7 +59,7 @@ import com.android.tools.metalava.cli.util.signatureOptions
 import com.android.tools.metalava.cli.util.testSources
 import com.android.tools.metalava.cli.util.tracingOptions
 import com.android.tools.metalava.doc.ApiHistoryProvider
-import com.android.tools.metalava.doc.LintApiHistoryProvider
+import com.android.tools.metalava.doc.MetalavaApiHistoryProvider
 import com.android.tools.metalava.model.ANDROIDX_ANNOTATION_PACKAGE
 import com.android.tools.metalava.model.ANDROID_ANNOTATION_PACKAGE
 import com.android.tools.metalava.model.Assertions
@@ -125,7 +125,7 @@ abstract class DriverTest :
      * [check].
      */
     open val apiHistoryProviderLoader: ApiHistoryProvider.Loader
-        get() = LintApiHistoryProvider.loader
+        get() = MetalavaApiHistoryProvider.loader
 
     // Makes a note to fail the test, but still allows the test to complete before failing
     protected fun addError(error: String) {

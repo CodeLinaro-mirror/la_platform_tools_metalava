@@ -744,9 +744,10 @@ class DocAnalyzer(
      * `@sdkExtSince` documentation tags to items in [codebase].
      */
     fun applyApiVersions(apiVersionsFile: File) {
-        val provider =
-            executionEnvironment.testEnvironment?.apiHistoryProviderLoader?.load(apiVersionsFile)
-                ?: LintApiHistoryProvider(apiVersionsFile, underTest = false)
+        val loader =
+            executionEnvironment.testEnvironment?.apiHistoryProviderLoader
+                ?: MetalavaApiHistoryProvider.loader
+        val provider = loader.load(apiVersionsFile)
 
         val packageToVersion = HashMap<PackageItem, ApiVersion>(300)
         codebase.accept(
