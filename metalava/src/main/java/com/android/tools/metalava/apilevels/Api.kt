@@ -40,6 +40,9 @@ class Api(val useInternalNames: Boolean) : ParentApiElement {
 
     override val deprecatedIn: ApiVersion? = null
 
+    /** The optional set of [AvailableSdkExtensions] for this [Api]. */
+    var availableSdkExtensions: AvailableSdkExtensions? = null
+
     private val mClasses: MutableMap<String, ApiClass> = HashMap()
 
     /**

@@ -100,7 +100,7 @@ class ApiSignatureFileConsumerTest {
     /** Formats [api] using [ApiXmlPrinter] with 4-space indentation. */
     private fun printXml(api: Api, versionedApis: List<VersionedApi>): String {
         val writer = StringWriter()
-        val printer = ApiXmlPrinter(null, versionedApis)
+        val printer = ApiXmlPrinter(versionedApis)
         PrintWriter(writer).use { printWriter -> printer.print(api, printWriter) }
         return writer.toString().trimIndent().replace("\t", "    ")
     }

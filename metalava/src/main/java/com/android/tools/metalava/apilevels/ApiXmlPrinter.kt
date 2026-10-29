@@ -22,13 +22,11 @@ import java.util.TreeSet
 /**
  * Printer that will write an XML representation of an [Api] instance.
  *
- * @param availableSdkExtensions the optional set of [AvailableSdkExtensions].
  * @param versionedApis the list of all the [VersionedApi]s that will provide information for the
  *   [Api]. Must include at least one [VersionedApi]. The API version of the first is used to
  *   populate the `<api min="..."...>` attribute, if it is later than version `1`.
  */
 class ApiXmlPrinter(
-    private val availableSdkExtensions: AvailableSdkExtensions?,
     versionedApis: List<VersionedApi>,
 ) : ApiPrinter {
     /** The set of versions, sorted from lowest to highest. */
@@ -48,7 +46,7 @@ class ApiXmlPrinter(
 
     override fun print(api: Api, writer: PrintWriter) {
         writer.println("<?xml version=\"1.0\" encoding=\"utf-8\"?>")
-        api.print(writer, availableSdkExtensions)
+        api.printApi(writer)
     }
 
     override fun toString() = "XML"
@@ -58,7 +56,7 @@ class ApiXmlPrinter(
      *
      * @param writer the writer to which the XML elements will be written.
      */
-    private fun Api.print(writer: PrintWriter, availableSdkExtensions: AvailableSdkExtensions?) {
+    private fun Api.printApi(writer: PrintWriter) {
         // Select the lowest version that supports the necessary capabilities.
         val fileVersion = if (hasMinorVersions) 4 else 3
 
@@ -67,8 +65,9 @@ class ApiXmlPrinter(
             writer.print(" min=\"$firstApiVersion\"")
         }
         writer.println(">")
-        if (availableSdkExtensions != null) {
-            for (sdkExtension in availableSdkExtensions.sdkExtensions) {
+        val sdkExtensions = availableSdkExtensions
+        if (sdkExtensions != null) {
+            for (sdkExtension in sdkExtensions.sdkExtensions) {
                 writer.println(
                     String.format(
                         "\t<sdk id=\"%d\" shortname=\"%s\" name=\"%s\" reference=\"%s\"/>",

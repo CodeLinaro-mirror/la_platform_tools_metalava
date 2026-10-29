@@ -56,11 +56,7 @@ class ApiGenerator(private val tracer: Tracer) {
         val outputFile = config.outputFile
         val printer =
             when (val extension = outputFile.extension) {
-                "xml" -> {
-                    val availableSdkExtensions =
-                        config.sdkExtensionsArguments?.sdkExtensionInfo?.availableSdkExtensions
-                    ApiXmlPrinter(availableSdkExtensions, versionedApis)
-                }
+                "xml" -> ApiXmlPrinter(versionedApis)
                 "json" -> ApiJsonPrinter()
                 else ->
                     error(
@@ -87,6 +83,7 @@ class ApiGenerator(private val tracer: Tracer) {
         versionNotInAndroidSdk: ApiVersion,
         sdkExtensionInfo: SdkExtensionInfo,
     ) {
+        api.availableSdkExtensions = sdkExtensionInfo.availableSdkExtensions
         for (clazz in api.classes) {
             val module = clazz.mainlineModule ?: continue
 
