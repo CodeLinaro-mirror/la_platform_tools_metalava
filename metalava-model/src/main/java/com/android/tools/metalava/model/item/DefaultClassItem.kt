@@ -162,12 +162,16 @@ internal class DefaultClassItem(
                 addTopLevelClassToPackage()
             }
 
-            if (containingClass == null) {
-                fullName = simpleName
-            } else {
+            if (containingClass != null) {
                 (containingClass as DefaultClassItem).addNestedClass(classItem)
-                fullName = "${containingClass.fullName()}.$simpleName"
             }
+
+            fullName =
+                if (containingClass == null) {
+                    simpleName
+                } else {
+                    "${containingClass.fullName()}.$simpleName"
+                }
         } else {
             // The fullName needs to be initialized to something so initializing it to something
             // invalid will ensure it is not accidentally used.
