@@ -93,8 +93,11 @@ internal class DefaultClassItem(
 
     private val fullName: String
 
-    /** Whether this top-level class has been added to [containingPackage]. */
-    private var addedToPackage = false
+    /**
+     * Whether this class has been added to its parent ([containingClass] if nested, or
+     * [containingPackage] if top-level).
+     */
+    private var addedToParent = false
 
     /**
      * Add the top-level class (either this class or its outermost containing class) to
@@ -112,8 +115,8 @@ internal class DefaultClassItem(
         while (topClass.containingClass != null) {
             topClass = topClass.containingClass as DefaultClassItem
         }
-        if (!topClass.addedToPackage) {
-            topClass.addedToPackage = true
+        if (!topClass.addedToParent) {
+            topClass.addedToParent = true
             (containingPackage as DefaultPackageItem).addTopClass(topClass)
         }
     }
