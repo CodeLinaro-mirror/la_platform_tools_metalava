@@ -40,17 +40,38 @@ class Api(val useInternalNames: Boolean) : ParentApiElement {
 
     override val deprecatedIn: ApiVersion? = null
 
+    /** All [ApiVersion]s that have contributed to this [Api], sorted from lowest to highest. */
+    private val allVersions = TreeSet<ApiVersion>()
+
+    /** The minimum [ApiVersion] in this [Api], or `null` if no versions have been recorded. */
+    val minVersion: ApiVersion?
+        get() = allVersions.firstOrNull()
+
+    /** True if any [ApiVersion] in this [Api] has a non-null [ApiVersion.minor] version. */
+    val hasMinorVersions: Boolean
+        get() = allVersions.any { it.minor != null }
+
     /** The optional set of [AvailableSdkExtensions] for this [Api]. */
     var availableSdkExtensions: AvailableSdkExtensions? = null
 
     private val mClasses: MutableMap<String, ApiClass> = HashMap()
 
     /**
-     * Updates this with information for a specific API version.
+     * Records [apiVersion] as a version known to this [Api] without advancing [lastPresentIn].
+     *
+     * @param apiVersion an API version that contributed elements to this [Api].
+     */
+    fun recordVersion(apiVersion: ApiVersion) {
+        allVersions.add(apiVersion)
+    }
+
+    /**
+     * Updates this with information for a specific platform API version.
      *
      * @param apiVersion an API version that this contains.
      */
     fun update(apiVersion: ApiVersion) {
+        recordVersion(apiVersion)
         // Track the last version added to this.
         if (lastPresentIn < apiVersion) {
             lastPresentIn = apiVersion
