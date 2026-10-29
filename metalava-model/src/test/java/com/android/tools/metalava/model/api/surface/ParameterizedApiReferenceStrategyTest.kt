@@ -20,6 +20,10 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.FieldItem
+import com.android.tools.metalava.model.ItemDocumentation
+import com.android.tools.metalava.model.MemberItem
+import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
@@ -43,8 +47,8 @@ class ParameterizedApiReferenceStrategyTest(private val params: Params) {
      * Parameters for a single reference strategy test case.
      *
      * @property targetSurface The target [ApiSurface] passed to [TargetSurfaceReferenceStrategy].
-     * @property from The referencing [ClassItem], or `null` when checking without a referencing
-     *   item.
+     * @property from The referencing [SelectableItem], or `null` when checking without a
+     *   referencing item.
      * @property to The referenced [ClassItem].
      * @property kind Whether the reference is in [ReferenceKind.CODE] or
      *   [ReferenceKind.DOCUMENTATION].
@@ -55,7 +59,7 @@ class ParameterizedApiReferenceStrategyTest(private val params: Params) {
      */
     data class Params(
         val targetSurface: ApiSurface = main,
-        val from: ClassItem? = null,
+        val from: SelectableItem? = null,
         val to: ClassItem,
         val kind: ReferenceKind = ReferenceKind.CODE,
         val expectedResult: ReferenceCheckResult,
@@ -65,7 +69,14 @@ class ParameterizedApiReferenceStrategyTest(private val params: Params) {
             if (targetSurface != main) {
                 append("target=${targetSurface.name}, ")
             }
-            append("from=${from?.simpleName() ?: "null"}, ")
+            val fromName =
+                when (from) {
+                    null -> "null"
+                    is ClassItem -> from.simpleName()
+                    is MemberItem -> "${from.containingClass().simpleName()}.${from.name()}"
+                    else -> from.toString()
+                }
+            append("from=$fromName, ")
             append("to=${to.simpleName()}, ")
             append("kind=$kind")
         }
@@ -79,20 +90,28 @@ class ParameterizedApiReferenceStrategyTest(private val params: Params) {
         private val pkg = codebase.findOrCreatePackage("test.pkg")
 
         /**
-         * Create a synthetic [ClassItem] with the given [name], [visibility], and [ApiVariant]s.
+         * Create a synthetic [ClassItem] with the given [name], [visibility], [variants], and
+         * optional [containingClass].
          */
         fun createTestClass(
             name: String,
             visibility: VisibilityLevel = VisibilityLevel.PUBLIC,
             variants: List<ApiVariant> = emptyList(),
+            containingClass: ClassItem? = null,
         ): ClassItem {
+            val qualifiedName =
+                if (containingClass != null) {
+                    "${containingClass.qualifiedName()}.$name"
+                } else {
+                    "test.pkg.$name"
+                }
             val classItem =
                 factory.createClassItem(
                     modifiers = createImmutableModifiers(visibility),
                     classKind = ClassKind.CLASS,
-                    containingClass = null,
+                    containingClass = containingClass,
                     containingPackage = pkg,
-                    qualifiedName = "test.pkg.$name",
+                    qualifiedName = qualifiedName,
                     typeParameterList = TypeParameterList.NONE,
                     origin = ClassOrigin.COMMAND_LINE,
                     superClassType = null,
@@ -102,6 +121,29 @@ class ParameterizedApiReferenceStrategyTest(private val params: Params) {
                 classItem.selectedApi.addItemApiVariant(variant)
             }
             return classItem
+        }
+
+        /** Create a synthetic [FieldItem] with the given [name] inside [containingClass]. */
+        fun createTestField(
+            name: String,
+            containingClass: ClassItem,
+            visibility: VisibilityLevel = VisibilityLevel.PUBLIC,
+            variants: List<ApiVariant> = emptyList(),
+        ): FieldItem {
+            val fieldItem =
+                factory.createFieldItem(
+                    modifiers = createImmutableModifiers(visibility),
+                    documentationFactory = ItemDocumentation.NONE_FACTORY,
+                    name = name,
+                    containingClass = containingClass,
+                    type = containingClass.type(),
+                    isEnumConstant = false,
+                    constantValueProvider = null,
+                )
+            for (variant in variants) {
+                fieldItem.selectedApi.addItemApiVariant(variant)
+            }
+            return fieldItem
         }
     }
 
@@ -128,6 +170,26 @@ class ParameterizedApiReferenceStrategyTest(private val params: Params) {
 
         /** Public class not belonging to any API surface (e.g. `@hide`). */
         private val hiddenPublicItem = context.createTestClass("HiddenPublicClass")
+
+        /**
+         * Nested public class inside [hiddenPublicItem] (e.g. a nested class inside a class hidden
+         * by `@hide` or a disabled `@FlaggedApi`).
+         */
+        private val nestedInHiddenPublicItem =
+            context.createTestClass(
+                "NestedInHiddenPublicClass",
+                containingClass = hiddenPublicItem,
+            )
+
+        /**
+         * Public field inside [hiddenPublicItem] (e.g. a member inside a class hidden by `@hide` or
+         * a disabled `@FlaggedApi`).
+         */
+        private val memberInHiddenPublicItem =
+            context.createTestField(
+                "memberInHiddenPublicClass",
+                containingClass = hiddenPublicItem,
+            )
 
         /** Package-private class not belonging to any API surface. */
         private val packagePrivateItem =
@@ -247,6 +309,31 @@ class ParameterizedApiReferenceStrategyTest(private val params: Params) {
                     from = null,
                     to = coreItem,
                     kind = ReferenceKind.CODE,
+                    expectedResult = ReferenceCheckResult.Hidden(isPublicOrProtected = true),
+                ),
+                // References from a nested class or member to its containing class
+                Params(
+                    from = nestedInHiddenPublicItem,
+                    to = hiddenPublicItem,
+                    kind = ReferenceKind.CODE,
+                    expectedResult = ReferenceCheckResult.Hidden(isPublicOrProtected = true),
+                ),
+                Params(
+                    from = nestedInHiddenPublicItem,
+                    to = hiddenPublicItem,
+                    kind = ReferenceKind.DOCUMENTATION,
+                    expectedResult = ReferenceCheckResult.Hidden(isPublicOrProtected = true),
+                ),
+                Params(
+                    from = memberInHiddenPublicItem,
+                    to = hiddenPublicItem,
+                    kind = ReferenceKind.CODE,
+                    expectedResult = ReferenceCheckResult.Hidden(isPublicOrProtected = true),
+                ),
+                Params(
+                    from = memberInHiddenPublicItem,
+                    to = hiddenPublicItem,
+                    kind = ReferenceKind.DOCUMENTATION,
                     expectedResult = ReferenceCheckResult.Hidden(isPublicOrProtected = true),
                 ),
             )
