@@ -17,6 +17,8 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.TypeNullability
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
@@ -24,6 +26,7 @@ import kotlin.test.assertEquals
 import org.junit.Test
 
 class PsiTypeItemTest : BaseModelTest() {
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test platform nullability from Kotlin`() {
         runCodebaseTest(
@@ -35,7 +38,6 @@ class PsiTypeItemTest : BaseModelTest() {
                             public static String platformString = "hi";
                         }
                     """
-                        .trimIndent()
                 ),
                 kotlin(
                     """
@@ -45,7 +47,6 @@ class PsiTypeItemTest : BaseModelTest() {
                             fun foo() = Bar.platformString
                         }
                     """
-                        .trimIndent()
                 ),
             ),
         ) {

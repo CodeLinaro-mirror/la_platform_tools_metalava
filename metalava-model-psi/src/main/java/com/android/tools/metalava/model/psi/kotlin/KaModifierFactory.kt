@@ -21,13 +21,17 @@ import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.JVM_FIELD
 import com.android.tools.metalava.model.JVM_STATIC
 import com.android.tools.metalava.model.KOTLIN_DEPRECATED
+import com.android.tools.metalava.model.KOTLIN_PUBLISHED_API
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.MutableModifierList
+import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.createMutableModifiers
 import com.android.tools.metalava.model.hasAnnotation
+import org.jetbrains.kotlin.analysis.api.KaExperimentalApi
 import org.jetbrains.kotlin.analysis.api.symbols.KaCallableSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaClassKind
+import org.jetbrains.kotlin.analysis.api.symbols.KaContextParameterSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaDeclarationSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaKotlinPropertySymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaNamedClassSymbol
@@ -77,6 +81,15 @@ internal class KaModifierFactory(private val processor: KaModuleProcessor) {
             modifiers.setDeprecated(true)
         }
 
+        // Apply getter annotations to the property as well. This is legacy metalava behavior that
+        // supports things like hiding properties through an annotation on the getter.
+        for (kaAnnotation in propertySymbol.getter?.annotations ?: emptyList()) {
+            val annotationItem = processor.createAnnotation(kaAnnotation)
+            if (annotationItem !in modifiers.annotations()) {
+                modifiers.addAnnotation(annotationItem)
+            }
+        }
+
         return modifiers
     }
 
@@ -93,7 +106,7 @@ internal class KaModifierFactory(private val processor: KaModuleProcessor) {
         setter: MethodItem?,
         backingField: FieldItem?,
     ) {
-        // Correct visibility of accessors (work around K2 bugs with value class type properties)
+        // Correct visibility of accessors (work around bugs with value class type properties)
         // https://youtrack.jetbrains.com/issue/KT-74205
         // The getter must have the same visibility as the property
         val propertyVisibility = modifiers.getVisibilityLevel()
@@ -117,9 +130,11 @@ internal class KaModifierFactory(private val processor: KaModuleProcessor) {
         // accessors by Java clients as experimental. Because of this AndroidX bans defining
         // public experimental properties in projects that target Java clients.
 
-        // Also handle propagating showability annotations (show and hide annotations, e.g.
-        // @PublishedApi). These annotations which update API visibility should impact the API
+        // Also handle propagating showability annotations (show and hide annotations) and
+        // @PublishedApi. These annotations which update API visibility should impact the API
         // visibility of accessors when applied to properties.
+        // @PublishedApi also means that APIs can only be used from bytecode, so update the
+        // target languages as well.
         for (annotationItem in modifiers.annotations()) {
             // Manually setting a RequiresOptIn annotation on a getter causes a
             // compiler warning, but this can be suppressed with
@@ -128,15 +143,23 @@ internal class KaModifierFactory(private val processor: KaModuleProcessor) {
             // Explicit RequiresOptIn annotations on setters are supported by the
             // compiler, so we should only add this annotation implicitly if it is not
             // already explicitly provided.
+            val isPublishedApi = annotationItem.qualifiedName == KOTLIN_PUBLISHED_API
             if (
                 annotationItem.isSuppressCompatibilityAnnotation() ||
-                    annotationItem.isShowabilityAnnotation()
+                    annotationItem.isShowabilityAnnotation() ||
+                    isPublishedApi
             ) {
                 if (getter != null && annotationItem !in getter.modifiers.annotations()) {
                     getter.mutateModifiers { addAnnotation(annotationItem) }
+                    if (isPublishedApi) {
+                        getter.targetLanguages = TargetLanguageSet.BYTECODE_ONLY
+                    }
                 }
                 if (setter != null && annotationItem !in setter.modifiers.annotations()) {
                     setter.mutateModifiers { addAnnotation(annotationItem) }
+                    if (isPublishedApi) {
+                        setter.targetLanguages = TargetLanguageSet.BYTECODE_ONLY
+                    }
                 }
                 if (
                     backingFieldIsApi &&
@@ -144,13 +167,10 @@ internal class KaModifierFactory(private val processor: KaModuleProcessor) {
                         annotationItem !in backingField.modifiers.annotations()
                 ) {
                     backingField.mutateModifiers { addAnnotation(annotationItem) }
+                    if (isPublishedApi) {
+                        backingField.targetLanguages = TargetLanguageSet.BYTECODE_ONLY
+                    }
                 }
-            }
-        }
-
-        for (annotationItem in getter?.modifiers?.annotations() ?: emptyList()) {
-            if (annotationItem !in modifiers.annotations()) {
-                modifiers.addAnnotation(annotationItem)
             }
         }
     }
@@ -213,7 +233,10 @@ internal class KaModifierFactory(private val processor: KaModuleProcessor) {
     }
 
     /** Creates modifiers for a class [symbol]. */
-    fun createForClass(symbol: KaNamedClassSymbol): MutableModifierList {
+    fun createForClass(
+        symbol: KaNamedClassSymbol,
+        containingClass: ClassItem?
+    ): MutableModifierList {
         val modifiers = createForDeclaration(symbol)
 
         if (symbol.isData) {
@@ -238,6 +261,12 @@ internal class KaModifierFactory(private val processor: KaModuleProcessor) {
             }
             KaSymbolModality.ABSTRACT -> modifiers.setAbstract(true)
             KaSymbolModality.OPEN -> modifiers.setFinal(false)
+        }
+
+        // In Java, a static class is a nested which does not have an instance of the outer class.
+        // The equivalent in Kotlin is a non-inner nested class.
+        if (!symbol.isInner && containingClass != null) {
+            modifiers.setStatic(true)
         }
 
         return modifiers
@@ -296,6 +325,11 @@ internal class KaModifierFactory(private val processor: KaModuleProcessor) {
 
     /** Creates modifiers for a receiver parameter (just visibility and annotations). */
     fun createForReceiverParameter(symbol: KaReceiverParameterSymbol): MutableModifierList {
+        return createForParameter(symbol)
+    }
+
+    @OptIn(KaExperimentalApi::class)
+    fun createForContextParameter(symbol: KaContextParameterSymbol): MutableModifierList {
         return createForParameter(symbol)
     }
 

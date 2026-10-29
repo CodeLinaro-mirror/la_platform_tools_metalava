@@ -21,10 +21,13 @@ import com.android.tools.metalava.model.value.asAny
 import java.io.PrintWriter
 
 @MetalavaApi
-interface FieldItem : MemberItem, InheritableItem, ReferencableItem {
-    /** The property this field backs; inverse of [PropertyItem.backingField] */
-    val property: PropertyItem?
-        get() = null
+interface FieldItem : MemberItem, InheritableItem, ReferencableItem, PossiblyPropertyRelated {
+    /**
+     * The property this field backs; inverse of [PropertyItem.backingField].
+     *
+     * Overridden to provide more specific documentation.
+     */
+    override var property: PropertyItem?
 
     override fun describe(capitalize: Boolean) =
         if (isEnumConstant()) {
@@ -84,19 +87,10 @@ interface FieldItem : MemberItem, InheritableItem, ReferencableItem {
         return name().hashCode()
     }
 
-    override fun toStringForItem() = "field ${containingClass().fullName()}.${name()}"
-
     companion object {
         val comparator: java.util.Comparator<FieldItem> = Comparator { a, b ->
             a.name().compareTo(b.name())
         }
-
-        /**
-         * Comparator that will order [FieldItem]s such that those for which
-         * [FieldItem.isEnumConstant] returns `true` will come before those for which it is `false`.
-         */
-        val comparatorEnumConstantFirst: java.util.Comparator<FieldItem> =
-            Comparator.comparing(FieldItem::isEnumConstant).reversed().thenComparing(comparator)
     }
 
     /**

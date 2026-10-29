@@ -19,12 +19,16 @@ package com.android.tools.metalava.model.type
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.BoundsTypeItem
 import com.android.tools.metalava.model.ClassTypeItem
+import com.android.tools.metalava.model.DefaultTypeParameterList
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PrimitiveTypeItem
+import com.android.tools.metalava.model.SkeletonTypeParameterItem
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterItem
+import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.WildcardTypeItem
 import com.android.tools.metalava.model.typeNullability
@@ -77,12 +81,22 @@ interface TypeItemFactory<in T, F : TypeItemFactory<T, F>> {
      * Get a type suitable for use in an `implements` list of a concrete class, or an `extends` list
      * of an interface class.
      */
-    fun getInterfaceType(underlyingType: T): ClassTypeItem
+    fun getInterfaceType(underlyingType: T): ClassTypeItem =
+        getHierarchicalClassType(underlyingType)
 
     /** Get a type suitable for use in an `extends` clause of a concrete class. */
-    fun getSuperClassType(underlyingType: T): ClassTypeItem
+    fun getSuperClassType(underlyingType: T): ClassTypeItem =
+        getHierarchicalClassType(underlyingType)
 
-    /** Get a type suitable for use as a class reference. */
+    /**
+     * Get a type suitable for use in a hierarchical class of a hierarchical class.
+     *
+     * A hierarchical clause is one that defines a hierarchical relationship between one
+     * hierarchical class and another, e.g. `extends`, `implements`, `permits`.
+     */
+    fun getHierarchicalClassType(underlyingType: T): ClassTypeItem
+
+    /** Get a type suitable for use as a class reference, i.e. `String.class` or `String::class`. */
     fun getClassReferenceType(underlyingType: T): ClassTypeItem
 
     // Item specific type methods.
@@ -181,9 +195,9 @@ data class MethodFingerprint(
  * 2. Kotlin; ignoring [TypeNullability.PLATFORM].
  * 3. Annotations.
  * 4. Nullability inferred from context, e.g. constant field with non-null value.
- * 4. [TypeNullability.PLATFORM]
+ * 4. [defaultNullability]
  */
-class ContextNullability(
+data class ContextNullability(
     /**
      * The [TypeNullability] that a [TypeItem] MUST have by virtue of what the type is, or where it
      * is used; e.g. [PrimitiveTypeItem]s and super class types MUST be [TypeNullability.NONNULL]
@@ -217,27 +231,42 @@ class ContextNullability(
      * It is passed as a lambda as it may be expensive to compute.
      */
     val inferNullability: (() -> TypeNullability?)? = null,
+
+    /** The default [TypeNullability] when all else fails. */
+    val defaultNullability: TypeNullability = TypeNullability.PLATFORM
 ) {
     /**
      * Compute the [TypeNullability] according to the priority in the documentation for this class.
+     *
+     * @param existingNullability this will either come from Kotlin type information or is the
+     *   [TypeNullability] for an existing [TypeItem] that might need its
+     *   [TypeModifiers.nullability] updating.
      */
     fun compute(
-        kotlinNullability: TypeNullability?,
+        existingNullability: TypeNullability?,
         typeAnnotations: List<AnnotationItem>
     ): TypeNullability =
         // If forced is set then use that as the top priority.
         forcedNullability
-            // If kotlin provides it then use that as it is most accurate, ignore PLATFORM though
-            // as that may be overridden by annotations or the default.
-            ?: kotlinNullability?.takeIf { nullability -> nullability != TypeNullability.PLATFORM }
+            // If an existing nullability is provided and is a known nullability then use that but
+            // if it is a known nullability then ignore it for now as it is possible that a known
+            // nullability will be provided by annotations or inference.
+            ?: existingNullability?.takeIf { nullability -> nullability.known }
+
             // If annotations provide it then use them as the developer requested.
             ?: typeAnnotations.typeNullability
+
             // If item annotations are found then check them.
             ?: itemAnnotations?.typeNullability
+
             // If an inferred nullability is provided then use it.
             ?: inferNullability?.invoke()
-            // Finally default to [TypeNullability.PLATFORM].
-            ?: TypeNullability.PLATFORM
+
+            // Use an existing nullability, even if it is unknown.
+            ?: existingNullability
+
+            // Finally use the default.
+            ?: defaultNullability
 
     /**
      * Get a [ContextNullability] instance for components of arrays.
@@ -249,10 +278,47 @@ class ContextNullability(
     fun forComponentType() =
         forcedComponentNullability?.let { ContextNullability(forcedNullability = it) } ?: none
 
+    /**
+     * Get a [ContextNullability] instance for type variables.
+     *
+     * If `this`] is [none] then this method returns [defaultUndefined], otherwise this method
+     * returns a copy of `this` with [ContextNullability.defaultUndefined] set to
+     * [TypeNullability.UNDEFINED].
+     */
+    fun forTypeVariable() =
+        if (this == none) defaultUndefined else copy(defaultNullability = TypeNullability.UNDEFINED)
+
     companion object {
+        /**
+         * A [ContextNullability] instance that provides no hints from the context as to the
+         * nullability of a type.
+         */
         val none = ContextNullability()
-        val forceNonNull = ContextNullability(TypeNullability.NONNULL)
-        val forceUndefined = ContextNullability(TypeNullability.UNDEFINED)
+
+        /**
+         * A [ContextNullability] instance that will force a type to be treated as
+         * [TypeNullability.NONNULL].
+         */
+        val forceNonNull =
+            ContextNullability(
+                forcedNullability = TypeNullability.NONNULL,
+                forcedComponentNullability = TypeNullability.NONNULL,
+            )
+
+        /**
+         * A [ContextNullability] instance that will force a type to be treated as
+         * [TypeNullability.UNDEFINED].
+         */
+        val forceUndefined =
+            ContextNullability(
+                forcedNullability = TypeNullability.UNDEFINED,
+            )
+
+        /**
+         * A [ContextNullability] instance that will default to [TypeNullability.UNDEFINED] if not
+         * otherwise specified.
+         */
+        val defaultUndefined = ContextNullability(defaultNullability = TypeNullability.UNDEFINED)
     }
 }
 
@@ -270,24 +336,17 @@ abstract class DefaultTypeItemFactory<in T, F : DefaultTypeItemFactory<T, F>>(
 
     override fun getBoundsType(underlyingType: T) = getType(underlyingType) as BoundsTypeItem
 
-    override fun getExceptionType(underlyingType: T) = getType(underlyingType) as ExceptionTypeItem
+    override fun getExceptionType(underlyingType: T) =
+        getType(underlyingType, contextNullability = ContextNullability.forceNonNull)
+            as ExceptionTypeItem
 
     override fun getGeneralType(underlyingType: T) = getType(underlyingType)
 
-    override fun getInterfaceType(underlyingType: T) = getSuperType(underlyingType)
-
-    override fun getSuperClassType(underlyingType: T) = getSuperType(underlyingType)
+    override fun getHierarchicalClassType(underlyingType: T) =
+        getType(underlyingType, contextNullability = ContextNullability.forceNonNull)
+            as ClassTypeItem
 
     override fun getClassReferenceType(underlyingType: T): ClassTypeItem {
-        return getType(underlyingType, contextNullability = ContextNullability.forceNonNull)
-            as ClassTypeItem
-    }
-
-    /**
-     * Creates a [ClassTypeItem] that is suitable for use as a super type, e.g. in an `extends` or
-     * `implements` list.
-     */
-    private fun getSuperType(underlyingType: T): ClassTypeItem {
         return getType(underlyingType, contextNullability = ContextNullability.forceNonNull)
             as ClassTypeItem
     }
@@ -414,4 +473,90 @@ abstract class DefaultTypeItemFactory<in T, F : DefaultTypeItemFactory<T, F>>(
             }
         }
     }
+
+    /**
+     * Create a list of [TypeParameterItem] and a corresponding [TypeItemFactory] from model
+     * specific parameter and bounds information within this [TypeItemFactory].
+     *
+     * A type parameter list can contain cycles between its type parameters, e.g.
+     *
+     *     class Node<L extends Node<L, R>, R extends Node<L, R>>
+     *
+     * Parsing that requires a multi-stage approach.
+     * 1. Separate the list into a mapping from `TypeParameterItem` that have not yet had their
+     *    `bounds` property initialized to the model specific parameter.
+     * 2. Create a nested factory of the enclosing factory which includes the type parameters. That
+     *    will allow references between them to be resolved.
+     * 3. Complete the initialization by converting each bounds string into a TypeItem.
+     *
+     * @param scopeDescription the description of the scope that will be created by the factory.
+     * @param inputParams a list of the model specific type parameters.
+     * @param paramFactory a function that will create a [TypeParameterItem] from the model
+     *   specified parameter [P].
+     * @param boundsGetter a function that will create a list of [BoundsTypeItem] from the model
+     *   specific bounds which will be stored in [SkeletonTypeParameterItem.bounds].
+     * @param P the type of the underlying model specific type parameter objects.
+     */
+    fun <P> createTypeParameterItemsAndFactory(
+        scopeDescription: String,
+        inputParams: List<P>,
+        paramFactory: (P) -> SkeletonTypeParameterItem,
+        boundsGetter: (F, P) -> List<BoundsTypeItem>,
+    ): TypeParameterListAndFactory<F> {
+        // First, create a Map from [TypeParameterItem] to the model specific parameter. Using
+        // the [paramFactory] to convert the model specific parameter to a [TypeParameterItem].
+        val typeParameterItemToBounds = inputParams.associateBy { param -> paramFactory(param) }
+
+        // Then, create a [TypeItemFactory] for this list of type parameters.
+        val typeParameters = typeParameterItemToBounds.keys.toList()
+        val typeItemFactory = nestedFactory(scopeDescription, typeParameters)
+
+        // Then, create and set the bounds in the [TypeParameterItem] passing in the
+        // [TypeItemFactory] to allow cross-references to type parameters to be resolved.
+        for ((typeParameter, param) in typeParameterItemToBounds) {
+            val boundsTypeItems = boundsGetter(typeItemFactory, param)
+            if (boundsTypeItems.isEmpty()) {
+                error("No bounds provided for type parameter: $param")
+            }
+            typeParameter.bounds = boundsTypeItems
+        }
+
+        // Pair the list up with the [TypeItemFactory] so that the latter can be reused.
+        val typeParameterList = DefaultTypeParameterList(typeParameters)
+        return TypeParameterListAndFactory(typeParameterList, typeItemFactory)
+    }
+}
+
+/**
+ * Group up [typeParameterList] and the [factory] that was used to resolve references when creating
+ * their [com.android.tools.metalava.model.BoundsTypeItem]s.
+ */
+data class TypeParameterListAndFactory<F : TypeItemFactory<*, F>>(
+    val typeParameterList: TypeParameterList,
+    val factory: F,
+)
+
+/** Determine if [qualifiedName] is a class name according to standard Java naming conventions. */
+fun isClassByConvention(qualifiedName: String): Boolean {
+    val length = qualifiedName.length
+    var startIndex = 0
+
+    // Iterate over the simple names in the qualified name, starting with the first simple name.
+    // If any simple name looks like a class (starts with an upper case character) then the whole
+    // name is for a class as a class can only qualify other classes. That ensures correct behavior
+    // for something like android.Manifest.permission.
+    while (startIndex < length) {
+        // Determine if the simple name being processed is for a class.
+        val c = qualifiedName[startIndex]
+        if (c.isUpperCase()) return true
+
+        // Find the end of the current simple name.
+        val nextDotIndex = qualifiedName.indexOf('.', startIndex)
+        val endOfNextSimpleName = if (nextDotIndex == -1) length else nextDotIndex
+
+        // Move onto the next simple name, if any, by skipping over the '.' separator.
+        startIndex = endOfNextSimpleName + 1
+    }
+
+    return false
 }

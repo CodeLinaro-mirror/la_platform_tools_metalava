@@ -20,11 +20,11 @@ import com.android.tools.metalava.ARG_EXCLUDE_ALL_ANNOTATIONS
 import com.android.tools.metalava.ARG_EXCLUDE_ANNOTATION
 import com.android.tools.metalava.ARG_PASS_THROUGH_ANNOTATION
 import com.android.tools.metalava.TYPE_USE_FORMAT
-import com.android.tools.metalava.androidxNullableSource
 import com.android.tools.metalava.libcoreNonNullSource
 import com.android.tools.metalava.model.SUPPORT_TYPE_USE_ANNOTATIONS
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.requiresApiSource
+import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import org.junit.Test
 
@@ -145,7 +145,7 @@ class StubsAnnotationTest : AbstractStubsTest() {
                     )
                 ),
             expectedIssues = "",
-            api =
+            expectedApiSignature =
                 """
                     package my.pkg {
                       public class String {
@@ -153,7 +153,7 @@ class StubsAnnotationTest : AbstractStubsTest() {
                       }
                     }
                     """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -183,7 +183,7 @@ class StubsAnnotationTest : AbstractStubsTest() {
                     )
                 ),
             expectedIssues = "",
-            api =
+            expectedApiSignature =
                 """
                     package my.pkg {
                       public class String {
@@ -192,7 +192,7 @@ class StubsAnnotationTest : AbstractStubsTest() {
                     }
                     """,
             docStubs = true,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -225,7 +225,7 @@ class StubsAnnotationTest : AbstractStubsTest() {
                     libcoreNonNullSource,
                 ),
             expectedIssues = "",
-            api =
+            expectedApiSignature =
                 """
                     package my.pkg {
                       public class String {
@@ -233,7 +233,7 @@ class StubsAnnotationTest : AbstractStubsTest() {
                       }
                     }
                 """,
-            stubFiles =
+            expectedStubFiles =
                 if (SUPPORT_TYPE_USE_ANNOTATIONS) {
                     arrayOf(
                         java(
@@ -283,10 +283,10 @@ class StubsAnnotationTest : AbstractStubsTest() {
             // Override default to emit libcore.util classes.
             skipEmitPackages = emptyList(),
             expectedIssues = "",
-            api =
+            expectedApiSignature =
                 """
                     package libcore.util {
-                      @java.lang.annotation.Documented @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.SOURCE) @java.lang.annotation.Target({java.lang.annotation.ElementType.TYPE_USE}) public @interface NonNull {
+                      @java.lang.annotation.Documented @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.SOURCE) @java.lang.annotation.Target({java.lang.annotation.ElementType.FIELD, java.lang.annotation.ElementType.METHOD, java.lang.annotation.ElementType.PARAMETER, java.lang.annotation.ElementType.TYPE_USE}) public @interface NonNull {
                       }
                     }
                     package my.pkg {
@@ -294,8 +294,8 @@ class StubsAnnotationTest : AbstractStubsTest() {
                         ctor public String(@libcore.util.NonNull char[]);
                       }
                     }
-                    """,
-            stubFiles =
+                """,
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -332,7 +332,7 @@ class StubsAnnotationTest : AbstractStubsTest() {
                     """
                     ),
                     requiresApiSource,
-                    androidxNullableSource,
+                    KnownSourceFiles.androidxNullableJavaSource,
                 ),
             source =
                 """
@@ -367,7 +367,7 @@ class StubsAnnotationTest : AbstractStubsTest() {
                     requiresApiSource
                 ),
             expectedIssues = "",
-            api =
+            expectedApiSignature =
                 """
                     package my.pkg {
                       public class MyClass {
@@ -376,7 +376,7 @@ class StubsAnnotationTest : AbstractStubsTest() {
                       }
                     }
                     """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -473,7 +473,7 @@ class StubsAnnotationTest : AbstractStubsTest() {
                     method public abstract char[] letters2() default {'a', 'b', 'c'};
                     method public abstract int math() default 7;
                     method public abstract short medium() default 1;
-                    method public abstract Class<? extends java.lang.Number!> myCls() default java.lang.Integer.class;
+                    method public abstract Class<? extends java.lang.Number> myCls() default java.lang.Integer.class;
                     method public abstract String prefix() default "";
                     method public abstract boolean resolveId() default false;
                     method public abstract byte small() default 1;
@@ -529,13 +529,13 @@ class StubsAnnotationTest : AbstractStubsTest() {
                 public static final int DP = 0;
                 public static final int PX = 1;
                 public static final int SP = 2;
-                @SuppressWarnings({"unchecked", "deprecation", "all"})
                 @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.SOURCE)
                 public static @interface InnerAnnotation {
                 }
                 }
                 """,
-            filterBlankLinesFromStubFiles = false,
+            // Includes documentation so cannot match what is generated from signature file.
+            checkTextStubEquivalence = false,
         )
     }
 
@@ -592,7 +592,7 @@ class StubsAnnotationTest : AbstractStubsTest() {
                     """
                     )
                 ),
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -660,7 +660,7 @@ class StubsAnnotationTest : AbstractStubsTest() {
                     """
                     )
                 ),
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -731,7 +731,7 @@ class StubsAnnotationTest : AbstractStubsTest() {
                     """
                     )
                 ),
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """

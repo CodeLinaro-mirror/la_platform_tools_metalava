@@ -18,13 +18,13 @@ platform and AndroidX libraries.
 - Documentation stub enhancement (`--enhance-documentation`)
 - Injecting `added in API level` into documentation stubs (`--apply-api-levels`)
 - Generating API levels information for documentation and SDK (`--generate-api-levels`)
-- Documentation rewriting for documentation stubs (`--replace-documentation`) used by libcore
 - Rewriting of nullness annotations to @RecentlyNull/NonNull (`--migrate-nullness`,
 `--force-convert-to-warning-nullability-annotations`) for SDK
 - Tracking @removed APIs (`--removed-api`)
 - DEX API signature generation (`signature-to-dex`) for hidden API enforcement
-- XML API signature generation (`--api-xml`) for CTS tests and test coverage infrastructure
+- XML API signature generation (`signature-to-jdiff` subcommand) for CTS tests and test coverage infrastructure
 - Annotation include, exclude, rewrite, passthrough in stubs (`--include-annotations`, `--exclude-all-annotations`,
 `--pass-through-annotation`, `--exclude-annotation`)
-- Annotation extraction (`--extract-annotations`, `--copy-annotations`) for generating the SDK
-- Generating SDK metadata (`--sdk-`values`)
+- Annotation extraction (`--extract-annotations`) for generating the SDK
+- Rewriting annotations to package private (`make-annotations-package-private` subcommand) for generating the SDK
+- Generating SDK metadata (`--sdk-values`)

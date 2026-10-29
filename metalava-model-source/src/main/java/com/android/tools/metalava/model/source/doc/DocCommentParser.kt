@@ -150,6 +150,18 @@ internal object DocCommentParser {
                     )
                 }
 
+                blockTagType.errorProvider?.let { errorProvider ->
+                    errorProvider(tagTypeName).let { error ->
+                        val position = matcher.start(BLOCK_TAG_TYPE_GROUP_INDEX)
+                        reporter.report(
+                            error.issue,
+                            error.message,
+                            text.lineOffsetFor(position),
+                            text.characterOffsetFor(position),
+                        )
+                    }
+                }
+
                 // The start of the block tag description is the end of the match (which excludes
                 // any white space after the block tag name).
                 blockTagDescriptionStartInclusive = matcher.end()

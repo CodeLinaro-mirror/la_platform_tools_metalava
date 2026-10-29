@@ -18,6 +18,7 @@ package com.android.tools.metalava
 
 import com.android.tools.metalava.apilevels.ApiVersion
 import com.android.tools.metalava.cli.common.MetalavaCliException
+import com.android.tools.metalava.cli.common.MetalavaOptionGroup
 import com.android.tools.metalava.cli.common.PreviouslyReleasedApi
 import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.map
@@ -25,7 +26,6 @@ import com.android.tools.metalava.cli.common.newDir
 import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.stub.StubGenerator
 import com.android.tools.metalava.stub.StubWriterConfig
-import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import com.github.ajalt.clikt.parameters.options.OptionWithValues
 import com.github.ajalt.clikt.parameters.options.convert
 import com.github.ajalt.clikt.parameters.options.flag
@@ -50,7 +50,7 @@ const val ARG_APPLY_API_LEVELS = "--apply-api-levels"
 const val ARG_API_VERSION_LABEL = "--api-version-label"
 
 class StubGenerationOptions :
-    OptionGroup(
+    MetalavaOptionGroup(
         name = STUB_GENERATION_GROUP,
         help = "Options controlling the generation of stub files.",
     ) {
@@ -84,7 +84,8 @@ class StubGenerationOptions :
                         example, in the stub files, we'll use special annotations like
                         @RecentlyNonNull instead of @NonNull to indicate that an element is recently
                         marked as non null, whereas in the documentation stubs we'll just list this
-                        as @NonNull. Another difference is that @doconly elements are included in
+                        as @NonNull. Another difference is that items annotated with a
+                        `<api-surfaces>/<doc-only>` configured annotation are included in
                         documentation stubs, but not regular stubs, etc.
 
                         At most one of this and $ARG_STUBS can be provided.
@@ -250,7 +251,10 @@ class StubGenerationOptions :
         apiVersionToLabel[version] ?: version.toString()
 
     /** Construct a [StubGenerator.Config] based on these options. */
-    internal fun generatorConfig(): StubGenerator.Config {
+    internal fun generatorConfig(
+        javaRecordClasses: Boolean = false,
+        javaSealedClasses: Boolean = false,
+    ): StubGenerator.Config {
         // Always include documentations in the doc stubs and include documentation in the normal
         // stubs unless explicitly excluded.
         val includeDocumentationInStubs = !excludeDocumentationFromStubs || docStubsDir != null
@@ -280,6 +284,8 @@ class StubGenerationOptions :
             stubWriterConfig =
                 StubWriterConfig(
                     includeDocumentationInStubs = includeDocumentationInStubs,
+                    javaRecordClasses = javaRecordClasses,
+                    javaSealedClasses = javaSealedClasses,
                 ),
 
             // Enhance the documentation if explicitly requested of generating the doc stubs.

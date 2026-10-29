@@ -18,9 +18,11 @@ package com.android.tools.metalava.cli.internal
 
 import com.android.SdkConstants
 import com.android.tools.metalava.ANDROID_SDK_CONSTANT
+import com.android.tools.metalava.model.ANDROID_CHECKS_FLAG
 import com.android.tools.metalava.model.ANDROID_FLAGGED_API
 import com.android.tools.metalava.model.ANDROID_NONNULL
 import com.android.tools.metalava.model.ANDROID_NULLABLE
+import com.android.tools.metalava.model.ANDROID_REQUIRES_FLAG
 import com.android.tools.metalava.model.RECENTLY_NONNULL
 import com.android.tools.metalava.model.RECENTLY_NULLABLE
 import java.io.File
@@ -64,6 +66,8 @@ internal class RewriteAnnotations {
                 qualifiedName == RECENTLY_NONNULL ||
                 qualifiedName == ANDROID_NULLABLE ||
                 qualifiedName == ANDROID_NONNULL ||
+                qualifiedName == ANDROID_REQUIRES_FLAG ||
+                qualifiedName == ANDROID_CHECKS_FLAG ||
                 qualifiedName == ANDROID_FLAGGED_API -> return false
             qualifiedName == ANDROID_SDK_CONSTANT -> return true
             qualifiedName.startsWith("androidx.annotation.") -> return true

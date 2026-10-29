@@ -27,6 +27,12 @@ import java.io.PrintWriter
 internal class DexApiWriter(
     private val writer: PrintWriter,
 ) : DelegatedVisitor {
+    /**
+     * DEX signatures require classes to be visited in deterministic order for reproducible API
+     * output.
+     */
+    override val requiresSortedClasses: Boolean
+        get() = true
 
     override fun visitClass(cls: ClassItem) {
         writer.print(cls.type().internalName())

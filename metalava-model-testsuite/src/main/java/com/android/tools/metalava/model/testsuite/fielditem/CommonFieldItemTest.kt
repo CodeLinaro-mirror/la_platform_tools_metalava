@@ -17,6 +17,8 @@
 package com.android.tools.metalava.model.testsuite.fielditem
 
 import com.android.tools.metalava.model.FieldItem
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testing.testTypeString
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.model.testsuite.assertHasNonNullNullability
@@ -34,7 +36,7 @@ import org.junit.Test
 
 /** Common tests for implementations of [FieldItem]. */
 class CommonFieldItemTest : BaseModelTest() {
-
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `Test access type parameter of outer class`() {
         runCodebaseTest(
@@ -177,6 +179,7 @@ class CommonFieldItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test implicit nullability of companion object`() {
         runCodebaseTest(
@@ -250,6 +253,7 @@ class CommonFieldItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `Test nullability of field annotated with @not-type-use-NonNull`() {
         runCodebaseTest(
@@ -295,7 +299,7 @@ class CommonFieldItemTest : BaseModelTest() {
                     "field2" to "java.lang.String![]",
                     "field3" to "java.lang.String![]![]",
                     "field4" to "T",
-                    "field5" to "java.util.Map.Entry<T!,java.lang.String!>",
+                    "field5" to "java.util.Map.Entry<T,java.lang.String!>",
                 )
             val fields = codebase.assertClass("test.pkg.Foo").fields()
             assertEquals(expectedTypes.size, fields.size, message = "field count")
@@ -311,6 +315,7 @@ class CommonFieldItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `Test nullability of field annotated with @not-type-use-Nullable`() {
         runCodebaseTest(
@@ -356,7 +361,7 @@ class CommonFieldItemTest : BaseModelTest() {
                     "field2" to "java.lang.String![]?",
                     "field3" to "java.lang.String![]![]?",
                     "field4" to "T?",
-                    "field5" to "java.util.Map.Entry<T!,java.lang.String!>?",
+                    "field5" to "java.util.Map.Entry<T,java.lang.String!>?",
                 )
             val fields = codebase.assertClass("test.pkg.Foo").fields()
             assertEquals(expectedTypes.size, fields.size, message = "field count")
@@ -426,6 +431,7 @@ class CommonFieldItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA, InputFormat.KOTLIN)
     @Test
     fun `Test implicit nullability of constant field initialized from @NonNull method`() {
         runCodebaseTest(
@@ -465,6 +471,7 @@ class CommonFieldItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `Test handling of Float MIN_NORMAL`() {
         runCodebaseTest(
@@ -521,6 +528,7 @@ class CommonFieldItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test private const in interface companion`() {
         runCodebaseTest(

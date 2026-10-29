@@ -52,7 +52,7 @@ class DocAnalyzerRangeTest : DriverTest() {
                 ),
             docStubs = true,
             checkCompilation = true,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -94,7 +94,7 @@ class DocAnalyzerRangeTest : DriverTest() {
                 ),
             checkCompilation = true,
             docStubs = true,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -133,7 +133,7 @@ class DocAnalyzerRangeTest : DriverTest() {
                 ),
             checkCompilation = true,
             docStubs = true,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -179,7 +179,7 @@ class DocAnalyzerRangeTest : DriverTest() {
                 ),
             checkCompilation = true,
             docStubs = true,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -228,7 +228,7 @@ class DocAnalyzerRangeTest : DriverTest() {
                 ),
             checkCompilation = true,
             docStubs = true,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -273,7 +273,7 @@ class DocAnalyzerRangeTest : DriverTest() {
                 ),
             checkCompilation = true,
             docStubs = true,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -291,7 +291,7 @@ class DocAnalyzerRangeTest : DriverTest() {
     }
 
     @Test
-    fun `Add to existing return value (ensuring it appears last)`() {
+    fun `Add to existing return value - ensuring it appears last`() {
         check(
             sourceFiles =
                 arrayOf(
@@ -313,7 +313,7 @@ class DocAnalyzerRangeTest : DriverTest() {
                 ),
             checkCompilation = true,
             docStubs = true,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -375,7 +375,7 @@ class DocAnalyzerRangeTest : DriverTest() {
                         </class>
                     </api>
                     """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -429,7 +429,7 @@ class DocAnalyzerRangeTest : DriverTest() {
                         </class>
                     </api>
                     """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -478,7 +478,7 @@ class DocAnalyzerRangeTest : DriverTest() {
                 ),
             checkCompilation = true,
             docStubs = true,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """

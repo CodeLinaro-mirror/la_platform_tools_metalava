@@ -125,4 +125,39 @@ class ApiSurfacesTest {
 
         assertEquals("public, system, module-lib", unsorted.sorted().joinToString { it.name })
     }
+
+    @Test
+    fun `Test narrowerSurfaces`() {
+        val apiSurfaces = ApiSurfaces.create(needsBase = true)
+
+        val base = assertNotNull(apiSurfaces.base, "base is expected")
+        assertEquals(emptySet(), base.narrowerSurfaces, message = "narrower than base")
+        assertEquals(setOf(base), apiSurfaces.main.narrowerSurfaces, message = "narrower than main")
+    }
+
+    @Test
+    fun `Test includedSurfaces`() {
+        val apiSurfaces = ApiSurfaces.create(needsBase = true)
+
+        val base = assertNotNull(apiSurfaces.base, "base is expected")
+        assertEquals(setOf(base), base.includedSurfaces, message = "included in base")
+
+        val main = apiSurfaces.main
+        assertEquals(setOf(base, main), main.includedSurfaces, message = "included in main")
+    }
+
+    @Test
+    fun `Test defaultVariantSet`() {
+        val apiSurfaces =
+            ApiSurfaces.build {
+                createSurface(name = "public")
+                createSurface(name = "system", extends = "public", isMain = true)
+            }
+
+        assertEquals(
+            "ApiVariantSet[public(C)]",
+            apiSurfaces.byName["public"]?.defaultVariantSet?.formatFor(apiSurfaces),
+            message = "public ApiSurface.defaultVariantSet"
+        )
+    }
 }

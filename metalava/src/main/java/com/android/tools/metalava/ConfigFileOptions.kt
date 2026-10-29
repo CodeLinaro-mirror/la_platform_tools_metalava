@@ -17,10 +17,10 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.cli.common.MetalavaCliException
+import com.android.tools.metalava.cli.common.MetalavaOptionGroup
 import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.config.Config
 import com.android.tools.metalava.config.ConfigParser
-import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import com.github.ajalt.clikt.parameters.options.multiple
 import com.github.ajalt.clikt.parameters.options.option
 
@@ -30,7 +30,7 @@ const val ARG_CONFIG_FILE = "--config-file"
 const val CONFIG_FILE_OPTIONS_GROUP = "Config Files"
 
 class ConfigFileOptions :
-    OptionGroup(
+    MetalavaOptionGroup(
         name = CONFIG_FILE_OPTIONS_GROUP,
         help =
             """
@@ -54,8 +54,10 @@ class ConfigFileOptions :
             .multiple(required = false)
 
     /** The [Config] loaded from [configFiles]. */
+    // It is safe to use lazy here because ConfigFileOptions can't be reused by multiple subcommands
+    // in one invocation.
     val config by
-        lazy(LazyThreadSafetyMode.NONE) {
+        kotlin.lazy(LazyThreadSafetyMode.NONE) {
             try {
                 ConfigParser.parse(configFiles)
             } catch (e: Exception) {

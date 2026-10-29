@@ -17,10 +17,13 @@
 package com.android.tools.metalava.model.testsuite.sourcefile
 
 import com.android.tools.metalava.model.JavaImport
+import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.imports.ImportResolver
 import com.android.tools.metalava.model.imports.ResolvedImport
 import com.android.tools.metalava.model.provider.Capability
+import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.RequiresCapabilities
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.model.testsuite.value.ValueExample
 import com.android.tools.metalava.testing.EntryPoint
@@ -33,11 +36,11 @@ import org.junit.Test
 import org.junit.runners.Parameterized
 
 @RequiresCapabilities(
-    // Only supports java imports at the moment.
-    Capability.JAVA,
     // Requires access to the original imports.
     Capability.IMPORTS,
 )
+// Only supports java imports at the moment.
+@SupportedInputFormats(InputFormat.JAVA)
 class CommonParameterizedImportTest : BaseModelTest() {
 
     @Parameterized.Parameter(0) lateinit var params: TestParams
@@ -223,8 +226,22 @@ class CommonParameterizedImportTest : BaseModelTest() {
         assertEquals(expectedResult, actualResult, message = "$simpleName -> $expectedResult")
     }
 
+    /**
+     * Check the [SourceFile.allJavaImports] matches what was expected in
+     * [TestParams.expectedJavaImports].
+     */
+    private fun CodebaseContext.checkJavaImports(sourceFile: SourceFile) {
+        var allJavaImports = sourceFile.allJavaImports()
+        assertEquals(params.expectedJavaImports, allJavaImports, message = "allJavaImports")
+
+        val importResolver = ImportResolver(codebase, allJavaImports)
+        for ((simpleName, expectedResolvedImport) in params.expectedResolvedImports) {
+            importResolver.assertResolvedImport(simpleName, expectedResolvedImport)
+        }
+    }
+
     @Test
-    fun `Test imports`() {
+    fun `Test imports in class`() {
         runSourceCodebaseTest(
             java(
                 """
@@ -237,13 +254,34 @@ class CommonParameterizedImportTest : BaseModelTest() {
             val classItem = codebase.assertClass("test.pkg.Test")
             val sourceFile = classItem.sourceFile()!!
 
-            var allJavaImports = sourceFile.allJavaImports()
-            assertEquals(params.expectedJavaImports, allJavaImports, message = "allJavaImports")
+            checkJavaImports(sourceFile)
+        }
+    }
 
-            val importResolver = ImportResolver(codebase, allJavaImports)
-            for ((simpleName, expectedResolvedImport) in params.expectedResolvedImports) {
-                importResolver.assertResolvedImport(simpleName, expectedResolvedImport)
-            }
+    @Test
+    fun `Test imports in package-info java`() {
+        runSourceCodebaseTest(
+            inputSet(
+                java(
+                    "test/pkg/package-info.java",
+                    """
+                        package test.pkg;
+                        ${params.imports.trimIndent()}
+                    """
+                ),
+                // Empty class to make sure that the package is created.
+                java(
+                    """
+                        package test.pkg;
+                        public class Test {}
+                    """
+                ),
+            )
+        ) {
+            val packageItem = codebase.assertPackage("test.pkg")
+            val sourceFile = packageItem.sourceFile!!
+
+            checkJavaImports(sourceFile)
         }
     }
 }

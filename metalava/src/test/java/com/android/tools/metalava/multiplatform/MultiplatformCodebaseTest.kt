@@ -19,8 +19,6 @@ package com.android.tools.metalava.multiplatform
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.provider.Capability
-import com.android.tools.metalava.model.testing.FilterAction
-import com.android.tools.metalava.model.testing.FilterByProvider
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.testing.createAndroidModuleDescription
 import com.android.tools.metalava.testing.createCommonModuleDescription
@@ -28,13 +26,11 @@ import com.android.tools.metalava.testing.createNativeModuleDescription
 import com.android.tools.metalava.testing.createProjectDescription
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
+import com.android.tools.metalava.testing.signature
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
 
 @RequiresCapabilities(Capability.KOTLIN, Capability.MULTIPLATFORM)
-// K1 does not support KMP, but the capabilities above are configured for psi altogether and not
-// differentiated between K1 and K2.
-@FilterByProvider("psi", "k1", action = FilterAction.EXCLUDE)
 class MultiplatformCodebaseTest : DriverTest() {
     @Test
     fun `Test creation of multiplatform codebase`() {
@@ -71,7 +67,7 @@ class MultiplatformCodebaseTest : DriverTest() {
                     createNativeModuleDescription(arrayOf(nativeSource)),
                 ),
             enableMultiplatform = true,
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public final class Foo {
@@ -131,5 +127,74 @@ class MultiplatformCodebaseTest : DriverTest() {
             assertThat(fooMethod.returnType().modifiers.nullability)
                 .isEqualTo(TypeNullability.NONNULL)
         }
+    }
+
+    @Test
+    fun `Test creation of multiplatform codebase with no regular codebase`() {
+        val commonSource =
+            kotlin(
+                "commonMain/src/test/pkg/Foo.kt",
+                """
+                package test.pkg
+                expect class Foo
+                """
+            )
+        val nativeSource =
+            kotlin(
+                "nativeMain/src/test/pkg/Foo.kt",
+                """
+                package test.pkg
+                actual class Foo
+                """
+            )
+        check(
+            sourceFiles = arrayOf(commonSource, nativeSource),
+            projectDescription =
+                createProjectDescription(
+                    createCommonModuleDescription(arrayOf(commonSource)),
+                    createNativeModuleDescription(arrayOf(nativeSource)),
+                ),
+            enableMultiplatform = true,
+            skipSourceArgs = true,
+        ) {
+            assertThat(codebase).isNull()
+            assertThat(multiplatformCodebase).isNotNull()
+
+            multiplatformCodebase!!.assertSourceSets("commonMain", "nativeMain")
+            multiplatformCodebase.assertClass("test.pkg.Foo")
+        }
+    }
+
+    @Test
+    fun `Test creation of multiplatform codebase from signature files`() {
+        check(
+            multiplatformSignatureSource =
+                listOf(
+                    signature(
+                        "commonMain.txt",
+                        """
+                            // Signature format: 5.0
+                            package test.pkg {
+                              public final class Common extends kotlin.Any {
+                                ctor public Common();
+                              }
+                            }
+                            """
+                    )
+                ),
+            enableMultiplatform = true,
+            multiplatformApi =
+                mapOf(
+                    "commonMain.txt" to
+                        """
+                        // Signature format: 5.0
+                        package test.pkg {
+                          public final class Common extends kotlin.Any {
+                            ctor public Common();
+                          }
+                        }
+                        """
+                )
+        )
     }
 }

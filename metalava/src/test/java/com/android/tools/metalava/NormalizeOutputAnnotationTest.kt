@@ -22,7 +22,7 @@ import org.junit.Test
 
 class NormalizeOutputAnnotationTest : DriverTest() {
     @Test
-    fun `Normalize nested permission annotations (java)`() {
+    fun `Normalize nested permission annotations - java`() {
         check(
             sourceFiles =
                 arrayOf(
@@ -65,7 +65,7 @@ class NormalizeOutputAnnotationTest : DriverTest() {
                     requiresPermissionSource,
                 ),
             format = FileFormat.V4,
-            api =
+            expectedApiSignature =
                 """
                 // Signature format: 4.0
                 package test.pkg {

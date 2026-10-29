@@ -65,17 +65,19 @@ internal data class ClassCharacteristics(
      * equal class definitions with different class methods. This method is used to determine if the
      * two [ClassItem]s can be safely merged in such scenarios.
      *
-     * @param other [ClassCharacteristics] to be checked if it is compatible with [this] and can be
+     * @param other [ClassCharacteristics] to be checked if it is compatible with `this` and can be
      *   merged
-     * @return a Boolean value representing if [cls] is compatible with [this]
+     * @param allowModifierChanges whether to consider classes compatible if they do not have
+     *   equivalent modifiers
+     * @return a Boolean value representing if [other] is compatible with `this`
      */
-    fun isCompatible(other: ClassCharacteristics): Boolean {
+    fun isCompatible(other: ClassCharacteristics, allowModifierChanges: Boolean): Boolean {
         // TODO(b/323168612): Check super interface types and super class type of the two
         // TextClassItem
         return fullName == other.fullName &&
             // Allow class kind changing to typealias, but no other changes.
             (classKind == other.classKind || other.classKind == ClassKind.TYPEALIAS) &&
-            modifiers.equivalentTo(null, other.modifiers)
+            (allowModifierChanges || modifiers.equivalentTo(null, other.modifiers))
     }
 
     companion object {

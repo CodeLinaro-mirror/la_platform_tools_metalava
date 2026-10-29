@@ -19,9 +19,10 @@ package com.android.tools.metalava.model.api.surface
 /** The configured set of [ApiSurface]s. */
 sealed interface ApiSurfaces {
     /**
-     * The list of all [ApiSurface]s.
+     * The list of all [ApiSurface]s that are being tracked, from the narrowest to the widest
+     * ([main]).
      *
-     * If [base] is set then it comes first; [main] is always last.
+     * The narrowest is the one whose [ApiSurface.extends] is null.
      */
     val all: List<ApiSurface>
 
@@ -33,9 +34,6 @@ sealed interface ApiSurfaces {
 
     /** The optional base [ApiSurface]. */
     val base: ApiSurface?
-
-    /** An immutable, empty set of variants. */
-    val emptyVariantSet: ApiVariantSet
 
     /** Map from [ApiSurface.name] to [ApiSurface]. */
     val byName: Map<String, ApiSurface>
@@ -83,6 +81,18 @@ sealed interface ApiSurfaces {
         val DEFAULT = create()
     }
 
+    /** Create an [ApiVariantSet] from a vararg array of [variants]. */
+    fun createVariantSet(vararg variants: ApiVariant) = createVariantSet(variants.asList())
+
+    /** Create an [ApiVariantSet] from a list of [variants]. */
+    fun createVariantSet(variants: List<ApiVariant>) = let {
+        var result = ApiVariantSet.EMPTY
+        for (variant in variants) {
+            result += variant
+        }
+        result
+    }
+
     /**
      * Provides support for creating a more complicated [ApiSurfaces] instance than is supported by
      * [create].
@@ -97,7 +107,11 @@ sealed interface ApiSurfaces {
          * If the surface is the one to be created then [isMain] must be `true`. Exactly one surface
          * can have [isMain] set to `true`, none or more than one will fail.
          */
-        fun createSurface(name: String, extends: String? = null, isMain: Boolean = false)
+        fun createSurface(
+            name: String,
+            extends: String? = null,
+            isMain: Boolean = false,
+        )
     }
 }
 
@@ -131,8 +145,6 @@ private class DefaultApiSurfaces(initializer: ApiSurfaces.Builder.() -> Unit) : 
         byName = all.associateBy { it.name }
     }
 
-    override val emptyVariantSet: ApiVariantSet = ApiVariantSet.emptySet(this)
-
     /** Provides support for initializing [apiSurfaces] by implementing [ApiSurfaces.Builder]. */
     private class BuilderImpl(private val apiSurfaces: DefaultApiSurfaces) : ApiSurfaces.Builder {
         /** Map from name to [DefaultApiSurface]. */
@@ -161,7 +173,11 @@ private class DefaultApiSurfaces(initializer: ApiSurfaces.Builder.() -> Unit) : 
         val variants
             get() = allVariants.toList()
 
-        override fun createSurface(name: String, extends: String?, isMain: Boolean) {
+        override fun createSurface(
+            name: String,
+            extends: String?,
+            isMain: Boolean,
+        ) {
             val existing = nameToSurface[name]
             if (existing != null) error("Duplicate surfaces called `$name`")
 
@@ -209,7 +225,17 @@ private class DefaultApiSurface(
     override val extends: DefaultApiSurface?,
     override val isMain: Boolean,
     allVariants: MutableList<ApiVariant>,
-) : ApiSurface {
+) : ApiSurface() {
+
+    /**
+     * The starting bit index for variants of this surface within [ApiVariantSet.bits].
+     *
+     * This is captured from `allVariants.size` before creating this surface's [variants]. Because
+     * each [ApiVariant] computes its bit mask as `1 shl allVariants.size` and then appends itself
+     * to `allVariants`, this corresponds to the bit index of the first [ApiVariant] created for
+     * this surface.
+     */
+    override val variantStartBitIndex = allVariants.size
 
     /**
      * Create a list of [ApiVariant]s for this surface, one for each [ApiVariantType]. Each
@@ -221,11 +247,15 @@ private class DefaultApiSurface(
 
     override val variantSet =
         // Create an ApiVariantSet that contains all ApiVariants in this surface.
-        ApiVariantSet.build(surfaces) {
-            for (variant in variants) {
-                add(variant)
-            }
-        }
+        surfaces.createVariantSet(variants)
+
+    override val defaultVariantSet =
+        // Create an ApiVariantSet that contains all default ApiVariants in this surface.
+        surfaces.createVariantSet(variants.filter { it.type.isDefault })
+
+    override val narrowerSurfaces: Set<ApiSurface> = extends?.includedSurfaces ?: emptySet()
+
+    override val includedSurfaces = narrowerSurfaces + this
 
     override fun variantFor(type: ApiVariantType): ApiVariant {
         return variants[type.ordinal]

@@ -17,11 +17,11 @@
 package com.android.tools.metalava.stub
 
 import com.android.tools.metalava.ARG_PASS_THROUGH_ANNOTATION
-import com.android.tools.metalava.androidxNullableSource
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.restrictToSource
+import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.html
 import com.android.tools.metalava.testing.java
 import org.junit.Test
@@ -49,7 +49,7 @@ class StubsPackageInfoTest : AbstractStubsTest() {
                     }
                     """
                     ),
-                    androidxNullableSource,
+                    KnownSourceFiles.androidxNullableJavaSource,
                 ),
             warnings = "",
             api =
@@ -90,7 +90,7 @@ class StubsPackageInfoTest : AbstractStubsTest() {
                         .indented(),
                     java("""package test.pkg; public abstract class Class1 { }""")
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public abstract class Class1 {
@@ -98,7 +98,7 @@ class StubsPackageInfoTest : AbstractStubsTest() {
                   }
                 }
                 """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -133,7 +133,7 @@ class StubsPackageInfoTest : AbstractStubsTest() {
                         .indented(),
                     java("""package test.pkg; public abstract class Class1 { }""")
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public abstract class Class1 {
@@ -141,7 +141,7 @@ class StubsPackageInfoTest : AbstractStubsTest() {
                   }
                 }
                 """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -160,7 +160,6 @@ class StubsPackageInfoTest : AbstractStubsTest() {
                     )
                 ),
             docStubs = true,
-            filterBlankLinesFromStubFiles = false,
         )
     }
 
@@ -182,7 +181,7 @@ class StubsPackageInfoTest : AbstractStubsTest() {
                     java("""package test.pkg; public abstract class Class1 { }"""),
                     restrictToSource,
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package @RestrictTo(androidx.annotation.RestrictTo.Scope.SUBCLASSES) test.pkg {
                   public abstract class Class1 {
@@ -190,7 +189,7 @@ class StubsPackageInfoTest : AbstractStubsTest() {
                   }
                 }
                 """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -257,6 +256,8 @@ class StubsPackageInfoTest : AbstractStubsTest() {
                  */
                 package test.pkg;
                 """,
+            // Includes documentation so cannot match what is generated from signature file.
+            checkTextStubEquivalence = false,
         )
     }
 }

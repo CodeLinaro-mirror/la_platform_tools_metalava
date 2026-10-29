@@ -75,7 +75,7 @@ class SymlinkTest : DriverTest() {
                     )
             },
             checkCompilation = false, // needs androidx.annotations in classpath
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """

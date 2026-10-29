@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.text
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.model.Codebase
 import com.google.common.truth.Truth.assertThat
+import junit.framework.TestCase.assertEquals
 import kotlin.test.assertSame
 import org.junit.Assert.assertThrows
 import org.junit.Test
@@ -116,5 +117,43 @@ class MultipleFileTest : BaseTextCodebaseTest() {
             .matches(
                 """.*\Q/file2.txt:3: Inconsistent type parameter list for test.pkg.Generic, this has <S extends java.lang.Comparable<S>, T> but it was previously defined as <T, S extends java.lang.Comparable<S>>\E at .*/file1.txt:3"""
             )
+    }
+
+    @Test
+    fun `Test class with duplicates fields but different annotations in each file`() {
+        runSignatureTest(
+            signature(
+                "file1.txt",
+                """
+                // Signature format: 2.0
+                package test.pkg {
+                  public class Test {
+                    field public static final String FIELD = "field";
+                  }
+                }
+            """
+            ),
+            signature(
+                "file2.txt",
+                """
+                // Signature format: 2.0
+                package test.pkg {
+                  public class Test {
+                    field @Extra public static final String FIELD = "field";
+                  }
+                }
+            """
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            val fields = testClass.fields()
+
+            assertEquals(1, fields.size)
+            val testField = testClass.assertField("FIELD")
+            assertEquals(
+                "[@androidx.annotation.Extra]",
+                testField.modifiers.annotations().toString()
+            )
+        }
     }
 }

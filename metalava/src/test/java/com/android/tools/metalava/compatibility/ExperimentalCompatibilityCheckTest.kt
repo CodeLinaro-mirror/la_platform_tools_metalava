@@ -79,7 +79,6 @@ class ExperimentalCompatibilityCheckTest : DriverTest() {
                             fun myIncompatiblyChangedFunB(): String { return "1" }
                         }
                         """
-                            .trimIndent()
                     )
                 )
         )

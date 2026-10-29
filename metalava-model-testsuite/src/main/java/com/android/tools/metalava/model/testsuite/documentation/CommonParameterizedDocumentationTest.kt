@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.testsuite.documentation
 
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
@@ -30,6 +31,7 @@ import org.junit.runners.Parameterized
 import org.junit.runners.model.Statement
 
 /** Common tests for implementations of [ItemDocumentation] */
+@SupportedInputFormats(InputFormat.JAVA, InputFormat.KOTLIN)
 class CommonParameterizedDocumentationTest : BaseModelTest() {
 
     @Parameterized.Parameter(0) lateinit var params: TestParams
@@ -146,7 +148,7 @@ class CommonParameterizedDocumentationTest : BaseModelTest() {
             )
         ) {
             val testClass = codebase.assertClass("test.pkg.Test")
-            testClass.assertDocumentationText(expectedOutput = params.expectedText)
+            testClass.assertPrintedDocumentation(expectedOutput = params.expectedText)
         }
     }
 

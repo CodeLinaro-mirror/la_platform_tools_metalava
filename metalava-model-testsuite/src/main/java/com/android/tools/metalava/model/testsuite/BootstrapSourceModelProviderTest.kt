@@ -22,6 +22,8 @@ import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.noOpAnnotationManager
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testing.classTypeItem
 import com.android.tools.metalava.model.testing.value.annotationItem
 import com.android.tools.metalava.model.testing.value.arrayValue
@@ -44,6 +46,7 @@ import org.junit.Test
  * previous test so that a developer would start by running the first test, making it pass,
  * submitting the changes and then moving on to the next test.
  */
+@SupportedInputFormats(InputFormat.JAVA)
 class BootstrapSourceModelProviderTest : BaseModelTest() {
 
     @Test
@@ -384,7 +387,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             assertEquals(2, classItem.interfaceTypes().count())
 
             assertNotNull(superClassType)
-            assertEquals(null, superClassType.asClass())
+            assertEquals(null, superClassType.resolveClass(codebase))
         }
     }
 
@@ -689,7 +692,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             val typeParameter1 = testClass1.typeParameterList.single()
             typeArgument1.assertReferencesTypeParameter(typeParameter1)
             assertEquals("S", (typeArgument1 as VariableTypeItem).toString())
-            assertEquals(0, typeParameter1.typeBounds().count())
+            typeParameter1.assertUsesDefaultTypeBounds()
             assertEquals("test.pkg.Test1<S>", testClassType1.toString())
             assertEquals(null, testClassType1.outerClassType)
 
@@ -825,12 +828,12 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             assertNull(codebase.findClass("java.io.IOException"))
 
             // Resolve the types to classes.
-            val throwableClasses = methodItem.throwsTypes().map { it.erasedClass }
+            val throwableClasses = methodItem.throwsTypes().map { it.asErasedClass(codebase) }
 
             // This must be available after resolving throwable types.
             val ioExceptionClass = codebase.assertClass("java.io.IOException", expectedEmit = false)
 
-            assertEquals(listOf(testExceptionClass, ioExceptionClass), throwableClasses)
+            assertEquals(listOf(ioExceptionClass, testExceptionClass), throwableClasses)
         }
     }
 
@@ -873,7 +876,7 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             ),
         ) {
             val classItem = codebase.assertClass("test.pkg.Test")
-            val ctorItem = classItem.createDefaultConstructor()
+            val ctorItem = classItem.createImplicitDefaultConstructor()
 
             assertEquals("Test", ctorItem.name())
             assertEquals(classItem, ctorItem.containingClass())
@@ -949,11 +952,20 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
                     .trimIndent()
             assertSame(sourceFile, innerClassItem.sourceFile(), message = "inner class sourceFile")
             assertEquals(headerComment, sourceFile.getHeaderComments())
-            methodItem.assertDocumentationText(methodComment, message = "method")
-            classItem.assertDocumentationText("/** Class documentation */", message = "class")
-            fieldItem.assertDocumentationText("/** Field Doc */", message = "field")
-            fieldItem1.assertDocumentationText("", message = "field1")
-            pkgItem.assertDocumentationText("", message = "package")
+            methodItem.assertPrintedDocumentation(
+                expectedOutput = methodComment,
+                message = "method"
+            )
+            classItem.assertPrintedDocumentation(
+                expectedOutput = "/** Class documentation */",
+                message = "class"
+            )
+            fieldItem.assertPrintedDocumentation(
+                expectedOutput = "/** Field Doc */",
+                message = "field"
+            )
+            fieldItem1.assertPrintedDocumentation(expectedOutput = "", message = "field1")
+            pkgItem.assertPrintedDocumentation(expectedOutput = "", message = "package")
             assertSame(classItem.sourceFile(), classItem1.sourceFile())
         }
     }
@@ -999,39 +1011,6 @@ class BootstrapSourceModelProviderTest : BaseModelTest() {
             assertEquals(true, classItem1.isEnum())
             assertEquals(0, classItem1.methods().count())
             assertEquals(false, nonEnumClassField.isEnumConstant())
-        }
-    }
-
-    @Test
-    fun `260 - test doconly members`() {
-        runSourceCodebaseTest(
-            java(
-                """
-                    package test.pkg;
-
-                    public class Test {
-                        /** @doconly */
-                        public class Inner {
-                            public int InnerField;
-                        }
-
-                        /** @doconly Some docs here */
-                        public int Field;
-                    }
-                """
-            ),
-        ) {
-            val classItem = codebase.assertClass("test.pkg.Test")
-            val classSelectors = classItem.variantSelectors
-            val innerClassItem = codebase.assertClass("test.pkg.Test.Inner")
-            val innerClassSelectors = innerClassItem.variantSelectors
-            val fieldSelectors = classItem.assertField("Field").variantSelectors
-            val innerFieldSelectors = innerClassItem.assertField("InnerField").variantSelectors
-
-            assertEquals(false, classSelectors.docOnly, message = "classSelectors.docOnly")
-            assertEquals(true, innerClassSelectors.docOnly, message = "innerClassSelectors.docOnly")
-            assertEquals(true, innerFieldSelectors.docOnly, message = "innerFieldSelectors.docOnly")
-            assertEquals(true, fieldSelectors.docOnly, message = "fieldSelectors.docOnly")
         }
     }
 }

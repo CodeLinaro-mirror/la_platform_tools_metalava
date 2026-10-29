@@ -22,7 +22,7 @@ import org.junit.Test
 class BinaryCompatibilityInterfaceFieldsTest : DriverTest() {
 
     @Test
-    fun `Change type of API field (Incompatible)`() {
+    fun `Change type of API field - Incompatible`() {
         check(
             expectedIssues =
                 """
@@ -49,7 +49,7 @@ class BinaryCompatibilityInterfaceFieldsTest : DriverTest() {
     }
 
     @Test
-    fun `Change value of API field (Incompatible)`() {
+    fun `Change value of API field - Incompatible`() {
         check(
             expectedIssues =
                 """

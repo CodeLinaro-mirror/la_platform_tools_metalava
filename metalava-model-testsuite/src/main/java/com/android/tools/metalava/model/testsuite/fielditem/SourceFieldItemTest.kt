@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava.model.testsuite.fielditem
 
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.model.value.asAny
 import com.android.tools.metalava.model.value.asInt
@@ -27,6 +29,7 @@ import org.junit.Test
 /** Common tests for [FieldItem.InitialValue]. */
 class SourceFieldItemTest : BaseModelTest() {
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `test field with default value as constant literal`() {
         runSourceCodebaseTest(
@@ -61,6 +64,7 @@ class SourceFieldItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `test field with default value as constant expression`() {
         runCodebaseTest(
@@ -85,6 +89,7 @@ class SourceFieldItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `test field with default value as object reference`() {
         runSourceCodebaseTest(
@@ -116,6 +121,7 @@ class SourceFieldItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `test default value of an enum constant field`() {
         runSourceCodebaseTest(
@@ -138,6 +144,7 @@ class SourceFieldItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `test default value of a Class type field`() {
         runSourceCodebaseTest(
@@ -159,6 +166,7 @@ class SourceFieldItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `test non final field with default value as constant literal`() {
         runSourceCodebaseTest(
@@ -179,6 +187,7 @@ class SourceFieldItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `test non final field with default value as constant expression`() {
         runSourceCodebaseTest(
@@ -204,6 +213,7 @@ class SourceFieldItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `test default value of a non final Class type field`() {
         runSourceCodebaseTest(
@@ -225,6 +235,7 @@ class SourceFieldItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `test duplicate() for fielditem`() {
         runSourceCodebaseTest(
@@ -232,7 +243,6 @@ class SourceFieldItemTest : BaseModelTest() {
                 """
                     package test.pkg;
 
-                    /** @doconly Some docs here */
                     public class Test {
                         public static final int Field = 7;
                     }

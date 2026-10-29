@@ -18,10 +18,8 @@
 
 package com.android.tools.metalava
 
-import com.android.tools.metalava.cli.common.ARG_ERROR
-import com.android.tools.metalava.cli.common.ARG_HIDE
-import com.android.tools.metalava.lint.DefaultLintErrorMessage
 import com.android.tools.metalava.model.text.FileFormat
+import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.testing.java
 import org.junit.Test
 
@@ -31,16 +29,14 @@ class UnhideApisTest : DriverTest() {
         check(
             format = FileFormat.V2,
             extraArguments =
-                arrayOf(
-                    ARG_HIDE,
-                    "HiddenSuperclass",
-                    ARG_HIDE,
-                    "UnavailableSymbol",
-                    ARG_HIDE,
-                    "HiddenTypeParameter",
-                    ARG_ERROR,
-                    "ReferencesHidden"
-                ),
+                hiddenIssues(
+                    Issues.HIDDEN_SUPERCLASS,
+                    Issues.UNAVAILABLE_SYMBOL,
+                    Issues.HIDDEN_TYPE_PARAMETER,
+                ) +
+                    errorIssues(
+                        Issues.REFERENCES_HIDDEN,
+                    ),
             expectedIssues =
                 """
             src/test/pkg/Foo.java:2: error: Class test.pkg.Hidden1 is not public but was referenced (as type parameter) from public class test.pkg.Foo [ReferencesHidden]
@@ -56,7 +52,6 @@ class UnhideApisTest : DriverTest() {
             src/test/pkg/Foo.java:8: error: Class test.pkg.Hidden1 is not public but was referenced (in return type) from public method test.pkg.Foo.getHidden1() [ReferencesHidden]
             src/test/pkg/Foo.java:9: error: Class test.pkg.Hidden2 is hidden but was referenced (in return type) from public method test.pkg.Foo.getHidden2() [ReferencesHidden]
             """,
-            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(
@@ -98,7 +93,7 @@ class UnhideApisTest : DriverTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public class Foo<A extends test.pkg.Hidden1 & test.pkg.Hidden2, B extends test.pkg.Hidden3> {
@@ -119,7 +114,10 @@ class UnhideApisTest : DriverTest() {
     fun `Including private interfaces from types`() {
         check(
             format = FileFormat.V2,
-            extraArguments = arrayOf(ARG_ERROR, "ReferencesHidden"),
+            extraArguments =
+                errorIssues(
+                    Issues.REFERENCES_HIDDEN,
+                ),
             sourceFiles =
                 arrayOf(
                     java("""package test.pkg1; interface Interface1 { }"""),
@@ -154,11 +152,11 @@ class UnhideApisTest : DriverTest() {
             // TODO: Test annotations! (values, annotation classes, etc.)
             expectedIssues =
                 """
-                    src/test/pkg1/Usage.java:7: warning: Field Usage.myClass1 references hidden type test.pkg1.Class3. [HiddenTypeParameter]
+                    src/test/pkg1/Usage.java:7: warning: Field test.pkg1.Usage.myClass1 references hidden type test.pkg1.Class3. [HiddenTypeParameter]
                     src/test/pkg1/Usage.java:7: error: Class test.pkg1.Class3 is not public but was referenced (in field type) from public field test.pkg1.Usage.myClass1 [ReferencesHidden]
-                    src/test/pkg1/Usage.java:8: warning: Field Usage.myClass2 references hidden type test.pkg1.Class4. [HiddenTypeParameter]
+                    src/test/pkg1/Usage.java:8: warning: Field test.pkg1.Usage.myClass2 references hidden type test.pkg1.Class4. [HiddenTypeParameter]
                     src/test/pkg1/Usage.java:8: error: Class test.pkg1.Class4 is not public but was referenced (in field type) from public field test.pkg1.Usage.myClass2 [ReferencesHidden]
-                    src/test/pkg1/Usage.java:9: warning: Field Usage.myClass3 references hidden type test.pkg1.Class5. [HiddenTypeParameter]
+                    src/test/pkg1/Usage.java:9: warning: Field test.pkg1.Usage.myClass3 references hidden type test.pkg1.Class5. [HiddenTypeParameter]
                     src/test/pkg1/Usage.java:9: error: Class test.pkg1.Class5 is not public but was referenced (in field type) from public field test.pkg1.Usage.myClass3 [ReferencesHidden]
                     src/test/pkg1/Usage.java:10: warning: Parameter list references hidden type test.pkg1.Class7. [HiddenTypeParameter]
                     src/test/pkg1/Usage.java:10: error: Class test.pkg1.Class6 is not public but was referenced (as type parameter) from public method test.pkg1.Usage.mySort(java.util.List<test.pkg1.Class7>,T) [ReferencesHidden]
@@ -167,9 +165,8 @@ class UnhideApisTest : DriverTest() {
                     src/test/pkg1/Usage.java:11: error: Class test.pkg1.Class8 is not public but was referenced (in parameter type) from public parameter myargs in test.pkg1.Usage.ellipsisType(test.pkg1.Class8... myargs) [ReferencesHidden]
                     src/test/pkg1/Usage.java:12: warning: Parameter myargs references hidden type test.pkg1.Class9. [HiddenTypeParameter]
                     src/test/pkg1/Usage.java:12: error: Class test.pkg1.Class9 is not public but was referenced (in parameter type) from public parameter myargs in test.pkg1.Usage.arrayType(test.pkg1.Class9[] myargs) [ReferencesHidden]
-                    """,
-            expectedFail = DefaultLintErrorMessage,
-            api =
+                """,
+            expectedApiSignature =
                 """
                     package test.pkg1 {
                       public abstract class Usage implements java.util.List<test.pkg1.Class1> {

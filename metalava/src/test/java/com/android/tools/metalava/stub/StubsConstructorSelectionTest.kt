@@ -112,7 +112,7 @@ class StubsConstructorSelectionTest : AbstractStubsTest() {
                         """
                     ),
                 ),
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """

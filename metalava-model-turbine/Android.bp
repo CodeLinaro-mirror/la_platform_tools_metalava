@@ -25,9 +25,14 @@ java_library_host {
     ],
     java_resource_dirs: ["src/main/resources/"],
     libs: [
+        "kotlin-reflect",
+
         "metalava-model",
         "metalava-reporter",
         "metalava-model-source",
-        "metalava-tools-common-m2-deps",
+
+        "prebuilts-metalava-guava",
+        "prebuilts-metalava-tracing",
+        "prebuilts-metalava-turbine",
     ],
 }

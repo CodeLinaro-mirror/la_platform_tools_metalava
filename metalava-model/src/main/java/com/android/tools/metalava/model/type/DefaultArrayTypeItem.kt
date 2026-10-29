@@ -21,16 +21,42 @@ import com.android.tools.metalava.model.DefaultTypeItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeModifiers
 
-class DefaultArrayTypeItem(
+internal class DefaultArrayTypeItem(
     modifiers: TypeModifiers,
     override val componentType: TypeItem,
     override val isVarargs: Boolean,
-) : ArrayTypeItem, DefaultTypeItem(modifiers) {
-    @Deprecated(
-        "implementation detail of this class",
-        replaceWith = ReplaceWith("substitute(modifiers, componentType)"),
-    )
-    override fun duplicate(modifiers: TypeModifiers, componentType: TypeItem): ArrayTypeItem {
-        return DefaultArrayTypeItem(modifiers, componentType, isVarargs)
+    isValueClassType: Boolean = false,
+) : ArrayTypeItem, DefaultTypeItem(modifiers, isValueClassType) {
+
+    override fun substitute(
+        modifiers: TypeModifiers,
+        componentType: TypeItem,
+        isVarargs: Boolean,
+    ) =
+        if (
+            modifiers !== this.modifiers ||
+                componentType !== this.componentType ||
+                isVarargs != this.isVarargs
+        )
+            DefaultArrayTypeItem(
+                modifiers,
+                componentType,
+                isVarargs,
+            )
+        else this
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is ArrayTypeItem) return false
+        return isVarargs == other.isVarargs &&
+            componentType == other.componentType &&
+            modifiers == other.modifiers
+    }
+
+    override fun hashCode(): Int {
+        var result = isVarargs.hashCode()
+        result = 31 * result + componentType.hashCode()
+        result = 31 * result + modifiers.hashCode()
+        return result
     }
 }

@@ -18,11 +18,9 @@ package com.android.tools.metalava.model
 
 import com.android.tools.metalava.model.doc.DocContent
 import com.android.tools.metalava.model.doc.DocContentOwner
-import com.android.tools.metalava.model.value.StringValue
 import com.android.tools.metalava.reporter.BaselineKey
 import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.Reportable
-import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * Represents a code element such as a package, a class, a method, a field, a parameter.
@@ -128,7 +126,7 @@ interface Item : Reportable {
     fun hashCodeForItem(): Int
 
     /** Provides a string representation of the item, suitable for use while debugging. */
-    fun toStringForItem(): String
+    fun toStringForItem(): String = describe()
 
     /**
      * The language in which this was written, or [SourceLanguage.UNKNOWN] if not known, e.g. when
@@ -260,81 +258,4 @@ interface Item : Reportable {
 
     /** The languages from which this [Item] can be used. */
     val targetLanguages: Set<TargetLanguage>
-}
-
-/** Base [Item] implementation that is common to all models. */
-abstract class DefaultItem(
-    final override val codebase: Codebase,
-    final override val fileLocation: FileLocation,
-    final override val sourceLanguage: SourceLanguage,
-    modifiers: BaseModifierList,
-) : Item {
-    /**
-     * The immutable [modifiers].
-     *
-     * The supplied `modifiers` parameter could be either [MutableModifierList] or [ModifierList]
-     * but this requires a [ModifierList] so get one using [BaseModifierList.toImmutable].
-     *
-     * The [ModifierList] that this references is immutable but the [mutateModifiers] method can be
-     * used to change the [ModifierList] to which this refers.
-     */
-    final override var modifiers: ModifierList = modifiers.toImmutable()
-        private set
-
-    final override val sortingRank: Int = nextRank.getAndIncrement()
-
-    final override val originallyDeprecated
-        // Delegate to the [ModifierList.isDeprecated] method so that changes to that will affect
-        // the value of this and [Item.effectivelyDeprecated] which delegates to this.
-        get() = modifiers.isDeprecated()
-
-    override fun mutateModifiers(mutator: MutableModifierList.() -> Unit) {
-        val mutable = modifiers.toMutable()
-        mutable.mutator()
-        modifiers = mutable.toImmutable()
-    }
-
-    final override val isPublic: Boolean
-        get() = modifiers.isPublic()
-
-    final override val isProtected: Boolean
-        get() = modifiers.isProtected()
-
-    final override val isInternal: Boolean
-        get() = modifiers.isInternal()
-
-    final override val isPackagePrivate: Boolean
-        get() = modifiers.isPackagePrivate()
-
-    final override val isPrivate: Boolean
-        get() = modifiers.isPrivate()
-
-    companion object {
-        private var nextRank = AtomicInteger()
-    }
-
-    final override fun suppressedIssues(): Set<String> {
-        return buildSet {
-            for (annotation in modifiers.annotations()) {
-                val annotationName = annotation.qualifiedName
-                if (annotationName in SUPPRESS_ANNOTATIONS) {
-                    for (attribute in annotation.attributes) {
-                        // Assumption that all annotations in SUPPRESS_ANNOTATIONS only have
-                        // one attribute such as value/names that is an array of String, e.g.
-                        // Example: @SuppressLint({"RequiresFeature", "AllUpper"})
-                        // Example: @SuppressLint("RequiresFeature")
-                        for (value in attribute.value.asFlatList()) {
-                            if (value is StringValue) add(value.underlyingValue)
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    final override fun equals(other: Any?) = equalsToItem(other)
-
-    final override fun hashCode() = hashCodeForItem()
-
-    final override fun toString() = toStringForItem()
 }

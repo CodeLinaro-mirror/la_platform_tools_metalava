@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.testsuite.value
 import com.android.tools.metalava.model.junit4.ParameterFilter
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.CodebaseCreatorConfig
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.model.testsuite.ModelSuiteRunner
 import com.android.tools.metalava.model.testsuite.value.ValueExample.Companion.valueExamples
@@ -221,6 +222,7 @@ class ParameterizedValueParserTest : BaseModelTest() {
         @JvmStatic @Parameterized.Parameters fun params() = testCases
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE)
     @Test
     fun `Test parse`() {
         runCodebaseTest(

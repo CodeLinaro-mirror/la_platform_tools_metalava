@@ -41,17 +41,23 @@ sealed interface AnnotationFormatter {
     )
 
     companion object {
-        /** An [AnnotationFormatter] that supports the legacy behavior. */
-        fun legacyAnnotationFormatter(
-            target: AnnotationTarget = AnnotationTarget.SIGNATURE_FILE
-        ): AnnotationFormatter =
-            LegacyAnnotationFormatter(LegacyValueFormatter.ANNOTATION_SOURCE_FORMATTER, target)
+        /** The legacy [AnnotationFormatter] used for formatting annotations in signature files. */
+        private val LEGACY_ANNOTATION_FORMATTER: AnnotationFormatter =
+            LegacyAnnotationFormatter(LegacyValueFormatter.ANNOTATION_SOURCE_FORMATTER)
+
+        /**
+         * An [AnnotationFormatter] that supports the legacy behavior, used for formatting
+         * annotations in signature files.
+         */
+        fun legacyAnnotationFormatter() = LEGACY_ANNOTATION_FORMATTER
 
         /** An [AnnotationFormatter] for use when writing stubs for [target]. */
         fun stubFormatter(target: AnnotationTarget): AnnotationFormatter = StubFormatter(target)
 
-        /** True if this [FieldItem] is not-null, is not hidden or removed and is public. */
-        private fun FieldItem?.isAccessible() = this != null && !isHiddenOrRemoved() && isPublic
+        /**
+         * An [AnnotationFormatter] for use when normalizing annotation values during comparisons.
+         */
+        fun normalizingFormatter(): AnnotationFormatter = NormalizingFormatter()
 
         /** Inline [value] if it references an inaccessible field. */
         private fun inlineInaccessibleFieldReference(value: FieldReferenceValue) =
@@ -61,7 +67,6 @@ sealed interface AnnotationFormatter {
     /** An [AnnotationFormatter] that wraps a [LegacyValueFormatter]. */
     private class LegacyAnnotationFormatter(
         private val legacyValueFormatter: LegacyValueFormatter,
-        private val target: AnnotationTarget,
     ) : AnnotationFormatter {
         override fun appendFormatAnnotation(
             builder: StringBuilder,
@@ -73,8 +78,7 @@ sealed interface AnnotationFormatter {
                 builder,
                 annotationItem,
                 purpose,
-                target,
-                context
+                context,
             )
         }
     }
@@ -87,8 +91,16 @@ sealed interface AnnotationFormatter {
                 annotationAttributeNameValueSeparator =
                     AnnotationAttributeNameValueSeparator.WITHOUT_SPACES,
                 annotationQualifiedNameGetter = { annotationItem, _ ->
+                    // @RequiresFlag replaces all occurrences of @FlaggedApi in stub files
+                    val qualifiedName =
+                        if (
+                            annotationItem.qualifiedName == ANDROID_FLAGGED_API &&
+                                target == AnnotationTarget.SDK_STUBS_FILE
+                        )
+                            ANDROID_REQUIRES_FLAG
+                        else annotationItem.qualifiedName
                     annotationItem.annotationContext.annotationManager.normalizeOutputName(
-                        annotationItem.qualifiedName,
+                        qualifiedName,
                         target
                     )
                 },
@@ -121,4 +133,33 @@ sealed interface AnnotationFormatter {
             )
         }
     }
+
+    /** An [AnnotationFormatter] used when normalizing annotations e.g. for comparisons */
+    private class NormalizingFormatter : AnnotationFormatter {
+        /** The default [ValueStringConfiguration] for normalization */
+        private val defaultConfiguration =
+            ValueStringConfiguration(
+                annotationAttributeNameValueSeparator =
+                    AnnotationAttributeNameValueSeparator.WITHOUT_SPACES,
+                inlineFieldReferenceChecker = { true },
+                singleArrayElementFormat = SingleArrayElementFormat.UNWRAP,
+                useOriginalValueForNumbers = true,
+            )
+
+        override fun appendFormatAnnotation(
+            builder: StringBuilder,
+            annotationItem: AnnotationItem,
+            purpose: AnnotationPurpose,
+            context: Item?
+        ) {
+            annotationItem.appendAnnotationStringTo(
+                builder,
+                defaultConfiguration,
+                purpose,
+            )
+        }
+    }
 }
+
+/** True if this [FieldItem] is not-null, is not hidden or removed and is public. */
+internal fun FieldItem?.isAccessible(): Boolean = this != null && !isHiddenOrRemoved() && isPublic

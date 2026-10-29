@@ -16,14 +16,13 @@
 
 package com.android.tools.metalava.model.item
 
-import com.android.tools.metalava.model.ApiVariantSelectorsFactory
 import com.android.tools.metalava.model.BaseModifierList
-import com.android.tools.metalava.model.CallableBodyFactory
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TypeItem
@@ -32,23 +31,22 @@ import com.android.tools.metalava.model.duplicatingFactory
 import com.android.tools.metalava.model.value.OptionalValueProvider
 import com.android.tools.metalava.reporter.FileLocation
 
-open class DefaultMethodItem(
+internal class DefaultMethodItem(
     codebase: Codebase,
     fileLocation: FileLocation,
     sourceLanguage: SourceLanguage,
     targetLanguages: Set<TargetLanguage>,
     modifiers: BaseModifierList,
     documentationFactory: ItemDocumentationFactory,
-    variantSelectorsFactory: ApiVariantSelectorsFactory,
     name: String,
     containingClass: ClassItem,
     typeParameterList: TypeParameterList,
     returnType: TypeItem,
     parameterItemsFactory: ParameterItemsFactory,
     throwsTypes: List<ExceptionTypeItem>,
-    callableBodyFactory: CallableBodyFactory,
     private val defaultValueProvider: OptionalValueProvider?,
     private val isExtensionMethod: Boolean,
+    override val isKotlinProperty: Boolean = false,
 ) :
     DefaultCallableItem(
         codebase,
@@ -57,23 +55,26 @@ open class DefaultMethodItem(
         targetLanguages,
         modifiers,
         documentationFactory,
-        variantSelectorsFactory,
         name,
         containingClass,
         typeParameterList,
         returnType,
         parameterItemsFactory,
         throwsTypes,
-        callableBodyFactory,
     ),
     MethodItem {
 
-    final override var inheritedFrom: ClassItem? = null
+    override var inheritedFrom: ClassItem? = null
 
     override fun isExtensionMethod(): Boolean = isExtensionMethod
 
-    final override val defaultValue
+    override val defaultValue
         get() = defaultValueProvider?.optionalValue
+
+    override val isRecordComponentGetter: Boolean =
+        if (parameters.isEmpty()) name in containingClass.recordComponents else false
+
+    override var property: PropertyItem? = null
 
     private lateinit var superMethodList: List<MethodItem>
 
@@ -89,7 +90,7 @@ open class DefaultMethodItem(
      * that name and parameter list types match. Parameter names, Return types and Throws list types
      * are not matched
      */
-    final override fun superMethods(): List<MethodItem> {
+    override fun superMethods(): List<MethodItem> {
         return if (containingClass().frozen) {
             if (!::superMethodList.isInitialized) {
                 superMethodList = computeSuperMethods()
@@ -101,37 +102,44 @@ open class DefaultMethodItem(
     }
 
     @Deprecated("This property should not be accessed directly.")
-    final override var _requiresOverride: Boolean? = null
+    override var _requiresOverride: Boolean? = null
 
     override fun duplicate(targetContainingClass: ClassItem): MethodItem {
         val typeVariableMap = targetContainingClass.mapTypeVariables(containingClass())
 
-        return DefaultMethodItem(
-                codebase = codebase,
+        // Create a [TypeItemConverter] wrapper around `typeVariableMap`.
+        val typeConverter = typeVariableMap.toTypeConverter()
+
+        val duplicate =
+            DefaultMethodItem(
+                // Create it in the same codebase as targetContainingClass.
+                codebase = targetContainingClass.codebase,
                 fileLocation = fileLocation,
                 sourceLanguage = sourceLanguage,
                 targetLanguages = targetLanguages,
                 modifiers = modifiers,
                 documentationFactory = documentation.duplicatingFactory(),
-                variantSelectorsFactory = variantSelectors::duplicate,
                 name = name(),
                 containingClass = targetContainingClass,
                 typeParameterList = typeParameterList,
                 returnType = returnType.convertType(typeVariableMap),
                 parameterItemsFactory = { containingCallable ->
                     // Duplicate the parameters
-                    parameters.map { it.duplicate(containingCallable, typeVariableMap) }
+                    parameters.map { it.duplicate(containingCallable, typeConverter) }
                 },
                 throwsTypes = throwsTypes,
-                callableBodyFactory = body::duplicate,
                 defaultValueProvider = defaultValueProvider,
                 isExtensionMethod = isExtensionMethod,
+                isKotlinProperty = isKotlinProperty,
             )
-            .also { duplicated ->
-                duplicated.inheritedFrom = containingClass()
 
-                duplicated.updateCopiedMethodState()
-            }
+        duplicate.inheritedFrom = containingClass()
+
+        if (duplicate.modifiers.isDefault() && !duplicate.containingClass().isInterface()) {
+            duplicate.mutateModifiers { setDefault(false) }
+        }
+
+        return duplicate
     }
 
     /**
@@ -213,7 +221,7 @@ open class DefaultMethodItem(
      */
     private fun appendSuperMethodsFromInterfaces(methods: MutableSet<MethodItem>, cls: ClassItem) {
         for (itf in cls.interfaceTypes()) {
-            val itfClass = itf.asClass() ?: continue
+            val itfClass = itf.resolveClass(codebase) ?: continue
 
             // Find the method in the interface.
             itfClass.findMethod(this)?.let { superMethod ->
@@ -224,19 +232,6 @@ open class DefaultMethodItem(
             }
                 // A method could not be found in this interface so search its interfaces.
                 ?: appendSuperMethodsFromInterfaces(methods, itfClass)
-        }
-    }
-
-    /**
-     * Update the state of a [MethodItem] that has been copied from one [ClassItem] to another.
-     *
-     * This will update the [MethodItem] on which it is called to ensure that it is consistent with
-     * the [ClassItem] to which it now belongs. Called from the implementations of
-     * [MethodItem.duplicate].
-     */
-    protected fun updateCopiedMethodState() {
-        if (modifiers.isDefault() && !containingClass().isInterface()) {
-            mutateModifiers { setDefault(false) }
         }
     }
 }

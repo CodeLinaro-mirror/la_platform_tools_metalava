@@ -262,7 +262,7 @@ class JavadocParserTest : BaseJavadocTest() {
                 """,
             expectedJavadocIssues =
                 """
-                    2:6: token recognition error at: ' ' [InvalidJavadoc]
+                    2:6: unexpected ' ' after '{@' [InvalidJavadoc]
                 """,
         )
     }
@@ -444,6 +444,36 @@ class JavadocParserTest : BaseJavadocTest() {
                     inlineTag: code
                       text: 'text'
                     text: ' { { { {'
+                """,
+        )
+    }
+
+    @Test
+    fun `Test if tag with nested inline tag`() {
+        checkParse(
+            """
+                /**
+                 * Before {@if (flag(Flags.TEST_FLAG)) { text before {@link SomeClass} text after }} after.
+                 */
+            """,
+            expectedStructure =
+                """
+                    text: 'Before  after.'
+                """,
+        )
+    }
+
+    @Test
+    fun `Test if tag with nested inline tag at end of branch`() {
+        checkParse(
+            """
+                /**
+                 * Before {@if (flag(Flags.TEST_FLAG)) { text before {@link SomeClass}}} after.
+                 */
+            """,
+            expectedStructure =
+                """
+                    text: 'Before  after.'
                 """,
         )
     }

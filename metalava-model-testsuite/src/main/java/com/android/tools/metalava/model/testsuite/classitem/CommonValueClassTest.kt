@@ -17,6 +17,8 @@
 package com.android.tools.metalava.model.testsuite.classitem
 
 import com.android.tools.lint.checks.infrastructure.TestFiles.base64gzip
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.kotlin
 import kotlin.test.assertEquals
@@ -26,6 +28,7 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import org.junit.Test
 
+@SupportedInputFormats(InputFormat.KOTLIN)
 class CommonValueClassTest : BaseModelTest() {
     @Test
     fun `Constructor visibility`() {
@@ -103,8 +106,6 @@ class CommonValueClassTest : BaseModelTest() {
         ) {
             val valueClass = codebase.assertClass("test.pkg.ValueClass")
             assertEquals(valueClass.constructors().size, 1, "Expected exactly one constructor")
-            assertNotNull(valueClass.primaryConstructor, "Expected a primary constructor")
-
             val primaryConstructor = valueClass.constructors().single()
             assertTrue(primaryConstructor.isPrimary, "Expected a primary constructor")
             val param = primaryConstructor.parameters().single()

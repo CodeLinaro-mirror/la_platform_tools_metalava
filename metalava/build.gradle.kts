@@ -49,6 +49,7 @@ dependencies {
     implementation(libs.gson)
     implementation(libs.jacksonDataformatXml)
     implementation(libs.jacksonModuleKotlin)
+    implementation(libs.tracingWire)
 
     testImplementation(project(":metalava-model-turbine"))
     testImplementation(project(":metalava-testing"))
@@ -58,6 +59,7 @@ dependencies {
     testImplementation(libs.junit4)
     testImplementation(libs.truth)
     testImplementation(libs.kotlinTest)
+    testImplementation(libs.kotlinTestJUnit)
 }
 
 /** The location into which a fake representation of the prebuilts/sdk directory will be written. */

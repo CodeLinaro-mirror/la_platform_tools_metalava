@@ -32,10 +32,14 @@ interface SourceModelProvider : FilterableCodebaseCreator {
      *   stderr, otherwise it will suppress the errors.
      * @param forTesting if true then the manager is being used in tests and should behave
      *   appropriately.
+     * @param reuseEnvironment if true, the environment state created by this manager will be reused
+     *   between different calls to [SourceParser.parseSources] to make processing the same sources
+     *   multiple times faster
      */
     fun createEnvironmentManager(
         disableStderrDumping: Boolean = false,
         forTesting: Boolean = false,
+        reuseEnvironment: Boolean = true,
     ): EnvironmentManager
 
     /**

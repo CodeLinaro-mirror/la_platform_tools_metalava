@@ -43,7 +43,7 @@ class DefaultReporter(
 
     /** Additional config properties. */
     private val config: Config = Config(),
-) : Reporter {
+) : BaseReporter() {
 
     /** A list of [Report] objects containing all the reported issues. */
     private val reports = mutableListOf<Report>()
@@ -152,29 +152,7 @@ class DefaultReporter(
             return true
         }
 
-        reportable ?: return false
-
-        // Suppress the issue if requested for the item.
-        return reportable.suppressedIssues().any { suppressMatches(it, id.name, message) }
-    }
-
-    private fun suppressMatches(value: String, id: String?, message: String?): Boolean {
-        id ?: return false
-
-        if (value == id) {
-            return true
-        }
-
-        if (
-            message != null &&
-                value.startsWith(id) &&
-                value.endsWith(message) &&
-                (value == "$id:$message" || value == "$id: $message")
-        ) {
-            return true
-        }
-
-        return false
+        return super.isSuppressed(id, reportable, message)
     }
 
     /**
@@ -187,8 +165,9 @@ class DefaultReporter(
     private fun Path.relativizeLocationPath(): String {
         // b/255575766: Note that `relativize` requires two paths to compare to have same types:
         // either both of them are absolute paths or both of them are not absolute paths.
-        val path = environment.rootFolder.toPath().relativize(this) ?: this
-        return path.toString()
+        val path = environment.rootFolder.toPath().relativize(this).toString()
+        if (path.startsWith("../")) return toString()
+        return path
     }
 
     /** Alias to allow method reference to `dispatch` in [report] */
@@ -224,6 +203,18 @@ class DefaultReporter(
         // Sort the reports in place. This will ensure that the errors output in [printErrors] are
         // also sorted in the same order as that is called after this.
         reports.sortWith(reportComparator)
+
+        // Remove duplicates from the sorted list.
+        var previous: Report? = null
+        val reportIterator = reports.iterator()
+        while (reportIterator.hasNext()) {
+            val report = reportIterator.next()
+            if (report == previous) {
+                reportIterator.remove()
+            } else {
+                previous = report
+            }
+        }
 
         // Print out all the save reports.
         for (report in reports) {

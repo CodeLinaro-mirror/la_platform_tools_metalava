@@ -20,6 +20,8 @@ import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.model.api.flags.ApiFlag
 import com.android.tools.metalava.model.api.flags.ApiFlagAction
 import com.android.tools.metalava.model.api.flags.ApiFlags
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
 import org.junit.Test
@@ -71,6 +73,7 @@ class CommonConditionalDocumentationTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test conditional javadoc no flag field defined`() {
         checkInvalidFlagsField(
@@ -87,6 +90,7 @@ class CommonConditionalDocumentationTest : BaseModelTest() {
         )
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test conditional javadoc flag field has no constant value`() {
         checkInvalidFlagsField(
@@ -104,6 +108,7 @@ class CommonConditionalDocumentationTest : BaseModelTest() {
         )
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test conditional javadoc flag field value is not a string`() {
         checkInvalidFlagsField(
@@ -121,6 +126,7 @@ class CommonConditionalDocumentationTest : BaseModelTest() {
         )
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test conditional javadoc flag field reference does not refer to a field`() {
         checkInvalidFlagsField(
@@ -138,6 +144,7 @@ class CommonConditionalDocumentationTest : BaseModelTest() {
         )
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test conditional javadoc flag field defined but no flag defined`() {
         runSourceCodebaseTest(
@@ -182,6 +189,7 @@ class CommonConditionalDocumentationTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test conditional javadoc flag field and flag defined but reverted`() {
         runSourceCodebaseTest(
@@ -239,6 +247,7 @@ class CommonConditionalDocumentationTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test conditional javadoc flag field and flag defined but kept`() {
         runSourceCodebaseTest(
@@ -296,6 +305,7 @@ class CommonConditionalDocumentationTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test conditional javadoc flag field using statically imported flag field`() {
         runSourceCodebaseTest(

@@ -17,42 +17,65 @@
 package com.android.tools.metalava.model.type
 
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.ClassTypeItem
-import com.android.tools.metalava.model.DefaultTypeItem
 import com.android.tools.metalava.model.TypeArgumentTypeItem
 import com.android.tools.metalava.model.TypeModifiers
 
-class DefaultResolvedClassTypeItem(
+internal class DefaultResolvedClassTypeItem(
     modifiers: TypeModifiers,
     private val classItem: ClassItem,
-    override val arguments: List<TypeArgumentTypeItem>,
-) : ClassTypeItem, DefaultTypeItem(modifiers) {
-
-    override val qualifiedName = classItem.qualifiedName()
-
-    override val outerClassType = classItem.containingClass()?.type()
-
+    arguments: List<TypeArgumentTypeItem>,
+    outerClassType: ClassTypeItem? = classItem.outerClassType,
+    isValueClassType: Boolean = false,
+) :
+    DefaultClassTypeItem(
+        modifiers,
+        classItem.qualifiedName(),
+        arguments,
+        outerClassType,
+        isValueClassType,
+    ) {
     override val className = classItem.simpleName()
 
-    override fun asClass() = classItem
+    override fun resolveClass(classResolver: ClassResolver) =
+        // If the ClassResolver is the Codebase for the classItem then just return it, otherwise
+        // resolve this by name in the ClassResolver.
+        if (classItem.codebase === classResolver) classItem
+        else classResolver.resolveClass(qualifiedName)
 
-    @Deprecated(
-        "implementation detail of this class",
-        replaceWith = ReplaceWith("substitute(modifiers, outerClassType, arguments)"),
-    )
-    override fun duplicate(
+    override fun substitute(
         modifiers: TypeModifiers,
         outerClassType: ClassTypeItem?,
         arguments: List<TypeArgumentTypeItem>
-    ): ClassTypeItem {
-        return DefaultResolvedClassTypeItem(modifiers, classItem, arguments)
-    }
-
-    companion object {
-        fun createForClass(classItem: ClassItem): ClassTypeItem {
-            val arguments = classItem.typeParameterList.map { it.type() }
-            val modifiers = DefaultTypeModifiers.emptyNonNullModifiers
-            return DefaultResolvedClassTypeItem(modifiers, classItem, arguments)
-        }
-    }
+    ) =
+        if (requiresNewInstance(modifiers, outerClassType, arguments))
+            DefaultResolvedClassTypeItem(
+                modifiers,
+                classItem,
+                arguments,
+                outerClassType,
+                isValueClassType,
+            )
+        else this
 }
+
+/**
+ * Get the [ClassTypeItem] for this [ClassItem] to use as the [ClassTypeItem.outerClassType] for a
+ * nested [ClassItem] of this.
+ */
+private val ClassItem.outerClassType
+    get() =
+        // Get the containing class type (if available) and adjust it based on the inner/static
+        // nesting state of [classItem].
+        containingClass()?.type()?.let { containingType ->
+            if (modifiers.isStatic()) {
+                // The type for a static nested class must not include any type arguments from its
+                // containing outer class so remove any that it may have.
+                containingType.substitute(arguments = emptyList())
+            } else {
+                // The type for an inner nested class must include type arguments from its
+                // containing outer class, so keep its type as is.
+                containingType
+            }
+        }

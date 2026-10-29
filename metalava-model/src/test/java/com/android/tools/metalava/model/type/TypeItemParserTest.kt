@@ -21,10 +21,8 @@ import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.TypeItem
-import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterScope
 import com.google.common.truth.Truth.assertThat
-import org.junit.Assert
 import org.junit.Test
 
 class TypeItemParserTest {
@@ -96,41 +94,6 @@ class TypeItemParserTest {
             .isEqualTo(Pair(listOf("X"), ".Inner"))
         assertThat(TypeItemParser.typeParameterStringsWithRemainder("<X, Y, Z>.Inner<A, B, C>"))
             .isEqualTo(Pair(listOf("X", "Y", "Z"), ".Inner<A, B, C>"))
-    }
-
-    @Test
-    fun `Test splitting Kotlin nullability suffix`() {
-        assertThat(TypeItemParser.splitNullabilitySuffix("String!", true))
-            .isEqualTo(Pair("String", TypeNullability.PLATFORM))
-        assertThat(TypeItemParser.splitNullabilitySuffix("String?", true))
-            .isEqualTo(Pair("String", TypeNullability.NULLABLE))
-        assertThat(TypeItemParser.splitNullabilitySuffix("String", true))
-            .isEqualTo(Pair("String", TypeNullability.NONNULL))
-        // Check that wildcards work
-        assertThat(TypeItemParser.splitNullabilitySuffix("?", true))
-            .isEqualTo(Pair("?", TypeNullability.UNDEFINED))
-        assertThat(TypeItemParser.splitNullabilitySuffix("T", true))
-            .isEqualTo(Pair("T", TypeNullability.NONNULL))
-    }
-
-    @Test
-    fun `Test splitting Kotlin nullability suffix when kotlinStyleNulls is false`() {
-        assertThat(TypeItemParser.splitNullabilitySuffix("String", false))
-            .isEqualTo(Pair("String", null))
-        assertThat(TypeItemParser.splitNullabilitySuffix("?", false)).isEqualTo(Pair("?", null))
-
-        Assert.assertThrows(
-            "Format does not support Kotlin-style null type syntax: String!",
-            IllegalStateException::class.java
-        ) {
-            TypeItemParser.splitNullabilitySuffix("String!", false)
-        }
-        Assert.assertThrows(
-            "Format does not support Kotlin-style null type syntax: String?",
-            IllegalStateException::class.java
-        ) {
-            TypeItemParser.splitNullabilitySuffix("String?", false)
-        }
     }
 
     /**

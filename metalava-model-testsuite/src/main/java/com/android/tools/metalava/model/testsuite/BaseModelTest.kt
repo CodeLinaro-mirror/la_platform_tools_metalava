@@ -22,24 +22,34 @@ import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.Assertions
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.PackageFilter
+import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
+import com.android.tools.metalava.model.api.ApiSurfaceRules
+import com.android.tools.metalava.model.api.ApiSurfaceSelector
 import com.android.tools.metalava.model.api.flags.ApiFlags
-import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
+import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.source.DEFAULT_JAVA_LANGUAGE_LEVEL
 import com.android.tools.metalava.model.testing.CodebaseCreatorConfig
 import com.android.tools.metalava.model.testing.CodebaseCreatorConfigAware
+import com.android.tools.metalava.model.testing.SupportedInputFormats
+import com.android.tools.metalava.model.testing.inheritedSupportedInputFormats
+import com.android.tools.metalava.model.testing.testTypeString
+import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.reporter.Issues.Issue
 import com.android.tools.metalava.reporter.RecordingReporter
-import com.android.tools.metalava.testing.TemporaryFolderOwner
+import com.android.tools.metalava.testing.BaseTemporaryFolderOwner
 import java.io.File
 import javax.annotation.CheckReturnValue
 import kotlin.test.assertEquals
 import org.junit.Rule
-import org.junit.rules.TemporaryFolder
+import org.junit.rules.TestRule
+import org.junit.runner.Description
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import org.junit.runners.Parameterized.Parameter
+import org.junit.runners.model.Statement
 
 /**
  * Base class for tests that verify the behavior of model implementations.
@@ -54,8 +64,11 @@ import org.junit.runners.Parameterized.Parameter
  * into the same project and run tests against them all at the same time.
  */
 @RunWith(ModelTestSuiteRunner::class)
-abstract class BaseModelTest() :
-    CodebaseCreatorConfigAware<ModelSuiteRunner>, TemporaryFolderOwner, Assertions {
+abstract class BaseModelTest :
+    CodebaseCreatorConfigAware<ModelSuiteRunner>,
+    BaseTemporaryFolderOwner(),
+    Assertions,
+    InputSetFactory {
 
     /**
      * Set by injection by [Parameterized] after class initializers are called.
@@ -96,64 +109,11 @@ abstract class BaseModelTest() :
     protected val inputFormat
         get() = codebaseCreatorConfig.inputFormat!!
 
-    @get:Rule override val temporaryFolder = TemporaryFolder()
-
     /**
-     * Set of inputs for a test.
-     *
-     * Currently, this is limited to one file but in future it may be more.
+     * A rule that checks to make sure that the [SupportedInputFormats] annotation that applies to a
+     * test method matches the set of [InputSet]s used by that test method.
      */
-    data class InputSet(
-        /** The [InputFormat] of the [testFiles]. */
-        val inputFormat: InputFormat,
-
-        /** The [TestFile]s to explicitly pass to code being tested. */
-        val testFiles: List<TestFile>,
-
-        /** The optional [TestFile]s to pass on source path. */
-        val additionalTestFiles: List<TestFile>?,
-    )
-
-    /** Create an [InputSet] from a list of [TestFile]s. */
-    fun inputSet(testFiles: List<TestFile>): InputSet = inputSet(*testFiles.toTypedArray())
-
-    /**
-     * Create an [InputSet].
-     *
-     * It is an error if [testFiles] is empty or if [testFiles] have a mixture of source
-     * ([InputFormat.JAVA] or [InputFormat.KOTLIN]) and signature ([InputFormat.SIGNATURE]). If it
-     * contains both [InputFormat.JAVA] and [InputFormat.KOTLIN] then the latter will be used.
-     */
-    fun inputSet(vararg testFiles: TestFile, sourcePathFiles: List<TestFile>? = null): InputSet {
-        if (testFiles.isEmpty()) {
-            throw IllegalStateException("Must provide at least one source file")
-        }
-
-        // Get the paths for the TestFiles.
-        val paths = testFiles.map { it.targetRelativePath }
-
-        // Fail if there are any name collisions.
-        val uniquePaths = paths.groupBy { it }
-        if (uniquePaths.size != testFiles.size) {
-            val colliding = uniquePaths.mapNotNull { if (it.value.size == 1) null else it.key }
-            error(
-                "The following test files in the input set have the same name as another test file:\n${colliding.joinToString("\n") { "    $it" }}"
-            )
-        }
-
-        val inputFormat =
-            paths
-                .asSequence()
-                // Ignore HTML files.
-                .filter { !it.endsWith(".html") }
-                // Map to InputFormat.
-                .map { InputFormat.fromFilename(it) }
-                // Combine InputFormats to produce a single one, may throw an exception if they
-                // are incompatible.
-                .reduce { if1, if2 -> if1.combineWith(if2) }
-
-        return InputSet(inputFormat, testFiles.toList(), sourcePathFiles)
-    }
+    @get:Rule val supportedInputFormatsRule = SupportedInputFormatsRule()
 
     /**
      * Context within which the main body of tests that check the state of the [Codebase] or
@@ -198,8 +158,8 @@ abstract class BaseModelTest() :
         /** The [InputFormat] from which [codebase] was created. */
         val inputFormat: InputFormat
 
-        /** Replace any test run specific directories in [string] with a placeholder string. */
-        fun removeTestSpecificDirectories(string: String): String
+        /** The [InputSet] from which [codebase] was created. */
+        val inputSet: InputSet
 
         /**
          * Remove any reported issues and returns them with any test specific directories replaced
@@ -221,13 +181,11 @@ abstract class BaseModelTest() :
     inner class DefaultCodebaseContext(
         override val optionalCodebase: Codebase?,
         override val optionalMultiplatformCodebase: MultiplatformCodebase?,
-        override val inputFormat: InputFormat,
-        private val fileToSymbol: Map<File, String>,
+        override val inputSet: InputSet,
         private val recordingReporter: RecordingReporter,
     ) : CodebaseContext {
 
-        override fun removeTestSpecificDirectories(string: String) =
-            replaceFileWithSymbol(string, fileToSymbol)
+        override val inputFormat = inputSet.inputFormat
 
         override fun removeReportedIssues() =
             removeTestSpecificDirectories(recordingReporter.removeIssues())
@@ -263,17 +221,35 @@ abstract class BaseModelTest() :
          */
         val apiPackages: PackageFilter? = null,
 
-        /** The set of [ApiSurfaces] used in the test. */
-        val apiSurfaces: ApiSurfaces = ApiSurfaces.DEFAULT,
+        /** The set of [ApiSurfaceRules] used in the test. */
+        val apiSurfaceRules: ApiSurfaceRules = ApiSurfaceRules.DEFAULT,
 
         /** Additional jar files to add to the class path. */
         val additionalClassPath: List<File> = emptyList(),
 
         /** The Java language level. */
         val javaLanguageLevel: String = DEFAULT_JAVA_LANGUAGE_LEVEL,
+
+        /** The set of [Issue] to exclude from the [recordingReporter]. */
+        val excludedIssues: Set<Issue> = emptySet(),
+
+        /**
+         * Determined whether [SupportedInputFormatsRule.check] is called on
+         * [BaseModelTest.supportedInputFormatsRule].
+         */
+        val checkSupportedInputFormats: Boolean = true,
+
+        /** Whether to include additional overrides when matching method signatures. */
+        val addAdditionalOverrides: Boolean = false,
     ) {
         /** The [RecordingReporter] used by the test. */
-        val recordingReporter = RecordingReporter()
+        val recordingReporter =
+            RecordingReporter(
+                excludedIssues
+                // Ignore DeprecatedSurfaceDocTag issues as they break too many tests.
+                // TODO(b/519195092): Remove this when tests have been migrated to use annotations.
+                + Issues.DEPRECATED_SURFACE_DOC_TAG
+            )
 
         /** The [Codebase.Config] to use when creating a [Codebase] to test. */
         val codebaseConfig
@@ -288,12 +264,17 @@ abstract class BaseModelTest() :
                             // Finally, create a default manager.
                             ?: DefaultAnnotationManager(
                                 DefaultAnnotationManager.Config(
-                                    apiFlags = apiFlags,
                                     reporter = recordingReporter,
+                                    apiSurfaceSelector =
+                                        ApiSurfaceSelector(
+                                            apiSurfaceRules,
+                                            addAdditionalOverrides = addAdditionalOverrides,
+                                        ),
+                                    apiFlags = apiFlags,
                                 )
                             ),
                     apiFlags = apiFlags,
-                    apiSurfaces = apiSurfaces,
+                    apiSurfaces = apiSurfaceRules.apiSurfaces,
                     reporter = recordingReporter,
                 )
     }
@@ -322,12 +303,26 @@ abstract class BaseModelTest() :
             },
         test: CodebaseContext.() -> Unit,
     ) {
+        // Check to make sure that the provided input set formats match the ones specified in the
+        // SupportedInputFormats annotation.
+        val providedInputFormats = inputSets.map { it.inputFormat }.toSet()
+        if (testFixture.checkSupportedInputFormats) {
+            supportedInputFormatsRule.check(providedInputFormats)
+        }
+
         // Run the input sets that match the current inputFormat.
-        for (inputSet in inputSets.filter { it.inputFormat == inputFormat }) {
-            val mainSourceDir = sourceDir(inputSet)
+        val applicableInputSets = inputSets.filter { it.inputFormat == inputFormat }
+        if (applicableInputSets.isEmpty()) {
+            error(
+                "No input set provided for $inputFormat; please specify ${providedInputFormats.toSupportedInputFormats()}"
+            )
+        }
+        for (inputSet in applicableInputSets) {
+            val mainSourceDir = mainSourceDir(inputSet)
             val projectDescriptionFile = projectDescription?.createFile(mainSourceDir.dir)
 
-            val additionalSourceDir = inputSet.additionalTestFiles?.let { sourceDir(it) }
+            val additionalSourceDir =
+                inputSet.additionalTestFiles?.let { sourceDir(it, "ADDITIONAL_SRC") }
 
             val recordingReporter = testFixture.recordingReporter
 
@@ -347,13 +342,7 @@ abstract class BaseModelTest() :
                         DefaultCodebaseContext(
                             codebase,
                             multiplatformCodebase,
-                            inputFormat,
-                            buildMap {
-                                this[mainSourceDir.dir] = "MAIN_SRC"
-                                additionalSourceDir?.dir?.let { dir ->
-                                    this[dir] = "ADDITIONAL_SRC"
-                                }
-                            },
+                            inputSet,
                             recordingReporter,
                         )
                     context.test()
@@ -368,12 +357,14 @@ abstract class BaseModelTest() :
         }
     }
 
-    private fun sourceDir(inputSet: InputSet): ModelSuiteRunner.SourceDir {
-        return sourceDir(inputSet.testFiles)
-    }
+    private fun mainSourceDir(inputSet: InputSet) =
+        sourceDir(inputSet.testFiles, testLabel = "MAIN_SRC")
 
-    private fun sourceDir(testFiles: List<TestFile>): ModelSuiteRunner.SourceDir {
-        val tempDir = temporaryFolder.newFolder()
+    private fun sourceDir(
+        testFiles: List<TestFile>,
+        testLabel: String,
+    ): ModelSuiteRunner.SourceDir {
+        val tempDir = temporaryFolder.newFolderWithTestLabel(testLabel)
         return ModelSuiteRunner.SourceDir(dir = tempDir, contents = testFiles)
     }
 
@@ -500,4 +491,166 @@ abstract class BaseModelTest() :
     /** Create a signature [TestFile] with the supplied [contents] in a file with a path of [to]. */
     fun signature(to: String, contents: String): TestFile =
         TestFiles.source(to, contents.trimIndent())
+
+    data class JarSupportContext(val jarSupport: JarSupport)
+
+    /** Run a test that uses [JarSupport]. */
+    fun runJarSupportTest(test: JarSupportContext.() -> Unit) {
+        if (jarSupportCapabilities.none { it in runner.capabilities }) {
+            error(
+                "Provider ${runner.providerName} does not support jars; please add one of ${jarSupportCapabilities.joinToString { "@RequiresCapabilities(Capability.$it)" }}` to the test"
+            )
+        }
+        runner.createJarSupportAndRun { jarSupport ->
+            val context = JarSupportContext(jarSupport)
+            context.test()
+        }
+    }
+
+    /** Check to make sure that this uses the default type bounds. */
+    fun TypeParameterItem.assertUsesDefaultTypeBounds() {
+        val expected =
+            if (inputFormat == InputFormat.KOTLIN) {
+                "java.lang.Object?"
+            } else {
+                "java.lang.Object!"
+            }
+        assertEquals(
+            expected,
+            typeBounds().joinToString {
+                it.testTypeString(
+                    annotations = true,
+                    kotlinStyleNulls = true,
+                )
+            }
+        )
+    }
+
+    companion object {
+        /** The set of [Capability] instances supported by [JarSupport]. */
+        private val jarSupportCapabilities = setOf(Capability.CLASS_PATH_RESOLVER)
+    }
+}
+
+/**
+ * Set of inputs for a test.
+ *
+ * Currently, this is limited to one file but in future it may be more.
+ */
+data class InputSet(
+    /** The [InputFormat] of the [testFiles]. */
+    val inputFormat: InputFormat,
+
+    /** The [TestFile]s to explicitly pass to code being tested. */
+    val testFiles: List<TestFile>,
+
+    /** The optional [TestFile]s to pass on source path. */
+    val additionalTestFiles: List<TestFile>?,
+)
+
+/** Provides support for creating [InputSet]s */
+interface InputSetFactory {
+    /** Create an [InputSet] from a list of [TestFile]s. */
+    fun inputSet(testFiles: List<TestFile>): InputSet = inputSet(*testFiles.toTypedArray())
+
+    /**
+     * Create an [InputSet].
+     *
+     * It is an error if [testFiles] is empty or if [testFiles] have a mixture of source
+     * ([InputFormat.JAVA] or [InputFormat.KOTLIN]) and signature ([InputFormat.SIGNATURE]). If it
+     * contains both [InputFormat.JAVA] and [InputFormat.KOTLIN] then the latter will be used.
+     */
+    fun inputSet(vararg testFiles: TestFile, sourcePathFiles: List<TestFile>? = null): InputSet {
+        if (testFiles.isEmpty()) {
+            throw IllegalStateException("Must provide at least one source file")
+        }
+
+        // Get the paths for the TestFiles.
+        val paths = testFiles.map { it.targetRelativePath }
+
+        // Fail if there are any name collisions.
+        val uniquePaths = paths.groupBy { it }
+        if (uniquePaths.size != testFiles.size) {
+            val colliding = uniquePaths.mapNotNull { if (it.value.size == 1) null else it.key }
+            error(
+                "The following test files in the input set have the same name as another test file:\n${
+                    colliding.joinToString(
+                        "\n"
+                    ) { "    $it" }
+                }"
+            )
+        }
+
+        val inputFormat =
+            paths
+                .asSequence()
+                // Ignore HTML files.
+                .filter { !it.endsWith(".html") }
+                // Map to InputFormat.
+                .map { InputFormat.fromFilename(it) }
+                // Combine InputFormats to produce a single one, may throw an exception if they
+                // are incompatible.
+                .reduce { if1, if2 -> if1.combineWith(if2) }
+
+        return InputSet(inputFormat, testFiles.toList(), sourcePathFiles)
+    }
+}
+
+/**
+ * A rule that checks to make sure that the [SupportedInputFormats] annotation that applies to a
+ * test method matches the set of [InputSet]s used by that test method.
+ */
+class SupportedInputFormatsRule : TestRule {
+    private lateinit var expectedInputFormats: Set<InputFormat>
+
+    override fun apply(
+        base: Statement,
+        description: Description,
+    ) =
+        object : Statement() {
+            override fun evaluate() {
+                // Initialize the set of expected InputFormats from the description.
+                expectedInputFormats = description.expectedInputFormats()
+                try {
+                    base.evaluate()
+                } finally {
+                    // Reset it to empty.
+                    expectedInputFormats = emptySet()
+                }
+            }
+        }
+
+    /** Get the set of [InputFormat]s that are expected */
+    private fun Description.expectedInputFormats(): Set<InputFormat> {
+        getAnnotation(SupportedInputFormats::class.java)?.formats?.toSet()?.let {
+            return it
+        }
+        return testClass.inheritedSupportedInputFormats()
+    }
+
+    /**
+     * Check that the [providedInputFormats] matched [expectedInputFormats], failing if they do not.
+     *
+     * This will only be called when [BaseModelTest.TestFixture.checkSupportedInputFormats] is
+     * `true`.
+     */
+    fun check(providedInputFormats: Set<InputFormat>) {
+        if (providedInputFormats != expectedInputFormats) {
+            error(
+                "Mismatching @ProvidesInputFormats and inputSet; please specify ${providedInputFormats.toSupportedInputFormats()}"
+            )
+        }
+    }
+}
+
+/**
+ * Create a [String] representation of the [SupportedInputFormats] annotation to specify this set of
+ * [InputFormat]s.
+ */
+private fun Set<InputFormat>.toSupportedInputFormats() = buildString {
+    append("@SupportedInputFormats(")
+    InputFormat.entries
+        .filter { it in this@toSupportedInputFormats }
+        .joinTo(this) { "InputFormat.$it" }
+    append(")")
 }

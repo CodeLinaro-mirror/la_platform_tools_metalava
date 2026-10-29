@@ -28,13 +28,16 @@ import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
-import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.SourceLanguage
+import com.android.tools.metalava.model.isAccessible
 import com.android.tools.metalava.model.javaEscapeString
 import java.lang.StringBuilder
 
 /**
  * Provide support for formatting [Value]s consistently with various legacy string representations.
+ *
+ * This is only use for formatting signature files in order to support the inconsistent ways in
+ * which values have been formatted across the different signature file versions.
  *
  * Legacy string representations of values are extremely inconsistent and vary by:
  * * The legacy use site, e.g. [FieldItem.writeValueWithSemicolon], [MethodItem.legacyDefaultValue],
@@ -90,12 +93,6 @@ class LegacyValueFormatter(
     enum class InlineFieldValue {
         /** Always inline the [FieldReferenceValue], if possible. */
         ALWAYS,
-
-        /**
-         * Only inline the [FieldReferenceValue], if it is hidden or removed (as determined by
-         * [SelectableItem.isHiddenOrRemoved]).
-         */
-        WHEN_HIDDEN_OR_REMOVED,
 
         /**
          * Only inline the [FieldReferenceValue], if it is inaccessible, i.e. hidden, removed or not
@@ -220,11 +217,6 @@ class LegacyValueFormatter(
                     // The field should be inlined only when it is inaccessible.
                     InlineFieldValue.WHEN_INACCESSIBLE ->
                         if (field.resolve().isAccessible()) field else field.asLiteralValue()
-
-                    // The field should be inlined only when it is hidden or removed.
-                    InlineFieldValue.WHEN_HIDDEN_OR_REMOVED ->
-                        if (field.resolve()?.isHiddenOrRemoved() != true) field
-                        else field.asLiteralValue()
                 }
             } ?: value
 
@@ -245,30 +237,24 @@ class LegacyValueFormatter(
         }
     }
 
-    /** True if this [FieldItem] is not-null, is not hidden or removed and is public. */
-    private fun FieldItem?.isAccessible() = this != null && !isHiddenOrRemoved() && isPublic
-
-    /** Format the [annotationItem] name for [target] for [purpose]. */
+    /** Format the [annotationItem] name for [purpose]. */
     private fun formatAnnotationClassName(
         annotationItem: AnnotationItem,
-        target: AnnotationTarget,
         purpose: AnnotationPurpose,
     ) =
         annotationItem.annotationContext.annotationManager
-            .normalizeOutputName(annotationItem.qualifiedName, target)
+            .normalizeOutputName(annotationItem.qualifiedName, AnnotationTarget.SIGNATURE_FILE)
             .let { name ->
                 // Annotations on items that are being formatted for the signature file are
                 // shortened by removing common package prefixes. This intentionally does not do
                 // that for type and value annotations as that would break legacy behavior.
-                if (purpose == AnnotationPurpose.ITEM && target == AnnotationTarget.SIGNATURE_FILE)
-                    AnnotationItem.shortenAnnotation(name)
+                if (purpose == AnnotationPurpose.ITEM) AnnotationItem.shortenAnnotation(name)
                 else name
             }
 
-    /** Get the annotation specific settings that incorporate [target] and [alwaysInlineFields]. */
+    /** Get the annotation specific settings that incorporate [alwaysInlineFields]. */
     private fun annotationSpecificSetting(
         settings: Settings,
-        target: AnnotationTarget,
         alwaysInlineFields: Boolean,
     ) =
         settings.copy(
@@ -280,7 +266,7 @@ class LegacyValueFormatter(
                 // the `nestedValueAppender` and that will be updated by [Settings]'s initializer.
                 settings.boundConfiguration.copy(
                     annotationQualifiedNameGetter = { annotationItem, purpose ->
-                        formatAnnotationClassName(annotationItem, target, purpose)
+                        formatAnnotationClassName(annotationItem, purpose)
                     }
                 ),
             inlineFields =
@@ -291,15 +277,13 @@ class LegacyValueFormatter(
         builder: StringBuilder,
         annotationItem: AnnotationItem,
         purpose: AnnotationPurpose,
-        target: AnnotationTarget,
         context: Item?
     ) {
         val settings = selectSettingsForContext(context)
 
         val alwaysInlineFields = annotationItem.qualifiedName == ANDROID_FLAGGED_API
 
-        val annotationSpecificSetting =
-            annotationSpecificSetting(settings, target, alwaysInlineFields)
+        val annotationSpecificSetting = annotationSpecificSetting(settings, alwaysInlineFields)
 
         // Append the annotation item.  This passes in the [Settings.boundConfiguration] as that
         // has a `nestedValueAppender` that will call back into [appendFormattedValue] for
@@ -497,10 +481,6 @@ class LegacyValueFormatter(
                 // Legacy AnnotationItem.toSource() does not add long or float suffixes for values
                 // obtained from Kotlin sources.
                 dropLongAndFloatTypeSuffix = false,
-
-                // Legacy AnnotationItem.toSource() only inlined hidden or removed fields used in
-                // Kotlin sources. It would keep non-public fields.
-                inlineFields = InlineFieldValue.WHEN_HIDDEN_OR_REMOVED,
             )
 
         /** Settings for [ANNOTATION_SOURCE_FORMATTER] for Jar classes. */

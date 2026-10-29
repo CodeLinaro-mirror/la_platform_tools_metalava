@@ -30,6 +30,7 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
+import com.android.tools.metalava.model.TypeComparator
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterListOwner
@@ -250,12 +251,32 @@ class MultiplatformPackageItem(
         visitor.visit(this)
     }
 
-    /** All the top-level (not nested) classes defined in this package in any source set. */
+    /**
+     * All the top-level (not nested) classes defined in this package in any source set, not
+     * including classes loaded from the classpath.
+     */
+    val topLevelClassesFromSource: List<MultiplatformClassItem> = aggregateClasses {
+        topLevelClasses().filter { it.origin == ClassOrigin.COMMAND_LINE }
+    }
+
+    /**
+     * All the top-level (not nested) classes defined in this package in any source set, including
+     * classes loaded from the classpath.
+     *
+     * This is a snapshot of the classes in this package and will not be affected by any additional
+     * classes added to the package after the list is returned.
+     */
     fun topLevelClasses(): List<MultiplatformClassItem> {
+        return aggregateClasses { topLevelClasses() }
+    }
+
+    private fun aggregateClasses(
+        classAccessor: PackageItem.() -> List<ClassItem>
+    ): List<MultiplatformClassItem> {
         return aggregateChildren(
             // Do not include file facade classes. Their members will be listed in
             // [topLevelFunctions] and [topLevelProperties].
-            childAccessor = { topLevelClasses().filter { !it.isFileFacade } },
+            childAccessor = { classAccessor().filter { !it.isFileFacade } },
             childIdentifier = { qualifiedName() },
             multiplatformChildCreator = { qualifiedName, sourceSetToClassItem ->
                 MultiplatformClassItem(qualifiedName, sourceSetToClassItem)
@@ -296,7 +317,13 @@ class MultiplatformPackageItem(
             childAccessor = {
                 topLevelClasses().filter { it.isFileFacade }.flatMap { it.properties() }
             },
-            childIdentifier = { MultiplatformPropertyItem.Identifier(name(), receiver) },
+            childIdentifier = {
+                MultiplatformPropertyItem.Identifier(
+                    name(),
+                    receiver,
+                    contextParameters.map { it.type() }
+                )
+            },
             multiplatformChildCreator = { identifier, sourceSetToPropertyItem ->
                 MultiplatformPropertyItem(this, identifier, sourceSetToPropertyItem)
             }
@@ -402,7 +429,13 @@ class MultiplatformClassItem(
     val properties: List<MultiplatformPropertyItem> =
         aggregateChildren(
             childAccessor = { properties() },
-            childIdentifier = { MultiplatformPropertyItem.Identifier(name(), receiver) },
+            childIdentifier = {
+                MultiplatformPropertyItem.Identifier(
+                    name(),
+                    receiver,
+                    contextParameters.map { it.type() }
+                )
+            },
             multiplatformChildCreator = { identifier, sourceSetToPropertyItem ->
                 MultiplatformPropertyItem(this, identifier, sourceSetToPropertyItem)
             }
@@ -488,6 +521,28 @@ private constructor(
     val receiver: TypeItem?
         get() = identifier.receiver
 
+    /**
+     * The types of the context parameters of this property, listed in order.
+     *
+     * The nullability of these types are significant, as it is possible to define two properties in
+     * Kotlin that differ only by context parameter nullability. However, other modifiers
+     * (annotations) on the type are not significant and may differ by source set.
+     */
+    val contextParameterTypes: List<TypeItem>
+        get() = identifier.contextParameters
+
+    /**
+     * The context parameters of the property, listed in order. All context parameters will exist in
+     * the same set of source sets as the containing property.
+     */
+    val contextParameters: List<MultiplatformParameterItem> =
+        aggregateIndexedChildren(
+            childAccessor = { contextParameters },
+            multiplatformChildCreator = { parameterIndex, sourceSetToParameter ->
+                MultiplatformParameterItem(this, parameterIndex, sourceSetToParameter)
+            }
+        )
+
     override fun accept(visitor: MultiplatformItemVisitor) {
         visitor.visit(this)
     }
@@ -496,7 +551,17 @@ private constructor(
         val receiverString =
             receiver?.let { it.toTypeString(TypeStringConfiguration.DEFAULT_KOTLIN_NULLS) + "." }
                 ?: ""
-        return "$containingItemQualifiedName#$receiverString$name"
+        val contextParametersString =
+            if (contextParameterTypes.isNotEmpty()) {
+                "(" +
+                    contextParameterTypes.joinToString(", ") {
+                        "context ${it.toTypeString(TypeStringConfiguration.DEFAULT_KOTLIN_NULLS)}"
+                    } +
+                    ")"
+            } else {
+                ""
+            }
+        return "$containingItemQualifiedName#$receiverString$name$contextParametersString"
     }
 
     override fun toString(): String {
@@ -514,22 +579,32 @@ private constructor(
     }
 
     /**
-     * The combination of [name] and [receiver] that uniquely identifies the [PropertyItem] within a
-     * class. The nullability of the [receiver] is significant but other modifiers (annotations) are
-     * not.
+     * The combination of [name], [receiver], and [contextParameters] that uniquely identifies the
+     * [PropertyItem] within a class. The nullability of the [receiver] and [contextParameters] is
+     * significant but other type modifiers (annotations) are not.
      */
-    class Identifier(val name: String, val receiver: TypeItem?) {
+    class Identifier(
+        val name: String,
+        val receiver: TypeItem?,
+        val contextParameters: List<TypeItem>
+    ) {
         override fun equals(other: Any?): Boolean {
             if (this === other) return true
             if (other !is Identifier) return false
             return name == other.name &&
-                ((receiver == null && other.receiver == null) ||
-                    (receiver != null &&
-                        receiver.equalToType(other.receiver, includeNullability = true)))
+                PropertyItem.equalReceivers(receiver, other.receiver) &&
+                PropertyItem.equalContextParameterTypes(contextParameters, other.contextParameters)
         }
 
         override fun hashCode(): Int {
-            return Objects.hash(name, receiver)
+            var result = name.hashCode()
+            result = 31 * result + TypeComparator.NULLABILITY_AWARE.hash(receiver)
+            result =
+                31 * result +
+                    contextParameters.fold(1) { acc, param ->
+                        31 * acc + TypeComparator.NULLABILITY_AWARE.hash(param)
+                    }
+            return result
         }
     }
 }
@@ -625,12 +700,18 @@ protected constructor(
             return name == other.name &&
                 parameterTypes.size == other.parameterTypes.size &&
                 parameterTypes.zip(other.parameterTypes).all { (t1, t2) ->
-                    t1.equalToType(t2, includeNullability = true)
+                    TypeComparator.NULLABILITY_AWARE.compare(t1, t2)
                 }
         }
 
         override fun hashCode(): Int {
-            return Objects.hash(name, parameterTypes)
+            var result = name.hashCode()
+            result =
+                31 * result +
+                    parameterTypes.fold(1) { acc, param ->
+                        31 * acc + TypeComparator.NULLABILITY_AWARE.hash(param)
+                    }
+            return result
         }
     }
 }
@@ -699,9 +780,9 @@ class MultiplatformConstructorItem(
     }
 }
 
-/** A parameter of the [containingCallable], identified by [parameterIndex]. */
+/** A parameter of the [containingItem], identified by [parameterIndex]. */
 class MultiplatformParameterItem(
-    val containingCallable: MultiplatformCallableItem<*>,
+    val containingItem: MultiplatformItem<*>,
     val parameterIndex: Int,
     sourceSetToItem: SourceSetDependent<ParameterItem?>
 ) : MultiplatformItem<ParameterItem>(sourceSetToItem) {
@@ -730,22 +811,21 @@ class MultiplatformParameterItem(
     }
 
     override fun elementId(): String {
-        return "${containingCallable.elementId()} parameter #$parameterIndex"
+        return "${containingItem.elementId()} parameter #$parameterIndex"
     }
 
     override fun toString(): String {
-        return "multiplatform parameter #$parameterIndex of $containingCallable"
+        return "multiplatform parameter #$parameterIndex of $containingItem"
     }
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is MultiplatformParameterItem) return false
-        return containingCallable == other.containingCallable &&
-            parameterIndex == other.parameterIndex
+        return containingItem == other.containingItem && parameterIndex == other.parameterIndex
     }
 
     override fun hashCode(): Int {
-        return Objects.hash(containingCallable, parameterIndex)
+        return Objects.hash(containingItem, parameterIndex)
     }
 }
 

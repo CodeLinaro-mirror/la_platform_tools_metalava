@@ -1,0 +1,876 @@
+/*
+ * Copyright (C) 2017 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.android.tools.metalava.api
+
+import com.android.SdkConstants.AMP_ENTITY
+import com.android.SdkConstants.APOS_ENTITY
+import com.android.SdkConstants.ATTR_NAME
+import com.android.SdkConstants.DOT_JAR
+import com.android.SdkConstants.DOT_XML
+import com.android.SdkConstants.DOT_ZIP
+import com.android.SdkConstants.GT_ENTITY
+import com.android.SdkConstants.LT_ENTITY
+import com.android.SdkConstants.QUOT_ENTITY
+import com.android.SdkConstants.TYPE_DEF_FLAG_ATTRIBUTE
+import com.android.SdkConstants.TYPE_DEF_VALUE_ATTRIBUTE
+import com.android.tools.lint.annotations.Extractor.ANDROID_INT_DEF
+import com.android.tools.lint.annotations.Extractor.ANDROID_NOTNULL
+import com.android.tools.lint.annotations.Extractor.ANDROID_NULLABLE
+import com.android.tools.lint.annotations.Extractor.ANDROID_STRING_DEF
+import com.android.tools.lint.annotations.Extractor.ATTR_PURE
+import com.android.tools.lint.annotations.Extractor.ATTR_VAL
+import com.android.tools.lint.annotations.Extractor.IDEA_CONTRACT
+import com.android.tools.lint.annotations.Extractor.IDEA_MAGIC
+import com.android.tools.lint.annotations.Extractor.IDEA_NOTNULL
+import com.android.tools.lint.annotations.Extractor.IDEA_NULLABLE
+import com.android.tools.lint.annotations.Extractor.SUPPORT_NOTNULL
+import com.android.tools.lint.annotations.Extractor.SUPPORT_NULLABLE
+import com.android.tools.lint.detector.api.getChildren
+import com.android.tools.metalava.CodebaseComparator
+import com.android.tools.metalava.ComparisonVisitor
+import com.android.tools.metalava.cli.common.cliError
+import com.android.tools.metalava.model.ANDROIDX_INT_DEF
+import com.android.tools.metalava.model.ANDROIDX_INT_RANGE
+import com.android.tools.metalava.model.ANDROIDX_NONNULL
+import com.android.tools.metalava.model.ANDROIDX_NULLABLE
+import com.android.tools.metalava.model.ANDROIDX_STRING_DEF
+import com.android.tools.metalava.model.ANDROID_FLAGGED_API
+import com.android.tools.metalava.model.AnnotationAttribute
+import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.JavaConstants
+import com.android.tools.metalava.model.PackageFilter
+import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.SelectableItem
+import com.android.tools.metalava.model.TraversingVisitor
+import com.android.tools.metalava.model.TypeNullability
+import com.android.tools.metalava.model.api.surface.ApiSurfacePredicate
+import com.android.tools.metalava.model.source.SourceParser
+import com.android.tools.metalava.model.source.SourceSet
+import com.android.tools.metalava.model.text.ApiFile
+import com.android.tools.metalava.model.text.ApiParseException
+import com.android.tools.metalava.model.text.SignatureFile
+import com.android.tools.metalava.model.type.TypeItemParser
+import com.android.tools.metalava.model.typeNullability
+import com.android.tools.metalava.model.value.Value
+import com.android.tools.metalava.model.value.ValueParser
+import com.android.tools.metalava.reporter.FileLocation
+import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.reporter.Reporter
+import com.android.tools.metalava.xml.parseDocument
+import com.google.common.io.Closeables
+import java.io.File
+import java.io.FileInputStream
+import java.io.IOException
+import java.lang.reflect.Field
+import java.util.jar.JarInputStream
+import java.util.regex.Pattern
+import java.util.zip.ZipEntry
+import kotlin.text.Charsets.UTF_8
+import org.w3c.dom.Document
+import org.w3c.dom.Element
+import org.xml.sax.SAXParseException
+
+/** Merges annotations into classes already registered in the given [Codebase] */
+class AnnotationsMerger(
+    private val sourceParser: SourceParser,
+    private val codebase: Codebase,
+    private val reporter: Reporter,
+    private val config: Config,
+) {
+    data class Config(
+        val sources: List<File> = emptyList(),
+        val sourcePath: List<File> = emptyList(),
+        val classpath: List<File> = emptyList(),
+        val apiPackageFilter: PackageFilter? = null,
+        val nullabilityAnnotationsValidator: NullabilityAnnotationsValidator? = null,
+    )
+
+    /** Used for parsing annotation attribute values loaded from XML files. */
+    private val valueParser = ValueParser(codebase, TypeItemParser.forValueParser(codebase))
+
+    /** Merge annotations which will appear in the output API. */
+    fun mergeQualifierAnnotationsFromFiles(files: List<File>) {
+        mergeAll(
+            files,
+            ::mergeQualifierAnnotationsFromFile,
+            ::mergeAndValidateQualifierAnnotationsFromJavaStubsCodebase
+        )
+    }
+
+    /** Merge annotations which control what is included in the output API. */
+    fun mergeInclusionAnnotationsFromFiles(files: List<File>) {
+        mergeAll(
+            files,
+            { cliError("External inclusion annotations files must be .java, found ${it.path}") },
+            ::mergeInclusionAnnotationsFromCodebase
+        )
+    }
+
+    /**
+     * Given a list of directories containing various files, scan those files merging them into the
+     * [codebase].
+     *
+     * All `.java` files are collated and
+     */
+    private fun mergeAll(
+        mergeAnnotations: List<File>,
+        mergeFile: (File) -> Unit,
+        mergeJavaStubsCodebase: (Codebase) -> Unit
+    ) {
+        // Process each file (which are almost certainly directories) separately. That allows for a
+        // single Java class to merge in annotations from multiple separate files.
+        mergeAnnotations.forEach {
+            val javaStubFiles = mutableListOf<File>()
+            mergeFileOrDir(it, mergeFile, javaStubFiles)
+            if (javaStubFiles.isNotEmpty()) {
+                // Set up class path to contain our main sources such that we can
+                // resolve types in the stubs
+                val roots =
+                    SourceSet(config.sources, config.sourcePath).extractRoots(reporter).sourcePath
+                val inputs =
+                    SourceParser.Inputs(
+                        SourceSet(javaStubFiles, roots),
+                        "Codebase loaded from stubs",
+                        classPath = config.classpath,
+                        apiPackages = config.apiPackageFilter,
+                    )
+                val javaStubsCodebase = sourceParser.parseSources(inputs)
+                if (javaStubsCodebase != null) {
+                    mergeJavaStubsCodebase(javaStubsCodebase)
+                }
+            }
+        }
+    }
+
+    /**
+     * Merges annotations from `file`, or from all the files under it if `file` is a directory. All
+     * files apart from Java stub files are merged using [mergeFile]. Java stub files are not merged
+     * by this method, instead they are added to [javaStubFiles] and should be merged later (so that
+     * all the Java stubs can be loaded as a single codebase).
+     */
+    private fun mergeFileOrDir(
+        file: File,
+        mergeFile: (File) -> Unit,
+        javaStubFiles: MutableList<File>
+    ) {
+        if (file.isDirectory) {
+            val files = file.listFiles()
+            if (files != null) {
+                for (child in files) {
+                    mergeFileOrDir(child, mergeFile, javaStubFiles)
+                }
+            }
+        } else if (file.isFile) {
+            if (file.path.endsWith(".java")) {
+                javaStubFiles.add(file)
+            } else {
+                mergeFile(file)
+            }
+        }
+    }
+
+    private fun mergeQualifierAnnotationsFromFile(file: File) {
+        if (file.path.endsWith(DOT_JAR) || file.path.endsWith(DOT_ZIP)) {
+            mergeFromJar(file)
+        } else if (file.path.endsWith(DOT_XML)) {
+            try {
+                val xml = file.readText()
+                mergeQualifierAnnotationsFromXml(file.path, xml)
+            } catch (e: IOException) {
+                reportError("I/O problem during transform: $e")
+            }
+        } else if (
+            file.path.endsWith(".txt") ||
+                file.path.endsWith(".signatures") ||
+                file.path.endsWith(".api")
+        ) {
+            try {
+                // .txt: Old style signature files
+                // Others: new signature files (e.g. kotlin-style nullness info)
+                mergeQualifierAnnotationsFromSignatureFile(file)
+            } catch (e: IOException) {
+                reportError("I/O problem during transform: $e")
+            }
+        }
+    }
+
+    private fun mergeFromJar(jar: File) {
+        // Reads in an existing annotations jar and merges in entries found there
+        // with the annotations analyzed from source.
+        var zis: JarInputStream? = null
+        try {
+            val fis = FileInputStream(jar)
+            zis = JarInputStream(fis)
+            var entry: ZipEntry? = zis.nextEntry
+            while (entry != null) {
+                if (entry.name.endsWith(".xml")) {
+                    val bytes = zis.readBytes()
+                    val xml = String(bytes, UTF_8)
+                    mergeQualifierAnnotationsFromXml(jar.path + ": " + entry, xml)
+                }
+                entry = zis.nextEntry
+            }
+        } catch (e: IOException) {
+            reportError("I/O problem during transform: $e")
+        } finally {
+            try {
+                Closeables.close(zis, true /* swallowIOException */)
+            } catch (e: IOException) {
+                // cannot happen
+            }
+        }
+    }
+
+    private fun mergeQualifierAnnotationsFromXml(path: String, xml: String) {
+        try {
+            val document = parseDocument(xml, false)
+            mergeDocument(document)
+        } catch (e: Exception) {
+            var message = "Failed to merge $path: $e"
+            if (e is SAXParseException) {
+                message = "Line ${e.lineNumber}:${e.columnNumber}: $message"
+            }
+            if (e !is IOException) {
+                message += "\n" + e.stackTraceToString().prependIndent("  ")
+            }
+            reportError(message)
+        }
+    }
+
+    private fun mergeQualifierAnnotationsFromSignatureFile(file: File) {
+        try {
+            val signatureCodebase =
+                ApiFile.parseApi(
+                    SignatureFile.fromFiles(file),
+                    codebase.config,
+                    "Signature files for annotation merger: loaded from $file"
+                )
+            mergeQualifierAnnotationsFromCodebase(signatureCodebase)
+        } catch (ex: ApiParseException) {
+            val message = "Unable to parse signature file $file: ${ex.message}"
+            cliError(message)
+        }
+    }
+
+    private fun mergeAndValidateQualifierAnnotationsFromJavaStubsCodebase(
+        javaStubsCodebase: Codebase
+    ) {
+        mergeQualifierAnnotationsFromCodebase(javaStubsCodebase)
+
+        config.nullabilityAnnotationsValidator?.validateAll(
+            codebase,
+            javaStubsCodebase.getTopLevelClassesFromSource().map(ClassItem::qualifiedName)
+        )
+    }
+
+    private fun mergeQualifierAnnotationsFromCodebase(externalCodebase: Codebase) {
+        val visitor =
+            object : ComparisonVisitor() {
+                override fun compareItems(old: Item, new: Item) {
+                    val itemAnnotations = old.modifiers.annotations()
+                    mergeQualifierAnnotations(itemAnnotations, new)
+                    old.type()?.let {
+                        // Ignore type annotations that are duplicates of the item's annotations.
+                        val typeAnnotations =
+                            it.modifiers.annotations.filter { it !in itemAnnotations }
+                        mergeQualifierAnnotations(typeAnnotations, new)
+                    }
+                }
+
+                override fun removedItem(old: SelectableItem, from: SelectableItem?) {
+                    // Do not report missing items if there are no annotations to copy.
+                    if (old.modifiers.annotations().isEmpty()) {
+                        old.type()?.let { typeItem ->
+                            if (typeItem.modifiers.annotations.isEmpty()) return
+                        } ?: return
+                    }
+
+                    reporter.report(
+                        Issues.UNMATCHED_MERGE_ANNOTATION,
+                        old,
+                        "qualifier annotations were given for $old but no matching item was found"
+                    )
+                }
+            }
+
+        CodebaseComparator.compare(visitor, externalCodebase, codebase)
+    }
+
+    private fun mergeInclusionAnnotationsFromCodebase(externalCodebase: Codebase) {
+        val visitor =
+            object : TraversingVisitor() {
+                override fun visitItem(item: Item): TraversalAction {
+                    // Find any show/hide annotations or FlaggedApi annotations to merge from the
+                    // external to the main codebase. If there are none to copy then return.
+                    val annotationsToMerge =
+                        item.modifiers.annotations().filter { annotation ->
+                            val qualifiedName = annotation.qualifiedName
+                            annotation.isShowabilityAnnotation() ||
+                                qualifiedName == ANDROID_FLAGGED_API
+                        }
+                    if (annotationsToMerge.isEmpty()) {
+                        // Just because there are no annotations on an [Item] does not mean that
+                        // there will not be on the children so make sure to visit them as normal.
+                        return TraversalAction.CONTINUE
+                    }
+
+                    // Find the item to which the annotations should be copied, reporting an issue
+                    // if it could not be found.
+                    val mainItem =
+                        item.findCorrespondingItemIn(codebase)
+                            ?: run {
+                                reporter.report(
+                                    Issues.UNMATCHED_MERGE_ANNOTATION,
+                                    item,
+                                    "inclusion annotations were given for $item but no matching item was found"
+                                )
+
+                                // If an [Item] cannot be found then there is no point in visiting
+                                // its children as they will not be found either.
+                                return TraversalAction.SKIP_CHILDREN
+                            }
+
+                    // Merge the annotations to the main item, ignoring any that match, i.e. are of
+                    // the same type as, an existing annotation.
+                    mainItem.mutateModifiers {
+                        mutateAnnotations {
+                            for (annotation in annotationsToMerge) {
+                                val qualifiedName = annotation.qualifiedName
+                                if (none { it.qualifiedName == qualifiedName }) {
+                                    // TODO: This simply uses the AnnotationItem from the Codebase
+                                    //  being merged from in the Codebase being merged into. That is
+                                    //  not safe as the Codebases may be from different models.
+                                    add(annotation)
+                                }
+                            }
+                        }
+                    }
+
+                    return TraversalAction.CONTINUE
+                }
+            }
+        externalCodebase.accept(visitor)
+    }
+
+    /** Report an [Issues.INTERNAL_ERROR] without any location information. */
+    private fun reportError(message: String) {
+        reporter.report(Issues.INTERNAL_ERROR, reportable = null, message)
+    }
+
+    /** Called when an `item` referenced in an `annotations.xml` file could not be found. */
+    internal fun missingAnnotationsXmlItem(message: String) {
+        reporter.report(Issues.MISSING_ANNOTATIONS_XML_ITEM, reportable = null, message)
+    }
+
+    @Suppress("PrivatePropertyName")
+    private val XML_SIGNATURE: Pattern =
+        Pattern.compile(
+            // Class (FieldName | Type? Name(ArgList) Argnum?)
+            // "(\\S+) (\\S+|(.*)\\s+(\\S+)\\((.*)\\)( \\d+)?)");
+            "(\\S+) (\\S+|((.*)\\s+)?(\\S+)\\((.*)\\)( \\d+)?)"
+        )
+
+    private fun mergeDocument(document: Document) {
+        val root = document.documentElement
+        val rootTag = root.tagName
+        assert(rootTag == "root") { rootTag }
+
+        for (item in getChildren(root)) {
+            var signature: String? = item.getAttribute(ATTR_NAME)
+            if (signature == null || signature == "null") {
+                continue // malformed item
+            }
+
+            signature = unescapeXml(signature)
+
+            val matcher = XML_SIGNATURE.matcher(signature)
+            if (matcher.matches()) {
+                val containingClass = matcher.group(1)
+                if (containingClass == null) {
+                    missingAnnotationsXmlItem("Could not find class for $signature")
+                    continue
+                }
+
+                val classItem = codebase.findClass(containingClass)
+                if (classItem == null) {
+                    // Well known exceptions from IntelliJ's external annotations
+                    // we won't complain loudly about
+                    if (wellKnownIgnoredImport(containingClass)) {
+                        continue
+                    }
+
+                    missingAnnotationsXmlItem(
+                        "Could not find class $containingClass; omitting annotation from merge"
+                    )
+                    continue
+                }
+
+                val methodName = matcher.group(5)
+                if (methodName != null) {
+                    val parameters = matcher.group(6)
+                    val parameterIndex =
+                        if (matcher.group(7) != null) {
+                            Integer.parseInt(matcher.group(7).trim())
+                        } else {
+                            -1
+                        }
+                    mergeMethodOrParameter(
+                        item,
+                        containingClass,
+                        classItem,
+                        methodName,
+                        parameterIndex,
+                        parameters
+                    )
+                } else {
+                    val fieldName = matcher.group(2)
+                    mergeField(item, containingClass, classItem, fieldName)
+                }
+            } else if (signature.indexOf(' ') == -1 && signature.indexOf('.') != -1) {
+                // Must be just a class
+                val containingClass = signature
+                val classItem = codebase.findClass(containingClass)
+                if (classItem == null) {
+                    if (wellKnownIgnoredImport(containingClass)) {
+                        continue
+                    }
+
+                    missingAnnotationsXmlItem(
+                        "Could not find class $containingClass; omitting annotation from merge"
+                    )
+                    continue
+                }
+
+                mergeQualifierAnnotationsFromXmlElement(item, classItem)
+            } else {
+                missingAnnotationsXmlItem("No merge match for signature $signature")
+            }
+        }
+    }
+
+    private fun wellKnownIgnoredImport(containingClass: String): Boolean {
+        if (
+            containingClass.startsWith("javax.swing.") ||
+                containingClass.startsWith("javax.naming.") ||
+                containingClass.startsWith("java.awt.") ||
+                containingClass.startsWith("org.jdom.")
+        ) {
+            return true
+        }
+        return false
+    }
+
+    // The parameter declaration used in XML files should not have duplicated spaces,
+    // and there should be no space after commas (we can't however strip out all spaces,
+    // since for example the spaces around the "extends" keyword needs to be there in
+    // types like Map<String,? extends Number>
+    private fun fixParameterString(parameters: String): String {
+        return parameters
+            .replace("  ", " ")
+            .replace(", ", ",")
+            .replace("?super", "? super ")
+            .replace("?extends", "? extends ")
+    }
+
+    private fun mergeMethodOrParameter(
+        item: Element,
+        containingClass: String,
+        classItem: ClassItem,
+        methodName: String,
+        parameterIndex: Int,
+        parameters: String
+    ) {
+        @Suppress("NAME_SHADOWING") val parameters = fixParameterString(parameters)
+
+        val callableItem =
+            if (methodName == classItem.simpleName()) {
+                classItem.findBytecodeConstructor(parameters)
+            } else {
+                classItem.findBytecodeMethod(methodName, parameters)
+            }
+        if (callableItem == null) {
+            if (wellKnownIgnoredImport(containingClass)) {
+                return
+            }
+
+            missingAnnotationsXmlItem(
+                "Could not find method $methodName($parameters) in $containingClass; omitting annotation from merge"
+            )
+            return
+        }
+
+        if (parameterIndex != -1) {
+            val parameterItem = callableItem.parameters()[parameterIndex]
+            mergeQualifierAnnotationsFromXmlElement(item, parameterItem)
+        } else {
+            // Annotation on the method itself
+            mergeQualifierAnnotationsFromXmlElement(item, callableItem)
+        }
+    }
+
+    private fun mergeField(
+        item: Element,
+        containingClass: String,
+        classItem: ClassItem,
+        fieldName: String
+    ) {
+        val fieldItem = classItem.findField(fieldName)
+        if (fieldItem == null) {
+            if (wellKnownIgnoredImport(containingClass)) {
+                return
+            }
+
+            missingAnnotationsXmlItem(
+                "Could not find field $fieldName in $containingClass; omitting annotation from merge"
+            )
+            return
+        }
+
+        mergeQualifierAnnotationsFromXmlElement(item, fieldItem)
+    }
+
+    private fun mergeQualifierAnnotationsFromXmlElement(xmlElement: Element, item: Item) {
+        val annotationsToMerge =
+            getChildren(xmlElement).mapNotNull { annotationElement ->
+                createAnnotation(annotationElement)
+            }
+
+        mergeQualifierAnnotations(annotationsToMerge, item)
+    }
+
+    /**
+     * Reads in annotation data from an XML item (using IntelliJ IDE's external annotations XML
+     * format) and creates a corresponding [AnnotationItem], performing some "translations" in the
+     * process (e.g. mapping from IntelliJ annotations like `org.jetbrains.annotations.Nullable` to
+     * `androidx.annotation.Nullable`.
+     */
+    private fun createAnnotation(annotationElement: Element): AnnotationItem? {
+        val tagName = annotationElement.tagName
+        assert(tagName == "annotation") { tagName }
+        val name = annotationElement.getAttribute(ATTR_NAME)
+        assert(name.isNotEmpty())
+        when {
+            name == "org.jetbrains.annotations.Range" -> {
+                val children = getChildren(annotationElement)
+                assert(children.size == 2) { children.size }
+                val valueElement1 = children[0]
+                val valueElement2 = children[1]
+                val valName1 = valueElement1.getAttribute(ATTR_NAME)
+                val value1 = valueElement1.getAttribute(ATTR_VAL)
+                val valName2 = valueElement2.getAttribute(ATTR_NAME)
+                val value2 = valueElement2.getAttribute(ATTR_VAL)
+                return createAnnotationFromAttributes(
+                    ANDROIDX_INT_RANGE,
+                    listOf(
+                        // Add "L" suffix to ensure that we don't for example interpret "-1" as
+                        // an integer -1 and then end up recording it as "ffffffff" instead of
+                        // -1L
+                        valName1 to value1 + (if (value1.last().isDigit()) "L" else ""),
+                        valName2 to value2 + (if (value2.last().isDigit()) "L" else ""),
+                    ),
+                )
+            }
+            name == IDEA_MAGIC -> {
+                val children = getChildren(annotationElement)
+                assert(children.size == 1) { children.size }
+                val valueElement = children[0]
+                val valName = valueElement.getAttribute(ATTR_NAME)
+                var value = valueElement.getAttribute(ATTR_VAL)
+                val flagsFromClass = valName == "flagsFromClass"
+                val flag = valName == "flags" || flagsFromClass
+                if (valName == "valuesFromClass" || flagsFromClass) {
+                    // Not supported
+                    var found = false
+                    if (value.endsWith(JavaConstants.DOT_CLASS)) {
+                        val clsName =
+                            value.substring(0, value.length - JavaConstants.DOT_CLASS.length)
+                        val sb = StringBuilder()
+                        sb.append('{')
+
+                        var reflectionFields: Array<Field>? = null
+                        try {
+                            val cls = Class.forName(clsName)
+                            reflectionFields = cls.declaredFields
+                        } catch (ignore: Exception) {
+                            // Class not available: not a problem. We'll rely on API filter.
+                            // It's mainly used for sorting anyway.
+                        }
+
+                        // Attempt to sort in reflection order
+                        if (reflectionFields != null) {
+                            // Create predicate that matches core variants across all the API
+                            // surfaces. It will not include items that only have removed or doc
+                            // only variants or are not emitted.
+                            val filterEmit =
+                                ApiSurfacePredicate.wholeCoreEmittableApi(codebase.apiSurfaces.main)
+
+                            // Attempt with reflection
+                            var first = true
+                            for (field in reflectionFields) {
+                                if (
+                                    field.type == Integer.TYPE ||
+                                        field.type == Int::class.javaPrimitiveType
+                                ) {
+                                    // Make sure this field is included in our API too
+                                    val fieldItem =
+                                        codebase.findClass(clsName)?.findField(field.name)
+                                    if (fieldItem == null || !filterEmit.test(fieldItem)) {
+                                        continue
+                                    }
+
+                                    if (first) {
+                                        first = false
+                                    } else {
+                                        sb.append(',').append(' ')
+                                    }
+                                    sb.append(clsName).append('.').append(field.name)
+                                }
+                            }
+                        }
+                        sb.append('}')
+                        value = sb.toString()
+                        if (sb.length > 2) { // 2: { }
+                            found = true
+                        }
+                    }
+
+                    if (!found) {
+                        return null
+                    }
+                }
+
+                val attributes = buildList {
+                    add(TYPE_DEF_VALUE_ATTRIBUTE to value)
+                    if (flag) {
+                        add(TYPE_DEF_FLAG_ATTRIBUTE to ANNOTATION_VALUE_TRUE)
+                    }
+                }
+
+                return createAnnotationFromAttributes(
+                    if (valName == "stringValues") ANDROIDX_STRING_DEF else ANDROIDX_INT_DEF,
+                    attributes,
+                )
+            }
+            name == ANDROIDX_STRING_DEF ||
+                name == ANDROID_STRING_DEF ||
+                name == ANDROIDX_INT_DEF ||
+                name == ANDROID_INT_DEF -> {
+                val attributes = buildList {
+                    val parseChild: (Element) -> Unit = { child: Element ->
+                        val elementName = child.getAttribute(ATTR_NAME)
+                        val value = child.getAttribute(ATTR_VAL)
+                        when (elementName) {
+                            TYPE_DEF_VALUE_ATTRIBUTE -> {
+                                add(TYPE_DEF_VALUE_ATTRIBUTE to value)
+                            }
+                            TYPE_DEF_FLAG_ATTRIBUTE -> {
+                                if (ANNOTATION_VALUE_TRUE == value) {
+                                    add(TYPE_DEF_FLAG_ATTRIBUTE to ANNOTATION_VALUE_TRUE)
+                                }
+                            }
+                            else -> {
+                                reportError("Unrecognized element: " + elementName)
+                            }
+                        }
+                    }
+                    val children = getChildren(annotationElement)
+                    parseChild(children[0])
+                    if (children.size == 2) {
+                        parseChild(children[1])
+                    }
+                }
+                val intDef = ANDROIDX_INT_DEF == name || ANDROID_INT_DEF == name
+                return createAnnotationFromAttributes(
+                    if (intDef) ANDROIDX_INT_DEF else ANDROIDX_STRING_DEF,
+                    attributes,
+                )
+            }
+            name == IDEA_CONTRACT -> {
+                val children = getChildren(annotationElement)
+                val valueElement = children[0]
+                val value = valueElement.getAttribute(ATTR_VAL)
+                val pure = valueElement.getAttribute(ATTR_PURE)
+                return if (pure.isNotEmpty()) {
+                    createAnnotationFromAttributes(
+                        name,
+                        listOf(TYPE_DEF_VALUE_ATTRIBUTE to value, ATTR_PURE to pure),
+                    )
+                } else {
+                    createAnnotationFromAttributes(
+                        name,
+                        listOf(TYPE_DEF_VALUE_ATTRIBUTE to value),
+                    )
+                }
+            }
+            isNonNull(name) -> return createMarkerAnnotation(ANDROIDX_NONNULL)
+            isNullable(name) -> return createMarkerAnnotation(ANDROIDX_NULLABLE)
+            else -> {
+                val children = getChildren(annotationElement)
+                if (children.isEmpty()) {
+                    return createMarkerAnnotation(name)
+                }
+                val attributes = buildList {
+                    for (valueElement in children) {
+                        val attributeName = valueElement.getAttribute(ATTR_NAME) ?: continue
+                        val attributeValue = valueElement.getAttribute(ATTR_VAL) ?: continue
+                        add(attributeName to attributeValue)
+                    }
+                }
+                return createAnnotationFromAttributes(name, attributes)
+            }
+        }
+    }
+
+    /** Create a marker [AnnotationItem], i.e. one without attributes. */
+    private fun createMarkerAnnotation(name: String) =
+        AnnotationItem.createMarkerAnnotation(codebase, name)
+
+    private fun isNonNull(name: String): Boolean {
+        return name == IDEA_NOTNULL ||
+            name == ANDROID_NOTNULL ||
+            name == ANDROIDX_NONNULL ||
+            name == SUPPORT_NOTNULL
+    }
+
+    private fun isNullable(name: String): Boolean {
+        return name == IDEA_NULLABLE ||
+            name == ANDROID_NULLABLE ||
+            name == ANDROIDX_NULLABLE ||
+            name == SUPPORT_NULLABLE
+    }
+
+    /** Merge qualifier annotations in [annotations] into the [Item.modifiers] of [item]. */
+    private fun mergeQualifierAnnotations(annotations: List<AnnotationItem>, item: Item) {
+        if (annotations.isEmpty()) return
+
+        // Check to make sure that the annotations are not adding a conflicting type nullability.
+        val nullabilityBefore = item.modifiers.annotations().typeNullability
+        if (nullabilityBefore != null) {
+            val mergeNullability = annotations.typeNullability
+            if (mergeNullability != null && mergeNullability != nullabilityBefore) {
+                when (nullabilityBefore) {
+                    TypeNullability.NULLABLE ->
+                        reporter.report(
+                            Issues.INCONSISTENT_MERGE_ANNOTATION,
+                            item,
+                            "Merge conflict, has @Nullable (or equivalent) attempting to merge" +
+                                " @NonNull (or equivalent)"
+                        )
+                    TypeNullability.NONNULL ->
+                        reporter.report(
+                            Issues.INCONSISTENT_MERGE_ANNOTATION,
+                            item,
+                            "Merge conflict, has @NonNull (or equivalent) attempting to merge" +
+                                " @Nullable (or equivalent)"
+                        )
+                    else -> {}
+                }
+            }
+        }
+
+        item.mutateModifiers {
+            mutateAnnotations {
+                for (annotation in annotations) {
+                    // If the item already has nullness annotations then ignore any others.
+                    if (nullabilityBefore != null && annotation.isNullnessAnnotation()) continue
+
+                    // Ignore annotation that has the same type as an existing annotation.
+                    val qualifiedName = annotation.qualifiedName
+                    if (any { it.qualifiedName == qualifiedName }) continue
+
+                    // Take a snapshot of the annotation for use in this codebase.
+                    val annotationToMerge = annotation.snapshot(item.codebase)
+                    add(annotationToMerge)
+                }
+            }
+        }
+
+        // Update the type nullability from the annotations, if necessary.
+        //
+        // Nullability annotations do not make sense on class definitions or in package-info.java
+        // files and in fact many nullability annotations do not support targeting them at all. Some
+        // nullability checkers do support annotating packages and classes with annotations to set
+        // the default nullability for unannotated types but Metalava does not currently support
+        // them. If it did then they would need special treatment here anyway so, for now we just
+        // ignore them.
+        if (item is ClassItem || item is PackageItem) return
+
+        // Check to make sure that the item has a type.
+        val typeItem = item.type() ?: return
+
+        // If the nullability after is null then nullability annotations cannot have been added so
+        // there is nothing to check.
+        val nullabilityAfter = item.modifiers.annotations().typeNullability ?: return
+
+        // If the type nullability has changed then update the type nullability to match.
+        if (nullabilityAfter != nullabilityBefore) {
+            // Finally, duplicate the type with the new nullability.
+            item.setType(typeItem.substitute(nullabilityAfter))
+        }
+    }
+
+    private fun unescapeXml(escaped: String): String {
+        var workingString = escaped.replace(QUOT_ENTITY, "\"")
+        workingString = workingString.replace(LT_ENTITY, "<")
+        workingString = workingString.replace(GT_ENTITY, ">")
+        workingString = workingString.replace(APOS_ENTITY, "'")
+        workingString = workingString.replace(AMP_ENTITY, "&")
+
+        return workingString
+    }
+
+    /**
+     * Create an [AnnotationItem] appropriate for this [Codebase] from the [attributes] by parsing
+     * each value, wrapping them in an [AnnotationAttribute] and then constructing the
+     * [AnnotationItem].
+     */
+    private fun createAnnotationFromAttributes(
+        originalName: String,
+        attributes: List<Pair<String, String>> = emptyList(),
+    ): AnnotationItem? {
+        // Resolve the annotation class, if possible.
+        val annotationClass = codebase.resolveClass(originalName)
+
+        // Convert the pairs of name/value strings into a list of AnnotationAttributes.
+        val annotationAttributes =
+            attributes.map { (name, sourceValue) ->
+                val attributeType = annotationClass?.methods()?.first { it.name() == name }?.type()
+                val value: Value =
+                    valueParser.parse(attributeType, sourceValue)
+                        // Throw an exception if no value could be found.
+                        ?: error(
+                            "Could not parse '$sourceValue' for attribute name '$name' in annotation '$originalName'"
+                        )
+                AnnotationAttribute.createAttribute(name, value)
+            }
+
+        // Create the annotation item.
+        return AnnotationItem.createWithAttributes(
+            codebase,
+            FileLocation.UNKNOWN,
+            originalName,
+            annotationAttributes,
+        )
+    }
+
+    companion object {
+        private const val ANNOTATION_VALUE_TRUE = "true"
+    }
+}

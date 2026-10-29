@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava.model.testsuite.typeitem
 
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
@@ -58,12 +60,13 @@ class CommonSamCompatibleTest : BaseModelTest() {
                     .assertClass("test.pkg.Foo")
                     .assertMethod("foo", listOf("int", "boolean", "float"))
             for (parameter in fooMethod.parameters()) {
-                assertThat(parameter.type().isSamCompatibleOrKotlinLambda()).isFalse()
+                assertThat(parameter.type().isSamCompatibleOrKotlinLambda(codebase)).isFalse()
             }
-            assertThat(fooMethod.returnType().isSamCompatibleOrKotlinLambda()).isFalse()
+            assertThat(fooMethod.returnType().isSamCompatibleOrKotlinLambda(codebase)).isFalse()
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.KOTLIN)
     @Test
     fun `Kotlin lambda types are SAM-compatible`() {
         runCodebaseTest(
@@ -99,11 +102,12 @@ class CommonSamCompatibleTest : BaseModelTest() {
                         )
                     )
             for (parameter in fooMethod.parameters()) {
-                assertThat(parameter.type().isSamCompatibleOrKotlinLambda()).isTrue()
+                assertThat(parameter.type().isSamCompatibleOrKotlinLambda(codebase)).isTrue()
             }
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.KOTLIN)
     @Test
     fun `Kotlin suspend lambda types are SAM-compatible`() {
         runCodebaseTest(
@@ -139,7 +143,7 @@ class CommonSamCompatibleTest : BaseModelTest() {
                         )
                     )
             for (parameter in fooMethod.parameters()) {
-                assertThat(parameter.type().isSamCompatibleOrKotlinLambda()).isTrue()
+                assertThat(parameter.type().isSamCompatibleOrKotlinLambda(codebase)).isTrue()
             }
         }
     }
@@ -200,10 +204,11 @@ class CommonSamCompatibleTest : BaseModelTest() {
                     .assertMethod("foo", listOf("test.pkg.SamInterface"))
                     .parameters()
                     .single()
-            assertThat(fooParameter.type().isSamCompatibleOrKotlinLambda()).isTrue()
+            assertThat(fooParameter.type().isSamCompatibleOrKotlinLambda(codebase)).isTrue()
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Kotlin SAM interface types are not SAM-compatible`() {
         val samInterfaceDefinition =
@@ -247,10 +252,11 @@ class CommonSamCompatibleTest : BaseModelTest() {
                     .assertMethod("foo", listOf("test.pkg.SamInterface"))
                     .parameters()
                     .single()
-            assertThat(fooParameter.type().isSamCompatibleOrKotlinLambda()).isFalse()
+            assertThat(fooParameter.type().isSamCompatibleOrKotlinLambda(codebase)).isFalse()
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.KOTLIN)
     @Test
     fun `Kotlin fun interface types are SAM-compatible`() {
         val funInterfaceDefinition =
@@ -307,10 +313,11 @@ class CommonSamCompatibleTest : BaseModelTest() {
                     .assertMethod("foo", listOf("test.pkg.FunInterface"))
                     .parameters()
                     .single()
-            assertThat(fooParameter.type().isSamCompatibleOrKotlinLambda()).isTrue()
+            assertThat(fooParameter.type().isSamCompatibleOrKotlinLambda(codebase)).isTrue()
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.KOTLIN)
     @Test
     fun `Variable type with function bound is SAM-compatible`() {
         runCodebaseTest(
@@ -340,10 +347,11 @@ class CommonSamCompatibleTest : BaseModelTest() {
                     .assertMethod("foo", listOf("T"))
                     .parameters()
                     .single()
-            assertThat(fooParameter.type().isSamCompatibleOrKotlinLambda()).isTrue()
+            assertThat(fooParameter.type().isSamCompatibleOrKotlinLambda(codebase)).isTrue()
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.KOTLIN)
     @Test
     fun `Variable types with non-function SAM-compatible bound is not SAM-compatible`() {
         val funInterfaceDefinition =
@@ -411,7 +419,7 @@ class CommonSamCompatibleTest : BaseModelTest() {
             val fooMethod =
                 codebase.assertClass("test.pkg.Foo").assertMethod("foo", listOf("T1", "T2"))
             for (parameter in fooMethod.parameters()) {
-                assertThat(parameter.type().isSamCompatibleOrKotlinLambda()).isFalse()
+                assertThat(parameter.type().isSamCompatibleOrKotlinLambda(codebase)).isFalse()
             }
         }
     }

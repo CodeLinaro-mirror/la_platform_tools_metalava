@@ -28,8 +28,8 @@ class DocCommentTest : BaseDocCommentTest() {
 
     @Test
     fun `Test removeBlockTagSections`() {
-        val docComment =
-            createTestDocComment(
+        val (docComment, _) =
+            createTestDocCommentAndContext(
                 """
                     /**
                      * Some text.
@@ -109,8 +109,8 @@ class DocCommentTest : BaseDocCommentTest() {
 
     @Test
     fun `Test addBlockTagSection`() {
-        val docComment =
-            createTestDocComment(
+        val (docComment, _) =
+            createTestDocCommentAndContext(
                 """
                     /**
                      * Some text.

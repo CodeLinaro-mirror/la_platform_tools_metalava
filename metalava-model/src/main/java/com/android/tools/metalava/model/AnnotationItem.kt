@@ -16,7 +16,11 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.annotation.AnnotationClass
 import com.android.tools.metalava.model.annotation.AnnotationDefaults
+import com.android.tools.metalava.model.annotation.binding.AnnotationBindingFactory
+import com.android.tools.metalava.model.api.SurfaceAnnotationData
+import com.android.tools.metalava.model.api.SurfaceSelectionRule
 import com.android.tools.metalava.model.api.flags.ApiFlag
 import com.android.tools.metalava.model.api.flags.ApiFlags
 import com.android.tools.metalava.model.type.TypeItemParser
@@ -28,6 +32,7 @@ import com.android.tools.metalava.model.value.ValueProvider
 import com.android.tools.metalava.model.value.ValueStringConfiguration
 import com.android.tools.metalava.reporter.FileLocation
 import java.lang.StringBuilder
+import kotlin.reflect.KClass
 
 fun isNullnessAnnotation(qualifiedName: String): Boolean =
     isNullableAnnotation(qualifiedName) || isNonNullAnnotation(qualifiedName)
@@ -78,17 +83,23 @@ sealed interface AnnotationItem {
     val qualifiedName: String
 
     /**
-     * Determines the effect that this will have on whether an item annotated with this annotation
-     * will be shown as part of the API or not.
+     * The original name in the sources before normalizing the name.
+     *
+     * This must be used only when reporting issues with the original source.
      */
-    val showability: Showability
+    val originalName: String
+
+    /**
+     * The [SurfaceAnnotationData] associated with this annotation, `null` if it is not a surface
+     * annotation.
+     */
+    val surfaceData: SurfaceAnnotationData?
 
     /**
      * The [ApiFlag] referenced by this [AnnotationItem].
      *
      * This will be `null` if no [ApiFlags] have been provided or this [AnnotationItem]'s type is
-     * not [ANDROID_FLAGGED_API]. Otherwise, it will be one of the instances of [ApiFlag], e.g.
-     * [ApiFlag.REVERT_FLAGGED_API].
+     * not [ANDROID_FLAGGED_API]. Otherwise, it will be an instance of [ApiFlag].
      */
     val apiFlag: ApiFlag?
 
@@ -219,22 +230,9 @@ sealed interface AnnotationItem {
     fun isShowAnnotation(): Boolean
 
     /**
-     * Returns true iff this annotation is a show for stubs purposes annotation.
-     *
-     * If `true` then an item annotated with this annotation (and any contents) which are not
-     * annotated with another [isShowAnnotation] will be added to the stubs but not the API.
-     *
-     * e.g. if a class is annotated with this then it will also apply (unless overridden by a closer
-     * annotation) to all its contents like nested classes, methods, fields, constructors,
-     * properties, etc.
-     */
-    fun isShowForStubPurposes(): Boolean
-
-    /**
      * Returns true iff this annotation is a hide annotation.
      *
-     * Hide annotations can either be explicitly specified when creating the [Codebase] or they can
-     * be any annotation that is annotated with a hide meta-annotation (see [isHideMetaAnnotation]).
+     * Hide annotations can either be explicitly specified when creating the [Codebase].
      *
      * If `true` then an item annotated with this annotation (and any contents) will be excluded
      * from the API.
@@ -245,26 +243,24 @@ sealed interface AnnotationItem {
      */
     fun isHideAnnotation(): Boolean
 
+    /** Returns true iff [isShowAnnotation] or [isHideAnnotation] returns true. */
+    fun isShowabilityAnnotation(): Boolean
+
     fun isSuppressCompatibilityAnnotation(): Boolean
 
     /**
-     * Returns true iff this annotation is a showability annotation, i.e. one that will affect
-     * [showability].
+     * The [AnnotationClass] that provides information about the annotation class of this
+     * [AnnotationItem] instance.
      */
-    fun isShowabilityAnnotation(): Boolean
+    val annotationClass: AnnotationClass?
 
     /** Returns the retention of this annotation */
     val retention: AnnotationRetention
-        get() {
-            val cls = resolve()
-            if (cls != null) {
-                if (cls.isAnnotationType()) {
-                    return cls.annotationClass.retention
-                }
-            }
+        get() = annotationClass?.retention ?: AnnotationRetention.getDefault()
 
-            return AnnotationRetention.getDefault()
-        }
+    /** The [AnnotationUse] for this [AnnotationItem]. */
+    val annotationUse: AnnotationUse
+        get() = annotationClass?.annotationUse ?: AnnotationUse.DECLARATION_ONLY
 
     /** Take a snapshot of this [AnnotationItem] suitable for use in [targetContext]. */
     fun snapshot(targetContext: AnnotationContext): AnnotationItem
@@ -312,9 +308,7 @@ sealed interface AnnotationItem {
                 annotationClassName == "SystemService" ||
                     annotationClassName == "TargetApi" ||
                     annotationClassName == "SuppressLint" ||
-                    annotationClassName == "FlaggedApi" ||
-                    annotationClassName == "Nullable" ||
-                    annotationClassName == "NonNull" ->
+                    annotationClassName == "FlaggedApi" ->
                     "$ANDROID_ANNOTATION_PREFIX$annotationClassName"
                 // If the first character of the name is lower-case, then assume it's a package
                 // name, so no need to shorten it.
@@ -420,6 +414,51 @@ sealed interface AnnotationItem {
 val List<AnnotationItem>.typeNullability
     get() = mapNotNull { it.typeNullability }.firstOrNull()
 
+/**
+ * An enumeration of the possible uses of annotations.
+ *
+ * This only differentiates between declaration and type uses as that is all that is needed at the
+ * moment to allow model providers to tweak the behavior of the underlying model to ensure
+ * consistent and correct behavior. It does not differentiate between the different declaration use
+ * sites as the model providers generally handle that correctly.
+ *
+ * The declaration/type uses are differentiated because the introduction of type use annotations
+ * introduced ambiguity into the language which the specification does address but there are still
+ * some places where it is not handled correctly.
+ */
+enum class AnnotationUse(
+    val usableInDeclarationContext: Boolean,
+    val usableInTypeContext: Boolean,
+) {
+    /** The annotation is only usable in a declaration context. */
+    DECLARATION_ONLY(
+        usableInDeclarationContext = true,
+        usableInTypeContext = false,
+    ),
+
+    /** The annotation is only usable in a type context. */
+    TYPE_ONLY(
+        usableInDeclarationContext = false,
+        usableInTypeContext = true,
+    ),
+
+    /** The annotation is usable in either a declaration context or a type context. */
+    DECLARATION_AND_TYPE(
+        usableInDeclarationContext = true,
+        usableInTypeContext = true,
+    ),
+    ;
+
+    /**
+     * Combine this with an optional [other],
+     *
+     * If the other is null or the same as this one then return this one. Otherwise, as any two,
+     * non-null, but different instances, will always combine to [DECLARATION_AND_TYPE].
+     */
+    fun combineWith(other: AnnotationUse?) =
+        if (other == null || other == this) this else DECLARATION_AND_TYPE
+}
+
 /** Provides contextual information needed by [AnnotationItem]s. */
 interface AnnotationContext : ClassResolver, ValueContext {
     /** The manager of annotations within this context. */
@@ -434,6 +473,12 @@ interface AnnotationContext : ClassResolver, ValueContext {
      */
     fun defaultsForAnnotationClass(qualifiedName: String) =
         resolveClass(qualifiedName)?.annotationClass?.defaults ?: AnnotationDefaults.EMPTY
+
+    /** Get an [AnnotationBindingFactory] for [kClass] with [defaults]. */
+    fun <T : Any> bindingFactoryFor(
+        kClass: KClass<T>,
+        defaults: AnnotationDefaults?,
+    ): AnnotationBindingFactory<T> = error("unsupported")
 
     companion object {
         /**
@@ -459,7 +504,7 @@ internal abstract class BaseAnnotationItem(
     override val fileLocation: FileLocation,
 
     /** Fully qualified name of the annotation (prior to name mapping) */
-    internal val originalName: String,
+    override val originalName: String,
 
     /** Fully qualified name of the annotation (after name mapping) */
     override val qualifiedName: String,
@@ -488,8 +533,8 @@ internal abstract class BaseAnnotationItem(
         return info.typeNullability == TypeNullability.NONNULL
     }
 
-    override val showability: Showability
-        get() = info.showability
+    override val surfaceData
+        get() = info.surfaceData
 
     override val apiFlag: ApiFlag?
         get() = info.apiFlag
@@ -503,15 +548,21 @@ internal abstract class BaseAnnotationItem(
         return resolve()?.modifiers?.findAnnotation(AnnotationItem::isTypeDefAnnotation)
     }
 
-    override fun isShowAnnotation(): Boolean = info.showability.show()
+    override fun isShowAnnotation(): Boolean =
+        info.surfaceData?.effect == SurfaceSelectionRule.Effect.SHOW
 
-    override fun isShowForStubPurposes(): Boolean = info.showability.showForStubsOnly()
+    override fun isHideAnnotation(): Boolean =
+        info.surfaceData?.effect == SurfaceSelectionRule.Effect.HIDE
 
-    override fun isHideAnnotation(): Boolean = info.showability.hide()
+    override fun isShowabilityAnnotation(): Boolean =
+        info.surfaceData?.effect.let { effect ->
+            effect == SurfaceSelectionRule.Effect.SHOW || effect == SurfaceSelectionRule.Effect.HIDE
+        }
 
     override fun isSuppressCompatibilityAnnotation(): Boolean = info.suppressCompatibility
 
-    override fun isShowabilityAnnotation(): Boolean = info.showability != Showability.NO_EFFECT
+    override val annotationClass
+        get() = info.annotationClass
 
     override fun snapshot(targetContext: AnnotationContext): AnnotationItem {
         // Force the info property to be initialized which will cause the AnnotationInfo for

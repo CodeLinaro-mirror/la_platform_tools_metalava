@@ -27,7 +27,7 @@ filegroup {
 java_binary_host {
     name: "metalava",
     visibility: [
-        "//visibility:private",
+        "//visibility:public",
     ],
     srcs: [
         "src/main/java/**/*.java",
@@ -38,18 +38,27 @@ java_binary_host {
         ":metalava-resources",
     ],
     static_libs: [
-        "jsr305",
-        "jsr330",
+        "kotlin_metadata_jvm",
+        "kotlin-reflect",
+
         "metalava-model",
         "metalava-model-psi",
         "metalava-model-source",
         "metalava-model-text",
         "metalava-model-turbine",
         "metalava-reporter",
-        "metalava-tools-common-m2-deps",
-        "metalava-gradle-plugin-deps",
-        "gson-prebuilt-jar-2.9.1",
-        "kotlin_metadata_jvm",
+
+        "prebuilts-metalava-asm",
+        "prebuilts-metalava-clikt",
+        "prebuilts-metalava-gson",
+        "prebuilts-metalava-guava",
+        "prebuilts-metalava-jackson-xml",
+        "prebuilts-metalava-jsr305",
+        "prebuilts-metalava-lint",
+        "prebuilts-metalava-psi",
+        "prebuilts-metalava-sdklib",
+        "prebuilts-metalava-tracing",
+        "prebuilts-metalava-turbine",
     ],
     main_class: "com.android.tools.metalava.Driver",
     target: {

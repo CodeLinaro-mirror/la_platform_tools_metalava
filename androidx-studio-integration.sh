@@ -36,6 +36,9 @@ then
   # Mac grep doesn't support -P, so use perl version of `grep -oP "(?<=buildVersion = ).*"`
   export LINT_VERSION=`perl -nle'print $& while m{(?<=baseVersion=).*}g' $versionProperties`
   export LINT_REPO="$(pwd)/out/repo"
+  # The `prebuilts/androidx/external`, `prebuilts/androidx/internal`, `prebuilts/tools/common/m2/repository` are in the studio
+  # checkout and will contain the prebuilts metalava needs.
+  export METALAVA_PREBUILTS_REPOS="$(pwd)/prebuilts/androidx/external,$(pwd)/prebuilts/androidx/internal,$(pwd)/prebuilts/tools/common/m2/repository"
 
   JAVA_HOME="$(pwd)/prebuilts/jdk/jdk21/linux-x86/" tools/gradlew -p tools/metalava \
     --no-daemon \

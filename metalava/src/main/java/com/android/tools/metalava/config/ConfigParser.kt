@@ -24,6 +24,7 @@ import java.io.File
 import javax.xml.XMLConstants
 import javax.xml.parsers.SAXParserFactory
 import javax.xml.validation.SchemaFactory
+import org.xml.sax.InputSource
 import org.xml.sax.SAXParseException
 import org.xml.sax.helpers.DefaultHandler
 
@@ -34,26 +35,30 @@ class ConfigParser private constructor() : DefaultHandler() {
     /** Errors that were reported while parsing a configuration file. */
     private val errors = StringBuilder()
 
-    private fun recordException(path: String, message: String) {
+    private fun recordException(path: String, lineNumber: Int, message: String) {
         errors.apply {
             append("    ")
-            append(path)
+            append(path.replace("file://", "file:"))
+            if (lineNumber > 0) {
+                append(":")
+                append(lineNumber)
+            }
             append(": ")
             append(message)
             append("\n")
         }
     }
 
+    private fun recordException(path: String, message: String) {
+        recordException(path, lineNumber = -1, message)
+    }
+
     private fun recordParseException(exception: SAXParseException) {
-        errors.apply {
-            append("    ")
-            append(exception.systemId)
-            append(":")
-            append(exception.lineNumber)
-            append(": ")
-            append(exception.message)
-            append("\n")
-        }
+        recordException(
+            exception.systemId,
+            exception.lineNumber,
+            exception.message ?: "Unknown error",
+        )
     }
 
     override fun warning(exception: SAXParseException) {
@@ -67,6 +72,14 @@ class ConfigParser private constructor() : DefaultHandler() {
     companion object {
         /** Parse a list of configuration files in order, returning a single [Config] object. */
         fun parse(files: List<File>): Config {
+            return parseInputSources(files.map { InputSource(it.path) })
+        }
+
+        /**
+         * Parse a list of configuration [InputSource]s in order, returning a single [Config]
+         * object.
+         */
+        fun parseInputSources(inputSources: List<InputSource>): Config {
             val schemaUrl = ConfigParser::class.java.getResource("/schemas/config.xsd")
             val schemafactory = SchemaFactory.newInstance(XMLConstants.W3C_XML_SCHEMA_NS_URI)
             val schema = schemafactory.newSchema(schemaUrl)
@@ -79,14 +92,14 @@ class ConfigParser private constructor() : DefaultHandler() {
 
             // Parse all the configuration files, validating against the schema, collating any
             // errors that are reported.
-            for (file in files) {
+            for (inputSource in inputSources) {
                 // Parse the configuration file to validate against the schema first.
                 try {
-                    saxParser.parse(file, configParser)
+                    saxParser.parse(inputSource, configParser)
                 } catch (e: SAXParseException) {
                     configParser.recordParseException(e)
                 } catch (e: Exception) {
-                    configParser.recordException(file.path, e.message ?: "")
+                    configParser.recordException(inputSource.systemId, e.message ?: "")
                 }
             }
 
@@ -96,10 +109,13 @@ class ConfigParser private constructor() : DefaultHandler() {
                 error("Errors found while parsing configuration file(s):\n${configParser.errors}")
             }
 
-            return files
-                .map { file ->
+            return inputSources
+                .map { inputSource ->
+                    val text =
+                        inputSource.characterStream?.readText()
+                            ?: File(inputSource.systemId).readText()
                     // Read the configuration file into a Config object.
-                    xmlMapper.readValue(file, Config::class.java)
+                    xmlMapper.readValue(text, Config::class.java)
                 }
                 // Merge the config objects together.
                 .reduceOrNull(Config::combineWith)

@@ -74,19 +74,28 @@ internal interface ExprBuilderContext {
 internal class ExprBuilder(
     private val context: ExprBuilderContext,
     private val reporter: TokenIssueReporter,
-) : AntlrJavadocParserBaseVisitor<Expr>() {
+) {
 
-    /** Build an [Expr] from [ctx]. */
-    fun buildExpr(ctx: AntlrJavadocParser.ExprContext): Expr {
-        return ctx.accept(this)
-    }
-
-    override fun visitFunctionCall(ctx: AntlrJavadocParser.FunctionCallContext): Expr {
-        var identifier = ctx.IDENTIFIER()
-        val name = identifier.text
+    /**
+     * Build an [Expr] from [functionNameToken] and [fieldReferenceTokens].
+     *
+     * Validates that the function name is `flag`, extracts and resolves the field reference to a
+     * [FieldItem], and extracts its constant string value to use as the flag name. Reports an
+     * [Issues.INVALID_JAVADOC_EXPR] issue if the function is unknown or the field reference cannot
+     * be resolved to a constant string value.
+     *
+     * @param functionNameToken the token containing the function name (expected to be `flag`).
+     * @param fieldReferenceTokens the list of tokens representing the qualified field reference.
+     * @return a [FlagFunctionCall] expression with the resolved flag name, or `null` if invalid.
+     */
+    fun buildFunctionCall(
+        functionNameToken: Token,
+        fieldReferenceTokens: List<Token>,
+    ): Expr {
+        val name = functionNameToken.text
         if (name != "flag") {
             reporter.report(
-                identifier.symbol,
+                functionNameToken,
                 Issues.INVALID_JAVADOC_EXPR,
                 "unknown function '$name', expected 'flag'"
             )
@@ -95,17 +104,18 @@ internal class ExprBuilder(
             return FlagFunctionCall(null)
         }
 
-        // Get the context for the flag field reference.
-        val fieldReferenceContext = ctx.fieldReference()
+        if (fieldReferenceTokens.isEmpty()) {
+            return FlagFunctionCall(null)
+        }
 
         // Get the field reference, removing any white space.
-        val fieldReference = fieldReferenceContext.text.replace(Regex("""\s+"""), "")
+        val fieldReference = fieldReferenceTokens.joinToString("") { it.text }
 
         // Resolve the field reference.
         val resolved = context.resolveItemReference(fieldReference, NameClassification.FIELD)
 
         // Get the Token to use for reporting errors in the flag reference.
-        val fieldSymbol = fieldReferenceContext.IDENTIFIER(0).symbol
+        val fieldSymbol = fieldReferenceTokens.first()
 
         // Determine the flag name, use `null` if no name could be determined.
         val flagName =

@@ -17,8 +17,12 @@
 package com.android.tools.metalava.model.testsuite.classitem
 
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.JAVA_ENUM_VALUES
 import com.android.tools.metalava.model.JAVA_ENUM_VALUE_OF
+import com.android.tools.metalava.model.ModifierKeyword
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
@@ -62,7 +66,10 @@ class CommonEnumTest : BaseModelTest() {
             val fooClass = codebase.assertClass("test.pkg.Foo")
             val enumClass = codebase.assertResolvedClass("java.lang.Enum")
 
-            assertSame(enumClass, fooClass.superClassType()?.asClass())
+            // Make sure that the enum class is not itself treated as a ClassKind.ENUM
+            assertEquals(ClassKind.CLASS, enumClass.classKind)
+
+            assertSame(enumClass, fooClass.superClassType()?.resolveClass(codebase))
             assertSame(enumClass, fooClass.superClass())
 
             val interfaceList = fooClass.interfaceTypes()
@@ -133,6 +140,127 @@ class CommonEnumTest : BaseModelTest() {
             val getEntries = fooClass.assertMethod("getEntries", listOf("java.lang.String"))
             assertThat(fooClass.methods().filter { it.name() == "getEntries" })
                 .isEqualTo(listOf(getEntries))
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `Test enum locations - java`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+                        public enum Foo {
+                            FOO1,
+                            FOO2
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        public enum Bar {
+                            BAR1,
+                            BAR2,
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        public enum Baz {
+                            BAZ1,
+                            BAZ2;
+                        }
+                    """
+                ),
+            ),
+        ) {
+            val classes = codebase.assertPackage("test.pkg").topLevelClasses()
+
+            val fields = classes.sortedBy { it.simpleName() }.flatMap { it.fields() }
+            val locations = buildString {
+                for (field in fields) {
+                    append(field.fileLocation)
+                    append(" -> ")
+                    append(field)
+                    append('\n')
+                }
+            }
+
+            assertEquals(
+                """
+                    MAIN_SRC/src/test/pkg/Bar.java:3 -> enum constant test.pkg.Bar.BAR1
+                    MAIN_SRC/src/test/pkg/Bar.java:4 -> enum constant test.pkg.Bar.BAR2
+                    MAIN_SRC/src/test/pkg/Baz.java:3 -> enum constant test.pkg.Baz.BAZ1
+                    MAIN_SRC/src/test/pkg/Baz.java:4 -> enum constant test.pkg.Baz.BAZ2
+                    MAIN_SRC/src/test/pkg/Foo.java:3 -> enum constant test.pkg.Foo.FOO1
+                    MAIN_SRC/src/test/pkg/Foo.java:4 -> enum constant test.pkg.Foo.FOO2
+                """
+                    .trimIndent(),
+                removeTestSpecificDirectories(locations.trim())
+            )
+        }
+    }
+
+    private fun checkEnumWithAbstractMethods(
+        test: CodebaseContext.() -> Unit,
+    ) {
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+                    public enum Foo {
+                        FOO {
+                            public void method() {}
+                        };
+
+                        public abstract void method();
+                    }
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+                    enum class Foo {
+                        FOO {
+                            fun method() {}
+                        };
+
+                        abstract fun method()
+                    }
+                """
+            ),
+            test = test,
+        )
+    }
+
+    @SupportedInputFormats(InputFormat.JAVA, InputFormat.KOTLIN)
+    @Test
+    fun `Test enum with abstract methods - class modifiers`() {
+        checkEnumWithAbstractMethods {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+
+            assertEquals(
+                listOf(ModifierKeyword.PUBLIC_KEYWORD),
+                fooClass.modifiers.keywordList,
+                message = "class"
+            )
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.JAVA, InputFormat.KOTLIN)
+    @Test
+    fun `Test enum with abstract methods - method modifiers`() {
+        checkEnumWithAbstractMethods {
+            val testMethod = codebase.assertClass("test.pkg.Foo").methods().single()
+
+            assertEquals(
+                listOf(ModifierKeyword.PUBLIC_KEYWORD, ModifierKeyword.ABSTRACT_KEYWORD),
+                testMethod.modifiers.keywordList,
+                message = "method"
+            )
         }
     }
 }

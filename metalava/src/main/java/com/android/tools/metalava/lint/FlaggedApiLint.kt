@@ -17,6 +17,8 @@
 package com.android.tools.metalava.lint
 
 import com.android.tools.metalava.model.ANDROID_FLAGGED_API
+import com.android.tools.metalava.model.AnnotationFormatter
+import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
@@ -34,9 +36,7 @@ import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.value.ValueKind
 import com.android.tools.metalava.model.value.asString
-import com.android.tools.metalava.model.visitors.ApiPredicate
-import com.android.tools.metalava.model.visitors.ApiType
-import com.android.tools.metalava.model.visitors.ApiVisitor.Companion.addTargetLanguageCheck
+import com.android.tools.metalava.model.visitors.ApiFilters
 import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.Issues.FLAGGED_API_LITERAL
 import com.android.tools.metalava.reporter.Issues.Issue
@@ -45,7 +45,6 @@ import com.android.tools.metalava.reporter.Issues.UNFLAGGED_API
 import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.reporter.Severity
 import java.io.StringWriter
-import org.jetbrains.kotlin.util.capitalizeDecapitalize.toUpperCaseAsciiOnly
 
 /**
  * The [FlaggedApiLint] analyzer checks the API against a known set of preferred FlaggedAPI
@@ -54,19 +53,16 @@ import org.jetbrains.kotlin.util.capitalizeDecapitalize.toUpperCaseAsciiOnly
 class FlaggedApiLint(
     private val oldCodebase: Codebase?,
     reporter: Reporter,
-    apiPredicateConfig: ApiPredicate.Config,
+    apiFilters: ApiFilters,
 ) : DelegatedVisitor {
-
     /** Predicate that checks if the item appears in the signature file. */
-    private val elidingFilterEmit = ApiType.PUBLIC_API.getEmitFilter(apiPredicateConfig)
-    private val apiFilters = ApiType.PUBLIC_API.getNonElidingApiFilters(apiPredicateConfig)
-    private val apiFiltersReference = apiFilters.reference
-    private val targetLanguages = com.android.tools.metalava.model.TargetLanguageSet.SOURCE
-    private val filterEmit = addTargetLanguageCheck(apiFilters.emit, targetLanguages)
-    private val filteredReporter = FilteringReporter(reporter, oldCodebase, filterEmit)
+    private val filterEmit = apiFilters.emit
 
     /** The filter to use to determine if we should emit a reference to an item */
-    private val filterReference = addTargetLanguageCheck(apiFiltersReference, targetLanguages)
+    private val filterReference = apiFilters.reference
+
+    /** Filter out issues that are not for items being emitted. */
+    private val filteredReporter = FilteringReporter(reporter, oldCodebase, filterEmit)
 
     private fun report(
         id: Issue,
@@ -133,7 +129,7 @@ class FlaggedApiLint(
 
     private fun checkFlaggedApiLiteral(item: Item) {
         if (item.codebase.preFiltered) {
-            // Flag constants aren't ever API, so prefiltered codebases would always only contain
+            // Flag constants aren't ever API, so prefitered codebases would always only contain
             // literals.
             return
         }
@@ -189,11 +185,7 @@ class FlaggedApiLint(
             }
             return false
         }
-        if (
-            !itemOrAnyContainingClasses {
-                it.modifiers.hasAnnotation { it.qualifiedName == ANDROID_FLAGGED_API }
-            }
-        ) {
+        if (!itemOrAnyContainingClasses(FlaggedApiPredicate)) {
             val previouslyReleasedItem = Codebase.findPreviouslyReleased(oldCodebase, item)
             if (previouslyReleasedItem == null) {
                 checkFlaggedApiOnNewApi(item)
@@ -221,7 +213,7 @@ class FlaggedApiLint(
             } else {
                 false
             }
-        if (!elidingFilterEmit.test(item) || elidedField) {
+        if (!filterEmit.test(item) || elidedField) {
             // This API wouldn't appear in the signature file, so we don't know here if the API is
             // pre-existing.
             // Since the base API is either new and subject to flagging rules, or preexisting and
@@ -294,17 +286,26 @@ class FlaggedApiLint(
     private fun normalizeModifiers(item: Item): String {
         return StringWriter().use { writer ->
             val modifierListWriter =
-                ModifierListWriter.forSignature(
-                    writer,
-                    skipNullnessAnnotations = true,
+                ModifierListWriter(
+                    writer = writer,
+                    config = NORMALIZING_MODIFIER_LIST_WRITER_CONFIG,
                 )
-            modifierListWriter.write(item, normalizeFinal = true, skipRequiresPermission = true)
+            modifierListWriter.write(item)
             val normalizedModifiers = writer.toString().trim()
             normalizedModifiers
         }
     }
 
     companion object {
+        /** [ModifierListWriter.Config] suitable for use when normalizing modifiers. */
+        private val NORMALIZING_MODIFIER_LIST_WRITER_CONFIG =
+            ModifierListWriter.Config(
+                target = AnnotationTarget.SIGNATURE_FILE,
+                annotationFormatter = AnnotationFormatter.normalizingFormatter(),
+                runtimeAnnotationsOnly = false,
+                skipNullnessAnnotations = true,
+            )
+
         /**
          * Heuristically converts the given string [literal] into a reference to the equivalent
          * `aconfig`-generated `Flags.java` field.
@@ -322,7 +323,7 @@ class FlaggedApiLint(
             val parts = literal.split('.')
 
             val flag = parts.lastOrNull() ?: return null
-            val flagField = "FLAG_" + flag.toUpperCaseAsciiOnly()
+            val flagField = "FLAG_" + flag.uppercase()
             val pkg = parts.dropLast(1).joinToString(separator = ".")
             val className = "$pkg.Flags"
             val fieldSource = "$className.$flagField"
@@ -337,4 +338,10 @@ class FlaggedApiLint(
             return fieldSource to fieldOrNull
         }
     }
+}
+
+/** [FilterPredicate] that matches items annotated with `@FlaggedApi`. */
+private object FlaggedApiPredicate : FilterPredicate() {
+    override fun test(t: SelectableItem): Boolean =
+        t.modifiers.hasAnnotation { it.qualifiedName == ANDROID_FLAGGED_API }
 }

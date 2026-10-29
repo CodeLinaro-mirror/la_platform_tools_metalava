@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.stub
 
-import com.android.tools.metalava.lint.DefaultLintErrorMessage
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.testing.java
 import org.junit.Test
@@ -79,7 +78,9 @@ class StubsClassTest : AbstractStubsTest() {
                 /** My field doc */
                 protected static final java.lang.String field = "a\nb\n\"test\"";
                 }
-                """
+                """,
+            // Includes documentation so cannot match what is generated from signature file.
+            checkTextStubEquivalence = false,
         )
     }
 
@@ -118,7 +119,9 @@ class StubsClassTest : AbstractStubsTest() {
                 public void base() { throw new RuntimeException("Stub!"); }
                 public void child() { throw new RuntimeException("Stub!"); }
                 }
-                """
+                """,
+            // Includes inherited methods so cannot match what is generated from signature file.
+            checkTextStubEquivalence = false,
         )
     }
 
@@ -232,7 +235,6 @@ class StubsClassTest : AbstractStubsTest() {
                     public static final java.lang.String CONSTANT = "MyConstant";
                     }
                 """,
-            checkTextStubEquivalence = true
         )
     }
 
@@ -276,13 +278,11 @@ class StubsClassTest : AbstractStubsTest() {
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class FinalFieldTest {
                     public FinalFieldTest() { throw new RuntimeException("Stub!"); }
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public static final class IsoFields {
                     IsoFields() { throw new RuntimeException("Stub!"); }
                     public static final test.pkg.FinalFieldTest.TemporalField DAY_OF_QUARTER;
                     static { DAY_OF_QUARTER = null; }
                     }
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public static interface TemporalField {
                     public java.lang.String getBaseUnit();
                     }
@@ -338,7 +338,6 @@ class StubsClassTest : AbstractStubsTest() {
                 src/test/pkg/PublicApi.java:5: warning: Return type of unavailable type test.pkg.HiddenType4 in test.pkg.PublicApi.getHiddenType4() [UnavailableSymbol]
                 src/test/pkg/PublicApi.java:5: error: Class test.pkg.HiddenType4 is hidden but was referenced (in return type) from public method test.pkg.PublicApi.getHiddenType4() [ReferencesHidden]
                 """,
-            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(
@@ -402,7 +401,7 @@ class StubsClassTest : AbstractStubsTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public class PublicApi {
@@ -414,7 +413,7 @@ class StubsClassTest : AbstractStubsTest() {
                   }
                 }
                 """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -451,7 +450,6 @@ class StubsClassTest : AbstractStubsTest() {
                 src/test/pkg/PublicApi.java:4: warning: Parameter inner references hidden type test.pkg.PublicApi.HiddenInner. [HiddenTypeParameter]
                 src/test/pkg/PublicApi.java:4: error: Class test.pkg.PublicApi.HiddenInner is hidden but was referenced (in parameter type) from public parameter inner in test.pkg.PublicApi(test.pkg.PublicApi.HiddenInner inner) [ReferencesHidden]
                 """,
-            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(
@@ -468,7 +466,7 @@ class StubsClassTest : AbstractStubsTest() {
                     """
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public class PublicApi {
@@ -476,7 +474,7 @@ class StubsClassTest : AbstractStubsTest() {
                   }
                 }
                 """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """

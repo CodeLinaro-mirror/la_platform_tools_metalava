@@ -40,12 +40,9 @@ interface ClassContentItem : Item {
      */
     val origin: ClassOrigin
         get() =
-            if (codebase.isFromClassPath()) ClassOrigin.CLASS_PATH
-            else
-                containingClass()?.origin
-                    ?:
-                    // This should never happen as this will only be called for a top level class
-                    // and
-                    // ClassItem implementation should override this method.
-                    error("unknown origin")
+            containingClass()?.origin
+                ?:
+                // This should never happen as this will only be called for a top level class and
+                // ClassItem implementation should override this method.
+                error("unknown origin")
 }

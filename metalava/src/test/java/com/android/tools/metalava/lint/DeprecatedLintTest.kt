@@ -25,18 +25,18 @@ import org.junit.runners.Parameterized
 
 class DeprecatedLintTest(private val deprecatedState: DeprecatedState) : DriverTest() {
 
-    enum class DeprecatedState(val context: Context, val expectedFail: String) {
+    enum class DeprecatedState(val context: Context, val expectedToFail: Boolean) {
         NOT_DEPRECATED(
             context = Context("", ""),
-            expectedFail = DefaultLintErrorMessage,
+            expectedToFail = true,
         ),
         DEPRECATED_MEMBER(
             context = Context("", "/** @deprecated */"),
-            expectedFail = "",
+            expectedToFail = false,
         ),
         DEPRECATED_CLASS(
             context = Context("/** @deprecated */", ""),
-            expectedFail = "",
+            expectedToFail = false,
         ),
         ;
 
@@ -57,10 +57,8 @@ class DeprecatedLintTest(private val deprecatedState: DeprecatedState) : DriverT
         expectedUndeprecatedIssues: String,
         sourceGenerator: Context.() -> TestFile,
     ) {
-        val expectedFail = deprecatedState.expectedFail
         check(
-            expectedFail = expectedFail,
-            expectedIssues = if (expectedFail != "") expectedUndeprecatedIssues else "",
+            expectedIssues = if (deprecatedState.expectedToFail) expectedUndeprecatedIssues else "",
             apiLint = "",
             sourceFiles =
                 arrayOf(

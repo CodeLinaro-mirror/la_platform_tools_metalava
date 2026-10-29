@@ -18,10 +18,10 @@ package com.android.tools.metalava
 
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassOrVariableTypeItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DelegatedVisitor
-import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JAVA_LANG_ANNOTATION
@@ -49,6 +49,12 @@ class JDiffXmlWriter(
     private val writer: PrintWriter,
     private val apiName: String? = null,
 ) : DelegatedVisitor {
+    /**
+     * JDiff XML files require classes to be visited in deterministic, alphabetical order for stable
+     * XML output that can be diffed across API versions.
+     */
+    override val requiresSortedClasses: Boolean
+        get() = true
 
     override fun visitCodebase(codebase: Codebase) {
         writer.print("<api")
@@ -277,7 +283,7 @@ class JDiffXmlWriter(
     private fun writeThrowsList(callable: CallableItem) {
         val throws = callable.throwsTypes()
         if (throws.isNotEmpty()) {
-            throws.sortedWith(ExceptionTypeItem.fullNameComparator).forEach { type ->
+            throws.sortedWith(ClassOrVariableTypeItem.fullNameComparator).forEach { type ->
                 writer.print("<exception name=\"")
                 @Suppress("DEPRECATION") writer.print(type.fullName())
                 writer.print("\" type=\"")
@@ -296,17 +302,10 @@ class JDiffXmlWriter(
  */
 fun createFilteringVisitorForJDiffWriter(
     delegate: DelegatedVisitor,
-    apiFilters: ApiFilters,
-    preFiltered: Boolean,
-    showUnannotated: Boolean,
-    filterSuperClassType: Boolean = true,
+    apiFilters: ApiFilters?,
 ): ApiVisitor =
     FilteringApiVisitor(
         delegate,
-        inlineInheritedFields = true,
         interfaceListComparator = TypeItem.totalComparator,
         apiFilters = apiFilters,
-        preFiltered = preFiltered,
-        filterSuperClassType = filterSuperClassType,
-        showUnannotated = showUnannotated,
     )

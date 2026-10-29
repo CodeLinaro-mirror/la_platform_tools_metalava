@@ -19,20 +19,23 @@ package com.android.tools.metalava.model.testsuite.flags
 import com.android.tools.metalava.model.ANDROID_FLAGGED_API
 import com.android.tools.metalava.model.ANNOTATION_IN_ALL_STUBS
 import com.android.tools.metalava.model.NO_ANNOTATION_TARGETS
-import com.android.tools.metalava.model.Showability
 import com.android.tools.metalava.model.api.flags.ApiFlag
 import com.android.tools.metalava.model.api.flags.ApiFlagAction.*
 import com.android.tools.metalava.model.api.flags.ApiFlags
 import com.android.tools.metalava.model.provider.Capability
+import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.RequiresCapabilities
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.KnownJarFiles
 import com.android.tools.metalava.testing.java
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import org.junit.Test
 
+@SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
 class CommonFlagTest : BaseModelTest() {
 
     private fun runFlagsTest(
@@ -78,12 +81,14 @@ class CommonFlagTest : BaseModelTest() {
 
             val apiFlag = annotation.apiFlag
             assertNull(apiFlag, "apiFlag")
-            assertEquals(Showability.NO_EFFECT, annotation.showability, "showability")
             assertEquals(ANNOTATION_IN_ALL_STUBS, annotation.targets, "targets")
+
+            // An unconfigured @FlaggedApi has no effect on showability (showability is NO_EFFECT).
+            assertFalse(annotation.isShowabilityAnnotation(), "isShowabilityAnnotation")
         }
     }
 
-    @RequiresCapabilities(Capability.API_VARIANT_SELECTORS)
+    @RequiresCapabilities(Capability.REVERTED_ITEMS)
     @Test
     fun `Test empty flags`() {
         runFlagsTest(
@@ -95,13 +100,15 @@ class CommonFlagTest : BaseModelTest() {
             val apiFlag = annotation.apiFlag
             val expectedApiFlag = ApiFlag("test.pkg.flags.flag_name", REVERT, isKnown = false)
             assertEquals(expectedApiFlag, apiFlag, "apiFlag")
-            assertEquals(Showability.REVERT_UNSTABLE_API, annotation.showability, "showability")
             assertEquals(NO_ANNOTATION_TARGETS, annotation.targets, "targets")
 
-            assertTrue(
-                fooClass.showability.revertUnstableApi(),
-                message = "class showability revert"
-            )
+            // A reverted flag has no effect on showability (a flagged API is neither a show nor
+            // a hide annotation).
+            assertFalse(annotation.isShowabilityAnnotation(), "isShowabilityAnnotation")
+
+            assertTrue(fooClass.selectedApi.revert, message = "class showability revert")
+
+            fooClass.assertItemApiVariants("ApiVariantSet[]")
 
             assertAndRemoveReportedIssues(
                 """
@@ -122,8 +129,10 @@ class CommonFlagTest : BaseModelTest() {
 
             val apiFlag = annotation.apiFlag
             assertEquals(ApiFlag("test.pkg.flags.flag_name", FINALIZE), apiFlag, "apiFlag")
-            assertEquals(Showability.NO_EFFECT, annotation.showability, "showability")
             assertEquals(NO_ANNOTATION_TARGETS, annotation.targets, "targets")
+
+            // A finalized flag has no effect on showability (showability is NO_EFFECT).
+            assertFalse(annotation.isShowabilityAnnotation(), "isShowabilityAnnotation")
         }
     }
 
@@ -137,8 +146,10 @@ class CommonFlagTest : BaseModelTest() {
 
             val apiFlag = annotation.apiFlag
             assertEquals(ApiFlag("test.pkg.flags.flag_name", KEEP), apiFlag, "apiFlag")
-            assertEquals(Showability.NO_EFFECT, annotation.showability, "showability")
             assertEquals(ANNOTATION_IN_ALL_STUBS, annotation.targets, "targets")
+
+            // A kept flag has no effect on showability (showability is NO_EFFECT).
+            assertFalse(annotation.isShowabilityAnnotation(), "isShowabilityAnnotation")
         }
     }
 }

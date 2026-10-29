@@ -16,15 +16,15 @@
 
 package com.android.tools.metalava.model.type
 
-import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.LambdaTypeItem
+import com.android.tools.metalava.model.PrimitiveTypeItem
+import com.android.tools.metalava.model.ReferenceTypeItem
 import com.android.tools.metalava.model.TypeArgumentTypeItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeModifiers
 
-class DefaultLambdaTypeItem(
-    classResolver: ClassResolver,
+internal class DefaultLambdaTypeItem(
     modifiers: TypeModifiers,
     qualifiedName: String,
     arguments: List<TypeArgumentTypeItem>,
@@ -33,35 +33,97 @@ class DefaultLambdaTypeItem(
     override val receiverType: TypeItem?,
     override val parameterTypes: List<TypeItem>,
     override val returnType: TypeItem,
+    isValueClassType: Boolean = false,
 ) :
     DefaultClassTypeItem(
-        classResolver = classResolver,
         modifiers = modifiers,
         qualifiedName = qualifiedName,
         arguments = arguments,
         outerClassType = outerClassType,
+        isValueClassType = isValueClassType,
     ),
     LambdaTypeItem {
 
-    @Deprecated(
-        "implementation detail of this class",
-        replaceWith = ReplaceWith("substitute(modifiers, outerClassType, arguments)"),
-    )
-    override fun duplicate(
-        modifiers: TypeModifiers,
-        outerClassType: ClassTypeItem?,
-        arguments: List<TypeArgumentTypeItem>
-    ): LambdaTypeItem {
-        return DefaultLambdaTypeItem(
-            classResolver = classResolver,
+    /** Cached result of [asJvmClassType]. */
+    private lateinit var jvmClassType: ClassTypeItem
+
+    override fun asJvmClassType(): ClassTypeItem {
+        if (!::jvmClassType.isInitialized) {
+            jvmClassType = createJvmClassType()
+        }
+        return jvmClassType
+    }
+
+    /**
+     * Create the [ClassTypeItem] representing the Kotlin JVM `Function<N>` type for this lambda.
+     */
+    private fun createJvmClassType(): ClassTypeItem {
+        // Combine the optional receiver type, parameter types, and return type into a single
+        // list of type arguments for the Kotlin Function<N> class.
+        val arguments =
+            buildList((if (receiverType == null) 0 else 1) + parameterTypes.size + 1) {
+                receiverType?.let { add(it.asTypeArgument()) }
+                parameterTypes.mapTo(this) { it.asTypeArgument() }
+                add(returnType.asTypeArgument())
+            }
+
+        // The function arity doesn't include the return type.
+        val qualifiedName = "kotlin.jvm.functions.Function${arguments.size - 1}"
+        return TypeItem.createClassType(
+            modifiers = modifiers,
             qualifiedName = qualifiedName,
             arguments = arguments,
-            outerClassType = outerClassType,
-            modifiers = modifiers,
-            isSuspend = isSuspend,
-            receiverType = receiverType,
-            parameterTypes = parameterTypes,
-            returnType = returnType,
+            outerClassType = null,
+            isValueClassType = isValueClassType,
         )
     }
+
+    /**
+     * Convert this [TypeItem] into a [TypeArgumentTypeItem] suitable for use as a type argument of
+     * a Kotlin `Function<N>` class.
+     */
+    private fun TypeItem.asTypeArgument(): TypeArgumentTypeItem =
+        when (this) {
+            is PrimitiveTypeItem -> {
+                // Primitive types cannot be used as type arguments in JVM generics so map them to
+                // their boxed equivalents; void (from Kotlin Unit) maps to kotlin.Unit.
+                val qualifiedName =
+                    if (kind == PrimitiveTypeItem.Primitive.VOID) {
+                        "kotlin.Unit"
+                    } else {
+                        kind.wrapperClass.canonicalName
+                    }
+                TypeItem.createClassType(
+                    modifiers = modifiers,
+                    qualifiedName = qualifiedName,
+                    arguments = emptyList(),
+                    outerClassType = null,
+                    isValueClassType = isValueClassType,
+                )
+            }
+            // Nested lambda types must also be converted to their Kotlin Function<N> class type.
+            // This must come before ReferenceTypeItem while LambdaTypeItem extends
+            // ClassTypeItem.
+            is LambdaTypeItem -> asJvmClassType()
+            is ReferenceTypeItem -> this
+            else -> error("Unexpected type $this ($javaClass)")
+        }
+
+    override fun substitute(
+        modifiers: TypeModifiers,
+        outerClassType: ClassTypeItem?,
+        arguments: List<TypeArgumentTypeItem>,
+    ): LambdaTypeItem =
+        if (requiresNewInstance(modifiers, outerClassType, arguments))
+            DefaultLambdaTypeItem(
+                modifiers,
+                qualifiedName,
+                arguments,
+                outerClassType,
+                isSuspend,
+                receiverType,
+                parameterTypes,
+                returnType,
+            )
+        else this
 }

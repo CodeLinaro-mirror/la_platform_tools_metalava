@@ -25,11 +25,12 @@ import com.android.tools.metalava.cli.common.cliError
 import com.android.tools.metalava.cli.common.executionEnvironment
 import com.android.tools.metalava.cli.common.existingDir
 import com.android.tools.metalava.cli.common.map
-import com.android.tools.metalava.cli.common.progressTracker
 import com.android.tools.metalava.cli.common.stderr
 import com.android.tools.metalava.cli.common.stdout
+import com.android.tools.metalava.cli.common.tracer
 import com.android.tools.metalava.cli.signature.SignatureFormatOptions
 import com.android.tools.metalava.jar.StandaloneJarCodebaseLoader
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.ADD_ADDITIONAL_OVERRIDES
 import com.android.tools.metalava.reporter.BasicReporter
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.arguments.validate
@@ -135,15 +136,17 @@ class AndroidJarsToSignaturesCommand :
 
         StandaloneJarCodebaseLoader.create(
                 executionEnvironment.disableStderrDumping(),
-                progressTracker,
+                tracer,
                 BasicReporter(stderr),
+                addAdditionalOverrides =
+                    signatureFormat.compute().fileFormat[ADD_ADDITIONAL_OVERRIDES],
             )
             .use { jarCodebaseLoader ->
                 ConvertJarsToSignatureFiles(
                         stderr,
                         stdout,
-                        progressTracker,
-                        signatureFormat.fileFormat,
+                        tracer,
+                        signatureFormat.compute().fileFormat,
                         apiVersions,
                         apiSurfaces,
                         selectedApiSurfaces,

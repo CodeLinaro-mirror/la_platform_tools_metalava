@@ -16,10 +16,7 @@
 
 package com.android.tools.metalava.model.item
 
-import com.android.tools.metalava.model.ApiVariantSelectorsFactory
 import com.android.tools.metalava.model.BaseModifierList
-import com.android.tools.metalava.model.CallableBody
-import com.android.tools.metalava.model.CallableBodyFactory
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
@@ -29,6 +26,8 @@ import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.TypeItemConverter
+import com.android.tools.metalava.model.TypeParameterBindings
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.scope.NameClassification
 import com.android.tools.metalava.model.scope.ReferencableNameScope
@@ -44,21 +43,19 @@ import com.android.tools.metalava.reporter.FileLocation
  */
 typealias ParameterItemsFactory = (CallableItem) -> List<ParameterItem>
 
-abstract class DefaultCallableItem(
+internal sealed class DefaultCallableItem(
     codebase: Codebase,
     fileLocation: FileLocation,
     sourceLanguage: SourceLanguage,
     targetLanguages: Set<TargetLanguage>,
     modifiers: BaseModifierList,
     documentationFactory: ItemDocumentationFactory,
-    variantSelectorsFactory: ApiVariantSelectorsFactory,
     name: String,
     containingClass: ClassItem,
     override val typeParameterList: TypeParameterList,
     returnType: TypeItem,
     parameterItemsFactory: ParameterItemsFactory,
     internal val throwsTypes: List<ExceptionTypeItem>,
-    callableBodyFactory: CallableBodyFactory,
 ) :
     DefaultMemberItem(
         codebase,
@@ -67,7 +64,6 @@ abstract class DefaultCallableItem(
         targetLanguages,
         modifiers,
         documentationFactory,
-        variantSelectorsFactory,
         name,
         containingClass,
     ),
@@ -96,15 +92,6 @@ abstract class DefaultCallableItem(
 
     final override fun throwsTypes(): List<ExceptionTypeItem> = throwsTypes
 
-    /**
-     * Create the [CallableBody] during initialization of this callable to allow it to contain an
-     * immutable reference to this object.
-     *
-     * The leaking of `this` to `callableBodyFactory` is ok as implementations follow the rules
-     * explained in the documentation of [CallableBodyFactory].
-     */
-    final override val body: CallableBody = callableBodyFactory(@Suppress("LeakingThis") this)
-
     override val containingScope: ReferencableNameScope?
         get() =
             // Fallback to the containing class.
@@ -117,4 +104,13 @@ abstract class DefaultCallableItem(
     ) =
         // Check for type parameters.
         nameClassification.findTypeParameter { typeParameterList.find { it.name() == simpleName } }
+
+    companion object {
+        /**
+         * Create a [TypeItemConverter] wrapper around this [TypeParameterBindings]. Use the
+         * identity function if the map is empty.
+         */
+        fun TypeParameterBindings.toTypeConverter(): TypeItemConverter =
+            if (isEmpty()) { type -> type } else { type -> type.convertType(this) }
+    }
 }

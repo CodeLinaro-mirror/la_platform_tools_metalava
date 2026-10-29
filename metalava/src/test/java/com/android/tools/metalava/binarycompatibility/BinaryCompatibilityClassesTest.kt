@@ -26,7 +26,7 @@ import org.junit.Test
  */
 class BinaryCompatibilityClassesTest : DriverTest() {
     @Test
-    fun `Add API method, if method need not be reimplemented by client (Compatible)`() {
+    fun `Add API method, if method need not be reimplemented by client - Compatible`() {
         check(
             signatureSource =
                 """
@@ -49,7 +49,7 @@ class BinaryCompatibilityClassesTest : DriverTest() {
     }
 
     @Test
-    fun `Add API method, if method must be reimplemented by client (Incompatible)`() {
+    fun `Add API method, if method must be reimplemented by client - Incompatible`() {
         check(
             expectedIssues =
                 """
@@ -76,7 +76,7 @@ class BinaryCompatibilityClassesTest : DriverTest() {
     }
 
     @Test
-    fun `Delete API method (Incompatible)`() {
+    fun `Delete API method - Incompatible`() {
         check(
             expectedIssues =
                 """
@@ -101,7 +101,7 @@ class BinaryCompatibilityClassesTest : DriverTest() {
     }
 
     @Test
-    fun `Move API method up type hierarchy, if method in supertype need not be reimplemented by client (Compatible)`() {
+    fun `Move API method up type hierarchy, if method in supertype need not be reimplemented by client - Compatible`() {
         check(
             signatureSource =
                 """
@@ -127,7 +127,7 @@ class BinaryCompatibilityClassesTest : DriverTest() {
     }
 
     @Test
-    fun `Move API method up type hierarchy, if method in supertype must be reimplemented by client (Incompatible)`() {
+    fun `Move API method up type hierarchy, if method in supertype must be reimplemented by client - Incompatible`() {
         check(
             expectedIssues =
                 """
@@ -161,7 +161,7 @@ class BinaryCompatibilityClassesTest : DriverTest() {
     }
 
     @Test
-    fun `Move API method down type hierarchy (Incompatible)`() {
+    fun `Move API method down type hierarchy - Incompatible`() {
         check(
             expectedIssues =
                 """
@@ -191,7 +191,7 @@ class BinaryCompatibilityClassesTest : DriverTest() {
     }
 
     @Test
-    fun `Add API constructor, if there are other constructors (Compatible)`() {
+    fun `Add API constructor, if there are other constructors - Compatible`() {
         check(
             signatureSource =
                 """
@@ -214,7 +214,7 @@ class BinaryCompatibilityClassesTest : DriverTest() {
     }
 
     @Test
-    fun `Add API constructor, if this is the only constructor (Incompatible)`() {
+    fun `Add API constructor, if this is the only constructor - Incompatible`() {
         check(
             expectedIssues =
                 """
@@ -242,7 +242,7 @@ class BinaryCompatibilityClassesTest : DriverTest() {
     }
 
     @Test
-    fun `Delete API constructor (Incompatible)`() {
+    fun `Delete API constructor - Incompatible`() {
         check(
             expectedIssues =
                 """
@@ -267,7 +267,7 @@ class BinaryCompatibilityClassesTest : DriverTest() {
     }
 
     @Test
-    fun `Add API field (Compatible)`() {
+    fun `Add API field - Compatible`() {
         check(
             signatureSource =
                 """
@@ -288,7 +288,7 @@ class BinaryCompatibilityClassesTest : DriverTest() {
     }
 
     @Test
-    fun `Delete API field (Incompatible)`() {
+    fun `Delete API field - Incompatible`() {
         check(
             expectedIssues =
                 """
@@ -313,7 +313,7 @@ class BinaryCompatibilityClassesTest : DriverTest() {
     }
 
     @Test
-    fun `Expand superinterface set (Compatible)`() {
+    fun `Expand superinterface set - Compatible`() {
         check(
             signatureSource =
                 """
@@ -322,7 +322,7 @@ class BinaryCompatibilityClassesTest : DriverTest() {
                     }
                     public interface Two {
                     }
-                    public class Foo implements test.pkg.One, test.pkg.Two {
+                    public class Foo implements test.pkg.One test.pkg.Two {
                     }
                 }
             """,
@@ -341,7 +341,7 @@ class BinaryCompatibilityClassesTest : DriverTest() {
     }
 
     @Test
-    fun `Contract superinterface set (Incompatible)`() {
+    fun `Contract superinterface set - Incompatible`() {
         check(
             expectedIssues =
                 """
@@ -365,7 +365,7 @@ class BinaryCompatibilityClassesTest : DriverTest() {
                     }
                     public interface Two {
                     }
-                    public class Foo implements test.pkg.One, test.pkg.Two {
+                    public class Foo implements test.pkg.One test.pkg.Two {
                     }
                 }
             """
@@ -373,7 +373,7 @@ class BinaryCompatibilityClassesTest : DriverTest() {
     }
 
     @Test
-    fun `Expand superclass set (Compatible)`() {
+    fun `Expand superclass set - Compatible`() {
         check(
             signatureSource =
                 """
@@ -399,7 +399,7 @@ class BinaryCompatibilityClassesTest : DriverTest() {
     }
 
     @Test
-    fun `Contract superclass set (Incompatible)`() {
+    fun `Contract superclass set - Incompatible`() {
         check(
             expectedIssues =
                 """
@@ -431,7 +431,7 @@ class BinaryCompatibilityClassesTest : DriverTest() {
     }
 
     @Test
-    fun `Add API type member (Compatible)`() {
+    fun `Add API type member - Compatible`() {
         check(
             signatureSource =
                 """
@@ -453,7 +453,7 @@ class BinaryCompatibilityClassesTest : DriverTest() {
     }
 
     @Test
-    fun `Delete API type member (Incompatible)`() {
+    fun `Delete API type member - Incompatible`() {
         check(
             expectedIssues =
                 """
@@ -479,7 +479,7 @@ class BinaryCompatibilityClassesTest : DriverTest() {
     }
 
     @Test
-    fun `Change abstract to non-abstract (Compatible)`() {
+    fun `Change abstract to non-abstract - Compatible`() {
         check(
             signatureSource =
                 """
@@ -499,7 +499,7 @@ class BinaryCompatibilityClassesTest : DriverTest() {
     }
 
     @Test
-    fun `Change non-abstract to abstract (Incompatible)`() {
+    fun `Change non-abstract to abstract - Incompatible`() {
         check(
             expectedIssues =
                 """
@@ -523,7 +523,7 @@ class BinaryCompatibilityClassesTest : DriverTest() {
     }
 
     @Test
-    fun `Change final to non-final (Compatible but Disallowed)`() {
+    fun `Change final to non-final - Compatible but Disallowed`() {
         check(
             expectedIssues =
                 """
@@ -549,7 +549,7 @@ class BinaryCompatibilityClassesTest : DriverTest() {
     }
 
     @Test
-    fun `Change non-final to final (Incompatible)`() {
+    fun `Change non-final to final - Incompatible`() {
         check(
             expectedIssues =
                 """
@@ -575,7 +575,7 @@ class BinaryCompatibilityClassesTest : DriverTest() {
     }
 
     @Test
-    fun `Add type parameter, if class has no type parameters (Compatible)`() {
+    fun `Add type parameter, if class has no type parameters - Compatible`() {
         check(
             signatureSource =
                 """
@@ -595,7 +595,7 @@ class BinaryCompatibilityClassesTest : DriverTest() {
     }
 
     @Test
-    fun `Add type parameter, if class has type parameters (Incompatible)`() {
+    fun `Add type parameter, if class has type parameters - Incompatible`() {
         check(
             expectedIssues =
                 """
@@ -619,7 +619,7 @@ class BinaryCompatibilityClassesTest : DriverTest() {
     }
 
     @Test
-    fun `Delete type parameter (Incompatible)`() {
+    fun `Delete type parameter - Incompatible`() {
         check(
             expectedIssues =
                 """
@@ -649,7 +649,7 @@ class BinaryCompatibilityClassesTest : DriverTest() {
 
     @Ignore("b/217746739")
     @Test
-    fun `Reorder type parameters (Incompatible)`() {
+    fun `Reorder type parameters - Incompatible`() {
         check(
             expectedIssues =
                 """
@@ -673,7 +673,7 @@ class BinaryCompatibilityClassesTest : DriverTest() {
     }
 
     @Test
-    fun `Rename type parameter (Compatible)`() {
+    fun `Rename type parameter - Compatible`() {
         check(
             signatureSource =
                 """
@@ -694,7 +694,7 @@ class BinaryCompatibilityClassesTest : DriverTest() {
 
     @Ignore("b/217747331")
     @Test
-    fun `Add, delete, or change type bounds of type parameter (Incompatible)`() {
+    fun `Add, delete, or change type bounds of type parameter - Incompatible`() {
         check(
             expectedIssues =
                 """
@@ -728,7 +728,7 @@ class BinaryCompatibilityClassesTest : DriverTest() {
     }
 
     @Test
-    fun `Rename enum constant (Incompatible)`() {
+    fun `Rename enum constant - Incompatible`() {
         check(
             expectedIssues =
                 """
@@ -754,7 +754,7 @@ class BinaryCompatibilityClassesTest : DriverTest() {
     }
 
     @Test
-    fun `Add enum constant (Compatible)`() {
+    fun `Add enum constant - Compatible`() {
         check(
             signatureSource =
                 """
@@ -777,7 +777,7 @@ class BinaryCompatibilityClassesTest : DriverTest() {
     }
 
     @Test
-    fun `Delete enum constant (Incompatible)`() {
+    fun `Delete enum constant - Incompatible`() {
         check(
             expectedIssues =
                 """
@@ -804,7 +804,7 @@ class BinaryCompatibilityClassesTest : DriverTest() {
     }
 
     @Test
-    fun `Re-order enum constants (Compatible)`() {
+    fun `Re-order enum constants - Compatible`() {
         check(
             signatureSource =
                 """

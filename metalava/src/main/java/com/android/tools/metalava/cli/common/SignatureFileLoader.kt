@@ -18,6 +18,7 @@ package com.android.tools.metalava.cli.common
 
 import com.android.tools.metalava.model.ClassPathResolver
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
 import com.android.tools.metalava.model.text.ApiFile
 import com.android.tools.metalava.model.text.ApiParseException
 import com.android.tools.metalava.model.text.FileFormat
@@ -31,6 +32,11 @@ interface SignatureFileLoader {
         classPathResolver: ClassPathResolver? = null
     ): Codebase
 
+    /** Loads [signatureFiles] into a [MultiplatformCodebase]. */
+    fun loadMultiplatform(
+        signatureFiles: List<SignatureFile>,
+    ): MultiplatformCodebase
+
     companion object {
         /** A [SignatureFileLoader] that will throw an exception when called. */
         val THROWING =
@@ -38,7 +44,14 @@ interface SignatureFileLoader {
                 override fun load(
                     signatureFiles: List<SignatureFile>,
                     classPathResolver: ClassPathResolver?
-                ) = error("Throwing signature file loader cannot load signature files")
+                ) = throwError()
+
+                override fun loadMultiplatform(
+                    signatureFiles: List<SignatureFile>
+                ): MultiplatformCodebase = throwError()
+
+                private fun throwError(): Nothing =
+                    error("Throwing signature file loader cannot load signature files")
             }
     }
 }
@@ -67,6 +80,19 @@ class DefaultSignatureFileLoader(
             )
         } catch (ex: ApiParseException) {
             cliError("Unable to parse signature file: ${ex.message}")
+        }
+    }
+
+    override fun loadMultiplatform(signatureFiles: List<SignatureFile>): MultiplatformCodebase {
+        require(signatureFiles.isNotEmpty()) { "files must not be empty" }
+
+        try {
+            return ApiFile.parseMultiplatformApi(
+                signatureFiles = signatureFiles,
+                codebaseConfig = codebaseConfig,
+            )
+        } catch (ex: ApiParseException) {
+            cliError("Unable to parse signature files: ${ex.message}")
         }
     }
 }

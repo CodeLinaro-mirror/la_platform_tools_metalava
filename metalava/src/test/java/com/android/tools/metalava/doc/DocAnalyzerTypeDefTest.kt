@@ -60,7 +60,7 @@ class DocAnalyzerTypeDefTest : DriverTest() {
                 ),
             checkCompilation = true,
             docStubs = true,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -127,7 +127,7 @@ class DocAnalyzerTypeDefTest : DriverTest() {
                 ),
             checkCompilation = true,
             docStubs = true,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -196,7 +196,7 @@ class DocAnalyzerTypeDefTest : DriverTest() {
                 """
                     src/test/pkg/TypedefTest.java:20: error: Typedef references constant which isn't part of the API, skipping in documentation: test.pkg.TypedefTest#STYLE_NO_INPUT [HiddenTypedefConstant]
                 """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -259,7 +259,7 @@ class DocAnalyzerTypeDefTest : DriverTest() {
                 ),
             docStubs = true,
             checkCompilation = true,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """

@@ -31,6 +31,7 @@ import com.android.tools.metalava.apilevels.VersionedSignatureApi
 import com.android.tools.metalava.apilevels.VersionedSourceApi
 import com.android.tools.metalava.cli.common.EarlyOptions
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
+import com.android.tools.metalava.cli.common.MetalavaOptionGroup
 import com.android.tools.metalava.cli.common.RequiresOtherGroups
 import com.android.tools.metalava.cli.common.SignatureFileLoader
 import com.android.tools.metalava.cli.common.cliError
@@ -83,9 +84,8 @@ private typealias VersionedApiFactory =
 class ApiLevelsGenerationOptions(
     private val executionEnvironment: ExecutionEnvironment = ExecutionEnvironment(),
     private val earlyOptions: EarlyOptions = EarlyOptions(),
-    private val apiSurfacesProvider: () -> ApiSurfaces? = { null },
 ) :
-    OptionGroup(
+    MetalavaOptionGroup(
         name = "Api Levels Generation",
         help =
             """
@@ -299,14 +299,15 @@ class ApiLevelsGenerationOptions(
      */
     private fun findHistoricalApiFiles(
         dir: File,
-        patterns: List<String>
+        patterns: List<String>,
+        apiSurfaces: ApiSurfaces?,
     ): List<MatchedPatternFile> {
         // Find all the historical files for versions within the required range.
         val patternNode = PatternNode.parsePatterns(patterns)
         val sdkExtensionVersionRange =
             sdkExtensionVersionRange
                 ?: ApiVersion.fromLevel(1).rangeTo(ApiVersion.fromLevel(Int.MAX_VALUE))
-        val apiSurfaceByName = apiSurfacesProvider()?.byName
+        val apiSurfaceByName = apiSurfaces?.byName
         val scanConfig =
             PatternNode.ScanConfig(
                 dir = dir,
@@ -367,6 +368,7 @@ class ApiLevelsGenerationOptions(
      */
     fun forAndroidConfig(
         signatureFileLoader: SignatureFileLoader,
+        apiSurfaces: ApiSurfaces?,
         codebaseFragmentProvider: () -> CodebaseFragment,
     ) =
         generateApiLevelsXmlFile?.let { outputFile ->
@@ -389,7 +391,7 @@ class ApiLevelsGenerationOptions(
                 } else {
                     Pair(signaturePatterns, ::createVersionedSignatureApi)
                 }
-            val matchedApiFiles = findHistoricalApiFiles(currentDir, apiFilePatterns)
+            val matchedApiFiles = findHistoricalApiFiles(currentDir, apiFilePatterns, apiSurfaces)
 
             // Split the files into primary api files and extension api files.
             val (primaryApiFiles, extensionApiFiles) = matchedApiFiles.partition { !it.isExtension }

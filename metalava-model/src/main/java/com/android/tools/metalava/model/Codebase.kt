@@ -58,12 +58,6 @@ interface Codebase : ClassPathResolver, AnnotationContext {
     fun getTopLevelClassesFromSource(): List<ClassItem>
 
     /**
-     * Return `true` if this whole [Codebase] was created from the class path, i.e. not from
-     * sources.
-     */
-    fun isFromClassPath(): Boolean = false
-
-    /**
      * Freeze all the classes loaded from sources, along with their super classes.
      *
      * This does not prevent adding new classes and does automatically freeze classes added after
@@ -102,45 +96,6 @@ interface Codebase : ClassPathResolver, AnnotationContext {
 
     fun accept(visitor: ItemVisitor) {
         visitor.visit(this)
-    }
-
-    /**
-     * Creates an annotation item for the given (fully qualified) Java source.
-     *
-     * Returns `null` if the source contains an annotation that is not recognized by Metalava.
-     */
-    fun createAnnotation(
-        source: String,
-        context: Item? = null,
-    ): AnnotationItem?
-
-    /**
-     * Create an [AnnotationItem] appropriate for this [Codebase] from the [attributes] by creating
-     * a source representation of the annotation and the calling [createAnnotation].
-     */
-    fun createAnnotationFromAttributes(
-        originalName: String,
-        attributes: List<Pair<String, String>> = emptyList(),
-        context: Item? = null,
-    ): AnnotationItem? {
-        val source = buildString {
-            append("@")
-            append(originalName)
-            if (attributes.isNotEmpty()) {
-                append("(")
-                attributes.forEachIndexed { i, attribute ->
-                    if (i != 0) {
-                        append(", ")
-                    }
-                    append(attribute.first)
-                    append("=")
-                    append(attribute.second)
-                }
-                append(")")
-            }
-        }
-
-        return createAnnotation(source, context)
     }
 
     /** Reports that the given operation is unsupported for this codebase type */
@@ -196,6 +151,12 @@ interface Codebase : ClassPathResolver, AnnotationContext {
 
         /** The reporter to use for issues found during processing of the [Codebase]. */
         val reporter: Reporter = ThrowingReporter.INSTANCE,
+
+        /**
+         * Whether API surfaces have been configured in a config file. When true, Javadoc `@hide`
+         * block tags are ignored for hiding.
+         */
+        val apiSurfacesConfigured: Boolean = false,
     ) {
         companion object {
             /**
@@ -208,13 +169,28 @@ interface Codebase : ClassPathResolver, AnnotationContext {
 
     companion object {
         /** Find the corresponding item in the previously released API if available. */
-        fun findPreviouslyReleased(oldCodebase: Codebase?, item: Item?): Item? {
-            return oldCodebase?.let {
-                item?.findCorrespondingItemIn(
-                    oldCodebase,
-                    superMethods = true,
-                    duplicate = true,
-                )
+        fun findPreviouslyReleased(
+            oldCodebase: Codebase?,
+            item: Item?,
+            inherit: Boolean = true,
+        ): Item? {
+            val oldItem =
+                oldCodebase?.let {
+                    item?.findCorrespondingItemIn(
+                        oldCodebase,
+                        superMethods = inherit,
+                        duplicate = inherit,
+                    )
+                }
+            // If this is an expect in the old codebase and an actual in the new one, do not treat
+            // it as previously released because the actual definition may have a different
+            // signature from the expect with a different set of issues to report.
+            return if (
+                oldItem?.modifiers?.isExpect() == true && item?.modifiers?.isActual() == true
+            ) {
+                null
+            } else {
+                oldItem
             }
         }
 

@@ -29,10 +29,13 @@ abstract class MetalavaSubCommand(
      * exception is `version`.
      */
     printHelpOnEmptyArgs: Boolean = true,
+    /** Whether to allow more than one subcommand of this command to be run in one invocation. */
+    allowMultipleSubcommands: Boolean = false,
 ) :
     CliktCommand(
         help = help,
         printHelpOnEmptyArgs = printHelpOnEmptyArgs,
+        allowMultipleSubcommands = allowMultipleSubcommands,
     ) {
 
     init {

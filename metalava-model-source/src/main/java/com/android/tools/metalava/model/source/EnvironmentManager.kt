@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.source
 
+import androidx.tracing.Tracer
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ModelOptions
 import java.io.Closeable
@@ -40,6 +41,7 @@ interface EnvironmentManager : Closeable {
      */
     fun createSourceParser(
         codebaseConfig: Codebase.Config,
+        tracer: Tracer,
         javaLanguageLevel: String = DEFAULT_JAVA_LANGUAGE_LEVEL,
         kotlinLanguageLevel: String = DEFAULT_KOTLIN_LANGUAGE_LEVEL,
         modelOptions: ModelOptions = ModelOptions.empty,

@@ -21,6 +21,7 @@ import com.android.tools.metalava.model.testing.surfaces.SelectedApiVariantsTest
 import com.android.tools.metalava.model.testing.surfaces.selectedApiVariantsTestData
 import com.android.tools.metalava.model.text.apiVariantTypeForTestSignatureFile
 import com.android.tools.metalava.testing.createFiles
+import com.android.tools.metalava.testing.xml
 import org.junit.Test
 import org.junit.runners.Parameterized
 
@@ -30,6 +31,47 @@ class ParameterizedSelectedApiVariantsTest : DriverTest() {
 
     companion object {
         @JvmStatic @Parameterized.Parameters fun params() = selectedApiVariantsTestData
+
+        private val configMainSurface =
+            xml(
+                "config-main-surface.xml",
+                """
+                    <config xmlns="http://www.google.com/tools/metalava/config"
+                        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                        xsi:schemaLocation="http://www.google.com/tools/metalava/config ../../../../../resources/schemas/config.xsd">
+                        <api-surfaces>
+                            <api-surface name="main">
+                                <selection-criteria unannotated="show"/>
+                            </api-surface>
+                        </api-surfaces>
+                    </config>
+                """
+            )
+
+        private val MAIN_WITHOUT_BASE = KnownApiSurface("main", configMainSurface)
+
+        private val configMainAndBaseSurfaces =
+            xml(
+                "config-main-and-base-surfaces.xml",
+                """
+                    <config xmlns="http://www.google.com/tools/metalava/config"
+                        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                        xsi:schemaLocation="http://www.google.com/tools/metalava/config ../../../../../resources/schemas/config.xsd">
+                        <api-surfaces>
+                            <api-surface name="base">
+                                <selection-criteria unannotated="show"/>
+                            </api-surface>
+                            <api-surface name="main" extends="base">
+                                <selection-criteria>
+                                    <annotation-rule pattern="android.annotation.SystemApi(client=android.annotation.SystemApi.Client.PRIVILEGED_APPS)"/>
+                                </selection-criteria>
+                            </api-surface>
+                        </api-surfaces>
+                    </config>
+                """
+            )
+
+        val MAIN_WITH_BASE = KnownApiSurface("main", configMainAndBaseSurfaces)
     }
 
     @Test
@@ -43,11 +85,10 @@ class ParameterizedSelectedApiVariantsTest : DriverTest() {
                 .partition { apiVariantTypeForTestSignatureFile(it) != ApiVariantType.REMOVED }
 
         // If the test needs a base ApiSurface then add --show-annotation SystemApi to create one.
-        val includeSystemApiAnnotations =
-            if (testData.needsBase) SystemApiType.PRIVILEGED_APPS else null
+        val apiSurface = if (testData.needsBase) MAIN_WITH_BASE else MAIN_WITHOUT_BASE
 
         check(
-            includeSystemApiAnnotations = includeSystemApiAnnotations,
+            apiSurface = apiSurface,
             // Although this test is only check the selectedApiVariants state it must provide source
             // files as otherwise the compatibility check will fail as it will compare the API
             // loaded from the signature files against an empty Codebase and report that items have

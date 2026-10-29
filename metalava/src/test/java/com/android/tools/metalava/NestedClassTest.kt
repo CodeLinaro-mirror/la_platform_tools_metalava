@@ -99,7 +99,7 @@ class NestedClassTest : DriverTest() {
                             "3VjkhCCNYuwUVry5KsCblQ2kjAMIzYBuegvmAQBYPJKrOQkAAA=="
                     )
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg2 {
                   public class Foo {

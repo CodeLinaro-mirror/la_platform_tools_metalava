@@ -23,8 +23,9 @@ import com.android.tools.metalava.model.Item
  *
  * Each of these refers to a different variant of the API, where each variant has a unique set of
  * criteria that determines which [Item]s in the API are part of the variant. e.g. [DOC_ONLY] only
- * includes [Item]s that have `@doconly` specified. The intent is that every traversal of the API,
- * e.g. when generating output files, will just specify the set of variants that it needs to visit.
+ * includes [Item]s that are annotated with an `<api-surfaces>/<doc-only>` configured annotation.
+ * The intent is that every traversal of the API, e.g. when generating output files, will just
+ * specify the set of variants that it needs to visit.
  *
  * e.g. When generating the public API it will visit [CORE] in [ApiSurfaces.main] and there will be
  * no [ApiSurfaces.base]. When generating the system API delta it will also visit [CORE] in
@@ -48,14 +49,36 @@ enum class ApiVariantType(
      * Used in [ApiVariantSet.toString] to reduce the size of the string representation when
      * debugging.
      */
-    val shortCode: Char,
+    internal val shortCode: Char,
+
+    /**
+     * True if this type of [ApiVariantType] is included in an [ApiSurface] by default.
+     *
+     * @see ApiSurface.defaultVariantSet
+     */
+    internal val isDefault: Boolean,
 ) {
     /** The core API that is used everywhere. */
-    CORE(shortCode = 'C'),
+    CORE(
+        shortCode = 'C',
+
+        // Items are in the core API by default.
+        isDefault = true,
+    ),
 
     /** The removed API items. */
-    REMOVED(shortCode = 'R'),
+    REMOVED(
+        shortCode = 'R',
 
-    /** Doc stub only items. */
-    DOC_ONLY(shortCode = 'D'),
+        // Items are not removed by default.
+        isDefault = false,
+    ),
+
+    /** Documentation only items. */
+    DOC_ONLY(
+        shortCode = 'D',
+
+        // Items are not documentation only by default.
+        isDefault = false,
+    ),
 }

@@ -17,10 +17,11 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.cli.common.BaselineOptionsMixin
-import com.android.tools.metalava.cli.common.CommonBaselineOptions
+import com.android.tools.metalava.cli.common.ComputedCommonBaselineOptions
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
+import com.android.tools.metalava.cli.common.MetalavaOptionGroup
+import com.android.tools.metalava.reporter.Baseline
 import com.android.tools.metalava.reporter.Reporter
-import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import java.io.File
 
 const val ARG_BASELINE = "--baseline"
@@ -33,12 +34,8 @@ const val GENERAL_REPORTER_OPTIONS_GROUP = "General Reporting"
  * Options related to the general [Reporter], i.e. not one specific to say API linting or
  * compatibility checks.
  */
-class GeneralReportingOptions(
-    executionEnvironment: ExecutionEnvironment = ExecutionEnvironment(),
-    commonBaselineOptions: CommonBaselineOptions = CommonBaselineOptions(),
-    defaultBaselineFileProvider: () -> File? = { null },
-) :
-    OptionGroup(
+class GeneralReportingOptions() :
+    MetalavaOptionGroup(
         name = GENERAL_REPORTER_OPTIONS_GROUP,
         help =
             """
@@ -51,14 +48,22 @@ class GeneralReportingOptions(
     private val baselineOptionsMixin =
         BaselineOptionsMixin(
             containingGroup = this,
-            executionEnvironment,
             baselineOptionName = ARG_BASELINE,
             updateBaselineOptionName = ARG_UPDATE_BASELINE,
-            defaultBaselineFileProvider = defaultBaselineFileProvider,
             issueType = "general",
+        )
+
+    /** Returns a [Baseline] for the general [Reporter], if there is one. */
+    internal fun computeBaseline(
+        executionEnvironment: ExecutionEnvironment = ExecutionEnvironment(),
+        commonBaselineOptions: ComputedCommonBaselineOptions,
+        defaultBaselineFileProvider: () -> File? = { null },
+    ): Baseline? {
+        return baselineOptionsMixin.computeBaseline(
+            executionEnvironment,
+            defaultBaselineFileProvider = defaultBaselineFileProvider,
             description = "base",
             commonBaselineOptions = commonBaselineOptions,
         )
-
-    internal val baseline by baselineOptionsMixin::baseline
+    }
 }

@@ -17,10 +17,9 @@
 package com.android.tools.metalava.lint
 
 import com.android.tools.metalava.DriverTest
-import com.android.tools.metalava.cli.common.ARG_ERROR
-import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.libcoreNonNullSource
 import com.android.tools.metalava.libcoreNullableSource
+import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.testing.java
 import org.junit.Test
 import org.junit.runners.Parameterized
@@ -36,13 +35,6 @@ class AccessorNullabilityTest : DriverTest() {
         val expectedIssues: String? = null,
     ) {
         override fun toString() = name
-
-        val expectedFail =
-            if (expectedIssues == null) {
-                null
-            } else {
-                DefaultLintErrorMessage
-            }
     }
 
     companion object {
@@ -169,7 +161,7 @@ class AccessorNullabilityTest : DriverTest() {
                     getterType = "@NonNull T",
                     setterType = "T",
                     expectedIssues =
-                        "src/test/pkg/Foo.java:7: error: Nullability of T in getter method test.pkg.Foo.getValue() does not match T! in corresponding setter method test.pkg.Foo.setValue(T) [GetterSetterNullability]",
+                        "src/test/pkg/Foo.java:7: error: Nullability of T in getter method test.pkg.Foo.getValue() does not match T in corresponding setter method test.pkg.Foo.setValue(T) [GetterSetterNullability]",
                 ),
             )
     }
@@ -197,19 +189,15 @@ class AccessorNullabilityTest : DriverTest() {
                     libcoreNullableSource,
                 ),
             extraArguments =
-                arrayOf(
-                    ARG_ERROR,
-                    "GetterSetterNullability",
-                    ARG_HIDE,
-                    "MissingNullability",
-                    ARG_HIDE,
-                    "NullableCollection",
-                    ARG_HIDE,
-                    "ArrayReturn",
-                    ARG_HIDE,
-                    "NullableCollectionElement",
-                ),
-            expectedFail = params.expectedFail,
+                errorIssues(
+                    Issues.GETTER_SETTER_NULLABILITY,
+                ) +
+                    hiddenIssues(
+                        Issues.MISSING_NULLABILITY,
+                        Issues.NULLABLE_COLLECTION,
+                        Issues.ARRAY_RETURN,
+                        Issues.NULLABLE_COLLECTION_ELEMENT,
+                    ),
             expectedIssues = params.expectedIssues,
         )
     }

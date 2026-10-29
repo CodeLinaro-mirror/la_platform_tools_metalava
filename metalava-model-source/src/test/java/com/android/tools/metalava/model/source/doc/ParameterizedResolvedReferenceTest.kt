@@ -104,6 +104,15 @@ class ParameterizedResolvedReferenceTest {
                     reference = FieldReference("test.pkg.Other", "field"),
                     expectedFullyQualifiedForm = "test.pkg.Other#field",
                 ),
+                TestParams(
+                    reference = CallableReference("test.pkg.Class.Nested", "method()"),
+                    expectedFullyQualifiedForm = "test.pkg.Class.Nested#method()",
+                    expectedForClassNested = "#method()",
+                ),
+                TestParams(
+                    reference = CallableReference("test.pkg.Other", "method()"),
+                    expectedFullyQualifiedForm = "test.pkg.Other#method()",
+                ),
             )
 
         @JvmStatic @Parameterized.Parameters(name = "{0}") fun params() = params

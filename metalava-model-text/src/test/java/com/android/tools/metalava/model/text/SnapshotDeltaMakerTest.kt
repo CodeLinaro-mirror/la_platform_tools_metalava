@@ -19,8 +19,6 @@ package com.android.tools.metalava.model.text
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.CodebaseFragment
 import com.android.tools.metalava.model.snapshot.NonFilteringDelegatingVisitor
-import com.android.tools.metalava.model.visitors.ApiPredicate
-import com.android.tools.metalava.model.visitors.ApiType
 import java.io.PrintWriter
 import java.io.StringWriter
 import kotlin.test.assertEquals
@@ -42,6 +40,7 @@ class SnapshotDeltaMakerTest : BaseTextCodebaseTest() {
         val extendsSignature: String,
         val combinedSignature: String,
         val checkMemberItemEquivalence: Boolean = false,
+        val allowClassModifierChanges: Boolean = false,
     ) {
         override fun toString(): String {
             return name
@@ -188,6 +187,42 @@ class SnapshotDeltaMakerTest : BaseTextCodebaseTest() {
                         """,
                 ),
                 TestParams(
+                    name = "class - different annotations with modifier changes allowed",
+                    baseSignature =
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public @interface BaseAnnotation {
+                              }
+                              @test.pkg.BaseAnnotation public class Foo {
+                              }
+                            }
+                        """,
+                    extendsSignature =
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public @interface ExtendsAnnotation {
+                              }
+                              @test.pkg.ExtendsAnnotation public class Foo {
+                              }
+                            }
+                        """,
+                    combinedSignature =
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public @interface BaseAnnotation {
+                              }
+                              public @interface ExtendsAnnotation {
+                              }
+                              @test.pkg.ExtendsAnnotation public class Foo {
+                              }
+                            }
+                        """,
+                    allowClassModifierChanges = true,
+                ),
+                TestParams(
                     name = "class - changed to typealias",
                     baseSignature =
                         """
@@ -211,6 +246,46 @@ class SnapshotDeltaMakerTest : BaseTextCodebaseTest() {
                               public typealias Foo = String;
                             }
                         """,
+                ),
+                TestParams(
+                    name = "class modifiers",
+                    baseSignature =
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              @Deprecated public class DeprecatedInBase {
+                              }
+                              public class DeprecatedInExtends {
+                              }
+                              public final class FinalInBase {
+                              }
+                            }
+                        """,
+                    extendsSignature =
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public class DeprecatedInBase {
+                              }
+                              @Deprecated public class DeprecatedInExtends {
+                              }
+                              public class FinalInBase {
+                              }
+                            }
+                        """,
+                    combinedSignature =
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public class DeprecatedInBase {
+                              }
+                              @Deprecated public class DeprecatedInExtends {
+                              }
+                              public class FinalInBase {
+                              }
+                            }
+                        """,
+                    allowClassModifierChanges = true,
                 ),
                 TestParams(
                     name = "constructors",
@@ -681,6 +756,45 @@ class SnapshotDeltaMakerTest : BaseTextCodebaseTest() {
                         """,
                     checkMemberItemEquivalence = true,
                 ),
+                TestParams(
+                    name = "property context parameter modifiers",
+                    baseSignature =
+                        """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          public @interface BaseAnnotation {
+                          }
+                          public class Foo {
+                            property public int foo(context @test.pkg.BaseAnnotation String s);
+                          }
+                        }
+                        """,
+                    extendsSignature =
+                        """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          public @interface ExtendsAnnotation {
+                          }
+                          public class Foo {
+                            property public int foo(context @test.pkg.ExtendsAnnotation String s);
+                          }
+                        }
+                        """,
+                    combinedSignature =
+                        """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          public @interface BaseAnnotation {
+                          }
+                          public @interface ExtendsAnnotation {
+                          }
+                          public class Foo {
+                            property public int foo(context @test.pkg.ExtendsAnnotation String s);
+                          }
+                        }
+                        """,
+                    checkMemberItemEquivalence = true,
+                )
             )
     }
 
@@ -700,16 +814,15 @@ class SnapshotDeltaMakerTest : BaseTextCodebaseTest() {
                     writer = printWriter,
                     fileFormat = fileFormat,
                 )
-            val visitor =
-                createFilteringVisitorForSignatures(
-                    signatureWriter,
+
+            val deltaFragment =
+                createCodebaseFragmentForSignatureFile(
+                    deltaCodebase,
                     fileFormat,
-                    ApiType.ALL,
-                    preFiltered = true,
-                    showUnannotated = true,
-                    apiPredicateConfig = ApiPredicate.Config()
+                    // Pre-filtered so does not need any filters.
+                    apiFilters = null,
                 )
-            deltaCodebase.accept(visitor)
+            deltaFragment.accept(signatureWriter)
         }
         val output = stringWriter.toString().replace("\n\n", "\n").trimEnd()
         return output
@@ -722,7 +835,11 @@ class SnapshotDeltaMakerTest : BaseTextCodebaseTest() {
     private fun checkMergedCodebase(baseFile: SignatureFile) {
         val extendsFile =
             SignatureFile.fromText("extends.txt", contents = testData.extendsSignature)
-        val mergedCodebase = ApiFile.parseApi(listOf(baseFile, extendsFile))
+        val mergedCodebase =
+            ApiFile.parseApi(
+                listOf(baseFile, extendsFile),
+                allowClassModifierChanges = testData.allowClassModifierChanges
+            )
         mergedCodebase.assertSignatureFile(
             expected = testData.combinedSignature,
             message = "merged signature"
@@ -739,13 +856,18 @@ class SnapshotDeltaMakerTest : BaseTextCodebaseTest() {
             ApiFile.parseApi(
                 listOf(
                     SignatureFile.fromText("combined.txt", contents = testData.combinedSignature)
-                )
+                ),
+                allowClassModifierChanges = testData.allowClassModifierChanges,
             )
         val deltaCodebase =
             SnapshotDeltaMaker.createDelta(
                     baseCodebase,
-                    CodebaseFragment.create(combinedCodebase, ::NonFilteringDelegatingVisitor),
+                    CodebaseFragment.create(
+                        combinedCodebase,
+                        factory = ::NonFilteringDelegatingVisitor,
+                    ),
                     testData.checkMemberItemEquivalence,
+                    testData.allowClassModifierChanges,
                 )
                 .codebase
         deltaCodebase.assertSignatureFile(

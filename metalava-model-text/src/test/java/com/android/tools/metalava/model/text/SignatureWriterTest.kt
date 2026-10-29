@@ -44,7 +44,7 @@ class SignatureWriterTest {
     }
 
     @Test
-    fun `Write header only when not-empty (not-empty)`() {
+    fun `Write header only when not-empty - not-empty`() {
         val output = runTest {
             it.write("text1\n")
             it.write("text2\n")
@@ -63,7 +63,7 @@ class SignatureWriterTest {
     }
 
     @Test
-    fun `Write header only when not-empty (empty)`() {
+    fun `Write header only when not-empty - empty`() {
         val output = runTest {}
         assertEquals("", output)
     }

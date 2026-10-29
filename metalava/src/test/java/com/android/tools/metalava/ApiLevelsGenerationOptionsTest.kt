@@ -136,8 +136,10 @@ class ApiLevelsGenerationOptionsTest :
      * Get an optional [GenerateApiHistoryConfig] from
      * [ApiLevelsGenerationOptions.forAndroidConfig].
      */
-    private fun ApiLevelsGenerationOptions.testForAndroidConfig() =
-        forAndroidConfig(SignatureFileLoader.THROWING) { error("no codebase fragment") }
+    private fun ApiLevelsGenerationOptions.testForAndroidConfig(apiSurfaces: ApiSurfaces?) =
+        forAndroidConfig(SignatureFileLoader.THROWING, apiSurfaces) {
+            error("no codebase fragment")
+        }
 
     @Test
     fun `Test api version for sources supports major-minor`() {
@@ -218,7 +220,7 @@ class ApiLevelsGenerationOptionsTest :
         ) {
             val exception =
                 assertThrows(MetalavaCliException::class.java) { options.fromFakeSignatureFiles() }
-            assertThat(cleanupString(exception.message!!))
+            assertThat(removeTestSpecificDirectories(exception.message!!))
                 .isEqualTo(
                     """
                         --api-version-signature-files: The following files were unmatched by a signature pattern:
@@ -250,7 +252,7 @@ class ApiLevelsGenerationOptionsTest :
         }
 
     /** Dump the contents of this list to a string. */
-    private fun List<VersionedApi>.dump() = cleanupString(joinToString("\n"))
+    private fun List<VersionedApi>.dump() = removeTestSpecificDirectories(joinToString("\n"))
 
     @Test
     fun `Test multiple jar files for version forAndroidConfig`() {
@@ -279,7 +281,7 @@ class ApiLevelsGenerationOptionsTest :
             ARG_ANDROID_JAR_PATTERN,
             "$root/{version:level}/*/{library}.jar",
         ) {
-            val apiHistoryConfig = options.testForAndroidConfig()
+            val apiHistoryConfig = options.testForAndroidConfig(apiSurfaces = null)
             assertThat(apiHistoryConfig).isNotNull()
 
             // Compute the list of versioned files.
@@ -325,7 +327,7 @@ class ApiLevelsGenerationOptionsTest :
             ARG_SDK_INFO_FILE,
             sdkExtensionsInfoXml.path,
         ) {
-            val apiHistoryConfig = options.testForAndroidConfig()
+            val apiHistoryConfig = options.testForAndroidConfig(apiSurfaces = null)
             assertThat(apiHistoryConfig).isNotNull()
 
             // Compute the list of versioned files.
@@ -393,9 +395,9 @@ class ApiLevelsGenerationOptionsTest :
             "$root/extensions/{version:extension}/{surface}/{module}.txt",
             ARG_SDK_INFO_FILE,
             sdkExtensionsInfoXml.path,
-            optionGroup = ApiLevelsGenerationOptions(apiSurfacesProvider = { apiSurfaces }),
+            optionGroup = ApiLevelsGenerationOptions(),
         ) {
-            val apiHistoryConfig = options.testForAndroidConfig()
+            val apiHistoryConfig = options.testForAndroidConfig(apiSurfaces)
             assertThat(apiHistoryConfig).isNotNull()
 
             // Compute the list of versioned files.
@@ -421,7 +423,6 @@ class ApiLevelsGenerationOptionsTest :
     fun `Test invalid --api-version-range`() {
         val root = temporaryFolder.root
 
-        val apiSurfaces = ApiSurfaces.build { createSurface("public", isMain = true) }
         val apiVersionsXml = temporaryFolder.newFile("api-versions.xml")
         runTest(
             ARG_API_VERSION_RANGE,
@@ -432,7 +433,7 @@ class ApiLevelsGenerationOptionsTest :
             apiVersionsXml.path,
             ARG_API_VERSION_SIGNATURE_PATTERN,
             "$root/{version:major.minor?}/{surface}/api.txt",
-            optionGroup = ApiLevelsGenerationOptions(apiSurfacesProvider = { apiSurfaces }),
+            optionGroup = ApiLevelsGenerationOptions(),
         ) {
             assertEquals("", stdout)
             assertEquals(
@@ -462,9 +463,9 @@ class ApiLevelsGenerationOptionsTest :
             apiVersionsXml.path,
             ARG_API_VERSION_SIGNATURE_PATTERN,
             "$root/{version:major.minor?}/{surface}/api.txt",
-            optionGroup = ApiLevelsGenerationOptions(apiSurfacesProvider = { apiSurfaces }),
+            optionGroup = ApiLevelsGenerationOptions(),
         ) {
-            val apiHistoryConfig = options.testForAndroidConfig()
+            val apiHistoryConfig = options.testForAndroidConfig(apiSurfaces)
             assertThat(apiHistoryConfig).isNotNull()
 
             // Compute the list of versioned files.
@@ -510,9 +511,9 @@ class ApiLevelsGenerationOptionsTest :
             "$root/extensions/{version:extension}/{surface}/{module}.txt",
             ARG_SDK_INFO_FILE,
             sdkExtensionsInfoXml.path,
-            optionGroup = ApiLevelsGenerationOptions(apiSurfacesProvider = { apiSurfaces }),
+            optionGroup = ApiLevelsGenerationOptions(),
         ) {
-            val apiHistoryConfig = options.testForAndroidConfig()
+            val apiHistoryConfig = options.testForAndroidConfig(apiSurfaces)
             assertThat(apiHistoryConfig).isNotNull()
 
             // Compute the list of versioned files.
@@ -553,9 +554,9 @@ class ApiLevelsGenerationOptionsTest :
             "$root/extensions/{version:extension}/{surface}/{module}.txt",
             ARG_SDK_INFO_FILE,
             sdkExtensionsInfoXml.path,
-            optionGroup = ApiLevelsGenerationOptions(apiSurfacesProvider = { apiSurfaces }),
+            optionGroup = ApiLevelsGenerationOptions(),
         ) {
-            val apiHistoryConfig = options.testForAndroidConfig()
+            val apiHistoryConfig = options.testForAndroidConfig(apiSurfaces)
             assertThat(apiHistoryConfig).isNotNull()
 
             // Compute the list of versioned files.
@@ -590,7 +591,7 @@ class ApiLevelsGenerationOptionsTest :
         ) {
             val exception =
                 assertThrows(IllegalArgumentException::class.java) {
-                    options.testForAndroidConfig()
+                    options.testForAndroidConfig(apiSurfaces = null)
                 }
 
             assertThat(exception.message)
@@ -619,7 +620,9 @@ class ApiLevelsGenerationOptionsTest :
             sdkExtensionsInfoXml.path,
         ) {
             val exception =
-                assertThrows(MetalavaCliException::class.java) { options.testForAndroidConfig() }
+                assertThrows(MetalavaCliException::class.java) {
+                    options.testForAndroidConfig(apiSurfaces = null)
+                }
 
             assertThat(exception.message)
                 .isEqualTo(
@@ -658,7 +661,7 @@ class ApiLevelsGenerationOptionsTest :
             ARG_SDK_INFO_FILE,
             sdkExtensionsInfoXml.path,
         ) {
-            val apiHistoryConfig = options.testForAndroidConfig()
+            val apiHistoryConfig = options.testForAndroidConfig(apiSurfaces = null)
             assertThat(apiHistoryConfig).isNotNull()
 
             assertThat(apiHistoryConfig!!.versionedApis.dump())

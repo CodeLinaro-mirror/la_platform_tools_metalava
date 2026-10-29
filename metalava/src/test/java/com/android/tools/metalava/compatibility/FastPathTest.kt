@@ -20,10 +20,10 @@ import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.lint.checks.infrastructure.TestFiles
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.cli.common.CheckerFunction
-import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions
+import com.android.tools.metalava.cli.compatibility.CheckRequest.CheckType
+import com.android.tools.metalava.cli.compatibility.ComputedCompatibilityCheckOptions
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.stripBlankLines
-import com.android.tools.metalava.model.visitors.ApiType
 import com.android.tools.metalava.testing.java
 import org.junit.Assert.fail
 import org.junit.Test
@@ -78,7 +78,7 @@ public abstract class Class {
 class FastPathTest : DriverTest() {
 
     private fun checkFastPath(
-        apiType: ApiType = ApiType.PUBLIC_API,
+        checkType: CheckType = CheckType.PUBLIC_API,
         releaseSignatureContents: String,
         sourceFile: TestFile,
         expectedFastPathResult: Boolean?,
@@ -88,7 +88,7 @@ class FastPathTest : DriverTest() {
         // being written out, each of which strips off some (or all) trailing blank lines which are
         // important.
         val signatureFile =
-            TestFiles.source("released-${apiType.displayName}.txt", releaseSignatureContents)
+            TestFiles.source("released-${checkType.displayName}.txt", releaseSignatureContents)
                 .createFile(temporaryFolder.newFolder())
 
         val format = FileFormat.V2
@@ -97,22 +97,22 @@ class FastPathTest : DriverTest() {
         val sourceFiles = arrayOf(sourceFile)
 
         // Save away a reference to the CompatibilityCheckOptions.
-        var compatibilityCheckOptions: CompatibilityCheckOptions? = null
+        var compatibilityCheckOptions: ComputedCompatibilityCheckOptions? = null
         val postAnalysisChecker: CheckerFunction = {
             compatibilityCheckOptions = driver.compatibilityCheckOptions
         }
 
         // Perform the check.
-        when (apiType) {
-            ApiType.PUBLIC_API ->
+        when (checkType) {
+            CheckType.PUBLIC_API ->
                 check(
                     format = format,
-                    api = strippedContents,
+                    expectedApiSignature = strippedContents,
                     checkCompatibilityApiReleased = releaseSignatureFilePath,
                     sourceFiles = sourceFiles,
                     postAnalysisChecker = postAnalysisChecker,
                 )
-            ApiType.REMOVED ->
+            CheckType.REMOVED ->
                 check(
                     format = format,
                     removedApi = strippedContents,
@@ -120,13 +120,12 @@ class FastPathTest : DriverTest() {
                     sourceFiles = sourceFiles,
                     postAnalysisChecker = postAnalysisChecker,
                 )
-            else -> error("unsupported $apiType")
         }
 
         // Check the result.
         val checkRequest =
-            compatibilityCheckOptions?.compatibilityChecks?.singleOrNull { it.apiType == apiType }
-                ?: error("Could not find check request for $apiType")
+            compatibilityCheckOptions?.compatibilityChecks?.singleOrNull { it.type == checkType }
+                ?: error("Could not find check request for $checkType")
         val fastPathCheckResult = checkRequest.fastPathCheckResult
         if (expectedFastPathResult != fastPathCheckResult) {
             when (fastPathCheckResult) {
@@ -160,7 +159,7 @@ class FastPathTest : DriverTest() {
     @Test
     fun `Check fast path taken for removed`() {
         checkFastPath(
-            apiType = ApiType.REMOVED,
+            checkType = CheckType.REMOVED,
             releaseSignatureContents = REMOVED_CONTENTS,
             sourceFile = java(SOURCE_FILE_CONTENTS),
             expectedFastPathResult = true,
@@ -170,7 +169,7 @@ class FastPathTest : DriverTest() {
     @Test
     fun `Check fast path not taken for removed`() {
         checkFastPath(
-            apiType = ApiType.REMOVED,
+            checkType = CheckType.REMOVED,
             // The fast path check is byte for byte to just trim some white lines off the end of the
             // contents and the fast path should not be taken.
             releaseSignatureContents = REMOVED_CONTENTS.trim(),

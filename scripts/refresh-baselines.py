@@ -89,7 +89,7 @@ def main(args):
         subprocess.run(["./gradlew", f":{project_name}:test", "--continue"], cwd=metalava_dir)
 
         print(f"Updating baseline file - {baseline_file}")
-        test_report_files = " ".join([f"'{str(f)}'" for f in test_reports_dir.glob("**/TEST-*.xml")])
+        test_report_files = " ".join([f"'{str(f)}'" for f in test_reports_dir.glob("**/*.xml")])
         project_dir = metalava_dir / project_name
         subprocess.run(["./gradlew", f":metalava-model-testsuite-cli:run",
                         f"""--args={test_report_files} --baseline-file '{baseline_file}'"""], cwd=metalava_dir)

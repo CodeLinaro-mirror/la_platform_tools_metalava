@@ -17,11 +17,10 @@
 package com.android.tools.metalava
 
 import com.android.tools.lint.checks.infrastructure.TestFiles.source
-import com.android.tools.metalava.cli.common.ARG_ERROR
-import com.android.tools.metalava.cli.common.ARG_HIDE
 import com.android.tools.metalava.cli.lint.ARG_API_LINT
-import com.android.tools.metalava.lint.DefaultLintErrorMessage
 import com.android.tools.metalava.model.text.FileFormat
+import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import java.io.File
 import org.junit.Test
@@ -32,16 +31,14 @@ class BaselineTest : DriverTest() {
         check(
             format = FileFormat.V2,
             extraArguments =
-                arrayOf(
-                    ARG_HIDE,
-                    "HiddenSuperclass",
-                    ARG_HIDE,
-                    "UnavailableSymbol",
-                    ARG_HIDE,
-                    "HiddenTypeParameter",
-                    ARG_ERROR,
-                    "ReferencesHidden"
-                ),
+                hiddenIssues(
+                    Issues.HIDDEN_SUPERCLASS,
+                    Issues.UNAVAILABLE_SYMBOL,
+                    Issues.HIDDEN_TYPE_PARAMETER,
+                ) +
+                    errorIssues(
+                        Issues.REFERENCES_HIDDEN,
+                    ),
             baselineTestInfo =
                 BaselineTestInfo(
                     inputContents =
@@ -74,7 +71,6 @@ class BaselineTest : DriverTest() {
                 """
                 src/test/pkg/Foo.java:9: error: Class test.pkg.Hidden2 is hidden but was referenced (in return type) from public method test.pkg.Foo.getHidden2() [ReferencesHidden]
             """,
-            expectedFail = DefaultLintErrorMessage,
             sourceFiles =
                 arrayOf(
                     java(
@@ -156,7 +152,7 @@ class BaselineTest : DriverTest() {
                 val git = File(file, ".git").toPath()
                 java.nio.file.Files.createSymbolicLink(git, dir.toPath())
             },
-            api =
+            expectedApiSignature =
                 """
                 package test.pkg {
                   public class Foo {
@@ -178,7 +174,7 @@ class BaselineTest : DriverTest() {
         // When using show annotations we should only reference errors that are present in the delta
         check(
             format = FileFormat.V2,
-            includeSystemApiAnnotations = SystemApiType.TEST,
+            apiSurface = KnownApiSurface.TEST,
             extraArguments = arrayOf(ARG_API_LINT),
             baselineTestInfo =
                 BaselineTestInfo(
@@ -216,31 +212,28 @@ class BaselineTest : DriverTest() {
                         public void registerOk1Callback(@Nullable Runnable r) { }
                         public void unregisterOk1Callback(@Nullable Runnable r) { }
 
-                        /** @hide */
                         @TestApi
                         public void registerOk2Callback(@Nullable Runnable r) { }
-                        /** @hide */
+
                         @TestApi
                         public void unregisterOk2Callback(@Nullable Runnable r) { }
 
                         // In the Test API, both methods are present
                         public void registerOk3Callback(@Nullable Runnable r) { }
-                        /** @hide */
+
                         @TestApi
                         public void unregisterOk3Callback(@Nullable Runnable r) { }
 
                         public void registerUnpaired1Callback(@Nullable Runnable r) { }
 
-                        /** @hide */
                         @TestApi
                         public void registerUnpaired2Callback(@Nullable Runnable r) { }
                     }
                     """
                     ),
-                    testApiSource,
-                    androidxNullableSource,
+                    KnownSourceFiles.androidxNullableJavaSource,
                 ),
-            api =
+            expectedApiSignature =
                 """
                 package android.pkg {
                   public class RegistrationMethods {

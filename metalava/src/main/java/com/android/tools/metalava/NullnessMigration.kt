@@ -95,7 +95,7 @@ class NullnessMigration : ComparisonVisitor() {
 
     companion object {
         fun migrateNulls(codebase: Codebase, previous: Codebase) {
-            CodebaseComparator().compare(NullnessMigration(), previous, codebase)
+            CodebaseComparator.compare(NullnessMigration(), previous, codebase)
         }
 
         fun hasNullnessInformation(item: Item): Boolean {

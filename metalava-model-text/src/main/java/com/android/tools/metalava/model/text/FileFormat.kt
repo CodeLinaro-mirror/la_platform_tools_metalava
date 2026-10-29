@@ -17,12 +17,30 @@
 package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.CallableItem
+import com.android.tools.metalava.model.FlaggedApiInheritance
 import com.android.tools.metalava.model.StripJavaLangPrefix
+import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.ADD_ADDITIONAL_OVERRIDES
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.FLAGGED_API_INHERITANCE
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.INCLUDE_DEFAULT_PARAMETER_VALUES
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.INCLUDE_TYPE_USE_ANNOTATIONS
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.JAVA_RECORD_CLASSES
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.KOTLIN_NAME_TYPE_ORDER
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.KOTLIN_STYLE_NULLS
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.MIGRATING
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.NAME
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.NORMALIZE_ABSTRACT_MODIFIER
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.NORMALIZE_FINAL_MODIFIER
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.OVERLOADED_METHOD_ORDER
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.SORT_WHOLE_EXTENDS_LIST
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.STRIP_JAVA_LANG_PREFIX
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.STYLE
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.SURFACE
+import com.android.tools.metalava.model.text.CustomizableProperty.Companion.TYPE_ARGUMENT_SPACING
 import com.android.tools.metalava.reporter.FileLocation
 import java.io.LineNumberReader
 import java.io.Reader
 import java.nio.file.Path
-import java.util.Locale
 
 /**
  * Encapsulates all the information related to the format of a signature file.
@@ -40,126 +58,23 @@ data class FileFormat(
      * Not every property is eligible to have its default overridden on the command line. Only those
      * that have a property getter to provide the default.
      */
-    val formatDefaults: FileFormat? = null,
+    val formatDefaults: PropertyMap? = null,
 
-    /**
-     * If non-null then it specifies the name of the API.
-     *
-     * It must start with a lower case letter, contain any number of lower case letters, numbers and
-     * hyphens, and end with either a lowercase letter or number.
-     *
-     * Its purpose is to provide information to metalava and to a lesser extent the owner of the
-     * file about which API the file contains. The exact meaning of the API name is determined by
-     * the owner, metalava simply uses this as an identifier for comparison.
-     */
-    val name: String? = null,
-
-    /**
-     * If non-null then it specifies the name of the API surface.
-     *
-     * It must start with a lower case letter, contain any number of lower case letters, numbers and
-     * hyphens, and end with either a lowercase letter or number.
-     *
-     * Its purpose is to provide information to metalava and to a lesser extent the owner of the
-     * file about which API surface the file contains. The exact meaning of the API surface name is
-     * determined by the owner, metalava simply uses this as an identifier for comparison.
-     */
-    val surface: String? = null,
-
-    /**
-     * If non-null then it indicates the target language for signature files.
-     *
-     * Although kotlin and java can interoperate reasonably well an API created from Java files is
-     * generally targeted for use by Java code and vice versa.
-     */
-    val language: Language? = null,
-    val specifiedOverloadedMethodOrder: OverloadedMethodOrder? = null,
-
-    /**
-     * Whether to include type-use annotations in the signature file. Type-use annotations can only
-     * be included when [kotlinNameTypeOrder] is true, because the Java order makes it ambiguous
-     * whether an annotation is type-use.
-     */
-    val includeTypeUseAnnotations: Boolean = false,
-
-    /**
-     * Whether to order the names and types of APIs using Kotlin-style syntax (`name: type`) or
-     * Java-style syntax (`type name`).
-     *
-     * When Kotlin ordering is used, all method parameters without public names will be given the
-     * placeholder name of `_`, which cannot be used as a Java identifier.
-     *
-     * For example, the following is an example of a method signature with Kotlin ordering:
-     * ```
-     * method public foo(_: int, _: char, _: String[]): String;
-     * ```
-     *
-     * And the following is the equivalent Java ordering:
-     * ```
-     * method public String foo(int, char, String[]);
-     * ```
-     */
-    val kotlinNameTypeOrder: Boolean = false,
-    val kotlinStyleNulls: Boolean,
-    /**
-     * If non-null then it indicates that the file format is being used to migrate a signature file
-     * to fix a bug that causes a change in the signature file contents but not a change in version.
-     * e.g. This would be used when migrating a 2.0 file format that currently uses source order for
-     * overloaded methods (using a command line parameter to override the default order of
-     * signature) to a 2.0 file that uses signature order.
-     *
-     * This should be used to provide an explanation as to what is being migrated and why. It should
-     * be relatively concise, e.g. something like:
-     * ```
-     * "See <short-url> for details"
-     * ```
-     *
-     * This value cannot use `,` (because it is a separator between properties in [specifier]) or
-     * `\n` (because it is the terminator of the signature format line).
-     */
-    val migrating: String? = null,
-    val includeDefaultParameterValues: Boolean,
-    val specifiedAddAdditionalOverrides: Boolean? = null,
-
-    /** See [CustomizableProperty.NORMALIZE_FINAL_MODIFIER]. */
-    val specifiedNormalizeFinalModifier: Boolean? = null,
-
-    /**
-     * Indicates whether the whole extends list for an interface is sorted.
-     *
-     * Previously, the first type in the extends list was used as the super type and if it was
-     * present in the API then it would always be output first to the signature files. The code has
-     * been refactored so that is no longer necessary but the previous behavior is maintained to
-     * avoid churn in the API signature files.
-     *
-     * By default, this property preserves the previous behavior but if set to `true` then it will
-     * stop treating the first interface specially and just sort all the interface types. The
-     * sorting is by the full name (without the package) of the class.
-     */
-    val specifiedSortWholeExtendsList: Boolean? = null,
-
-    /**
-     * Indicates which of the possible approaches to `java.lang.` prefix stripping available in
-     * [StripJavaLangPrefix] is used when outputting types to signature files.
-     */
-    val specifiedStripJavaLangPrefix: StripJavaLangPrefix? = null,
-
-    /**
-     * Indicates how type arguments should be formatted when outputting types to signature files.
-     */
-    val specifiedTypeArgumentSpacing: TypeArgumentSpacing? = null,
+    /** The map containing [CustomizableProperty] values. */
+    val propertyMap: PropertyMap = emptyPropertyMap()
 ) {
     init {
+        val migrating = propertyMap[MIGRATING]
         if (migrating != null && "[,\n]".toRegex().find(migrating) != null) {
             throw IllegalStateException(
                 """invalid value for property 'migrating': '$migrating' contains at least one invalid character from the set {',', '\n'}"""
             )
         }
 
-        validateIdentifier(name, "name")
-        validateIdentifier(surface, "surface")
+        validateIdentifier(propertyMap[NAME], "name")
+        validateIdentifier(propertyMap[SURFACE], "surface")
 
-        if (includeTypeUseAnnotations && !kotlinNameTypeOrder) {
+        if (this[INCLUDE_TYPE_USE_ANNOTATIONS] && !this[KOTLIN_NAME_TYPE_ORDER]) {
             throw IllegalStateException(
                 "Type-use annotations can only be included in signatures when `kotlin-name-type-order=yes` is set"
             )
@@ -177,43 +92,17 @@ data class FileFormat(
     }
 
     /**
-     * Compute the effective value of an optional property whose default can be overridden.
+     * Compute the effective value of a property.
      *
      * This returns the first non-null value in the following:
      * 1. This [FileFormat]'s property value.
      * 2. The [formatDefaults]'s property value
-     * 3. The [default] value.
+     * 3. The [CustomizableProperty.defaultValue] which is always set.
      *
-     * @param getter a getter for the optional property's value.
-     * @param default the default value.
+     * @param property the property whose value is to be retrieved.
      */
-    private inline fun <T> effectiveValue(getter: FileFormat.() -> T?, default: T): T {
-        return this.getter() ?: formatDefaults?.getter() ?: default
-    }
-
-    // This defaults to SIGNATURE but can be overridden on the command line.
-    val overloadedMethodOrder
-        get() = effectiveValue({ specifiedOverloadedMethodOrder }, OverloadedMethodOrder.SIGNATURE)
-
-    // This defaults to false but can be overridden on the command line.
-    val addAdditionalOverrides
-        get() = effectiveValue({ specifiedAddAdditionalOverrides }, false)
-
-    // This defaults to false but can be overridden on the command line.
-    val normalizeFinalModifier
-        get() = effectiveValue({ specifiedNormalizeFinalModifier }, false)
-
-    // This defaults to false but can be overridden on the command line.
-    val sortWholeExtendsList
-        get() = effectiveValue({ specifiedSortWholeExtendsList }, default = false)
-
-    // This defaults to LEGACY but can be overridden on the command line.
-    val stripJavaLangPrefix
-        get() = effectiveValue({ specifiedStripJavaLangPrefix }, StripJavaLangPrefix.LEGACY)
-
-    // This defaults to LEGACY but can be overridden on the command line.
-    val typeArgumentSpacing
-        get() = effectiveValue({ specifiedTypeArgumentSpacing }, TypeArgumentSpacing.LEGACY)
+    operator fun <T> get(property: CustomizableProperty<T>): T =
+        propertyMap[property] ?: formatDefaults?.get(property) ?: property.defaultValue
 
     /**
      * The base version of the file format.
@@ -225,8 +114,9 @@ data class FileFormat(
     enum class Version(
         /** The version number of this as a string, e.g. "3.0". */
         val versionNumber: String,
-        /** The optional legacy alias used on the command line, for the `--format` option. */
-        val legacyCommandLineAlias: String? = null,
+
+        /** The optional [Version] that this extends. */
+        val baseVersion: Version? = null,
 
         /** Indicates whether the version supports properties fully or just for migrating. */
         internal val propertySupport: PropertySupport = PropertySupport.FOR_MIGRATING_ONLY,
@@ -241,52 +131,36 @@ data class FileFormat(
     ) {
         V2(
             versionNumber = "2.0",
-            legacyCommandLineAlias = "v2",
-            factory = { version ->
-                FileFormat(
-                    version = version,
-                    kotlinStyleNulls = false,
-                    includeDefaultParameterValues = false,
-                )
-            },
+            factory = { version -> FileFormat(version = version) },
             help =
                 """
-                    This is the base version (more details in `FORMAT.md`) on which all the others
-                    are based. It sets the properties as follows:
-                    ```
-                    + kotlin-style-nulls = no
-                    + include-default-parameter-values = no
-                    ```
+                    This is the base version for all the others.
                 """,
         ),
         V4(
             versionNumber = "4.0",
-            legacyCommandLineAlias = "v4",
+            baseVersion = V2,
             factory = { version ->
-                V2.defaults.copy(
-                    version = version,
+                version.baseDefaults.buildCopy {
+                    this.version = version
                     // This adds kotlinStyleNulls = true
-                    kotlinStyleNulls = true,
-                    // This adds conciseDefaultValues = true
-                    includeDefaultParameterValues = true,
-                )
+                    this[KOTLIN_STYLE_NULLS] = true
+                    // This adds includeDefaultParameterValues = true
+                    this[INCLUDE_DEFAULT_PARAMETER_VALUES] = true
+                }
             },
             help =
                 """
-                    This is `2.0` plus `kotlin-style-nulls = yes` and `include-default-parameter-values = yes`
-                    giving the following properties:
-                    ```
-                    + kotlin-style-nulls = yes
-                    + include-default-parameter-values = yes
-                    ```
+                    Introduced support for improved Kotlin tracking.
                 """,
         ),
         V5(
             versionNumber = "5.0",
+            baseVersion = V4,
             // This adds full property support.
             propertySupport = PropertySupport.FULL,
             factory = { version ->
-                V4.defaults.copy(
+                version.baseDefaults.copy(
                     version = version,
                     // This does not add any property defaults, just full property support.
                 )
@@ -298,7 +172,42 @@ data class FileFormat(
                     properties will be explicitly defined in the signature file avoiding reliance on
                     version specific defaults.
                 """,
-        );
+        ),
+        V6(
+            versionNumber = "6.0",
+            baseVersion = V5,
+            // This adds full property support.
+            propertySupport = PropertySupport.FULL,
+            factory = { version ->
+                version.baseDefaults.buildCopy {
+                    this.version = version
+                    this[ADD_ADDITIONAL_OVERRIDES] = true
+                    this[FLAGGED_API_INHERITANCE] = FlaggedApiInheritance.NESTED_CLASSES
+                    this[JAVA_RECORD_CLASSES] = true
+                    this[NORMALIZE_ABSTRACT_MODIFIER] = true
+                    this[NORMALIZE_FINAL_MODIFIER] = true
+                    this[OVERLOADED_METHOD_ORDER] = OverloadedMethodOrder.SIGNATURE
+                    this[SORT_WHOLE_EXTENDS_LIST] = true
+                    this[STRIP_JAVA_LANG_PREFIX] = StripJavaLangPrefix.ALWAYS
+                    this[TYPE_ARGUMENT_SPACING] = TypeArgumentSpacing.SPACE
+                }
+            },
+            help =
+                """
+                    Provides support for sealed and record classes.
+
+                    Also, provides defaults for lots of formatting properties to ensure consistent
+                    formatting.
+                """,
+        ),
+        ;
+
+        /**
+         * The base [Version.defaults] for this version. Must only be called when [baseVersion] is
+         * non-null.
+         */
+        private val baseDefaults
+            get() = baseVersion!!.defaults
 
         /**
          * The defaults associated with this version.
@@ -309,18 +218,15 @@ data class FileFormat(
         val defaults = factory(this)
 
         /**
-         * Get the version defaults plus any language defaults, if available.
+         * Get the version defaults plus any style defaults, if available.
          *
-         * @param language the optional language whose defaults should be applied to the version
+         * @param namedStyle the optional style whose defaults should be applied to the version
          *   defaults.
          */
-        internal fun defaultsIncludingLanguage(language: Language?): FileFormat {
-            language ?: return defaults
-            return Builder(defaults).let {
-                language.applyLanguageDefaults(it)
-                it.build()
-            }
-        }
+        internal fun defaultsIncludingStyle(namedStyle: NamedStyle?) =
+            namedStyle?.let { style ->
+                defaults.buildCopy { mutablePropertyMap.applyDefaultsFromOther(style.propertyMap) }
+            } ?: defaults
     }
 
     internal enum class PropertySupport {
@@ -337,27 +243,32 @@ data class FileFormat(
         FULL
     }
 
-    /**
-     * The language which the signature targets. While a Java API can be used by Kotlin, and vice
-     * versa, each API typically targets a specific language and this specifies that.
-     *
-     * This is independent of the [Version].
-     */
-    enum class Language(
-        private val includeDefaultParameterValues: Boolean,
-        private val kotlinStyleNulls: Boolean,
-    ) {
-        JAVA(includeDefaultParameterValues = false, kotlinStyleNulls = false),
-        KOTLIN(includeDefaultParameterValues = true, kotlinStyleNulls = true);
+    /** The named styles available to apply. */
+    enum class NamedStyle {
+        JAVA {
+            override fun createPropertyMap() = buildPropertyMap {
+                this[INCLUDE_DEFAULT_PARAMETER_VALUES] = false
+                this[KOTLIN_STYLE_NULLS] = false
+            }
+        },
+        KOTLIN {
+            override fun createPropertyMap() = buildPropertyMap {
+                this[INCLUDE_DEFAULT_PARAMETER_VALUES] = true
+                this[KOTLIN_STYLE_NULLS] = true
+            }
+        },
+        ;
 
-        internal fun applyLanguageDefaults(builder: Builder) {
-            if (builder.includeDefaultParameterValues == null) {
-                builder.includeDefaultParameterValues = includeDefaultParameterValues
-            }
-            if (builder.kotlinStyleNulls == null) {
-                builder.kotlinStyleNulls = kotlinStyleNulls
-            }
-        }
+        /** Create [NamedStyle] specific [PropertyMap]. */
+        protected abstract fun createPropertyMap(): PropertyMap
+
+        /**
+         * The set of style specific defaults.
+         *
+         * Created lazily to avoid a dependency cycle during creation of the [NamedStyle] property,
+         * it is created before the other properties like [KOTLIN_STYLE_NULLS] that are set.
+         */
+        val propertyMap: PropertyMap by lazy(LazyThreadSafetyMode.NONE) { createPropertyMap() }
     }
 
     enum class OverloadedMethodOrder(val comparator: Comparator<CallableItem>) {
@@ -370,14 +281,14 @@ data class FileFormat(
 
     /** Different ways of spacing out type arguments in [TypeItem.toTypeString]. */
     enum class TypeArgumentSpacing {
-        /** No spacing added between type arguments. */
-        NONE,
-
         /**
          * No spacing added between type arguments unless they are in the bounds of a type
          * parameter.
          */
         LEGACY,
+
+        /** No spacing added between type arguments. */
+        NONE,
 
         /** A single space added after the comma that separates type arguments. */
         SPACE,
@@ -391,6 +302,7 @@ data class FileFormat(
      * with [PROPERTY_LINE_PREFIX].
      */
     fun header(): String {
+        val migrating = propertyMap[MIGRATING]
         return buildString {
             append(SIGNATURE_FORMAT_PREFIX)
             append(version.versionNumber)
@@ -431,19 +343,19 @@ data class FileFormat(
 
     /**
      * Iterate over all the properties of this format which have different values to the values in
-     * this format's [Version.defaultsIncludingLanguage], invoking the [consumer] with each
-     * property, value pair.
+     * this format's [Version.defaultsIncludingStyle], invoking the [consumer] with each property,
+     * value pair.
      */
     private fun iterateOverCustomizableProperties(consumer: (String, String) -> Unit) {
-        val defaults = version.defaultsIncludingLanguage(language)
-        if (this@FileFormat != defaults) {
-            CustomizableProperty.entries.forEach { prop ->
+        val defaults = version.defaultsIncludingStyle(propertyMap[STYLE])
+        if (this != defaults) {
+            CustomizableProperty.entries.forEach { property ->
                 // Get the string value of this property, if null then it was not specified so skip
                 // the property.
-                val thisValue = prop.stringFromFormat(this@FileFormat) ?: return@forEach
-                val defaultValue = prop.stringFromFormat(defaults)
+                val thisValue = this@FileFormat.getAsString(property) ?: return@forEach
+                val defaultValue = defaults.getAsString(property)
                 if (thisValue != defaultValue) {
-                    consumer(prop.propertyName, thisValue)
+                    consumer(property.propertyName, thisValue)
                 }
             }
         }
@@ -454,7 +366,7 @@ data class FileFormat(
      *
      * @param exceptionContext information to add to the start of the exception message that
      *   provides context for the user.
-     * @param migratingAllowed true if the [migrating] option is allowed, false otherwise. If it is
+     * @param migratingAllowed true if the [MIGRATING] option is allowed, false otherwise. If it is
      *   allowed then it will also be required if [Version.propertySupport] is
      *   [PropertySupport.FOR_MIGRATING_ONLY].
      */
@@ -465,6 +377,7 @@ data class FileFormat(
             return
         }
 
+        val migrating = propertyMap[MIGRATING]
         if (migratingAllowed) {
             // If the version does not support properties (except when migrating) and the
             // version defaults have been overridden then the `migrating` property is mandatory
@@ -479,9 +392,26 @@ data class FileFormat(
         }
     }
 
-    companion object {
-        private val allDefaults = Version.entries.map { it.defaults }.toList()
+    /**
+     * Get the value of [property] as a [String].
+     *
+     * This will NOT apply any defaults that it finds.
+     */
+    fun <T> getAsString(property: CustomizableProperty<T>) =
+        propertyMap[property]?.let { property.valueToString(it) }
 
+    /**
+     * Get the value of [property] as a [String].
+     *
+     * This will apply any defaults that it finds.
+     */
+    fun <T> getWithDefault(property: CustomizableProperty<T>) =
+        this[property]?.let { property.valueToString(it) }
+
+    /** Build a copy of this [FileFormat] by applying [body] to [Builder]. */
+    inline fun buildCopy(body: Builder.() -> Unit) = Builder(this).apply { body() }.build()
+
+    companion object {
         private val versionByNumber = Version.entries.associateBy { it.versionNumber }
 
         // The defaults associated with version 2.0.
@@ -493,8 +423,8 @@ data class FileFormat(
         // The defaults associated with version 5.0.
         val V5 = Version.V5.defaults
 
-        // The defaults associated with the latest version.
-        val LATEST = allDefaults.last()
+        // The defaults associated with version 6.0.
+        val V6 = Version.V6.defaults
 
         /** The list of all [Version] instances. */
         val versions: List<Version> = Version.entries
@@ -523,7 +453,7 @@ data class FileFormat(
             formatForLegacyFiles: FileFormat? = null
         ): FileFormat? {
             val lineNumberReader =
-                if (reader is LineNumberReader) reader else LineNumberReader(reader, BUFFER_SIZE)
+                reader as? LineNumberReader ?: LineNumberReader(reader, BUFFER_SIZE)
 
             try {
                 return parseHeader(lineNumberReader, formatForLegacyFiles)
@@ -634,18 +564,14 @@ data class FileFormat(
          * @param specifier the specifier string that defines a [FileFormat].
          * @param migratingAllowed indicates whether the `migrating` property is allowed in the
          *   specifier.
-         * @param extraVersions extra versions to add to the error message if a version is not
-         *   supported but otherwise ignored. This allows the caller to handle some additional
-         *   versions first but still report a helpful message.
          */
         fun parseSpecifier(
             specifier: String,
             migratingAllowed: Boolean = false,
-            extraVersions: Set<String> = emptySet(),
         ): FileFormat {
             val specifierParts = specifier.split(VERSION_PROPERTIES_SEPARATOR, limit = 2)
             val versionNumber = specifierParts[0]
-            val version = getVersionFromNumber(versionNumber, extraVersions)
+            val version = getVersionFromNumber(versionNumber)
             val versionDefaults = version.defaults
             if (specifierParts.size == 1) {
                 return versionDefaults
@@ -653,9 +579,7 @@ data class FileFormat(
 
             val properties = specifierParts[1]
 
-            val builder = Builder(versionDefaults)
-            properties.trim().split(",").forEach { parsePropertyAssignment(builder, it) }
-            val format = builder.build()
+            val format = parseOverrides(versionDefaults, properties)
 
             format.validate(
                 exceptionContext = "invalid format specifier: '$specifier' - ",
@@ -669,76 +593,56 @@ data class FileFormat(
          * Get the [Version] from the number.
          *
          * @param versionNumber the version number as a string.
-         * @param extraVersions extra versions to add to the error message if a version is not
-         *   supported but otherwise ignored. This allows the caller to handle some additional
-         *   versions first but still report a helpful message.
          */
-        private fun getVersionFromNumber(
-            versionNumber: String,
-            extraVersions: Set<String> = emptySet(),
-        ): Version =
+        private fun getVersionFromNumber(versionNumber: String): Version =
             versionByNumber[versionNumber]
                 ?: let {
-                    val allVersions = versionByNumber.keys + extraVersions
+                    val allVersions = versionByNumber.keys
                     val possibilities = allVersions.joinToString { "'$it'" }
                     throw ApiParseException(
                         "invalid version, found '$versionNumber', expected one of $possibilities"
                     )
                 }
 
-        /**
-         * Parse a property assignment of the form `property=value`, updating the appropriate
-         * property in [builder], or throwing an exception if there was a problem.
-         *
-         * @param builder the [Builder] into which the property's value will be added.
-         * @param assignment the string of the form `property=value`.
-         * @param propertyFilter optional filter that determines the set of allowable properties;
-         *   defaults to all properties.
-         */
-        private fun parsePropertyAssignment(
-            builder: Builder,
-            assignment: String,
-            propertyFilter: (CustomizableProperty) -> Boolean = { true },
-        ) {
-            val propertyParts = assignment.split("=")
-            if (propertyParts.size != 2) {
-                throw ApiParseException("expected <property>=<value> but found '$assignment'")
-            }
-            val name = propertyParts[0]
-            val value = propertyParts[1]
-            val customizable = CustomizableProperty.getByName(name, propertyFilter)
-            customizable.setFromString(builder, value)
-        }
-
         private const val PROPERTY_LINE_PREFIX = "// - "
 
         /**
          * Parse property pairs, one per line, each of which must be prefixed with
          * [PROPERTY_LINE_PREFIX], apply them to the supplied [version]s
-         * [Version.defaultsIncludingLanguage] and returning the result.
+         * [Version.defaultsIncludingStyle] and returning the result.
          */
-        private fun parseProperties(reader: LineNumberReader, version: Version): FileFormat {
-            val builder = Builder(version.defaults)
-            do {
-                reader.mark(BUFFER_SIZE)
-                val line = reader.readLine() ?: break
-                if (line.startsWith("package ")) {
-                    reader.reset()
-                    break
-                }
+        private fun parseProperties(
+            reader: LineNumberReader,
+            version: Version,
+        ): FileFormat {
+            // Parse the properties into a PropertyMap.
+            val propertyMap = buildPropertyMap {
+                do {
+                    reader.mark(BUFFER_SIZE)
+                    val line = reader.readLine() ?: break
+                    if (line.startsWith("package ")) {
+                        reader.reset()
+                        break
+                    }
 
-                // If the line does not start with "// - " then it is not a property so assume the
-                // header is ended.
-                val remainder = line.removePrefix(PROPERTY_LINE_PREFIX)
-                if (remainder == line) {
-                    reader.reset()
-                    break
-                }
+                    // If the line does not start with "// - " then it is not a property so assume
+                    // the header is ended.
+                    val remainder = line.removePrefix(PROPERTY_LINE_PREFIX)
+                    if (remainder == line) {
+                        reader.reset()
+                        break
+                    }
 
-                parsePropertyAssignment(builder, remainder)
-            } while (true)
+                    setPropertyFromAssignment(remainder)
+                } while (true)
+            }
 
-            return builder.build()
+            return if (propertyMap.isEmpty()) {
+                version.defaults
+            } else {
+                // Override the default properties.
+                version.defaults.buildCopy { mutablePropertyMap.copyFromOther(propertyMap) }
+            }
         }
 
         /**
@@ -746,16 +650,34 @@ data class FileFormat(
          *
          * @param defaults comma separated list of property assignments that
          */
-        fun parseDefaults(defaults: String): FileFormat {
-            val builder = Builder(V2)
-            defaults.trim().split(",").forEach {
-                parsePropertyAssignment(
-                    builder,
-                    it,
-                    { it.defaultable },
-                )
+        fun parseDefaults(defaults: String) = parseProperties(defaults, defaultableOnly = true)
+
+        /**
+         * Parse the supplied set of overrides and construct a [FileFormat] by applying the
+         * overrides to [base].
+         *
+         * @param overrides comma separated list of property assignments that will be applied to a
+         *   copy of [base], overriding the existing values of those properties, if any.
+         */
+        fun parseOverrides(base: FileFormat, overrides: String) =
+            base.buildCopy {
+                val properties = parseProperties(overrides)
+                mutablePropertyMap.copyFromOther(properties)
             }
-            return builder.build()
+
+        /**
+         * Parse a comma separated list of property assignments of the form `property=value`,
+         * populating a [PropertyMap].
+         *
+         * @param properties the property assignments.
+         * @param defaultableOnly if `true` then only [CustomizableProperty.defaultable] properties
+         *   are allowed.
+         */
+        private fun parseProperties(
+            properties: String,
+            defaultableOnly: Boolean = false,
+        ) = buildPropertyMap {
+            properties.trim().split(",").forEach { setPropertyFromAssignment(it, defaultableOnly) }
         }
 
         /**
@@ -771,355 +693,34 @@ data class FileFormat(
     }
 
     /** A builder for [FileFormat] that applies some optional values to a base [FileFormat]. */
-    internal class Builder(private val base: FileFormat) {
-        var addAdditionalOverrides: Boolean? = null
-        var includeDefaultParameterValues: Boolean? = null
-        var includeTypeUseAnnotations: Boolean? = null
-        var kotlinNameTypeOrder: Boolean? = null
-        var kotlinStyleNulls: Boolean? = null
-        var language: Language? = null
-        var migrating: String? = null
-        var name: String? = null
-        var normalizeFinalModifier: Boolean? = null
-        var overloadedMethodOrder: OverloadedMethodOrder? = null
-        var sortWholeExtendsList: Boolean? = null
-        var stripJavaLangPrefix: StripJavaLangPrefix? = null
-        var typeArgumentSpacing: TypeArgumentSpacing? = null
-        var surface: String? = null
+    class Builder(private val base: FileFormat) {
+        var version: Version? = null
 
+        /** Type safe map from [CustomizableProperty] to value. */
+        internal val mutablePropertyMap = mutablePropertyMap()
+
+        /** Delegate to [mutablePropertyMap]. */
+        operator fun <T> get(property: CustomizableProperty<T>): T? = mutablePropertyMap[property]
+
+        /** Delegate to [mutablePropertyMap]. */
+        operator fun <T> set(property: CustomizableProperty<T>, value: T) {
+            mutablePropertyMap[property] = value
+        }
+
+        /** Build the [FileFormat] from the information in this [Builder]. */
         fun build(): FileFormat {
-            // Apply any language defaults first as they take priority over version defaults.
-            language?.applyLanguageDefaults(this)
+            // Apply any style defaults first as they take priority over version defaults.
+            this[STYLE]?.let { style ->
+                mutablePropertyMap.applyDefaultsFromOther(style.propertyMap)
+            }
+
+            // Then apply any properties from the base which includes version defaults.
+            mutablePropertyMap.applyDefaultsFromOther(base.propertyMap)
+
             return base.copy(
-                includeDefaultParameterValues =
-                    includeDefaultParameterValues ?: base.includeDefaultParameterValues,
-                includeTypeUseAnnotations =
-                    includeTypeUseAnnotations ?: base.includeTypeUseAnnotations,
-                kotlinNameTypeOrder = kotlinNameTypeOrder ?: base.kotlinNameTypeOrder,
-                kotlinStyleNulls = kotlinStyleNulls ?: base.kotlinStyleNulls,
-                language = language ?: base.language,
-                migrating = migrating ?: base.migrating,
-                name = name ?: base.name,
-                specifiedAddAdditionalOverrides =
-                    addAdditionalOverrides ?: base.specifiedAddAdditionalOverrides,
-                specifiedNormalizeFinalModifier =
-                    normalizeFinalModifier ?: base.specifiedNormalizeFinalModifier,
-                specifiedOverloadedMethodOrder =
-                    overloadedMethodOrder ?: base.specifiedOverloadedMethodOrder,
-                specifiedSortWholeExtendsList =
-                    sortWholeExtendsList ?: base.specifiedSortWholeExtendsList,
-                specifiedStripJavaLangPrefix =
-                    stripJavaLangPrefix ?: base.specifiedStripJavaLangPrefix,
-                specifiedTypeArgumentSpacing =
-                    typeArgumentSpacing ?: base.specifiedTypeArgumentSpacing,
-                surface = surface ?: base.surface,
+                version = this.version ?: base.version,
+                propertyMap = mutablePropertyMap.toMap(),
             )
         }
     }
-
-    /** Information about the different customizable properties in [FileFormat]. */
-    enum class CustomizableProperty(
-        val defaultable: Boolean = false,
-        /** Syntax of command line values. */
-        val valueSyntax: String = "",
-        /** Help text to use on the command line. */
-        val help: String = "",
-    ) {
-        // The order of values in this is significant as it determines the order of the properties
-        // in signature headers. The values in this block are not in alphabetical order because it
-        // is important that they are at the start of the signature header.
-
-        NAME {
-            override fun setFromString(builder: Builder, value: String) {
-                builder.name = value
-            }
-
-            override fun stringFromFormat(format: FileFormat): String? = format.name
-        },
-        SURFACE {
-            override fun setFromString(builder: Builder, value: String) {
-                builder.surface = value
-            }
-
-            override fun stringFromFormat(format: FileFormat): String? = format.surface
-        },
-
-        /** language=[java|kotlin] */
-        LANGUAGE {
-            override fun setFromString(builder: Builder, value: String) {
-                builder.language = enumFromString<Language>(value)
-            }
-
-            override fun stringFromFormat(format: FileFormat): String? =
-                format.language?.stringFromEnum()
-        },
-
-        // The following values must be in alphabetical order.
-
-        /** add-additional-overrides=[yes|no] */
-        ADD_ADDITIONAL_OVERRIDES(defaultable = true) {
-            override fun setFromString(builder: Builder, value: String) {
-                builder.addAdditionalOverrides = yesNo(value)
-            }
-
-            override fun stringFromFormat(format: FileFormat): String? =
-                format.specifiedAddAdditionalOverrides?.let { yesNo(it) }
-        },
-        /** include-default-parameter-values=[yes|no] */
-        INCLUDE_DEFAULT_PARAMETER_VALUES(
-            valueSyntax = "yes|no",
-            help =
-                """
-                    If `no` then the signature file will not include any information about default
-                    parameter values. If `yes` then it will use the pseudo modifier `optional` to
-                    indicate a parameter that has a default value.
-                """,
-        ) {
-            override fun setFromString(builder: Builder, value: String) {
-                builder.includeDefaultParameterValues = yesNo(value)
-            }
-
-            override fun stringFromFormat(format: FileFormat): String =
-                yesNo(format.includeDefaultParameterValues)
-        },
-        /** include-type-use-annotations=[yes|no] */
-        INCLUDE_TYPE_USE_ANNOTATIONS {
-            override fun setFromString(builder: Builder, value: String) {
-                builder.includeTypeUseAnnotations = yesNo(value)
-            }
-
-            override fun stringFromFormat(format: FileFormat): String =
-                yesNo(format.includeTypeUseAnnotations)
-        },
-        /** kotlin-name-type-order=[yes|no] */
-        KOTLIN_NAME_TYPE_ORDER {
-            override fun setFromString(builder: Builder, value: String) {
-                builder.kotlinNameTypeOrder = yesNo(value)
-            }
-
-            override fun stringFromFormat(format: FileFormat): String =
-                yesNo(format.kotlinNameTypeOrder)
-        },
-        /** kotlin-style-nulls=[yes|no] */
-        KOTLIN_STYLE_NULLS(
-            valueSyntax = "yes|no",
-            help =
-                """
-                    If `no` then the signature file will use `@Nullable` and `@NonNull` annotations
-                    to indicate that the annotated item accepts `null` and does not accept `null`
-                    respectively and neither indicates that it's not defined.
-
-                    If `yes` then the signature file will use a type suffix of `?`, no type suffix
-                    and a type suffix of `!` to indicate the that the type accepts `null`, does not
-                    accept `null` or it's not defined respectively.
-                """,
-        ) {
-            override fun setFromString(builder: Builder, value: String) {
-                builder.kotlinStyleNulls = yesNo(value)
-            }
-
-            override fun stringFromFormat(format: FileFormat): String =
-                yesNo(format.kotlinStyleNulls)
-        },
-        MIGRATING {
-            override fun setFromString(builder: Builder, value: String) {
-                builder.migrating = value
-            }
-
-            override fun stringFromFormat(format: FileFormat): String? = format.migrating
-        },
-        NORMALIZE_FINAL_MODIFIER(
-            defaultable = true,
-            valueSyntax = "yes|no",
-            help =
-                """
-                    Specifies how the `final` modifier is handled on `final` methods. If this is
-                    `yes` and the method's containing class is `final` then the `final` modifier is
-                    not written out, otherwise it is.
-                """,
-        ) {
-            override fun setFromString(builder: Builder, value: String) {
-                builder.normalizeFinalModifier = yesNo(value)
-            }
-
-            override fun stringFromFormat(format: FileFormat): String? =
-                format.specifiedNormalizeFinalModifier?.let { yesNo(it) }
-        },
-        /** overloaded-method-other=[source|signature] */
-        OVERLOADED_METHOD_ORDER(
-            defaultable = true,
-            valueSyntax = "source|signature",
-            help =
-                """
-                    Specifies the order of overloaded methods in signature files. Applies to the
-                    contents of the files specified on `--api` and `--removed-api`.
-
-                    `source` - preserves the order in which overloaded methods appear in the source
-                    files. This means that refactorings of the source files which change the order
-                    but not the API can cause unnecessary changes in the API signature files.
-
-                    `signature` (default) - sorts overloaded methods by their signature. This means
-                    that refactorings of the source files which change the order but not the API
-                    will have no effect on the API signature files.
-                """,
-        ) {
-            override fun setFromString(builder: Builder, value: String) {
-                builder.overloadedMethodOrder = enumFromString<OverloadedMethodOrder>(value)
-            }
-
-            override fun stringFromFormat(format: FileFormat): String? =
-                format.specifiedOverloadedMethodOrder?.stringFromEnum()
-        },
-        SORT_WHOLE_EXTENDS_LIST(defaultable = true) {
-            override fun setFromString(builder: Builder, value: String) {
-                builder.sortWholeExtendsList = yesNo(value)
-            }
-
-            override fun stringFromFormat(format: FileFormat): String? =
-                format.specifiedSortWholeExtendsList?.let { yesNo(it) }
-        },
-        STRIP_JAVA_LANG_PREFIX(defaultable = true) {
-            override fun setFromString(builder: Builder, value: String) {
-                builder.stripJavaLangPrefix = enumFromString<StripJavaLangPrefix>(value)
-            }
-
-            override fun stringFromFormat(format: FileFormat): String? =
-                format.specifiedStripJavaLangPrefix?.stringFromEnum()
-        },
-        TYPE_ARGUMENT_SPACING(
-            defaultable = true,
-            valueSyntax = "legacy|none|space",
-            help =
-                """
-                    Specifies the spacing between the type arguments of a generic type. e.g.
-                    `Map<String, Integer>`. The default is `legacy`.
-
-                    `legacy` - adds no spaces between type arguments except those used in the bounds
-                    of a type parameter. e.g. `Map<String,Integer>` will have no space except in
-                    `class Foo<M extends Map<String, Integer>`.
-
-                    `none` - adds no spaces between any type arguments.
-
-                    `space` - adds a single space between every type argument.
-
-                    Note: This does not affect the spacing of type parameters in a type parameter
-                    list, e.g. `interface Map<K, V>`. They always have a space separator.
-                """,
-        ) {
-            override fun setFromString(builder: Builder, value: String) {
-                builder.typeArgumentSpacing = enumFromString<TypeArgumentSpacing>(value)
-            }
-
-            override fun stringFromFormat(format: FileFormat): String? =
-                format.specifiedTypeArgumentSpacing?.stringFromEnum()
-        },
-        ;
-
-        /** The property name in the [parseSpecifier] input. */
-        val propertyName: String = name.lowercase(Locale.US).replace("_", "-")
-
-        /**
-         * Set the corresponding property in the supplied [Builder] to the value corresponding to
-         * the string representation [value].
-         */
-        internal abstract fun setFromString(builder: Builder, value: String)
-
-        /**
-         * Get the string representation of the corresponding property from the supplied
-         * [FileFormat].
-         */
-        internal abstract fun stringFromFormat(format: FileFormat): String?
-
-        /** Inline function to map from a string value to an enum value of the required type. */
-        inline fun <reified T : Enum<T>> enumFromString(value: String): T {
-            val enumValues = enumValues<T>()
-            return nonInlineEnumFromString(enumValues, value)
-        }
-
-        /**
-         * Non-inline portion of the function to map from a string value to an enum value of the
-         * required type.
-         */
-        fun <T : Enum<T>> nonInlineEnumFromString(enumValues: Array<T>, value: String): T {
-            return enumValues.firstOrNull { it.stringFromEnum() == value }
-                ?: let {
-                    val possibilities = enumValues.possibilitiesList { "'${it.stringFromEnum()}'" }
-                    throw ApiParseException(
-                        "unexpected value for $propertyName, found '$value', expected one of $possibilities"
-                    )
-                }
-        }
-
-        /**
-         * Extension function to convert an enum value to an external string.
-         *
-         * It simply returns the lowercase version of the enum name with `_` replaced with `-`.
-         */
-        fun <T : Enum<T>> T.stringFromEnum(): String {
-            return name.lowercase(Locale.US).replace("_", "-")
-        }
-
-        /**
-         * Intermediate enum used to map from string to [Boolean]
-         *
-         * The instances are not used directly but are used via [YesNo.values].
-         */
-        enum class YesNo(val b: Boolean) {
-            @Suppress("UNUSED") YES(true),
-            @Suppress("UNUSED") NO(false)
-        }
-
-        /** Convert a "yes|no" string into a boolean. */
-        fun yesNo(value: String): Boolean {
-            return enumFromString<YesNo>(value).b
-        }
-
-        /** Convert a boolean into a `yes|no` string. */
-        fun yesNo(value: Boolean): String = if (value) "yes" else "no"
-
-        companion object {
-            val byPropertyName = entries.associateBy { it.propertyName }
-
-            /**
-             * Get the [CustomizableProperty] by name, throwing an [ApiParseException] if it could
-             * not be found.
-             *
-             * @param name the name of the property.
-             * @param propertyFilter optional filter that determines the set of allowable
-             *   properties.
-             */
-            fun getByName(
-                name: String,
-                propertyFilter: (CustomizableProperty) -> Boolean,
-            ): CustomizableProperty =
-                byPropertyName[name]?.let { if (propertyFilter(it)) it else null }
-                    ?: let {
-                        val possibilities =
-                            byPropertyName
-                                .filter { (_, property) -> propertyFilter(property) }
-                                .keys
-                                .sorted()
-                                .joinToString("', '")
-                        throw ApiParseException(
-                            "unknown format property name `$name`, expected one of '$possibilities'"
-                        )
-                    }
-        }
-    }
-}
-
-/**
- * Given an array of items return a list of possibilities.
- *
- * The last pair of items are separated by " or ", the other pairs are separated by ", ".
- */
-fun <T> Array<T>.possibilitiesList(transform: (T) -> String): String {
-    val allButLast = dropLast(1)
-    val last = last()
-    val options = buildString {
-        allButLast.joinTo(this, transform = transform)
-        append(" or ")
-        append(transform(last))
-    }
-    return options
 }

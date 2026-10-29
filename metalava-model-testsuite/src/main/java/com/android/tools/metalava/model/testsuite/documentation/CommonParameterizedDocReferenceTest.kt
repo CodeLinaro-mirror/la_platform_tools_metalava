@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava.model.testsuite.documentation
 
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.model.testsuite.value.ValueExample
 import com.android.tools.metalava.testing.EntryPoint
@@ -28,6 +30,7 @@ import org.junit.Test
 import org.junit.runners.Parameterized
 
 /** Common tests for tags that handle all references. */
+@SupportedInputFormats(InputFormat.JAVA)
 class CommonParameterizedDocReferenceTest : BaseModelTest() {
 
     /** Set of tags that handle the references. */
@@ -39,33 +42,23 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
          */
         internal val issuePrefix: String,
     ) {
-        LINK(issuePrefix = "MAIN_SRC/src/test/pkg/Test.java:3:12: ") {
+        LINK(issuePrefix = "MAIN_SRC/src/test/pkg/Test.java:6:12: ") {
             override fun commentForReference(reference: String, linkLabel: String?) =
                 "/** {@link ${referenceAndLabel(reference, linkLabel)}} */\n"
         },
-        LINKPLAIN(issuePrefix = "MAIN_SRC/src/test/pkg/Test.java:3:17: ") {
+        LINKPLAIN(issuePrefix = "MAIN_SRC/src/test/pkg/Test.java:6:17: ") {
             override fun commentForReference(reference: String, linkLabel: String?) =
                 "/** {@linkplain ${referenceAndLabel(reference, linkLabel)}} */\n"
         },
-        SEE(issuePrefix = "MAIN_SRC/src/test/pkg/Test.java:3:10: ") {
+        SEE(issuePrefix = "MAIN_SRC/src/test/pkg/Test.java:6:10: ") {
             override fun commentForReference(reference: String, linkLabel: String?) =
                 "/** @see ${referenceAndLabel(reference, linkLabel)} */\n"
         };
 
-        /** Determine whether a link label is expected. */
-        private fun requiresLinkLabel(linkLabel: String?) =
-            when {
-                linkLabel == null -> false
-                // Ignore link labels for @see references. That matches the Psi specific resolving
-                // behavior.
-                this == SEE -> false
-                else -> true
-            }
-
         /** Combine [reference] and the optional [linkLabel]. */
         protected fun referenceAndLabel(reference: String, linkLabel: String?) = buildString {
             append(reference)
-            if (requiresLinkLabel(linkLabel)) {
+            if (linkLabel != null) {
                 append(" ")
                 append(linkLabel)
             }
@@ -183,9 +176,14 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                     expectedLinkLabel = null,
                 ),
                 TestParams(
-                    name = "#Test(int p)",
-                    expectedResolvedReference = "#Test(int p)",
-                    expectedLinkLabel = null,
+                    name = "#Test(Collection<String> p)",
+                    expectedResolvedReference = "#Test(java.util.Collection)",
+                    expectedLinkLabel = "Test(Collection<String>)",
+                ),
+                TestParams(
+                    name = "Test#Test(Collection<String> p)",
+                    expectedResolvedReference = "#Test(java.util.Collection)",
+                    expectedLinkLabel = "Test.Test(Collection<String>)",
                 ),
                 TestParams(
                     name = "#noParamsMethod",
@@ -204,8 +202,23 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                 ),
                 TestParams(
                     name = "#intMethod(int p)",
-                    expectedResolvedReference = "#intMethod(int p)",
+                    expectedResolvedReference = "#intMethod(int)",
                     expectedLinkLabel = null,
+                ),
+                TestParams(
+                    name = "#collectionMethod(Collection)",
+                    expectedResolvedReference = "#collectionMethod(java.util.Collection)",
+                    expectedLinkLabel = "collectionMethod(Collection)",
+                ),
+                TestParams(
+                    name = "#collectionMethod(Collection<String> p)",
+                    expectedResolvedReference = "#collectionMethod(java.util.Collection)",
+                    expectedLinkLabel = "collectionMethod(Collection<String>)",
+                ),
+                TestParams(
+                    name = "#genericMethod(T t)",
+                    expectedResolvedReference = "#genericMethod(java.lang.Number)",
+                    expectedLinkLabel = "genericMethod(T)",
                 ),
                 TestParams(
                     name = "Test", // Reference self.
@@ -215,15 +228,52 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                     name = "Test.Nested",
                     expectedResolvedReference = "test.pkg.Test.Nested",
                 ),
+                TestParams(
+                    name = "##uri-fragment",
+                    expectedResolvedReference = "##uri-fragment",
+                    // TODO(b/447588621): Report an issue if no label is provided.
+                    expectedLinkLabel = null,
+                ),
 
                 // The # is optional when referencing members of the current class. The following
                 // tests verify the behavior. Note, the result must have a leading # as that will
                 // ensure consistent behavior in tools that consume generated documentation stubs
                 // and may not handle a missing # correctly.
                 TestParams(
+                    name = "Test()",
+                    expectedResolvedReference = "#Test()",
+                    expectedLinkLabel = null,
+                ),
+                TestParams(
+                    // Not strictly valid but a likely mistake when typing `Test#Test()` as
+                    // developers often use '.' instead of '#' in document references simply from
+                    // habit.
+                    name = "Test.Test()",
+                    expectedResolvedReference = "#Test()",
+                ),
+                TestParams(
                     name = "field",
                     expectedResolvedReference = "#field",
                     expectedLinkLabel = null,
+                ),
+                TestParams(
+                    name = "intMethod(int)",
+                    expectedResolvedReference = "#intMethod(int)",
+                    expectedLinkLabel = null,
+                ),
+
+                // The # is optional when referencing statically imported members. The following
+                // tests verify the behavior. Note, the result must have a leading # as that will
+                // ensure consistent behavior in tools that consume generated documentation stubs
+                // and may not handle a missing # correctly.
+                TestParams(
+                    name = "staticallyImportedField",
+                    expectedResolvedReference = "another.pkg.Imported#staticallyImportedField",
+                ),
+                TestParams(
+                    name = "staticallyImportedCollectionMethod(Collection)",
+                    expectedResolvedReference =
+                        "another.pkg.Imported#staticallyImportedCollectionMethod(java.util.Collection)",
                 ),
 
                 // Use invalid reference without a #. It will work but will be reported as an issue.
@@ -233,12 +283,28 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                     expectedIssues =
                         "warning: Malformed reference `Other.field`, missing '#', should be 'Other#field (ErrorWhenNew) [MalformedDocReference]",
                 ),
+                TestParams(
+                    name = "Other.intMethod(int)",
+                    expectedResolvedReference = "test.pkg.Other#intMethod(int)",
+                ),
+                TestParams(
+                    name = "Other.collectionMethod(Collection)",
+                    expectedResolvedReference =
+                        "test.pkg.Other#collectionMethod(java.util.Collection)",
+                ),
 
                 // Invalid reference qualifiers
                 TestParams(
                     name = "Unknown#field",
                     expectedResolvedReference = "Unknown#field",
                     expectedLinkLabel = null,
+                    expectedIssues =
+                        "warning: Could not resolve a class called 'Unknown' in 'class test.pkg.Test' (ErrorWhenNew) [UnresolvedLink]",
+                ),
+                TestParams(
+                    name = "Unknown#method(String, Number)",
+                    expectedResolvedReference = "Unknown#method(java.lang.String,java.lang.Number)",
+                    expectedLinkLabel = "Unknown.method(String,Number)",
                     expectedIssues =
                         "warning: Could not resolve a class called 'Unknown' in 'class test.pkg.Test' (ErrorWhenNew) [UnresolvedLink]",
                 ),
@@ -255,13 +321,11 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                     name = "Other#field",
                     expectedResolvedReference = "test.pkg.Other#field",
                 ),
-                /* TODO(b/447588621): uncomment and fix flaky behavior.
                 TestParams(
                     name = "Other#Other",
                     // TODO(b/447588621): Resolve it to a constructor, e.g. `test.pkg.Other#Other()`
                     expectedResolvedReference = "test.pkg.Other#Other",
                 ),
-                */
                 TestParams(
                     name = "Other#Other()",
                     expectedResolvedReference = "test.pkg.Other#Other()",
@@ -272,7 +336,8 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                 ),
                 TestParams(
                     name = "Other#Other(int p)",
-                    expectedResolvedReference = "test.pkg.Other#Other(int p)",
+                    expectedResolvedReference = "test.pkg.Other#Other(int)",
+                    expectedLinkLabel = "Other.Other(int)",
                 ),
                 TestParams(
                     name = "Other#noParamsMethod",
@@ -287,12 +352,23 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                     expectedResolvedReference = "test.pkg.Other#intMethod(int)",
                 ),
                 TestParams(
+                    name = "Other#collectionMethod(Collection)",
+                    expectedResolvedReference =
+                        "test.pkg.Other#collectionMethod(java.util.Collection)",
+                ),
+                TestParams(
                     name = "Other#intMethod(int p)",
-                    expectedResolvedReference = "test.pkg.Other#intMethod(int p)",
+                    expectedResolvedReference = "test.pkg.Other#intMethod(int)",
+                    expectedLinkLabel = "Other.intMethod(int)",
                 ),
                 TestParams(
                     name = "Other.Nested",
                     expectedResolvedReference = "test.pkg.Other.Nested",
+                ),
+                TestParams(
+                    name = "Other##uri-fragment",
+                    expectedResolvedReference = "test.pkg.Other##uri-fragment",
+                    expectedLinkLabel = null,
                 ),
 
                 // Reference a member of an imported class.
@@ -300,13 +376,12 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                     name = "Imported#field",
                     expectedResolvedReference = "another.pkg.Imported#field",
                 ),
-                /* TODO(b/447588621): uncomment and fix flaky behavior.
                 TestParams(
                     name = "Imported#Imported",
-                    // TODO(b/447588621): Resolve it to a constructor, e.g. `another.pkg.Imported#Imported()`
+                    // TODO(b/447588621): Resolve it to a constructor, e.g.
+                    //  `another.pkg.Imported#Imported()`
                     expectedResolvedReference = "another.pkg.Imported#Imported",
                 ),
-                */
                 TestParams(
                     name = "Imported#Imported()",
                     expectedResolvedReference = "another.pkg.Imported#Imported()",
@@ -317,7 +392,8 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                 ),
                 TestParams(
                     name = "Imported#Imported(int p)",
-                    expectedResolvedReference = "another.pkg.Imported#Imported(int p)",
+                    expectedResolvedReference = "another.pkg.Imported#Imported(int)",
+                    expectedLinkLabel = "Imported.Imported(int)",
                 ),
                 TestParams(
                     name = "Imported#noParamsMethod",
@@ -333,11 +409,22 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                 ),
                 TestParams(
                     name = "Imported#intMethod(int p)",
-                    expectedResolvedReference = "another.pkg.Imported#intMethod(int p)",
+                    expectedResolvedReference = "another.pkg.Imported#intMethod(int)",
+                    expectedLinkLabel = "Imported.intMethod(int)",
+                ),
+                TestParams(
+                    name = "Imported#collectionMethod(Collection)",
+                    expectedResolvedReference =
+                        "another.pkg.Imported#collectionMethod(java.util.Collection)",
                 ),
                 TestParams(
                     name = "Imported.Nested",
                     expectedResolvedReference = "another.pkg.Imported.Nested",
+                ),
+                TestParams(
+                    name = "Imported##uri-fragment",
+                    expectedResolvedReference = "another.pkg.Imported##uri-fragment",
+                    expectedLinkLabel = null,
                 ),
 
                 // Reference a member of a fully qualified class.
@@ -349,7 +436,7 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                 TestParams(
                     name = "other.pkg.Another#Another",
                     // TODO(b/447588621): Resolve it to a constructor, e.g.
-                    // `other.pkg.Another#Another()`
+                    //  `other.pkg.Another#Another()`
                     expectedResolvedReference = "other.pkg.Another#Another",
                     expectedLinkLabel = null,
                 ),
@@ -365,7 +452,7 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                 ),
                 TestParams(
                     name = "other.pkg.Another#Another(int p)",
-                    expectedResolvedReference = "other.pkg.Another#Another(int p)",
+                    expectedResolvedReference = "other.pkg.Another#Another(int)",
                     expectedLinkLabel = null,
                 ),
                 TestParams(
@@ -384,13 +471,24 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                     expectedLinkLabel = null,
                 ),
                 TestParams(
+                    name = "other.pkg.Another#collectionMethod(Collection)",
+                    expectedResolvedReference =
+                        "other.pkg.Another#collectionMethod(java.util.Collection)",
+                    expectedLinkLabel = "other.pkg.Another.collectionMethod(Collection)",
+                ),
+                TestParams(
                     name = "other.pkg.Another#intMethod(int p)",
-                    expectedResolvedReference = "other.pkg.Another#intMethod(int p)",
+                    expectedResolvedReference = "other.pkg.Another#intMethod(int)",
                     expectedLinkLabel = null,
                 ),
                 TestParams(
                     name = "other.pkg.Another.Nested",
                     expectedResolvedReference = "other.pkg.Another.Nested",
+                    expectedLinkLabel = null,
+                ),
+                TestParams(
+                    name = "other.pkg.Another##uri-fragment",
+                    expectedResolvedReference = "other.pkg.Another##uri-fragment",
                     expectedLinkLabel = null,
                 ),
             )
@@ -412,14 +510,19 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                 java(
                     """
                         package test.pkg;
+                        import static another.pkg.Imported.staticallyImportedCollectionMethod;
+                        import static another.pkg.Imported.staticallyImportedField;
                         import another.pkg.Imported;
+                        import java.util.Collection;
                         ${comment}
-                        public class Test<T> {
+                        public class Test<T extends Number> {
                             public int field;
                             public Test() {}
                             public Test(int p) {}
                             public void noParamsMethod() {}
                             public void intMethod(int p) {}
+                            public void genericMethod(T t) {}
+                            public void collectionMethod(Collection<?> p) {}
 
                             public class Nested {}
                         }
@@ -428,12 +531,14 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                 java(
                     """
                         package test.pkg;
+                        import java.util.Collection;
                         public class Other {
                             public int field;
                             public Other() {}
                             public Other(int p) {}
                             public void noParamsMethod() {}
                             public void intMethod(int p) {}
+                            public void collectionMethod(Collection<?> p) {}
 
                             public class Nested {}
                         }
@@ -442,12 +547,14 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                 java(
                     """
                         package other.pkg;
+                        import java.util.Collection;
                         public class Another {
                             public int field;
                             public Another() {}
                             public Another(int p) {}
                             public void noParamsMethod() {}
                             public void intMethod(int p) {}
+                            public void collectionMethod(Collection<?> p) {}
 
                             public class Nested {}
                         }
@@ -456,12 +563,17 @@ class CommonParameterizedDocReferenceTest : BaseModelTest() {
                 java(
                     """
                         package another.pkg;
+                        import java.util.Collection;
                         public class Imported {
                             public int field;
                             public Imported() {}
                             public Imported(int p) {}
                             public void noParamsMethod() {}
                             public void intMethod(int p) {}
+                            public void collectionMethod(Collection<?> p) {}
+
+                            public static int staticallyImportedField;
+                            public static void staticallyImportedCollectionMethod(Collection<?> p) {}
 
                             public class Nested {}
                         }

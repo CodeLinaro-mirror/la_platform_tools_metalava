@@ -17,6 +17,8 @@
 package com.android.tools.metalava.model.testsuite.constructoritem
 
 import com.android.tools.metalava.model.ModifierKeyword
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
 import kotlin.test.assertEquals
@@ -54,6 +56,7 @@ class CommonConstructorModifierTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `Test varargs`() {
         checkConstructorModifiers(

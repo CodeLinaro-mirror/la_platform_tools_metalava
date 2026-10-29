@@ -33,8 +33,12 @@ class RecordingReporterTest {
      * Invokes [test] with a [Context] that contains the [Reporter] being tested. Checks the
      * reported issues against the [expectedOutput].
      */
-    private fun checkReporter(expectedOutput: String, test: Context.() -> Unit) {
-        val reporter = RecordingReporter()
+    private fun checkReporter(
+        expectedOutput: String,
+        sortIssues: Boolean = false,
+        test: Context.() -> Unit,
+    ) {
+        val reporter = RecordingReporter(sortIssues = sortIssues)
         val context = Context(reporter)
         context.test()
         assertEquals(expectedOutput, reporter.removeIssues())
@@ -43,7 +47,7 @@ class RecordingReporterTest {
     @Test
     fun `Test reporter with unknown file location`() {
         checkReporter(
-            expectedOutput = "null: error: message [InvalidSyntax]",
+            expectedOutput = "error: message [InvalidSyntax]",
         ) {
             reporter.report(Issues.INVALID_SYNTAX, NULL_REPORTABLE, "message", FileLocation.UNKNOWN)
         }
@@ -88,6 +92,64 @@ class RecordingReporterTest {
                 "message",
                 FileLocation.createLocation(Paths.get("file.txt"), line = 9, characterPosition = 12)
             )
+        }
+    }
+
+    @Test
+    fun `Test reporter sorts issues`() {
+        checkReporter(
+            sortIssues = true,
+            expectedOutput =
+                """
+                    error: message [InvalidSyntax]
+                    file1.txt:9:12: error: message 1 [InvalidSyntax]
+                    file1.txt:9:12: error: message 2 [InvalidSyntax]
+                    file1.txt:9:12: error: message [ParseError]
+                    file1.txt:9:15: error: message [InvalidSyntax]
+                    file1.txt:10:1: error: message [InvalidSyntax]
+                    file2.txt:1:1: error: message [InvalidSyntax]
+                """
+                    .trimIndent(),
+        ) {
+            val file1 = Paths.get("file1.txt")
+            val file2 = Paths.get("file2.txt")
+            reporter.report(
+                Issues.INVALID_SYNTAX,
+                NULL_REPORTABLE,
+                "message",
+                FileLocation.createLocation(file2, line = 1, characterPosition = 1)
+            )
+            reporter.report(
+                Issues.INVALID_SYNTAX,
+                NULL_REPORTABLE,
+                "message",
+                FileLocation.createLocation(file1, line = 10, characterPosition = 1)
+            )
+            reporter.report(
+                Issues.INVALID_SYNTAX,
+                NULL_REPORTABLE,
+                "message",
+                FileLocation.createLocation(file1, line = 9, characterPosition = 15)
+            )
+            reporter.report(
+                Issues.PARSE_ERROR,
+                NULL_REPORTABLE,
+                "message",
+                FileLocation.createLocation(file1, line = 9, characterPosition = 12)
+            )
+            reporter.report(
+                Issues.INVALID_SYNTAX,
+                NULL_REPORTABLE,
+                "message 2",
+                FileLocation.createLocation(file1, line = 9, characterPosition = 12)
+            )
+            reporter.report(
+                Issues.INVALID_SYNTAX,
+                NULL_REPORTABLE,
+                "message 1",
+                FileLocation.createLocation(file1, line = 9, characterPosition = 12)
+            )
+            reporter.report(Issues.INVALID_SYNTAX, NULL_REPORTABLE, "message", FileLocation.UNKNOWN)
         }
     }
 }

@@ -170,7 +170,7 @@ class StubConstructorManager(codebase: Codebase) {
                 // constructor) so a package private constructor is needed. Technically, this will
                 // result in the stub class having a constructor that isn't available at runtime,
                 // but creating subclasses in API packages is not supported.
-                cls.createDefaultConstructor(VisibilityLevel.PACKAGE_PRIVATE)
+                cls.createImplicitDefaultConstructor(VisibilityLevel.PACKAGE_PRIVATE)
             }
 
         // If neither the constructors in this class nor its subclasses need to add a `super(...)`
@@ -238,10 +238,18 @@ class StubConstructorManager(codebase: Codebase) {
      * constructor.
      */
     fun optionalSyntheticConstructor(classItem: ClassItem): ConstructorItem? {
-        val stubConstructor = classToStubConstructors[classItem]?.stubConstructor ?: return null
+        val stubConstructor = optionalStubConstructor(classItem) ?: return null
         if (stubConstructor in classItem.constructors()) return null
         return stubConstructor
     }
+
+    /**
+     * Get the optional stub constructor for [classItem].
+     *
+     * This is the [ConstructorItem] that subclasses of [classItem] will delegate to, if needed.
+     */
+    fun optionalStubConstructor(classItem: ClassItem) =
+        classToStubConstructors[classItem]?.stubConstructor
 
     /** Get the optional super constructor, if needed, for [classItem]. */
     fun optionalSuperConstructor(classItem: ClassItem): ConstructorItem? {

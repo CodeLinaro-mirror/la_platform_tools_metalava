@@ -16,9 +16,11 @@
 
 package com.android.tools.metalava.model.testsuite.sourcefile
 
-import com.android.tools.metalava.model.FilterPredicate
-import com.android.tools.metalava.model.Import
-import com.android.tools.metalava.model.SelectableItem
+import com.android.tools.lint.checks.infrastructure.TestFile
+import com.android.tools.lint.checks.infrastructure.TestFiles
+import com.android.tools.metalava.model.SourceFile
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
@@ -28,10 +30,51 @@ import org.junit.Test
 
 /** Common tests for implementations of [SourceFile]. */
 class CommonSourceFileTest : BaseModelTest() {
-    internal class FilterHidden : FilterPredicate {
-        override fun test(item: SelectableItem): Boolean = !item.isHiddenOrRemoved()
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `Test location of class file - java`() {
+        runSourceCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+
+                    public class Test {}
+                """
+            ),
+        ) {
+            val classItem = codebase.assertClass("test.pkg.Test")
+            val sourceFile = classItem.sourceFile()!!
+
+            assertEquals(
+                "MAIN_SRC/src/test/pkg/Test.java",
+                removeTestSpecificDirectories(sourceFile.fileLocation.toString())
+            )
+        }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
+    @Test
+    fun `Test location of class file - kotlin`() {
+        runSourceCodebaseTest(
+            kotlin(
+                """
+                    package test.pkg
+
+                    class Test {}
+                """
+            ),
+        ) {
+            val classItem = codebase.assertClass("test.pkg.Test")
+            val sourceFile = classItem.sourceFile()!!
+
+            assertEquals(
+                "MAIN_SRC/src/test/pkg/Test.kt",
+                removeTestSpecificDirectories(sourceFile.fileLocation.toString())
+            )
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.JAVA, InputFormat.KOTLIN)
     @Test
     fun `Test header comments`() {
         runSourceCodebaseTest(
@@ -113,158 +156,60 @@ class CommonSourceFileTest : BaseModelTest() {
         }
     }
 
+    /**
+     * Create a [TestFile] with a relative [path] and [text] contents.
+     *
+     * [text] is trimmed and then any LF characters are replaced with CR and LF characters. This is
+     * necessary as [java] and [kotlin] will trim the string and replace CR and LF with just LF.
+     */
+    private fun dosFile(path: String, text: String) =
+        TestFiles.file().to(path).withSource(text.trimIndent().replace("\n", "\r\n"))
+
+    @SupportedInputFormats(InputFormat.JAVA, InputFormat.KOTLIN)
     @Test
-    fun `test sourcefile imports`() {
+    fun `Test dos end-of-line in header comments`() {
         runSourceCodebaseTest(
-            inputSet(
-                java(
-                    """
-                        package test.pkg;
+            dosFile(
+                "src/test/pkg/Test.java",
+                """
+                    /*
+                     * Copyright comment.
+                     */
 
-                        import static test.pkg2.Test1.TEST1_FIELD;
-                        import static test.pkg2.Test1.method;
-                        import test.pkg1.*;
-                        import test.Test.Inner;
-                        import test.Test;
-                        import empty.*;
-                        import test.pkg1.Test2;
-                        import java.util.*;
+                    package test.pkg;
 
-                        /** {@link #method()} {@link Inner#method} {@link Test}*/
-                        public class Test {
-                            /** {@link #TEST1_FIELD} */
-                            public static int FIELD;
-                        }
+                    public class Test {}
+                """
+            ),
+            dosFile(
+                "src/test/pkg/Test.kt",
+                """
+                    /*
+                     * Copyright comment.
+                     */
 
-                        class Outer {
-                            class Inner {}
-                        }
-                    """
-                ),
-                java(
-                    """
-                        package test.pkg2;
+                    package test.pkg
 
-                        class Test1 {
-                            public static final int TEST1_FIELD = 7;
-
-                            public static void method1(int a) {}
-                            public static int method() { return 7;}
-                        }
-                     """
-                ),
-                java(
-                    """
-                        package test.pkg1;
-
-                        public class Test1 {}
-                    """
-                ),
-                java(
-                    """
-                        package test.pkg1;
-
-                        public class Test2 {}
-                    """
-                ),
-                java(
-                    """
-                        package test;
-
-                        /** @hide */
-                        public class Test {
-                            public class Inner {
-                                public void method() {}
-                            }
-                        }
-                    """
-                ),
-                java(
-                    """
-                        package empty;
-                    """
-                ),
-            )
+                    class Test {}
+                """
+            ),
         ) {
             val classItem = codebase.assertClass("test.pkg.Test")
             val sourceFile = classItem.sourceFile()!!
 
-            // Create the Import objects that are expected.
-            val classItem1 = codebase.assertClass("test.Test")
-            val classImport = Import(classItem1)
-
-            val innerClassItem = codebase.assertClass("test.Test.Inner")
-            val innerClassImport = Import(innerClassItem)
-
-            val pkgItem = codebase.assertPackage("test.pkg1")
-            val packageImport = Import(pkgItem)
-
-            // Only class imports that are referenced in documentation are included.
-            // The wildcard imports are always included (except for empty packages and packages from
-            // classpath).
-            // Method and Field static imports are not included.
-            val allImports = sourceFile.getImports()
             assertEquals(
-                setOf(
-                    innerClassImport,
-                    packageImport,
-                ),
-                allImports,
-                message = "unfiltered imports"
-            )
-
-            val notHiddenImports = sourceFile.getImports(FilterHidden())
-            assertEquals(setOf(packageImport), notHiddenImports, message = "filtered hidden")
-        }
-    }
-
-    @Test
-    fun `test sourcefile imports from classpath`() {
-        runSourceCodebaseTest(
-            inputSet(
-                java(
-                    """
-                        package test.pkg;
-
-                        import java.util.Collection;
-                        import java.util.List;
-                        import java.util.Set;
-
-                        /** {@link List#addAll(int, Collection)} } {@link Set}*/
-                        public class Foo {
-                            public static List<String> LIST_FIELD;
-                            public static Set<String> SET_FIELD;
-                        }
-                    """
-                ),
-            )
-        ) {
-            val classItem = codebase.assertClass("test.pkg.Foo")
-            val sourceFile = classItem.sourceFile()!!
-
-            // Get the imports before resolving java.util.Set to see how the getImports(...) methods
-            // behave with unresolved classes.
-            val allImports = sourceFile.getImports()
-
-            // Create the Import objects that are expected.
-            val collectionClassItem = codebase.assertResolvedClass("java.util.Collection")
-            val collectionClassImport = Import(collectionClassItem)
-
-            val listClassItem = codebase.assertResolvedClass("java.util.List")
-            val listClassImport = Import(listClassItem)
-
-            // Makes sure that classes from the classpath are included in the imports.
-            assertEquals(
-                setOf(
-                    collectionClassImport,
-                    listClassImport,
-                ),
-                allImports,
-                message = "unfiltered imports"
+                """
+                    /*
+                     * Copyright comment.
+                     */
+                """
+                    .trimIndent(),
+                sourceFile.getHeaderComments()?.trimEnd()
             )
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `test sourcefile classes`() {
         runSourceCodebaseTest(
@@ -288,6 +233,7 @@ class CommonSourceFileTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test codebase and containingPackage`() {
         runSourceCodebaseTest(

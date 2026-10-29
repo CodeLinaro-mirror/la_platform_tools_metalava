@@ -21,7 +21,6 @@ import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.ClassTypeItem
-import com.android.tools.metalava.model.JAVA_LANG_OBJECT
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.ReferenceTypeItem
 import com.android.tools.metalava.model.TypeArgumentTypeItem
@@ -30,6 +29,8 @@ import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.VariableTypeItem
+import com.android.tools.metalava.model.WellKnownTypes.JAVA_LANG_OBJECT_NON_NULL_TYPE
+import com.android.tools.metalava.model.WellKnownTypes.JAVA_LANG_OBJECT_PLATFORM_TYPE
 import com.android.tools.metalava.model.WildcardTypeItem
 import com.android.tools.metalava.model.value.ValueParser
 
@@ -51,10 +52,8 @@ open class TypeItemParser(
     private val valueParser = ValueParser(annotationContext, this)
 
     /** A [TypeItem] representing `java.lang.Object`, suitable for general use. */
-    private val objectType: ReferenceTypeItem
-        get() =
-            parseTypeWithContextNullability(JAVA_LANG_OBJECT, TypeParameterScope.empty)
-                as ReferenceTypeItem
+    private val objectType =
+        if (kotlinStyleNulls) JAVA_LANG_OBJECT_NON_NULL_TYPE else JAVA_LANG_OBJECT_PLATFORM_TYPE
 
     /**
      * Creates or retrieves from the cache a [TypeItem] representing [type], in the context of the
@@ -64,8 +63,37 @@ open class TypeItemParser(
         type: String,
         typeParameterScope: TypeParameterScope,
         contextNullability: ContextNullability = ContextNullability.none,
-    ): TypeItem =
-        parseTypeWithContextNullability(type, typeParameterScope, emptyList(), contextNullability)
+    ): TypeItem {
+        var typeItem =
+            parseTypeWithContextNullability(
+                type,
+                typeParameterScope,
+                emptyList(),
+                contextNullability,
+            )
+
+        // Check if the type is an array and its component nullability needs to be updated based on
+        // the context.
+        val forcedComponentNullability = contextNullability.forcedComponentNullability
+        if (
+            typeItem is ArrayTypeItem &&
+                forcedComponentNullability != null &&
+                forcedComponentNullability != typeItem.componentType.modifiers.nullability
+        ) {
+            typeItem =
+                typeItem.substitute(
+                    componentType = typeItem.componentType.substitute(forcedComponentNullability),
+                )
+        }
+
+        // Check if the type's nullability needs to be updated based on the context.
+        val typeNullability = typeItem.modifiers.nullability
+        val actualTypeNullability =
+            contextNullability.compute(typeNullability, typeItem.modifiers.annotations)
+        return if (actualTypeNullability != typeNullability) {
+            typeItem.substitute(actualTypeNullability)
+        } else typeItem
+    }
 
     /**
      * Parse [type] and return a [TypeItem], in the context of type parameters from
@@ -107,9 +135,10 @@ open class TypeItemParser(
             splitNullabilitySuffix(
                 unannotated,
                 // If forceClassToBeNonNull is true then a plain class type without any nullability
-                // suffix must be treated as if it was not null, which is just how it would be
-                // treated when kotlinStyleNulls is true. So, pretend that kotlinStyleNulls is true.
-                kotlinStyleNulls || forceClassToBeNonNull,
+                // suffix must be treated as if it was not null. That is just how it is in Kotlin
+                // so this pretends that when forceClassToBeNonNull is true that kotlinStyleNulls is
+                // true.
+                forceClassToBeNonNull,
                 errorReporter,
             )
         val trimmed = withoutNullability.trim()
@@ -165,7 +194,8 @@ open class TypeItemParser(
         if (nullability != null && nullability != TypeNullability.NONNULL) {
             errorReporter.report("Invalid nullability suffix on primitive: $original")
         }
-        return DefaultPrimitiveTypeItem(modifiers(annotations, TypeNullability.NONNULL), kind)
+        val typeModifiers = createModifiers(annotations, TypeNullability.NONNULL)
+        return TypeItem.createPrimitiveType(typeModifiers, kind)
     }
 
     /**
@@ -257,7 +287,7 @@ open class TypeItemParser(
         // from innermost array modifiers to outermost array modifiers.
         val allModifiers =
             allAnnotations.zip(allNullability.reversed()).map { (annotations, nullability) ->
-                modifiers(annotations, nullability)
+                createModifiers(annotations, nullability)
             }
         // The final modifiers are in the list apply to the outermost array.
         val componentModifiers = allModifiers.dropLast(1)
@@ -265,11 +295,11 @@ open class TypeItemParser(
         // Create the component type of the outermost array by building up the inner component type.
         val componentType =
             componentModifiers.fold(deepComponentType) { component, modifiers ->
-                DefaultArrayTypeItem(modifiers, component, false)
+                TypeItem.createArrayType(modifiers, component, false)
             }
 
         // Create the outer array.
-        return DefaultArrayTypeItem(arrayModifiers, componentType, varargs)
+        return TypeItem.createArrayType(arrayModifiers, componentType, varargs)
     }
 
     /**
@@ -289,24 +319,24 @@ open class TypeItemParser(
         // See if this is a wildcard
         if (!type.startsWith("?")) return null
 
-        val modifiers = modifiers(annotations, TypeNullability.UNDEFINED)
+        val typeModifiers = createModifiers(annotations, TypeNullability.UNDEFINED)
 
         // Unbounded wildcard type: there is an implicit Object extends bound
-        if (type == "?") return DefaultWildcardTypeItem(modifiers, objectType, null)
+        if (type == "?") return TypeItem.createWildcardType(typeModifiers, objectType, null)
 
         // If there's a bound, the nullability suffix applies there instead.
         val bound = type.substring(2) + nullability?.suffix.orEmpty()
         return if (bound.startsWith("extends")) {
             val extendsBound = bound.substring(8)
-            DefaultWildcardTypeItem(
-                modifiers,
+            TypeItem.createWildcardType(
+                typeModifiers,
                 getWildcardBound(extendsBound, typeParameterScope),
                 null,
             )
         } else if (bound.startsWith("super")) {
             val superBound = bound.substring(6)
-            DefaultWildcardTypeItem(
-                modifiers,
+            TypeItem.createWildcardType(
+                typeModifiers,
                 // All wildcards have an implicit Object extends bound
                 objectType,
                 getWildcardBound(superBound, typeParameterScope),
@@ -315,7 +345,7 @@ open class TypeItemParser(
             errorReporter.report("Type starts with \"?\" but doesn't appear to be wildcard: $type")
 
             // Ignore the part after the "?" and treat it as an unbounded wildcard.
-            DefaultWildcardTypeItem(modifiers, objectType, null)
+            TypeItem.createWildcardType(typeModifiers, objectType, null)
         }
     }
 
@@ -335,7 +365,13 @@ open class TypeItemParser(
         nullability: TypeNullability?
     ): VariableTypeItem? {
         val param = typeParameterScope.findTypeParameter(type) ?: return null
-        return DefaultVariableTypeItem(modifiers(annotations, nullability), param)
+        val typeModifiers =
+            createModifiers(
+                annotations,
+                nullability,
+                defaultNullability = TypeNullability.UNDEFINED,
+            )
+        return TypeItem.createVariableType(typeModifiers, param)
     }
 
     /**
@@ -370,14 +406,6 @@ open class TypeItemParser(
     ): ClassTypeItem {
         val (name, afterName, classAnnotations) = splitClassType(type)
 
-        val qualifiedName =
-            if (outerClassType != null) {
-                // This is a nested type, add the prefix of the outer name
-                "${outerClassType.qualifiedName}.$name"
-            } else {
-                name
-            }
-
         val (argumentStrings, remainder) = typeParameterStringsWithRemainder(afterName)
         val arguments =
             argumentStrings.map {
@@ -387,32 +415,43 @@ open class TypeItemParser(
         // the leading annotations (they belong to the nested class type).
         val classModifiers =
             if (remainder != null) {
-                modifiers(classAnnotations, TypeNullability.NONNULL)
+                createModifiers(classAnnotations, TypeNullability.NONNULL)
             } else {
-                modifiers(classAnnotations + annotations, nullability)
+                createModifiers(classAnnotations + annotations, nullability)
             }
 
-        // If the class name is qualified (i.e. contains a `.`) then create the ClassTypeItem,
-        // directly, otherwise defer to the unqualifiedTypeHandler to create it instead.
-        val classType =
-            if (qualifiedName.contains('.')) {
-                DefaultClassTypeItem(
-                    annotationContext,
-                    classModifiers,
-                    qualifiedName,
-                    arguments,
-                    outerClassType
-                )
+        // Construct a qualified name to use for the class.
+        val qualifiedName =
+            if (outerClassType != null) {
+                // This is a nested type, add the prefix of the outer name
+                "${outerClassType.qualifiedName}.$name"
+            } else if (name.contains('.')) {
+                // The name is already qualified so use it.
+                name
+            } else if (name == "dynamic") {
+                // Kotlin dynamic types can be used in code compiled to javascript (see
+                // https://kotlinlang.org/docs/dynamic-type.html).
+                // Currently, this is represented as a class type, if more robust support is needed
+                // in the future there would need to be a new TypeItem subclass introduced
+                // (b/495459207).
+                name
             } else {
+                // Otherwise, delegate to the UnqualifiedClassHandler which will construct a
+                // qualified name.
                 unqualifiedClassHandler.handleUnqualifiedType(
-                    annotationContext,
                     errorReporter,
-                    classModifiers,
                     name,
-                    arguments,
-                    outerClassType
                 )
             }
+
+        // Create the ClassTypeItem.
+        val classType =
+            TypeItem.createClassType(
+                classModifiers,
+                qualifiedName,
+                arguments,
+                outerClassType,
+            )
 
         if (remainder != null) {
             if (!remainder.startsWith('.')) {
@@ -436,23 +475,58 @@ open class TypeItemParser(
         return classType
     }
 
-    private fun modifiers(
+    /**
+     * Create a [TypeModifiers].
+     *
+     * If [knownNullability] is `null` then this will compute a non-null [TypeNullability] as
+     * follows:
+     *
+     * If [kotlinStyleNulls] is `true` then this will use the first non-null [TypeNullability] found
+     * in the following steps:
+     * 1. [defaultNullability]
+     * 2. [TypeNullability.NONNULL].
+     *
+     * Otherwise, it will use the first non-null [TypeNullability] found in the following steps:
+     * 1. The [TypeNullability] of a [AnnotationItem.isNullnessAnnotation] annotation in
+     *    [annotations].
+     * 2. [defaultNullability]
+     * 3. [TypeNullability.PLATFORM].
+     */
+    private fun createModifiers(
         annotations: List<AnnotationItem>,
-        nullability: TypeNullability?
+        knownNullability: TypeNullability?,
+        defaultNullability: TypeNullability? = null,
     ): TypeModifiers {
-        return DefaultTypeModifiers.create(
-            annotations,
-            nullability,
-        )
+        // Use the known nullability, or find if there is a nullness annotation on the type,
+        // defaulting to platform nullness if not.
+        val nullability =
+            knownNullability
+                ?: if (kotlinStyleNulls) {
+                    defaultNullability ?: TypeNullability.NONNULL
+                } else {
+                    annotations
+                        .firstOrNull { it.isNullnessAnnotation() }
+                        ?.let { TypeNullability.ofAnnotation(it) }
+                        ?: defaultNullability
+                        ?: TypeNullability.PLATFORM
+                }
+
+        return TypeModifiers.create(annotations, nullability)
     }
 
     /**
      * Removes all annotations at the beginning of the type, returning the trimmed type and list of
      * annotations.
+     *
+     * @param type the type string from which to trim leading annotations.
+     * @return a pair of the trimmed type string and the list of trimmed [AnnotationItem]s.
      */
     fun trimLeadingAnnotations(type: String): Pair<String, List<AnnotationItem>> {
-        val annotations = mutableListOf<AnnotationItem>()
         var trimmed = type.trim()
+        if (!trimmed.startsWith('@')) {
+            return Pair(trimmed, emptyList())
+        }
+        val annotations = mutableListOf<AnnotationItem>()
         while (trimmed.startsWith('@')) {
             val end = findAnnotationEnd(trimmed, 1)
             val annotationSource = trimmed.substring(0, end).trim()
@@ -520,10 +594,14 @@ open class TypeItemParser(
      *
      * For `test.pkg.@test.pkg.A Outer<P1>.@test.pkg.B Inner<P2>`, returns the triple
      * ("test.pkg.Outer", "<P1>.@test.pkg.B Inner<P2>", listOf("@test.pkg.A")).
+     *
+     * @param type the type string representing a class to split.
+     * @return a triple of the qualified class name, optional remainder of the type string, and
+     *   type-use annotations.
      */
     fun splitClassType(type: String): Triple<String, String?, List<AnnotationItem>> {
         // The constructed qualified type name
-        var name = ""
+        val name = StringBuilder()
         // The part of the type which still needs to be parsed
         var remaining = type.trim()
         // The annotations of the type, may be set later
@@ -540,30 +618,29 @@ open class TypeItemParser(
                 // '.' is first, the next part is part of the qualified class name.
                 dotIndex -> {
                     val nextNameChunk = remaining.substring(0, dotIndex)
-                    name += nextNameChunk
+                    name.append(nextNameChunk)
                     remaining = remaining.substring(dotIndex)
                     // Assumes that package names are all lower case and class names will have
                     // an upper class character (the [START_WITH_UPPER] API lint check should
                     // make this a safe assumption). If the name is a class name, we've found
                     // the complete class name, return.
                     if (nextNameChunk.any { it.isUpperCase() }) {
-                        return Triple(name, remaining, annotations)
+                        return Triple(name.toString(), remaining, annotations)
                     }
                 }
                 // '<' is first, the end of the class name has been reached.
                 paramIndex -> {
-                    name += remaining.substring(0, paramIndex)
+                    name.append(remaining, 0, paramIndex)
                     remaining = remaining.substring(paramIndex)
-                    return Triple(name, remaining, annotations)
+                    return Triple(name.toString(), remaining, annotations)
                 }
                 // '@' is first, trim all annotations.
                 annotationIndex -> {
-                    name += remaining.substring(0, annotationIndex)
-                    trimLeadingAnnotations(remaining.substring(annotationIndex)).let {
-                        (first, second) ->
-                        remaining = first
-                        annotations = second
-                    }
+                    name.append(remaining, 0, annotationIndex)
+                    val (first, second) =
+                        trimLeadingAnnotations(remaining.substring(annotationIndex))
+                    remaining = first
+                    annotations = second
                 }
             }
             // Reset indices -- the string may now start with '.' for the next chunk of the name
@@ -574,8 +651,8 @@ open class TypeItemParser(
             minIndex = minIndex(dotIndex, paramIndex, annotationIndex)
         }
         // End of the name reached with no leftover string.
-        name += remaining
-        return Triple(name, null, annotations)
+        name.append(remaining)
+        return Triple(name.toString(), null, annotations)
     }
 
     companion object {
@@ -586,7 +663,7 @@ open class TypeItemParser(
         fun splitNullabilitySuffix(
             type: String,
             kotlinStyleNulls: Boolean,
-            errorReporter: TypeItemParserErrorReporter = TypeItemParserErrorReporter.THROWING,
+            errorReporter: TypeItemParserErrorReporter,
         ): Pair<String, TypeNullability?> {
             return if (kotlinStyleNulls) {
                 // Don't interpret the wildcard type `?` as a nullability marker.
@@ -597,7 +674,7 @@ open class TypeItemParser(
                 } else if (type.endsWith("!")) {
                     Pair(type.dropLast(1), TypeNullability.PLATFORM)
                 } else {
-                    Pair(type, TypeNullability.NONNULL)
+                    Pair(type, null)
                 }
             } else if (((type.length > 1) && type.endsWith("?")) || type.endsWith("!")) {
                 errorReporter.report("Format does not support Kotlin-style null type syntax: $type")
@@ -608,10 +685,32 @@ open class TypeItemParser(
         }
 
         /**
-         * Returns the minimum valid list index from the input, or null if there isn't one. -1 is
-         * not a valid index.
+         * Maps an invalid index (-1) to [Int.MAX_VALUE].
+         *
+         * This is safe because -1 indicates an index not found (e.g. from [String.indexOf]), and
+         * [Int.MAX_VALUE] acts as the identity element for finding the minimum index via [minOf]. A
+         * valid index in a type string will never reach [Int.MAX_VALUE].
          */
-        private fun minIndex(vararg index: Int): Int? = index.filter { it != -1 }.minOrNull()
+        private fun Int.mapInvalidIndexToMaxValue(): Int = if (this == -1) Int.MAX_VALUE else this
+
+        /**
+         * Returns the minimum valid list index from [a], [b], and [c], or null if all are -1. -1 is
+         * not a valid index.
+         *
+         * @param a first index to compare.
+         * @param b second index to compare.
+         * @param c third index to compare.
+         * @return the smallest non-negative index, or null if all indices are -1.
+         */
+        private fun minIndex(a: Int, b: Int, c: Int): Int? {
+            val min =
+                minOf(
+                    a.mapInvalidIndexToMaxValue(),
+                    b.mapInvalidIndexToMaxValue(),
+                    c.mapInvalidIndexToMaxValue(),
+                )
+            return if (min != Int.MAX_VALUE) min else null
+        }
 
         /**
          * Given a string and the index in that string which is the start of an annotation (the

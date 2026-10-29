@@ -16,9 +16,9 @@
 
 package com.android.tools.metalava.model.testsuite.documentation
 
-import com.android.tools.metalava.model.provider.Capability
+import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.source.doc.DocContentPredicates
-import com.android.tools.metalava.model.testing.RequiresCapabilities
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
 import kotlin.test.assertTrue
@@ -26,7 +26,7 @@ import org.junit.Test
 
 /** Common tests for references from within documentation comments. */
 class CommonDocReferenceTest : BaseModelTest() {
-    @RequiresCapabilities(Capability.JAVA)
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     @Suppress("RedundantThrows")
     fun `Test @throws resolution`() {
@@ -90,6 +90,7 @@ class CommonDocReferenceTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test link tag spread across multiple lines`() {
         runCodebaseTest(
@@ -126,6 +127,7 @@ class CommonDocReferenceTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test link tag inside @code`() {
         // This is not valid. The specification says the following at
@@ -155,6 +157,7 @@ class CommonDocReferenceTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test link tag with invalid reference starting with period`() {
         runCodebaseTest(
@@ -178,6 +181,57 @@ class CommonDocReferenceTest : BaseModelTest() {
 
             assertAndRemoveReportedIssues(
                 "MAIN_SRC/src/test/pkg/Test.java:3:12: warning: Malformed reference `.java.util.List` (ErrorWhenNew) [MalformedDocReference]"
+            )
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `Test link tag in package-info`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+                        import java.util.List;
+                        public class Test {
+                            public int field;
+                            public void method(Test t, List<String> s) {}
+                        }
+                    """
+                ),
+                java(
+                    "test/pkg/package-info.java",
+                    """
+                        /**
+                         * {@link Test}
+                         * {@link Test#field}
+                         * {@link Test#method(Test,List<String>)}
+                         * {@link #invalid(String,Number)}
+                         */
+                        package test.pkg;
+
+                        import java.util.List;
+                    """
+                ),
+            ),
+        ) {
+            val testPackage = codebase.assertPackage("test.pkg")
+            testPackage.assertPrintedDocumentation(
+                expectedOutput =
+                    """
+                        /**
+                         * {@link test.pkg.Test Test}
+                         * {@link test.pkg.Test#field Test.field}
+                         * {@link test.pkg.Test#method(test.pkg.Test,java.util.List) Test.method(Test,List<String>)}
+                         * {@link #invalid(java.lang.String,java.lang.Number) invalid(String,Number)}
+                         */
+                    """,
+            )
+
+            assertAndRemoveReportedIssues(
+                // TODO(b/447588621): Should report an issue about the #invalid(...) reference.
+                ""
             )
         }
     }

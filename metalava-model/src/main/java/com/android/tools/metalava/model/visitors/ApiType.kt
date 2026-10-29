@@ -16,114 +16,57 @@
 
 package com.android.tools.metalava.model.visitors
 
-import com.android.tools.metalava.model.FilterPredicate
+import com.android.tools.metalava.model.SelectableItem
+import com.android.tools.metalava.model.api.surface.ApiVariant
+import com.android.tools.metalava.model.api.surface.ApiVariantType
 
-/** Types of APIs emitted (or parsed etc.) */
-enum class ApiType(val flagName: String, val displayName: String = flagName) {
-    /** The public API */
-    PUBLIC_API("api", "public") {
-
-        override fun getNonElidingFilter(apiPredicateConfig: ApiPredicate.Config): FilterPredicate {
-            // This filter is for API signature files, where we don't need the "for stub purposes"
-            // APIs.
-            return ApiPredicate(
-                includeApisForStubPurposes = false,
-                config = apiPredicateConfig,
-            )
-        }
-
-        override fun getReferenceFilter(apiPredicateConfig: ApiPredicate.Config): FilterPredicate {
-            return ApiPredicate(config = apiPredicateConfig.copy(ignoreShown = true))
-        }
-    },
-
-    /** The API that has been removed */
-    REMOVED("removed", "removed") {
-
-        override fun getNonElidingFilter(apiPredicateConfig: ApiPredicate.Config): FilterPredicate {
-            // This filter is for API signature files, where we don't need the "for stub purposes"
-            // APIs.
-            return ApiPredicate(
-                includeApisForStubPurposes = false,
-                matchRemoved = true,
-                config = apiPredicateConfig,
-            )
-        }
-
-        override fun getReferenceFilter(apiPredicateConfig: ApiPredicate.Config): FilterPredicate {
-            return ApiPredicate(
-                ignoreRemoved = true,
-                config = apiPredicateConfig.copy(ignoreShown = true),
-            )
-        }
-    },
-
-    /** Everything */
-    ALL("all", "all") {
-
-        override fun getNonElidingFilter(apiPredicateConfig: ApiPredicate.Config): FilterPredicate {
-            return FilterPredicate { it.emit }
-        }
-
-        override fun getEmitFilter(apiPredicateConfig: ApiPredicate.Config): FilterPredicate {
-            return FilterPredicate { it.emit }
-        }
-
-        override fun getReferenceFilter(apiPredicateConfig: ApiPredicate.Config): FilterPredicate {
-            return FilterPredicate { true }
-        }
-    };
-
-    protected abstract fun getNonElidingFilter(
-        apiPredicateConfig: ApiPredicate.Config
-    ): FilterPredicate
-
-    open fun getEmitFilter(apiPredicateConfig: ApiPredicate.Config): FilterPredicate {
-        val nonElidingFilter =
-            MatchOverridingMethodPredicate(getNonElidingFilter(apiPredicateConfig))
-        val referenceFilter = getReferenceFilter(apiPredicateConfig)
-        return nonElidingFilter.and(elidingPredicate(referenceFilter, apiPredicateConfig))
-    }
-
-    abstract fun getReferenceFilter(apiPredicateConfig: ApiPredicate.Config): FilterPredicate
-
+/**
+ * Types of APIs that can be processed.
+ *
+ * This correlates closely with the [ApiVariantType] type except while that relates to individual
+ * [ApiVariant]s this relates to the whole API.
+ */
+enum class ApiType(
     /**
-     * Create an [ElidingPredicate] that wraps [wrappedPredicate] and uses information from the
-     * [apiPredicateConfig].
-     */
-    protected fun elidingPredicate(
-        wrappedPredicate: FilterPredicate,
-        apiPredicateConfig: ApiPredicate.Config
-    ) =
-        ElidingPredicate(
-            wrappedPredicate,
-            addAdditionalOverrides = apiPredicateConfig.addAdditionalOverrides,
-        )
-
-    /**
-     * Get the [ApiFilters] for this [ApiType] that uses information from [apiPredicateConfig] to
-     * customize their behavior.
+     * The [ApiVariantType]s of items to emit for this [ApiType].
      *
-     * The returned [ApiFilters.emit] will elide methods overrides that match the overridden method.
+     * Also provides the default for [referenceVariantTypes].
      */
-    fun getApiFilters(apiPredicateConfig: ApiPredicate.Config) =
-        ApiFilters(
-            emit = getEmitFilter(apiPredicateConfig),
-            reference = getReferenceFilter(apiPredicateConfig),
-        )
+    val emitVariantTypes: List<ApiVariantType>,
 
     /**
-     * Get the [ApiFilters] for this [ApiType] that uses information from [apiPredicateConfig] to
-     * customize their behavior.
+     * The [ApiVariantType]s that can be referenced by APIs of this [ApiType] across the target API
+     * surface and any surfaces it extends.
      *
-     * The returned [ApiFilters.emit] will NOT elide methods overrides that match the overridden
-     * method.
+     * Defaults to [emitVariantTypes].
      */
-    fun getNonElidingApiFilters(apiPredicateConfig: ApiPredicate.Config) =
-        ApiFilters(
-            emit = getNonElidingFilter(apiPredicateConfig),
-            reference = getReferenceFilter(apiPredicateConfig),
-        )
+    val referenceVariantTypes: List<ApiVariantType> = emitVariantTypes,
+) {
+    /**
+     * The core API, i.e. the core part used by apps.
+     *
+     * It emits and can reference [SelectableItem]s with [ApiVariantType.CORE] [ApiVariant]s.
+     */
+    CORE(
+        emitVariantTypes = listOf(ApiVariantType.CORE),
+    ),
 
-    override fun toString(): String = displayName
+    /**
+     * Parts of the API that used to be in [CORE] but have since been removed.
+     *
+     * It emits [SelectableItem]s with [ApiVariantType.REMOVED] [ApiVariant]s and can reference
+     * those with either [ApiVariantType.CORE] or [ApiVariantType.REMOVED] [ApiVariant]s.
+     */
+    REMOVED(
+        emitVariantTypes = listOf(ApiVariantType.REMOVED),
+        referenceVariantTypes = listOf(ApiVariantType.CORE, ApiVariantType.REMOVED),
+    ),
+
+    /**
+     * The core API plus additional [SelectableItem]s with [ApiVariantType.DOC_ONLY] [ApiVariant]s,
+     * i.e. are included only for documentation purposes.
+     */
+    CORE_PLUS_DOC_ONLY(
+        emitVariantTypes = listOf(ApiVariantType.CORE, ApiVariantType.DOC_ONLY),
+    ),
 }

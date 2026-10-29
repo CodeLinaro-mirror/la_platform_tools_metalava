@@ -18,48 +18,45 @@ package com.android.tools.metalava.model.item
 
 import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.BoundsTypeItem
-import com.android.tools.metalava.model.ClassResolver
-import com.android.tools.metalava.model.JAVA_LANG_OBJECT
 import com.android.tools.metalava.model.ModifierList
+import com.android.tools.metalava.model.SkeletonTypeParameterItem
+import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.VariableTypeItem
-import com.android.tools.metalava.model.type.DefaultTypeModifiers
-import com.android.tools.metalava.model.type.DefaultVariableTypeItem
 
 /** A [TypeParameterItem] implementation suitable for use by multiple models. */
-open class DefaultTypeParameterItem(
-    protected open val classResolver: ClassResolver,
+internal class DefaultTypeParameterItem(
     modifiers: BaseModifierList,
     private val name: String,
     private val isReified: Boolean,
-) : TypeParameterItem {
+) : SkeletonTypeParameterItem {
 
-    final override val modifiers: ModifierList = modifiers.toImmutable()
+    override val modifiers: ModifierList = modifiers.toImmutable()
 
-    final override fun name() = name
+    override fun name() = name
 
     /** Must only be used by [type] to cache its result. */
     private lateinit var variableTypeItem: VariableTypeItem
 
     override fun type(): VariableTypeItem {
         if (!::variableTypeItem.isInitialized) {
-            variableTypeItem = createVariableTypeItem()
+            variableTypeItem =
+                TypeItem.createVariableType(TypeModifiers.emptyUndefinedModifiers, this)
         }
         return variableTypeItem
     }
 
-    /** Create a [VariableTypeItem] for this [TypeParameterItem]. */
-    protected open fun createVariableTypeItem(): VariableTypeItem =
-        DefaultVariableTypeItem(DefaultTypeModifiers.emptyUndefinedModifiers, this)
+    override lateinit var bounds: List<BoundsTypeItem>
 
-    lateinit var bounds: List<BoundsTypeItem>
-
-    final override fun typeBounds(): List<BoundsTypeItem> = bounds
+    override fun typeBounds(): List<BoundsTypeItem> = bounds
 
     override fun asErasedType() =
-        typeBounds().firstOrNull() ?: classResolver.resolveClass(JAVA_LANG_OBJECT)?.type()
+        // The first type bound is the erased type as defined in
+        // https://docs.oracle.com/javase/specs/jls/se25/html/jls-4.html#jls-4.6.
+        typeBounds().first().asErasedType()
 
-    final override fun isReified(): Boolean = isReified
+    override fun isReified(): Boolean = isReified
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

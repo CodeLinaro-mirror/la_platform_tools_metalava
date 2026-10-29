@@ -17,9 +17,18 @@
 package com.android.tools.metalava.model
 
 import com.android.tools.metalava.model.scope.ReferencableNameScope
+import com.android.tools.metalava.model.snapshot.SourceFileSnapshot
+import com.android.tools.metalava.reporter.FileLocation
 
 /** Represents a Kotlin/Java source file */
 interface SourceFile : ReferencableNameScope {
+    /**
+     * The location of this [SourceFile]
+     *
+     * If this is not [FileLocation.UNKNOWN] then it will not have a line number.
+     */
+    val fileLocation: FileLocation
+
     /** The [Codebase] to which this [SourceFile] belongs. */
     val codebase: Codebase
 
@@ -39,57 +48,11 @@ interface SourceFile : ReferencableNameScope {
      */
     fun allJavaImports(): List<JavaImport>
 
-    /** Get all the imports. */
-    fun getImports() = getImports { true }
-
-    /** Get only those imports that reference [Item]s for which [predicate] returns `true`. */
-    fun getImports(predicate: FilterPredicate): Collection<Import> = emptyList()
-
-    fun snapshot(targetCodebase: Codebase): SourceFile
-}
-
-/** Encapsulates information about the imports used in a [SourceFile]. */
-@ConsistentCopyVisibility
-data class Import
-internal constructor(
-    /**
-     * The import pattern, i.e. the whole part of the import statement after `import static? ` and
-     * before the optional `;`, excluding any whitespace.
-     */
-    val pattern: String,
-
-    /**
-     * The name that is being imported, i.e. the part after the last `.`. Is `*` for wildcard
-     * imports.
-     */
-    val name: String,
-
-    /**
-     * True if the item that is being imported is a member of a class. Corresponds to the `static`
-     * keyword in Java, has no effect on Kotlin import statements.
-     */
-    val isMember: Boolean,
-) {
-    /** Import a whole [PackageItem], i.e. uses a wildcard. */
-    constructor(pkgItem: PackageItem) : this("${pkgItem.qualifiedName()}.*", "*", false)
-
-    /** Import a [ClassItem]. */
-    constructor(
-        classItem: ClassItem
-    ) : this(
-        classItem.qualifiedName(),
-        classItem.simpleName(),
-        false,
-    )
-
-    /** Import a [MemberItem]. */
-    constructor(
-        memberItem: MemberItem
-    ) : this(
-        "${memberItem.containingClass().qualifiedName()}.${memberItem.name()}",
-        memberItem.name(),
-        true,
-    )
+    fun snapshot(targetCodebase: Codebase): SourceFile =
+        SourceFileSnapshot(
+            targetCodebase,
+            originalSourceFile = this,
+        )
 }
 
 /** Encapsulates information about the imports used in a Java [SourceFile]. */

@@ -26,7 +26,7 @@ import org.junit.Test
 class ParameterNameChangeTest : DriverTest() {
 
     @Test
-    fun `Change formal parameter name class method (Incompatible)`() {
+    fun `Change formal parameter name class method - Incompatible`() {
         check(
             expectedIssues =
                 """
@@ -52,7 +52,7 @@ class ParameterNameChangeTest : DriverTest() {
     }
 
     @Test
-    fun `Change formal parameter name interface method (Incompatible)`() {
+    fun `Change formal parameter name interface method - Incompatible`() {
         check(
             expectedIssues =
                 """

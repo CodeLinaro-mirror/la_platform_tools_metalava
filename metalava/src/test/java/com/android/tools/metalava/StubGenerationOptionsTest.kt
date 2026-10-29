@@ -38,8 +38,9 @@ Stub Generation:
                                              For example, in the stub files, we'll use special annotations like
                                              @RecentlyNonNull instead of @NonNull to indicate that an element is
                                              recently marked as non null, whereas in the documentation stubs we'll just
-                                             list this as @NonNull. Another difference is that @doconly elements are
-                                             included in documentation stubs, but not regular stubs, etc.
+                                             list this as @NonNull. Another difference is that items annotated with a
+                                             `<api-surfaces>/<doc-only>` configured annotation are included in
+                                             documentation stubs, but not regular stubs, etc.
 
                                              At most one of this and --stubs can be provided.
   --include-annotations / --exclude-all-annotations
@@ -112,7 +113,7 @@ class StubGenerationOptionsTest :
 
             assertEquals(
                 "--apply-api-levels file 'TESTROOT/non-existent/api-versions.xml' does not exist or is not readable",
-                cleanupString(exception.message!!)
+                removeTestSpecificDirectories(exception.message!!)
             )
         }
     }

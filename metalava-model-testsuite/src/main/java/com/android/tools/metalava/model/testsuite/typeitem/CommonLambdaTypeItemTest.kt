@@ -16,12 +16,15 @@
 
 package com.android.tools.metalava.model.testsuite.typeitem
 
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testing.testTypeString
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.kotlin
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
 
+@SupportedInputFormats(InputFormat.KOTLIN)
 class CommonLambdaTypeItemTest : BaseModelTest() {
 
     @Test
@@ -396,6 +399,72 @@ class CommonLambdaTypeItemTest : BaseModelTest() {
                     .isEqualTo("int, kotlin.coroutines.Continuation<? super kotlin.Unit>")
                 assertThat(returnType.testTypeString(kotlinStyleNulls = true))
                     .isEqualTo("java.lang.Object?")
+            }
+        }
+    }
+
+    @Test
+    fun `Test lambda returns Nothing`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                    package test.pkg
+                    class Foo {
+                        val field: (Throwable) -> Nothing = {throw it}
+                    }
+                """
+            ),
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+            val lambdaType = fooClass.fields().single().type()
+
+            lambdaType.assertLambdaTypeItem {
+                // Verify that the default string representation of the lambda type is the same as
+                // the string representation of the extended class type.
+                assertThat(testTypeString(kotlinStyleNulls = true))
+                    .isEqualTo("kotlin.jvm.functions.Function1<java.lang.Throwable,java.lang.Void>")
+
+                assertThat(receiverType).isNull()
+                assertThat(
+                        parameterTypes.joinToString { it.testTypeString(kotlinStyleNulls = true) }
+                    )
+                    .isEqualTo("java.lang.Throwable")
+                assertThat(returnType.testTypeString(kotlinStyleNulls = true))
+                    .isEqualTo("java.lang.Void")
+            }
+        }
+    }
+
+    @Test
+    fun `Test lambda with primitive parameter returns Nothing`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                    package test.pkg
+                    class Foo {
+                        val field: (Int, Throwable) -> Nothing = { _, t -> throw t }
+                    }
+                """
+            ),
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+            val lambdaType = fooClass.fields().single().type()
+
+            lambdaType.assertLambdaTypeItem {
+                // Verify that the default string representation of the lambda type is the same as
+                // the string representation of the extended class type.
+                assertThat(testTypeString(kotlinStyleNulls = true))
+                    .isEqualTo(
+                        "kotlin.jvm.functions.Function2<java.lang.Integer,java.lang.Throwable,java.lang.Void>"
+                    )
+
+                assertThat(receiverType).isNull()
+                assertThat(
+                        parameterTypes.joinToString { it.testTypeString(kotlinStyleNulls = true) }
+                    )
+                    .isEqualTo("int, java.lang.Throwable")
+                assertThat(returnType.testTypeString(kotlinStyleNulls = true))
+                    .isEqualTo("java.lang.Void")
             }
         }
     }

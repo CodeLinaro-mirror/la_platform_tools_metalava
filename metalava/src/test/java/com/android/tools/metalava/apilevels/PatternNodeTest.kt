@@ -18,19 +18,16 @@ package com.android.tools.metalava.apilevels
 
 import com.android.tools.metalava.model.api.surface.ApiSurface
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
+import com.android.tools.metalava.testing.BaseTemporaryFolderOwner
 import com.android.tools.metalava.testing.DirectoryBuilder
-import com.android.tools.metalava.testing.TemporaryFolderOwner
 import com.android.tools.metalava.testing.getAndroidDir
 import java.io.File
 import kotlin.test.assertEquals
 import org.junit.Assert.assertThrows
-import org.junit.Rule
+import org.junit.Before
 import org.junit.Test
-import org.junit.rules.TemporaryFolder
 
-class PatternNodeTest : TemporaryFolderOwner {
-    @get:Rule override val temporaryFolder = TemporaryFolder()
-
+class PatternNodeTest : BaseTemporaryFolderOwner() {
     private fun PatternNode.assertStructure(expected: String) {
         assertEquals(expected.trimIndent(), dump().trimIndent())
     }
@@ -38,14 +35,18 @@ class PatternNodeTest : TemporaryFolderOwner {
     /** Assert that the [MatchedPatternFile]s */
     private fun List<MatchedPatternFile>.assertMatchedPatternFiles(expected: String) {
         val actual = joinToString("\n")
-        val cleaned =
-            replaceFileWithSymbol(
-                actual,
-                mapOf(
-                    getAndroidDir() to "ANDROID_ROOT",
-                )
-            )
+        val cleaned = removeTestSpecificDirectories(actual)
         assertEquals(expected.trimIndent(), cleaned)
+    }
+
+    private lateinit var androidDir: File
+
+    @Before
+    fun initAndroidDir() {
+        androidDir = getAndroidDir()
+
+        // Replace the environment specific android directory with a constant label.
+        temporaryFolder.addTestLabelForFile(androidDir, "ANDROID_ROOT")
     }
 
     @Test
@@ -198,8 +199,6 @@ class PatternNodeTest : TemporaryFolderOwner {
 
     @Test
     fun `Scan public prebuilts`() {
-        val androidDir = getAndroidDir()
-
         val patterns =
             listOf(
                 "prebuilts/sdk/{version:level}/public/android.jar",
@@ -220,8 +219,6 @@ class PatternNodeTest : TemporaryFolderOwner {
 
     @Test
     fun `Scan system prebuilts`() {
-        val androidDir = getAndroidDir()
-
         val patterns =
             listOf(
                 // Check system first and then fall back to public. As there are both public and
@@ -244,8 +241,6 @@ class PatternNodeTest : TemporaryFolderOwner {
 
     @Test
     fun `Scan public prebuilts with unnecessary system pattern`() {
-        val androidDir = getAndroidDir()
-
         val patterns =
             listOf(
                 // Check the public first, this should never fall back to system as it will always
@@ -267,8 +262,6 @@ class PatternNodeTest : TemporaryFolderOwner {
 
     @Test
     fun `Scan version specific prebuilt directories`() {
-        val androidDir = getAndroidDir()
-
         val patterns =
             listOf(
                 "prebuilts/sdk/{version:level}",
@@ -287,8 +280,6 @@ class PatternNodeTest : TemporaryFolderOwner {
 
     @Test
     fun `Scan explicit list of version specific jars`() {
-        val androidDir = getAndroidDir()
-
         val patterns =
             listOf(
                 "prebuilts/sdk/{version:level}/public/android.jar",

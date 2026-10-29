@@ -16,7 +16,7 @@
 
 package com.android.tools.metalava.apilevels
 
-import com.android.tools.lint.checks.infrastructure.TestFiles
+import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.ARG_ANDROID_JAR_PATTERN
 import com.android.tools.metalava.ARG_API_SURFACE
 import com.android.tools.metalava.ARG_API_VERSION_FOR_SDK_EXTENSION
@@ -30,6 +30,12 @@ import com.android.tools.metalava.ARG_REMOVE_MISSING_CLASS_REFERENCES_IN_API_LEV
 import com.android.tools.metalava.ARG_SDK_INFO_FILE
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.KnownConfigFiles
+import com.android.tools.metalava.model.provider.Capability
+import com.android.tools.metalava.model.testing.RequiresCapabilities
+import com.android.tools.metalava.testing.TestFileCache
+import com.android.tools.metalava.testing.TestFileCacheRule
+import com.android.tools.metalava.testing.cacheIn
+import com.android.tools.metalava.testing.jarFromSources
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import com.android.tools.metalava.testing.signature
@@ -41,6 +47,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
+import org.junit.ClassRule
 import org.junit.Test
 
 // Constants to avoid having to quote $ in expected XML contents.
@@ -49,6 +56,30 @@ const val R = "${'\$'}R"
 const val S = "${'\$'}S"
 
 class ApiGeneratorTest : DriverTest() {
+    companion object {
+        /** Create a [TestFileCache] whose lifespan encompasses all the tests in this class. */
+        @ClassRule @JvmField val testFileCacheRule = TestFileCacheRule()
+
+        private val doublyNestedTestJar =
+            jarFromSources(
+                    "doubly-nested-test.jar",
+                    java(
+                        """
+                            package test.pkg;
+                            public class Test {
+                                private Test() {}
+                                public class Nested {
+                                    private Nested() {}
+                                    public class DoublyNested {
+                                        private DoublyNested() {}
+                                    }
+                                }
+                            }
+                        """
+                    ),
+                )
+                .cacheIn(testFileCacheRule)
+    }
 
     /** Check this `api-versions.xml` file has the correct content. */
     private fun File.checkApiVersionsXmlContent(expectedContent: String) {
@@ -124,7 +155,7 @@ class ApiGeneratorTest : DriverTest() {
                     ),
                 ),
             docStubs = true,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -299,6 +330,7 @@ class ApiGeneratorTest : DriverTest() {
         apiVersionsXml.checkApiVersionsXmlContent(expected)
     }
 
+    @RequiresCapabilities(Capability.LOAD_JAR)
     @Test
     fun `Generate API for system surface from jar`() {
         val apiVersionsXml = temporaryFolder.newFile("api-versions.xml")
@@ -314,16 +346,19 @@ class ApiGeneratorTest : DriverTest() {
                     ARG_API_VERSION_FOR_SOURCES,
                     "32",
                 ),
-            sourceFiles =
-                arrayOf(
-                    TestFiles.jar("test.jar"),
-                ),
+            sourceFiles = arrayOf(doublyNestedTestJar),
         )
 
         val expected =
             """
                 <?xml version="1.0" encoding="utf-8"?>
                 <api version="3" min="32">
+                    <class name="test/pkg/Test" since="32">
+                    </class>
+                    <class name="test/pkg/Test${'$'}Nested" since="32">
+                    </class>
+                    <class name="test/pkg/Test${'$'}Nested${'$'}DoublyNested" since="32">
+                    </class>
                 </api>
             """
 
@@ -764,6 +799,7 @@ class ApiGeneratorTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.KOTLIN)
     @Test
     fun `APIs annotated with suppress-compatibility-meta-annotations appear in output`() {
         val apiVersionsJson = temporaryFolder.newFile("api-info.json")
@@ -845,8 +881,7 @@ class ApiGeneratorTest : DriverTest() {
         )
     }
 
-    private fun createTextFile(name: String, contents: String) =
-        signature(name, contents).createFile(temporaryFolder.root)
+    private fun createTextFile(name: String, contents: String) = signature(name, contents).toFile()
 
     @Test
     fun `Support major minor versions in generated api-versions xml file`() {
@@ -1215,6 +1250,758 @@ class ApiGeneratorTest : DriverTest() {
                     </class>
                 </api>
             """
+        )
+    }
+
+    /**
+     * Checks consistency between historical and latest code when generating API levels and stubs.
+     *
+     * It creates an initial release (API 1.0) in bytecode (`android.jar`) from [sourceFiles] and a
+     * current release (API 2.0) from source code, then asserts that the generated stubs match
+     * [expectedStubs] and the generated `api-versions.xml` matches [expectedApiVersionsXml].
+     */
+    private fun checkConsistencyBetweenHistoricalAndLatestCode(
+        vararg sourceFiles: TestFile,
+        currentVersionSourceFiles: List<TestFile>? = null,
+        expectedStubs: List<TestFile>,
+        expectedApiVersionsXml: String,
+        expectedApiSignature: String? = null,
+    ) {
+        val root = buildFileStructure {
+            dir("1.0") {
+                jar(
+                    "android.jar",
+                    *sourceFiles,
+                )
+            }
+        }
+
+        val currentVersion =
+            arrayOf(
+                *(currentVersionSourceFiles?.toTypedArray() ?: sourceFiles),
+                java(
+                    """
+                        package java.lang;
+                        public class Object {
+                            public Object() {}
+                        }
+                    """
+                ),
+            )
+
+        val apiVersionsXml = temporaryFolder.newFile("api-versions.xml")
+
+        check(
+            sourceFiles = currentVersion,
+            docStubs = true,
+            applyApiLevelsXml = apiVersionsXml.path,
+            skipEmitPackages = emptyList(),
+            expectedStubFiles = expectedStubs.toTypedArray(),
+            extraArguments =
+                arrayOf(
+                    ARG_GENERATE_API_LEVELS,
+                    apiVersionsXml.path,
+                    ARG_ANDROID_JAR_PATTERN,
+                    "$root/{version:major.minor?}/android.jar",
+                    ARG_API_VERSION_FOR_SOURCES,
+                    "2.0",
+                ),
+            expectedApiSignature = expectedApiSignature,
+        )
+
+        apiVersionsXml.checkApiVersionsXmlContent(expectedApiVersionsXml)
+    }
+
+    /**
+     * Verifies the behavior when a hidden superclass (HiddenSuper) has a public constructor with
+     * different parameters to the subclass's (Foo) constructor. When reading android.jar from
+     * bytecode, Foo does not inline the constructor `<init>(I)V` from HiddenSuper.
+     */
+    @Test
+    fun `Hidden super class has public constructor with different parameters to subclass`() {
+        checkConsistencyBetweenHistoricalAndLatestCode(
+            java(
+                """
+                    package test.pkg;
+                    class HiddenSuper {
+                        public HiddenSuper(int x) {}
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+                    public class Foo extends HiddenSuper {
+                        public Foo() {
+                            super(0);
+                        }
+                    }
+                """
+            ),
+            expectedStubs =
+                listOf(
+                    java(
+                        """
+                            package test.pkg;
+                            /** @apiSince 1 */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Foo {
+                            /** @apiSince 1 */
+                            public Foo() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    )
+                ),
+            expectedApiVersionsXml =
+                """
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <api version="4" min="1.0">
+                        <class name="java/lang/Object" since="2.0">
+                            <method name="&lt;init>()V"/>
+                        </class>
+                        <class name="test/pkg/Foo" since="1.0">
+                            <extends name="java/lang/Object"/>
+                            <method name="&lt;init>()V"/>
+                        </class>
+                    </api>
+                """,
+        )
+    }
+
+    /**
+     * Verifies the behavior when inheriting fields from a hidden super class (HiddenSuper). Only
+     * public constant (public static final) fields are inherited into the subclass (Foo).
+     */
+    @Test
+    fun `Inheriting fields from a hidden super class`() {
+        checkConsistencyBetweenHistoricalAndLatestCode(
+            java(
+                """
+                    package test.pkg;
+                    class HiddenSuper {
+                        int packageField = 1;
+                        static int packageStaticField = 2;
+                        static final int PACKAGE_STATIC_FINAL_FIELD = 3;
+                        protected int protectedField = 4;
+                        protected static int protectedStaticField = 5;
+                        protected static final int PROTECTED_STATIC_FINAL_FIELD = 6;
+                        public int publicField = 7;
+                        public static int publicStaticField = 8;
+                        public static final int PUBLIC_STATIC_FINAL_FIELD = 9;
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+                    public class Foo extends HiddenSuper {
+                        public Foo() {}
+                    }
+                """
+            ),
+            expectedStubs =
+                listOf(
+                    java(
+                        """
+                            package test.pkg;
+                            /** @apiSince 1 */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Foo {
+                            /** @apiSince 1 */
+                            public Foo() { throw new RuntimeException("Stub!"); }
+                            /** @apiSince 1 */
+                            public static final int PUBLIC_STATIC_FINAL_FIELD = 9;
+                            }
+                        """
+                    )
+                ),
+            expectedApiVersionsXml =
+                """
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <api version="4" min="1.0">
+                        <class name="java/lang/Object" since="2.0">
+                            <method name="&lt;init>()V"/>
+                        </class>
+                        <class name="test/pkg/Foo" since="1.0">
+                            <extends name="java/lang/Object"/>
+                            <method name="&lt;init>()V"/>
+                            <field name="PUBLIC_STATIC_FINAL_FIELD"/>
+                        </class>
+                    </api>
+                """,
+        )
+    }
+
+    /**
+     * Verifies the behavior when a method exists in a class in one version and is moved up to a
+     * super class in a later version. It is not marked as removed in the later version because it
+     * is still accessible through the super class.
+     */
+    @Test
+    fun `Method moved up to a super class in a later version`() {
+        checkConsistencyBetweenHistoricalAndLatestCode(
+            java(
+                """
+                    package test.pkg;
+                    public class Super {
+                        public Super() {}
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+                    public class Foo extends Super {
+                        public Foo() {}
+                        public void foo() {}
+                    }
+                """
+            ),
+            currentVersionSourceFiles =
+                listOf(
+                    java(
+                        """
+                            package test.pkg;
+                            public class Super {
+                                public Super() {}
+                                public void foo() {}
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            public class Foo extends Super {
+                                public Foo() {}
+                            }
+                        """
+                    ),
+                ),
+            expectedStubs =
+                listOf(
+                    java(
+                        """
+                            package test.pkg;
+                            /** @apiSince 1 */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Foo extends test.pkg.Super {
+                            /** @apiSince 1 */
+                            public Foo() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            /** @apiSince 1 */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Super {
+                            /** @apiSince 1 */
+                            public Super() { throw new RuntimeException("Stub!"); }
+                            /** @apiSince 2 */
+                            public void foo() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                ),
+            expectedApiVersionsXml =
+                """
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <api version="4" min="1.0">
+                        <class name="java/lang/Object" since="2.0">
+                            <method name="&lt;init>()V"/>
+                        </class>
+                        <class name="test/pkg/Foo" since="1.0">
+                            <extends name="test/pkg/Super"/>
+                            <method name="&lt;init>()V"/>
+                            <method name="foo()V"/>
+                        </class>
+                        <class name="test/pkg/Super" since="1.0">
+                            <extends name="java/lang/Object"/>
+                            <method name="&lt;init>()V"/>
+                            <method name="foo()V" since="2.0"/>
+                        </class>
+                    </api>
+                """,
+        )
+    }
+
+    @Test
+    fun `Method moved up to an interface in a later version`() {
+        checkConsistencyBetweenHistoricalAndLatestCode(
+            java(
+                """
+                    package test.pkg;
+                    public interface CharSequence {}
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+                    class AbstractStringBuilder implements CharSequence {
+                        public void getChars(int srcBegin, int srcEnd, char[] dst, int dstBegin) {}
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+                    public class StringBuffer extends AbstractStringBuilder implements CharSequence {
+                        public StringBuffer() {}
+                        public synchronized void getChars(int srcBegin, int srcEnd, char[] dst, int dstBegin) {}
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+                    public class StringBuilder extends AbstractStringBuilder implements CharSequence {
+                        public StringBuilder() {}
+                    }
+                """
+            ),
+            currentVersionSourceFiles =
+                listOf(
+                    java(
+                        """
+                            package test.pkg;
+                            public interface CharSequence {
+                                public default void getChars(int srcBegin, int srcEnd, char[] dst, int dstBegin) {}
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            public class StringBuffer implements CharSequence {
+                                public StringBuffer() {}
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            public class StringBuilder implements CharSequence {
+                                public StringBuilder() {}
+                            }
+                        """
+                    ),
+                ),
+            expectedStubs =
+                listOf(
+                    java(
+                        """
+                            package test.pkg;
+                            /** @apiSince 1 */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public interface CharSequence {
+                            /** @apiSince 2 */
+                            public default void getChars(int srcBegin, int srcEnd, char[] dst, int dstBegin) { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            /** @apiSince 1 */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class StringBuffer implements test.pkg.CharSequence {
+                            /** @apiSince 1 */
+                            public StringBuffer() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            /** @apiSince 1 */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class StringBuilder implements test.pkg.CharSequence {
+                            /** @apiSince 1 */
+                            public StringBuilder() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                ),
+            expectedApiVersionsXml =
+                """
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <api version="4" min="1.0">
+                        <class name="java/lang/Object" since="2.0">
+                            <method name="&lt;init>()V"/>
+                        </class>
+                        <class name="test/pkg/CharSequence" since="1.0">
+                            <extends name="java/lang/Object"/>
+                            <method name="getChars(II[CI)V" since="2.0"/>
+                        </class>
+                        <class name="test/pkg/StringBuffer" since="1.0">
+                            <extends name="java/lang/Object"/>
+                            <method name="&lt;init>()V"/>
+                            <method name="getChars(II[CI)V"/>
+                        </class>
+                        <class name="test/pkg/StringBuilder" since="1.0">
+                            <extends name="java/lang/Object"/>
+                            <method name="&lt;init>()V"/>
+                            <method name="getChars(II[CI)V"/>
+                        </class>
+                    </api>
+                """,
+        )
+    }
+
+    /** Verifies the behavior when inheriting methods from a hidden super class (HiddenSuper). */
+    @Test
+    fun `Inheriting methods from a hidden super class`() {
+        checkConsistencyBetweenHistoricalAndLatestCode(
+            java(
+                """
+                    package test.pkg;
+                    class HiddenSuper {
+                        void packageMethod() {}
+                        static void packageStaticMethod() {}
+                        final void packageFinalMethod() {}
+                        protected void protectedMethod() {}
+                        protected static void protectedStaticMethod() {}
+                        protected final void protectedFinalMethod() {}
+                        public void publicMethod() {}
+                        public static void publicStaticMethod() {}
+                        public final void publicFinalMethod() {}
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+                    public class Foo extends HiddenSuper {
+                        public Foo() {}
+                    }
+                """
+            ),
+            expectedStubs =
+                listOf(
+                    java(
+                        """
+                            package test.pkg;
+                            /** @apiSince 1 */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Foo {
+                            /** @apiSince 1 */
+                            public Foo() { throw new RuntimeException("Stub!"); }
+                            /** @apiSince 1 */
+                            public final void publicFinalMethod() { throw new RuntimeException("Stub!"); }
+                            /** @apiSince 1 */
+                            public void publicMethod() { throw new RuntimeException("Stub!"); }
+                            /** @apiSince 1 */
+                            public static void publicStaticMethod() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    )
+                ),
+            expectedApiVersionsXml =
+                """
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <api version="4" min="1.0">
+                        <class name="java/lang/Object" since="2.0">
+                            <method name="&lt;init>()V"/>
+                        </class>
+                        <class name="test/pkg/Foo" since="1.0">
+                            <extends name="java/lang/Object"/>
+                            <method name="&lt;init>()V"/>
+                            <method name="publicFinalMethod()V"/>
+                            <method name="publicMethod()V"/>
+                            <method name="publicStaticMethod()V"/>
+                        </class>
+                    </api>
+                """,
+        )
+    }
+
+    /** Verifies special handling of methods that return an AbstractStringBuilder. */
+    @Test
+    fun `Inheriting methods from AbstractStringBuilder hidden super class`() {
+        val abstractStringBuilderSource =
+            java(
+                """
+                    package test.pkg;
+                    class AbstractStringBuilder implements CharSequence {
+                        public AbstractStringBuilder append(char c) { return this; }
+                        public AbstractStringBuilder append(CharSequence s) { return this; }
+                        public AbstractStringBuilder append(String str) { return this; }
+                        public AbstractStringBuilder reverse() { return this; }
+                        public void getChars(int srcBegin, int srcEnd, char[] dst, int dstBegin) {}
+                        public void setLength(int newLength) {}
+                        public int length() { return 0; }
+                        public char charAt(int index) { return ' '; }
+                        public CharSequence subSequence(int start, int end) { return null; }
+                    }
+                """
+            )
+        val stringBufferSource =
+            java(
+                """
+                    package test.pkg;
+                    public class StringBuffer extends AbstractStringBuilder {
+                        public StringBuffer() {}
+                        public synchronized StringBuffer append(char c) { return this; }
+                        public synchronized StringBuffer append(CharSequence s) { return this; }
+                        public synchronized StringBuffer append(String str) { return this; }
+                        public synchronized StringBuffer reverse() { return this; }
+                        public synchronized void getChars(int srcBegin, int srcEnd, char[] dst, int dstBegin) {}
+                        public synchronized void setLength(int newLength) {}
+                        public synchronized int length() { return 0; }
+                        public synchronized char charAt(int index) { return ' '; }
+                        public synchronized CharSequence subSequence(int start, int end) { return null; }
+                    }
+                """
+            )
+        val stringBuilderSource =
+            java(
+                """
+                    package test.pkg;
+                    public class StringBuilder extends AbstractStringBuilder {
+                        public StringBuilder() {}
+                        public StringBuilder append(char c) { return this; }
+                        public StringBuilder append(CharSequence s) { return this; }
+                        public StringBuilder append(String str) { return this; }
+                        public StringBuilder reverse() { return this; }
+                    }
+                """
+            )
+        checkConsistencyBetweenHistoricalAndLatestCode(
+            abstractStringBuilderSource,
+            stringBufferSource,
+            stringBuilderSource,
+            java(
+                """
+                    package test.pkg;
+                    public interface CharSequence {
+                        int length();
+                        char charAt(int index);
+                        CharSequence subSequence(int start, int end);
+                    }
+                """
+            ),
+            expectedApiSignature =
+                """
+                    // Signature format: 5.0
+                    package java.lang {
+                      public class Object {
+                        ctor public Object();
+                      }
+                    }
+                    package test.pkg {
+                      public interface CharSequence {
+                        method public char charAt(int);
+                        method public default void getChars(int, int, char[]!, int);
+                        method public int length();
+                        method public test.pkg.CharSequence! subSequence(int, int);
+                      }
+                      public class StringBuffer implements test.pkg.CharSequence {
+                        ctor public StringBuffer();
+                        method public test.pkg.StringBuffer! append(char);
+                        method public test.pkg.StringBuffer! append(String!);
+                        method public test.pkg.StringBuffer! append(test.pkg.CharSequence!);
+                        method public char charAt(int);
+                        method public int length();
+                        method public test.pkg.StringBuffer! reverse();
+                        method public void setLength(int);
+                        method public test.pkg.CharSequence! subSequence(int, int);
+                      }
+                      public class StringBuilder implements test.pkg.CharSequence {
+                        ctor public StringBuilder();
+                        method public test.pkg.StringBuilder! append(char);
+                        method public test.pkg.StringBuilder! append(String!);
+                        method public test.pkg.StringBuilder! append(test.pkg.CharSequence!);
+                        method public char charAt(int);
+                        method public int length();
+                        method public test.pkg.StringBuilder! reverse();
+                        method public void setLength(int);
+                        method public test.pkg.CharSequence! subSequence(int, int);
+                      }
+                    }
+                """,
+            currentVersionSourceFiles =
+                listOf(
+                    abstractStringBuilderSource,
+                    stringBufferSource,
+                    stringBuilderSource,
+                    java(
+                        """
+                            package test.pkg;
+                            public interface CharSequence {
+                                int length();
+                                char charAt(int index);
+                                CharSequence subSequence(int start, int end);
+                                default void getChars(int srcBegin, int srcEnd, char[] dst, int dstBegin) {}
+                            }
+                        """
+                    ),
+                ),
+            expectedStubs =
+                listOf(
+                    java(
+                        """
+                            package test.pkg;
+                            /** @apiSince 1 */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public interface CharSequence {
+                            /** @apiSince 1 */
+                            public char charAt(int index);
+                            /** @apiSince 2 */
+                            public default void getChars(int srcBegin, int srcEnd, char[] dst, int dstBegin) { throw new RuntimeException("Stub!"); }
+                            /** @apiSince 1 */
+                            public int length();
+                            /** @apiSince 1 */
+                            public test.pkg.CharSequence subSequence(int start, int end);
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            /** @apiSince 1 */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class StringBuffer implements test.pkg.CharSequence {
+                            /** @apiSince 1 */
+                            public StringBuffer() { throw new RuntimeException("Stub!"); }
+                            /**
+                             * {@inheritDoc}
+                             * @apiSince 1
+                             */
+                            public synchronized test.pkg.StringBuffer append(char c) { throw new RuntimeException("Stub!"); }
+                            /**
+                             * {@inheritDoc}
+                             * @apiSince 1
+                             */
+                            public synchronized test.pkg.StringBuffer append(java.lang.String str) { throw new RuntimeException("Stub!"); }
+                            /**
+                             * {@inheritDoc}
+                             * @apiSince 1
+                             */
+                            public synchronized test.pkg.StringBuffer append(test.pkg.CharSequence s) { throw new RuntimeException("Stub!"); }
+                            /**
+                             * {@inheritDoc}
+                             * @apiSince 1
+                             */
+                            public synchronized char charAt(int index) { throw new RuntimeException("Stub!"); }
+                            /**
+                             * {@inheritDoc}
+                             * @apiSince 1
+                             */
+                            public synchronized void getChars(int srcBegin, int srcEnd, char[] dst, int dstBegin) { throw new RuntimeException("Stub!"); }
+                            /**
+                             * {@inheritDoc}
+                             * @apiSince 1
+                             */
+                            public synchronized int length() { throw new RuntimeException("Stub!"); }
+                            /**
+                             * {@inheritDoc}
+                             * @apiSince 1
+                             */
+                            public synchronized test.pkg.StringBuffer reverse() { throw new RuntimeException("Stub!"); }
+                            /**
+                             * {@inheritDoc}
+                             * @apiSince 1
+                             */
+                            public synchronized void setLength(int newLength) { throw new RuntimeException("Stub!"); }
+                            /**
+                             * {@inheritDoc}
+                             * @apiSince 1
+                             */
+                            public synchronized test.pkg.CharSequence subSequence(int start, int end) { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            /** @apiSince 1 */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class StringBuilder implements test.pkg.CharSequence {
+                            /** @apiSince 1 */
+                            public StringBuilder() { throw new RuntimeException("Stub!"); }
+                            /**
+                             * {@inheritDoc}
+                             * @apiSince 1
+                             */
+                            public test.pkg.StringBuilder append(char c) { throw new RuntimeException("Stub!"); }
+                            /**
+                             * {@inheritDoc}
+                             * @apiSince 1
+                             */
+                            public test.pkg.StringBuilder append(java.lang.String str) { throw new RuntimeException("Stub!"); }
+                            /**
+                             * {@inheritDoc}
+                             * @apiSince 1
+                             */
+                            public test.pkg.StringBuilder append(test.pkg.CharSequence s) { throw new RuntimeException("Stub!"); }
+                            /**
+                             * {@inheritDoc}
+                             * @apiSince 1
+                             */
+                            public char charAt(int index) { throw new RuntimeException("Stub!"); }
+                            /**
+                             * {@inheritDoc}
+                             * @apiSince 1
+                             */
+                            public void getChars(int srcBegin, int srcEnd, char[] dst, int dstBegin) { throw new RuntimeException("Stub!"); }
+                            /**
+                             * {@inheritDoc}
+                             * @apiSince 1
+                             */
+                            public int length() { throw new RuntimeException("Stub!"); }
+                            /**
+                             * {@inheritDoc}
+                             * @apiSince 1
+                             */
+                            public test.pkg.StringBuilder reverse() { throw new RuntimeException("Stub!"); }
+                            /** @apiSince 1 */
+                            public void setLength(int newLength) { throw new RuntimeException("Stub!"); }
+                            /**
+                             * {@inheritDoc}
+                             * @apiSince 1
+                             */
+                            public test.pkg.CharSequence subSequence(int start, int end) { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                ),
+            expectedApiVersionsXml =
+                """
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <api version="4" min="1.0">
+                        <class name="java/lang/Object" since="2.0">
+                            <method name="&lt;init>()V"/>
+                        </class>
+                        <class name="test/pkg/CharSequence" since="1.0">
+                            <extends name="java/lang/Object"/>
+                            <method name="charAt(I)C"/>
+                            <method name="getChars(II[CI)V" since="2.0"/>
+                            <method name="length()I"/>
+                            <method name="subSequence(II)Ltest/pkg/CharSequence;"/>
+                        </class>
+                        <class name="test/pkg/StringBuffer" since="1.0">
+                            <extends name="java/lang/Object"/>
+                            <method name="&lt;init>()V"/>
+                            <method name="append(C)Ltest/pkg/StringBuffer;"/>
+                            <method name="append(Ljava/lang/String;)Ltest/pkg/StringBuffer;"/>
+                            <method name="append(Ltest/pkg/CharSequence;)Ltest/pkg/StringBuffer;"/>
+                            <method name="getChars(II[CI)V"/>
+                            <method name="reverse()Ltest/pkg/StringBuffer;"/>
+                            <method name="setLength(I)V"/>
+                        </class>
+                        <class name="test/pkg/StringBuilder" since="1.0">
+                            <extends name="java/lang/Object"/>
+                            <method name="&lt;init>()V"/>
+                            <method name="append(C)Ltest/pkg/StringBuilder;"/>
+                            <method name="append(Ljava/lang/String;)Ltest/pkg/StringBuilder;"/>
+                            <method name="append(Ltest/pkg/CharSequence;)Ltest/pkg/StringBuilder;"/>
+                            <method name="getChars(II[CI)V"/>
+                            <method name="reverse()Ltest/pkg/StringBuilder;"/>
+                            <method name="setLength(I)V"/>
+                        </class>
+                    </api>
+                """,
         )
     }
 }

@@ -17,8 +17,8 @@
 package com.android.tools.metalava.cli.flag
 
 import com.android.tools.metalava.cli.common.HARD_NEWLINE
+import com.android.tools.metalava.cli.common.MetalavaOptionGroup
 import com.android.tools.metalava.cli.common.newFile
-import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
 import com.github.ajalt.clikt.parameters.options.validate
@@ -27,7 +27,7 @@ import com.github.ajalt.clikt.parameters.options.validate
 const val FLAG_REPORT_OPTIONS_GROUP = "Flag Report"
 
 class FlagReportOptions :
-    OptionGroup(
+    MetalavaOptionGroup(
         name = FLAG_REPORT_OPTIONS_GROUP,
         help =
             """

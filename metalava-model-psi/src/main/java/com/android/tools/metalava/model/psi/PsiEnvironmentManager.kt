@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.psi
 
+import androidx.tracing.Tracer
 import com.android.tools.lint.UastEnvironment
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ModelOptions
@@ -34,6 +35,7 @@ import org.jetbrains.kotlin.config.CommonConfigurationKeys
 internal class PsiEnvironmentManager(
     private val disableStderrDumping: Boolean = false,
     private val forTesting: Boolean = false,
+    private val reuseEnvironment: Boolean,
 ) : EnvironmentManager {
     init {
         openManagerCount++
@@ -60,6 +62,21 @@ internal class PsiEnvironmentManager(
     /** The first environment created by the manager. */
     var initialEnvironment: UastEnvironment? = null
         private set
+
+    /**
+     * If [reuseEnvironment] is true and there is an [initialEnvironment], returns it. Otherwise,
+     * returns null.
+     *
+     * Reusing an existing [UastEnvironment] when processing the same sources is faster than
+     * creating a new one.
+     */
+    fun getEnvironmentForReuse(): UastEnvironment? {
+        return if (reuseEnvironment) {
+            initialEnvironment
+        } else {
+            null
+        }
+    }
 
     /** The list of available environments. */
     private val uastEnvironments = mutableListOf<UastEnvironment>()
@@ -126,6 +143,7 @@ internal class PsiEnvironmentManager(
 
     override fun createSourceParser(
         codebaseConfig: Codebase.Config,
+        tracer: Tracer,
         javaLanguageLevel: String,
         kotlinLanguageLevel: String,
         modelOptions: ModelOptions,
@@ -134,9 +152,9 @@ internal class PsiEnvironmentManager(
         return PsiSourceParser(
             psiEnvironmentManager = this,
             codebaseConfig = codebaseConfig,
+            tracer = tracer,
             javaLanguageLevel = javaLanguageLevelFromString(javaLanguageLevel),
             kotlinLanguageLevel = kotlinLanguageVersionSettings(kotlinLanguageLevel),
-            useK2Uast = modelOptions[PsiModelOptions.useK2Uast],
             jdkHome = jdkHome,
         )
     }

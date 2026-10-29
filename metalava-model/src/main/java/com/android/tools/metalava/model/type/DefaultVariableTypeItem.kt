@@ -21,17 +21,27 @@ import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.VariableTypeItem
 
-class DefaultVariableTypeItem(
+internal class DefaultVariableTypeItem(
     modifiers: TypeModifiers,
     override val asTypeParameter: TypeParameterItem,
-) : VariableTypeItem, DefaultTypeItem(modifiers) {
+    isValueClassType: Boolean = false,
+) : VariableTypeItem, DefaultTypeItem(modifiers, isValueClassType) {
 
     override val name: String = asTypeParameter.name()
 
-    @Deprecated(
-        "implementation detail of this class",
-        replaceWith = ReplaceWith("substitute(modifiers)"),
-    )
-    override fun duplicate(modifiers: TypeModifiers): VariableTypeItem =
-        DefaultVariableTypeItem(modifiers, asTypeParameter)
+    override fun substitute(modifiers: TypeModifiers) =
+        if (modifiers !== this.modifiers) DefaultVariableTypeItem(modifiers, asTypeParameter)
+        else this
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is VariableTypeItem) return false
+        return asTypeParameter === other.asTypeParameter && modifiers == other.modifiers
+    }
+
+    override fun hashCode(): Int {
+        var result = System.identityHashCode(asTypeParameter)
+        result = 31 * result + modifiers.hashCode()
+        return result
+    }
 }

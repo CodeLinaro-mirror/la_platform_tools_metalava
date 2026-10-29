@@ -29,6 +29,15 @@ import com.google.turbine.binder.sym.ClassSymbol
 import com.google.turbine.model.TurbineFlag
 import com.google.turbine.tree.Tree
 
+/** Supports resolving field references in expressions to specific fields in classes. */
+internal interface FieldResolver {
+    /**
+     * Resolves a [Tree.ConstVarName] to a [TypeBoundClass.FieldInfo] if possible, returns `null`
+     * otherwise.
+     */
+    fun resolveField(t: Tree.ConstVarName): TypeBoundClass.FieldInfo?
+}
+
 /**
  * This copies functionality used within [ConstEvaluator].
  *
@@ -41,10 +50,10 @@ internal class TurbineFieldResolver(
     private val memberImports: MemberImportIndex,
     private val scope: Scope,
     private val env: CompoundEnv<ClassSymbol, TypeBoundClass>
-) {
+) : FieldResolver {
     override fun toString() = "TurbineFieldResolver($origin)"
 
-    fun resolveField(t: Tree.ConstVarName): TypeBoundClass.FieldInfo? {
+    override fun resolveField(t: Tree.ConstVarName): TypeBoundClass.FieldInfo? {
         val simpleName = t.name()[0]
         var field = lexicalField(env, owner, simpleName)
         if (field != null) {

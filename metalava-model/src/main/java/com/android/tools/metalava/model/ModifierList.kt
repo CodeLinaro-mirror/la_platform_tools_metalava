@@ -34,7 +34,22 @@ interface BaseModifierList {
 
     fun isInternal(): Boolean
 
+    /** Whether the modifiers have internal visibility and the [PublishedApi] annotation. */
+    fun isPublishedApi(): Boolean
+
     fun isPrivate(): Boolean
+
+    fun isPackagePrivate(): Boolean
+
+    fun isPublicOrProtected() = isPublic() || isProtected()
+
+    /**
+     * Check if the [BaseModifierList] is accessible as part of an API.
+     *
+     * If this has [VisibilityLevel.INTERNAL] then it is only accessible if it is annotated with the
+     * [PublishedApi] annotation.
+     */
+    fun hasApiVisibility(): Boolean
 
     @MetalavaApi fun isStatic(): Boolean
 
@@ -57,10 +72,13 @@ interface BaseModifierList {
     fun isDeprecated(): Boolean
 
     // Modifier in Kotlin, separate syntax (...) in Java but modeled as modifier here
-    fun isVarArg(): Boolean = false
+    fun isVarArg(): Boolean
 
-    // Kotlin
-    fun isSealed(): Boolean = false
+    // Kotlin and Java
+    fun isSealed(): Boolean
+
+    // Java only
+    fun isNonSealed(): Boolean
 
     /**
      * A sealed class is exhaustive if all classes that inherit from it are publicly accessible, and
@@ -69,33 +87,29 @@ interface BaseModifierList {
      * can create breaking changes for clients, so we want to raise a compatibility issue if that is
      * detected. For more information see b/447143803
      */
-    fun isExhaustive(): Boolean = false
+    fun isExhaustive(): Boolean
 
-    fun isFunctional(): Boolean = false
+    fun isFunctional(): Boolean
 
-    fun isCompanion(): Boolean = false
+    fun isCompanion(): Boolean
 
-    fun isInfix(): Boolean = false
+    fun isInfix(): Boolean
 
-    fun isConst(): Boolean = false
+    fun isConst(): Boolean
 
-    fun isSuspend(): Boolean = false
+    fun isSuspend(): Boolean
 
-    fun isOperator(): Boolean = false
+    fun isOperator(): Boolean
 
-    fun isInline(): Boolean = false
+    fun isInline(): Boolean
 
-    fun isValue(): Boolean = false
+    fun isValue(): Boolean
 
-    fun isData(): Boolean = false
+    fun isData(): Boolean
 
-    fun isExpect(): Boolean = false
+    fun isExpect(): Boolean
 
-    fun isActual(): Boolean = false
-
-    fun isPackagePrivate() = !(isPublic() || isProtected() || isPrivate())
-
-    fun isPublicOrProtected() = isPublic() || isProtected()
+    fun isActual(): Boolean
 
     /**
      * Check whether this [ModifierList]'s modifiers are equivalent to the [other] [ModifierList]'s
@@ -169,6 +183,14 @@ interface BaseModifierList {
     }
 
     /**
+     * Determines whether a class/interface with these modifiers could be a subtype of a sealed java
+     * type.
+     *
+     * Returns `true` if any of [isFinal], [isSealed] or [isNonSealed] return true.
+     */
+    fun mayBeSubtypeOfJavaSealedType(): Boolean
+
+    /**
      * Get a [MutableModifierList] from this.
      *
      * This will return the object on which it is called if that is already mutable, otherwise it
@@ -211,4 +233,58 @@ interface ModifierList : BaseModifierList {
      * @param targetCodebase The [Codebase] of which the snapshot will be part.
      */
     fun snapshot(targetCodebase: Codebase): ModifierList
+}
+
+/**
+ * Context within which modifiers will be processed.
+ *
+ * This ensures consistent creation of [ModifierList] instances across the different [ItemKind]s.
+ */
+class ModifierContext
+private constructor(
+    private val itemKind: ItemKind,
+    private val classKind: ClassKind?,
+) {
+    /**
+     * Normalize [flags] to make them suitable for this [ModifierContext].
+     *
+     * Where [flags] is a bit set containing values from [ModifierFlags].
+     *
+     * This ensures consistent handling of [flags] across the different [ItemKind]s.
+     */
+    fun normalizeFlags(flags: Int, sourceLanguage: SourceLanguage): Int {
+        // Remove any flags that are not appropriate for itemKind.
+        var normalizedFlags =
+            when (sourceLanguage) {
+                SourceLanguage.JAVA -> {
+                    flags and itemKind.javaModifierMask
+                }
+                else -> {
+                    flags
+                }
+            }
+
+        // Apply any ClassKind specific restrictions if appropriate.
+        if (itemKind == ItemKind.CLASS && classKind != null) {
+            normalizedFlags = normalizedFlags and classKind.javaModifierMask
+        }
+
+        return normalizedFlags
+    }
+
+    companion object {
+        /** List of [ModifierContext]s indexed by [ItemKind.ordinal]. */
+        private val modifierContextForItemKind =
+            ItemKind.entries.map { ModifierContext(it, classKind = null) }
+
+        /** List of [ModifierContext]s indexed by [ClassKind.ordinal]. */
+        private val modifierContextForClassKind =
+            ClassKind.entries.map { ModifierContext(ItemKind.CLASS, it) }
+
+        /** Get a [ModifierContext] instance for [itemKind]. */
+        fun forItemKind(itemKind: ItemKind) = modifierContextForItemKind[itemKind.ordinal]
+
+        /** Get a [ModifierContext] instance for [classKind]. */
+        fun forClassKind(classKind: ClassKind) = modifierContextForClassKind[classKind.ordinal]
+    }
 }

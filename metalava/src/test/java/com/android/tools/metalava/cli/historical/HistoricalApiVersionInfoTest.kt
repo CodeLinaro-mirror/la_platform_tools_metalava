@@ -24,16 +24,12 @@ import com.android.tools.metalava.apilevels.PatternNode
 import com.android.tools.metalava.config.ConfigParser
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.reporter.ThrowingReporter
-import com.android.tools.metalava.testing.TemporaryFolderOwner
+import com.android.tools.metalava.testing.BaseTemporaryFolderOwner
 import java.io.File
 import kotlin.test.assertEquals
-import org.junit.Rule
 import org.junit.Test
-import org.junit.rules.TemporaryFolder
 
-class HistoricalApiVersionInfoTest : TemporaryFolderOwner {
-    @get:Rule override val temporaryFolder = TemporaryFolder()
-
+class HistoricalApiVersionInfoTest : BaseTemporaryFolderOwner() {
     private fun List<HistoricalApiVersionInfo>.dump() =
         buildString {
                 for (versionInfo in this@dump) {
@@ -56,7 +52,7 @@ class HistoricalApiVersionInfoTest : TemporaryFolderOwner {
                     append(")\n")
                 }
             }
-            .let { replaceFileWithSymbol(it) }
+            .let { removeTestSpecificDirectories(it) }
 
     private fun buildApiSurfacesFromConfig(configFile: TestFile): ApiSurfaces {
         val config = ConfigParser.parse(listOf(configFile.createFile(temporaryFolder.newFolder())))
@@ -160,6 +156,10 @@ class HistoricalApiVersionInfoTest : TemporaryFolderOwner {
                   SignatureFileFromFile(file=TESTROOT/2/system/api/api.txt, forMainApiSurface=true, apiVariantType=CORE)
             """
                 .trimIndent()
-        assertEquals(expected, replaceFileWithSymbol(contributingFiles), "contributing files")
+        assertEquals(
+            expected,
+            removeTestSpecificDirectories(contributingFiles),
+            "contributing files"
+        )
     }
 }

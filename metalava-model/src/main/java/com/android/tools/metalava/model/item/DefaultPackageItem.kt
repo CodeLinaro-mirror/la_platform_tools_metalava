@@ -16,27 +16,27 @@
 
 package com.android.tools.metalava.model.item
 
-import com.android.tools.metalava.model.ApiVariantSelectorsFactory
 import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ReferencableItem
+import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.scope.NameClassification
 import com.android.tools.metalava.model.scope.ReferencableNameScope
 import com.android.tools.metalava.reporter.FileLocation
 
-class DefaultPackageItem(
+internal class DefaultPackageItem(
     codebase: Codebase,
     fileLocation: FileLocation,
+    override val sourceFile: SourceFile?,
     sourceLanguage: SourceLanguage,
     targetLanguages: Set<TargetLanguage>,
     modifiers: BaseModifierList,
     documentationFactory: ItemDocumentationFactory,
-    variantSelectorsFactory: ApiVariantSelectorsFactory,
     private val qualifiedName: String,
     val containingPackage: PackageItem?,
     override val overviewDocumentation: ResourceFile?,
@@ -48,7 +48,6 @@ class DefaultPackageItem(
         targetLanguages = targetLanguages,
         modifiers = modifiers,
         documentationFactory = documentationFactory,
-        variantSelectorsFactory = variantSelectorsFactory,
     ),
     PackageItem {
 
@@ -70,10 +69,6 @@ class DefaultPackageItem(
     override fun topLevelClasses(): List<ClassItem> =
         // Return a copy to avoid a ConcurrentModificationException.
         topClasses.toList()
-
-    /** Get the name of [simpleName] relative to this package. */
-    private fun packageRelativeName(simpleName: String) =
-        if (qualifiedName == "") simpleName else "$qualifiedName.$simpleName"
 
     override val containingScope: ReferencableNameScope?
         get() =
@@ -102,15 +97,34 @@ class DefaultPackageItem(
         isFirstSimpleName: Boolean
     ): ReferencableItem? {
         // First, check to see if it [simpleName] is a class in this package, returning it if it is.
-        val inPackageName = packageRelativeName(simpleName)
-        return nameClassification.findClass { codebase.resolveClass(inPackageName) }
+        return resolveNameInThisPackage(simpleName, nameClassification, isFirstSimpleName)
             // Then, if allowed, check to see if it is a sub-package of this one.
             ?: nameClassification.findPackage {
-                if (!isFirstSimpleName || containingPackage == null)
+                if (!isFirstSimpleName || containingPackage == null) {
+                    val inPackageName = packageRelativeName(simpleName)
                     codebase.resolvePackage(inPackageName)
-                else null
+                } else null
             }
     }
+
+    /** Resolve [simpleName] of [nameClassification] within this package. */
+    private fun resolveNameInThisPackage(
+        simpleName: String,
+        nameClassification: NameClassification,
+        isFirstSimpleName: Boolean,
+    ) =
+        if (sourceFile != null && isFirstSimpleName) {
+            // This has a corresponding package-info.java which might have imports and the name is
+            // unqualified so delegate to the source file to resolve the name against the imports.
+            sourceFile.resolveReferencableItemBySimpleName(
+                simpleName,
+                nameClassification,
+                isFirstSimpleName = true,
+            )
+        } else {
+            // Otherwise, just look for a class in this package, if allowed.
+            findClassIfAllowed(simpleName, nameClassification)
+        }
 
     // N.A. a package cannot be contained in a class
     override fun containingClass(): ClassItem? = null
@@ -131,3 +145,20 @@ class DefaultPackageItem(
         return childPackages.toList()
     }
 }
+
+/** Get the name of [simpleName] relative to this package. */
+private fun PackageItem.packageRelativeName(simpleName: String) =
+    if (qualifiedName() == "") simpleName else "${qualifiedName()}.$simpleName"
+
+/**
+ * If [simpleName] could be a class, as determined by [NameClassification.findClass] then this will
+ * look for a class called [simpleName] within this package, otherwise it will just return `null`.
+ */
+internal fun PackageItem.findClassIfAllowed(
+    simpleName: String,
+    nameClassification: NameClassification
+) =
+    nameClassification.findClass {
+        val inPackageName = packageRelativeName(simpleName)
+        codebase.resolveClass(inPackageName)
+    }

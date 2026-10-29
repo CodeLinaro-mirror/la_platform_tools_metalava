@@ -21,39 +21,32 @@ import com.android.tools.metalava.cli.common.CheckerContext
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.DelegatedVisitor
 import com.android.tools.metalava.model.ItemVisitor
+import com.android.tools.metalava.model.api.surface.ApiSurfacePredicate
 import com.android.tools.metalava.model.snapshot.CodebaseSnapshotTaker
-import com.android.tools.metalava.model.visitors.ApiFilters
-import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiType
 import com.android.tools.metalava.model.visitors.FilteringApiVisitor
 import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
-import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import org.junit.Test
 
 /** Test [CodebaseSnapshotTaker] use within the main metalava code. */
 class SnapshotTest : DriverTest() {
     private fun CheckerContext.takeSnapshotOfPublicApi(): Codebase {
-        val apiPredicateConfig = ApiPredicate.Config()
-        val apiFilters =
-            ApiFilters(
-                ApiType.PUBLIC_API.getEmitFilter(apiPredicateConfig),
-                ApiType.PUBLIC_API.getReferenceFilter(apiPredicateConfig)
-            )
+        val apiFilters = ApiSurfacePredicate.apiFilters(ApiType.CORE, codebase!!.apiSurfaces.main)
         val factory: (DelegatedVisitor) -> ItemVisitor = {
             FilteringApiVisitor(
                 delegate = it,
-                preFiltered = false,
                 apiFilters = apiFilters,
             )
         }
 
         val snapshot =
             CodebaseSnapshotTaker.takeSnapshot(
-                codebase,
+                codebase!!,
                 definitionVisitorFactory = factory,
                 referenceVisitorFactory = factory,
+                includeDocumentation = true,
             )
         return snapshot
     }
@@ -80,7 +73,7 @@ class SnapshotTest : DriverTest() {
                         """
                     ),
                 ),
-            api =
+            expectedApiSignature =
                 """
                     // Signature format: 5.0
                     package test.pkg {
@@ -90,7 +83,7 @@ class SnapshotTest : DriverTest() {
                       }
                     }
                 """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -115,10 +108,6 @@ class SnapshotTest : DriverTest() {
             // snapshot because it is hidden. It should succeed but return null.
             val resolved = snapshot.resolveClass("android.annotation.SdkConstant.SdkConstantType")
             assertNull(resolved)
-
-            val fooClass = snapshot.assertClass("test.pkg.Foo")
-            val imports = fooClass.sourceFile()?.getImports()?.mapNotNull { it.pattern }
-            assertEquals(emptyList(), imports)
         }
     }
 }

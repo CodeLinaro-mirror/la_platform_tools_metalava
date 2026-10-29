@@ -16,7 +16,9 @@
 
 package com.android.tools.metalava
 
-import com.android.tools.metalava.cli.common.IssueReportingOptions
+import com.android.tools.metalava.cli.common.ComputedCommonBaselineOptions
+import com.android.tools.metalava.cli.common.ComputedIssueReportingOptions
+import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.cli.common.SourceOptions
 import com.android.tools.metalava.cli.common.Verbosity
 import com.android.tools.metalava.cli.common.stdout
@@ -38,9 +40,11 @@ class ReporterManager(
     reporterEnvironment: ReporterEnvironment,
     apiLintOptions: ApiLintOptions,
     compatibilityCheckOptions: CompatibilityCheckOptions,
-    generalReportingOptions: GeneralReportingOptions,
-    issueReportingOptions: IssueReportingOptions,
+    generalBaseline: Baseline?,
+    issueReportingOptions: ComputedIssueReportingOptions,
     private val sourceOptions: SourceOptions,
+    executionEnvironment: ExecutionEnvironment,
+    commonBaselineOptions: ComputedCommonBaselineOptions,
 ) {
     /** [Reporter] that will redirect [Issues.Issue] depending on their [Issues.Category]. */
     val reporter: Reporter
@@ -52,12 +56,15 @@ class ReporterManager(
     init {
         val reportableFilter = createReporterPredicate()
         // Initialize the reporters.
-        val baseline = generalReportingOptions.baseline
+        val apiLintBaseline =
+            apiLintOptions.computeBaseline(executionEnvironment, commonBaselineOptions)
+        val compatibilityCheckBaseline =
+            compatibilityCheckOptions.computeBaseline(executionEnvironment, commonBaselineOptions)
         val reporterUnknown =
             createReporter(
                 reporterEnvironment,
                 issueReportingOptions,
-                baseline = baseline,
+                baseline = generalBaseline,
                 errorMessage = null,
                 reportableFilter,
             )
@@ -66,7 +73,7 @@ class ReporterManager(
             createReporter(
                 reporterEnvironment,
                 issueReportingOptions,
-                baseline = apiLintOptions.baseline ?: baseline,
+                baseline = apiLintBaseline ?: generalBaseline,
                 errorMessage = apiLintOptions.errorMessage,
                 reportableFilter,
             )
@@ -79,7 +86,7 @@ class ReporterManager(
             createReporter(
                 reporterEnvironment,
                 issueReportingOptions,
-                baseline = compatibilityCheckOptions.baseline ?: baseline,
+                baseline = compatibilityCheckBaseline ?: generalBaseline,
                 errorMessage = compatibilityCheckOptions.errorMessage,
                 reportableFilter,
             )
@@ -96,8 +103,7 @@ class ReporterManager(
         // Build "all baselines" and "all reporters"
 
         // Baselines are nullable, so selectively add to the list.
-        allBaselines =
-            listOfNotNull(baseline, apiLintOptions.baseline, compatibilityCheckOptions.baseline)
+        allBaselines = listOfNotNull(generalBaseline, apiLintBaseline, compatibilityCheckBaseline)
 
         // Reporters are non-null.
         allReporters =
@@ -131,7 +137,7 @@ class ReporterManager(
      */
     private fun createReporter(
         reporterEnvironment: ReporterEnvironment,
-        issueReportingOptions: IssueReportingOptions,
+        issueReportingOptions: ComputedIssueReportingOptions,
         baseline: Baseline?,
         errorMessage: String?,
         reportableFilter: Predicate<Reportable>?,

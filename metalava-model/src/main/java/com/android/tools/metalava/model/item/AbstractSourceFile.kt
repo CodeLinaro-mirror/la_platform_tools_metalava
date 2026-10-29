@@ -17,23 +17,35 @@
 package com.android.tools.metalava.model.item
 
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.InvalidReferencableItem
+import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ReferencableItem
 import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.imports.ImportResolver
 import com.android.tools.metalava.model.scope.NameClassification
 import com.android.tools.metalava.model.scope.ReferencableNameScope
-import com.android.tools.metalava.model.snapshot.SourceFileSnapshot
 
 /** Base class for model implementations of [SourceFile]. */
 abstract class AbstractSourceFile() : SourceFile {
-    override fun snapshot(targetCodebase: Codebase): SourceFile {
-        return SourceFileSnapshot(
-            targetCodebase,
-            targetCodebase.resolvePackage(containingPackage.qualifiedName())!!,
-            originalSourceFile = this,
-        )
-    }
+    /** Backing field for [containingPackage]. */
+    private lateinit var _containingPackage: PackageItem
+
+    /**
+     * Lazily initialize this as otherwise it leads to cycles when creating an [AbstractSourceFile]
+     * for a `package-info.java` file.
+     */
+    final override val containingPackage: PackageItem
+        get() {
+            if (!::_containingPackage.isInitialized) {
+                val containingPackageName = computeContainingPackageName()
+                _containingPackage = codebase.resolvePackage(containingPackageName)!!
+            }
+
+            return _containingPackage
+        }
+
+    /** Compute the containing package name for this. */
+    abstract fun computeContainingPackageName(): String
 
     /** Backing field of [importResolver]. */
     private lateinit var _importResolver: ImportResolver
@@ -63,8 +75,13 @@ abstract class AbstractSourceFile() : SourceFile {
         val qualifiedClassName = resolvedImport.qualifiedClassName
         val resolvedClass = codebase.resolveClass(qualifiedClassName) ?: return null
 
-        // Check if a member name was provided and if not just return the class.
-        val memberName = resolvedImport.memberName ?: return resolvedClass
+        // Check if a member name was provided and if not just return the class, if allowed.
+        val memberName =
+            resolvedImport.memberName
+                ?: return nameClassification.findClass { resolvedClass }
+                    ?: InvalidReferencableItem(
+                        "Expected ${nameClassification.describeName(simpleName)} but found '$resolvedClass'"
+                    )
 
         // Return the result of trying to resolve a nested class.
         return resolvedClass.resolveClassMember(memberName, nameClassification)
@@ -80,7 +97,8 @@ abstract class AbstractSourceFile() : SourceFile {
         // properly during snapshotting.
         // TODO(b/474319264): Check nested classes instead.
         nameClassification.findClass { codebase.resolveClass("${qualifiedName()}.$memberName") }
-            ?: nameClassification.findField { fields().find { it.name() == memberName } }
+            ?: nameClassification.findField { findField(memberName) }
+            ?: nameClassification.findCallableSet { findCallableSet(memberName) }
 
     override val containingScope: ReferencableNameScope?
         get() =
@@ -92,17 +110,19 @@ abstract class AbstractSourceFile() : SourceFile {
         simpleName: String,
         nameClassification: NameClassification,
         isFirstSimpleName: Boolean
-    ) =
+    ): ReferencableItem? {
+        // This must only be called when isFirstSimpleName == true.
+        require(isFirstSimpleName) {
+            "internal error: resolving ${simpleName} as ${nameClassification}, isFirstSimpleName was false"
+        }
+
         // First, check for other top level classes in the same file.
-        nameClassification.findClass { classes().find { it.simpleName() == simpleName } }
+        return nameClassification.findClass { classes().find { it.simpleName() == simpleName } }
             // Then check for named imports first.
             ?: importedItem(simpleName, onDemand = false, nameClassification)
             // Then check the containing package.
-            ?: containingPackage.resolveReferencableItemBySimpleName(
-                simpleName,
-                nameClassification,
-                isFirstSimpleName
-            )
+            ?: containingPackage.findClassIfAllowed(simpleName, nameClassification)
             // Then check for on demand imports.
             ?: importedItem(simpleName, onDemand = true, nameClassification)
+    }
 }

@@ -134,6 +134,13 @@ open class ApiElement(val name: String) : ParentApiElement, Comparable<ApiElemen
         }
     }
 
+    /** Updates [lastPresentIn] if [version] is greater than the current [lastPresentIn]. */
+    fun updateLastPresentIn(version: ApiVersion) {
+        if (!::lastPresentIn.isInitialized || lastPresentIn < version) {
+            lastPresentIn = version
+        }
+    }
+
     /**
      * Analogous to update(), but for extensions sdk versions.
      *

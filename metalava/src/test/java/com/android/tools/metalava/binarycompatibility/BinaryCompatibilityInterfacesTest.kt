@@ -27,7 +27,7 @@ import org.junit.Test
 class BinaryCompatibilityInterfacesTest : DriverTest() {
     @Ignore("b/220960090")
     @Test
-    fun `Add abstract method, if method need not be implemented by client (Compatible)`() {
+    fun `Add abstract method, if method need not be implemented by client - Compatible`() {
         check(
             signatureSource =
                 """
@@ -48,7 +48,7 @@ class BinaryCompatibilityInterfacesTest : DriverTest() {
     }
 
     @Test
-    fun `Add abstract method, if method must be implemented by client (Incompatible)`() {
+    fun `Add abstract method, if method must be implemented by client - Incompatible`() {
         check(
             expectedIssues =
                 """
@@ -74,7 +74,7 @@ class BinaryCompatibilityInterfacesTest : DriverTest() {
 
     @Ignore("b/220960090")
     @Test
-    fun `Add default method, if interface not implementable by clients (Compatible)`() {
+    fun `Add default method, if interface not implementable by clients - Compatible`() {
         check(
             signatureSource =
                 """
@@ -96,7 +96,7 @@ class BinaryCompatibilityInterfacesTest : DriverTest() {
 
     @Ignore("b/222739015")
     @Test
-    fun `Add default method, if interface implementable by clients (Incompatible)`() {
+    fun `Add default method, if interface implementable by clients - Incompatible`() {
         check(
             expectedIssues =
                 """
@@ -121,7 +121,7 @@ class BinaryCompatibilityInterfacesTest : DriverTest() {
     }
 
     @Test
-    fun `Add static method (Compatible)`() {
+    fun `Add static method - Compatible`() {
         check(
             signatureSource =
                 """
@@ -142,7 +142,7 @@ class BinaryCompatibilityInterfacesTest : DriverTest() {
     }
 
     @Test
-    fun `Delete API method (Incompatible)`() {
+    fun `Delete API method - Incompatible`() {
         check(
             expectedIssues =
                 """
@@ -172,7 +172,7 @@ class BinaryCompatibilityInterfacesTest : DriverTest() {
 
     @Ignore("b/220960090")
     @Test
-    fun `Move API method up type hierarchy, if method in supertype need not be implemented by client (Compatible)`() {
+    fun `Move API method up type hierarchy, if method in supertype need not be implemented by client - Compatible`() {
         check(
             signatureSource =
                 """
@@ -198,7 +198,7 @@ class BinaryCompatibilityInterfacesTest : DriverTest() {
     }
 
     @Test
-    fun `Move API method up the type hierarchy, if method in supertype must be implemented by client (Incompatible)`() {
+    fun `Move API method up the type hierarchy, if method in supertype must be implemented by client - Incompatible`() {
         check(
             expectedIssues =
                 """
@@ -228,7 +228,7 @@ class BinaryCompatibilityInterfacesTest : DriverTest() {
     }
 
     @Test
-    fun `Move method down type hierarchy (Incompatible)`() {
+    fun `Move method down type hierarchy - Incompatible`() {
         check(
             expectedIssues =
                 """
@@ -258,7 +258,7 @@ class BinaryCompatibilityInterfacesTest : DriverTest() {
     }
 
     @Test
-    fun `Add API field (Compatible)`() {
+    fun `Add API field - Compatible`() {
         check(
             signatureSource =
                 """
@@ -279,7 +279,7 @@ class BinaryCompatibilityInterfacesTest : DriverTest() {
     }
 
     @Test
-    fun `Delete API field (Incompatible)`() {
+    fun `Delete API field - Incompatible`() {
         check(
             expectedIssues =
                 """
@@ -304,7 +304,7 @@ class BinaryCompatibilityInterfacesTest : DriverTest() {
     }
 
     @Test
-    fun `Expand superinterfaces set (Compatible)`() {
+    fun `Expand superinterfaces set - Compatible`() {
         check(
             signatureSource =
                 """
@@ -332,7 +332,7 @@ class BinaryCompatibilityInterfacesTest : DriverTest() {
     }
 
     @Test
-    fun `Contract superinterface set (Incompatible)`() {
+    fun `Contract superinterface set - Incompatible`() {
         check(
             expectedIssues =
                 """
@@ -364,7 +364,7 @@ class BinaryCompatibilityInterfacesTest : DriverTest() {
     }
 
     @Test
-    fun `Add API type member (Compatible)`() {
+    fun `Add API type member - Compatible`() {
         check(
             signatureSource =
                 """
@@ -386,7 +386,7 @@ class BinaryCompatibilityInterfacesTest : DriverTest() {
     }
 
     @Test
-    fun `Delete API type member (Incompatible)`() {
+    fun `Delete API type member - Incompatible`() {
         check(
             expectedIssues =
                 """
@@ -412,7 +412,7 @@ class BinaryCompatibilityInterfacesTest : DriverTest() {
     }
 
     @Test
-    fun `Add type parameter, if interface has no type parameters (Compatible)`() {
+    fun `Add type parameter, if interface has no type parameters - Compatible`() {
         check(
             signatureSource =
                 """
@@ -432,7 +432,7 @@ class BinaryCompatibilityInterfacesTest : DriverTest() {
     }
 
     @Test
-    fun `Add type parameter, if interface has type parameters (Incompatible)`() {
+    fun `Add type parameter, if interface has type parameters - Incompatible`() {
         check(
             expectedIssues =
                 """
@@ -456,7 +456,7 @@ class BinaryCompatibilityInterfacesTest : DriverTest() {
     }
 
     @Test
-    fun `Delete type parameter (Incompatible)`() {
+    fun `Delete type parameter - Incompatible`() {
         check(
             expectedIssues =
                 """
@@ -481,7 +481,7 @@ class BinaryCompatibilityInterfacesTest : DriverTest() {
 
     @Ignore("b/217746739")
     @Test
-    fun `Re-order type parameters (Incompatible)`() {
+    fun `Re-order type parameters - Incompatible`() {
         check(
             expectedIssues =
                 """
@@ -506,7 +506,7 @@ class BinaryCompatibilityInterfacesTest : DriverTest() {
 
     @Ignore("b/217746739")
     @Test
-    fun `Rename type parameter (Incompatible)`() {
+    fun `Rename type parameter - Incompatible`() {
         check(
             expectedIssues =
                 """
@@ -531,7 +531,7 @@ class BinaryCompatibilityInterfacesTest : DriverTest() {
 
     @Ignore("b/217747331")
     @Test
-    fun `Add, delete, or change type bounds of type parameter (Incompatible)`() {
+    fun `Add, delete, or change type bounds of type parameter - Incompatible`() {
         check(
             expectedIssues =
                 """
@@ -565,7 +565,7 @@ class BinaryCompatibilityInterfacesTest : DriverTest() {
     }
 
     @Test
-    fun `Add element to annotation type, if element has a default value (Compatible)`() {
+    fun `Add element to annotation type, if element has a default value - Compatible`() {
         check(
             signatureSource =
                 """
@@ -586,7 +586,7 @@ class BinaryCompatibilityInterfacesTest : DriverTest() {
     }
 
     @Test
-    fun `Add element to annotation type, if element has no default value (Incompatible)`() {
+    fun `Add element to annotation type, if element has no default value - Incompatible`() {
         check(
             expectedIssues =
                 """
@@ -611,7 +611,7 @@ class BinaryCompatibilityInterfacesTest : DriverTest() {
     }
 
     @Test
-    fun `Delete element from annotation type (Incompatible)`() {
+    fun `Delete element from annotation type - Incompatible`() {
         check(
             expectedIssues =
                 """

@@ -33,8 +33,6 @@ fun interface ItemDocumentationFactory {
  * This implements [CharSequence] to simplify migration.
  */
 interface ItemDocumentation {
-    val text: String
-
     /** The location of the start of the document comment. */
     val fileLocation: FileLocation
         get() = FileLocation.UNKNOWN
@@ -47,12 +45,6 @@ interface ItemDocumentation {
      * * `@suppress`
      */
     val isHidden: Boolean
-
-    /**
-     * True if the documentation contains `@doconly` which indicates that it should only be included
-     * in stubs that are generated for documentation purposes.
-     */
-    val isDocOnly: Boolean
 
     /**
      * True if the documentation contains `@removed` which indicates that the [Item] must not be
@@ -100,12 +92,8 @@ interface ItemDocumentation {
      * Get the description for the first block tag of [tagTypeName].
      *
      * Returns `null` if this has no underlying Javadoc comment, or no such block tag.
-     *
-     * @param forAppending if `true` then the returned [DocContent], if any, will be prepared for
-     *   appending into another [Item]'s documentation. That will involve removing leading
-     *   whitespaces and fully qualifying any `{@link}` and `{@linkplain}` references.
      */
-    fun blockTagDescription(tagTypeName: String, forAppending: Boolean = false): DocContent?
+    fun blockTagDescription(tagTypeName: String): DocContent?
 
     /**
      * Get the owner of the description for the first block tag of [tagTypeName].

@@ -17,17 +17,19 @@
 package com.android.tools.metalava.cli.lint
 
 import com.android.tools.metalava.cli.common.BaselineOptionsMixin
-import com.android.tools.metalava.cli.common.CommonBaselineOptions
+import com.android.tools.metalava.cli.common.ComputedCommonBaselineOptions
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
+import com.android.tools.metalava.cli.common.MetalavaOptionGroup
 import com.android.tools.metalava.cli.common.PreviouslyReleasedApi
 import com.android.tools.metalava.cli.common.allowStructuredOptionName
 import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.lint.DefaultLintErrorMessage
-import com.github.ajalt.clikt.parameters.groups.OptionGroup
+import com.android.tools.metalava.reporter.Baseline
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.multiple
 import com.github.ajalt.clikt.parameters.options.option
+import java.io.File
 
 const val ARG_API_LINT = "--api-lint"
 const val ARG_API_LINT_PREVIOUS_API = "--api-lint-previous-api"
@@ -41,11 +43,8 @@ const val ARG_ALLOWED_ACRONYM = "--api-lint-allowed-acronym"
 /** The name of the group, can be used in help text to refer to the options in this group. */
 const val API_LINT_GROUP = "Api Lint"
 
-class ApiLintOptions(
-    executionEnvironment: ExecutionEnvironment = ExecutionEnvironment(),
-    commonBaselineOptions: CommonBaselineOptions = CommonBaselineOptions(),
-) :
-    OptionGroup(
+class ApiLintOptions() :
+    MetalavaOptionGroup(
         name = API_LINT_GROUP,
         help =
             """
@@ -54,7 +53,7 @@ class ApiLintOptions(
                 .trimIndent(),
     ) {
 
-    internal val apiLintEnabled: Boolean by
+    private val apiLintEnabled: Boolean by
         option(
                 ARG_API_LINT,
                 help =
@@ -65,7 +64,7 @@ class ApiLintOptions(
             )
             .flag()
 
-    internal val apiLintPreviousApis by
+    private val apiLintPreviousApis by
         option(
                 ARG_API_LINT_PREVIOUS_API,
                 help =
@@ -84,18 +83,6 @@ class ApiLintOptions(
             )
             .existingFile()
             .multiple()
-
-    /**
-     * The optional [PreviouslyReleasedApi]. If provided then only API lint issues which are new
-     * since that API was released will be reported.
-     */
-    internal val previouslyReleasedApi by
-        lazy(LazyThreadSafetyMode.NONE) {
-            PreviouslyReleasedApi.optionalPreviouslyReleasedApi(
-                ARG_API_LINT_PREVIOUS_API,
-                apiLintPreviousApis
-            )
-        }
 
     /**
      * If set, metalava will show this error message when "API lint" (i.e. [ARG_API_LINT]) fails.
@@ -128,13 +115,47 @@ class ApiLintOptions(
     private val baselineOptionsMixin =
         BaselineOptionsMixin(
             containingGroup = this,
-            executionEnvironment,
             baselineOptionName = ARG_BASELINE_API_LINT,
             updateBaselineOptionName = ARG_UPDATE_BASELINE_API_LINT,
             issueType = "API lint",
+        )
+
+    /** Returns a [Baseline] for API lint checks, if there is one. */
+    internal fun computeBaseline(
+        executionEnvironment: ExecutionEnvironment = ExecutionEnvironment(),
+        commonBaselineOptions: ComputedCommonBaselineOptions,
+    ): Baseline? {
+        return baselineOptionsMixin.computeBaseline(
+            executionEnvironment,
             description = "api-lint",
             commonBaselineOptions = commonBaselineOptions,
         )
+    }
 
-    internal val baseline by baselineOptionsMixin::baseline
+    /** Returns a [ComputedApiLintOptions] instance based on the current state of the options. */
+    fun compute(): ComputedApiLintOptions {
+        return ComputedApiLintOptions(apiLintEnabled, allowedAcronyms, apiLintPreviousApis)
+    }
+}
+
+/**
+ * Options related to compatibility checks and additional values computed based on those options.
+ */
+class ComputedApiLintOptions(
+    val apiLintEnabled: Boolean,
+    val allowedAcronyms: List<String>,
+    apiLintPreviousApis: List<File>,
+) {
+
+    /**
+     * The optional [PreviouslyReleasedApi]. If provided then only API lint issues which are new
+     * since that API was released will be reported.
+     */
+    internal val previouslyReleasedApi by
+        lazy(LazyThreadSafetyMode.NONE) {
+            PreviouslyReleasedApi.optionalPreviouslyReleasedApi(
+                ARG_API_LINT_PREVIOUS_API,
+                apiLintPreviousApis
+            )
+        }
 }

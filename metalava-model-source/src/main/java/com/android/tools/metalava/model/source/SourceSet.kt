@@ -36,29 +36,22 @@ import java.nio.file.Files
  *   found.
  */
 class SourceSet(val sources: List<File>, val sourcePath: List<File>) {
-
-    val absoluteSources: List<File>
-        get() {
-            return sources.map { it.absoluteFile }
-        }
-
-    val absoluteSourcePaths: List<File>
-        get() {
-            return sourcePath.filter { it.path.isNotBlank() }.map { it.absoluteFile }
-        }
-
-    /** Creates a copy of [SourceSet], but with elements mapped with [File.getAbsoluteFile] */
-    fun absoluteCopy(): SourceSet {
-        return SourceSet(absoluteSources, absoluteSourcePaths)
-    }
-
     /**
      * Creates a new instance of [SourceSet], adding in source roots implied by the source files in
-     * the current [SourceSet]
+     * the current [SourceSet].
+     *
+     * This makes sure that all the [File]s in this [SourceSet] are made absolute before extracting
+     * the roots as a mixture of relative and absolute files will not work.
      */
     fun extractRoots(reporter: Reporter): SourceSet {
-        val sourceRoots = extractRoots(reporter, sources, sourcePath.toMutableList())
-        return SourceSet(sources, sourceRoots)
+        val absoluteSources = sources.map { it.absoluteFile }.distinct()
+        val absoluteSourcePaths =
+            mutableListOf<File>().also {
+                sourcePath.filter { it.path.isNotBlank() }.mapTo(it) { it.absoluteFile }
+            }
+
+        val sourceRoots = extractRoots(reporter, absoluteSources, absoluteSourcePaths)
+        return SourceSet(absoluteSources, sourceRoots)
     }
 
     companion object {
@@ -163,6 +156,7 @@ class SourceSet(val sources: List<File>, val sourcePath: List<File>) {
             if (path.endsWith(DOT_JAVA) || path.endsWith(DOT_KT)) {
                 val pkg = findPackage(file) ?: return null
                 val parent = file.parentFile ?: return null
+                if (pkg == "") return parent
                 val endIndex = parent.path.length - pkg.length
                 val before = path[endIndex - 1]
                 if (before == '/' || before == '\\') {

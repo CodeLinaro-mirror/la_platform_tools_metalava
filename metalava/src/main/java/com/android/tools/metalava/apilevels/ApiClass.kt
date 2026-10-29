@@ -51,6 +51,21 @@ class ApiClass(name: String, private val isEnum: Boolean) : ApiElement(name) {
         get() = mFields.values
 
     /**
+     * Corrects a historical mistake in android.jar files where methods returning
+     * `AbstractStringBuilder` should return the concrete subclass instead.
+     */
+    private fun correctMethodSignature(signature: String): String {
+        if (
+            signature.endsWith(")Ljava/lang/AbstractStringBuilder;") ||
+                signature.endsWith(")Ltest/pkg/AbstractStringBuilder;")
+        ) {
+            val index = signature.lastIndexOf(')')
+            return signature.substring(0, index) + ")L" + this.name + ";"
+        }
+        return signature
+    }
+
+    /**
      * Updates the [ApiElement] for method with [signature], creating and adding one if necessary.
      *
      * @param signature the signature of the method, which includes the name and parameter/return
@@ -64,15 +79,7 @@ class ApiClass(name: String, private val isEnum: Boolean) : ApiElement(name) {
         updater: ApiHistoryUpdater,
         deprecated: Boolean,
     ): ApiElement {
-        // Correct historical mistake in android.jar files
-        var correctedName = signature
-        if (correctedName.endsWith(")Ljava/lang/AbstractStringBuilder;")) {
-            correctedName =
-                correctedName.substring(
-                    0,
-                    correctedName.length - ")Ljava/lang/AbstractStringBuilder;".length
-                ) + ")L" + this.name + ";"
-        }
+        val correctedName = correctMethodSignature(signature)
         return updateElementInMap(mMethods, correctedName, updater, deprecated)
     }
 
@@ -218,8 +225,16 @@ class ApiClass(name: String, private val isEnum: Boolean) : ApiElement(name) {
         val it: MutableIterator<Map.Entry<String, ApiElement>> = mMethods.entries.iterator()
         while (it.hasNext()) {
             val (_, method) = it.next()
-            if (!method.name.startsWith("<init>(") && isOverrideOfInherited(method, allClasses)) {
+            if (method.name.startsWith("<init>(")) {
+                continue
+            }
+            if (isOverrideOfInherited(method, allClasses)) {
                 it.remove()
+            } else {
+                val superMethod = findMethodInAncestors(method, allClasses)
+                if (superMethod != null) {
+                    method.updateLastPresentIn(minOf(lastPresentIn, superMethod.lastPresentIn))
+                }
             }
         }
     }
@@ -235,7 +250,11 @@ class ApiClass(name: String, private val isEnum: Boolean) : ApiElement(name) {
     private fun isOverride(method: ApiElement, allClasses: Map<String, ApiClass>): Boolean {
         val name = method.name
         val localMethod = mMethods[name]
-        return if (localMethod != null && localMethod.introducedNotLaterThan(method)) {
+        return if (
+            // A hidden class will not be emitted in the API, so do not treat its methods as
+            // existing API methods being overridden by subclasses.
+            !alwaysHidden && localMethod != null && localMethod.introducedNotLaterThan(method)
+        ) {
             // This class has the method, and it was introduced in at the same api level
             // as the child method, or before.
             true
@@ -264,6 +283,37 @@ class ApiClass(name: String, private val isEnum: Boolean) : ApiElement(name) {
         return false
     }
 
+    /**
+     * Finds the matching method declared by ancestors of this class with the latest
+     * [lastPresentIn], if any.
+     */
+    private fun findMethodInAncestors(
+        method: ApiElement,
+        allClasses: Map<String, ApiClass>,
+        visited: MutableSet<ApiClass> = mutableSetOf()
+    ): ApiElement? {
+        if (!visited.add(this)) {
+            return null
+        }
+        var bestMatch: ApiElement? = null
+        for (parent in Iterables.concat(superClasses, interfaces)) {
+            val cls = allClasses[parent.name] ?: continue
+            val localMethod = cls.mMethods[method.name]
+            if (localMethod != null) {
+                if (bestMatch == null || bestMatch.lastPresentIn < localMethod.lastPresentIn) {
+                    bestMatch = localMethod
+                }
+            }
+            val ancestorMethod = cls.findMethodInAncestors(method, allClasses, visited)
+            if (ancestorMethod != null) {
+                if (bestMatch == null || bestMatch.lastPresentIn < ancestorMethod.lastPresentIn) {
+                    bestMatch = ancestorMethod
+                }
+            }
+        }
+        return bestMatch
+    }
+
     private var haveInlined = false
 
     fun inlineFromHiddenSuperClasses(hidden: Map<String, ApiClass>) {
@@ -278,13 +328,36 @@ class ApiClass(name: String, private val isEnum: Boolean) : ApiElement(name) {
                 val myMethods = mMethods
                 val myFields = mFields
                 for ((name, value) in hiddenSuper.mMethods) {
-                    if (!myMethods.containsKey(name)) {
-                        myMethods[name] = value
+                    // Constructors are not inherited.
+                    if (name.startsWith("<init>")) {
+                        continue
+                    }
+
+                    // Correct historical mistake in return types (e.g. AbstractStringBuilder ->
+                    // StringBuilder) before checking if the method is already present or adding it.
+                    val correctedName = correctMethodSignature(name)
+
+                    // When reading from sources, HiddenAspectsInheritor copies inherited
+                    // methods from hidden super classes onto the subclass. If the method already
+                    // exists on this class, update its since version with the version from the
+                    // hidden super class in case it was present in an earlier bytecode version.
+                    val existing = myMethods[correctedName]
+                    if (existing == null) {
+                        myMethods[correctedName] = value
+                    } else {
+                        existing.update(value.since)
                     }
                 }
                 for ((name, value) in hiddenSuper.mFields) {
-                    if (!myFields.containsKey(name)) {
+                    // When reading from sources, HiddenAspectsInheritor copies inherited
+                    // fields from hidden super classes onto the subclass. If the field already
+                    // exists on this class, update its since version with the version from the
+                    // hidden super class in case it was present in an earlier bytecode version.
+                    val existing = myFields[name]
+                    if (existing == null) {
                         myFields[name] = value
+                    } else {
+                        existing.update(value.since)
                     }
                 }
             }

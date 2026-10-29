@@ -20,25 +20,27 @@ import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.DefaultItem
+import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.ParameterKind
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TypeItem
-import com.android.tools.metalava.model.TypeParameterBindings
+import com.android.tools.metalava.model.TypeItemConverter
 import com.android.tools.metalava.reporter.FileLocation
 
-open class DefaultParameterItem(
+internal class DefaultParameterItem(
     codebase: Codebase,
     fileLocation: FileLocation,
     sourceLanguage: SourceLanguage,
     modifiers: BaseModifierList,
     private val name: String,
     protected val publicName: String?,
-    private val containingCallable: CallableItem,
+    private val containingItem: MemberItem,
     override val parameterIndex: Int,
     private var type: TypeItem,
     private val hasDefaultValue: Boolean,
+    override val kind: ParameterKind,
 ) :
     DefaultItem(
         codebase = codebase,
@@ -53,26 +55,31 @@ open class DefaultParameterItem(
         type.let { if (it is ArrayTypeItem && it.isVarargs) mutateModifiers { setVarArg(true) } }
     }
 
-    final override fun name(): String = name
+    override fun name(): String = name
 
-    final override fun publicName(): String? = publicName
+    override fun publicName(): String? = publicName
 
-    final override fun containingCallable(): CallableItem = containingCallable
+    override fun parent(): MemberItem = containingItem
 
-    final override fun type(): TypeItem = type
+    private val containingCallable: CallableItem? = containingItem as? CallableItem
 
-    final override fun setType(type: TypeItem) {
+    override fun containingCallable(): CallableItem? = containingCallable
+
+    override fun type(): TypeItem = type
+
+    override fun setType(type: TypeItem) {
         this.type = type
     }
 
-    final override fun hasDefaultValue(): Boolean = hasDefaultValue
+    override fun hasDefaultValue(): Boolean = hasDefaultValue
 
     override var property: PropertyItem? = null
 
     override fun duplicate(
-        containingCallable: CallableItem,
-        typeVariableMap: TypeParameterBindings,
-    ) =
+        containingItem: MemberItem,
+        typeConverter: TypeItemConverter,
+        newParameterIndex: Int,
+    ): ParameterItem =
         DefaultParameterItem(
             codebase,
             fileLocation,
@@ -80,9 +87,10 @@ open class DefaultParameterItem(
             modifiers,
             name(),
             publicName,
-            containingCallable,
-            parameterIndex,
-            type().convertType(typeVariableMap),
+            containingItem,
+            newParameterIndex,
+            typeConverter(type()),
             hasDefaultValue(),
+            kind,
         )
 }

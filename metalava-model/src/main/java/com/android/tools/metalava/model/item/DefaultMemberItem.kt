@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model.item
 
-import com.android.tools.metalava.model.ApiVariantSelectorsFactory
 import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
@@ -26,14 +25,13 @@ import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.reporter.FileLocation
 
-abstract class DefaultMemberItem(
+internal sealed class DefaultMemberItem(
     codebase: Codebase,
     fileLocation: FileLocation,
     sourceLanguage: SourceLanguage,
     targetLanguages: Set<TargetLanguage>,
     modifiers: BaseModifierList,
     documentationFactory: ItemDocumentationFactory,
-    variantSelectorsFactory: ApiVariantSelectorsFactory,
     private val name: String,
     private val containingClass: ClassItem,
 ) :
@@ -44,7 +42,6 @@ abstract class DefaultMemberItem(
         targetLanguages = targetLanguages,
         modifiers = modifiers,
         documentationFactory = documentationFactory,
-        variantSelectorsFactory = variantSelectorsFactory,
     ),
     MemberItem {
 

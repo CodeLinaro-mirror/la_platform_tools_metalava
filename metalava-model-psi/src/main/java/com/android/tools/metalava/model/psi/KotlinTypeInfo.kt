@@ -16,15 +16,22 @@
 
 package com.android.tools.metalava.model.psi
 
+import com.android.tools.metalava.model.KOTLIN_CONTINUATION
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.psi.kotlin.KaTypeItemFactory
-import com.android.tools.metalava.model.psi.kotlin.KaTypeItemFactory.Companion.typeNullability
 import com.intellij.psi.PsiElement
+import com.intellij.psi.PsiType
+import org.jetbrains.kotlin.analysis.api.KaExperimentalApi
 import org.jetbrains.kotlin.analysis.api.KaSession
 import org.jetbrains.kotlin.analysis.api.analyze
+import org.jetbrains.kotlin.analysis.api.projectStructure.KaModule
 import org.jetbrains.kotlin.analysis.api.symbols.KaNamedClassSymbol
 import org.jetbrains.kotlin.analysis.api.types.KaClassType
+import org.jetbrains.kotlin.analysis.api.types.KaFunctionType
 import org.jetbrains.kotlin.analysis.api.types.KaType
+import org.jetbrains.kotlin.analysis.api.types.KaTypePointer
+import org.jetbrains.kotlin.name.ClassId
+import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.psi.KtCallableDeclaration
 import org.jetbrains.kotlin.psi.KtClass
 import org.jetbrains.kotlin.psi.KtElement
@@ -42,153 +49,238 @@ import org.jetbrains.uast.UParameter
 import org.jetbrains.uast.getContainingUMethod
 
 /**
- * A wrapper for a [KtType] and the [KtAnalysisSession] needed to analyze it and the [PsiElement]
- * that is the use site.
+ * A wrapper for a [KaType] and the [PsiElement] that is the use site.
+ *
+ * The [KaSession] and [KaType] provided in the constructor is not stored. They are used to ensure
+ * the provided type is fully expanded, and then the [KaType] is converted to a [KaTypePointer].
+ * Further computations with the [KaTypePointer] use a fresh [KaSession] based on the [kaModule] if
+ * it is available or the [context] if it isn't.
  */
-internal class KotlinTypeInfo
+@OptIn(KaExperimentalApi::class)
+internal open class KotlinTypeInfo
 private constructor(
-    val analysisSession: KaSession?,
+    analysisSession: KaSession?,
     kaType: KaType?,
     val context: PsiElement,
-    /**
-     * Override list of type arguments that should have been, but for some reason could not be,
-     * encapsulated within [kaType].
-     */
-    val overrideTypeArguments: List<KotlinTypeInfo>? = null,
+    val kaModule: KaModule?,
     /**
      * A [KaType] for a class contains information about the type parameters for all levels of outer
      * class types. This represents which level to use (0 is the innermost class).
      */
     private val classLevelFromInnermost: Int = 0,
 ) {
-    constructor(context: PsiElement) : this(null, null, context)
+    constructor(context: PsiElement) : this(null, null, context, null)
 
     /** Make sure that any typealiases are fully expanded. */
-    val kaType =
-        analysisSession?.run { kaType?.fullyExpandedType }
+    private val kaTypePointer: KaTypePointer<KaType>? =
+        analysisSession?.run { kaType?.fullyExpandedType?.createPointer() }
             ?: kaType?.let {
                 error("cannot have non-null kaType ($kaType) with a null analysisSession")
             }
 
     override fun toString(): String {
-        return "KotlinTypeInfo(${this@KotlinTypeInfo.kaType} for $context)"
+        val kaTypeString = analyze { kaType -> kaType.toString() }
+        return "KotlinTypeInfo($kaTypeString for $context)"
     }
 
-    fun copy(
-        kaType: KaType? = this.kaType,
-        overrideTypeArguments: List<KotlinTypeInfo>? = this.overrideTypeArguments,
-    ) = KotlinTypeInfo(analysisSession, kaType, context, overrideTypeArguments)
-
     /**
-     * Finds the nullability of the [kaType]. If there is no [analysisSession] or [kaType], defaults
-     * to `null` to allow for other sources, like annotations and inferred nullability to take
-     * effect.
+     * Runs the [action] in a new analysis scope using the [kaModule] or [context], if [context] is
+     * a [KtElement].
      */
-    fun nullability(): TypeNullability? {
-        return if (analysisSession != null && kaType != null) {
-            KaTypeItemFactory.run { analysisSession.run { typeNullability(kaType) } }
-        } else {
-            null
+    protected fun <R> analyze(action: KaSession.(KaType) -> R): R? {
+        return (context as? KtElement)?.let {
+            analyze(kaModule, it) {
+                kaTypePointer?.restore()?.let { kaType -> this.action(kaType) }
+            }
         }
     }
 
-    /** Checks whether the [kaType] is a value class type. */
-    fun isValueClassType(): Boolean {
-        return kaType?.let { analysisSession?.typeForValueClass(it) } ?: false
+    /**
+     * Creates a new [KotlinTypeInfo] with the same values as this one except for the
+     * [classLevelFromInnermost] (if provided) and the `kaType`, which will be computed based on
+     * [computeKaType] in the context of the a [KaSession] created by [analyze].
+     */
+    private fun copy(
+        classLevelFromInnermost: Int = this.classLevelFromInnermost,
+        computeKaType: (KaSession.(KaType) -> KaType?),
+    ): KotlinTypeInfo {
+        return analyze { kaType -> copy(this, computeKaType(kaType), classLevelFromInnermost) }
+            // An analysis session could not be created
+            ?: KotlinTypeInfo(null, null, context, kaModule, classLevelFromInnermost)
     }
 
     /**
-     * Creates [KotlinTypeInfo] for the component type of this [kaType], assuming it is an array.
+     * Creates a new [KotlinTypeInfo] with the same values as this one except for the [kaType] and
+     * [classLevelFromInnermost] (if provided).
+     */
+    private fun copy(
+        analysisSession: KaSession,
+        kaType: KaType?,
+        classLevelFromInnermost: Int = this.classLevelFromInnermost
+    ) = KotlinTypeInfo(analysisSession, kaType, context, kaModule, classLevelFromInnermost)
+
+    /**
+     * Finds the nullability of the [KaType] this represents. If there is no [KaType], defaults to
+     * `null` to allow for other sources, like annotations and inferred nullability to take effect.
+     */
+    fun nullability(): TypeNullability? {
+        return KaTypeItemFactory.run { analyze { kaType -> typeNullability(kaType) } }
+    }
+
+    /** Checks whether the [KaType] this represents is a value class type. */
+    fun isValueClassType(): Boolean {
+        return analyze { kaType -> typeForValueClass(kaType) } ?: false
+    }
+
+    /** Map the [KaType] this represents to a [PsiType], if possible. */
+    fun asPsiType() =
+        analyze { kaType -> kaType.asPsiType(context, allowErrorTypes = true) }
+            ?: error("Cannot convert $kaTypePointer to PsiType")
+
+    /**
+     * Creates [KotlinTypeInfo] for the component type of the [KaType] this represents, assuming it
+     * is an array.
      */
     fun forArrayComponentType(): KotlinTypeInfo {
-        return KotlinTypeInfo(
-            analysisSession,
-            analysisSession?.run { kaType?.arrayElementType },
-            context,
-        )
+        return copy { kaType -> kaType.arrayElementType }
     }
 
     /**
      * Creates [KotlinTypeInfo] for the type argument at [index] of this [KotlinTypeInfo], assuming
      * it is a class type.
      */
-    fun forTypeArgument(index: Int): KotlinTypeInfo {
-        overrideTypeArguments?.getOrNull(index)?.let {
-            return it
-        }
-        return KotlinTypeInfo(
-            analysisSession,
-            analysisSession?.run {
-                when (kaType) {
-                    is KaClassType -> {
-                        // Find which level of type qualifiers to use. The qualifiers are in order
-                        // from outermost to innermost class, and the [classLevelFromInnermost]
-                        // starts at 0 for the innermost class.
-                        val innermostClassIndex = kaType.qualifiers.lastIndex
-                        val thisClassIndex = innermostClassIndex - classLevelFromInnermost
-                        val thisClass = kaType.qualifiers.getOrNull(thisClassIndex)
-                        thisClass?.typeArguments?.getOrNull(index)?.type
-                    }
-                    else -> null
+    open fun forTypeArgument(index: Int): KotlinTypeInfo {
+        return copy { kaType ->
+            when (kaType) {
+                is KaClassType -> {
+                    // Find which level of type qualifiers to use. The qualifiers are in order
+                    // from outermost to innermost class, and the [classLevelFromInnermost]
+                    // starts at 0 for the innermost class.
+                    val innermostClassIndex = kaType.qualifiers.lastIndex
+                    val thisClassIndex = innermostClassIndex - classLevelFromInnermost
+                    val thisClass = kaType.qualifiers.getOrNull(thisClassIndex)
+                    thisClass?.typeArguments?.getOrNull(index)?.type
                 }
-            },
-            context,
-        )
+                else -> null
+            }
+        }
     }
 
     /**
-     * Creates [KotlinTypeInfo] for the outer class type of this [kaType], assuming it is a class.
+     * Creates [KotlinTypeInfo] for the outer class type of the [KaType] this represents, assuming
+     * it is a class.
      *
-     * Uses the same [kaType], but increments the [classLevelFromInnermost].
+     * Uses the same [KaType], but increments the [classLevelFromInnermost].
      */
     fun forOuterClass(): KotlinTypeInfo {
-        return KotlinTypeInfo(
-            analysisSession,
+        return copy(classLevelFromInnermost = classLevelFromInnermost + 1) { kaType ->
             // Only keep using the kaType if the outer class level exists.
-            kaType?.takeIf {
+            kaType.takeIf {
                 // If the kaType isn't a class, don't use it for an outer class.
                 val finalClassIndex =
                     (kaType as? KaClassType)?.qualifiers?.lastIndex ?: return@takeIf false
                 // Don't take the kaType if class level is already at the last of the outer classes.
                 finalClassIndex > classLevelFromInnermost
-            },
-            context,
-            classLevelFromInnermost = classLevelFromInnermost + 1,
-        )
+            }
+        }
+    }
+
+    /** Whether this represents a [KaFunctionType]. */
+    fun isLambdaType(): Boolean {
+        return analyze { kaType -> kaType is KaFunctionType } ?: false
+    }
+
+    /**
+     * Converts this [KotlinTypeInfo] to a [KotlinTypeInfo.LambdaType]. This will fail if this does
+     * not represent a [KaFunctionType].
+     */
+    fun asLambdaType(): LambdaType {
+        return analyze { kaType ->
+            kaType as KaFunctionType
+            LambdaType(
+                this,
+                kaType,
+                context,
+                kaModule,
+                isSuspend = kaType.isSuspend,
+                hasReceiver = kaType.hasReceiver,
+                overrideTypeArguments =
+                    // Compute a set of [KtType]s corresponding to the type arguments in the
+                    // underlying `kotlin.jvm.functions.Function*`.
+                    buildList {
+                        // The optional lambda receiver is the first type argument.
+                        kaType.receiverType?.let { add(copy(this@analyze, kaType = it)) }
+                        // The lambda's explicit parameters appear next.
+                        kaType.parameterTypes.mapTo(this) { copy(this@analyze, kaType = it) }
+                        // A `suspend` lambda is transformed by Kotlin in the same way that a
+                        // `suspend` function is, i.e. an additional continuation parameter is
+                        // added at the end of the explicit parameters that encapsulates the
+                        // return type and the return type is changed to `Any?`.
+                        if (kaType.isSuspend) {
+                            // Create a KotlinTypeInfo for the continuation parameter that
+                            // encapsulates the actual return type.
+                            add(forSyntheticContinuationParameter(kaType.returnType))
+                            // Add the `Any?` for the return type.
+                            add(nullableAny())
+                        } else {
+                            // As it is not a `suspend` lambda add the return type last.
+                            add(copy(this@analyze, kaType = kaType.returnType))
+                        }
+                    },
+            )
+        } ?: error("Cannot create lambda type for $this")
     }
 
     /** Get a [KotlinTypeInfo] that represents a suspend function's `Continuation` parameter. */
-    fun forSyntheticContinuationParameter(returnType: KaType): KotlinTypeInfo {
+    private fun forSyntheticContinuationParameter(returnType: KaType): KotlinTypeInfo {
         // This cast is safe as this will only be called for a lambda function whose context will
         // be [KtFunction].
         val ktElement = context as KtElement
-        return analyze(ktElement) { syntheticContinuationParameter(context, returnType) }
+        return analyze(ktElement) { syntheticContinuationParameter(context, returnType, kaModule) }
     }
 
     /** Get a [KotlinTypeInfo] that represents `Any?`. */
     fun nullableAny(): KotlinTypeInfo {
-        // This cast is safe as this will only be called for a lambda function whose context will
-        // be [KtFunction].
-        val ktElement = context as KtElement
-        return analyze(ktElement) { KotlinTypeInfo(this, builtinTypes.nullableAny, context) }
+        return copy { builtinTypes.nullableAny }
     }
 
     companion object {
         /**
          * Creates a [KotlinTypeInfo] instance from the given [context], with null values if the
-         * [KtType] for the [context] can't be resolved.
+         * [KaType] for the [context] can't be resolved.
          */
-        fun fromContext(context: PsiElement): KotlinTypeInfo {
+        fun fromContext(context: PsiElement, kaModule: KaModule?): KotlinTypeInfo {
             return if (context is KtElement) {
-                fromKtElement(context, context)
+                fromKtElement(context, context, kaModule)
             } else {
                 when (val sourcePsi = (context as? UElement)?.sourcePsi) {
-                    is KtElement -> fromKtElement(sourcePsi, context)
+                    is KtElement -> fromKtElement(sourcePsi, context, kaModule)
                     else -> {
-                        typeFromSyntheticElement(context)
+                        typeFromSyntheticElement(context, kaModule)
                     }
                 }
             } ?: KotlinTypeInfo(context)
+        }
+
+        /**
+         * Creates an analysis session with the [kaModule] if it is non-null or the [ktElement] if
+         * it isn't. Runs the [action] in the session.
+         *
+         * This is to address the UAST change described in b/559703660: expect/actual typealiases in
+         * the common module are mapped to the actual type from the android/jvm module. In the
+         * analysis later, the expect type will be used instead, so the module of the [ktElement]
+         * might not have the expected type. The type will be correct in the android/jvm [kaModule].
+         */
+        private inline fun <R> analyze(
+            kaModule: KaModule?,
+            ktElement: KtElement,
+            crossinline action: KaSession.() -> R
+        ): R? {
+            return if (kaModule != null) {
+                analyze(kaModule, action)
+            } else {
+                analyze(ktElement, action)
+            }
         }
 
         /**
@@ -198,23 +290,27 @@ private constructor(
          * require different views of its types. The [context] is provided to differentiate between
          * them.
          */
-        private fun fromKtElement(ktElement: KtElement, context: PsiElement): KotlinTypeInfo? =
+        private fun fromKtElement(
+            ktElement: KtElement,
+            context: PsiElement,
+            kaModule: KaModule?
+        ): KotlinTypeInfo? =
             when (ktElement) {
                 is KtProperty -> {
-                    analyze(ktElement) {
-                        val ktType =
+                    analyze(kaModule, ktElement) {
+                        val kaType =
                             when {
                                 // If the context is the backing field then use the type of the
                                 // delegate, if any.
                                 context is UField -> ktElement.delegateExpression?.expressionType
                                 else -> null
                             } ?: ktElement.returnType
-                        KotlinTypeInfo(this, ktType, ktElement)
+                        KotlinTypeInfo(this, kaType, ktElement, kaModule)
                     }
                 }
                 is KtCallableDeclaration -> {
-                    analyze(ktElement) {
-                        val ktType =
+                    analyze(kaModule, ktElement) {
+                        val kaType =
                             if (ktElement is KtFunction && ktElement.isSuspend()) {
                                 // A suspend function is transformed by Kotlin to return Any?
                                 // instead of its actual return type.
@@ -222,26 +318,35 @@ private constructor(
                             } else {
                                 ktElement.returnType
                             }
-                        KotlinTypeInfo(this, ktType, ktElement)
+                        KotlinTypeInfo(this, kaType, ktElement, kaModule)
                     }
                 }
                 is KtTypeReference ->
-                    analyze(ktElement) { KotlinTypeInfo(this, ktElement.type, ktElement) }
+                    analyze(kaModule, ktElement) {
+                        KotlinTypeInfo(this, ktElement.type, ktElement, kaModule)
+                    }
                 is KtPropertyAccessor ->
-                    analyze(ktElement) { KotlinTypeInfo(this, ktElement.returnType, ktElement) }
+                    analyze(kaModule, ktElement) {
+                        KotlinTypeInfo(this, ktElement.returnType, ktElement, kaModule)
+                    }
                 is KtClass -> {
-                    analyze(ktElement) {
+                    analyze(kaModule, ktElement) {
                         // If this is a named class or object then return a KotlinTypeInfo for the
                         // class. If it is generic then the type parameters will be used as the
                         // type arguments.
                         (ktElement.symbol as? KaNamedClassSymbol)?.let { symbol ->
-                            KotlinTypeInfo(this, symbol.defaultType, ktElement)
+                            KotlinTypeInfo(this, symbol.defaultType, ktElement, kaModule)
                         }
                     }
                 }
                 is KtTypeAlias -> {
-                    analyze(ktElement) {
-                        KotlinTypeInfo(this, ktElement.getTypeReference()?.type, ktElement)
+                    analyze(kaModule, ktElement) {
+                        KotlinTypeInfo(
+                            this,
+                            ktElement.getTypeReference()?.type,
+                            ktElement,
+                            kaModule
+                        )
                     }
                 }
                 else -> null
@@ -256,7 +361,10 @@ private constructor(
          * method will attempt to reverse engineer the "Kt" -> "Psi" mapping to find the real Kotlin
          * types.
          */
-        private fun typeFromSyntheticElement(context: PsiElement): KotlinTypeInfo? {
+        private fun typeFromSyntheticElement(
+            context: PsiElement,
+            kaModule: KaModule?
+        ): KotlinTypeInfo? {
             // If this is not a UParameter in a UMethod then it is an unknown synthetic element so
             // just return.
             val containingMethod = (context as? UParameter)?.getContainingUMethod() ?: return null
@@ -269,19 +377,19 @@ private constructor(
                 is KtProperty -> {
                     // This is the parameter of a synthetic setter, so get its type from the
                     // containing method.
-                    fromContext(containingMethod)
+                    fromContext(containingMethod, kaModule)
                 }
                 is KtParameter -> {
                     // The underlying source representation of the synthetic method is a parameter,
                     // most likely a parameter of the primary constructor. In which case the
                     // synthetic method is most like a property setter. Whatever it may be, use the
                     // type of the parameter as it is most likely to be the correct type.
-                    fromKtElement(sourcePsi, context)
+                    fromKtElement(sourcePsi, context, kaModule)
                 }
                 is KtClass -> {
                     // The underlying source representation of the synthetic method is a whole
                     // class.
-                    typeFromKtClass(parameterIndex, containingMethod, sourcePsi)
+                    typeFromKtClass(parameterIndex, containingMethod, sourcePsi, kaModule)
                 }
                 is KtFunction -> {
                     if (
@@ -290,21 +398,21 @@ private constructor(
                     ) {
                         // Compute the [KotlinTypeInfo] for the suspend function's synthetic
                         // [kotlin.coroutines.Continuation] parameter.
-                        analyze(sourcePsi) {
-                            val returnKtType = sourcePsi.returnType
-                            syntheticContinuationParameter(sourcePsi, returnKtType)
+                        analyze(kaModule, sourcePsi) {
+                            val returnKaType = sourcePsi.returnType
+                            syntheticContinuationParameter(sourcePsi, returnKaType, kaModule)
                         }
                     } else {
                         // Find the KtParameter with the same index as the UParameter to use as the
                         // source psi.
-                        fromKtElement(sourcePsi.valueParameters[parameterIndex], context)
+                        fromKtElement(sourcePsi.valueParameters[parameterIndex], context, kaModule)
                     }
                 }
                 is KtPropertyAccessor ->
                     analyze(sourcePsi) {
                         // Getters and setters are always the same type as the property so use its
                         // type.
-                        fromKtElement(sourcePsi.property, context)
+                        fromKtElement(sourcePsi.property, context, kaModule)
                     }
                 else -> null
             }
@@ -315,33 +423,34 @@ private constructor(
 
         /**
          * Create a [KotlinTypeInfo] that represents the continuation parameter of a `suspend`
-         * function with [returnKtType].
-         *
-         * Ideally, this would create a [KtNonErrorClassType] for `Continuation<$returnType$>`,
-         * where `$returnType$` is the return type of the Kotlin suspend function but while that
-         * works in K2 it fails in K1 as it cannot resolve the `Continuation` type even though it is
-         * in the Kotlin stdlib which will be on the classpath.
-         *
-         * Fortunately, doing that is not strictly necessary as the [KtType] is only used to
-         * retrieve nullability for the `Continuation` type and its type argument. So, this uses
-         * non-nullable [Any] as the fake type for `Continuation` (as that is always non-nullable)
-         * and stores the suspend function's return type in [KotlinTypeInfo.overrideTypeArguments]
-         * from where it will be retrieved.
+         * function with [returnKaType] (`Continuation<$returnType$>`)
          */
         internal fun KaSession.syntheticContinuationParameter(
             context: PsiElement,
-            returnKtType: KaType
+            returnKaType: KaType,
+            kaModule: KaModule?,
         ): KotlinTypeInfo {
-            val returnTypeInfo = KotlinTypeInfo(this, returnKtType, context)
-            val fakeContinuationKtType = builtinTypes.any
-            return KotlinTypeInfo(this, fakeContinuationKtType, context, listOf(returnTypeInfo))
+            val continuationKaType = buildClassType(continuationClassId) { argument(returnKaType) }
+            return KotlinTypeInfo(this, continuationKaType, context, kaModule)
+        }
+
+        /**
+         * The [ClassId] of the Kotlin `Continuation` class, used by
+         * [syntheticContinuationParameter].
+         */
+        private val continuationClassId by lazy {
+            val continuationFqName = FqName(KOTLIN_CONTINUATION)
+            val continuationPackageFqName = continuationFqName.parent()
+            val continuationClassName = continuationFqName.shortName()
+            ClassId(continuationPackageFqName, continuationClassName)
         }
 
         /** Try and get the type for [parameterIndex] in [containingMethod] from the [ktClass]. */
         private fun typeFromKtClass(
             parameterIndex: Int,
             containingMethod: UMethod,
-            ktClass: KtClass
+            ktClass: KtClass,
+            kaModule: KaModule?,
         ) =
             when {
                 ktClass.isData() && containingMethod.name == "copy" -> {
@@ -350,11 +459,12 @@ private constructor(
                     // constructor and use its type.
                     ktClass.primaryConstructor?.let { primaryConstructor ->
                         val ktParameter = primaryConstructor.valueParameters[parameterIndex]
-                        analyze(ktParameter) {
+                        analyze(kaModule, ktParameter) {
                             KotlinTypeInfo(
                                 this,
                                 ktParameter.returnType,
                                 ktParameter,
+                                kaModule,
                             )
                         }
                     }
@@ -367,6 +477,36 @@ private constructor(
         private fun KaSession.typeForValueClass(type: KaType): Boolean {
             val symbol = type.expandedSymbol as? KaNamedClassSymbol ?: return false
             return symbol.isInline
+        }
+    }
+
+    /** Represents the information for a [KaFunctionType] */
+    internal class LambdaType(
+        analysisSession: KaSession?,
+        kaType: KaType,
+        context: PsiElement,
+        kaModule: KaModule?,
+        /**
+         * Override list of type arguments with the type arguments as seen by the JVM version of
+         * this type, which will be the (optional) receiver, lambda parameter types, and return type
+         * (or a continuation type and Any? return type for suspend lambdas).
+         */
+        val overrideTypeArguments: List<KotlinTypeInfo>,
+        /** Whether this is a suspend lambda. */
+        val isSuspend: Boolean,
+        /** Whether this lambda has a receiver. */
+        val hasReceiver: Boolean,
+    ) :
+        KotlinTypeInfo(
+            analysisSession,
+            kaType,
+            context,
+            kaModule,
+        ) {
+
+        /** Returns the type argument at the [index] as seen by the JVM version of this type. */
+        override fun forTypeArgument(index: Int): KotlinTypeInfo {
+            return overrideTypeArguments.getOrNull(index) ?: KotlinTypeInfo(context)
         }
     }
 }

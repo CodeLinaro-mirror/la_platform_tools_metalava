@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.turbine
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.source.NO_SOURCE_COMMENT_FACTORY
+import com.android.tools.metalava.model.source.createSourceItemDocumentation
 import com.google.turbine.binder.bound.EnumConstantValue
 import com.google.turbine.binder.bound.TurbineClassValue
 import com.google.turbine.binder.sym.ClassSymbol
@@ -78,12 +79,11 @@ internal fun CompUnit.getHeaderComments(): String {
     // Search backwards for the start of the `package` keyword.
     val packageKeywordStart = source.lastIndexOf("package", packageNamePosition)
     // Return the content before the `package` keyword to match Java.
-    return source.substring(0, packageKeywordStart)
+    return source.substring(0, packageKeywordStart).replace("\r\n", "\n")
 }
 
-/** Get an [ItemDocumentationFactory] for [decl] in [sourceFile]. */
+/** Get an [ItemDocumentationFactory] for [decl]. */
 internal fun TurbineGlobalContext.itemDocumentationFactoryForDecl(
-    sourceFile: TurbineSourceFile?,
     decl: Tree?
 ): ItemDocumentationFactory {
     // If comments are not read then ignore the javadoc.
@@ -100,7 +100,7 @@ internal fun TurbineGlobalContext.itemDocumentationFactoryForDecl(
         } ?: return NO_SOURCE_COMMENT_FACTORY
 
     return ItemDocumentationFactory { item ->
-        TurbineItemDocumentation(item, sourceFile, turbineJavadoc)
+        createSourceItemDocumentation(item, TurbineSourceComment(item, turbineJavadoc))
     }
 }
 

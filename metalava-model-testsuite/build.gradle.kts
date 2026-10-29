@@ -35,4 +35,5 @@ dependencies {
     implementation(libs.junit4)
     implementation(libs.truth)
     implementation(libs.kotlinTest)
+    implementation(libs.kotlinTestJUnit)
 }

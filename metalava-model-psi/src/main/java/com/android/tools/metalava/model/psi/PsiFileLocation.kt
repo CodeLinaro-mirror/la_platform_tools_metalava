@@ -102,7 +102,13 @@ class PsiFileLocation(private val psiElement: PsiElement) : FileLocation() {
         // method does not get run multiple times on a single instance.
         _line = 0
 
-        val psiFile = psiElement.containingFile ?: return
+        val psiFile =
+            try {
+                psiElement.containingFile ?: return
+            } catch (_: NullPointerException) {
+                // b/559149677: NPE is thrown for UParameter of mapped Kotlin collections method
+                return
+            }
         val virtualFile = psiFile.virtualFile ?: return
 
         // Record the path.

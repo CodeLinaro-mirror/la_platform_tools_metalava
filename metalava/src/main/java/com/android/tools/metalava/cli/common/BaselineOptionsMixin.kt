@@ -34,13 +34,9 @@ import java.io.File
  */
 class BaselineOptionsMixin(
     private val containingGroup: OptionGroup,
-    executionEnvironment: ExecutionEnvironment,
     baselineOptionName: String,
     updateBaselineOptionName: String,
-    defaultBaselineFileProvider: () -> File? = { null },
     issueType: String,
-    description: String,
-    commonBaselineOptions: CommonBaselineOptions,
 ) : ParameterHolder {
 
     override fun registerOption(option: GroupableOption) {
@@ -82,18 +78,23 @@ class BaselineOptionsMixin(
             .newOrExistingFile()
             .allowStructuredOptionName()
 
-    val baseline by
-        lazy(LazyThreadSafetyMode.NONE) {
-            Baseline.Builder()
-                .apply {
-                    this.description = description
-                    file = baselineFile ?: defaultBaselineFileProvider()
-                    updateFile = updateBaselineFile
-                    headerComment =
-                        if (executionEnvironment.isBuildingAndroid())
-                            "// See tools/metalava/API-LINT.md for how to update this file.\n\n"
-                        else ""
-                }
-                .build(commonBaselineOptions.baselineConfig)
-        }
+    /** Returns a [Baseline] based on the provided options, if one exists. */
+    fun computeBaseline(
+        executionEnvironment: ExecutionEnvironment,
+        defaultBaselineFileProvider: () -> File? = { null },
+        description: String,
+        commonBaselineOptions: ComputedCommonBaselineOptions,
+    ): Baseline? {
+        return Baseline.Builder()
+            .apply {
+                this.description = description
+                file = baselineFile ?: defaultBaselineFileProvider()
+                updateFile = updateBaselineFile
+                headerComment =
+                    if (executionEnvironment.isBuildingAndroid())
+                        "// See tools/metalava/API-LINT.md for how to update this file.\n\n"
+                    else ""
+            }
+            .build(commonBaselineOptions.baselineConfig)
+    }
 }

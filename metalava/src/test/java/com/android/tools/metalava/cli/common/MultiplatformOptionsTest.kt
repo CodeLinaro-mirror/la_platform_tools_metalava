@@ -25,6 +25,11 @@ val MULTIPLATFORM_OPTIONS_HELP =
       Options controlling the handling of multiplatform API operations
 
       --multiplatform-enabled                    Flag to enable Multiplatform API operation.
+      --multiplatform-api-sources <file>         Directory containing multiplatform API signature files to parse as source.
+      --multiplatform-api-directory <file>       Directory to put multiplatform API signature files.
+      --multiplatform-compatibility-api <file>   Check compatibility of the previously released multiplatform API. The
+                                                 provided file should be a directory containing multiplatform API signature
+                                                 files of the previously released API surface.
     """
         .trimIndent()
 

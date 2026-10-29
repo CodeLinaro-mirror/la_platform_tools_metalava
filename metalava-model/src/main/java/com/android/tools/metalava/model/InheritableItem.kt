@@ -35,8 +35,7 @@ interface InheritableItem : MemberItem {
      * This is only used when comparing two [Codebase]s, in which case it is called to inherit a
      * member from a super class/interface when it exists in the other [Codebase]. The resulting
      * [InheritableItem] is expected to behave as if it was part of the [targetContainingClass] but
-     * is otherwise identical to `this`, e.g. if [targetContainingClass] is [hidden] then so should
-     * the returned [InheritableItem].
+     * is otherwise identical to `this`.
      *
      * The [inheritedFrom] property in the returned [InheritableItem] is set to [containingClass] of
      * this [InheritableItem].

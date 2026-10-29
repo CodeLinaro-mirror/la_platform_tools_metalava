@@ -16,34 +16,23 @@
 
 package com.android.tools.metalava.model.type
 
-import com.android.tools.metalava.model.ClassResolver
-import com.android.tools.metalava.model.ClassTypeItem
-import com.android.tools.metalava.model.TypeArgumentTypeItem
-import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.reporter.Issues
 
 /**
- * Responsible for handling an unqualified [ClassTypeItem] in a string representation of a type
- * being parsed.
+ * Responsible for handling an unqualified class name in a string representation of a type being
+ * parsed.
  */
 interface UnqualifiedClassHandler {
     /**
      * Determine what to do with a type with an [unqualifiedName].
      *
-     * It can either throw an exception, or return a value [ClassTypeItem]. In the latter case it
-     * can also report an error to [errorReporter], if necessary.
-     *
-     * All the parameters apart from [unqualifiedName] and [errorReporter] have the same meaning as
-     * for [DefaultClassTypeItem].
+     * It can either throw an exception, or return a qualified name. In the latter case it can also
+     * report an error to [errorReporter], if necessary.
      */
     fun handleUnqualifiedType(
-        classResolver: ClassResolver,
         errorReporter: TypeItemParserErrorReporter,
-        modifiers: TypeModifiers,
         unqualifiedName: String,
-        arguments: List<TypeArgumentTypeItem>,
-        outerClassType: ClassTypeItem?,
-    ): ClassTypeItem
+    ): String
 
     companion object {
         /**
@@ -71,35 +60,23 @@ interface UnqualifiedClassHandler {
         private val javaLangPackage: JavaLangPackage = JavaLangPackage.DEFAULT
 
         override fun handleUnqualifiedType(
-            classResolver: ClassResolver,
             errorReporter: TypeItemParserErrorReporter,
-            modifiers: TypeModifiers,
             unqualifiedName: String,
-            arguments: List<TypeArgumentTypeItem>,
-            outerClassType: ClassTypeItem?
-        ): ClassTypeItem {
+        ): String {
             val javaLangName = "java.lang.$unqualifiedName"
-            val qualifiedName =
-                if (javaLangPackage.containsQualified(javaLangName)) {
-                    // Reverse the effect of [TypeItem.stripJavaLangPrefix].
-                    javaLangName
-                } else {
-                    if (reportAsError) {
-                        errorReporter.report(
-                            Issues.UNQUALIFIED_TYPE_ERROR,
-                            "Unqualified type '$unqualifiedName' is not in 'java.lang' and is not a type parameter in scope"
-                        )
-                    }
-                    unqualifiedName
-                }
 
-            return DefaultClassTypeItem(
-                classResolver,
-                modifiers,
-                qualifiedName,
-                arguments,
-                outerClassType
-            )
+            return if (javaLangPackage.containsQualified(javaLangName)) {
+                // Reverse the effect of [TypeItem.stripJavaLangPrefix].
+                javaLangName
+            } else {
+                if (reportAsError) {
+                    errorReporter.report(
+                        Issues.UNQUALIFIED_TYPE_ERROR,
+                        "Unqualified type '$unqualifiedName' is not in 'java.lang' and is not a type parameter in scope"
+                    )
+                }
+                unqualifiedName
+            }
         }
     }
 }

@@ -19,10 +19,10 @@ package com.android.tools.metalava.model.testsuite.scope
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.InvalidReferencableItem
-import com.android.tools.metalava.model.provider.Capability
+import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.scope.NameClassification
 import com.android.tools.metalava.model.scope.ReferencableNameScope
-import com.android.tools.metalava.model.testing.RequiresCapabilities
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
 import kotlin.test.assertEquals
@@ -62,7 +62,7 @@ class CommonReferencableNameScopeTest : BaseModelTest() {
         // Verify that the type name resolves to the expected class by checking a field of that
         // type name.
         val testField = testClass.fields().single()
-        val fieldClass = (testField.type() as ClassTypeItem).asClass()
+        val fieldClass = (testField.type() as ClassTypeItem).resolveClass(codebase)
         val expectedUnderlyingClass = expectedUnderlyingClass?.let { codebase.resolveClass(it)!! }
         assertSame(expectedUnderlyingClass, fieldClass, message = "field class")
 
@@ -126,7 +126,7 @@ class CommonReferencableNameScopeTest : BaseModelTest() {
         }
     }
 
-    @RequiresCapabilities(Capability.JAVA)
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test import and package collision - explicit java-lang-String import - import should win`() {
         checkImportAndPackageClassCollision(
@@ -136,7 +136,7 @@ class CommonReferencableNameScopeTest : BaseModelTest() {
         )
     }
 
-    @RequiresCapabilities(Capability.JAVA)
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test import and package collision - explicit java-lang wildcard import - package should win`() {
         checkImportAndPackageClassCollision(
@@ -146,7 +146,7 @@ class CommonReferencableNameScopeTest : BaseModelTest() {
         )
     }
 
-    @RequiresCapabilities(Capability.JAVA)
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test import and package collision - implicit java-lang wildcard import - package should win`() {
         checkImportAndPackageClassCollision(
@@ -156,7 +156,7 @@ class CommonReferencableNameScopeTest : BaseModelTest() {
         )
     }
 
-    @RequiresCapabilities(Capability.JAVA)
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test import and package collision - explicit java-util-List import - import should win`() {
         checkImportAndPackageClassCollision(
@@ -166,7 +166,7 @@ class CommonReferencableNameScopeTest : BaseModelTest() {
         )
     }
 
-    @RequiresCapabilities(Capability.JAVA)
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test import and package collision - explicit java-util wildcard import - package should win`() {
         checkImportAndPackageClassCollision(
@@ -176,7 +176,7 @@ class CommonReferencableNameScopeTest : BaseModelTest() {
         )
     }
 
-    @RequiresCapabilities(Capability.JAVA)
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test inheritance of nested classes of the base class`() {
         runCodebaseTest(
@@ -209,7 +209,7 @@ class CommonReferencableNameScopeTest : BaseModelTest() {
         }
     }
 
-    @RequiresCapabilities(Capability.JAVA)
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test inheritance of nested classes of a base interface`() {
         runCodebaseTest(
@@ -242,7 +242,7 @@ class CommonReferencableNameScopeTest : BaseModelTest() {
         }
     }
 
-    @RequiresCapabilities(Capability.JAVA)
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test non-inheritance of top-level class of base class`() {
         runCodebaseTest(
@@ -282,7 +282,7 @@ class CommonReferencableNameScopeTest : BaseModelTest() {
         }
     }
 
-    @RequiresCapabilities(Capability.JAVA)
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test non-inheritance of outer classes of base class`() {
         runCodebaseTest(
@@ -317,7 +317,7 @@ class CommonReferencableNameScopeTest : BaseModelTest() {
         }
     }
 
-    @RequiresCapabilities(Capability.JAVA)
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test inheritance and class collision - local nested class wins`() {
         runCodebaseTest(
@@ -353,7 +353,7 @@ class CommonReferencableNameScopeTest : BaseModelTest() {
         }
     }
 
-    @RequiresCapabilities(Capability.JAVA)
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test inheritance and class collision - super nested class wins before enclosing class`() {
         runCodebaseTest(

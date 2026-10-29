@@ -250,4 +250,103 @@ Arguments:
             verify { assertEquals(expectedXml.trimIndent(), xmlFile.readText().trim()) }
         }
     }
+
+    @Test
+    fun `Test overriding methods are elided`() {
+        commandTest {
+            args += "jar-to-jdiff"
+            args +=
+                jarFromSources(
+                    "test.jar",
+                    java(
+                        """
+                        package test.pkg;
+                        public class Base {
+                            public void overriddenMethod() {}
+                        }
+                    """
+                    ),
+                    java(
+                        """
+                        package test.pkg;
+                        public class Derived extends Base {
+                            @Override
+                            public void overriddenMethod() {}
+                            public void nonOverriddenMethod() {}
+                        }
+                    """
+                    ),
+                )
+
+            val xmlFile = outputFile("api.xml")
+            args += xmlFile
+
+            val expectedXml =
+                """
+                    <api xmlns:metalava="http://www.android.com/metalava/">
+                    <package name="test.pkg"
+                    >
+                    <class name="Base"
+                     abstract="false"
+                     static="false"
+                     final="false"
+                     deprecated="not deprecated"
+                     visibility="public"
+                    >
+                    <constructor name="Base"
+                     type="test.pkg.Base"
+                     static="false"
+                     final="false"
+                     deprecated="not deprecated"
+                     visibility="public"
+                    >
+                    </constructor>
+                    <method name="overriddenMethod"
+                     return="void"
+                     abstract="false"
+                     native="false"
+                     synchronized="false"
+                     static="false"
+                     final="false"
+                     deprecated="not deprecated"
+                     visibility="public"
+                    >
+                    </method>
+                    </class>
+                    <class name="Derived"
+                     extends="test.pkg.Base"
+                     abstract="false"
+                     static="false"
+                     final="false"
+                     deprecated="not deprecated"
+                     visibility="public"
+                    >
+                    <constructor name="Derived"
+                     type="test.pkg.Derived"
+                     static="false"
+                     final="false"
+                     deprecated="not deprecated"
+                     visibility="public"
+                    >
+                    </constructor>
+                    <method name="nonOverriddenMethod"
+                     return="void"
+                     abstract="false"
+                     native="false"
+                     synchronized="false"
+                     static="false"
+                     final="false"
+                     deprecated="not deprecated"
+                     visibility="public"
+                    >
+                    </method>
+                    </class>
+                    </package>
+                    </api>
+                """
+
+            // Verify that the generated file is correct.
+            verify { assertEquals(expectedXml.trimIndent(), xmlFile.readText().trim()) }
+        }
+    }
 }

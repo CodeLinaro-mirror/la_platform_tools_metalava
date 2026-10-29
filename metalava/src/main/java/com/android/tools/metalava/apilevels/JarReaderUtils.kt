@@ -15,9 +15,9 @@
  */
 package com.android.tools.metalava.apilevels
 
-import com.android.SdkConstants
 import com.android.tools.metalava.model.JAVA_ENUM_VALUES
 import com.android.tools.metalava.model.JAVA_ENUM_VALUE_OF
+import com.android.tools.metalava.model.JavaConstants
 import java.io.File
 import java.io.FileInputStream
 import java.util.zip.ZipInputStream
@@ -41,7 +41,7 @@ fun Api.readJar(
         while (true) {
             val entry = zis.nextEntry ?: break
             val entryName = entry.name
-            if (!entryName.endsWith(SdkConstants.DOT_CLASS)) {
+            if (!entryName.endsWith(JavaConstants.DOT_CLASS)) {
                 continue
             }
 
@@ -81,14 +81,23 @@ fun Api.readJar(
             // fields
             for (field in classNode.fields) {
                 val fieldNode = field as FieldNode
-                if ((fieldNode.access and (Opcodes.ACC_PUBLIC or Opcodes.ACC_PROTECTED)) == 0) {
+                val access = fieldNode.access
+                if (theClass.alwaysHidden) {
+                    // Only public constant (public static final) fields can be inherited into
+                    // subclasses from a hidden super class, so ignore any other fields.
+                    val publicStaticFinal =
+                        Opcodes.ACC_PUBLIC or Opcodes.ACC_STATIC or Opcodes.ACC_FINAL
+                    if ((access and publicStaticFinal) != publicStaticFinal) {
+                        continue
+                    }
+                } else if ((access and (Opcodes.ACC_PUBLIC or Opcodes.ACC_PROTECTED)) == 0) {
                     continue
                 }
                 if (!fieldNode.name.startsWith("this\$") && fieldNode.name != "\$VALUES") {
                     theClass.updateField(
                         fieldNode.name,
                         updater,
-                        classDeprecated || isDeprecated(fieldNode.access),
+                        classDeprecated || isDeprecated(access),
                     )
                 }
             }
@@ -112,8 +121,16 @@ fun Api.readJar(
                 val methodNode = method as MethodNode
                 val methodAccess = methodNode.access
 
-                // The only methods of interest are public and protected methods.
-                if ((methodAccess and (Opcodes.ACC_PUBLIC or Opcodes.ACC_PROTECTED)) == 0) {
+                if (theClass.alwaysHidden) {
+                    // Only public, non-abstract methods can be inherited into subclasses from a
+                    // hidden super class, so ignore any other methods.
+                    if (
+                        (methodAccess and Opcodes.ACC_PUBLIC) == 0 ||
+                            (methodAccess and Opcodes.ACC_ABSTRACT) != 0
+                    ) {
+                        continue
+                    }
+                } else if ((methodAccess and (Opcodes.ACC_PUBLIC or Opcodes.ACC_PROTECTED)) == 0) {
                     continue
                 }
                 val methodName = method.name

@@ -40,7 +40,7 @@ class RequiresApiTest : DriverTest() {
                     requiresApiSource
                 ),
             docStubs = true,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -77,7 +77,7 @@ class RequiresApiTest : DriverTest() {
                     requiresApiSource
                 ),
             docStubs = true,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         // TODO(b/424435764): Should decode 3100000 to 31.0 and 3600001 to 36.1.

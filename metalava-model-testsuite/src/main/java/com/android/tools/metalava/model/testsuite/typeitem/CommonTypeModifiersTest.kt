@@ -17,13 +17,13 @@
 package com.android.tools.metalava.model.testsuite.typeitem
 
 import com.android.tools.metalava.model.ClassTypeItem
-import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.TypeModifiers
 import com.android.tools.metalava.model.TypeNullability.NONNULL
 import com.android.tools.metalava.model.TypeNullability.PLATFORM
 import com.android.tools.metalava.model.isNullnessAnnotation
 import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.model.testsuite.assertHasNonNullNullability
 import com.android.tools.metalava.model.testsuite.assertHasNullableNullability
@@ -192,6 +192,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test kotlin type-use annotations with multiple allowed targets on non-type target`() {
         runCodebaseTest(
@@ -240,6 +241,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
     @Test
     fun `Test filtering of annotations based on target usages`() {
         runCodebaseTest(
@@ -278,6 +280,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `Test annotations on qualified class type`() {
         runCodebaseTest(
@@ -287,6 +290,9 @@ class CommonTypeModifiersTest : BaseModelTest() {
                     public class Foo {
                         public test.pkg.@test.pkg.A Foo foo() {}
                     }
+
+                    @java.lang.annotation.Target(java.lang.annotation.ElementType.TYPE_USE)
+                    public @interface A {}
                 """
             ),
             signature(
@@ -311,6 +317,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `Test annotations on class type parameters`() {
         runCodebaseTest(
@@ -321,6 +328,15 @@ class CommonTypeModifiersTest : BaseModelTest() {
                     public class Foo {
                         public java.util.@test.pkg.A Map<java.lang.@test.pkg.B @test.pkg.C String, java.lang.@test.pkg.D String> foo() {}
                     }
+
+                    @java.lang.annotation.Target(java.lang.annotation.ElementType.TYPE_USE)
+                    public @interface A {}
+                    @java.lang.annotation.Target(java.lang.annotation.ElementType.TYPE_USE)
+                    public @interface B {}
+                    @java.lang.annotation.Target(java.lang.annotation.ElementType.TYPE_USE)
+                    public @interface C {}
+                    @java.lang.annotation.Target(java.lang.annotation.ElementType.TYPE_USE)
+                    public @interface D {}
                 """
             ),
             signature(
@@ -355,6 +371,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `Test annotations on array type and component type`() {
         runCodebaseTest(
@@ -364,6 +381,13 @@ class CommonTypeModifiersTest : BaseModelTest() {
                     public class Foo {
                         public test.pkg.@test.pkg.A @test.pkg.B Foo @test.pkg.B @test.pkg.C [] foo() {}
                     }
+
+                    @java.lang.annotation.Target(java.lang.annotation.ElementType.TYPE_USE)
+                    public @interface A {}
+                    @java.lang.annotation.Target(java.lang.annotation.ElementType.TYPE_USE)
+                    public @interface B {}
+                    @java.lang.annotation.Target(java.lang.annotation.ElementType.TYPE_USE)
+                    public @interface C {}
                 """
             ),
             signature(
@@ -375,7 +399,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
                       }
                     }
                 """
-            )
+            ),
         ) {
             val method = codebase.assertClass("test.pkg.Foo").methods().single()
             assertThat(method.annotationNames()).isEmpty()
@@ -392,6 +416,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `Test leading annotation on array type`() {
         runCodebaseTest(
@@ -401,6 +426,9 @@ class CommonTypeModifiersTest : BaseModelTest() {
                     public class Foo {
                         public <T> @test.pkg.A T[] foo() {}
                     }
+
+                    @java.lang.annotation.Target(java.lang.annotation.ElementType.TYPE_USE)
+                    public @interface A {}
                 """
             ),
             signature(
@@ -427,6 +455,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `Test annotations on multidimensional array`() {
         runCodebaseTest(
@@ -436,6 +465,15 @@ class CommonTypeModifiersTest : BaseModelTest() {
                     public class Foo {
                         public test.pkg.@test.pkg.A Foo @test.pkg.B [] @test.pkg.C [] @test.pkg.D [] foo() {}
                     }
+
+                    @java.lang.annotation.Target(java.lang.annotation.ElementType.TYPE_USE)
+                    public @interface A {}
+                    @java.lang.annotation.Target(java.lang.annotation.ElementType.TYPE_USE)
+                    public @interface B {}
+                    @java.lang.annotation.Target(java.lang.annotation.ElementType.TYPE_USE)
+                    public @interface C {}
+                    @java.lang.annotation.Target(java.lang.annotation.ElementType.TYPE_USE)
+                    public @interface D {}
                 """
             ),
             signature(
@@ -476,6 +514,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `Test annotations on multidimensional vararg array`() {
         runCodebaseTest(
@@ -523,6 +562,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `Test inner parameterized types with annotations`() {
         runCodebaseTest(
@@ -537,6 +577,15 @@ class CommonTypeModifiersTest : BaseModelTest() {
                             return new Outer<P1>.Inner<P2>();
                         }
                     }
+
+                    @java.lang.annotation.Target(java.lang.annotation.ElementType.TYPE_USE)
+                    public @interface A {}
+                    @java.lang.annotation.Target(java.lang.annotation.ElementType.TYPE_USE)
+                    public @interface B {}
+                    @java.lang.annotation.Target(java.lang.annotation.ElementType.TYPE_USE)
+                    public @interface C {}
+                    @java.lang.annotation.Target(java.lang.annotation.ElementType.TYPE_USE)
+                    public @interface D {}
                 """
             ),
             signature(
@@ -589,6 +638,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `Test interface types`() {
         runCodebaseTest(
@@ -596,17 +646,24 @@ class CommonTypeModifiersTest : BaseModelTest() {
                 """
                     package test.pkg;
                     public class Foo implements test.pkg.@test.pkg.A Bar, test.pkg.Baz {}
+
+                    public interface Bar {}
+
+                    public interface Baz {}
+
+                    @java.lang.annotation.Target(java.lang.annotation.ElementType.TYPE_USE)
+                    public @interface A {}
                 """
             ),
             signature(
                 """
                     // Signature format: 4.0
                     package test.pkg {
-                      public class Foo implements test.pkg.@test.pkg.A Bar, test.pkg.Baz {
+                      public class Foo implements test.pkg.@test.pkg.A Bar test.pkg.Baz {
                       }
                     }
                 """
-            )
+            ),
         ) {
             val foo = codebase.assertClass("test.pkg.Foo")
             val interfaces = foo.interfaceTypes()
@@ -623,6 +680,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `Test super class type`() {
         runCodebaseTest(
@@ -658,6 +716,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `Test super class and interface types of interface`() {
         runCodebaseTest(
@@ -665,6 +724,19 @@ class CommonTypeModifiersTest : BaseModelTest() {
                 """
                     package test.pkg;
                     public interface Foo extends test.pkg.@test.pkg.A Bar, test.pkg.@test.pkg.B Baz<@test.pkg.C String>, test.pkg.Biz {}
+
+                    public interface Bar {}
+
+                    public interface Baz {}
+
+                    public interface Biz {}
+
+                    @java.lang.annotation.Target(java.lang.annotation.ElementType.TYPE_USE)
+                    public @interface A {}
+                    @java.lang.annotation.Target(java.lang.annotation.ElementType.TYPE_USE)
+                    public @interface B {}
+                    @java.lang.annotation.Target(java.lang.annotation.ElementType.TYPE_USE)
+                    public @interface C {}
                 """
             ),
             signature(
@@ -702,6 +774,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `Test annotated array types in multiple contexts`() {
         runCodebaseTest(
@@ -753,6 +826,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE)
     @Test
     fun `Test annotations with spaces in the annotation string`() {
         runCodebaseTest(
@@ -1488,10 +1562,11 @@ class CommonTypeModifiersTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.JAVA, InputFormat.KOTLIN)
     @Test
     fun `Test resetting nullability`() {
         // Mutating modifiers isn't supported for a text codebase due to type caching.
-        val javaSource =
+        runCodebaseTest(
             inputSet(
                 java(
                     """
@@ -1503,17 +1578,20 @@ class CommonTypeModifiersTest : BaseModelTest() {
                     """
                 ),
                 KnownSourceFiles.libcoreNullableSource
-            )
-        val kotlinSource =
-            kotlin(
-                """
-                    package test.pkg
-                    class Foo {
-                        fun foo(): String? {}
-                    }
-                """
-            )
-        val nullabilityTest = { codebase: Codebase, annotations: Boolean ->
+            ),
+            inputSet(
+                kotlin(
+                    """
+                        package test.pkg
+                        class Foo {
+                            fun foo(): String? {}
+                        }
+                    """
+                )
+            ),
+        ) {
+            val annotations = inputFormat != InputFormat.KOTLIN
+
             val stringType = codebase.assertClass("test.pkg.Foo").methods().single().returnType()
             // The type is originally nullable
             stringType.assertHasNullableNullability(annotations)
@@ -1534,11 +1612,9 @@ class CommonTypeModifiersTest : BaseModelTest() {
                 assertThat(nonNullStringType.annotationNames().single()).endsWith("Nullable")
             }
         }
-
-        runCodebaseTest(javaSource) { nullabilityTest(codebase, true) }
-        runCodebaseTest(kotlinSource) { nullabilityTest(codebase, false) }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `Test nullability set through item annotations`() {
         runCodebaseTest(
@@ -1584,6 +1660,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `Test implicit nullability of constants`() {
         runCodebaseTest(
@@ -1670,6 +1747,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `Test implicit nullability of equals parameter`() {
         runCodebaseTest(
@@ -1703,6 +1781,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
     @Test
     fun `Test implicit nullability of toString`() {
         runCodebaseTest(
@@ -1776,6 +1855,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test nullness of Kotlin enum members`() {
         runCodebaseTest(
@@ -1797,6 +1877,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test nullness of companion object`() {
         runCodebaseTest(
@@ -1815,6 +1896,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test nullness of Kotlin lambda type`() {
         runCodebaseTest(
@@ -1871,6 +1953,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test inherited nullability of unbounded Kotlin type variables - usage is not null`() {
         runCodebaseTest(
@@ -1892,6 +1975,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test inherited nullability of unbounded Kotlin type variables - usage is nullable`() {
         runCodebaseTest(
@@ -1913,6 +1997,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test inherited nullability of bounded Kotlin type variables - bound is not nullable`() {
         runCodebaseTest(
@@ -1932,6 +2017,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test inherited nullability of bounded Kotlin type variables - bound is nullable`() {
         runCodebaseTest(
@@ -1952,6 +2038,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test nullability of Kotlin properties and accessors`() {
         runCodebaseTest(
@@ -1998,6 +2085,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test nullability of extension function type`() {
         runCodebaseTest(
@@ -2026,6 +2114,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test nullability of typealias`() {
         runCodebaseTest(
@@ -2209,6 +2298,7 @@ class CommonTypeModifiersTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `Test nullness of unbounded kotlin wildcard`() {
         runCodebaseTest(

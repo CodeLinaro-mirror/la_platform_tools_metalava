@@ -21,7 +21,6 @@ import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.cli.common.ARG_ERROR_CATEGORY
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
-import com.android.tools.metalava.model.text.ApiClassResolution
 import kotlin.test.Test
 
 // These tests do not include property accessors in the signature files to specifically test the
@@ -153,7 +152,6 @@ class PropertyCompatibilityTest : DriverTest() {
     @Test
     fun `Change in whether inherited property from classpath is listed`() {
         check(
-            apiClassResolution = ApiClassResolution.API_CLASSPATH,
             extraArguments = arrayOf(ARG_ERROR_CATEGORY, "Compatibility"),
             checkCompatibilityApiReleased =
                 """
@@ -499,8 +497,8 @@ class PropertyCompatibilityTest : DriverTest() {
                 """,
             expectedIssues =
                 """
-                load-api.txt:4: error: Source breaking change: property test.pkg.Foo#changeToProtected changed visibility from PUBLIC to PROTECTED [ChangedScope]
-                load-api.txt:5: error: Source breaking change: property test.pkg.Foo#changeToPublic changed visibility from PROTECTED to PUBLIC [ChangedScope]
+                load-api.txt:4: error: Source breaking change: Property test.pkg.Foo#changeToProtected changed visibility from PUBLIC to PROTECTED [ChangedScope]
+                load-api.txt:5: error: Source breaking change: Property test.pkg.Foo#changeToPublic changed visibility from PROTECTED to PUBLIC [ChangedScope]
                 """,
         )
     }
@@ -530,7 +528,7 @@ class PropertyCompatibilityTest : DriverTest() {
                 }
                 """,
             expectedIssues =
-                "load-api.txt:4: error: Source breaking change: property test.pkg.Foo#changeToFinal has added 'final' qualifier [AddedFinal]",
+                "load-api.txt:4: error: Source breaking change: Property test.pkg.Foo#changeToFinal has added 'final' qualifier [AddedFinal]",
         )
     }
 
@@ -560,9 +558,37 @@ class PropertyCompatibilityTest : DriverTest() {
                 """,
             expectedIssues =
                 """
-                load-api.txt:4: error: Source breaking change: property test.pkg.Foo#changeToAbstract has changed 'abstract' qualifier [ChangedAbstract]
-                load-api.txt:5: error: Source breaking change: property test.pkg.Foo#changeToFinal has added 'final' qualifier [AddedFinal]
+                load-api.txt:4: error: Source breaking change: Property test.pkg.Foo#changeToAbstract has changed 'abstract' qualifier [ChangedAbstract]
+                load-api.txt:5: error: Source breaking change: Property test.pkg.Foo#changeToFinal has added 'final' qualifier [AddedFinal]
+                load-api.txt:5: error: Property test.pkg.Foo#changeToFinal has changed from abstract to concrete [ChangedAbstractToConcrete]
                 """,
+        )
+    }
+
+    @Test
+    fun `Change abstract property to concrete`() {
+        check(
+            extraArguments = arrayOf(ARG_ERROR_CATEGORY, "Compatibility"),
+            checkCompatibilityApiReleased =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public abstract class Foo {
+                    property public abstract int changeToConcrete;
+                  }
+                }
+                """,
+            signatureSource =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public abstract class Foo {
+                    property public int changeToConcrete;
+                  }
+                }
+                """,
+            expectedIssues =
+                "load-api.txt:4: error: Property test.pkg.Foo#changeToConcrete has changed from abstract to concrete [ChangedAbstractToConcrete]",
         )
     }
 
@@ -591,7 +617,7 @@ class PropertyCompatibilityTest : DriverTest() {
                 }
                 """,
             expectedIssues =
-                "load-api.txt:4: error: Source breaking change: property test.pkg.Foo#changeToAbstract has changed 'default' qualifier [ChangedDefault]",
+                "load-api.txt:4: error: Source breaking change: Property test.pkg.Foo#changeToAbstract has changed 'default' qualifier [ChangedDefault]",
         )
     }
 
@@ -621,8 +647,91 @@ class PropertyCompatibilityTest : DriverTest() {
                 """,
             expectedIssues =
                 """
-                load-api.txt:4: error: Source breaking change: property test.pkg.Foo#changeToDeprecated has changed deprecation state false --> true [ChangedDeprecated]
-                load-api.txt:5: error: Source breaking change: property test.pkg.Foo#changeToNotDeprecated has changed deprecation state true --> false [ChangedDeprecated]
+                load-api.txt:4: error: Source breaking change: Property test.pkg.Foo#changeToDeprecated has changed deprecation state false --> true [ChangedDeprecated]
+                load-api.txt:5: error: Source breaking change: Property test.pkg.Foo#changeToNotDeprecated has changed deprecation state true --> false [ChangedDeprecated]
+                """,
+        )
+    }
+
+    @Test
+    fun `Adding and removing property with context parameter similar to parent property`() {
+        // The properties on Foo have context parameters, the properties on Parent do not. The
+        // compatibility check should not treat the Foo properties as overrides of the Parent
+        // properties even though the properties otherwise have the same signature.
+        check(
+            extraArguments = arrayOf(ARG_ERROR_CATEGORY, "Compatibility"),
+            checkCompatibilityApiReleased =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public class Foo extends test.pkg.Parent {
+                    property public int removeFromFoo(context String s);
+                  }
+                  public class Parent {
+                    property public int addToFoo;
+                    property public int removeFromFoo;
+                  }
+                }
+                """,
+            signatureSource =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public class Foo extends test.pkg.Parent {
+                    property public int addToFoo(context String s);
+                  }
+                  public class Parent {
+                    property public int addToFoo;
+                    property public int removeFromFoo;
+                  }
+                }
+                """,
+            expectedIssues =
+                """
+                load-api.txt:4: error: Added property test.pkg.Foo#addToFoo(context java.lang.String) [AddedProperty]
+                released-api.txt:4: error: Source breaking change: Removed property test.pkg.Foo#removeFromFoo(context java.lang.String) [RemovedProperty]
+                """,
+        )
+    }
+
+    @Test
+    fun `Add, remove, or change property context parameters`() {
+        check(
+            extraArguments = arrayOf(ARG_ERROR_CATEGORY, "Compatibility"),
+            checkCompatibilityApiReleased =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public final class Foo {
+                    property public int addFirstContextParameter;
+                    property public int addSecondContextParameter(context String c1);
+                    property public int removeFirstContextParameter(context String c1);
+                    property public int removeSecondContextParameter(context String c1, context int c2);
+                  }
+                }
+                """,
+            signatureSource =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public final class Foo {
+                    property public int addFirstContextParameter(context String c1);
+                    property public int addSecondContextParameter(context String c1, context int c2);
+                    property public int removeFirstContextParameter;
+                    property public int removeSecondContextParameter(context String c1);
+                  }
+                }
+                """,
+            expectedIssues =
+                """
+                load-api.txt:4: error: Added property test.pkg.Foo#addFirstContextParameter(context java.lang.String) [AddedProperty]
+                load-api.txt:5: error: Added property test.pkg.Foo#addSecondContextParameter(context java.lang.String, context int) [AddedProperty]
+                load-api.txt:6: error: Added property test.pkg.Foo#removeFirstContextParameter [AddedProperty]
+                load-api.txt:7: error: Added property test.pkg.Foo#removeSecondContextParameter(context java.lang.String) [AddedProperty]
+                released-api.txt:4: error: Source breaking change: Removed property test.pkg.Foo#addFirstContextParameter [RemovedProperty]
+                released-api.txt:5: error: Source breaking change: Removed property test.pkg.Foo#addSecondContextParameter(context java.lang.String) [RemovedProperty]
+                released-api.txt:6: error: Source breaking change: Removed property test.pkg.Foo#removeFirstContextParameter(context java.lang.String) [RemovedProperty]
+                released-api.txt:7: error: Source breaking change: Removed property test.pkg.Foo#removeSecondContextParameter(context java.lang.String, context int) [RemovedProperty]
                 """,
         )
     }

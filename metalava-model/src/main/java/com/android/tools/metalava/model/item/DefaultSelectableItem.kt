@@ -16,29 +16,23 @@
 
 package com.android.tools.metalava.model.item
 
-import com.android.tools.metalava.model.ApiVariantSelectors
-import com.android.tools.metalava.model.ApiVariantSelectorsFactory
 import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.DefaultItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.SelectableItem
-import com.android.tools.metalava.model.Showability
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TargetLanguage
-import com.android.tools.metalava.model.api.surface.ApiVariantSet
-import com.android.tools.metalava.model.api.surface.MutableApiVariantSet
+import com.android.tools.metalava.model.api.SelectedApi
 import com.android.tools.metalava.reporter.FileLocation
 
-abstract class DefaultSelectableItem(
+internal sealed class DefaultSelectableItem(
     codebase: Codebase,
     fileLocation: FileLocation,
     sourceLanguage: SourceLanguage,
     modifiers: BaseModifierList,
     documentationFactory: ItemDocumentationFactory,
-    variantSelectorsFactory: ApiVariantSelectorsFactory,
     override var targetLanguages: Set<TargetLanguage>,
 ) :
     DefaultItem(
@@ -61,46 +55,24 @@ abstract class DefaultSelectableItem(
         if (modifiers.isPrivate()) null
         else @Suppress("LeakingThis") documentationFactory.create(this)
 
-    init {
-        if (!modifiers.isDeprecated() && documentation?.hasBlockTagOfType("deprecated") == true) {
-            @Suppress("LeakingThis") mutateModifiers { setDeprecated(true) }
+    private lateinit var _selectedApi: SelectedApi
+
+    /** Create a [SelectedApi] appropriate for this [SelectableItem] on demand. */
+    final override val selectedApi: SelectedApi
+        get() {
+            if (!::_selectedApi.isInitialized) {
+                // Create the instance and store in the field straight away before initialization.
+                // This is needed because initialize() may reenter this method and if it is not set
+                // before calling initialize() it will overflow the stack.
+                val factory = (codebase as DefaultCodebase).selectedApiFactory
+                _selectedApi = factory(this)
+
+                // Initialize the instance.
+                _selectedApi.initialize()
+            }
+            return _selectedApi
         }
-    }
-
-    final override var selectedApiVariants: ApiVariantSet = codebase.apiSurfaces.emptyVariantSet
-
-    override fun mutateSelectedApiVariants(mutator: MutableApiVariantSet.() -> Unit) {
-        val mutable = selectedApiVariants.toMutable()
-        mutable.mutator()
-        selectedApiVariants = mutable.toImmutable()
-    }
 
     // Default to true, may be updated later
     final override var emit = true
-
-    /**
-     * Create an [ApiVariantSelectors] appropriate for this [SelectableItem].
-     *
-     * The leaking of `this` is safe as the implementations do not access anything that has not been
-     * initialized.
-     */
-    override val variantSelectors = @Suppress("LeakingThis") variantSelectorsFactory(this)
-
-    /**
-     * Manually delegate to [ApiVariantSelectors.originallyHidden] as property delegates are
-     * expensive.
-     */
-    final override val originallyHidden
-        get() = variantSelectors.originallyHidden
-
-    /** Manually delegate to [ApiVariantSelectors.hidden] as property delegates are expensive. */
-    final override val hidden
-        get() = variantSelectors.hidden
-
-    /** Manually delegate to [ApiVariantSelectors.removed] as property delegates are expensive. */
-    final override val removed: Boolean
-        get() = variantSelectors.removed
-
-    final override val showability: Showability
-        get() = variantSelectors.showability
 }

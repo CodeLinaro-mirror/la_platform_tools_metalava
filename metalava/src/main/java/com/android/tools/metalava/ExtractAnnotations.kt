@@ -33,17 +33,19 @@ import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JAVA_LANG_PREFIX
 import com.android.tools.metalava.model.MemberItem
-import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.api.surface.ApiSurface
+import com.android.tools.metalava.model.api.surface.ApiSurfacePredicate
 import com.android.tools.metalava.model.findAnnotation
+import com.android.tools.metalava.model.testOrTrue
 import com.android.tools.metalava.model.value.AnnotationValue
 import com.android.tools.metalava.model.value.FieldReferenceValue
 import com.android.tools.metalava.model.value.SingleArrayElementFormat
 import com.android.tools.metalava.model.value.Value
 import com.android.tools.metalava.model.value.ValueStringConfiguration
-import com.android.tools.metalava.model.visitors.ApiPredicate
-import com.android.tools.metalava.model.visitors.ApiVisitor
+import com.android.tools.metalava.model.visitors.ApiFilters
+import com.android.tools.metalava.model.visitors.ApiFiltersVisitor
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import com.google.common.xml.XmlEscapers
@@ -61,10 +63,10 @@ class ExtractAnnotations(
     private val codebase: Codebase,
     private val reporter: Reporter,
     private val outputFile: File,
-    private val apiPredicateConfig: ApiPredicate.Config,
+    apiSurface: ApiSurface,
 ) :
-    ApiVisitor(
-        apiPredicateConfig = apiPredicateConfig,
+    ApiFiltersVisitor(
+        apiFilters = ApiFilters(reference = ApiSurfacePredicate.wholeCoreApi(apiSurface)),
     ) {
     // Used linked hash map for order such that we always emit parameters after their surrounding
     // method etc
@@ -149,7 +151,7 @@ class ExtractAnnotations(
             when (item) {
                 is ClassItem -> item.containingPackage()
                 is MemberItem -> item.containingClass().containingPackage()
-                is ParameterItem -> item.containingCallable().containingClass().containingPackage()
+                is ParameterItem -> item.containingClass().containingPackage()
                 else -> return
             }
 
@@ -230,13 +232,6 @@ class ExtractAnnotations(
 
                     classToAnnotationHolder[className] = typeDefAnnotation
                     addItem(item, typeDefAnnotation)
-
-                    if (
-                        item is MethodItem &&
-                            !reporter.isSuppressed(Issues.RETURNING_UNEXPECTED_CONSTANT)
-                    ) {
-                        item.body.verifyReturnedConstants(typeDefAnnotation, typeDefClass)
-                    }
                 }
             }
         }
@@ -298,9 +293,7 @@ class ExtractAnnotations(
                 return escapeXml(containingClass().qualifiedName()) + " " + name()
             }
             is ParameterItem -> {
-                return containingCallable().getExternalAnnotationSignature() +
-                    " " +
-                    this.parameterIndex
+                return parent().getExternalAnnotationSignature() + " " + this.parameterIndex
             }
         }
 
@@ -309,7 +302,7 @@ class ExtractAnnotations(
 
     private fun writeAnnotation(writer: PrintWriter, item: Item, annotationItem: AnnotationItem) {
         // Retrieve the attributes from the annotation item.
-        val attributes = retrieveAttributes(item, annotationItem)
+        val attributes = retrieveAttributes(annotationItem)
 
         // Some annotations need to keep field references and some need to replace them with their
         // constant value.
@@ -355,7 +348,7 @@ class ExtractAnnotations(
                                 if (keepFieldReferences) {
                                     // If keeping the field then make sure it can be referenced from
                                     // the API. If not then discard it.
-                                    if (!filterReference.test(fieldItem)) {
+                                    if (!filterReference.testOrTrue(fieldItem)) {
                                         // This field is not visible: remove from typedef
                                         reporter.report(
                                             Issues.HIDDEN_TYPEDEF_CONSTANT,
@@ -394,10 +387,7 @@ class ExtractAnnotations(
     }
 
     /** Retrieve the attributes from [annotationItem]. */
-    private fun retrieveAttributes(
-        item: Item,
-        annotationItem: AnnotationItem
-    ): List<AnnotationAttribute> {
+    private fun retrieveAttributes(annotationItem: AnnotationItem): List<AnnotationAttribute> {
         val qualifiedName = annotationItem.qualifiedName
 
         // Ensure consistent ordering.
@@ -492,7 +482,7 @@ class ExtractAnnotations(
          */
         private val EXTRACT_VALUE_STRING_CONFIGURATION =
             ValueStringConfiguration(
-                singleArrayElementFormat = SingleArrayElementFormat.UNWRAP,
+                singleArrayElementFormat = SingleArrayElementFormat.WRAP,
             )
     }
 }
