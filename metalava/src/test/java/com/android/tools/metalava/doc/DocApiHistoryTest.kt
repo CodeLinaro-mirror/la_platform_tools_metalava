@@ -414,6 +414,96 @@ class DocApiHistoryTest : DriverTest() {
     }
 
     @Test
+    fun `Deprecated class overriding inherited method`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            public class Super {
+                                public Super() {}
+                                public void bar() {}
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            /** @deprecated Do not use. */
+                            @Deprecated
+                            public class Sub extends Super {
+                                public Sub() {}
+                                @Override
+                                public void bar() {}
+                            }
+                        """
+                    ),
+                ),
+            applyApiLevelsXml =
+                """
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <api version="2">
+                        <class name="test/pkg/Super" since="1">
+                            <method name="&lt;init>()V"/>
+                            <method name="bar()V"/>
+                        </class>
+                        <class name="test/pkg/Sub" since="30" deprecated="35">
+                            <extends name="test/pkg/Super"/>
+                            <method name="&lt;init>()V"/>
+                        </class>
+                    </api>
+                """,
+            checkCompilation = true,
+            docStubs = true,
+            expectedStubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            /** @apiSince 1 */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Super {
+                            /** @apiSince 1 */
+                            public Super() { throw new RuntimeException("Stub!"); }
+                            /** @apiSince 1 */
+                            public void bar() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            /**
+                             * @deprecated Do not use.
+                             * @apiSince 30
+                             * @deprecatedSince 35
+                             */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            @Deprecated
+                            public class Sub extends test.pkg.Super {
+                            /**
+                             * @apiSince 30
+                             * @deprecatedSince 35
+                             */
+                            @Deprecated
+                            public Sub() { throw new RuntimeException("Stub!"); }
+                            /**
+                             * {@inheritDoc}
+                             *
+                             * @apiSince 30
+                             * @deprecatedSince 35
+                             */
+                            @Deprecated
+                            public void bar() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                ),
+        )
+    }
+
+    @Test
     fun `Api levels around current and preview`() {
         check(
             extraArguments =
