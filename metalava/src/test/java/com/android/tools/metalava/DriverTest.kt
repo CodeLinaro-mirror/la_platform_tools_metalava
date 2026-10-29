@@ -18,7 +18,6 @@ package com.android.tools.metalava
 
 import com.android.SdkConstants.DOT_TXT
 import com.android.tools.lint.LintCliClient
-import com.android.tools.lint.checks.ApiLookup
 import com.android.tools.lint.checks.infrastructure.ClassName
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.lint.checks.infrastructure.TestFiles.java
@@ -598,15 +597,6 @@ abstract class DriverTest :
          */
         postAnalysisChecker: CheckerFunction? = null,
     ) {
-        // Ensure different API clients don't interfere with each other
-        try {
-            val method = ApiLookup::class.java.getDeclaredMethod("dispose")
-            method.isAccessible = true
-            method.invoke(null)
-        } catch (ignore: Throwable) {
-            ignore.printStackTrace()
-        }
-
         // Ensure that lint infrastructure (for UAST) knows it's dealing with a test
         LintCliClient(LintClient.CLIENT_UNIT_TESTS)
 
@@ -887,11 +877,6 @@ abstract class DriverTest :
 
         val applyApiLevelsXmlArgs =
             if (applyApiLevelsXml != null) {
-                ApiLookup::class
-                    .java
-                    .getDeclaredMethod("dispose")
-                    .apply { isAccessible = true }
-                    .invoke(null)
                 val applyApiLevelsXmlFile =
                     useExistingFileOrCreateNewFile(
                         projectDir,

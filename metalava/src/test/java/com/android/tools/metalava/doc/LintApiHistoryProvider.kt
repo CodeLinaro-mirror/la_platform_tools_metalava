@@ -39,16 +39,13 @@ import org.xml.sax.helpers.DefaultHandler
  *
  * @param xmlFile the `api-versions.xml` file to load.
  * @param cacheDir optional directory in which [ApiLookup] will store its binary cache file.
- * @param underTest `true` if running in a unit test so that [ApiLookup] uses a unique temporary
- *   cache directory when [cacheDir] is `null`.
  */
 class LintApiHistoryProvider(
     xmlFile: File,
     cacheDir: File? = null,
-    underTest: Boolean = false,
 ) : ApiHistoryProvider {
     /** The Lint [ApiLookup] database loaded from `api-versions.xml`. */
-    private val apiLookup: ApiLookup = getApiLookup(xmlFile, cacheDir, underTest = underTest)
+    private val apiLookup: ApiLookup = getApiLookup(xmlFile, cacheDir)
 
     /**
      * Map from symbol key (`"pkg.Class"` or `"pkg.Class#member"`) to the [SdkAndVersion] in which
@@ -70,7 +67,7 @@ class LintApiHistoryProvider(
         /** [ApiHistoryProvider.Loader] that creates a [LintApiHistoryProvider]. */
         val loader: ApiHistoryProvider.Loader =
             object : ApiHistoryProvider.Loader {
-                override fun load(xmlFile: File) = LintApiHistoryProvider(xmlFile, underTest = true)
+                override fun load(xmlFile: File) = LintApiHistoryProvider(xmlFile)
 
                 override fun toString() = "lint"
             }
@@ -216,14 +213,14 @@ private fun ApiLookup.getFieldDeprecatedIn(field: FieldItem): ApiVersion? {
  *
  * @param xmlFile the `api-versions.xml` file to load.
  * @param cacheDir optional directory in which [ApiLookup] will store its binary cache file.
- * @param underTest `true` if running in a unit test so that a unique temporary cache directory is
- *   created when [cacheDir] is `null`.
  */
 fun getApiLookup(
     xmlFile: File,
     cacheDir: File? = null,
-    underTest: Boolean = true,
 ): ApiLookup {
+    // Ensure different API clients in tests don't interfere with each other.
+    ApiLookup::class.java.getDeclaredMethod("dispose").apply { isAccessible = true }.invoke(null)
+
     val client =
         object : LintCliClient(PROGRAM_NAME) {
             override fun getCacheDir(name: String?, create: Boolean): File? {
@@ -231,36 +228,8 @@ fun getApiLookup(
                     return cacheDir
                 }
 
-                if (create && underTest) {
-                    // Pick unique directory during unit tests
-                    return Files.createTempDirectory(PROGRAM_NAME).toFile()
-                }
-
-                val sb = StringBuilder(PROGRAM_NAME)
-                if (name != null) {
-                    sb.append(File.separator)
-                    sb.append(name)
-                }
-                val relative = sb.toString()
-
-                val tmp = System.getenv("TMPDIR")
-                if (tmp != null) {
-                    // Android Build environment: Make sure we're really creating a unique
-                    // temp directory each time since builds could be running in
-                    // parallel here.
-                    val dir = File(tmp, relative)
-                    if (!dir.isDirectory) {
-                        dir.mkdirs()
-                    }
-
-                    return Files.createTempDirectory(dir.toPath(), null).toFile()
-                }
-
-                val dir = File(System.getProperty("java.io.tmpdir"), relative)
-                if (create && !dir.isDirectory) {
-                    dir.mkdirs()
-                }
-                return dir
+                // Pick unique directory during unit tests
+                return Files.createTempDirectory(PROGRAM_NAME).toFile()
             }
         }
 
