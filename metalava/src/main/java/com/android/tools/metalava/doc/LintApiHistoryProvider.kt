@@ -33,6 +33,40 @@ import javax.xml.parsers.SAXParserFactory
 import org.xml.sax.Attributes
 import org.xml.sax.helpers.DefaultHandler
 
+/**
+ * Implementation of [ApiHistoryProvider] backed by Lint's [ApiLookup] and a SAX-parsed SDK
+ * extension map ([createSymbolToSdkExtSinceMap]).
+ *
+ * @param xmlFile the `api-versions.xml` file to load.
+ * @param cacheDir optional directory in which [ApiLookup] will store its binary cache file.
+ * @param underTest `true` if running in a unit test so that [ApiLookup] uses a unique temporary
+ *   cache directory when [cacheDir] is `null`.
+ */
+class LintApiHistoryProvider(
+    xmlFile: File,
+    cacheDir: File? = null,
+    underTest: Boolean = false,
+) : ApiHistoryProvider {
+    /** The Lint [ApiLookup] database loaded from `api-versions.xml`. */
+    private val apiLookup: ApiLookup = getApiLookup(xmlFile, cacheDir, underTest = underTest)
+
+    /**
+     * Map from symbol key (`"pkg.Class"` or `"pkg.Class#member"`) to the [SdkAndVersion] in which
+     * the symbol was first introduced.
+     */
+    private val elementToSdkExtSinceMap: Map<String, SdkAndVersion> =
+        createSymbolToSdkExtSinceMap(xmlFile)
+
+    override fun getApiHistory(cls: ClassItem): ItemApiHistory? =
+        apiLookup.getApiHistory(cls, elementToSdkExtSinceMap)
+
+    override fun getApiHistory(callable: CallableItem): ItemApiHistory? =
+        apiLookup.getApiHistory(callable, elementToSdkExtSinceMap)
+
+    override fun getApiHistory(field: FieldItem): ItemApiHistory? =
+        apiLookup.getApiHistory(field, elementToSdkExtSinceMap)
+}
+
 /** A constraint that will only match for Android Platform SDKs. */
 private val androidSdkConstraint = ApiConstraint.get(1)
 
@@ -62,7 +96,7 @@ private fun ApiConstraint.minApiVersion(): ApiVersion? {
  * Construct an [ItemApiHistory] for [cls] from this [ApiLookup] and [elementToSdkExtSinceMap], or
  * return `null` if [cls] is not present in the API history.
  */
-internal fun ApiLookup.getApiHistory(
+private fun ApiLookup.getApiHistory(
     cls: ClassItem,
     elementToSdkExtSinceMap: Map<String, SdkAndVersion>,
 ): ItemApiHistory? {
@@ -77,7 +111,7 @@ internal fun ApiLookup.getApiHistory(
  * Construct an [ItemApiHistory] for [callable] from this [ApiLookup] and [elementToSdkExtSinceMap],
  * or return `null` if [callable] is not present in the API history.
  */
-internal fun ApiLookup.getApiHistory(
+private fun ApiLookup.getApiHistory(
     callable: CallableItem,
     elementToSdkExtSinceMap: Map<String, SdkAndVersion>,
 ): ItemApiHistory? {
@@ -93,7 +127,7 @@ internal fun ApiLookup.getApiHistory(
  * Construct an [ItemApiHistory] for [field] from this [ApiLookup] and [elementToSdkExtSinceMap], or
  * return `null` if [field] is not present in the API history.
  */
-internal fun ApiLookup.getApiHistory(
+private fun ApiLookup.getApiHistory(
     field: FieldItem,
     elementToSdkExtSinceMap: Map<String, SdkAndVersion>,
 ): ItemApiHistory? {
@@ -233,7 +267,7 @@ fun getApiLookup(
  *
  * The symbols are Strings on the format "com.pkg.Foo#MethodOrField", with no method signature.
  */
-internal fun createSymbolToSdkExtSinceMap(xmlFile: File): Map<String, SdkAndVersion> {
+private fun createSymbolToSdkExtSinceMap(xmlFile: File): Map<String, SdkAndVersion> {
     data class OuterClass(val name: String, val idAndVersion: IdAndVersion?)
 
     val sdkExtensionsById = mutableMapOf<Int, SdkExtension>()

@@ -17,6 +17,9 @@
 package com.android.tools.metalava.doc
 
 import com.android.tools.metalava.apilevels.ApiVersion
+import com.android.tools.metalava.model.CallableItem
+import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 
 /**
@@ -64,4 +67,24 @@ data class ItemApiHistory(
             return ItemApiHistory(since, deprecatedIn, sdkExtSince)
         }
     }
+}
+
+/**
+ * Provides historical API version metadata ([ItemApiHistory]) for API items when generating
+ * documentation stubs in [DocAnalyzer].
+ */
+interface ApiHistoryProvider {
+    /** Get the [ItemApiHistory] for [cls], or `null` if [cls] is not present in the API history. */
+    fun getApiHistory(cls: ClassItem): ItemApiHistory?
+
+    /**
+     * Get the [ItemApiHistory] for [callable], or `null` if [callable] is not present in the API
+     * history.
+     */
+    fun getApiHistory(callable: CallableItem): ItemApiHistory?
+
+    /**
+     * Get the [ItemApiHistory] for [field], or `null` if [field] is not present in the API history.
+     */
+    fun getApiHistory(field: FieldItem): ItemApiHistory?
 }

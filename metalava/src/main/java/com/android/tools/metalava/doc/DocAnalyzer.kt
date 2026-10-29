@@ -738,16 +738,15 @@ class DocAnalyzer(
     }
 
     /**
-     * Load API history from [apiVersionsFile] and apply `@apiSince`, `@deprecatedSince`, and
-     * `@sdkExtSince` documentation tags to items in [codebase].
+     * Load API history from [apiVersionsFile] using [LintApiHistoryProvider] and apply `@apiSince`,
+     * `@deprecatedSince`, and `@sdkExtSince` documentation tags to items in [codebase].
      */
     fun applyApiVersions(apiVersionsFile: File) {
-        val apiLookup =
-            getApiLookup(
+        val provider: ApiHistoryProvider =
+            LintApiHistoryProvider(
                 xmlFile = apiVersionsFile,
                 underTest = executionEnvironment.isUnderTest(),
             )
-        val elementToSdkExtSinceMap = createSymbolToSdkExtSinceMap(apiVersionsFile)
 
         val packageToVersion = HashMap<PackageItem, ApiVersion>(300)
         codebase.accept(
@@ -765,12 +764,11 @@ class DocAnalyzer(
                     if (callable is ConstructorItem && callable.isImplicitConstructor()) {
                         return
                     }
-                    val history = apiLookup.getApiHistory(callable, elementToSdkExtSinceMap)
-                    applyItemApiHistory(history, callable)
+                    applyItemApiHistory(provider.getApiHistory(callable), callable)
                 }
 
                 override fun visitClass(cls: ClassItem) {
-                    val history = apiLookup.getApiHistory(cls, elementToSdkExtSinceMap) ?: return
+                    val history = provider.getApiHistory(cls) ?: return
                     applyItemApiHistory(history, cls)
 
                     history.since?.let { since ->
@@ -784,8 +782,7 @@ class DocAnalyzer(
                 }
 
                 override fun visitField(field: FieldItem) {
-                    val history = apiLookup.getApiHistory(field, elementToSdkExtSinceMap)
-                    applyItemApiHistory(history, field)
+                    applyItemApiHistory(provider.getApiHistory(field), field)
                 }
             }
         )
