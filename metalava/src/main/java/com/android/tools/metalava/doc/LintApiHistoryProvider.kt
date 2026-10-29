@@ -125,7 +125,8 @@ private fun ApiLookup.getApiHistory(
     callable: CallableItem,
     elementToSdkExtSinceMap: Map<String, SdkAndVersion>,
 ): ItemApiHistory? {
-    val key = "${callable.containingClass().qualifiedName()}#${callable.name()}"
+    val desc = callable.getCallableParameterDescriptorUsingDots() ?: "()"
+    val key = "${callable.containingClass().qualifiedName()}#${callable.name()}$desc"
     return ItemApiHistory.create(
         since = getCallableVersion(callable),
         deprecatedIn = getCallableDeprecatedIn(callable),
@@ -359,15 +360,22 @@ private fun createSymbolToSdkExtSinceMap(xmlFile: File): Map<String, SdkAndVersi
                         "method",
                         "field" -> {
                             val shortName =
-                                if (name.startsWith("<init>")) {
-                                    // constructors in api-versions.xml are named '<init>': rename
-                                    // to
-                                    // name of class instead, and strip signature: '<init>()V' ->
-                                    // 'Foo'
-                                    lastSeenClass.name.substringAfterLast('.')
+                                if (qualifiedName == "method") {
+                                    // Keep parameter descriptor (without return type) and normalize
+                                    // '/' and '$' to '.' so overloaded methods have distinct keys.
+                                    val withoutReturn = name.substringBefore(')') + ")"
+                                    val withClassName =
+                                        if (withoutReturn.startsWith("<init>")) {
+                                            // Constructors in api-versions.xml are named '<init>':
+                                            // rename to simple name of class instead.
+                                            lastSeenClass.name.substringAfterLast('.') +
+                                                withoutReturn.removePrefix("<init>")
+                                        } else {
+                                            withoutReturn
+                                        }
+                                    withClassName.replace('/', '.').replace('$', '.')
                                 } else {
-                                    // strip signature: 'foo()V' -> 'foo'
-                                    name.substringBefore('(')
+                                    name
                                 }
                             val element = "${lastSeenClass.name}#$shortName"
                             if (idAndVersion != null) {

@@ -895,9 +895,6 @@ class DocApiHistoryTest : DriverTest() {
                 """,
             checkCompilation = true,
             docStubs = true,
-            // TODO(b/579134806): foo(int) should have "@sdkExtSince R Extensions 2", but
-            //  LintApiHistoryProvider strips parameter descriptors when indexing @sdkExtSince so
-            //  foo(String)'s @sdkExtSince overwrites foo(int)'s.
             expectedStubFiles =
                 arrayOf(
                     java(
@@ -909,7 +906,7 @@ class DocApiHistoryTest : DriverTest() {
                             Test() { throw new RuntimeException("Stub!"); }
                             /**
                              * @apiSince 30
-                             * @sdkExtSince R Extensions 5
+                             * @sdkExtSince R Extensions 2
                              */
                             public void foo(int a) { throw new RuntimeException("Stub!"); }
                             /**
