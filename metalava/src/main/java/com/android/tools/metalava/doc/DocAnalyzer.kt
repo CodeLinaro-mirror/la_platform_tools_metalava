@@ -775,23 +775,12 @@ class DocAnalyzer(
                     if (callable is ConstructorItem && callable.isImplicitConstructor()) {
                         return
                     }
-                    val key = "${callable.containingClass().qualifiedName()}#${callable.name()}"
-                    val history =
-                        ItemApiHistory.create(
-                            since = apiLookup.getCallableVersion(callable),
-                            deprecatedIn = apiLookup.getCallableDeprecatedIn(callable),
-                            sdkExtSince = elementToSdkExtSinceMap[key],
-                        )
+                    val history = apiLookup.getApiHistory(callable, elementToSdkExtSinceMap)
                     applyItemApiHistory(history, callable)
                 }
 
                 override fun visitClass(cls: ClassItem) {
-                    val history =
-                        ItemApiHistory.create(
-                            since = apiLookup.getClassVersion(cls),
-                            deprecatedIn = apiLookup.getClassDeprecatedIn(cls),
-                            sdkExtSince = elementToSdkExtSinceMap[cls.qualifiedName()],
-                        ) ?: return
+                    val history = apiLookup.getApiHistory(cls, elementToSdkExtSinceMap) ?: return
                     applyItemApiHistory(history, cls)
 
                     history.since?.let { since ->
@@ -805,13 +794,7 @@ class DocAnalyzer(
                 }
 
                 override fun visitField(field: FieldItem) {
-                    val key = "${field.containingClass().qualifiedName()}#${field.name()}"
-                    val history =
-                        ItemApiHistory.create(
-                            since = apiLookup.getFieldVersion(field),
-                            deprecatedIn = apiLookup.getFieldDeprecatedIn(field),
-                            sdkExtSince = elementToSdkExtSinceMap[key],
-                        )
+                    val history = apiLookup.getApiHistory(field, elementToSdkExtSinceMap)
                     applyItemApiHistory(history, field)
                 }
             }
@@ -924,14 +907,14 @@ class DocAnalyzer(
 }
 
 /** A constraint that will only match for Android Platform SDKs. */
-val androidSdkConstraint = ApiConstraint.get(1)
+private val androidSdkConstraint = ApiConstraint.get(1)
 
 /**
  * Get the min [ApiVersion], i.e. the lowest version of the Android Platform SDK.
  *
  * TODO(b/282932318): Replace with call to ApiConstraint.min() when bug is fixed.
  */
-fun ApiConstraint.minApiVersion(): ApiVersion? {
+private fun ApiConstraint.minApiVersion(): ApiVersion? {
     return getConstraints()
         .filter { it != ApiConstraint.UNKNOWN }
         // Remove any constraints that are not for the Android Platform SDK.
@@ -948,12 +931,61 @@ fun ApiConstraint.minApiVersion(): ApiVersion? {
         }
 }
 
-fun ApiLookup.getClassVersion(cls: ClassItem): ApiVersion? {
+/**
+ * Construct an [ItemApiHistory] for [cls] from this [ApiLookup] and [elementToSdkExtSinceMap], or
+ * return `null` if [cls] is not present in the API history.
+ */
+internal fun ApiLookup.getApiHistory(
+    cls: ClassItem,
+    elementToSdkExtSinceMap: Map<String, SdkAndVersion>,
+): ItemApiHistory? {
+    return ItemApiHistory.create(
+        since = getClassVersion(cls),
+        deprecatedIn = getClassDeprecatedIn(cls),
+        sdkExtSince = elementToSdkExtSinceMap[cls.qualifiedName()],
+    )
+}
+
+/**
+ * Construct an [ItemApiHistory] for [callable] from this [ApiLookup] and [elementToSdkExtSinceMap],
+ * or return `null` if [callable] is not present in the API history.
+ */
+internal fun ApiLookup.getApiHistory(
+    callable: CallableItem,
+    elementToSdkExtSinceMap: Map<String, SdkAndVersion>,
+): ItemApiHistory? {
+    val key = "${callable.containingClass().qualifiedName()}#${callable.name()}"
+    return ItemApiHistory.create(
+        since = getCallableVersion(callable),
+        deprecatedIn = getCallableDeprecatedIn(callable),
+        sdkExtSince = elementToSdkExtSinceMap[key],
+    )
+}
+
+/**
+ * Construct an [ItemApiHistory] for [field] from this [ApiLookup] and [elementToSdkExtSinceMap], or
+ * return `null` if [field] is not present in the API history.
+ */
+internal fun ApiLookup.getApiHistory(
+    field: FieldItem,
+    elementToSdkExtSinceMap: Map<String, SdkAndVersion>,
+): ItemApiHistory? {
+    val key = "${field.containingClass().qualifiedName()}#${field.name()}"
+    return ItemApiHistory.create(
+        since = getFieldVersion(field),
+        deprecatedIn = getFieldDeprecatedIn(field),
+        sdkExtSince = elementToSdkExtSinceMap[key],
+    )
+}
+
+/** Get the Android platform [ApiVersion] in which [cls] was introduced, or `null` if unknown. */
+private fun ApiLookup.getClassVersion(cls: ClassItem): ApiVersion? {
     val owner = cls.qualifiedName()
     return getClassVersions(owner).minApiVersion()
 }
 
-fun ApiLookup.getCallableVersion(method: CallableItem): ApiVersion? {
+/** Get the Android platform [ApiVersion] in which [method] was introduced, or `null` if unknown. */
+private fun ApiLookup.getCallableVersion(method: CallableItem): ApiVersion? {
     val containingClass = method.containingClass()
     val owner = containingClass.qualifiedName()
     val desc = method.getCallableParameterDescriptorUsingDots()
@@ -962,25 +994,37 @@ fun ApiLookup.getCallableVersion(method: CallableItem): ApiVersion? {
     return getMethodVersions(owner, name, desc).minApiVersion()
 }
 
-fun ApiLookup.getFieldVersion(field: FieldItem): ApiVersion? {
+/** Get the Android platform [ApiVersion] in which [field] was introduced, or `null` if unknown. */
+private fun ApiLookup.getFieldVersion(field: FieldItem): ApiVersion? {
     val containingClass = field.containingClass()
     val owner = containingClass.qualifiedName()
     return getFieldVersions(owner, field.name()).minApiVersion()
 }
 
-fun ApiLookup.getClassDeprecatedIn(cls: ClassItem): ApiVersion? {
+/**
+ * Get the Android platform [ApiVersion] in which [cls] was deprecated, or `null` if not deprecated.
+ */
+private fun ApiLookup.getClassDeprecatedIn(cls: ClassItem): ApiVersion? {
     val owner = cls.qualifiedName()
     return getClassDeprecatedInVersions(owner).minApiVersion()
 }
 
-fun ApiLookup.getCallableDeprecatedIn(callable: CallableItem): ApiVersion? {
+/**
+ * Get the Android platform [ApiVersion] in which [callable] was deprecated, or `null` if not
+ * deprecated.
+ */
+private fun ApiLookup.getCallableDeprecatedIn(callable: CallableItem): ApiVersion? {
     val containingClass = callable.containingClass()
     val owner = containingClass.qualifiedName()
     val desc = callable.getCallableParameterDescriptorUsingDots() ?: return null
     return getMethodDeprecatedInVersions(owner, callable.name(), desc).minApiVersion()
 }
 
-fun ApiLookup.getFieldDeprecatedIn(field: FieldItem): ApiVersion? {
+/**
+ * Get the Android platform [ApiVersion] in which [field] was deprecated, or `null` if not
+ * deprecated.
+ */
+private fun ApiLookup.getFieldDeprecatedIn(field: FieldItem): ApiVersion? {
     val containingClass = field.containingClass()
     val owner = containingClass.qualifiedName()
     return getFieldDeprecatedInVersions(owner, field.name()).minApiVersion()
