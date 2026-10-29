@@ -316,25 +316,25 @@ class ParameterizedApiReferenceStrategyTest(private val params: Params) {
                     from = nestedInHiddenPublicItem,
                     to = hiddenPublicItem,
                     kind = ReferenceKind.CODE,
-                    expectedResult = ReferenceCheckResult.Hidden(isPublicOrProtected = true),
+                    expectedResult = ReferenceCheckResult.Valid,
                 ),
                 Params(
                     from = nestedInHiddenPublicItem,
                     to = hiddenPublicItem,
                     kind = ReferenceKind.DOCUMENTATION,
-                    expectedResult = ReferenceCheckResult.Hidden(isPublicOrProtected = true),
+                    expectedResult = ReferenceCheckResult.Valid,
                 ),
                 Params(
                     from = memberInHiddenPublicItem,
                     to = hiddenPublicItem,
                     kind = ReferenceKind.CODE,
-                    expectedResult = ReferenceCheckResult.Hidden(isPublicOrProtected = true),
+                    expectedResult = ReferenceCheckResult.Valid,
                 ),
                 Params(
                     from = memberInHiddenPublicItem,
                     to = hiddenPublicItem,
                     kind = ReferenceKind.DOCUMENTATION,
-                    expectedResult = ReferenceCheckResult.Hidden(isPublicOrProtected = true),
+                    expectedResult = ReferenceCheckResult.Valid,
                 ),
             )
 
