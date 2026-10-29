@@ -62,6 +62,29 @@ open class ApiElement(val name: String) : ParentApiElement, Comparable<ApiElemen
     }
 
     /**
+     * Initializes this element with explicit attributes read from an `api-versions.xml` file.
+     *
+     * @param since the API version in which this element was introduced.
+     * @param sdks the optional comma-separated SDK extension versions string.
+     * @param deprecatedIn the optional API version in which this element was deprecated.
+     * @param removedIn the optional API version in which this element was removed.
+     * @param mainlineModule the optional mainline module name for this element.
+     */
+    internal fun initFromXml(
+        since: ApiVersion,
+        sdks: String? = null,
+        deprecatedIn: ApiVersion? = null,
+        removedIn: ApiVersion? = null,
+        mainlineModule: String? = null,
+    ) {
+        this.since = since
+        this.sdks = sdks
+        this.deprecatedIn = deprecatedIn
+        this.removedIn = removedIn
+        this.mainlineModule = mainlineModule
+    }
+
+    /**
      * The Android API level of this ApiElement. i.e. The Android platform SDK version this API was
      * first introduced in.
      */

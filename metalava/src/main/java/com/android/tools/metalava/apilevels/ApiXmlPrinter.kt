@@ -167,7 +167,7 @@ class ApiXmlPrinter : ApiPrinter {
 
     companion object {
         /** The default minimum [ApiVersion] expected by consumers of `api-versions.xml`. */
-        private val DEFAULT_MIN_VERSION = ApiVersion.fromLevel(1)
+        internal val DEFAULT_MIN_VERSION = ApiVersion.fromLevel(1)
 
         /**
          * Prints a closing tag of an XML element terminated by a line break.

@@ -150,6 +150,26 @@ class ApiClass(name: String, private val isEnum: Boolean) : ApiElement(name) {
     val interfaces: Collection<ApiElement>
         get() = mInterfaces.values
 
+    /** Adds a parsed field [ApiElement] directly to this [ApiClass]. */
+    internal fun addField(field: ApiElement) {
+        mFields[field.name] = field
+    }
+
+    /** Adds a parsed method [ApiElement] directly to this [ApiClass]. */
+    internal fun addMethod(method: ApiElement) {
+        mMethods[method.name] = method
+    }
+
+    /** Adds a parsed superclass [ApiElement] directly to this [ApiClass]. */
+    internal fun addSuperClass(superClass: ApiElement) {
+        mSuperClasses[superClass.name] = superClass
+    }
+
+    /** Adds a parsed interface [ApiElement] directly to this [ApiClass]. */
+    internal fun addInterface(interfaceElement: ApiElement) {
+        mInterfaces[interfaceElement.name] = interfaceElement
+    }
+
     private fun updateElementInMap(
         elements: MutableMap<String, ApiElement>,
         name: String,

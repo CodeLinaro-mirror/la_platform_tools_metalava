@@ -108,6 +108,11 @@ class Api(val useInternalNames: Boolean) : ParentApiElement {
         return classElement
     }
 
+    /** Adds a parsed [ApiClass] directly to this [Api]. */
+    internal fun addClass(classElement: ApiClass) {
+        mClasses[classElement.name] = classElement
+    }
+
     fun findClass(name: String?): ApiClass? {
         return if (name == null) null else mClasses[name]
     }
