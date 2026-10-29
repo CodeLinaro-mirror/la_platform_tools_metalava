@@ -293,6 +293,61 @@ class DocApiHistoryTest : DriverTest() {
     }
 
     @Test
+    fun `Deprecated constructor`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            public class Foo {
+                                public Foo() {}
+                                /** @deprecated Use {@link #Foo()} instead. */
+                                @Deprecated
+                                public Foo(int i) {}
+                            }
+                        """
+                    ),
+                ),
+            applyApiLevelsXml =
+                """
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <api version="2">
+                        <class name="test/pkg/Foo" since="17">
+                            <method name="&lt;init>()V" since="18"/>
+                            <method name="&lt;init>(I)V" since="18" deprecated="19"/>
+                        </class>
+                    </api>
+                """,
+            checkCompilation = true,
+            docStubs = true,
+            expectedStubFiles =
+                arrayOf(
+                    java(
+                        // TODO(b/579134806): Foo(int) should have @deprecatedSince 19, but
+                        //  LintApiHistoryProvider looks up constructor deprecation using the class
+                        //  name ("Foo") instead of "<init>".
+                        """
+                            package test.pkg;
+                            /** @apiSince 17 */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Foo {
+                            /** @apiSince 18 */
+                            public Foo() { throw new RuntimeException("Stub!"); }
+                            /**
+                             * @deprecated Use {@link #Foo()} instead.
+                             * @apiSince 18
+                             */
+                            @Deprecated
+                            public Foo(int i) { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                ),
+        )
+    }
+
+    @Test
     fun `Api levels around current and preview`() {
         check(
             extraArguments =
