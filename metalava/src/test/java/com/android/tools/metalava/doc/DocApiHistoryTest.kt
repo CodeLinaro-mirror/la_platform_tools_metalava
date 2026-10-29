@@ -867,6 +867,64 @@ class DocApiHistoryTest : DriverTest() {
     }
 
     @Test
+    fun `@sdkExtSince - overloaded methods`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package android.pkg;
+                            public class Test {
+                                private Test() {}
+                                public void foo(int a) {}
+                                public void foo(String b) {}
+                            }
+                        """
+                    )
+                ),
+            applyApiLevelsXml =
+                """
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <api version="3">
+                        <sdk id="30" shortname="R-ext" name="R Extensions" reference="android/os/Build${'$'}VERSION_CODES${'$'}R" />
+                        <class name="android/pkg/Test" since="30">
+                            <method name="foo(I)V" since="30" sdks="30:2,0:30"/>
+                            <method name="foo(Ljava/lang/String;)V" since="31" sdks="30:5,0:31"/>
+                        </class>
+                    </api>
+                """,
+            checkCompilation = true,
+            docStubs = true,
+            // TODO(b/579134806): foo(int) should have "@sdkExtSince R Extensions 2", but
+            //  LintApiHistoryProvider strips parameter descriptors when indexing @sdkExtSince so
+            //  foo(String)'s @sdkExtSince overwrites foo(int)'s.
+            expectedStubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package android.pkg;
+                            /** @apiSince 30 */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Test {
+                            Test() { throw new RuntimeException("Stub!"); }
+                            /**
+                             * @apiSince 30
+                             * @sdkExtSince R Extensions 5
+                             */
+                            public void foo(int a) { throw new RuntimeException("Stub!"); }
+                            /**
+                             * @apiSince 31
+                             * @sdkExtSince R Extensions 5
+                             */
+                            public void foo(java.lang.String b) { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    )
+                )
+        )
+    }
+
+    @Test
     fun `Merge API levels`() {
         check(
             sourceFiles =
