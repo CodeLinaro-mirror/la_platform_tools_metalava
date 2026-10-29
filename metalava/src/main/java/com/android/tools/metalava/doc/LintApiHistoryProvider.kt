@@ -68,9 +68,11 @@ class LintApiHistoryProvider(
 
     companion object {
         /** [ApiHistoryProvider.Loader] that creates a [LintApiHistoryProvider]. */
-        val loader =
-            ApiHistoryProvider.Loader { xmlFile ->
-                LintApiHistoryProvider(xmlFile, underTest = true)
+        val loader: ApiHistoryProvider.Loader =
+            object : ApiHistoryProvider.Loader {
+                override fun load(xmlFile: File) = LintApiHistoryProvider(xmlFile, underTest = true)
+
+                override fun toString() = "lint"
             }
     }
 }

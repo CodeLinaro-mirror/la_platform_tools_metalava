@@ -28,9 +28,22 @@ import com.android.tools.metalava.testing.KnownSourceFiles.flaggedApiSource
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.uiThreadSource
 import org.junit.Test
+import org.junit.runners.Parameterized
 
 /** Tests for [DocAnalyzer] applying API history from `api-versions.xml` to documentation stubs. */
 class DocApiHistoryTest : DriverTest() {
+    @Parameterized.Parameter(0)
+    override lateinit var apiHistoryProviderLoader: ApiHistoryProvider.Loader
+
+    companion object {
+        @JvmStatic
+        @Parameterized.Parameters(name = "{0}")
+        fun testParameters() =
+            listOf(
+                LintApiHistoryProvider.loader,
+            )
+    }
+
     @Test
     fun `Check construct ApiLookup works correctly`() {
         check(

@@ -58,6 +58,8 @@ import com.android.tools.metalava.cli.util.configFileOptions
 import com.android.tools.metalava.cli.util.signatureOptions
 import com.android.tools.metalava.cli.util.testSources
 import com.android.tools.metalava.cli.util.tracingOptions
+import com.android.tools.metalava.doc.ApiHistoryProvider
+import com.android.tools.metalava.doc.LintApiHistoryProvider
 import com.android.tools.metalava.model.ANDROIDX_ANNOTATION_PACKAGE
 import com.android.tools.metalava.model.ANDROID_ANNOTATION_PACKAGE
 import com.android.tools.metalava.model.Assertions
@@ -117,6 +119,13 @@ abstract class DriverTest :
 
     /** The [CodebaseCreatorConfig] under which this test will be run. */
     final override lateinit var codebaseCreatorConfig: CodebaseCreatorConfig<SourceModelProvider>
+
+    /**
+     * The [ApiHistoryProvider.Loader] to pass to [TestEnvironment.apiHistoryProviderLoader] in
+     * [check].
+     */
+    open val apiHistoryProviderLoader: ApiHistoryProvider.Loader
+        get() = LintApiHistoryProvider.loader
 
     // Makes a note to fail the test, but still allows the test to complete before failing
     protected fun addError(error: String) {
@@ -1114,6 +1123,7 @@ abstract class DriverTest :
                 sourceModelProvider = codebaseCreatorConfig.creator,
                 modelOptions = codebaseCreatorConfig.modelOptions,
                 postAnalysisChecker = postAnalysisChecker,
+                apiHistoryProviderLoader = apiHistoryProviderLoader,
             )
 
         val actualOutput =
