@@ -189,7 +189,8 @@ private fun ApiLookup.getCallableDeprecatedIn(callable: CallableItem): ApiVersio
     val containingClass = callable.containingClass()
     val owner = containingClass.qualifiedName()
     val desc = callable.getCallableParameterDescriptorUsingDots() ?: return null
-    return getMethodDeprecatedInVersions(owner, callable.name(), desc).minApiVersion()
+    val name = if (callable.isConstructor()) "<init>" else callable.name()
+    return getMethodDeprecatedInVersions(owner, name, desc).minApiVersion()
 }
 
 /**

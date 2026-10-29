@@ -324,9 +324,6 @@ class DocApiHistoryTest : DriverTest() {
             expectedStubFiles =
                 arrayOf(
                     java(
-                        // TODO(b/579134806): Foo(int) should have @deprecatedSince 19, but
-                        //  LintApiHistoryProvider looks up constructor deprecation using the class
-                        //  name ("Foo") instead of "<init>".
                         """
                             package test.pkg;
                             /** @apiSince 17 */
@@ -337,6 +334,7 @@ class DocApiHistoryTest : DriverTest() {
                             /**
                              * @deprecated Use {@link #Foo()} instead.
                              * @apiSince 18
+                             * @deprecatedSince 19
                              */
                             @Deprecated
                             public Foo(int i) { throw new RuntimeException("Stub!"); }
