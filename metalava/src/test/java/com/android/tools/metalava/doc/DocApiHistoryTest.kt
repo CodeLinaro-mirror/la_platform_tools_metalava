@@ -504,6 +504,84 @@ class DocApiHistoryTest : DriverTest() {
     }
 
     @Test
+    fun `Members added after class deprecation`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            /** @deprecated Do not use. */
+                            @Deprecated
+                            public class Foo {
+                                public Foo() {}
+                                public Foo(int i) {}
+                                public void bar() {}
+                                public static final int FIELD = 1;
+                            }
+                        """
+                    ),
+                ),
+            applyApiLevelsXml =
+                """
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <api version="2">
+                        <class name="test/pkg/Foo" since="1" deprecated="20">
+                            <method name="&lt;init>()V"/>
+                            <method name="&lt;init>(I)V" since="30" deprecated="30"/>
+                            <method name="bar()V" since="30" deprecated="30"/>
+                            <field name="FIELD" since="30" deprecated="30"/>
+                        </class>
+                    </api>
+                """,
+            checkCompilation = true,
+            docStubs = true,
+            // TODO(b/579134806): Foo(int), bar(), and FIELD were added in API 30 so their
+            //  @deprecatedSince should be 30 (clamped to their @apiSince version), not 20.
+            expectedStubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            /**
+                             * @deprecated Do not use.
+                             * @apiSince 1
+                             * @deprecatedSince 20
+                             */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            @Deprecated
+                            public class Foo {
+                            /**
+                             * @apiSince 1
+                             * @deprecatedSince 20
+                             */
+                            @Deprecated
+                            public Foo() { throw new RuntimeException("Stub!"); }
+                            /**
+                             * @apiSince 30
+                             * @deprecatedSince 20
+                             */
+                            @Deprecated
+                            public Foo(int i) { throw new RuntimeException("Stub!"); }
+                            /**
+                             * @apiSince 30
+                             * @deprecatedSince 20
+                             */
+                            @Deprecated
+                            public void bar() { throw new RuntimeException("Stub!"); }
+                            /**
+                             * @apiSince 30
+                             * @deprecatedSince 20
+                             */
+                            @Deprecated public static final int FIELD = 1;
+                            }
+                        """
+                    ),
+                ),
+        )
+    }
+
+    @Test
     fun `Api levels around current and preview`() {
         check(
             extraArguments =
