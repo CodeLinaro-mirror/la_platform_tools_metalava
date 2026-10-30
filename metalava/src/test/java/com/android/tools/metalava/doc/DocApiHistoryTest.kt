@@ -815,6 +815,60 @@ class DocApiHistoryTest : DriverTest() {
     }
 
     @Test
+    fun `Method replaced by overload with earlier return type descriptor`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            public class Foo {
+                                public Foo() {}
+                                /** @deprecated Do not use. */
+                                @Deprecated
+                                public boolean bar() { return false; }
+                            }
+                        """
+                    ),
+                ),
+            applyApiLevelsXml =
+                """
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <api version="2">
+                        <class name="test/pkg/Foo" since="21">
+                            <method name="&lt;init>()V"/>
+                            <method name="bar()Z" since="23" deprecated="30"/>
+                            <method name="bar()[Ljava/lang/String;" removed="23"/>
+                        </class>
+                    </api>
+                """,
+            checkCompilation = true,
+            docStubs = true,
+            expectedStubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            /** @apiSince 21 */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Foo {
+                            /** @apiSince 21 */
+                            public Foo() { throw new RuntimeException("Stub!"); }
+                            /**
+                             * @deprecated Do not use.
+                             * @apiSince 23
+                             * @deprecatedSince 30
+                             */
+                            @Deprecated
+                            public boolean bar() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                ),
+        )
+    }
+
+    @Test
     fun `Api levels around current and preview`() {
         check(
             extraArguments =
