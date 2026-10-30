@@ -580,6 +580,128 @@ class DocApiHistoryTest : DriverTest() {
     }
 
     @Test
+    fun `Inherited member via diamond hierarchy with newer interface`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            public interface Base {
+                                void bar();
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            public interface Iface extends Base {
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            public class Super implements Base {
+                                public Super() {}
+                                @Override
+                                public void bar() {}
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            public class Sub extends Super implements Iface {
+                                public Sub() {}
+                                @Override
+                                public void bar() {}
+                            }
+                        """
+                    ),
+                ),
+            applyApiLevelsXml =
+                """
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <api version="2">
+                        <class name="test/pkg/Base" since="1">
+                            <method name="bar()V"/>
+                        </class>
+                        <class name="test/pkg/Iface" since="31">
+                            <implements name="test/pkg/Base"/>
+                        </class>
+                        <class name="test/pkg/Super" since="1">
+                            <implements name="test/pkg/Base"/>
+                            <method name="&lt;init>()V"/>
+                        </class>
+                        <class name="test/pkg/Sub" since="1">
+                            <extends name="test/pkg/Super"/>
+                            <implements name="test/pkg/Iface" since="31"/>
+                            <method name="&lt;init>()V"/>
+                        </class>
+                    </api>
+                """,
+            checkCompilation = true,
+            docStubs = true,
+            expectedStubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            /** @apiSince 1 */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public interface Base {
+                            /** @apiSince 1 */
+                            public void bar();
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            /** @apiSince 31 */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public interface Iface extends test.pkg.Base {
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            /** @apiSince 1 */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Super implements test.pkg.Base {
+                            /** @apiSince 1 */
+                            public Super() { throw new RuntimeException("Stub!"); }
+                            /**
+                             * {@inheritDoc}
+                             * @apiSince 1
+                             */
+                            public void bar() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            /** @apiSince 1 */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Sub extends test.pkg.Super implements test.pkg.Iface {
+                            /** @apiSince 1 */
+                            public Sub() { throw new RuntimeException("Stub!"); }
+                            /**
+                             * {@inheritDoc}
+                             * @apiSince 1
+                             */
+                            public void bar() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                ),
+        )
+    }
+
+    @Test
     fun `Api levels around current and preview`() {
         check(
             extraArguments =
