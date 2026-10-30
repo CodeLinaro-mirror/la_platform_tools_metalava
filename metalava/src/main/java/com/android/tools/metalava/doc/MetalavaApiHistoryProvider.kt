@@ -17,6 +17,7 @@
 package com.android.tools.metalava.doc
 
 import com.android.tools.metalava.apilevels.Api
+import com.android.tools.metalava.apilevels.ApiClass
 import com.android.tools.metalava.apilevels.ApiElement
 import com.android.tools.metalava.apilevels.ApiToExtensionsMap.Companion.ANDROID_PLATFORM_SDK_ID
 import com.android.tools.metalava.apilevels.ApiVersion
@@ -62,7 +63,60 @@ class MetalavaApiHistoryProvider(xmlFile: File) : ApiHistoryProvider {
      * containing class is not present in `api-versions.xml` or [field] has no recorded history.
      */
     override fun getApiHistory(field: FieldItem): ItemApiHistory? {
-        return null
+        val apiClass = api.findClass(field.containingClass().internalName()) ?: return null
+        val fieldName = field.internalName()
+        // Look up the field element declared directly on apiClass for deprecation and SDK
+        // extension history, while computing `since` across apiClass and its supertypes.
+        val directField = apiClass.getField(fieldName)
+        val since = findFieldSince(apiClass, fieldName)
+        if (since == null) return null
+
+        val deprecatedIn =
+            (directField?.deprecatedIn ?: apiClass.deprecatedIn)?.normalizeMinorZero()?.let {
+                if (it < since) since else it
+            }
+        return ItemApiHistory.create(
+            since = since,
+            deprecatedIn = deprecatedIn,
+            sdkExtSince = null,
+        )
+    }
+
+    /**
+     * Computes the minimum effective platform `since` [ApiVersion] for [fieldName] in [apiClass]
+     * and its supertypes ([ApiClass.superClasses] and [ApiClass.interfaces]), or `null` if not
+     * found.
+     *
+     * Because `Api.clean()` removes inherited field entries from subclasses when a supertype
+     * already defines the field, a field inherited from a superclass or superinterface is available
+     * on [apiClass] starting at `max(edge.since, supertypeField.since)`, and the overall `since`
+     * version is the minimum across the direct declaration and all supertype paths.
+     */
+    private fun findFieldSince(
+        apiClass: ApiClass,
+        fieldName: String,
+        memo: MutableMap<String, ApiVersion?> = mutableMapOf(),
+    ): ApiVersion? {
+        // Memoize per-class results in diamond inheritance hierarchies while guarding against
+        // cycles.
+        if (memo.containsKey(apiClass.name)) return memo[apiClass.name]
+        memo[apiClass.name] = null
+
+        var minSince: ApiVersion? = apiClass.getField(fieldName)?.platformSince()
+
+        for (parentEdge in apiClass.interfaces.asSequence() + apiClass.superClasses.asSequence()) {
+            val parentClass = api.findClass(parentEdge.name) ?: continue
+            val parentFieldSince = findFieldSince(parentClass, fieldName, memo) ?: continue
+            val edgeSince = parentEdge.platformSince()
+            val effectiveSince =
+                if (edgeSince != null) maxOf(edgeSince, parentFieldSince) else parentFieldSince
+            if (minSince == null || effectiveSince < minSince) {
+                minSince = effectiveSince
+            }
+        }
+
+        memo[apiClass.name] = minSince
+        return minSince
     }
 
     companion object {

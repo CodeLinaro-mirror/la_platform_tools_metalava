@@ -46,6 +46,9 @@ class ApiClass(name: String, private val isEnum: Boolean) : ApiElement(name) {
     val fields: Collection<ApiElement>
         get() = mFields.values
 
+    /** Returns the [ApiElement] for the field with [name], or `null` if not present. */
+    fun getField(name: String): ApiElement? = mFields[name]
+
     /**
      * Updates the [ApiElement] for method with [signature], creating and adding one if necessary.
      *
