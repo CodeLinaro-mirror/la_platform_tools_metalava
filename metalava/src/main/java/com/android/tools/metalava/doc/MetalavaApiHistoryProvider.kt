@@ -104,7 +104,7 @@ class MetalavaApiHistoryProvider(xmlFile: File) : ApiHistoryProvider {
                 directMethod?.platformSince()
                     ?: if (isNonStaticInnerConstructor) apiClass.platformSince() else null
             } else {
-                directMethod?.platformSince()
+                findMethodSince(apiClass, primaryKey, directMethod = directMethod)
             }
 
         if (since == null) return null
@@ -164,6 +164,60 @@ class MetalavaApiHistoryProvider(xmlFile: File) : ApiHistoryProvider {
         // signature including return type.
         val fullName = callable.internalName() + callable.internalDesc(voidConstructorTypes = true)
         return candidates.firstOrNull { it.name == fullName } ?: candidates.first()
+    }
+
+    /**
+     * Computes the minimum effective platform `since` [ApiVersion] for [methodKey] in [apiClass]
+     * and its supertypes ([ApiClass.superClasses] and [ApiClass.interfaces]), or `null` if not
+     * found.
+     *
+     * Because `Api.clean()` removes overriding method entries from subclasses when a supertype
+     * already defines the method, a method's `since` version may only be recorded on a superclass
+     * or superinterface. When inheriting a method from a supertype edge `<extends>` or
+     * `<implements>`, the effective introduction version via that supertype is `max(edge.since,
+     * supertypeMethod.since)`, and the overall `since` version is the minimum across the direct
+     * declaration (if any) and all supertype paths.
+     */
+    private fun findMethodSince(
+        apiClass: ApiClass,
+        methodKey: String,
+        directMethod: ApiElement? = null,
+        memo: MutableMap<String, ApiVersion?> = mutableMapOf(),
+    ): ApiVersion? {
+        // Memoize per-class results in diamond inheritance hierarchies while guarding against
+        // cycles.
+        if (memo.containsKey(apiClass.name)) return memo[apiClass.name]
+        memo[apiClass.name] = null
+
+        // Start with the platform version of the disambiguated direct method (if provided on the
+        // starting class), or the earliest platform version among matching methods declared
+        // directly on apiClass.
+        var minSince: ApiVersion? =
+            if (directMethod != null) {
+                directMethod.platformSince()
+            } else {
+                classMethodIndex[apiClass.name]
+                    ?.get(methodKey)
+                    ?.mapNotNull { it.platformSince() }
+                    ?.minOrNull()
+            }
+
+        // Traverse implemented interfaces and superclasses to find inherited declarations.
+        for (parentEdge in apiClass.interfaces.asSequence() + apiClass.superClasses.asSequence()) {
+            val parentClass = api.findClass(parentEdge.name) ?: continue
+            val parentMethodSince = findMethodSince(parentClass, methodKey, memo = memo) ?: continue
+            // The method could not have been inherited via this supertype before apiClass started
+            // extending/implementing it (recorded on parentEdge).
+            val edgeSince = parentEdge.platformSince()
+            val effectiveSince =
+                if (edgeSince != null) maxOf(edgeSince, parentMethodSince) else parentMethodSince
+            if (minSince == null || effectiveSince < minSince) {
+                minSince = effectiveSince
+            }
+        }
+
+        memo[apiClass.name] = minSince
+        return minSince
     }
 
     /**

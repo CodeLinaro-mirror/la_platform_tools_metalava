@@ -11,10 +11,6 @@ com.android.tools.metalava.doc.DocApiHistoryTest
   @sdkExtSince - not finalized[turbine,metalava]
   @sdkExtSince - overloaded methods[psi,metalava]
   @sdkExtSince - overloaded methods[turbine,metalava]
-  Deprecated class overriding inherited method[psi,metalava]
-  Deprecated class overriding inherited method[turbine,metalava]
-  Inherited member via diamond hierarchy with newer interface[psi,metalava]
-  Inherited member via diamond hierarchy with newer interface[turbine,metalava]
 
 com.android.tools.metalava.stub.StubsTest
   Generate stubs for various modifier scenarios[turbine]
