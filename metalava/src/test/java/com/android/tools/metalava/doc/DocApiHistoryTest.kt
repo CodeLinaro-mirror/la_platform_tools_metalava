@@ -41,6 +41,7 @@ class DocApiHistoryTest : DriverTest() {
         fun testParameters() =
             listOf(
                 LintApiHistoryProvider.loader,
+                MetalavaApiHistoryProvider.loader,
             )
     }
 
