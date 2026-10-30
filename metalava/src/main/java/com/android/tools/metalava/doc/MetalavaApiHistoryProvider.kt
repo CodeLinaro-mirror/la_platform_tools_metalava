@@ -93,8 +93,8 @@ class MetalavaApiHistoryProvider(xmlFile: File) : ApiHistoryProvider {
         // Look up the method element declared directly on apiClass for deprecation and SDK
         // extension history, which are not inherited from supertypes.
         val directMethod =
-            findDirectMethod(apiClass, primaryKey)
-                ?: fallbackKey?.let { findDirectMethod(apiClass, it) }
+            findDirectMethod(apiClass, callable, primaryKey)
+                ?: fallbackKey?.let { findDirectMethod(apiClass, callable, it) }
 
         // Look up the effective platform introduction version. Constructors are never inherited
         // from superclasses; if a non-static inner class constructor is not explicitly listed, fall
@@ -148,13 +148,22 @@ class MetalavaApiHistoryProvider(xmlFile: File) : ApiHistoryProvider {
         )
     }
 
-    /** Finds the direct [ApiElement] for [methodKey] in [apiClass]. */
+    /**
+     * Finds the direct [ApiElement] for [callable] in [apiClass] matching [methodKey], preferring
+     * an exact JVM descriptor match (including return type) if multiple overloads in the class
+     * share the same parameter erasure (e.g. bridge or covariant return methods in bytecode).
+     */
     private fun findDirectMethod(
         apiClass: ApiClass,
+        callable: CallableItem,
         methodKey: String,
     ): ApiElement? {
         val candidates = classMethodIndex[apiClass.name]?.get(methodKey) ?: return null
-        return candidates.firstOrNull()
+        if (candidates.size == 1) return candidates[0]
+        // Disambiguate multiple candidates with the same parameter types by matching the full JVM
+        // signature including return type.
+        val fullName = callable.internalName() + callable.internalDesc(voidConstructorTypes = true)
+        return candidates.firstOrNull { it.name == fullName } ?: candidates.first()
     }
 
     /**
