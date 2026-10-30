@@ -702,6 +702,71 @@ class DocApiHistoryTest : DriverTest() {
     }
 
     @Test
+    fun `Constructor does not inherit since from superclass`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            public class Super {
+                                public Super() {}
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            public class Sub extends Super {
+                                public Sub() {}
+                            }
+                        """
+                    ),
+                ),
+            applyApiLevelsXml =
+                """
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <api version="2">
+                        <class name="test/pkg/Super" since="1">
+                            <method name="&lt;init>()V"/>
+                        </class>
+                        <class name="test/pkg/Sub" since="1">
+                            <extends name="test/pkg/Super"/>
+                            <method name="&lt;init>()V" since="21"/>
+                        </class>
+                    </api>
+                """,
+            checkCompilation = true,
+            docStubs = true,
+            expectedStubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            /** @apiSince 1 */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Super {
+                            /** @apiSince 1 */
+                            public Super() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            /** @apiSince 1 */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Sub extends test.pkg.Super {
+                            /** @apiSince 21 */
+                            public Sub() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                ),
+        )
+    }
+
+    @Test
     fun `Api levels around current and preview`() {
         check(
             extraArguments =
