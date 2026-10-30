@@ -767,6 +767,53 @@ class DocApiHistoryTest : DriverTest() {
     }
 
     @Test
+    fun `Method replaced by overload with different return type`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            public class Foo {
+                                public Foo() {}
+                                public long bar() { return 0L; }
+                            }
+                        """
+                    ),
+                ),
+            applyApiLevelsXml =
+                """
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <api version="2">
+                        <class name="test/pkg/Foo" since="24">
+                            <method name="&lt;init>()V"/>
+                            <method name="bar()I" removed="26"/>
+                            <method name="bar()J" since="26"/>
+                        </class>
+                    </api>
+                """,
+            checkCompilation = true,
+            docStubs = true,
+            expectedStubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            /** @apiSince 24 */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Foo {
+                            /** @apiSince 24 */
+                            public Foo() { throw new RuntimeException("Stub!"); }
+                            /** @apiSince 26 */
+                            public long bar() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                ),
+        )
+    }
+
+    @Test
     fun `Api levels around current and preview`() {
         check(
             extraArguments =
