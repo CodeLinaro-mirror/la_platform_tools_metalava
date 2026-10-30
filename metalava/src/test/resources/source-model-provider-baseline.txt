@@ -4,13 +4,5 @@ com.android.tools.metalava.DuplicateClassTest
 com.android.tools.metalava.compatibility.CompatibilityCheckTest
   Expected API changes converting collections to Kotlin[turbine]
 
-com.android.tools.metalava.doc.DocApiHistoryTest
-  @sdkExtSince - finalized[psi,metalava]
-  @sdkExtSince - finalized[turbine,metalava]
-  @sdkExtSince - not finalized[psi,metalava]
-  @sdkExtSince - not finalized[turbine,metalava]
-  @sdkExtSince - overloaded methods[psi,metalava]
-  @sdkExtSince - overloaded methods[turbine,metalava]
-
 com.android.tools.metalava.stub.StubsTest
   Generate stubs for various modifier scenarios[turbine]

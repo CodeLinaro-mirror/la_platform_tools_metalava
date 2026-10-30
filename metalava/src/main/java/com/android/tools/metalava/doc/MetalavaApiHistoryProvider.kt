@@ -60,7 +60,7 @@ class MetalavaApiHistoryProvider(xmlFile: File) : ApiHistoryProvider {
         return ItemApiHistory.create(
             since = apiClass.platformSince(),
             deprecatedIn = apiClass.deprecatedIn?.normalizeMinorZero(),
-            sdkExtSince = null,
+            sdkExtSince = extractSdkExtSince(apiClass.sdks),
         )
     }
 
@@ -107,20 +107,22 @@ class MetalavaApiHistoryProvider(xmlFile: File) : ApiHistoryProvider {
                 findMethodSince(apiClass, primaryKey, directMethod = directMethod)
             }
 
-        if (since == null) return null
+        val sdkExtElement = directMethod ?: if (isNonStaticInnerConstructor) apiClass else null
+        val sdkExtSince = sdkExtElement?.let { extractSdkExtSince(it.sdks) }
+        if (since == null && sdkExtSince == null) return null
 
         // If the method is not directly present on apiClass (e.g. an overriding method omitted by
         // Api.clean()) or has no explicit deprecated attribute, fall back to the containing class's
         // deprecation version, clamped to be no earlier than the member's introduction version.
         val deprecatedIn =
             (directMethod?.deprecatedIn ?: apiClass.deprecatedIn)?.normalizeMinorZero()?.let {
-                if (it < since) since else it
+                if (since != null && it < since) since else it
             }
 
         return ItemApiHistory.create(
             since = since,
             deprecatedIn = deprecatedIn,
-            sdkExtSince = null,
+            sdkExtSince = sdkExtSince,
         )
     }
 
@@ -135,16 +137,17 @@ class MetalavaApiHistoryProvider(xmlFile: File) : ApiHistoryProvider {
         // extension history, while computing `since` across apiClass and its supertypes.
         val directField = apiClass.getField(fieldName)
         val since = findFieldSince(apiClass, fieldName)
-        if (since == null) return null
+        val sdkExtSince = directField?.let { extractSdkExtSince(it.sdks) }
+        if (since == null && sdkExtSince == null) return null
 
         val deprecatedIn =
             (directField?.deprecatedIn ?: apiClass.deprecatedIn)?.normalizeMinorZero()?.let {
-                if (it < since) since else it
+                if (since != null && it < since) since else it
             }
         return ItemApiHistory.create(
             since = since,
             deprecatedIn = deprecatedIn,
-            sdkExtSince = null,
+            sdkExtSince = sdkExtSince,
         )
     }
 
@@ -255,6 +258,32 @@ class MetalavaApiHistoryProvider(xmlFile: File) : ApiHistoryProvider {
 
         memo[apiClass.name] = minSince
         return minSince
+    }
+
+    /**
+     * Extracts the first non-platform [SdkAndVersion] from [sdksAttr], or returns `null` if
+     * [sdksAttr] is `null` or contains no SDK extension entries.
+     *
+     * The `sdks` attribute is a comma-separated list of `sdkId:version` pairs ordered by SDK ID.
+     * Entries with [ANDROID_PLATFORM_SDK_ID] (`0`) represent the Android platform SDK rather than
+     * an SDK extension and are skipped.
+     */
+    private fun extractSdkExtSince(sdksAttr: String?): SdkAndVersion? {
+        if (sdksAttr.isNullOrEmpty()) return null
+        val availableSdkExtensions = api.availableSdkExtensions
+        for (entry in sdksAttr.split(',')) {
+            val colonIndex = entry.indexOf(':')
+            if (colonIndex == -1) continue
+            val id = entry.substring(0, colonIndex).toInt()
+            // Skip Android platform SDK entries (ID 0); only extension SDKs are returned here.
+            if (id == ANDROID_PLATFORM_SDK_ID) continue
+            val version = entry.substring(colonIndex + 1).toInt()
+            val sdkExtension =
+                availableSdkExtensions?.retrieveSdkExtensionById(id)
+                    ?: throw IllegalArgumentException("SDK reference to unknown <sdk> with id $id")
+            return SdkAndVersion(sdkExtension.name, version)
+        }
+        return null
     }
 
     companion object {
