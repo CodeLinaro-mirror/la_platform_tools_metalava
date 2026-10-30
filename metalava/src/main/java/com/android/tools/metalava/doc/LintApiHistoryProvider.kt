@@ -127,9 +127,12 @@ private fun ApiLookup.getApiHistory(
 ): ItemApiHistory? {
     val desc = callable.getCallableParameterDescriptorUsingDots() ?: "()"
     val key = "${callable.containingClass().qualifiedName()}#${callable.name()}$desc"
+    val since = getCallableVersion(callable)
+    val deprecatedIn =
+        getCallableDeprecatedIn(callable)?.let { if (since != null && it < since) since else it }
     return ItemApiHistory.create(
-        since = getCallableVersion(callable),
-        deprecatedIn = getCallableDeprecatedIn(callable),
+        since = since,
+        deprecatedIn = deprecatedIn,
         sdkExtSince = elementToSdkExtSinceMap[key],
     )
 }
@@ -143,9 +146,12 @@ private fun ApiLookup.getApiHistory(
     elementToSdkExtSinceMap: Map<String, SdkAndVersion>,
 ): ItemApiHistory? {
     val key = "${field.containingClass().qualifiedName()}#${field.name()}"
+    val since = getFieldVersion(field)
+    val deprecatedIn =
+        getFieldDeprecatedIn(field)?.let { if (since != null && it < since) since else it }
     return ItemApiHistory.create(
-        since = getFieldVersion(field),
-        deprecatedIn = getFieldDeprecatedIn(field),
+        since = since,
+        deprecatedIn = deprecatedIn,
         sdkExtSince = elementToSdkExtSinceMap[key],
     )
 }

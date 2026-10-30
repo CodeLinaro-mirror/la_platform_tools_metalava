@@ -536,8 +536,6 @@ class DocApiHistoryTest : DriverTest() {
                 """,
             checkCompilation = true,
             docStubs = true,
-            // TODO(b/579134806): Foo(int), bar(), and FIELD were added in API 30 so their
-            //  @deprecatedSince should be 30 (clamped to their @apiSince version), not 20.
             expectedStubFiles =
                 arrayOf(
                     java(
@@ -559,19 +557,19 @@ class DocApiHistoryTest : DriverTest() {
                             public Foo() { throw new RuntimeException("Stub!"); }
                             /**
                              * @apiSince 30
-                             * @deprecatedSince 20
+                             * @deprecatedSince 30
                              */
                             @Deprecated
                             public Foo(int i) { throw new RuntimeException("Stub!"); }
                             /**
                              * @apiSince 30
-                             * @deprecatedSince 20
+                             * @deprecatedSince 30
                              */
                             @Deprecated
                             public void bar() { throw new RuntimeException("Stub!"); }
                             /**
                              * @apiSince 30
-                             * @deprecatedSince 20
+                             * @deprecatedSince 30
                              */
                             @Deprecated public static final int FIELD = 1;
                             }
