@@ -26,23 +26,11 @@ application {
     applicationDefaultJvmArgs = listOf("-ea", "-Xms2g", "-Xmx4g")
 }
 
-configurations {
-    compileClasspath {
-        // Prevent metalava from using sdklib classes pulled in by indirect dependencies.
-        exclude(group = "com.android.tools", module = "sdklib")
-        // Prevent metalava from using Guava classes pulled in by indirect dependencies.
-        exclude(group = "com.google.guava")
-        // Prevent metalava from using ASM classes pulled in by indirect dependencies.
-        exclude(group = "org.ow2.asm")
-    }
-}
-
 dependencies {
     implementation(project(":metalava-model"))
     implementation(project(":metalava-model-source"))
     implementation(project(":metalava-model-text"))
     implementation(project(":metalava-reporter"))
-    implementation(libs.androidLintApi)
     implementation(libs.androidToolsCommon)
     implementation(libs.clikt)
     implementation(libs.gson)
