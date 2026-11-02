@@ -223,7 +223,7 @@ class DocAnalyzerTest : DriverTest() {
                 ),
             checkCompilation = false, // needs androidx.annotations in classpath
             expectedIssues =
-                "src/test/pkg/PermissionTest.java:33: error: Unrecognized permission `carier priviliges`; did you mean `carrier privileges`? [MissingPermission]", // NOTYPO
+                "src/test/pkg/PermissionTest.java:33: error: Cannot find permission field for \"carier priviliges\" required by method test.pkg.PermissionTest.test6() (may be hidden or removed) [MissingPermission]", // NOTYPO
             expectedStubFiles =
                 arrayOf(
                     // common_typos_disable

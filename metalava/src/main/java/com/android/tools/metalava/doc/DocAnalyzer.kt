@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.doc
 
-import com.android.tools.lint.detector.api.editDistance
 import com.android.tools.metalava.PROGRAM_NAME
 import com.android.tools.metalava.apilevels.ApiVersion
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
@@ -437,22 +436,11 @@ class DocAnalyzer(
                                     }
                                 } else resolvedField
                             if (field == null) {
-                                val v = value.asString()
-                                if (
-                                    v != null && editDistance(CARRIER_PRIVILEGES_MARKER, v, 3) < 3
-                                ) {
-                                    reporter.report(
-                                        Issues.MISSING_PERMISSION,
-                                        item,
-                                        "Unrecognized permission `$v`; did you mean `$CARRIER_PRIVILEGES_MARKER`?"
-                                    )
-                                } else {
-                                    reporter.report(
-                                        Issues.MISSING_PERMISSION,
-                                        item,
-                                        "Cannot find permission field for ${value.toValueString()} required by $item (may be hidden or removed)"
-                                    )
-                                }
+                                reporter.report(
+                                    Issues.MISSING_PERMISSION,
+                                    item,
+                                    "Cannot find permission field for ${value.toValueString()} required by $item (may be hidden or removed)"
+                                )
                                 sb.append(value.toValueString())
                             } else {
                                 sb.append(
