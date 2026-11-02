@@ -21,7 +21,6 @@ import com.android.SdkConstants.APOS_ENTITY
 import com.android.SdkConstants.GT_ENTITY
 import com.android.SdkConstants.LT_ENTITY
 import com.android.SdkConstants.QUOT_ENTITY
-import com.android.tools.lint.LintCliClient.Companion.printWriter
 import com.android.tools.metalava.model.ANDROIDX_ANNOTATION_PREFIX
 import com.android.tools.metalava.model.ANDROIDX_REQUIRES_PERMISSION_READ
 import com.android.tools.metalava.model.ANDROIDX_REQUIRES_PERMISSION_WRITE
@@ -93,7 +92,7 @@ class ExtractAnnotations(
 
                 // Create a print writer to the JarOutputStream. Care must be taken not to close
                 // this until all entries have been written.
-                val printWriter = zos.printWriter()
+                val printWriter = PrintWriter(zos, true, Charsets.UTF_8)
 
                 for (pkg in sortedPackages) {
                     // Note: Using / rather than File.separator: jar lib requires it
