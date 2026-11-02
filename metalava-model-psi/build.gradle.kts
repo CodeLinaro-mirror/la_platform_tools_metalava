@@ -30,7 +30,9 @@ dependencies {
     implementation(libs.androidToolsExternalKotlinCompiler)
     implementation(libs.androidToolsExternalIntellijCore)
     implementation(libs.androidLintApi)
-    implementation(libs.androidLint)
+    implementation(libs.androidLint) {
+        exclude(group = "com.android.tools.lint", module = "lint-checks")
+    }
     implementation(libs.asm)
     implementation(libs.kotlinMetadataJvm)
     implementation(libs.tracing)
