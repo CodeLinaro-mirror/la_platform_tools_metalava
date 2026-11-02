@@ -16,7 +16,7 @@
 
 package com.android.tools.metalava.cli.common
 
-import com.android.SdkConstants
+import com.android.tools.metalava.DOT_JAR
 import com.github.ajalt.clikt.completion.CompletionCandidates
 import com.github.ajalt.clikt.core.GroupableOption
 import com.github.ajalt.clikt.core.ParameterHolder
@@ -174,7 +174,7 @@ internal fun stringToExistingDirOrFile(value: String): File {
  */
 internal fun stringToExistingDirOrJar(value: String): File {
     val file = fileForPathInner(value)
-    if (!file.isDirectory && !(file.path.endsWith(SdkConstants.DOT_JAR) && file.isFile)) {
+    if (!file.isDirectory && !(file.path.endsWith(DOT_JAR) && file.isFile)) {
         cliError("$file is not a jar or directory")
     }
     return file

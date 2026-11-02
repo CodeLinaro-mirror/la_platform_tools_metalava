@@ -16,19 +16,12 @@
 
 package com.android.tools.metalava.api
 
-import com.android.SdkConstants.AMP_ENTITY
-import com.android.SdkConstants.APOS_ENTITY
-import com.android.SdkConstants.ATTR_NAME
-import com.android.SdkConstants.DOT_JAR
-import com.android.SdkConstants.DOT_XML
-import com.android.SdkConstants.DOT_ZIP
-import com.android.SdkConstants.GT_ENTITY
-import com.android.SdkConstants.LT_ENTITY
-import com.android.SdkConstants.QUOT_ENTITY
-import com.android.SdkConstants.TYPE_DEF_FLAG_ATTRIBUTE
-import com.android.SdkConstants.TYPE_DEF_VALUE_ATTRIBUTE
+import com.android.tools.metalava.ATTR_NAME
 import com.android.tools.metalava.CodebaseComparator
 import com.android.tools.metalava.ComparisonVisitor
+import com.android.tools.metalava.DOT_JAR
+import com.android.tools.metalava.DOT_XML
+import com.android.tools.metalava.DOT_ZIP
 import com.android.tools.metalava.cli.common.cliError
 import com.android.tools.metalava.model.ANDROIDX_INT_DEF
 import com.android.tools.metalava.model.ANDROIDX_INT_RANGE
@@ -63,6 +56,11 @@ import com.android.tools.metalava.model.value.ValueParser
 import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
+import com.android.tools.metalava.xml.AMP_ENTITY
+import com.android.tools.metalava.xml.APOS_ENTITY
+import com.android.tools.metalava.xml.GT_ENTITY
+import com.android.tools.metalava.xml.LT_ENTITY
+import com.android.tools.metalava.xml.QUOT_ENTITY
 import com.android.tools.metalava.xml.getChildren
 import com.android.tools.metalava.xml.parseDocument
 import java.io.File
@@ -76,6 +74,9 @@ import kotlin.text.Charsets.UTF_8
 import org.w3c.dom.Document
 import org.w3c.dom.Element
 import org.xml.sax.SAXParseException
+
+private const val TYPE_DEF_FLAG_ATTRIBUTE = "flag"
+private const val TYPE_DEF_VALUE_ATTRIBUTE = "value"
 
 /** Merges annotations into classes already registered in the given [Codebase] */
 class AnnotationsMerger(

@@ -31,7 +31,6 @@ dependencies {
     implementation(project(":metalava-model-source"))
     implementation(project(":metalava-model-text"))
     implementation(project(":metalava-reporter"))
-    implementation(libs.androidToolsCommon)
     implementation(libs.clikt)
     implementation(libs.gson)
     implementation(libs.tracingWire)

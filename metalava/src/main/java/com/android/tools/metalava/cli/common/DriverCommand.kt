@@ -16,10 +16,10 @@
 
 package com.android.tools.metalava.cli.common
 
-import com.android.SdkConstants.DOT_TXT
 import com.android.tools.metalava.ApiLevelsGenerationOptions
 import com.android.tools.metalava.ApiSelectionOptions
 import com.android.tools.metalava.ConfigFileOptions
+import com.android.tools.metalava.DOT_TXT
 import com.android.tools.metalava.Driver
 import com.android.tools.metalava.GeneralReportingOptions
 import com.android.tools.metalava.MiscellaneousOptions

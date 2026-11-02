@@ -29,13 +29,13 @@ java_library_host {
         "metalava-reporter",
         "metalava-model-source",
 
-        "prebuilts-metalava-lint",
         "prebuilts-metalava-tracing",
     ],
     static_libs: [
         "kotlin_metadata_jvm",
         "prebuilts-metalava-asm",
         "prebuilts-metalava-guava",
+        "prebuilts-metalava-lint",
         "prebuilts-metalava-psi",
     ],
 }

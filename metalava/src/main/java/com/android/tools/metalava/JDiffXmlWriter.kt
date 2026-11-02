@@ -32,7 +32,7 @@ import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.model.visitors.FilteringApiVisitor
-import com.android.utils.XmlUtils
+import com.android.tools.metalava.xml.toXmlAttributeValue
 import java.io.PrintWriter
 
 /**
@@ -161,13 +161,13 @@ class JDiffXmlWriter(
         writer.print("<field name=\"")
         writer.print(field.name())
         writer.print("\"\n type=\"")
-        writer.print(XmlUtils.toXmlAttributeValue(formatType(field.type())))
+        writer.print(toXmlAttributeValue(formatType(field.type())))
         writer.print("\"\n transient=\"")
         writer.print(modifiers.isTransient())
         writer.print("\"\n volatile=\"")
         writer.print(modifiers.isVolatile())
         field.constantValue?.asLiteralValue()?.let { literalValue ->
-            val value = XmlUtils.toXmlAttributeValue(literalValue.toValueString())
+            val value = toXmlAttributeValue(literalValue.toValueString())
 
             writer.print("\"\n value=\"")
             writer.print(value)
@@ -203,7 +203,7 @@ class JDiffXmlWriter(
         writer.print(method.name())
         method.returnType().let {
             writer.print("\"\n return=\"")
-            writer.print(XmlUtils.toXmlAttributeValue(formatType(it)))
+            writer.print(toXmlAttributeValue(formatType(it)))
         }
         writer.print("\"\n abstract=\"")
         writer.print(modifiers.isAbstract())
@@ -236,7 +236,7 @@ class JDiffXmlWriter(
                     if (!cls.isClass() && superClass.isJavaLangObject()) {
                         return
                     }
-                    XmlUtils.toXmlAttributeValue(formatType(superClass.toTypeString()))
+                    toXmlAttributeValue(formatType(superClass.toTypeString()))
                 }
                 cls.isEnum() -> JAVA_LANG_ENUM
                 else -> return
@@ -252,7 +252,7 @@ class JDiffXmlWriter(
             interfaces.forEach { item ->
                 writer.print("<implements name=\"")
                 val type = item.toTypeString()
-                writer.print(XmlUtils.toXmlAttributeValue(formatType(type)))
+                writer.print(toXmlAttributeValue(formatType(type)))
                 writer.println("\">\n</implements>")
             }
         }
@@ -263,7 +263,7 @@ class JDiffXmlWriter(
             // NOTE: We report parameter name as "null" rather than the real name to match
             // doclava's behavior
             writer.print("<parameter name=\"null\" type=\"")
-            writer.print(XmlUtils.toXmlAttributeValue(formatType(parameter.type())))
+            writer.print(toXmlAttributeValue(formatType(parameter.type())))
             writer.println("\">")
             writer.println("</parameter>")
         }

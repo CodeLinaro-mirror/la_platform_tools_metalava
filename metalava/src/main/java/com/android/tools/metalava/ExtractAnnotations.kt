@@ -16,11 +16,6 @@
 
 package com.android.tools.metalava
 
-import com.android.SdkConstants.AMP_ENTITY
-import com.android.SdkConstants.APOS_ENTITY
-import com.android.SdkConstants.GT_ENTITY
-import com.android.SdkConstants.LT_ENTITY
-import com.android.SdkConstants.QUOT_ENTITY
 import com.android.tools.metalava.model.ANDROIDX_ANNOTATION_PREFIX
 import com.android.tools.metalava.model.ANDROIDX_REQUIRES_PERMISSION_READ
 import com.android.tools.metalava.model.ANDROIDX_REQUIRES_PERMISSION_WRITE
@@ -52,6 +47,11 @@ import com.android.tools.metalava.model.visitors.ApiFilters
 import com.android.tools.metalava.model.visitors.ApiFiltersVisitor
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
+import com.android.tools.metalava.xml.AMP_ENTITY
+import com.android.tools.metalava.xml.APOS_ENTITY
+import com.android.tools.metalava.xml.GT_ENTITY
+import com.android.tools.metalava.xml.LT_ENTITY
+import com.android.tools.metalava.xml.QUOT_ENTITY
 import java.io.BufferedOutputStream
 import java.io.File
 import java.io.FileOutputStream
