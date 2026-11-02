@@ -24,6 +24,8 @@ import javax.xml.parsers.DocumentBuilder
 import javax.xml.parsers.DocumentBuilderFactory
 import javax.xml.parsers.ParserConfigurationException
 import org.w3c.dom.Document
+import org.w3c.dom.Element
+import org.w3c.dom.Node
 import org.xml.sax.ErrorHandler
 import org.xml.sax.InputSource
 import org.xml.sax.SAXParseException
@@ -100,4 +102,17 @@ private fun createDocumentBuilder(namespaceAware: Boolean): DocumentBuilder {
     } catch (e: ParserConfigurationException) {
         throw Error(e) // Impossible in the current context.
     }
+}
+
+/** Returns the list of child [Element] nodes of [node]. */
+fun getChildren(node: Node): List<Element> {
+    val childNodes = node.childNodes
+    val children = ArrayList<Element>(childNodes.length)
+    for (i in 0 until childNodes.length) {
+        val child = childNodes.item(i)
+        if (child.nodeType == Node.ELEMENT_NODE) {
+            children.add(child as Element)
+        }
+    }
+    return children
 }
