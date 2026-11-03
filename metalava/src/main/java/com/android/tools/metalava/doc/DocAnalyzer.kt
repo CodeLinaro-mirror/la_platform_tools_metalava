@@ -421,27 +421,34 @@ class DocAnalyzer(
                                 else -> sb.append(" and ")
                             }
 
+                            // Check for the carrier privileges marker before resolving a field
+                            // reference as `value.asString()` returns the constant value for both
+                            // string literals and constant fields, and a carrier privileges field
+                            // should link to `TelephonyManager#hasCarrierPrivileges` rather than
+                            // the field itself.
+                            val v = value.asString() ?: value.toValueString()
+                            if (v == CARRIER_PRIVILEGES_MARKER) {
+                                // TODO: Warn if using allOf with carrier
+                                sb.append(
+                                    linkToMethod(
+                                        item,
+                                        qualifiedClassName = "android.telephony.TelephonyManager",
+                                        methodName = "hasCarrierPrivileges",
+                                        label = CARRIER_PRIVILEGES_MARKER,
+                                    ) {
+                                        CARRIER_PRIVILEGES_MARKER
+                                    }
+                                )
+                                continue
+                            }
+
+                            // If the value is a field reference that resolves to a field then use
+                            // that, otherwise try to find a permission field with the constant
+                            // value.
                             val resolvedField = (value as? FieldReferenceValue)?.resolve()
                             val field =
                                 if (resolvedField == null) {
-                                    val v = value.asString() ?: value.toValueString()
-                                    if (v == CARRIER_PRIVILEGES_MARKER) {
-                                        // TODO: Warn if using allOf with carrier
-                                        sb.append(
-                                            linkToMethod(
-                                                item,
-                                                qualifiedClassName =
-                                                    "android.telephony.TelephonyManager",
-                                                methodName = "hasCarrierPrivileges",
-                                                label = CARRIER_PRIVILEGES_MARKER,
-                                            ) {
-                                                CARRIER_PRIVILEGES_MARKER
-                                            }
-                                        )
-                                        continue
-                                    } else {
-                                        findPermissionField(codebase, v)
-                                    }
+                                    findPermissionField(codebase, v)
                                 } else resolvedField
                             if (field == null) {
                                 reporter.report(

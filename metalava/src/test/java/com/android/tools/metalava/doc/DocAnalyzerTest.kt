@@ -229,9 +229,6 @@ class DocAnalyzerTest : DriverTest() {
             checkCompilation = false, // needs androidx.annotations in classpath
             expectedIssues =
                 "src/test/pkg/PermissionTest.java:37: error: Cannot find permission field for \"carier priviliges\" required by method test.pkg.PermissionTest.test6() (may be hidden or removed) [MissingPermission]", // NOTYPO
-            // TODO: A field with value "carrier privileges" should be treated the same as a string
-            //  literal and link to TelephonyManager#hasCarrierPrivileges instead of linking to the
-            //  field itself.
             expectedStubFiles =
                 arrayOf(
                     // common_typos_disable
@@ -252,7 +249,7 @@ class DocAnalyzerTest : DriverTest() {
                     public void test5() { throw new RuntimeException("Stub!"); }
                     /** Requires {@link android.Manifest.permission#ACCESS_COARSE_LOCATION} or {@link android.telephony.TelephonyManager#hasCarrierPrivileges carrier privileges} */
                     public void test6() { throw new RuntimeException("Stub!"); }
-                    /** Requires {@link android.Manifest.permission#ACCESS_COARSE_LOCATION} or {@link android.Manifest.permission#CARRIER_PRIVILEGES} */
+                    /** Requires {@link android.Manifest.permission#ACCESS_COARSE_LOCATION} or {@link android.telephony.TelephonyManager#hasCarrierPrivileges carrier privileges} */
                     public void test6() { throw new RuntimeException("Stub!"); }
                     /** Requires {@link android.Manifest.permission#ACCESS_COARSE_LOCATION} or "carier priviliges" */
                     public void test6() { throw new RuntimeException("Stub!"); }
