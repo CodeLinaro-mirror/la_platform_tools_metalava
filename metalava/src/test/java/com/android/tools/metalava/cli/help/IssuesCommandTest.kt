@@ -153,6 +153,7 @@ Available Issues                             |  Category                        
   InvalidNullabilityOverride                 |  api_lint                             |   error
   InvalidPackage                             |  unknown                              |   error
   InvalidParamOrReturn                       |  unknown                              |   hidden
+  InvalidSdkExtensionApi                     |  api_lint                             |   error
   InvalidSources                             |  unknown                              |   error
   InvalidSyntax                              |  unknown                              |   error
   InvalidTagForm                             |  documentation                        |   warning_error_when_new

@@ -39,7 +39,9 @@ class SdkExtensionApiTest : DriverTest() {
                     private Build() {}
                     public static class VERSION_CODES {
                         private VERSION_CODES() {}
+                        public static final int Q = 29;
                         public static final int R = 30;
+                        public static final int S_V2 = 32;
                         public static final int TIRAMISU = 33;
                         public static final int UPSIDE_DOWN_CAKE = 34;
                     }
@@ -429,6 +431,100 @@ class SdkExtensionApiTest : DriverTest() {
                       }
                     }
                 """,
+        )
+    }
+
+    @Test
+    fun `Test ApiLint rejects literal and invalid SdkExtensionApi values`() {
+        check(
+            extraArguments = arrayOf(ARG_STUB_PACKAGES, "test.pkg*"),
+            apiLint =
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public class Foo {
+                        ctor public Foo();
+                        method public void existingWithInvalidFloor();
+                      }
+                    }
+                """,
+            expectedIssues =
+                """
+                    src/test/pkg/Foo.java:9: error: Invalid @SdkExtensionApi value 32: must be >= 30 (excluding 32) [InvalidSdkExtensionApi]
+                    src/test/pkg/Foo.java:12: error: @SdkExtensionApi must reference a symbolic constant from android.os.Build.VERSION_CODES or android.os.ext.SdkExtensions, not a literal [InvalidSdkExtensionApi]
+                    src/test/pkg/Foo.java:15: error: Invalid @SdkExtensionApi value 29: must be >= 30 (excluding 32) [InvalidSdkExtensionApi]
+                """,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            import android.os.Build;
+                            import $ANDROID_SDK_EXTENSION_API;
+
+                            public class Foo {
+                                public Foo() {}
+
+                                @SdkExtensionApi(Build.VERSION_CODES.S_V2)
+                                public void existingWithInvalidFloor() {}
+
+                                @SdkExtensionApi(34)
+                                public void literalValue() {}
+
+                                @SdkExtensionApi(Build.VERSION_CODES.Q)
+                                public void preRFloor() {}
+                            }
+                        """
+                    ),
+                    versionCodesSource,
+                    sdkExtensionApiSource,
+                ),
+        )
+    }
+
+    @Test
+    fun `Test ApiLint rejects enclosing class SdkExtensionApi contradictions`() {
+        check(
+            extraArguments = arrayOf(ARG_STUB_PACKAGES, "test.pkg*"),
+            apiLint = "",
+            expectedIssues =
+                """
+                    src/test/pkg/Foo.java:11: error: @SdkExtensionApi(33) on method test.pkg.Foo.lowerFloorThanClass() cannot be lower than @SdkExtensionApi(34) on enclosing class test.pkg.Foo [InvalidSdkExtensionApi]
+                    src/test/pkg/Foo.java:14: error: @SdkExtensionApi(1000000) on method test.pkg.Foo.mixedAdServices() conflicts with @SdkExtensionApi(34) on enclosing class test.pkg.Foo: cannot mix AD_SERVICES and dessert extension floors [InvalidSdkExtensionApi]
+                    src/test/pkg/Foo.java:17: error: @SdkExtensionApi(30) on class test.pkg.Foo.LowerNested cannot be lower than @SdkExtensionApi(34) on enclosing class test.pkg.Foo [InvalidSdkExtensionApi]
+                """,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            import android.os.Build;
+                            import android.os.ext.SdkExtensions;
+                            import $ANDROID_SDK_EXTENSION_API;
+
+                            @SdkExtensionApi(Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
+                            public class Foo {
+                                public Foo() {}
+
+                                @SdkExtensionApi(Build.VERSION_CODES.TIRAMISU)
+                                public void lowerFloorThanClass() {}
+
+                                @SdkExtensionApi(SdkExtensions.AD_SERVICES)
+                                public void mixedAdServices() {}
+
+                                @SdkExtensionApi(Build.VERSION_CODES.R)
+                                public static class LowerNested {
+                                    public LowerNested() {}
+                                }
+                            }
+                        """
+                    ),
+                    versionCodesSource,
+                    sdkExtensionsSource,
+                    sdkExtensionApiSource,
+                ),
         )
     }
 }
