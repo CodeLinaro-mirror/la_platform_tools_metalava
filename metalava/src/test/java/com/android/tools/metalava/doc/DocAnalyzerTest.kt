@@ -198,6 +198,10 @@ class DocAnalyzerTest : DriverTest() {
                         public void test6() {
                         }
 
+                        @RequiresPermission(anyOf = {Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.CARRIER_PRIVILEGES})
+                        public void test6() {
+                        }
+
                         // Typo in marker
                         @RequiresPermission(anyOf = {Manifest.permission.ACCESS_COARSE_LOCATION, "carier priviliges"}) // NOTYPO
                         public void test6() {
@@ -215,6 +219,7 @@ class DocAnalyzerTest : DriverTest() {
                             public static final String ACCESS_FINE_LOCATION = "android.permission.ACCESS_FINE_LOCATION";
                             public static final String ACCOUNT_MANAGER = "android.permission.ACCOUNT_MANAGER";
                             public static final String WATCH_APPOPS = "android.permission.WATCH_APPOPS";
+                            public static final String CARRIER_PRIVILEGES = "carrier privileges";
                         }
                     }
                     """
@@ -223,7 +228,10 @@ class DocAnalyzerTest : DriverTest() {
                 ),
             checkCompilation = false, // needs androidx.annotations in classpath
             expectedIssues =
-                "src/test/pkg/PermissionTest.java:33: error: Cannot find permission field for \"carier priviliges\" required by method test.pkg.PermissionTest.test6() (may be hidden or removed) [MissingPermission]", // NOTYPO
+                "src/test/pkg/PermissionTest.java:37: error: Cannot find permission field for \"carier priviliges\" required by method test.pkg.PermissionTest.test6() (may be hidden or removed) [MissingPermission]", // NOTYPO
+            // TODO: A field with value "carrier privileges" should be treated the same as a string
+            //  literal and link to TelephonyManager#hasCarrierPrivileges instead of linking to the
+            //  field itself.
             expectedStubFiles =
                 arrayOf(
                     // common_typos_disable
@@ -243,6 +251,8 @@ class DocAnalyzerTest : DriverTest() {
                     public void test4() { throw new RuntimeException("Stub!"); }
                     public void test5() { throw new RuntimeException("Stub!"); }
                     /** Requires {@link android.Manifest.permission#ACCESS_COARSE_LOCATION} or {@link android.telephony.TelephonyManager#hasCarrierPrivileges carrier privileges} */
+                    public void test6() { throw new RuntimeException("Stub!"); }
+                    /** Requires {@link android.Manifest.permission#ACCESS_COARSE_LOCATION} or {@link android.Manifest.permission#CARRIER_PRIVILEGES} */
                     public void test6() { throw new RuntimeException("Stub!"); }
                     /** Requires {@link android.Manifest.permission#ACCESS_COARSE_LOCATION} or "carier priviliges" */
                     public void test6() { throw new RuntimeException("Stub!"); }
