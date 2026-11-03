@@ -16,7 +16,6 @@
 package com.android.tools.metalava
 
 import androidx.tracing.Tracer
-import com.android.SdkConstants.DOT_TXT
 import com.android.tools.metalava.api.AnnotationsMerger
 import com.android.tools.metalava.api.ApiAnalyzer
 import com.android.tools.metalava.apilevels.ApiGenerator
@@ -590,6 +589,7 @@ class Driver(
             tracer.trace("handleFileFacadeClassesAndExperimentalPackages") {
                 analyzer.handleFileFacadeClassesAndExperimentalPackages(apiPredicate)
             }
+            tracer.trace("handleStripping") { analyzer.handleStripping() }
             tracer.trace("performChecks") { analyzer.performChecks() }
         }
 

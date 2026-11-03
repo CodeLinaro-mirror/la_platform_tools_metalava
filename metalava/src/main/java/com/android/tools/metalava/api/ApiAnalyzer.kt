@@ -41,6 +41,7 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.api.surface.ApiSurface
 import com.android.tools.metalava.model.api.surface.ApiSurfacePredicate
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
+import com.android.tools.metalava.model.api.surface.ReferenceKind
 import com.android.tools.metalava.model.doc.DocContentPredicate
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.source.SourceParser
@@ -469,12 +470,21 @@ class ApiAnalyzer(
     }
 
     fun handleStripping() {
-        val notStrippable = ApiContents.computeContents(codebase)
+        if (codebase.trustedApi()) {
+            // The codebase is already an API; no consistency checks to be performed
+            return
+        }
 
-        // complain about anything that looks includeable but is not supposed to
-        // be written, e.g. hidden things
+        val notStrippable = ApiContents.computeContents(codebase)
+        // Cache the reference strategy to check whether each class in `notStrippable` is a valid
+        // code reference in the target API surface.
+        val referenceStrategy = codebase.apiSurfaces.referenceStrategy
+
+        // Check all classes that are valid code references in the API surface for hidden or
+        // otherwise unavailable abstract methods that would prevent third-party subclasses or
+        // implementations from compiling.
         for (cl in notStrippable) {
-            if (!cl.isHiddenOrRemoved()) {
+            if (referenceStrategy.isValidReference(null, cl, ReferenceKind.CODE)) {
                 val publiclyConstructable =
                     !cl.modifiers.isSealed() && cl.constructors().any { it.isApiCandidate() }
                 for (m in

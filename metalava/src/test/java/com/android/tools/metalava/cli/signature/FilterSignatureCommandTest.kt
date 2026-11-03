@@ -1068,4 +1068,56 @@ class FilterSignatureCommandTest :
                 "Aborting: --removed-api-files must specify the same number of files (1) as --api-files (2)"
         }
     }
+
+    @Test
+    fun `Test nested class implementing undefined nested interface of same outer class`() {
+        commandTest {
+            args += "filter-signature"
+
+            args +=
+                ARG_CONFIG_FILE to
+                    xml(
+                        "config.xml",
+                        """
+                            <config xmlns="http://www.google.com/tools/metalava/config">
+                              <api-flags/>
+                            </config>
+                        """,
+                    )
+
+            val output = outputFile("filtered.txt")
+            args += ARG_OUTPUT_FILE to output
+
+            args +=
+                ARG_API_FILES to
+                    signature(
+                        "api.txt",
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public class Outer {
+                              }
+                              public static final class Outer.Nested implements test.pkg.Outer.UndefinedInterface {
+                                method public void foo();
+                              }
+                            }
+                        """,
+                    )
+
+            verify {
+                output.assertSignatureContents(
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          public class Outer {
+                          }
+                          public static final class Outer.Nested implements test.pkg.Outer.UndefinedInterface {
+                            method public void foo();
+                          }
+                        }
+                    """
+                )
+            }
+        }
+    }
 }

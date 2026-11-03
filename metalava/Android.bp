@@ -40,7 +40,6 @@ java_library_host {
 
         "prebuilts-metalava-clikt",
         "prebuilts-metalava-gson",
-        "prebuilts-metalava-lint",
         "prebuilts-metalava-tracing",
         "prebuilts-metalava-tracing-wire",
     ],

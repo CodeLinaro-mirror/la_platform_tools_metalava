@@ -60,34 +60,46 @@ internal class MethodSourceSelectedApi(
             var maxSuperSurface: ApiSurface? = null
             var maxSuperVariants = ApiVariantSet.EMPTY
 
-            for (superMethod in item.superMethods()) {
-                val superVariants = superMethod.selectedApi.itemApiVariants
-                val superSurface = superVariants.narrowestSurfaceFor(apiSurfaces) ?: continue
+            // Recursively search overridden super methods for the widest inheritable API surface
+            // narrower than parentSurface. MethodItem.superMethods() returns only the first
+            // matching method along the superclass chain and each implemented interface chain, so
+            // if a direct super method cannot be inherited from directly (e.g. because it is
+            // declared in a package-private or hidden intermediate class), its own superMethods()
+            // must be searched to find any overridden ancestor API method.
+            fun searchSuperMethods(method: MethodItem) {
+                for (superMethod in method.superMethods()) {
+                    val superVariants = superMethod.selectedApi.itemApiVariants
+                    val superSurface = superVariants.narrowestSurfaceFor(apiSurfaces)
+                    if (
+                        superSurface == null ||
+                            superSurface >= parentSurface ||
+                            superSurface.variantFor(ApiVariantType.CORE) !in superVariants
+                    ) {
+                        // This super method cannot be inherited from directly because:
+                        // 1. It is not part of any API surface (e.g. in a package-private or hidden
+                        //    intermediate class/interface), OR
+                        // 2. It is in an API surface at least as wide as the containing class, OR
+                        // 3. It is only removed or doconly (do not inherit removed or doconly
+                        //    status from overridden methods).
+                        // However, it may itself override an ancestor method in a narrower API
+                        // surface that can be inherited from, so continue searching up its
+                        // superMethods().
+                        searchSuperMethods(superMethod)
+                    } else if (maxSuperSurface == null || superSurface > maxSuperSurface!!) {
+                        // Find the widest API surface among the inheritable super methods.
+                        maxSuperSurface = superSurface
+                        maxSuperVariants = superVariants
+                    }
 
-                // Do not inherit removed or doconly status from overridden methods.
-                val superCoreVariant = superSurface.variantFor(ApiVariantType.CORE)
-                if (superCoreVariant !in superVariants) {
-                    continue
-                }
-
-                // A method can only inherit API variants from a super method in a narrower API
-                // surface than the containing class.
-                if (superSurface >= parentSurface) {
-                    continue
-                }
-
-                // Find the widest API surface among the super methods.
-                if (maxSuperSurface == null || superSurface > maxSuperSurface) {
-                    maxSuperSurface = superSurface
-                    maxSuperVariants = superVariants
-                }
-
-                // Stop searching if maxSuperSurface is at least as wide as the main surface being
-                // generated.
-                if (maxSuperSurface >= apiSurfaces.main) {
-                    break
+                    // Stop searching if maxSuperSurface is at least as wide as the main surface
+                    // being generated.
+                    if (maxSuperSurface != null && maxSuperSurface!! >= apiSurfaces.main) {
+                        break
+                    }
                 }
             }
+
+            searchSuperMethods(item)
 
             // Adopt the API variants from the super method in the widest surface found, or if the
             // method was not explicitly hidden (e.g. an unannotated method in a class annotated

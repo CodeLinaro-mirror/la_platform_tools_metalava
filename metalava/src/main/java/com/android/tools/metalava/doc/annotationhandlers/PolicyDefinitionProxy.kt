@@ -16,7 +16,7 @@
 
 package com.android.tools.metalava.doc.annotationhandlers
 
-import com.android.tools.metalava.model.FieldItem
+import com.android.tools.metalava.doc.linkToField
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.annotation.binding.bindTo
 import com.android.tools.metalava.reporter.Issues
@@ -62,25 +62,25 @@ class PolicyDefinitionProxy(
     /** Resolves a permission code link to a format suitable for documentation. */
     private fun resolvePermissionCodeLink(value: String, item: Item): String {
         val permissionClass = codebase.findClass("android.Manifest.permission")
-        if (permissionClass == null) {
+        val fieldName = value.substringAfterLast(".").uppercase()
+        val field = permissionClass?.findField(fieldName)
+        return if (field == null) {
             reporter.report(
                 Issues.INVALID_DEVICE_POLICY_ANNOTATION,
                 item,
                 "Cannot find permission field for $value required by $item (may be hidden or removed)"
             )
-            return value
+            value
+        } else {
+            linkToField(item, field, label = value) {
+                reporter.report(
+                    Issues.INVALID_DEVICE_POLICY_ANNOTATION,
+                    item,
+                    "Permission $value required by $item is hidden or removed"
+                )
+                value
+            }
         }
-        val fieldName = value.substringAfterLast(".").uppercase()
-        val field = permissionClass.findField(fieldName)
-        if (field is FieldItem) {
-            return "{@link ${field.containingClass().qualifiedName()}#${field.name()} $value}"
-        }
-        reporter.report(
-            Issues.INVALID_DEVICE_POLICY_ANNOTATION,
-            item,
-            "Cannot find permission field for $value required by $item (may be hidden or removed)"
-        )
-        return value
     }
 
     /**

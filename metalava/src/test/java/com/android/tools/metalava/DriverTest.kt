@@ -18,7 +18,6 @@ package com.android.tools.metalava
 
 import com.android.SdkConstants.DOT_TXT
 import com.android.tools.lint.LintCliClient
-import com.android.tools.lint.checks.ApiLookup
 import com.android.tools.lint.checks.infrastructure.ClassName
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.lint.checks.infrastructure.TestFiles.java
@@ -58,6 +57,8 @@ import com.android.tools.metalava.cli.util.configFileOptions
 import com.android.tools.metalava.cli.util.signatureOptions
 import com.android.tools.metalava.cli.util.testSources
 import com.android.tools.metalava.cli.util.tracingOptions
+import com.android.tools.metalava.doc.ApiHistoryProvider
+import com.android.tools.metalava.doc.MetalavaApiHistoryProvider
 import com.android.tools.metalava.model.ANDROIDX_ANNOTATION_PACKAGE
 import com.android.tools.metalava.model.ANDROID_ANNOTATION_PACKAGE
 import com.android.tools.metalava.model.Assertions
@@ -117,6 +118,13 @@ abstract class DriverTest :
 
     /** The [CodebaseCreatorConfig] under which this test will be run. */
     final override lateinit var codebaseCreatorConfig: CodebaseCreatorConfig<SourceModelProvider>
+
+    /**
+     * The [ApiHistoryProvider.Loader] to pass to [TestEnvironment.apiHistoryProviderLoader] in
+     * [check].
+     */
+    open val apiHistoryProviderLoader: ApiHistoryProvider.Loader
+        get() = MetalavaApiHistoryProvider.loader
 
     // Makes a note to fail the test, but still allows the test to complete before failing
     protected fun addError(error: String) {
@@ -589,15 +597,6 @@ abstract class DriverTest :
          */
         postAnalysisChecker: CheckerFunction? = null,
     ) {
-        // Ensure different API clients don't interfere with each other
-        try {
-            val method = ApiLookup::class.java.getDeclaredMethod("dispose")
-            method.isAccessible = true
-            method.invoke(null)
-        } catch (ignore: Throwable) {
-            ignore.printStackTrace()
-        }
-
         // Ensure that lint infrastructure (for UAST) knows it's dealing with a test
         LintCliClient(LintClient.CLIENT_UNIT_TESTS)
 
@@ -878,11 +877,6 @@ abstract class DriverTest :
 
         val applyApiLevelsXmlArgs =
             if (applyApiLevelsXml != null) {
-                ApiLookup::class
-                    .java
-                    .getDeclaredMethod("dispose")
-                    .apply { isAccessible = true }
-                    .invoke(null)
                 val applyApiLevelsXmlFile =
                     useExistingFileOrCreateNewFile(
                         projectDir,
@@ -1114,6 +1108,7 @@ abstract class DriverTest :
                 sourceModelProvider = codebaseCreatorConfig.creator,
                 modelOptions = codebaseCreatorConfig.modelOptions,
                 postAnalysisChecker = postAnalysisChecker,
+                apiHistoryProviderLoader = apiHistoryProviderLoader,
             )
 
         val actualOutput =

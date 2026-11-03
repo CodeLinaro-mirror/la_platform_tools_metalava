@@ -20,6 +20,7 @@ import com.android.tools.lint.checks.infrastructure.TestFiles.base64gzip
 import com.android.tools.lint.checks.infrastructure.TestFiles.source
 import com.android.tools.metalava.ARG_HIDE_ANNOTATION
 import com.android.tools.metalava.DriverTest
+import com.android.tools.metalava.KnownApiSurface
 import com.android.tools.metalava.cli.common.ARG_SOURCE_PATH
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
@@ -415,7 +416,6 @@ class ApiContentsTest : DriverTest() {
                 ),
             expectedIssues =
                 """
-                    ADDITIONAL-SOURCE-PATH/test/pkg/Outer.java:4: error: Class test.pkg.Outer is hidden but was referenced (as containing class) from public class test.pkg.Outer.Hidden [ReferencesHidden]
                     src/test/pkg/Test.java:2: error: Class test.pkg.Outer is hidden but was referenced (as type parameter) from public class test.pkg.Test [ReferencesHidden]
                     src/test/pkg/Test.java:2: error: Class test.pkg.Outer.Hidden is hidden but was referenced (as type parameter) from public class test.pkg.Test [ReferencesHidden]
                 """,
@@ -477,6 +477,7 @@ class ApiContentsTest : DriverTest() {
             hideAnnotations = arrayOf("test.pkg.Hide"),
             expectedIssues =
                 """
+                nativeMain/src/test/pkg/Native.kt:2: error: Class test.pkg.Hidden is hidden but was referenced (aliased type) from public typealias test.pkg.Public [ReferencesHidden]
                 """
         )
     }
@@ -551,6 +552,48 @@ class ApiContentsTest : DriverTest() {
                         ctor public Foo();
                       }
                     }
+                """,
+        )
+    }
+
+    @Test
+    fun `Reference to @DocOnly class from public API`() {
+        check(
+            apiSurface = KnownApiSurface.PUBLIC,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            import android.annotation.DocOnly;
+                            @DocOnly
+                            public class DocOnlySuper {}
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            import android.annotation.DocOnly;
+                            @DocOnly
+                            public class DocOnlyType {}
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            public class PublicClass extends DocOnlySuper {
+                                public DocOnlyType getDocOnly() { return null; }
+                            }
+                        """
+                    ),
+                ),
+            // `@DocOnly` classes are excluded from normal stubs and signature files, so extending
+            // a `@DocOnly` superclass reports `HiddenSuperclass` and returning a `@DocOnly` class
+            // reports `ReferencesHidden` with reason `doconly`.
+            expectedIssues =
+                """
+                    src/test/pkg/PublicClass.java:2: warning: Public class test.pkg.PublicClass stripped of unavailable superclass test.pkg.DocOnlySuper [HiddenSuperclass]
+                    src/test/pkg/PublicClass.java:3: error: Class test.pkg.DocOnlyType is doconly but was referenced (in return type) from public method test.pkg.PublicClass.getDocOnly() [ReferencesHidden]
                 """,
         )
     }
