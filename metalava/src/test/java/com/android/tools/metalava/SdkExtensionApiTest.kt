@@ -274,7 +274,7 @@ class SdkExtensionApiTest : DriverTest() {
     }
 
     @Test
-    fun `Test FlaggedApi on SdkExtensionApi changes before nested class support`() {
+    fun `Test FlaggedApi on SdkExtensionApi changes with KEEP, REVERT, and FINALIZE`() {
         val previouslyReleasedApi =
             """
                 // Signature format: 5.0
@@ -320,13 +320,7 @@ class SdkExtensionApiTest : DriverTest() {
                 ),
             apiLint = previouslyReleasedApi,
             checkCompatibilityApiReleased = previouslyReleasedApi,
-            // TODO(b/507875039): Inherit @SdkExtensionApi onto nested classes in
-            // FlaggedApiLint.normalizeModifiers so unchanged nested classes do not trigger
-            // false-positive UnflaggedApi warnings.
-            expectedIssues =
-                """
-                    src/test/pkg/ExistingExtensionOuter.java:10: warning: Changes to modifiers, from '@android.annotation.SdkExtensionApi(30) public static' to 'public static' must be flagged with @FlaggedApi: class test.pkg.ExistingExtensionOuter.UnchangedNested [UnflaggedApi]
-                """,
+            expectedIssues = "",
             sourceFiles =
                 arrayOf(
                     java(
