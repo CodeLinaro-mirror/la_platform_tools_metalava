@@ -16,6 +16,9 @@
 
 package com.android.tools.metalava.model.testsuite.value
 
+import com.android.tools.metalava.model.ANDROID_SDK_EXTENSION_API
+import com.android.tools.metalava.model.AnnotationFormatter
+import com.android.tools.metalava.model.AnnotationPurpose
 import com.android.tools.metalava.model.Assertions.Companion.assertClass
 import com.android.tools.metalava.model.Assertions.Companion.assertMethod
 import com.android.tools.metalava.model.Assertions.Companion.assertResolvedClass
@@ -27,6 +30,7 @@ import com.android.tools.metalava.model.junit4.ParameterFilter
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.CodebaseCreatorConfig
 import com.android.tools.metalava.model.testing.SupportedInputFormats
+import com.android.tools.metalava.model.testing.value.annotationItem
 import com.android.tools.metalava.model.testing.value.annotationValue
 import com.android.tools.metalava.model.testing.value.arrayValue
 import com.android.tools.metalava.model.testing.value.fieldReferenceValue
@@ -576,6 +580,32 @@ class CommonLegacyValueFormatterTest : BaseModelTest() {
                 "99",
                 fieldReferenceValue("test.pkg.AlwaysInline", "FIELD", literalValue(99))
             )
+        }
+    }
+
+    @Test
+    fun `Test annotation - always inline int field formats as hexadecimal`() {
+        checkFormatting {
+            val annotation =
+                annotationItem(
+                    ANDROID_SDK_EXTENSION_API,
+                    "value" to
+                        fieldReferenceValue(
+                            "test.pkg.AlwaysInline",
+                            "FIELD",
+                            literalValue(30, nonLiteralInSource = true),
+                        ),
+                )
+            val actual =
+                AnnotationFormatter.legacyAnnotationFormatter()
+                    .formatAnnotation(
+                        annotation,
+                        AnnotationPurpose.ITEM,
+                        context = method,
+                    )
+            // TODO(b/507875039): Format always-inlined annotation int fields as decimal
+            // (`@SdkExtensionApi(30)`) instead of hexadecimal (`@SdkExtensionApi(0x1e)`).
+            assertEquals("@SdkExtensionApi(0x1e)", actual)
         }
     }
 }
