@@ -17,12 +17,16 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.cli.common.ARG_STUB_PACKAGES
+import com.android.tools.metalava.model.ANDROID_FLAGGED_API
 import com.android.tools.metalava.model.ANDROID_SDK_EXTENSION_API
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
+import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.testing.KnownSourceFiles.flaggedApiSource
 import com.android.tools.metalava.testing.KnownSourceFiles.sdkExtensionApiSource
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
+import com.android.tools.metalava.testing.xml
 import org.junit.Test
 
 class SdkExtensionApiTest : DriverTest() {
@@ -212,6 +216,222 @@ class SdkExtensionApiTest : DriverTest() {
                       }
                       @SdkExtensionApi(30) public static class Outer.UnannotatedNested.DeeplyNested {
                         ctor public Outer.UnannotatedNested.DeeplyNested();
+                      }
+                    }
+                """,
+        )
+    }
+
+    @Test
+    fun `Test unflagged SdkExtensionApi changes on previously released API`() {
+        check(
+            extraArguments =
+                arrayOf(ARG_STUB_PACKAGES, "test.pkg*") + warningIssues(Issues.UNFLAGGED_API),
+            apiLint =
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public class Foo {
+                        ctor public Foo();
+                        method public void addedAnnotation();
+                        method @SdkExtensionApi(33) public void changedAnnotation();
+                        method @SdkExtensionApi(33) public void removedAnnotation();
+                      }
+                    }
+                """,
+            expectedIssues =
+                """
+                    src/test/pkg/Foo.java:10: warning: Changes to modifiers, from 'public' to '@android.annotation.SdkExtensionApi(34) public' must be flagged with @FlaggedApi: method test.pkg.Foo.addedAnnotation() [UnflaggedApi]
+                    src/test/pkg/Foo.java:13: warning: Changes to modifiers, from '@android.annotation.SdkExtensionApi(33) public' to '@android.annotation.SdkExtensionApi(34) public' must be flagged with @FlaggedApi: method test.pkg.Foo.changedAnnotation() [UnflaggedApi]
+                    src/test/pkg/Foo.java:15: warning: Changes to modifiers, from '@android.annotation.SdkExtensionApi(33) public' to 'public' must be flagged with @FlaggedApi: method test.pkg.Foo.removedAnnotation() [UnflaggedApi]
+                """,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            import android.os.Build;
+                            import $ANDROID_SDK_EXTENSION_API;
+
+                            public class Foo {
+                                public Foo() {}
+
+                                @SdkExtensionApi(Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
+                                public void addedAnnotation() {}
+
+                                @SdkExtensionApi(Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
+                                public void changedAnnotation() {}
+
+                                public void removedAnnotation() {}
+                            }
+                        """
+                    ),
+                    versionCodesSource,
+                    sdkExtensionApiSource,
+                ),
+        )
+    }
+
+    @Test
+    fun `Test FlaggedApi on SdkExtensionApi changes before nested class support`() {
+        val previouslyReleasedApi =
+            """
+                // Signature format: 5.0
+                package test.pkg {
+                  @SdkExtensionApi(30) public class ExistingExtensionOuter {
+                    ctor public ExistingExtensionOuter();
+                  }
+                  @SdkExtensionApi(30) public static class ExistingExtensionOuter.UnchangedNested {
+                    ctor public ExistingExtensionOuter.UnchangedNested();
+                  }
+                  public class Foo {
+                    ctor public Foo();
+                    method public void addedKept();
+                    method public void addedFinalized();
+                    method public void addedReverted();
+                  }
+                  public class Outer {
+                    ctor public Outer();
+                    method public void keptInnerMethod();
+                  }
+                  public static class Outer.UnannotatedNested {
+                    ctor public Outer.UnannotatedNested();
+                  }
+                }
+            """
+
+        check(
+            extraArguments =
+                arrayOf(ARG_STUB_PACKAGES, "test.pkg*") + warningIssues(Issues.UNFLAGGED_API),
+            configFiles =
+                arrayOf(
+                    xml(
+                        "config-flags.xml",
+                        """
+                            <config xmlns="http://www.google.com/tools/metalava/config">
+                                <api-flags>
+                                    <api-flag package="test.pkg" name="kept_flag" mutability="mutable" status="enabled" is-exported="true"/>
+                                    <api-flag package="test.pkg" name="finalized_flag" mutability="immutable" status="enabled" is-exported="true"/>
+                                </api-flags>
+                            </config>
+                        """,
+                    ),
+                ),
+            apiLint = previouslyReleasedApi,
+            checkCompatibilityApiReleased = previouslyReleasedApi,
+            // TODO(b/507875039): Inherit @SdkExtensionApi onto nested classes in
+            // FlaggedApiLint.normalizeModifiers so unchanged nested classes do not trigger
+            // false-positive UnflaggedApi warnings.
+            expectedIssues =
+                """
+                    src/test/pkg/ExistingExtensionOuter.java:10: warning: Changes to modifiers, from '@android.annotation.SdkExtensionApi(30) public static' to 'public static' must be flagged with @FlaggedApi: class test.pkg.ExistingExtensionOuter.UnchangedNested [UnflaggedApi]
+                """,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            /** @hide */
+                            public class Flags {
+                                public static final String FLAG_KEPT_FLAG = "test.pkg.kept_flag";
+                                public static final String FLAG_FINALIZED_FLAG = "test.pkg.finalized_flag";
+                                public static final String FLAG_REVERTED_FLAG = "test.pkg.reverted_flag";
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+
+                            import android.os.Build;
+                            import $ANDROID_SDK_EXTENSION_API;
+
+                            @SdkExtensionApi(Build.VERSION_CODES.R)
+                            public class ExistingExtensionOuter {
+                                public ExistingExtensionOuter() {}
+
+                                public static class UnchangedNested {
+                                    public UnchangedNested() {}
+                                }
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+
+                            import $ANDROID_FLAGGED_API;
+                            import android.os.Build;
+                            import $ANDROID_SDK_EXTENSION_API;
+
+                            public class Foo {
+                                public Foo() {}
+
+                                @FlaggedApi(Flags.FLAG_KEPT_FLAG)
+                                @SdkExtensionApi(Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
+                                public void addedKept() {}
+
+                                @FlaggedApi(Flags.FLAG_FINALIZED_FLAG)
+                                @SdkExtensionApi(Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
+                                public void addedFinalized() {}
+
+                                @FlaggedApi(Flags.FLAG_REVERTED_FLAG)
+                                @SdkExtensionApi(Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
+                                public void addedReverted() {}
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+
+                            import $ANDROID_FLAGGED_API;
+                            import android.os.Build;
+                            import $ANDROID_SDK_EXTENSION_API;
+
+                            @FlaggedApi(Flags.FLAG_REVERTED_FLAG)
+                            @SdkExtensionApi(Build.VERSION_CODES.R)
+                            public class Outer {
+                                public Outer() {}
+
+                                @FlaggedApi(Flags.FLAG_KEPT_FLAG)
+                                @SdkExtensionApi(Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
+                                public void keptInnerMethod() {}
+
+                                public static class UnannotatedNested {
+                                    public UnannotatedNested() {}
+                                }
+                            }
+                        """
+                    ),
+                    flaggedApiSource,
+                    versionCodesSource,
+                    sdkExtensionApiSource,
+                ),
+            expectedApiSignature =
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      @SdkExtensionApi(30) public class ExistingExtensionOuter {
+                        ctor public ExistingExtensionOuter();
+                      }
+                      @SdkExtensionApi(30) public static class ExistingExtensionOuter.UnchangedNested {
+                        ctor public ExistingExtensionOuter.UnchangedNested();
+                      }
+                      public class Foo {
+                        ctor public Foo();
+                        method @SdkExtensionApi(34) public void addedFinalized();
+                        method @FlaggedApi("test.pkg.kept_flag") @SdkExtensionApi(34) public void addedKept();
+                        method public void addedReverted();
+                      }
+                      public class Outer {
+                        ctor public Outer();
+                        method @FlaggedApi("test.pkg.kept_flag") @SdkExtensionApi(34) public void keptInnerMethod();
+                      }
+                      public static class Outer.UnannotatedNested {
+                        ctor public Outer.UnannotatedNested();
                       }
                     }
                 """,
