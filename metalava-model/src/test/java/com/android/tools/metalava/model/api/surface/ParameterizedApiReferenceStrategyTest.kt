@@ -112,7 +112,8 @@ class ParameterizedApiReferenceStrategyTest(private val params: Params) {
 
         /**
          * Create a synthetic [ClassItem] with the given [name], [visibility], [variants], optional
-         * [containingClass], and optional `@FlaggedApi` [flagName].
+         * [containingClass], optional `@FlaggedApi` [flagName], and optional [hasRemovedAnnotation]
+         * marker.
          */
         fun createTestClass(
             name: String,
@@ -120,6 +121,7 @@ class ParameterizedApiReferenceStrategyTest(private val params: Params) {
             variants: List<ApiVariant> = emptyList(),
             containingClass: ClassItem? = null,
             flagName: String? = null,
+            hasRemovedAnnotation: Boolean = false,
         ): ClassItem {
             val annotations =
                 if (flagName != null) {
@@ -152,6 +154,9 @@ class ParameterizedApiReferenceStrategyTest(private val params: Params) {
                 )
             for (variant in variants) {
                 classItem.selectedApi.addItemApiVariant(variant)
+            }
+            if (hasRemovedAnnotation) {
+                classItem.selectedApi.markHasRemovedAnnotation()
             }
             return classItem
         }
@@ -303,6 +308,78 @@ class ParameterizedApiReferenceStrategyTest(private val params: Params) {
                 containingClass = baseFlaggedItem,
             )
 
+        /**
+         * Public class in `main` CORE scheduled for removal by `@RemovedFromApi` and
+         * `@FlaggedApi("test.pkg.remove_flag")`.
+         */
+        private val flaggedForRemovalItem =
+            context.createTestClass(
+                "FlaggedForRemovalClass",
+                variants = listOf(main.variantFor(ApiVariantType.CORE)),
+                flagName = "test.pkg.remove_flag",
+                hasRemovedAnnotation = true,
+            )
+
+        /**
+         * Public class in `main` CORE scheduled for removal by `@RemovedFromApi` and a different
+         * kept flag (`"test.pkg.other_remove_flag"`).
+         */
+        private val otherFlaggedForRemovalItem =
+            context.createTestClass(
+                "OtherFlaggedForRemovalClass",
+                variants = listOf(main.variantFor(ApiVariantType.CORE)),
+                flagName = "test.pkg.other_remove_flag",
+                hasRemovedAnnotation = true,
+            )
+
+        /**
+         * Public class in `main` CORE annotated with `@RemovedFromApi` and
+         * `@FlaggedApi("test.pkg.reverted_remove_flag")` whose removal flag has
+         * [ApiFlagAction.REVERT].
+         */
+        private val revertedFlaggedForRemovalItem =
+            context.createTestClass(
+                "RevertedFlaggedForRemovalClass",
+                variants = listOf(main.variantFor(ApiVariantType.CORE)),
+                flagName = "test.pkg.reverted_remove_flag",
+                hasRemovedAnnotation = true,
+            )
+
+        /**
+         * Nested public class inside [flaggedForRemovalItem] without its own `@RemovedFromApi` or
+         * `@FlaggedApi` annotation; inherits `"test.pkg.remove_flag"` from its enclosing class.
+         */
+        private val nestedInFlaggedForRemovalItem =
+            context.createTestClass(
+                "NestedInFlaggedForRemovalClass",
+                variants = listOf(main.variantFor(ApiVariantType.CORE)),
+                containingClass = flaggedForRemovalItem,
+            )
+
+        /**
+         * Public class in `base` CORE scheduled for removal by `@RemovedFromApi` and
+         * `@FlaggedApi("test.pkg.remove_flag")`.
+         */
+        private val baseFlaggedForRemovalItem =
+            context.createTestClass(
+                "BaseFlaggedForRemovalClass",
+                variants = listOf(base.variantFor(ApiVariantType.CORE)),
+                flagName = "test.pkg.remove_flag",
+                hasRemovedAnnotation = true,
+            )
+
+        /**
+         * Nested public class in `main` CORE inside [baseFlaggedForRemovalItem] (which is in `base`
+         * CORE) without its own `@RemovedFromApi` or `@FlaggedApi` annotation; inherits
+         * `"test.pkg.remove_flag"` from its enclosing class in `base`.
+         */
+        private val nestedInBaseFlaggedForRemovalItem =
+            context.createTestClass(
+                "NestedInBaseFlaggedForRemovalClass",
+                variants = listOf(main.variantFor(ApiVariantType.CORE)),
+                containingClass = baseFlaggedForRemovalItem,
+            )
+
         /** Create a [TestContext] configured with [apiSurfaces] and mutable [SelectedApi]s. */
         private fun createTestContext(apiSurfaces: ApiSurfaces): TestContext {
             // Configure `finalized_flag` as FINALIZE; any other flag defaults to KEEP.
@@ -310,6 +387,9 @@ class ParameterizedApiReferenceStrategyTest(private val params: Params) {
                 ApiFlags(
                     listOf(
                         ApiFlag("test.pkg.finalized_flag", ApiFlagAction.FINALIZE),
+
+                        // Reverting a removal flag cancels scheduled removal (retaining the item).
+                        ApiFlag("test.pkg.reverted_remove_flag", ApiFlagAction.REVERT),
                     ),
                     unknownFlagAction = ApiFlagAction.KEEP,
                 )
@@ -751,6 +831,124 @@ class ParameterizedApiReferenceStrategyTest(private val params: Params) {
                         FlagState.additionFlag("test.pkg.flag1", ApiFlagAction.KEEP),
                     expectedResult =
                         ReferenceCheckResult.UnguardedFlaggedApi(setOf("test.pkg.flag1")),
+                ),
+
+                // References to @RemovedFromApi @FlaggedApi items (baseline: `RemovalFlagState` is
+                // ignored until `FlaggedForRemoval` is supported).
+                // Global (`from = null`) surface membership checks ignore scheduled removal flags.
+                Params(
+                    from = null,
+                    to = flaggedForRemovalItem,
+                    kind = ReferenceKind.CODE,
+                    expectedResult = ReferenceCheckResult.Valid,
+                ),
+
+                // Retained items (unflagged or guarded only by an addition flag) referencing a
+                // scheduled-removal target.
+                Params(
+                    from = coreItem,
+                    to = flaggedForRemovalItem,
+                    kind = ReferenceKind.CODE,
+                    expectedResult = ReferenceCheckResult.Valid,
+                ),
+                Params(
+                    from = flaggedItem,
+                    to = flaggedForRemovalItem,
+                    kind = ReferenceKind.CODE,
+                    expectedResult = ReferenceCheckResult.Valid,
+                ),
+
+                // References from items also scheduled for removal (same or different active
+                // removal flag).
+                Params(
+                    from = flaggedForRemovalItem,
+                    to = flaggedForRemovalItem,
+                    kind = ReferenceKind.CODE,
+                    expectedResult = ReferenceCheckResult.Valid,
+                ),
+                Params(
+                    from = otherFlaggedForRemovalItem,
+                    to = flaggedForRemovalItem,
+                    kind = ReferenceKind.CODE,
+                    expectedResult = ReferenceCheckResult.Valid,
+                ),
+
+                // Items whose removal flag was reverted are unconditionally retained.
+                Params(
+                    from = revertedFlaggedForRemovalItem,
+                    to = flaggedForRemovalItem,
+                    kind = ReferenceKind.CODE,
+                    expectedResult = ReferenceCheckResult.Valid,
+                ),
+                Params(
+                    from = coreItem,
+                    to = revertedFlaggedForRemovalItem,
+                    kind = ReferenceKind.CODE,
+                    expectedResult = ReferenceCheckResult.Valid,
+                ),
+
+                // Nested classes inside a scheduled-removal class inherit its removal flag state
+                // (both within `main` and across `base` -> `main`).
+                Params(
+                    from = nestedInFlaggedForRemovalItem,
+                    to = flaggedForRemovalItem,
+                    kind = ReferenceKind.CODE,
+                    expectedResult = ReferenceCheckResult.Valid,
+                ),
+                Params(
+                    from = coreItem,
+                    to = nestedInFlaggedForRemovalItem,
+                    kind = ReferenceKind.CODE,
+                    expectedResult = ReferenceCheckResult.Valid,
+                ),
+                Params(
+                    from = nestedInBaseFlaggedForRemovalItem,
+                    to = flaggedForRemovalItem,
+                    kind = ReferenceKind.CODE,
+                    expectedResult = ReferenceCheckResult.Valid,
+                ),
+                Params(
+                    from = coreItem,
+                    to = nestedInBaseFlaggedForRemovalItem,
+                    kind = ReferenceKind.CODE,
+                    expectedResult = ReferenceCheckResult.Valid,
+                ),
+
+                // Already-removed items may reference items scheduled for removal.
+                Params(
+                    from = removedItem,
+                    to = flaggedForRemovalItem,
+                    kind = ReferenceKind.CODE,
+                    expectedResult = ReferenceCheckResult.Valid,
+                ),
+
+                // Conditional `conditionFlagState` removal guard in DOCUMENTATION vs CODE.
+                Params(
+                    from = coreItem,
+                    to = flaggedForRemovalItem,
+                    kind = ReferenceKind.DOCUMENTATION,
+                    conditionFlagState =
+                        FlagState.removalFlag("test.pkg.remove_flag", ApiFlagAction.KEEP),
+                    expectedResult = ReferenceCheckResult.Valid,
+                ),
+                Params(
+                    from = coreItem,
+                    to = flaggedForRemovalItem,
+                    kind = ReferenceKind.DOCUMENTATION,
+                    conditionFlagState =
+                        FlagState.removalFlag(
+                            "test.pkg.reverted_remove_flag",
+                            ApiFlagAction.REVERT,
+                        ),
+                    expectedResult = ReferenceCheckResult.Valid,
+                ),
+                Params(
+                    from = coreItem,
+                    to = flaggedForRemovalItem,
+                    kind = ReferenceKind.CODE,
+                    conditionFlagState =
+                        FlagState.removalFlag("test.pkg.remove_flag", ApiFlagAction.KEEP),
+                    expectedResult = ReferenceCheckResult.Valid,
                 ),
             )
 
