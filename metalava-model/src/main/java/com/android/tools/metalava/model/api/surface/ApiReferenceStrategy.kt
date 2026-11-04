@@ -109,6 +109,20 @@ sealed interface ReferenceCheckResult {
     ) : Invalid {
         override val reasonLabel: String = "guarded by @FlaggedApi(${additionFlags.joinToString()})"
     }
+
+    /**
+     * Target item is scheduled for removal under unfinalized `@FlaggedApi` flag(s) [removalFlags]
+     * while the referencing item and enclosing conditional context are retained.
+     *
+     * @property removalFlags The unfinalized flag(s) under which the target item is scheduled for
+     *   removal.
+     */
+    data class FlaggedForRemoval(
+        val removalFlags: Set<String>,
+    ) : Invalid {
+        override val reasonLabel: String =
+            "scheduled for removal by @FlaggedApi(${removalFlags.joinToString()})"
+    }
 }
 
 /** Strategy for checking whether a reference from one [Item] to a [SelectableItem] is valid. */

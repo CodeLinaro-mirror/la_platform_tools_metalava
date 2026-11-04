@@ -21,6 +21,7 @@ import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.api.flags.AdditionFlagState
 import com.android.tools.metalava.model.api.flags.FlagState
+import com.android.tools.metalava.model.api.flags.RemovalFlagState
 
 /**
  * An [ApiReferenceStrategy] that checks all references against a fixed [targetSurface] and its
@@ -170,7 +171,7 @@ class TargetSurfaceReferenceStrategy(
         val toBits = to.selectedApi.itemApiVariants.bits
         if ((toBits and allowedMask) != 0) {
             // When checking a reference from a specific item or conditional context, also verify
-            // @FlaggedApi addition constraints: `from` cannot be more permanent than `to`.
+            // @FlaggedApi addition and scheduled-removal constraints.
             if (fromSelectable != null || conditionFlagState != FlagState.NONE) {
                 val toFlagState = to.selectedApi.flagState
                 if (toFlagState != FlagState.NONE) {
@@ -195,6 +196,17 @@ class TargetSurfaceReferenceStrategy(
                             fromFlagState.addition > toAddition
                     ) {
                         return ReferenceCheckResult.UnguardedFlaggedApi(toAddition.flags)
+                    }
+
+                    // If `from` is retained (`Retained > FlaggedForRemoval`) while `to` is
+                    // scheduled for removal, finalizing `to`'s removal flag would remove `to`
+                    // from CORE while leaving `from` with a broken reference.
+                    val toRemoval = toFlagState.removal
+                    if (
+                        toRemoval is RemovalFlagState.FlaggedForRemoval &&
+                            fromFlagState.removal > toRemoval
+                    ) {
+                        return ReferenceCheckResult.FlaggedForRemoval(toRemoval.flags)
                     }
                 }
             }

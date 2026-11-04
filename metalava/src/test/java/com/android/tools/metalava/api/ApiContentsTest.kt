@@ -810,9 +810,16 @@ class ApiContentsTest : DriverTest() {
                     flaggedApiSource,
                 ),
 
-            // Currently, `ApiContents` does not check whether a referenced `@RemovedFromApi`
-            // `@FlaggedApi` class is scheduled for removal while the referencing item is retained.
-            expectedIssues = "",
+            // Referencing a class scheduled for removal by `@RemovedFromApi @FlaggedApi(...)` from
+            // a method that is not scheduled for removal (unannotated or whose removal flag is
+            // reverted) reports `ReferencesHidden` with reason
+            // `scheduled for removal by @FlaggedApi(...)`, whereas referencing it from a method
+            // scheduled for removal under the same or another unfinalized flag is valid.
+            expectedIssues =
+                """
+                    src/test/pkg/PublicClass.java:5: error: Class test.pkg.FlaggedRemovedType is scheduled for removal by @FlaggedApi(test.pkg.remove_flag) but was referenced (in return type) from public method test.pkg.PublicClass.getUnguarded() [ReferencesHidden]
+                    src/test/pkg/PublicClass.java:14: error: Class test.pkg.FlaggedRemovedType is scheduled for removal by @FlaggedApi(test.pkg.remove_flag) but was referenced (in return type) from public method test.pkg.PublicClass.getGuardedByRevertedRemovalFlag() [ReferencesHidden]
+                """,
         )
     }
 }
