@@ -268,7 +268,13 @@ class LegacyValueFormatter(
                 settings.boundConfiguration.copy(
                     annotationQualifiedNameGetter = { annotationItem, purpose ->
                         formatAnnotationClassName(annotationItem, purpose)
-                    }
+                    },
+                    // Resolved field references are marked as `nonLiteralInSource = true`, which
+                    // `ANNOTATION_SOURCE_*_SETTINGS` formats as hexadecimal by default. When
+                    // `alwaysInlineFields` is true, format inlined int fields as decimal instead.
+                    nonLiteralIntFormat =
+                        if (alwaysInlineFields) IntFormat.DECIMAL
+                        else settings.boundConfiguration.nonLiteralIntFormat,
                 ),
             inlineFields =
                 if (alwaysInlineFields) InlineFieldValue.ALWAYS else settings.inlineFields,

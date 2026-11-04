@@ -56,7 +56,7 @@ class SdkExtensionApiTest : DriverTest() {
         )
 
     @Test
-    fun `Test SdkExtensionApi emitted to signature file with inlined hexadecimal values and stripped from stubs`() {
+    fun `Test SdkExtensionApi emitted to signature file with inlined decimal values and stripped from stubs`() {
         check(
             extraArguments = arrayOf(ARG_STUB_PACKAGES, "test.pkg*"),
             sourceFiles =
@@ -86,16 +86,14 @@ class SdkExtensionApiTest : DriverTest() {
                     sdkExtensionsSource,
                     sdkExtensionApiSource,
                 ),
-            // TODO(b/507875039): Format always-inlined annotation int fields as decimal (30, 33,
-            // 34, 1000000) instead of hexadecimal (0x1e, 0x21, 0x22, 0xf4240).
             expectedApiSignature =
                 """
                     // Signature format: 5.0
                     package test.pkg {
-                      @SdkExtensionApi(0x1e) public class Foo {
-                        ctor @SdkExtensionApi(0x21) public Foo();
-                        method @SdkExtensionApi(0x22) public void method();
-                        field @SdkExtensionApi(0xf4240) public static final int CONST = 1; // 0x1
+                      @SdkExtensionApi(30) public class Foo {
+                        ctor @SdkExtensionApi(33) public Foo();
+                        method @SdkExtensionApi(34) public void method();
+                        field @SdkExtensionApi(1000000) public static final int CONST = 1; // 0x1
                       }
                     }
                 """,
@@ -118,7 +116,7 @@ class SdkExtensionApiTest : DriverTest() {
 
     @RequiresCapabilities(Capability.KOTLIN)
     @Test
-    fun `Test SdkExtensionApi emitted to signature file with inlined hexadecimal values from Kotlin source`() {
+    fun `Test SdkExtensionApi emitted to signature file with inlined decimal values from Kotlin source`() {
         check(
             extraArguments = arrayOf(ARG_STUB_PACKAGES, "test.pkg*"),
             sourceFiles =
@@ -140,15 +138,13 @@ class SdkExtensionApiTest : DriverTest() {
                     versionCodesSource,
                     sdkExtensionApiSource,
                 ),
-            // TODO(b/507875039): Format always-inlined annotation int fields as decimal (34)
-            // instead of hexadecimal (0x22).
             expectedApiSignature =
                 """
                     // Signature format: 5.0
                     package test.pkg {
-                      @SdkExtensionApi(0x22) public final class KotlinFoo {
+                      @SdkExtensionApi(34) public final class KotlinFoo {
                         ctor public KotlinFoo();
-                        method @SdkExtensionApi(0x22) public void bar();
+                        method @SdkExtensionApi(34) public void bar();
                       }
                     }
                 """,

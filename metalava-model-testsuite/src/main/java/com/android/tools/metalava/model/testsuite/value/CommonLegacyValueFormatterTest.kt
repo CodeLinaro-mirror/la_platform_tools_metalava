@@ -584,7 +584,7 @@ class CommonLegacyValueFormatterTest : BaseModelTest() {
     }
 
     @Test
-    fun `Test annotation - always inline int field formats as hexadecimal`() {
+    fun `Test annotation - always inline int field as decimal`() {
         checkFormatting {
             val annotation =
                 annotationItem(
@@ -603,9 +603,7 @@ class CommonLegacyValueFormatterTest : BaseModelTest() {
                         AnnotationPurpose.ITEM,
                         context = method,
                     )
-            // TODO(b/507875039): Format always-inlined annotation int fields as decimal
-            // (`@SdkExtensionApi(30)`) instead of hexadecimal (`@SdkExtensionApi(0x1e)`).
-            assertEquals("@SdkExtensionApi(0x1e)", actual)
+            assertEquals("@SdkExtensionApi(30)", actual)
         }
     }
 }
