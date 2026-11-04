@@ -124,7 +124,9 @@ sealed interface AnnotationFormatter {
             purpose: AnnotationPurpose,
             context: Item?
         ) {
-            val alwaysInline = annotationItem.qualifiedName == ANDROID_FLAGGED_API
+            val alwaysInline =
+                annotationItem.qualifiedName == ANDROID_FLAGGED_API ||
+                    annotationItem.qualifiedName == ANDROID_SDK_EXTENSION_API
             val configuration =
                 if (alwaysInline) alwaysInlineConfiguration else defaultConfiguration
             annotationItem.appendAnnotationStringTo(

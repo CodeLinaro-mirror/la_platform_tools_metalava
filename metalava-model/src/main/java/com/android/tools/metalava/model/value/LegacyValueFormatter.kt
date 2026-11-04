@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.value
 
 import com.android.tools.metalava.model.ANDROID_FLAGGED_API
+import com.android.tools.metalava.model.ANDROID_SDK_EXTENSION_API
 import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationPurpose
@@ -281,7 +282,9 @@ class LegacyValueFormatter(
     ) {
         val settings = selectSettingsForContext(context)
 
-        val alwaysInlineFields = annotationItem.qualifiedName == ANDROID_FLAGGED_API
+        val alwaysInlineFields =
+            annotationItem.qualifiedName == ANDROID_FLAGGED_API ||
+                annotationItem.qualifiedName == ANDROID_SDK_EXTENSION_API
 
         val annotationSpecificSetting = annotationSpecificSetting(settings, alwaysInlineFields)
 
