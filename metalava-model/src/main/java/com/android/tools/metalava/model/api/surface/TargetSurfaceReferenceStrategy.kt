@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.api.surface
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.SelectableItem
+import com.android.tools.metalava.model.api.flags.AdditionFlagState
 import com.android.tools.metalava.model.api.flags.FlagState
 
 /**
@@ -108,7 +109,7 @@ class TargetSurfaceReferenceStrategy(
         }
 
         // Resolve the enclosing SelectableItem (e.g. a ParameterItem's parent CallableItem) to
-        // inspect its API variants.
+        // inspect its API variants and @FlaggedApi state.
         val fromSelectable = (from as? SelectableItem) ?: from?.parent()
         val fromBits = fromSelectable?.selectedApi?.itemApiVariants?.bits ?: 0
 
@@ -165,13 +166,43 @@ class TargetSurfaceReferenceStrategy(
             }
         }
 
-        // Fast path: check if the referenced item matches any allowed variant in includedSurfaces.
+        // Check if the referenced item matches any allowed variant in includedSurfaces.
         val toBits = to.selectedApi.itemApiVariants.bits
         if ((toBits and allowedMask) != 0) {
+            // When checking a reference from a specific item or conditional context, also verify
+            // @FlaggedApi addition constraints: `from` cannot be more permanent than `to`.
+            if (fromSelectable != null || conditionFlagState != FlagState.NONE) {
+                val toFlagState = to.selectedApi.flagState
+                if (toFlagState != FlagState.NONE) {
+                    val baseFromState = fromSelectable?.selectedApi?.flagState ?: FlagState.NONE
+
+                    // Conditional blocks (e.g. `{@if (flag(...))}`) can guard documentation
+                    // references, whereas code signatures cannot be conditionally compiled, so
+                    // `conditionFlagState` is ignored for `ReferenceKind.CODE` references.
+                    val fromFlagState =
+                        if (kind == ReferenceKind.DOCUMENTATION) {
+                            baseFromState combineWith conditionFlagState
+                        } else {
+                            baseFromState
+                        }
+
+                    // If `from` is more permanent than `to`'s addition state (`Finalized >
+                    // Flagged`), reverting `to`'s flag would strip `to` while leaving `from` in
+                    // the API with a broken reference.
+                    val toAddition = toFlagState.addition
+                    if (
+                        toAddition is AdditionFlagState.Flagged &&
+                            fromFlagState.addition > toAddition
+                    ) {
+                        return ReferenceCheckResult.UnguardedFlaggedApi(toAddition.flags)
+                    }
+                }
+            }
+
             return ReferenceCheckResult.Valid
         }
 
-        // Slow path: classify why the referenced item is not valid in this context.
+        // Classify why the referenced item is not valid in this context.
         return when {
             // The referenced item is @doconly in an included surface (and the referencing context
             // does not allow doconly targets).

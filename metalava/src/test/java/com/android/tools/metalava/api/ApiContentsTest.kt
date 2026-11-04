@@ -716,9 +716,15 @@ class ApiContentsTest : DriverTest() {
                     flaggedApiSource,
                 ),
 
-            // Currently, `ApiContents` does not check whether a referenced `@FlaggedApi` class is
-            // guarded by an unfinalized `@FlaggedApi` annotation on the referencing item.
-            expectedIssues = "",
+            // Referencing an unfinalized `@FlaggedApi` class from an unflagged method or a method
+            // whose `@FlaggedApi` flag is already finalized reports `ReferencesHidden` with reason
+            // `guarded by @FlaggedApi(...)`, whereas referencing it from a method guarded by the
+            // same or another unfinalized flag is valid.
+            expectedIssues =
+                """
+                    src/test/pkg/PublicClass.java:4: error: Class test.pkg.FlaggedType is guarded by @FlaggedApi(test.pkg.my_flag) but was referenced (in return type) from public method test.pkg.PublicClass.getUnguarded() [ReferencesHidden]
+                    src/test/pkg/PublicClass.java:10: error: Class test.pkg.FlaggedType is guarded by @FlaggedApi(test.pkg.my_flag) but was referenced (in return type) from public method test.pkg.PublicClass.getGuardedByFinalizedFlag() [ReferencesHidden]
+                """,
         )
     }
 }

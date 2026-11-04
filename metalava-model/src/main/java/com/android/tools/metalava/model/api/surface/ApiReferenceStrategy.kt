@@ -97,6 +97,18 @@ sealed interface ReferenceCheckResult {
         override val reasonLabel: String =
             "in a wider API surface (${toSurface.name}) than ${fromSurface.name}"
     }
+
+    /**
+     * Target item is guarded by unfinalized `@FlaggedApi` addition flag(s) [additionFlags] while
+     * the referencing item and enclosing conditional context are finalized/unflagged.
+     *
+     * @property additionFlags The unfinalized flag(s) guarding addition of the target item.
+     */
+    data class UnguardedFlaggedApi(
+        val additionFlags: Set<String>,
+    ) : Invalid {
+        override val reasonLabel: String = "guarded by @FlaggedApi(${additionFlags.joinToString()})"
+    }
 }
 
 /** Strategy for checking whether a reference from one [Item] to a [SelectableItem] is valid. */

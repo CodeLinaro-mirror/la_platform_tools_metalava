@@ -264,10 +264,13 @@ class DocAnalyzerTypeDefTest : DriverTest() {
             docStubs = true,
             checkCompilation = true,
 
-            // Baseline: until `UnguardedFlaggedApi` is supported, `DocAnalyzer` treats
-            // `STYLE_FLAGGED` as accessible from unflagged `setStyle()` and includes it in the
-            // generated `@param style` documentation.
-            expectedIssues = "",
+            // Because `setStyle()` is unflagged while `STYLE_FLAGGED` is guarded by an unfinalized
+            // `@FlaggedApi` annotation, `DocAnalyzer` reports `HiddenTypedefConstant` and omits
+            // `STYLE_FLAGGED` from the generated `@param style` documentation.
+            expectedIssues =
+                """
+                    src/test/pkg/TypedefTest.java:19: error: Typedef references constant which isn't part of the API, skipping in documentation: test.pkg.TypedefTest#STYLE_FLAGGED [HiddenTypedefConstant]
+                """,
             expectedStubFiles =
                 arrayOf(
                     java(
@@ -280,7 +283,6 @@ class DocAnalyzerTypeDefTest : DriverTest() {
                              * @param style Value is one of the following:
                              * <ul>
                              *   <li>{@link #STYLE_NORMAL}</li>
-                             *   <li>{@link #STYLE_FLAGGED}</li>
                              * <ul>
                              */
                             public void setStyle(int style, int theme) { throw new RuntimeException("Stub!"); }

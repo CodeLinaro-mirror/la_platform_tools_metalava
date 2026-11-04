@@ -628,8 +628,7 @@ class ParameterizedApiReferenceStrategyTest(private val params: Params) {
                     expectedResult = ReferenceCheckResult.Valid,
                 ),
 
-                // References to @FlaggedApi items (baseline: `TargetSurfaceReferenceStrategy`
-                // ignores `@FlaggedApi` annotations until `UnguardedFlaggedApi` is supported).
+                // References to @FlaggedApi items (`UnguardedFlaggedApi`).
                 // Global (`from = null`) surface membership checks ignore per-item `@FlaggedApi`.
                 Params(
                     from = null,
@@ -638,22 +637,26 @@ class ParameterizedApiReferenceStrategyTest(private val params: Params) {
                     expectedResult = ReferenceCheckResult.Valid,
                 ),
 
-                // Unguarded references from an unflagged CORE item in code and documentation.
+                // Finalized/unflagged CORE items referencing an unfinalized `@FlaggedApi` item
+                // report `UnguardedFlaggedApi` in both CODE and DOCUMENTATION.
                 Params(
                     from = coreItem,
                     to = flaggedItem,
                     kind = ReferenceKind.CODE,
-                    expectedResult = ReferenceCheckResult.Valid,
+                    expectedResult =
+                        ReferenceCheckResult.UnguardedFlaggedApi(setOf("test.pkg.flag1")),
+                    expectedReasonLabel = "guarded by @FlaggedApi(test.pkg.flag1)",
                 ),
                 Params(
                     from = coreItem,
                     to = flaggedItem,
                     kind = ReferenceKind.DOCUMENTATION,
-                    expectedResult = ReferenceCheckResult.Valid,
+                    expectedResult =
+                        ReferenceCheckResult.UnguardedFlaggedApi(setOf("test.pkg.flag1")),
                 ),
 
                 // Self, nested-to-enclosing, and enclosing-to-nested references under the same
-                // unfinalized flag.
+                // unfinalized flag are valid.
                 Params(
                     from = flaggedItem,
                     to = flaggedItem,
@@ -673,16 +676,15 @@ class ParameterizedApiReferenceStrategyTest(private val params: Params) {
                     expectedResult = ReferenceCheckResult.Valid,
                 ),
 
-                // Unguarded reference to a nested class that inherits its enclosing class's flag.
+                // Nested classes inside a `@FlaggedApi` class inherit its flag (both within `main`
+                // and across `base` -> `main`).
                 Params(
                     from = coreItem,
                     to = nestedInFlaggedItem,
                     kind = ReferenceKind.CODE,
-                    expectedResult = ReferenceCheckResult.Valid,
+                    expectedResult =
+                        ReferenceCheckResult.UnguardedFlaggedApi(setOf("test.pkg.flag1")),
                 ),
-
-                // Cross-surface flag inheritance from an enclosing class in `base` to a nested
-                // class in `main`.
                 Params(
                     from = nestedInBaseFlaggedItem,
                     to = flaggedItem,
@@ -693,10 +695,12 @@ class ParameterizedApiReferenceStrategyTest(private val params: Params) {
                     from = coreItem,
                     to = nestedInBaseFlaggedItem,
                     kind = ReferenceKind.CODE,
-                    expectedResult = ReferenceCheckResult.Valid,
+                    expectedResult =
+                        ReferenceCheckResult.UnguardedFlaggedApi(setOf("test.pkg.flag1")),
                 ),
 
-                // Reference between items guarded by two different kept addition flags.
+                // Under permanence ordering, an unfinalized `@FlaggedApi` item may reference
+                // another unfinalized `@FlaggedApi` item (`Flagged` is not `>` `Flagged`).
                 Params(
                     from = otherFlaggedItem,
                     to = flaggedItem,
@@ -704,12 +708,14 @@ class ParameterizedApiReferenceStrategyTest(private val params: Params) {
                     expectedResult = ReferenceCheckResult.Valid,
                 ),
 
-                // Items whose `@FlaggedApi` flag is finalized behave like unflagged permanent APIs.
+                // Finalized `@FlaggedApi` items have `AdditionFlagState.Finalized`, so referencing
+                // an unfinalized target from them is unguarded, while referencing them is valid.
                 Params(
                     from = finalizedFlaggedItem,
                     to = flaggedItem,
                     kind = ReferenceKind.CODE,
-                    expectedResult = ReferenceCheckResult.Valid,
+                    expectedResult =
+                        ReferenceCheckResult.UnguardedFlaggedApi(setOf("test.pkg.flag1")),
                 ),
                 Params(
                     from = coreItem,
@@ -718,7 +724,8 @@ class ParameterizedApiReferenceStrategyTest(private val params: Params) {
                     expectedResult = ReferenceCheckResult.Valid,
                 ),
 
-                // Conditional `conditionFlagState` in DOCUMENTATION vs CODE.
+                // An unfinalized `conditionFlagState` guards DOCUMENTATION references, whereas a
+                // finalized `conditionFlagState` or a CODE reference remains unguarded.
                 Params(
                     from = coreItem,
                     to = flaggedItem,
@@ -733,7 +740,8 @@ class ParameterizedApiReferenceStrategyTest(private val params: Params) {
                     kind = ReferenceKind.DOCUMENTATION,
                     conditionFlagState =
                         FlagState.additionFlag("test.pkg.finalized_flag", ApiFlagAction.FINALIZE),
-                    expectedResult = ReferenceCheckResult.Valid,
+                    expectedResult =
+                        ReferenceCheckResult.UnguardedFlaggedApi(setOf("test.pkg.flag1")),
                 ),
                 Params(
                     from = coreItem,
@@ -741,7 +749,8 @@ class ParameterizedApiReferenceStrategyTest(private val params: Params) {
                     kind = ReferenceKind.CODE,
                     conditionFlagState =
                         FlagState.additionFlag("test.pkg.flag1", ApiFlagAction.KEEP),
-                    expectedResult = ReferenceCheckResult.Valid,
+                    expectedResult =
+                        ReferenceCheckResult.UnguardedFlaggedApi(setOf("test.pkg.flag1")),
                 ),
             )
 
