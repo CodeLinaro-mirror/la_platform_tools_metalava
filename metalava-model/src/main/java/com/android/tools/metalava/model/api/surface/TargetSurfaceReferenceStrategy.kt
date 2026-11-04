@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.api.surface
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.SelectableItem
+import com.android.tools.metalava.model.api.flags.FlagState
 
 /**
  * An [ApiReferenceStrategy] that checks all references against a fixed [targetSurface] and its
@@ -92,10 +93,12 @@ class TargetSurfaceReferenceStrategy(
         return apiSurfaces.createVariantSet(variants).bits
     }
 
+    /** Implements [ApiReferenceStrategy.checkReference]. */
     override fun checkReference(
         from: Item?,
         to: SelectableItem,
         kind: ReferenceKind,
+        conditionFlagState: FlagState,
     ): ReferenceCheckResult {
         // A reference from an item to one of its containing classes is always valid, even if the
         // containing class is hidden (e.g. reverted by a disabled @FlaggedApi annotation), because

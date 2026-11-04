@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.api.surface
 
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.SelectableItem
+import com.android.tools.metalava.model.api.flags.FlagState
 
 /** Distinguishes references in API signatures/code from references inside documentation. */
 enum class ReferenceKind {
@@ -101,18 +102,22 @@ sealed interface ReferenceCheckResult {
 /** Strategy for checking whether a reference from one [Item] to a [SelectableItem] is valid. */
 interface ApiReferenceStrategy {
     /**
-     * Check whether a reference of [kind] from [from] to [to] is valid.
+     * Check whether a reference of [kind] from [from] to [to] is valid within [conditionFlagState].
      *
      * @param from The [Item] containing the reference, or `null` when checking against a global
      *   surface without a specific referencing item (e.g. `SdkFileWriter`).
      * @param to The referenced [SelectableItem].
      * @param kind Whether the reference is in [ReferenceKind.CODE] or
      *   [ReferenceKind.DOCUMENTATION].
+     * @param conditionFlagState Active conditional [FlagState] enclosing a
+     *   [ReferenceKind.DOCUMENTATION] reference (e.g. from `{@if (flag(...))}` in Javadoc); ignored
+     *   for [ReferenceKind.CODE] references.
      */
     fun checkReference(
         from: Item?,
         to: SelectableItem,
         kind: ReferenceKind,
+        conditionFlagState: FlagState = FlagState.NONE,
     ): ReferenceCheckResult
 
     /**
@@ -123,10 +128,14 @@ interface ApiReferenceStrategy {
      * @param to The referenced [SelectableItem].
      * @param kind Whether the reference is in [ReferenceKind.CODE] or
      *   [ReferenceKind.DOCUMENTATION].
+     * @param conditionFlagState Active conditional [FlagState] enclosing a
+     *   [ReferenceKind.DOCUMENTATION] reference (e.g. from `{@if (flag(...))}` in Javadoc); ignored
+     *   for [ReferenceKind.CODE] references.
      */
     fun isValidReference(
         from: Item?,
         to: SelectableItem,
         kind: ReferenceKind,
-    ): Boolean = checkReference(from, to, kind).isValid
+        conditionFlagState: FlagState = FlagState.NONE,
+    ): Boolean = checkReference(from, to, kind, conditionFlagState).isValid
 }

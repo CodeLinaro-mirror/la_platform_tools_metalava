@@ -28,6 +28,7 @@ import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.api.SelectedApi
+import com.android.tools.metalava.model.api.flags.FlagState
 import com.android.tools.metalava.model.createImmutableModifiers
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.item.DefaultCodebaseAssembler
@@ -54,6 +55,8 @@ class ParameterizedApiReferenceStrategyTest(private val params: Params) {
      * @property to The referenced [ClassItem].
      * @property kind Whether the reference is in [ReferenceKind.CODE] or
      *   [ReferenceKind.DOCUMENTATION].
+     * @property conditionFlagState Any external conditional [FlagState] active at the reference
+     *   site.
      * @property expectedResult The expected [ReferenceCheckResult] returned by
      *   [ApiReferenceStrategy.checkReference].
      * @property expectedReasonLabel Optional expected [ReferenceCheckResult.Invalid.reasonLabel]
@@ -65,6 +68,7 @@ class ParameterizedApiReferenceStrategyTest(private val params: Params) {
         val from: SelectableItem? = null,
         val to: ClassItem,
         val kind: ReferenceKind = ReferenceKind.CODE,
+        val conditionFlagState: FlagState = FlagState.NONE,
         val expectedResult: ReferenceCheckResult,
         val expectedReasonLabel: String? = null,
     ) {
@@ -85,6 +89,11 @@ class ParameterizedApiReferenceStrategyTest(private val params: Params) {
             append("from=$fromName, ")
             append("to=${to.simpleName()}, ")
             append("kind=$kind")
+
+            // Omit default `FlagState.NONE` to keep parameterized test names concise.
+            if (conditionFlagState != FlagState.NONE) {
+                append(", conditionFlagState=$conditionFlagState")
+            }
         }
     }
 
@@ -538,13 +547,24 @@ class ParameterizedApiReferenceStrategyTest(private val params: Params) {
             )
 
         // Verify checkReference() returns the expected ReferenceCheckResult.
-        val result = strategy.checkReference(params.from, params.to, params.kind)
+        val result =
+            strategy.checkReference(
+                params.from,
+                params.to,
+                params.kind,
+                params.conditionFlagState,
+            )
         assertEquals(params.expectedResult, result)
 
         // Verify isValidReference() matches result.isValid.
         assertEquals(
             params.expectedResult.isValid,
-            strategy.isValidReference(params.from, params.to, params.kind),
+            strategy.isValidReference(
+                params.from,
+                params.to,
+                params.kind,
+                params.conditionFlagState,
+            ),
         )
 
         // When an expected reasonLabel is provided for an invalid result, verify it matches.
