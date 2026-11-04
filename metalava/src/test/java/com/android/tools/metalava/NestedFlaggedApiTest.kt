@@ -176,8 +176,11 @@ class NestedFlaggedApiTest : DriverTest() {
     @Test
     fun `Test outer revert and nested keep with outer in previously released API`() {
         // Because Foo was in the previously released API, reverting test.pkg.outer reverts Foo to
-        // its previously released state (public class Foo {}) rather than removing it, so no
-        // InvalidFlagNesting issue should be reported.
+        // its previously released state (public class Foo {}) rather than removing it, and reverts
+        // unflagged new members (Foo(), method(), Nested). However, flaggedMethod() and
+        // FlaggedNested are explicitly guarded by test.pkg.nested (KEEP) inside an existing class
+        // Foo, so they are kept in the signature and stubs, and no InvalidFlagNesting issue should
+        // be reported.
         checkNestedFlags(
             outerAction = REVERT,
             nestedAction = KEEP,
@@ -194,6 +197,11 @@ class NestedFlaggedApiTest : DriverTest() {
                     // Signature format: 5.0
                     package test.pkg {
                       public class Foo {
+                        method @FlaggedApi("test.pkg.nested") public void flaggedMethod();
+                      }
+                      @FlaggedApi("test.pkg.nested") public static class Foo.FlaggedNested {
+                        ctor public Foo.FlaggedNested();
+                        method public void method();
                       }
                     }
                 """,
@@ -205,6 +213,15 @@ class NestedFlaggedApiTest : DriverTest() {
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
                             public class Foo {
                             Foo() { throw new RuntimeException("Stub!"); }
+                            @android.annotation.RequiresFlag("test.pkg.nested")
+                            public void flaggedMethod() { throw new RuntimeException("Stub!"); }
+                            @android.annotation.RequiresFlag("test.pkg.nested")
+                            public static class FlaggedNested {
+                            @android.annotation.RequiresFlag("test.pkg.nested")
+                            public FlaggedNested() { throw new RuntimeException("Stub!"); }
+                            @android.annotation.RequiresFlag("test.pkg.nested")
+                            public void method() { throw new RuntimeException("Stub!"); }
+                            }
                             }
                         """
                     ),
@@ -234,8 +251,11 @@ class NestedFlaggedApiTest : DriverTest() {
     @Test
     fun `Test outer revert and nested finalize with outer in previously released API`() {
         // Because Foo was in the previously released API, reverting test.pkg.outer reverts Foo to
-        // its previously released state (public class Foo {}) rather than removing it, so no
-        // InvalidFlagNesting issue should be reported.
+        // its previously released state (public class Foo {}) rather than removing it, and reverts
+        // unflagged new members (Foo(), method(), Nested). However, flaggedMethod() and
+        // FlaggedNested are explicitly guarded by test.pkg.nested (FINALIZE) inside an existing
+        // class Foo, so they are included as finalized (unflagged) APIs in the signature and stubs,
+        // and no InvalidFlagNesting issue should be reported.
         checkNestedFlags(
             outerAction = REVERT,
             nestedAction = FINALIZE,
@@ -252,6 +272,11 @@ class NestedFlaggedApiTest : DriverTest() {
                     // Signature format: 5.0
                     package test.pkg {
                       public class Foo {
+                        method public void flaggedMethod();
+                      }
+                      public static class Foo.FlaggedNested {
+                        ctor public Foo.FlaggedNested();
+                        method public void method();
                       }
                     }
                 """,
@@ -263,6 +288,11 @@ class NestedFlaggedApiTest : DriverTest() {
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
                             public class Foo {
                             Foo() { throw new RuntimeException("Stub!"); }
+                            public void flaggedMethod() { throw new RuntimeException("Stub!"); }
+                            public static class FlaggedNested {
+                            public FlaggedNested() { throw new RuntimeException("Stub!"); }
+                            public void method() { throw new RuntimeException("Stub!"); }
+                            }
                             }
                         """
                     ),
