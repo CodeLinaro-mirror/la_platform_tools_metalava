@@ -317,19 +317,8 @@ class AbstractItemDocumentationTest {
                 doc = "/** @hide */",
             )
 
-        // TODO(b/568477816): `checkReference` currently checks the `@hide` source annotation
-        //  directly rather than resolving the mapped documentation-stubs annotation target,
-        //  reporting false positives on `Nullable`, `IntDef.DEFAULT_FLAG`, `NonNull`, and
-        //  `NonNull.PUBLIC_FIELD`, and reporting the `android.annotation.*` name instead of
-        //  `androidx.annotation.*` when the mapped target in the codebase is itself hidden.
-        assertEquals(
-            "warning: Class android.annotation.Nullable is hidden (ErrorWhenNew) [HiddenDocReference]",
-            context.checkReference(referencer, androidNullable),
-        )
-        assertEquals(
-            "warning: Field android.annotation.IntDef.DEFAULT_FLAG is hidden (ErrorWhenNew) [HiddenDocReference]",
-            context.checkReference(referencer, intDefDefaultFlag),
-        )
+        assertEquals("", context.checkReference(referencer, androidNullable))
+        assertEquals("", context.checkReference(referencer, intDefDefaultFlag))
         assertEquals(
             "warning: Field android.annotation.IntDef.DOC_HIDDEN_FLAG is hidden (ErrorWhenNew) [HiddenDocReference]",
             context.checkReference(referencer, intDefDocHiddenFlag),
@@ -338,16 +327,10 @@ class AbstractItemDocumentationTest {
             "warning: Field android.annotation.IntDef.ANNOTATION_HIDDEN_FLAG is hidden (ErrorWhenNew) [HiddenDocReference]",
             context.checkReference(referencer, intDefAnnotationHiddenFlag),
         )
+        assertEquals("", context.checkReference(referencer, androidNonNull))
+        assertEquals("", context.checkReference(referencer, androidNonNullPublicField))
         assertEquals(
-            "warning: Class android.annotation.NonNull is hidden (ErrorWhenNew) [HiddenDocReference]",
-            context.checkReference(referencer, androidNonNull),
-        )
-        assertEquals(
-            "warning: Field android.annotation.NonNull.PUBLIC_FIELD is hidden (ErrorWhenNew) [HiddenDocReference]",
-            context.checkReference(referencer, androidNonNullPublicField),
-        )
-        assertEquals(
-            "warning: Field android.annotation.NonNull.HIDDEN_FIELD is hidden (ErrorWhenNew) [HiddenDocReference]",
+            "warning: Field androidx.annotation.NonNull.HIDDEN_FIELD is hidden (ErrorWhenNew) [HiddenDocReference]",
             context.checkReference(referencer, androidNonNullHiddenField),
         )
         assertEquals(
@@ -355,7 +338,7 @@ class AbstractItemDocumentationTest {
             context.checkReference(referencer, androidNonNullUnmappedField),
         )
         assertEquals(
-            "warning: Class android.annotation.IntRange is hidden (ErrorWhenNew) [HiddenDocReference]",
+            "warning: Class androidx.annotation.IntRange is hidden (ErrorWhenNew) [HiddenDocReference]",
             context.checkReference(referencer, androidIntRange),
         )
         assertEquals(

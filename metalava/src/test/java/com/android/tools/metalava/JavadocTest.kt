@@ -1307,13 +1307,8 @@ class JavadocTest : DriverTest() {
                     ),
                     KnownSourceFiles.nullableSource,
                 ),
-
-            // TODO(b/568477816): `android.annotation.Nullable` is `@hide` and mapped to
-            //  `androidx.annotation.Nullable`, so `checkReference` temporarily reports
-            //  `HiddenDocReference` until mapped annotation targets are checked.
             expectedIssues =
                 """
-                    src/test/pkg/Foo.java:6: warning: Class android.annotation.Nullable is hidden (ErrorWhenNew) [HiddenDocReference]
                     src/test/pkg/Foo.java:6: error: Documentation contains '@hide', `@removed` or '@doconly' that is not used as a block tag; that could cause unexpected behavior downstream. [InvalidBlockTagUse]
                 """,
             docStubs = true,

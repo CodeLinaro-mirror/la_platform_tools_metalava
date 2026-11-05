@@ -20,12 +20,15 @@ import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ReferencableItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TypeParameterListOwner
+import com.android.tools.metalava.model.api.SurfaceSelectionRule
 import com.android.tools.metalava.model.api.surface.ReferenceCheckResult
 import com.android.tools.metalava.model.api.surface.ReferenceKind
 import com.android.tools.metalava.model.doc.DocContent
@@ -132,6 +135,55 @@ internal abstract class AbstractItemDocumentation(
     override fun resolveClassReferenceName(classItem: ClassItem): String =
         mappedDocStubsAnnotationName(classItem) ?: classItem.qualifiedName()
 
+    /**
+     * Resolve [referencedItem] to the effective [SelectableItem] to check in documentation stubs,
+     * or `null` if [referencedItem] maps to an external replacement annotation not present in
+     * [item]'s [Codebase].
+     *
+     * Platform annotations such as `android.annotation.Nullable` are `@hide` in framework source
+     * but replaced by `androidx.annotation.Nullable` in documentation stubs. Checking the source
+     * annotation directly would report a false-positive `HiddenDocReference` warning, so check the
+     * replacement annotation instead when present in the codebase, or skip checking when the
+     * replacement annotation is external.
+     */
+    private fun effectiveReferencedItem(referencedItem: SelectableItem): SelectableItem? {
+        return when (referencedItem) {
+            is ClassItem -> {
+                val mappedName =
+                    mappedDocStubsAnnotationName(referencedItem) ?: return referencedItem
+                item.codebase.resolveClass(mappedName)
+            }
+            is FieldItem -> {
+                val mappedName =
+                    mappedDocStubsAnnotationName(referencedItem.containingClass())
+                        ?: return referencedItem
+                val mappedClass = item.codebase.resolveClass(mappedName)
+                if (mappedClass != null) {
+                    mappedClass.findField(referencedItem.name()) ?: referencedItem
+                } else if (referencedItem.isDirectlyHiddenOrRemoved()) {
+                    referencedItem
+                } else {
+                    null
+                }
+            }
+            else -> referencedItem
+        }
+    }
+
+    /**
+     * Check whether this [SelectableItem] is directly marked hidden or removed by its own
+     * documentation tags or surface annotations (ignoring hiddenness inherited from its enclosing
+     * class).
+     */
+    private fun SelectableItem.isDirectlyHiddenOrRemoved(): Boolean =
+        documentation?.isHidden == true ||
+            documentation?.isRemoved == true ||
+            modifiers.annotations().any {
+                val effect = it.surfaceData?.effect
+                effect == SurfaceSelectionRule.Effect.HIDE ||
+                    effect == SurfaceSelectionRule.Effect.REMOVED
+            }
+
     /** Implements [DocCommentContext.checkReference]. */
     override fun checkReference(
         referencedItem: SelectableItem,
@@ -146,15 +198,16 @@ internal abstract class AbstractItemDocumentation(
             return
         }
 
-        // Check whether `referencedItem` is accessible in documentation (`CORE` or `DOC_ONLY`).
-        val result =
-            referenceStrategy.checkReference(item, referencedItem, ReferenceKind.DOCUMENTATION)
+        val targetItem = effectiveReferencedItem(referencedItem) ?: return
+
+        // Check whether `targetItem` is accessible in documentation (`CORE` or `DOC_ONLY`).
+        val result = referenceStrategy.checkReference(item, targetItem, ReferenceKind.DOCUMENTATION)
 
         // Report `HiddenDocReference` with the strategy's human-readable reason (e.g. "hidden").
         if (result is ReferenceCheckResult.Invalid) {
             reporter.report(
                 Issues.HIDDEN_DOC_REFERENCE,
-                "${referencedItem.describe(capitalize = true)} is ${result.reasonLabel}",
+                "${targetItem.describe(capitalize = true)} is ${result.reasonLabel}",
             )
         }
     }

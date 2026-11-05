@@ -697,15 +697,12 @@ class CommonDocReferenceTest : BaseModelTest() {
                         """,
                 )
 
-            // TODO(b/568477816): Mapped annotations (Nullable, IntDef#DEFAULT_FLAG, NonNull)
-            //  currently check the @hide source annotation rather than the mapped target.
+            // TODO(b/568477816): Callable reference (Hide#value()) does not yet check whether the
+            //  qualifying class is hidden.
             assertAndRemoveReportedIssues(
                 """
-                    MAIN_SRC/src/test/pkg/Test.java:9:15: warning: Class android.annotation.Nullable is hidden (ErrorWhenNew) [HiddenDocReference]
-                    MAIN_SRC/src/test/pkg/Test.java:10:15: warning: Field android.annotation.IntDef.DEFAULT_FLAG is hidden (ErrorWhenNew) [HiddenDocReference]
                     MAIN_SRC/src/test/pkg/Test.java:11:15: warning: Field android.annotation.IntDef.HIDDEN_FLAG is hidden (ErrorWhenNew) [HiddenDocReference]
-                    MAIN_SRC/src/test/pkg/Test.java:15:15: warning: Class android.annotation.NonNull is hidden (ErrorWhenNew) [HiddenDocReference]
-                    MAIN_SRC/src/test/pkg/Test.java:16:15: warning: Class android.annotation.IntRange is hidden (ErrorWhenNew) [HiddenDocReference]
+                    MAIN_SRC/src/test/pkg/Test.java:16:15: warning: Class androidx.annotation.IntRange is hidden (ErrorWhenNew) [HiddenDocReference]
                     MAIN_SRC/src/test/pkg/Test.java:17:15: warning: Class android.annotation.Hide is hidden (ErrorWhenNew) [HiddenDocReference]
                 """
             )
