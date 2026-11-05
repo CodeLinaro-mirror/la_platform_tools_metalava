@@ -36,7 +36,9 @@ internal interface DocCommentContext : ExprBuilderContext, ExprContext {
     /**
      * Resolve the qualified class name to emit in documentation references for [classItem].
      *
-     * Defaults to [ClassItem.qualifiedName].
+     * Defaults to [ClassItem.qualifiedName], unless [classItem] is an annotation class that is
+     * mapped to a different annotation in documentation stubs (for example,
+     * `android.annotation.Nullable` mapped to `androidx.annotation.Nullable`).
      */
     fun resolveClassReferenceName(classItem: ClassItem): String = classItem.qualifiedName()
 

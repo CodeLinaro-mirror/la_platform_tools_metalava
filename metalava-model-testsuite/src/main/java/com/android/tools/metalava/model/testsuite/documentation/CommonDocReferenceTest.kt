@@ -420,29 +420,27 @@ class CommonDocReferenceTest : BaseModelTest() {
                 )
 
             val testClass = codebase.assertClass("test.pkg.Test")
-            // TODO(b/568477816): Doc references to mapped annotations should be rewritten to use
-            //  the mapped annotation name.
             testClass
                 .assertMethod("method", emptyList())
                 .assertPrintedDocumentation(
                     expectedOutput =
                         """
                             /**
-                             * {@link android.annotation.Nullable Nullable}
-                             * {@link android.annotation.Nullable}
-                             * {@link org.jetbrains.annotations.Nullable}
-                             * {@linkplain android.annotation.Nullable Nullable}
-                             * {@link android.annotation.IntDef#DEFAULT_FLAG IntDef.DEFAULT_FLAG}
-                             * {@link android.annotation.IntDef#flag IntDef.flag}
-                             * {@link android.annotation.IntDef#flag() IntDef.flag()}
-                             * {@link android.annotation.IntDef#flag()}
-                             * {@link android.annotation.IntDef#flag()}
-                             * {@link android.annotation.Nullable##uri-fragment}
+                             * {@link androidx.annotation.Nullable Nullable}
+                             * {@link androidx.annotation.Nullable}
+                             * {@link androidx.annotation.Nullable}
+                             * {@linkplain androidx.annotation.Nullable Nullable}
+                             * {@link androidx.annotation.IntDef#DEFAULT_FLAG IntDef.DEFAULT_FLAG}
+                             * {@link androidx.annotation.IntDef#flag IntDef.flag}
+                             * {@link androidx.annotation.IntDef#flag() IntDef.flag()}
+                             * {@link androidx.annotation.IntDef#flag()}
+                             * {@link androidx.annotation.IntDef#flag()}
+                             * {@link androidx.annotation.Nullable##uri-fragment}
                              * {@link android.annotation.Hide Hide}
                              * {@link android.annotation.Hide#value() Hide.value()}
                              *
-                             * @see android.annotation.Nullable Nullable
-                             * @see android.annotation.Nullable
+                             * @see androidx.annotation.Nullable Nullable
+                             * @see androidx.annotation.Nullable
                              */
                         """,
                 )
