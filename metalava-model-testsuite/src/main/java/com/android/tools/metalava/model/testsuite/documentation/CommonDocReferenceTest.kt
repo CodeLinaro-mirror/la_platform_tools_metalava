@@ -342,4 +342,112 @@ class CommonDocReferenceTest : BaseModelTest() {
             )
         }
     }
+
+    /**
+     * Verify how documentation references to annotations that are mapped in documentation stubs
+     * (such as `android.annotation.Nullable` -> `androidx.annotation.Nullable`) and unmapped
+     * annotations (such as `android.annotation.Hide`) are formatted when printed.
+     */
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `Test mapped annotation references`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package android.annotation;
+                        public @interface Nullable {}
+                    """
+                ),
+                java(
+                    """
+                        package org.jetbrains.annotations;
+                        public @interface Nullable {}
+                    """
+                ),
+                java(
+                    """
+                        package android.annotation;
+                        /** {@link android.annotation.IntDef#DEFAULT_FLAG} */
+                        public @interface IntDef {
+                            int DEFAULT_FLAG = 0;
+                            boolean flag() default false;
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package android.annotation;
+                        public @interface Hide {
+                            String value() default "";
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        import android.annotation.Hide;
+                        import android.annotation.IntDef;
+                        import android.annotation.Nullable;
+                        public class Test {
+                            /**
+                             * {@link Nullable}
+                             * {@link android.annotation.Nullable}
+                             * {@link org.jetbrains.annotations.Nullable}
+                             * {@linkplain Nullable}
+                             * {@link IntDef#DEFAULT_FLAG}
+                             * {@link IntDef#flag}
+                             * {@link IntDef#flag()}
+                             * {@link android.annotation.IntDef#flag()}
+                             * {@link android.annotation.IntDef.flag()}
+                             * {@link Nullable##uri-fragment}
+                             * {@link Hide}
+                             * {@link Hide#value()}
+                             *
+                             * @see Nullable
+                             * @see android.annotation.Nullable
+                             */
+                            public void method() {}
+                        }
+                    """
+                ),
+            ),
+        ) {
+            codebase
+                .assertClass("android.annotation.IntDef")
+                .assertPrintedDocumentation(
+                    expectedOutput = """/** {@link #DEFAULT_FLAG} */""",
+                )
+
+            val testClass = codebase.assertClass("test.pkg.Test")
+            // TODO(b/568477816): Doc references to mapped annotations should be rewritten to use
+            //  the mapped annotation name.
+            testClass
+                .assertMethod("method", emptyList())
+                .assertPrintedDocumentation(
+                    expectedOutput =
+                        """
+                            /**
+                             * {@link android.annotation.Nullable Nullable}
+                             * {@link android.annotation.Nullable}
+                             * {@link org.jetbrains.annotations.Nullable}
+                             * {@linkplain android.annotation.Nullable Nullable}
+                             * {@link android.annotation.IntDef#DEFAULT_FLAG IntDef.DEFAULT_FLAG}
+                             * {@link android.annotation.IntDef#flag IntDef.flag}
+                             * {@link android.annotation.IntDef#flag() IntDef.flag()}
+                             * {@link android.annotation.IntDef#flag()}
+                             * {@link android.annotation.IntDef#flag()}
+                             * {@link android.annotation.Nullable##uri-fragment}
+                             * {@link android.annotation.Hide Hide}
+                             * {@link android.annotation.Hide#value() Hide.value()}
+                             *
+                             * @see android.annotation.Nullable Nullable
+                             * @see android.annotation.Nullable
+                             */
+                        """,
+                )
+
+            assertAndRemoveReportedIssues("")
+        }
+    }
 }
