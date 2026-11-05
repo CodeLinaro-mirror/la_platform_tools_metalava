@@ -857,4 +857,78 @@ class CommonDocReferenceTest : BaseModelTest() {
             assertAndRemoveReportedIssues("")
         }
     }
+
+    /**
+     * Verify that documentation on public API items reports `HiddenDocReference` with reason
+     * `"removed"` when referencing `@removed` items, whereas documentation on `@removed` items
+     * skips checking.
+     */
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `Test removed references`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+                        /** @removed */
+                        public class RemovedClass {
+                            public int field;
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        public class Test {
+                            /**
+                             * {@link RemovedClass}
+                             * {@link RemovedClass#field}
+                             */
+                            public void publicMethod() {}
+
+                            /**
+                             * {@link RemovedClass}
+                             * @removed
+                             */
+                            public void removedMethod() {}
+                        }
+                    """
+                ),
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            testClass
+                .assertMethod("publicMethod", emptyList())
+                .assertPrintedDocumentation(
+                    expectedOutput =
+                        """
+                            /**
+                             * {@link test.pkg.RemovedClass RemovedClass}
+                             * {@link test.pkg.RemovedClass#field RemovedClass.field}
+                             */
+                        """,
+                )
+            testClass
+                .assertMethod("removedMethod", emptyList())
+                .assertPrintedDocumentation(
+                    expectedOutput =
+                        """
+                            /**
+                             * {@link test.pkg.RemovedClass RemovedClass}
+                             * @removed
+                             */
+                        """,
+                )
+
+            // Only `publicMethod()` reports `HiddenDocReference`; `removedMethod()` is itself
+            // `@removed` and therefore not a documented item.
+            assertAndRemoveReportedIssues(
+                """
+                    MAIN_SRC/src/test/pkg/Test.java:4:15: warning: Class test.pkg.RemovedClass is removed (ErrorWhenNew) [HiddenDocReference]
+                    MAIN_SRC/src/test/pkg/Test.java:5:15: warning: Field test.pkg.RemovedClass.field is removed (ErrorWhenNew) [HiddenDocReference]
+                """
+            )
+        }
+    }
 }
