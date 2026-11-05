@@ -42,6 +42,17 @@ sealed interface ApiHistoryUpdater {
         deprecated: Boolean = apiElement.deprecatedIn != null,
     )
 
+    /**
+     * Updates the [ApiElement.sdkExtensionApi] of [apiElement] with the [floor] of its
+     * `@SdkExtensionApi` annotation in the version being loaded, if any.
+     *
+     * @param apiElement the [ApiElement] to update.
+     * @param floor the value of the `@SdkExtensionApi` annotation, or `null` if not annotated.
+     */
+    fun updateSdkExtensionApi(apiElement: ApiElement, floor: Int?) {
+        apiElement.updateSdkExtensionApi(floor)
+    }
+
     override fun toString(): String
 
     /** Updates the [ApiElement] by calling [ApiElement.update]. */
