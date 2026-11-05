@@ -34,6 +34,7 @@ import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.api.flags.optionalFlagName
 import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.hasAnnotation
+import com.android.tools.metalava.model.text.SignatureWriter
 import com.android.tools.metalava.model.value.ValueKind
 import com.android.tools.metalava.model.value.asString
 import com.android.tools.metalava.model.visitors.ApiFilters
@@ -288,7 +289,12 @@ class FlaggedApiLint(
                     writer = writer,
                     config = NORMALIZING_MODIFIER_LIST_WRITER_CONFIG,
                 )
-            modifierListWriter.write(item)
+            var annotations = item.modifiers.annotations()
+            SignatureWriter.sdkExtensionApiAnnotationToInherit(item, annotations)?.let {
+                inheritedAnnotation ->
+                annotations = annotations + inheritedAnnotation
+            }
+            modifierListWriter.write(item, annotations)
             val normalizedModifiers = writer.toString().trim()
             normalizedModifiers
         }

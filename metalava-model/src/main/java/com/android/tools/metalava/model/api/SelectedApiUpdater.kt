@@ -319,7 +319,9 @@ class SelectedApiUpdater(
         // Check whether the item is marked for revert only after verifying that it is not
         // explicitly hidden from the target API surface.
         if (!revert) {
-            if (item.containingClass()?.isMarkedForRevert() == true) {
+            if (
+                flaggedApiAnnotation == null && item.containingClass()?.isMarkedForRevert() == true
+            ) {
                 revert = true
             } else if (item is MethodItem) {
                 // If any of a method's super methods are part of a unstable API that needs to be
