@@ -56,6 +56,8 @@ import com.android.tools.metalava.model.WellKnownTypes
 import com.android.tools.metalava.model.addDefaultRetentionPolicyAnnotation
 import com.android.tools.metalava.model.createMutableModifiers
 import com.android.tools.metalava.model.hasAnnotation
+import com.android.tools.metalava.model.item.ClassMemberInitializer
+import com.android.tools.metalava.model.item.ClassMemberMask
 import com.android.tools.metalava.model.type.MethodFingerprint
 import com.android.tools.metalava.model.type.TypeParameterListAndFactory
 import com.android.tools.metalava.model.value.ValueUseSite
@@ -180,6 +182,14 @@ internal class TurbineClassBuilder(
                 }
                 .sortedWith(TypeItem.qualifiedComparator)
 
+        // Only populate members eagerly for classes specified on the command line that have API
+        // visibility; classes resolved from the classpath or source path, or command line classes
+        // without API visibility, will populate their members lazily on demand.
+        val createEagerly =
+            origin == ClassOrigin.COMMAND_LINE &&
+                modifiers.hasApiVisibility() &&
+                containingClassItem?.hasApiVisibility() != false
+
         val classItem =
             itemFactory.createClassItem(
                 sourcePosition = decl.sourcePosition,
@@ -207,22 +217,57 @@ internal class TurbineClassBuilder(
                     else {
                         null
                     },
+                memberInitializer =
+                    if (createEagerly) null else LazyMemberInitializer(classTypeItemFactory),
             )
 
-        // Create fields
-        createFields(classItem, typeBoundClass.fields(), classTypeItemFactory)
+        if (createEagerly) {
+            // Create fields
+            createFields(classItem, typeBoundClass.fields(), classTypeItemFactory)
 
-        // Create methods
-        createMethods(classItem, typeBoundClass.methods(), classTypeItemFactory)
+            // Create methods
+            createMethods(classItem, typeBoundClass.methods(), classTypeItemFactory)
 
-        // Create constructors
-        createConstructors(classItem, typeBoundClass.methods(), classTypeItemFactory)
+            // Create constructors
+            createConstructors(classItem, typeBoundClass.methods(), classTypeItemFactory)
+        }
 
         // Create InnerClasses.
         val children = typeBoundClass.children()
         createNestedClasses(classItem, children.values.asList(), classTypeItemFactory)
 
         return classItem
+    }
+
+    /**
+     * Lazily populates fields, methods, and constructors of a non-[ClassOrigin.COMMAND_LINE] class
+     * on demand.
+     *
+     * @param classTypeItemFactory the [TurbineTypeItemFactory] scoped to the class being
+     *   initialized.
+     */
+    private inner class LazyMemberInitializer(
+        private val classTypeItemFactory: TurbineTypeItemFactory,
+    ) :
+        ClassMemberInitializer(
+            // Turbine only models Java sources and bytecode and never creates PropertyItems, so
+            // ClassMemberMask.PROPERTIES does not need to be initialized.
+            ClassMemberMask.CONSTRUCTORS or ClassMemberMask.METHODS or ClassMemberMask.FIELDS
+        ) {
+        override fun initializeMembers(
+            classItem: SkeletonClassItem,
+            mask: ClassMemberMask,
+        ) {
+            if (ClassMemberMask.FIELDS in mask) {
+                createFields(classItem, typeBoundClass.fields(), classTypeItemFactory)
+            }
+            if (ClassMemberMask.METHODS in mask) {
+                createMethods(classItem, typeBoundClass.methods(), classTypeItemFactory)
+            }
+            if (ClassMemberMask.CONSTRUCTORS in mask) {
+                createConstructors(classItem, typeBoundClass.methods(), classTypeItemFactory)
+            }
+        }
     }
 
     /**
@@ -566,6 +611,7 @@ internal class TurbineClassBuilder(
                     parameterItemsFactory = { containingCallable ->
                         createParameters(
                             containingCallable,
+                            method.access(),
                             decl?.params(),
                             parameters,
                             methodTypeItemFactory,
@@ -585,6 +631,7 @@ internal class TurbineClassBuilder(
 
     private fun createParameters(
         containingCallable: CallableItem,
+        callableAccess: Int,
         parameterDecls: List<VarDecl>?,
         parameters: List<ParamInfo>,
         typeItemFactory: TurbineTypeItemFactory,
@@ -599,12 +646,21 @@ internal class TurbineClassBuilder(
         val ignoreSynthetic = containingCallable is ConstructorItem
         return buildList {
             var parameterIndex = 0
-            for (parameter in parameters) {
+            for ((idx, parameter) in parameters.withIndex()) {
                 if (ignoreSynthetic && parameter.synthetic()) continue
+                // Bytecode does not store the varargs flag on the parameter, it stores it on the
+                // method, so if the callable has the varargs flag set then make sure it is also set
+                // on the last parameter.
+                val flags =
+                    if (idx == parameters.lastIndex) {
+                        parameter.access() or (callableAccess and TurbineFlag.ACC_VARARGS)
+                    } else {
+                        parameter.access()
+                    }
                 val parametermodifiers =
                     createModifiers(
                             ModifierContext.forItemKind(ItemKind.PARAMETER),
-                            parameter.access(),
+                            flags,
                             parameter.annotations(),
                         )
                         .toImmutable()
@@ -725,6 +781,7 @@ internal class TurbineClassBuilder(
                     parameterItemsFactory = { constructorItem ->
                         createParameters(
                             constructorItem,
+                            constructor.access(),
                             decl?.params(),
                             constructorParameters,
                             constructorTypeItemFactory,

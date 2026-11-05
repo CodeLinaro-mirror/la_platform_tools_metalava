@@ -16,32 +16,12 @@
 
 package com.android.tools.metalava.api
 
-import com.android.SdkConstants.AMP_ENTITY
-import com.android.SdkConstants.APOS_ENTITY
-import com.android.SdkConstants.ATTR_NAME
-import com.android.SdkConstants.DOT_JAR
-import com.android.SdkConstants.DOT_XML
-import com.android.SdkConstants.DOT_ZIP
-import com.android.SdkConstants.GT_ENTITY
-import com.android.SdkConstants.LT_ENTITY
-import com.android.SdkConstants.QUOT_ENTITY
-import com.android.SdkConstants.TYPE_DEF_FLAG_ATTRIBUTE
-import com.android.SdkConstants.TYPE_DEF_VALUE_ATTRIBUTE
-import com.android.tools.lint.annotations.Extractor.ANDROID_INT_DEF
-import com.android.tools.lint.annotations.Extractor.ANDROID_NOTNULL
-import com.android.tools.lint.annotations.Extractor.ANDROID_NULLABLE
-import com.android.tools.lint.annotations.Extractor.ANDROID_STRING_DEF
-import com.android.tools.lint.annotations.Extractor.ATTR_PURE
-import com.android.tools.lint.annotations.Extractor.ATTR_VAL
-import com.android.tools.lint.annotations.Extractor.IDEA_CONTRACT
-import com.android.tools.lint.annotations.Extractor.IDEA_MAGIC
-import com.android.tools.lint.annotations.Extractor.IDEA_NOTNULL
-import com.android.tools.lint.annotations.Extractor.IDEA_NULLABLE
-import com.android.tools.lint.annotations.Extractor.SUPPORT_NOTNULL
-import com.android.tools.lint.annotations.Extractor.SUPPORT_NULLABLE
-import com.android.tools.lint.detector.api.getChildren
+import com.android.tools.metalava.ATTR_NAME
 import com.android.tools.metalava.CodebaseComparator
 import com.android.tools.metalava.ComparisonVisitor
+import com.android.tools.metalava.DOT_JAR
+import com.android.tools.metalava.DOT_XML
+import com.android.tools.metalava.DOT_ZIP
 import com.android.tools.metalava.cli.common.cliError
 import com.android.tools.metalava.model.ANDROIDX_INT_DEF
 import com.android.tools.metalava.model.ANDROIDX_INT_RANGE
@@ -49,6 +29,10 @@ import com.android.tools.metalava.model.ANDROIDX_NONNULL
 import com.android.tools.metalava.model.ANDROIDX_NULLABLE
 import com.android.tools.metalava.model.ANDROIDX_STRING_DEF
 import com.android.tools.metalava.model.ANDROID_FLAGGED_API
+import com.android.tools.metalava.model.ANDROID_INT_DEF
+import com.android.tools.metalava.model.ANDROID_NONNULL
+import com.android.tools.metalava.model.ANDROID_NULLABLE
+import com.android.tools.metalava.model.ANDROID_STRING_DEF
 import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ClassItem
@@ -72,8 +56,13 @@ import com.android.tools.metalava.model.value.ValueParser
 import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
+import com.android.tools.metalava.xml.AMP_ENTITY
+import com.android.tools.metalava.xml.APOS_ENTITY
+import com.android.tools.metalava.xml.GT_ENTITY
+import com.android.tools.metalava.xml.LT_ENTITY
+import com.android.tools.metalava.xml.QUOT_ENTITY
+import com.android.tools.metalava.xml.getChildren
 import com.android.tools.metalava.xml.parseDocument
-import com.google.common.io.Closeables
 import java.io.File
 import java.io.FileInputStream
 import java.io.IOException
@@ -85,6 +74,9 @@ import kotlin.text.Charsets.UTF_8
 import org.w3c.dom.Document
 import org.w3c.dom.Element
 import org.xml.sax.SAXParseException
+
+private const val TYPE_DEF_FLAG_ATTRIBUTE = "flag"
+private const val TYPE_DEF_VALUE_ATTRIBUTE = "value"
 
 /** Merges annotations into classes already registered in the given [Codebase] */
 class AnnotationsMerger(
@@ -200,27 +192,20 @@ class AnnotationsMerger(
     private fun mergeFromJar(jar: File) {
         // Reads in an existing annotations jar and merges in entries found there
         // with the annotations analyzed from source.
-        var zis: JarInputStream? = null
         try {
-            val fis = FileInputStream(jar)
-            zis = JarInputStream(fis)
-            var entry: ZipEntry? = zis.nextEntry
-            while (entry != null) {
-                if (entry.name.endsWith(".xml")) {
-                    val bytes = zis.readBytes()
-                    val xml = String(bytes, UTF_8)
-                    mergeQualifierAnnotationsFromXml(jar.path + ": " + entry, xml)
+            JarInputStream(FileInputStream(jar)).use { zis ->
+                var entry: ZipEntry? = zis.nextEntry
+                while (entry != null) {
+                    if (entry.name.endsWith(".xml")) {
+                        val bytes = zis.readBytes()
+                        val xml = String(bytes, UTF_8)
+                        mergeQualifierAnnotationsFromXml(jar.path + ": " + entry, xml)
+                    }
+                    entry = zis.nextEntry
                 }
-                entry = zis.nextEntry
             }
         } catch (e: IOException) {
             reportError("I/O problem during transform: $e")
-        } finally {
-            try {
-                Closeables.close(zis, true /* swallowIOException */)
-            } catch (e: IOException) {
-                // cannot happen
-            }
         }
     }
 
@@ -730,7 +715,7 @@ class AnnotationsMerger(
 
     private fun isNonNull(name: String): Boolean {
         return name == IDEA_NOTNULL ||
-            name == ANDROID_NOTNULL ||
+            name == ANDROID_NONNULL ||
             name == ANDROIDX_NONNULL ||
             name == SUPPORT_NOTNULL
     }
@@ -858,5 +843,13 @@ class AnnotationsMerger(
 
     companion object {
         private const val ANNOTATION_VALUE_TRUE = "true"
+        private const val ATTR_PURE = "pure"
+        private const val ATTR_VAL = "val"
+        private const val IDEA_CONTRACT = "org.jetbrains.annotations.Contract"
+        private const val IDEA_MAGIC = "org.intellij.lang.annotations.MagicConstant"
+        private const val IDEA_NOTNULL = "org.jetbrains.annotations.NotNull"
+        private const val IDEA_NULLABLE = "org.jetbrains.annotations.Nullable"
+        private const val SUPPORT_NOTNULL = "android.support.annotation.NonNull"
+        private const val SUPPORT_NULLABLE = "android.support.annotation.Nullable"
     }
 }

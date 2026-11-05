@@ -33,7 +33,6 @@ internal class PsiSourceModelProvider : SourceModelProvider {
             Capability.JAVA,
             Capability.KOTLIN,
             Capability.DOCUMENTATION,
-            Capability.LOAD_JAR,
             Capability.CLASS_PATH_RESOLVER,
             Capability.JAR_WITH_SOURCES,
             Capability.LAX_PARSER,

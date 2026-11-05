@@ -26,9 +26,16 @@ package com.android.tools.metalava.model
  * * [FieldItem]
  * * [ReferencableCallableItem]
  *
- * and also [InvalidReferencableItem] for reporting errors.
+ * and also [ExternalReferencableItem] for references to external packages and
+ * [InvalidReferencableItem] for reporting errors.
  */
 sealed interface ReferencableItem
+
+/**
+ * Represents a reference to an item in an external package (configured via
+ * [Codebase.Config.externalPackagePrefixes]) that is not present in the [Codebase].
+ */
+data object ExternalReferencableItem : ReferencableItem
 
 /** Provides details about an invalid reference and why it could not be resolved. */
 data class InvalidReferencableItem(val message: String) : ReferencableItem

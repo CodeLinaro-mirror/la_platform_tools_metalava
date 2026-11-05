@@ -47,10 +47,11 @@ class GeneralReportingOptions() :
 
     private val baselineOptionsMixin =
         BaselineOptionsMixin(
-            containingGroup = this,
+            containingParameterHolder = this,
             baselineOptionName = ARG_BASELINE,
             updateBaselineOptionName = ARG_UPDATE_BASELINE,
             issueType = "general",
+            description = "base",
         )
 
     /** Returns a [Baseline] for the general [Reporter], if there is one. */
@@ -62,7 +63,6 @@ class GeneralReportingOptions() :
         return baselineOptionsMixin.computeBaseline(
             executionEnvironment,
             defaultBaselineFileProvider = defaultBaselineFileProvider,
-            description = "base",
             commonBaselineOptions = commonBaselineOptions,
         )
     }

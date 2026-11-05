@@ -17,15 +17,14 @@
 package com.android.tools.metalava.cli.signature
 
 import com.android.tools.metalava.ARG_API_SURFACE
-import com.android.tools.metalava.ARG_API_VERSION_FOR_SDK_EXTENSION
 import com.android.tools.metalava.ARG_API_VERSION_LABEL
 import com.android.tools.metalava.ARG_CONFIG_FILE
-import com.android.tools.metalava.ARG_SDK_INFO_FILE
 import com.android.tools.metalava.ConfigFileOptions
 import com.android.tools.metalava.apiVersion
-import com.android.tools.metalava.apiVersionRange
 import com.android.tools.metalava.apilevels.ApiGenerator
 import com.android.tools.metalava.apilevels.ApiHistoryUpdater
+import com.android.tools.metalava.apilevels.ApiVersion
+import com.android.tools.metalava.apilevels.GenerateApiHistoryConfig
 import com.android.tools.metalava.apilevels.MatchedPatternFile
 import com.android.tools.metalava.apilevels.MissingClassAction
 import com.android.tools.metalava.apilevels.PatternNode
@@ -44,6 +43,8 @@ import com.android.tools.metalava.cli.common.tracer
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.reporter.BasicReporter
 import com.github.ajalt.clikt.parameters.groups.provideDelegate
+import com.github.ajalt.clikt.parameters.options.OptionWithValues
+import com.github.ajalt.clikt.parameters.options.convert
 import com.github.ajalt.clikt.parameters.options.multiple
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
@@ -52,11 +53,23 @@ import java.io.File
 private const val ARG_OUTPUT_FILE = "--output-file"
 private const val ARG_PATTERN = "--pattern"
 private const val ARG_HISTORICAL_FILES = "--historical-files"
-private const val ARG_HISTORICAL_VERSIONS = "--historical-versions"
+const val ARG_HISTORICAL_VERSIONS = "--historical-versions"
 private const val ARG_CURRENT_VERSION = "--current-version"
 private const val ARG_CURRENT_FILES = "--current-files"
+const val ARG_SDK_INFO_FILE = "--sdk-extensions-info"
 private const val ARG_SDK_EXTENSION_VERSIONS = "--sdk-extension-versions"
+const val ARG_API_VERSION_FOR_SDK_EXTENSION = "--api-version-for-sdk-extension"
 private const val ARG_MISSING_CLASS_ACTION = "--missing-class-action"
+
+/** Convert an option value to a [ClosedRange] of [ApiVersion]. */
+private fun OptionWithValues<String?, String, String>.apiVersionRange() = convert { text ->
+    val parts = text.split(':')
+    if (parts.size != 2) {
+        error("Must be of the form <version>:<version> but found '$text'")
+    }
+    val (from, to) = parts
+    ApiVersion.fromString(from).rangeTo(ApiVersion.fromString(to))
+}
 
 /**
  * Generates an API versions XML or JSON file from historical and/or current API signature files.
@@ -269,6 +282,9 @@ class ApiHistoryCommand :
             default = MissingClassAction.REPORT,
         )
 
+    /** The [GenerateApiHistoryConfig] created by [run], exposed for testing. */
+    internal lateinit var config: GenerateApiHistoryConfig
+
     override fun run() {
         val useInternalNames =
             when (val extension = outputFile.extension) {
@@ -310,7 +326,7 @@ class ApiHistoryCommand :
             files: List<MatchedPatternFile>,
         ) = VersionedSignatureApi(signatureFileLoader, files.map { it.file }, updater)
 
-        val config =
+        config =
             createGenerateApiHistoryConfig(
                 outputFile = outputFile,
                 currentDir = fileForPathInner("."),

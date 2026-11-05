@@ -38,7 +38,7 @@ Concepts
                                              --stub-packages.
   signature-file-formats                     Describes the different signature file formats.
   historical-api-patterns                    Explains the syntax and behavior of historical API patterns used in options
-                                             like --android-jar-pattern.
+                                             like `api-history --pattern`.
   api-surfaces                               Explains what API surfaces are and how to specify them.
                 """
                     .trimIndent()
@@ -97,14 +97,6 @@ Usage: metalava help signature-file-formats
 
   * `add-additional-overrides = yes|no` - If `yes` then add additional overrides into the signature file that are needed
   in order to create compilable stubs from the signature file.
-
-  * `flagged-api-inheritance = none|nested-classes` - Specifies whether `@FlaggedApi` annotations are inherited in
-  signature files.
-
-  `none` (default) - they are not inherited. This can make it difficult to determine whether a nested class is flagged
-  when reviewin as the containing class may be out of view or even in another file altogether.
-
-  `nested-classes` - they are inherited onto nested classes that do not have their own `@FlaggedApi` annotation.
 
   * `include-default-parameter-values = yes|no` - If `no` then the signature file will not include any information about
   default parameter values. If `yes` then it will use the pseudo modifier `optional` to indicate a parameter that has a
@@ -251,7 +243,6 @@ Usage: metalava help signature-file-formats
   following properties:
 
   + add-additional-overrides = yes
-  + flagged-api-inheritance = nested-classes
   + java-record-classes = yes
   + normalize-abstract-modifier = yes
   + normalize-final-modifier = yes
@@ -273,7 +264,7 @@ Usage: metalava help signature-file-formats
                 """
 Usage: metalava help historical-api-patterns
 
-  Explains the syntax and behavior of historical API patterns used in options like --android-jar-pattern.
+  Explains the syntax and behavior of historical API patterns used in options like `api-history --pattern`.
 
   A historical API pattern is used to find historical versioned API files that are used to construct a history of an API
   surface, e.g. when items were added, removed, deprecated, etc.. It allows for efficiently scanning a directory for
@@ -288,8 +279,8 @@ Usage: metalava help historical-api-patterns
 
   A `version` placeholder is mandatory in non-exclusion patterns, all other placeholders are optional. Files that match
   a non-exclusion pattern are assumed to provide the definition of that version of the API. e.g. given a pattern of
-  `prebuilts/sdk/{version:level}/public/android.jar` then it will match a file like `prebuilts/sdk/1/public/android.jar`
-  and that file is assumed to define version 1 of the API.
+  `prebuilts/sdk/{version:level}/public/api/android.txt` then it will match a file like
+  `prebuilts/sdk/1/public/api/android.txt` and that file is assumed to define version 1 of the API.
 
   Patterns can also include any number of wildcards:
 
@@ -304,7 +295,7 @@ Usage: metalava help historical-api-patterns
   * `version` - Mandatory property that stores the version of a matched file.
 
   Apart from the {version:extension} all placeholders for this will ignore versions that fall outside the range
-  --api-version-range, if provided.
+  --historical-versions, if provided.
 
   * `library` - Optional property that stores the name of a library.
 

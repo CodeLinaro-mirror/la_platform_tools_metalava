@@ -32,7 +32,6 @@ internal class TurbineSourceParser(
     tracer: Tracer,
 ) :
     AbstractSourceParser(
-        turbineEnvironment,
         codebaseConfig,
         tracer,
     ) {
@@ -44,6 +43,10 @@ internal class TurbineSourceParser(
             boundSources = boundSources,
             description = "Codebase from classpath",
             apiPackages = null,
+            // A ClassPathResolver is used when resolving references from a signature file, possibly
+            // for the previously released API, so it must not have a reference to the previously
+            // released API itself.
+            codebaseConfig = codebaseConfig.copy(previouslyReleasedCodebaseProvider = { null }),
         )
     }
 
@@ -51,7 +54,6 @@ internal class TurbineSourceParser(
         description: String,
         apiPackages: PackageFilter?,
         compiledSourceJar: File?,
-        includeKotlinInCodebase: Boolean,
     ): Codebase? {
         if (turbineEnvironment.projectDescription != null) {
             error("Turbine model does not support --project")
@@ -84,6 +86,7 @@ internal class TurbineSourceParser(
         boundSources: BoundSources,
         description: String,
         apiPackages: PackageFilter?,
+        codebaseConfig: Codebase.Config = this.codebaseConfig,
     ): DefaultCodebase {
         val rootDir = boundSources.sourceSet.sourcePath.firstOrNull() ?: File("").canonicalFile
 

@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model.turbine
 
-import com.google.common.collect.Iterables
 import com.google.turbine.binder.ConstEvaluator
 import com.google.turbine.binder.Resolve
 import com.google.turbine.binder.bound.TypeBoundClass
@@ -97,7 +96,7 @@ internal class TurbineFieldResolver(
         for (i in 0 until result.remaining().size - 1) {
             sym = Resolve.resolve(env, sym, sym, result.remaining()[i]) ?: return null
         }
-        return Resolve.resolveField(env, origin, sym, Iterables.getLast(result.remaining()))
+        return Resolve.resolveField(env, origin, sym, result.remaining().last())
     }
 
     private fun lexicalField(

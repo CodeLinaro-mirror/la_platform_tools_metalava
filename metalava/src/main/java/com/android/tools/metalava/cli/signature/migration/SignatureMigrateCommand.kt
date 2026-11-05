@@ -27,7 +27,6 @@ import com.android.tools.metalava.cli.signature.SignatureFormatOptions
 import com.android.tools.metalava.cli.signature.writeSignatureFile
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Codebase.Config
-import com.android.tools.metalava.model.FlaggedApiInheritance
 import com.android.tools.metalava.model.StripJavaLangPrefix
 import com.android.tools.metalava.model.text.ApiFile
 import com.android.tools.metalava.model.text.CustomizableProperty
@@ -532,29 +531,6 @@ class SignatureMigrateCommand(
                 )
 
             return listOf(
-                migrationChange(
-                    property = CustomizableProperty.FLAGGED_API_INHERITANCE,
-                    oldValue = FlaggedApiInheritance.NONE,
-                    newValue = FlaggedApiInheritance.NESTED_CLASSES,
-                    // Strictly speaking this change does not require regenerating signature files
-                    // from sources as the information is available in a signature file, it just may
-                    // not be the one that will be affected; i.e. when the containing class with the
-                    // @FlaggedApi annotation is in one signature file and the nested class that
-                    // inherits it is in another signature file that is a delta of the first.
-                    requiresRegeneratingFromSources = true,
-                    title = "Track inherited @FlaggedApi on nested classes",
-                    detail =
-                        """
-                            An `@FlaggedApi` annotation on a class affects all of its members and
-                            nested classes that do not have their own `@FlaggedApi` annotation.
-                            Previously, inherited `@FlaggedApi` annotations were not tracked on
-                            nested classes which complicated the reviewing of signature file changes
-                            as it was difficult to determine which `@FlaggedApi` if any applied to
-                            the change.
-
-                            This change sets `flagged-api-inheritance=nested-classes` to fix that.
-                        """,
-                ),
                 migrationChange(
                     property = CustomizableProperty.NORMALIZE_ABSTRACT_MODIFIER,
                     oldValue = false,

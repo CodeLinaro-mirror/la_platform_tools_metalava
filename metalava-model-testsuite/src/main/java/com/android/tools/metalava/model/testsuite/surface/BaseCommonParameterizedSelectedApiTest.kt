@@ -17,12 +17,9 @@
 package com.android.tools.metalava.model.testsuite.surface
 
 import com.android.tools.lint.checks.infrastructure.TestFile
-import com.android.tools.metalava.model.AnnotationManager
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.PackageFilter
-import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
 import com.android.tools.metalava.model.api.ApiSurfaceRules
-import com.android.tools.metalava.model.api.ApiSurfaceSelector
 import com.android.tools.metalava.model.api.flags.ApiFlags
 import com.android.tools.metalava.model.junit4.ParameterFilter
 import com.android.tools.metalava.model.provider.Capability
@@ -280,7 +277,7 @@ abstract class BaseCommonParameterizedSelectedApiTest : BaseModelTest() {
 
         val addAdditionalOverrides = params.addAdditionalOverrides == true
 
-        fun runSelectedApiTest(annotationManagerFactory: (TestFixture.() -> AnnotationManager)?) {
+        fun runSelectedApiTest(previouslyReleasedCodebase: Codebase? = null) {
             runCodebaseTest(
                 inputSet(params.sources),
                 compiledSourceJar = params.compiledSources,
@@ -297,7 +294,7 @@ abstract class BaseCommonParameterizedSelectedApiTest : BaseModelTest() {
                         apiFlags = params.apiFlags,
                         additionalClassPath = params.classpath.map { it.toFile() },
                         addAdditionalOverrides = addAdditionalOverrides,
-                        annotationManagerFactory = annotationManagerFactory,
+                        previouslyReleasedCodebase = previouslyReleasedCodebase,
                         javaLanguageLevel = "17",
                         // Disable the supported InputFormat check as this test is already
                         // parameterized and filtered by InputFormat.
@@ -345,7 +342,7 @@ abstract class BaseCommonParameterizedSelectedApiTest : BaseModelTest() {
         }
 
         // If previously released sources are provided, create a codebase from them to act as the
-        // previously released codebase. This is supplied to the AnnotationManager so it can
+        // previously released codebase. This is supplied via TestFixture so SelectedApiUpdater can
         // determine the released status of items when testing API stability and reverting
         // flagged APIs.
         val previouslyReleasedSources = params.previouslyReleasedSources
@@ -360,26 +357,10 @@ abstract class BaseCommonParameterizedSelectedApiTest : BaseModelTest() {
                         checkSupportedInputFormats = false,
                     ),
             ) {
-                val releasedCodebase = codebase
-                val annotationManagerFactory: TestFixture.() -> AnnotationManager = {
-                    DefaultAnnotationManager(
-                        DefaultAnnotationManager.Config(
-                            reporter = recordingReporter,
-                            apiSurfaceSelector =
-                                ApiSurfaceSelector(
-                                    rules,
-                                    addAdditionalOverrides = addAdditionalOverrides,
-                                ),
-                            apiFlags = params.apiFlags,
-                            previouslyReleasedCodebaseProvider = { releasedCodebase }
-                        )
-                    )
-                }
-
-                runSelectedApiTest(annotationManagerFactory)
+                runSelectedApiTest(previouslyReleasedCodebase = codebase)
             }
         } else {
-            runSelectedApiTest(annotationManagerFactory = null)
+            runSelectedApiTest()
         }
     }
 }

@@ -51,11 +51,7 @@ class HiddenAspectsInheritor(
 
     /** Inherit hidden aspects of the API. */
     fun inheritHiddenAspects() {
-        // When analyzing libraries we may discover some new classes during traversal; these aren't
-        // part of the API but may be super classes or interfaces; these will then be added into the
-        // package class lists, which could trigger a concurrent modification, so create a snapshot
-        // of the class list and iterate over it:
-        val allClasses = packages.allClasses().toList()
+        val allClasses = packages.allClasses()
 
         inheritHiddenInterfacesAndConcreteClasses(allClasses)
 
@@ -66,7 +62,7 @@ class HiddenAspectsInheritor(
      * For each [ClassItem] in [allClasses], inherit hidden interfaces and concrete methods that
      * implement public interface methods from any of their hidden super types.
      */
-    private fun inheritHiddenInterfacesAndConcreteClasses(allClasses: List<ClassItem>) {
+    private fun inheritHiddenInterfacesAndConcreteClasses(allClasses: Sequence<ClassItem>) {
         // Visit all the concrete classes checking to see whether it should inherit any hidden
         // methods or interfaces.
         val visited = UniqueClassItemSet()
@@ -330,7 +326,7 @@ class HiddenAspectsInheritor(
      * For each [ClassItem] in [allClasses], inherit hidden interfaces and concrete methods that
      * implement public interface methods from any of their hidden super types.
      */
-    private fun inheritHiddenConstants(allClasses: List<ClassItem>) {
+    private fun inheritHiddenConstants(allClasses: Sequence<ClassItem>) {
         // Visit all the concrete classes checking to see whether it should inherit any hidden
         // methods or interfaces.
         for (classItem in allClasses) {

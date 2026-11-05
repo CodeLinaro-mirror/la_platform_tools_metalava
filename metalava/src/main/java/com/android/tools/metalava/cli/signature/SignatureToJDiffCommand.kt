@@ -122,13 +122,7 @@ class SignatureToJDiffCommand :
         val baseFile = baseApiFile
 
         val signatureFragment =
-            CodebaseFragment.create(signatureApi) { delegate ->
-                createFilteringVisitorForJDiffWriter(
-                    delegate,
-                    // Signature files are always pre-filtered so require no filtering.
-                    apiFilters = null,
-                )
-            }
+            CodebaseFragment.create(signatureApi, factory = ::createFilteringVisitorForJDiffWriter)
 
         val outputFragment =
             if (baseFile != null) {

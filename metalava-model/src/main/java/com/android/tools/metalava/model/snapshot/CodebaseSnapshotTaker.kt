@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DelegatedVisitor
 import com.android.tools.metalava.model.FieldItem
+import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.ItemVisitor
@@ -98,6 +99,22 @@ private constructor(
 
     /** Take a snapshot of this [ModifierList] for [snapshotCodebase]. */
     private fun ModifierList.snapshot() = snapshot(snapshotCodebase)
+
+    /**
+     * Take a snapshot of the modifiers for [itemToSnapshot].
+     *
+     * If [itemToSnapshot] is not [originalItem] then [originalItem] is being reverted to
+     * [itemToSnapshot], so pass [originalItem]'s modifiers to [ModifierList.snapshot] to preserve
+     * any annotations that are not included in signature files.
+     */
+    private fun snapshotModifiers(
+        itemToSnapshot: Item,
+        originalItem: Item,
+    ): ModifierList {
+        val revertFromModifiers =
+            if (itemToSnapshot === originalItem) null else originalItem.modifiers
+        return itemToSnapshot.modifiers.snapshot(snapshotCodebase, revertFromModifiers)
+    }
 
     /**
      * Snapshots need to preserve class nesting when visiting otherwise [ClassItem.containingClass]
@@ -298,7 +315,7 @@ private constructor(
                 sourcePosition = classToSnapshot.sourcePosition,
                 sourceLanguage = classToSnapshot.sourceLanguage,
                 targetLanguages = classToSnapshot.targetLanguages,
-                modifiers = classToSnapshot.modifiers.snapshot(),
+                modifiers = snapshotModifiers(classToSnapshot, cls),
                 documentationFactory = snapshotDocumentation(classToSnapshot, cls),
                 source = sourceFileCache.snapshotSourceFile(cls.sourceFile()),
                 classKind = classKind,
@@ -351,7 +368,7 @@ private constructor(
                     sourcePosition = constructorToSnapshot.sourcePosition,
                     sourceLanguage = constructorToSnapshot.sourceLanguage,
                     targetLanguages = constructorToSnapshot.targetLanguages,
-                    modifiers = constructorToSnapshot.modifiers.snapshot(),
+                    modifiers = snapshotModifiers(constructorToSnapshot, constructor),
                     documentationFactory =
                         snapshotDocumentation(constructorToSnapshot, constructor),
                     name = constructorToSnapshot.name(),
@@ -398,7 +415,7 @@ private constructor(
                     sourcePosition = methodToSnapshot.sourcePosition,
                     sourceLanguage = methodToSnapshot.sourceLanguage,
                     targetLanguages = methodToSnapshot.targetLanguages,
-                    modifiers = methodToSnapshot.modifiers.snapshot(),
+                    modifiers = snapshotModifiers(methodToSnapshot, method),
                     documentationFactory = snapshotDocumentation(methodToSnapshot, method),
                     name = methodToSnapshot.name(),
                     containingClass = containingClass,
@@ -434,7 +451,7 @@ private constructor(
                     sourcePosition = fieldToSnapshot.sourcePosition,
                     sourceLanguage = fieldToSnapshot.sourceLanguage,
                     targetLanguages = fieldToSnapshot.targetLanguages,
-                    modifiers = fieldToSnapshot.modifiers.snapshot(),
+                    modifiers = snapshotModifiers(fieldToSnapshot, field),
                     documentationFactory = snapshotDocumentation(fieldToSnapshot, field),
                     name = fieldToSnapshot.name(),
                     containingClass = containingClass,
@@ -466,7 +483,7 @@ private constructor(
                     fileLocationSource = propertyToSnapshot.fileLocationSource,
                     sourcePosition = propertyToSnapshot.sourcePosition,
                     sourceLanguage = propertyToSnapshot.sourceLanguage,
-                    modifiers = propertyToSnapshot.modifiers.snapshot(),
+                    modifiers = snapshotModifiers(propertyToSnapshot, property),
                     documentationFactory = snapshotDocumentation(propertyToSnapshot, property),
                     name = propertyToSnapshot.name(),
                     containingClass = containingClass,
@@ -610,18 +627,18 @@ private constructor(
                 // of the corresponding parameter from `currentCallable` as that is more likely to
                 // have a developer supplied name, although it will be the same as `parameterItem`
                 // if `currentCallable` is not being reverted.
+                val currentParameter = currentParameters[parameterItem.parameterIndex]
                 val name =
                     if (publicName != null) parameterItem.name()
                     else {
-                        val namedParameter = currentParameters[parameterItem.parameterIndex]
-                        namedParameter.name()
+                        currentParameter.name()
                     }
 
                 itemFactory.createParameterItem(
                     fileLocationSource = parameterItem.fileLocationSource,
                     sourcePosition = parameterItem.sourcePosition,
                     sourceLanguage = parameterItem.sourceLanguage,
-                    modifiers = parameterItem.modifiers.snapshot(),
+                    modifiers = snapshotModifiers(parameterItem, currentParameter),
                     name = name,
                     publicName = publicName,
                     containingItem = containingItem,

@@ -43,14 +43,11 @@ interface SourceParser {
      * @param compiledSourceJar a jar file containing the compiled version of the sources. Used to
      *   add the compiled JVM forms of Kotlin source APIs. If the implementation supports this then
      *   it must provide [Capability.JAR_WITH_SOURCES]. Only supported by the PSI model.
-     * @param includeKotlinInCodebase indicates whether to include Kotlin derived information in the
-     *   [Codebase].
      */
     fun parseSources(
         description: String,
         apiPackages: PackageFilter? = null,
         compiledSourceJar: File? = null,
-        includeKotlinInCodebase: Boolean = true,
     ): Codebase?
 
     /**
@@ -65,17 +62,6 @@ interface SourceParser {
         javaStubFiles: List<File>,
         apiPackages: PackageFilter? = null,
     ): Codebase?
-
-    /**
-     * Load a [Codebase] from a single jar.
-     *
-     * If an implementation supports this it must provide [Capability.LOAD_JAR].
-     *
-     * @param apiJar the jar file from which the [Codebase] will be loaded.
-     * @param classPath the possibly empty list of jar files which may provide additional classes
-     *   referenced by [apiJar].
-     */
-    fun loadFromJar(apiJar: File, classPath: List<File>): Codebase
 
     /**
      * Creates a multiplatform codebase based on the [Environment.projectDescription] file, which is

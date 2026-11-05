@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.testsuite.surface
 
 import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.HIDE
 import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.MODULE_API
+import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.MODULE_API_NON_RECURSIVE
 import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.REMOVED_FROM_API
 import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.STANDALONE_API
 import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.SYSTEM_API
@@ -826,6 +827,184 @@ class CommonParameterizedSelectedApiInheritanceTest : BaseCommonParameterizedSel
                                 method test.pkg.Child.method()
                                        self - ApiVariantSet[system(C)]
                                    elidable - ApiVariantSet[system(C)]
+                        """,
+                )
+            }
+
+            buildTests(
+                name =
+                    "non-recursive module class with unannotated methods overriding public methods",
+                surfaceRules = publicSystemModuleRules,
+                sources =
+                    listOf(
+                        java(
+                            """
+                                package test.pkg;
+
+                                public interface PublicInterface {
+                                    void interfaceMethod();
+                                }
+                            """
+                        ),
+                        java(
+                            """
+                                package test.pkg;
+
+                                public abstract class PublicClass {
+                                    public abstract void abstractMethod();
+                                    public void concreteMethod() {}
+                                    public void finalMethod() {}
+                                }
+                            """
+                        ),
+                        java(
+                            """
+                                package test.pkg;
+
+                                $MODULE_API_NON_RECURSIVE
+                                public class ModuleClass extends PublicClass implements PublicInterface {
+                                    @Override
+                                    public void interfaceMethod() {}
+
+                                    @Override
+                                    public void abstractMethod() {}
+
+                                    @Override
+                                    public void concreteMethod() {}
+
+                                    @Override
+                                    public final void finalMethod() {}
+                                }
+                            """
+                        ),
+                    ),
+            ) {
+                surfaceTest(
+                    surface = "module",
+                    expected =
+                        """
+                            package test.pkg
+                                   self - ApiVariantSet[public(C),module(C)]
+                              class test.pkg.PublicInterface
+                                     self - ApiVariantSet[public(C)]
+                                method test.pkg.PublicInterface.interfaceMethod()
+                                       self - ApiVariantSet[public(C)]
+                              class test.pkg.PublicClass
+                                     self - ApiVariantSet[public(C)]
+                                constructor test.pkg.PublicClass()
+                                       self - ApiVariantSet[public(C)]
+                                method test.pkg.PublicClass.abstractMethod()
+                                       self - ApiVariantSet[public(C)]
+                                method test.pkg.PublicClass.concreteMethod()
+                                       self - ApiVariantSet[public(C)]
+                                method test.pkg.PublicClass.finalMethod()
+                                       self - ApiVariantSet[public(C)]
+                              class test.pkg.ModuleClass
+                                     self - ApiVariantSet[module(C)]
+                                constructor test.pkg.ModuleClass()
+                                       self - ApiVariantSet[]
+                                method test.pkg.ModuleClass.interfaceMethod()
+                                       self - ApiVariantSet[module(C)]
+                                method test.pkg.ModuleClass.abstractMethod()
+                                       self - ApiVariantSet[module(C)]
+                                method test.pkg.ModuleClass.concreteMethod()
+                                       self - ApiVariantSet[module(C)]
+                                   elidable - ApiVariantSet[public(C),system(C),module(C)]
+                                method test.pkg.ModuleClass.finalMethod()
+                                       self - ApiVariantSet[module(C)]
+                        """,
+                )
+            }
+
+            // Checks how unannotated methods in a class annotated with a non-recursive show
+            // annotation (`ModuleClass`) behave when overriding public methods from `PublicClass`
+            // indirectly via an intermediate package-private superclass (`PackagePrivateClass`)
+            // that also overrides those methods.
+            buildTests(
+                name =
+                    "non-recursive module class with unannotated methods overriding public methods via package-private class",
+                surfaceRules = publicSystemModuleRules,
+                sources =
+                    listOf(
+                        java(
+                            """
+                                package test.pkg;
+
+                                public abstract class PublicClass {
+                                    public void concreteMethod() {}
+                                    public void reabstractedMethod() {}
+                                }
+                            """
+                        ),
+                        java(
+                            """
+                                package test.pkg;
+
+                                // Intermediate package-private class that is not part of any API
+                                // surface, but overrides the methods from PublicClass.
+                                abstract class PackagePrivateClass extends PublicClass {
+                                    @Override
+                                    public void concreteMethod() {}
+
+                                    @Override
+                                    public abstract void reabstractedMethod();
+                                }
+                            """
+                        ),
+                        java(
+                            """
+                                package test.pkg;
+
+                                // Non-recursive module API class whose unannotated overriding
+                                // methods have PackagePrivateClass's methods as their direct
+                                // superMethods(), and PublicClass's methods as indirect ancestors.
+                                $MODULE_API_NON_RECURSIVE
+                                public abstract class ModuleClass extends PackagePrivateClass {
+                                    // Identical signature to PublicClass.concreteMethod() so it is
+                                    // elidable.
+                                    @Override
+                                    public void concreteMethod() {}
+
+                                    // Re-abstracts PublicClass.reabstractedMethod() so it is not
+                                    // elidable and must be included in the module API surface.
+                                    @Override
+                                    public abstract void reabstractedMethod();
+                                }
+                            """
+                        ),
+                    ),
+            ) {
+                surfaceTest(
+                    surface = "module",
+                    expected =
+                        """
+                            package test.pkg
+                                   self - ApiVariantSet[public(C),module(C)]
+                              class test.pkg.PublicClass
+                                     self - ApiVariantSet[public(C)]
+                                constructor test.pkg.PublicClass()
+                                       self - ApiVariantSet[public(C)]
+                                method test.pkg.PublicClass.concreteMethod()
+                                       self - ApiVariantSet[public(C)]
+                                method test.pkg.PublicClass.reabstractedMethod()
+                                       self - ApiVariantSet[public(C)]
+                              class test.pkg.PackagePrivateClass
+                                     self - ApiVariantSet[]
+                                constructor test.pkg.PackagePrivateClass()
+                                       self - ApiVariantSet[]
+                                method test.pkg.PackagePrivateClass.concreteMethod()
+                                       self - ApiVariantSet[]
+                                method test.pkg.PackagePrivateClass.reabstractedMethod()
+                                       self - ApiVariantSet[]
+                              class test.pkg.ModuleClass
+                                     self - ApiVariantSet[module(C)]
+                                constructor test.pkg.ModuleClass()
+                                       self - ApiVariantSet[]
+                                method test.pkg.ModuleClass.concreteMethod()
+                                       self - ApiVariantSet[module(C)]
+                                   elidable - ApiVariantSet[public(C),system(C),module(C)]
+                                method test.pkg.ModuleClass.reabstractedMethod()
+                                       self - ApiVariantSet[module(C)]
                         """,
                 )
             }

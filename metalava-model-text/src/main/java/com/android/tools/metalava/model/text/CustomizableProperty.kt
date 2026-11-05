@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model.text
 
-import com.android.tools.metalava.model.FlaggedApiInheritance
 import com.android.tools.metalava.model.StripJavaLangPrefix
 import com.android.tools.metalava.model.text.FileFormat.Builder
 import com.android.tools.metalava.model.text.FileFormat.Companion.parseSpecifier
@@ -227,24 +226,6 @@ private constructor(
                     """
                         If `yes` then add additional overrides into the signature file that are
                         needed in order to create compilable stubs from the signature file.
-                    """,
-            )
-
-        val FLAGGED_API_INHERITANCE by
-            enumProperty<FlaggedApiInheritance>(
-                defaultable = true,
-                defaultValue = FlaggedApiInheritance.NONE,
-                help =
-                    """
-                        Specifies whether `@FlaggedApi` annotations are inherited in signature
-                        files.
-
-                        `none` (default) - they are not inherited. This can make it difficult to
-                        determine whether a nested class is flagged when reviewin as the containing
-                        class may be out of view or even in another file altogether.
-
-                        `nested-classes` - they are inherited onto nested classes that do not have
-                        their own `@FlaggedApi` annotation.
                     """,
             )
 

@@ -120,7 +120,7 @@ class CommonParameterizedSelectedApiKotlinTest : BaseCommonParameterizedSelected
                               class test.pkg.PublishedClass
                                      self - ApiVariantSet[public(C)]
                                 constructor test.pkg.PublishedClass()
-                                       self - ApiVariantSet[]
+                                       self - ApiVariantSet[public(C)]
                                 method test.pkg.PublishedClass.method()
                                        self - ApiVariantSet[public(C)]
                               class test.pkg.PublicClass
@@ -179,7 +179,7 @@ class CommonParameterizedSelectedApiKotlinTest : BaseCommonParameterizedSelected
                               class test.pkg.PublishedClass
                                      self - ApiVariantSet[public(C)]
                                 constructor test.pkg.PublishedClass()
-                                       self - ApiVariantSet[]
+                                       self - ApiVariantSet[public(C)]
                                 method test.pkg.PublishedClass.method()
                                        self - ApiVariantSet[public(C)]
                               class test.pkg.PublicClass

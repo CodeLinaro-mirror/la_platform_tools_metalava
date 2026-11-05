@@ -114,10 +114,11 @@ class ApiLintOptions() :
 
     private val baselineOptionsMixin =
         BaselineOptionsMixin(
-            containingGroup = this,
+            containingParameterHolder = this,
             baselineOptionName = ARG_BASELINE_API_LINT,
             updateBaselineOptionName = ARG_UPDATE_BASELINE_API_LINT,
             issueType = "API lint",
+            description = "api-lint",
         )
 
     /** Returns a [Baseline] for API lint checks, if there is one. */
@@ -127,7 +128,6 @@ class ApiLintOptions() :
     ): Baseline? {
         return baselineOptionsMixin.computeBaseline(
             executionEnvironment,
-            description = "api-lint",
             commonBaselineOptions = commonBaselineOptions,
         )
     }
@@ -155,7 +155,8 @@ class ComputedApiLintOptions(
         lazy(LazyThreadSafetyMode.NONE) {
             PreviouslyReleasedApi.optionalPreviouslyReleasedApi(
                 ARG_API_LINT_PREVIOUS_API,
-                apiLintPreviousApis
+                apiLintPreviousApis,
+                onlyUseLastForMainApiSurface = false,
             )
         }
 }

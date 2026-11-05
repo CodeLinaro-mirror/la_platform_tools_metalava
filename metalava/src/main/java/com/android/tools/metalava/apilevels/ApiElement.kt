@@ -21,12 +21,6 @@ interface ParentApiElement {
     val since: ApiVersion
 
     /**
-     * The version in which this API last appeared, if this is not the latest API then it will be
-     * treated as having been removed in the next API version, i.e. [lastPresentIn] + 1.
-     */
-    val lastPresentIn: ApiVersion
-
-    /**
      * The SDKs and their versions this API was first introduced in.
      *
      * The value is a comma-separated list of &lt;int&gt;:&lt;int&gt; values, where the first
@@ -39,6 +33,9 @@ interface ParentApiElement {
 
     /** The optional API level this element was deprecated in. */
     val deprecatedIn: ApiVersion?
+
+    /** The optional API level this element was removed in. */
+    val removedIn: ApiVersion?
 }
 
 /**
@@ -61,6 +58,30 @@ open class ApiElement(val name: String) : ParentApiElement, Comparable<ApiElemen
         mainlineModule = containingClass.mainlineModule
         deprecatedIn = containingClass.deprecatedIn
         lastPresentIn = containingClass.lastPresentIn
+        removedIn = containingClass.removedIn
+    }
+
+    /**
+     * Initializes this element with explicit attributes read from an `api-versions.xml` file.
+     *
+     * @param since the API version in which this element was introduced.
+     * @param sdks the optional comma-separated SDK extension versions string.
+     * @param deprecatedIn the optional API version in which this element was deprecated.
+     * @param removedIn the optional API version in which this element was removed.
+     * @param mainlineModule the optional mainline module name for this element.
+     */
+    internal fun initFromXml(
+        since: ApiVersion,
+        sdks: String? = null,
+        deprecatedIn: ApiVersion? = null,
+        removedIn: ApiVersion? = null,
+        mainlineModule: String? = null,
+    ) {
+        this.since = since
+        this.sdks = sdks
+        this.deprecatedIn = deprecatedIn
+        this.removedIn = removedIn
+        this.mainlineModule = mainlineModule
     }
 
     /**
@@ -87,7 +108,15 @@ open class ApiElement(val name: String) : ParentApiElement, Comparable<ApiElemen
     final override var deprecatedIn: ApiVersion? = null
         private set
 
-    final override lateinit var lastPresentIn: ApiVersion
+    /**
+     * The version in which this API last appeared, if this is not the latest API then it will be
+     * treated as having been removed in the next API version.
+     */
+    lateinit var lastPresentIn: ApiVersion
+        private set
+
+    /** The optional API level this element was removed in. */
+    final override var removedIn: ApiVersion? = null
         private set
 
     override fun toString(): String {
@@ -149,6 +178,11 @@ open class ApiElement(val name: String) : ParentApiElement, Comparable<ApiElemen
         if (deprecatedIn == null || deprecatedIn!! > version) {
             deprecatedIn = version
         }
+    }
+
+    /** Updates the [removedIn] version of this element to [version]. */
+    fun updateRemovedIn(version: ApiVersion) {
+        removedIn = version
     }
 
     /**

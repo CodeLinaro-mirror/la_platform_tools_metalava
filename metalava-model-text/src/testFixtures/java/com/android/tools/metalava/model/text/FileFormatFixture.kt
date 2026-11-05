@@ -25,7 +25,6 @@ import com.android.tools.metalava.model.text.CustomizableProperty.Companion.STYL
 private val FILE_FORMAT_PROPERTY_NAMES =
     listOf(
         "add-additional-overrides",
-        "flagged-api-inheritance",
         "include-default-parameter-values",
         "include-type-use-annotations",
         "java-record-classes",

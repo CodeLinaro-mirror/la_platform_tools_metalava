@@ -153,10 +153,22 @@ interface Codebase : ClassPathResolver, AnnotationContext {
         val reporter: Reporter = ThrowingReporter.INSTANCE,
 
         /**
+         * Provider for the optional previously released [Codebase] to check against when reverting
+         * flagged APIs.
+         */
+        val previouslyReleasedCodebaseProvider: () -> Codebase? = { null },
+
+        /**
          * Whether API surfaces have been configured in a config file. When true, Javadoc `@hide`
          * block tags are ignored for hiding.
          */
         val apiSurfacesConfigured: Boolean = false,
+
+        /**
+         * Set of package prefixes for external packages that are not in the codebase, but may be
+         * referenced from documentation.
+         */
+        val externalPackagePrefixes: Set<String> = emptySet(),
     ) {
         companion object {
             /**

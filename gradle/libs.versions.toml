@@ -1,32 +1,25 @@
 [versions]
 kotlin = "2.2.0"
-androidLint = "32.5.0-alpha09"
+androidLint = "32.6.0-alpha01"
 tracing = "2.0.4"
 
 [libraries]
-androidGradlePlugin = { module = "com.android.tools.build:gradle", version = "9.5.0-alpha09" }
+androidGradlePlugin = { module = "com.android.tools.build:gradle", version = "9.6.0-alpha01" }
 androidLint = { module = "com.android.tools.lint:lint", version.ref = "androidLint" }
 androidLintApi = { module = "com.android.tools.lint:lint-api", version.ref = "androidLint" }
 androidLintChecks = { module = "com.android.tools.lint:lint-checks", version.ref = "androidLint" }
-androidLintGradle = { module = "com.android.tools.lint:lint-gradle", version.ref = "androidLint" }
 androidLintTests = { module = "com.android.tools.lint:lint-tests", version.ref = "androidLint" }
 androidToolsCommon = { module = "com.android.tools:common", version.ref = "androidLint" }
-androidToolsSdkCommon = { module = "com.android.tools:sdk-common", version.ref = "androidLint" }
-androidToolsSdklib = { module = "com.android.tools:sdklib", version.ref = "androidLint" }
 androidToolsExternalUast = { module = "com.android.tools.external.org-jetbrains:uast", version.ref = "androidLint" }
 androidToolsExternalKotlinCompiler = { module = "com.android.tools.external.com-intellij:kotlin-compiler", version.ref = "androidLint" }
 androidToolsExternalIntellijCore = { module = "com.android.tools.external.com-intellij:intellij-core", version.ref = "androidLint" }
-antlr4 = { module = "org.antlr:antlr4", version = "4.13.1" }
 asm = { module = "org.ow2.asm:asm", version = "8.0" }
-asmTree = { module = "org.ow2.asm:asm-tree", version = "8.0" }
 clikt = { module = "com.github.ajalt.clikt:clikt-jvm", version = "3.5.3" }
-errorProneAnnotations = { module = "com.google.errorprone:error_prone_annotations", version = "2.44.0" }
 gson = { module = "com.google.code.gson:gson", version = "2.8.9" }
 jspecify = { module = "org.jspecify:jspecify", version = "1.0.0" }
 junit4 = { module = "junit:junit", version = "4.13.2" }
 kotlinGradlePlugin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin" }
 kotlinMetadataJvm = { module = "org.jetbrains.kotlin:kotlin-metadata-jvm", version.ref = "kotlin" }
-kotlinStdlib = { module = "org.jetbrains.kotlin:kotlin-stdlib", version.ref = "kotlin" }
 kotlinTest = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
 kotlinTestJUnit = { module = "org.jetbrains.kotlin:kotlin-test-junit", version.ref = "kotlin" }
 mockitoKotlin = { module = "org.mockito.kotlin:mockito-kotlin", version = "4.0.0" }

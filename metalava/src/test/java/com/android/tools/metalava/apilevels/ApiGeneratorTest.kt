@@ -17,25 +17,22 @@
 package com.android.tools.metalava.apilevels
 
 import com.android.tools.lint.checks.infrastructure.TestFile
-import com.android.tools.metalava.ARG_ANDROID_JAR_PATTERN
+import com.android.tools.metalava.ARG_API
 import com.android.tools.metalava.ARG_API_SURFACE
-import com.android.tools.metalava.ARG_API_VERSION_FOR_SDK_EXTENSION
 import com.android.tools.metalava.ARG_API_VERSION_FOR_SOURCES
 import com.android.tools.metalava.ARG_API_VERSION_LABEL
 import com.android.tools.metalava.ARG_API_VERSION_SIGNATURE_FILES
 import com.android.tools.metalava.ARG_API_VERSION_SIGNATURE_PATTERN
-import com.android.tools.metalava.ARG_GENERATE_API_LEVELS
+import com.android.tools.metalava.ARG_CONFIG_FILE
 import com.android.tools.metalava.ARG_GENERATE_API_VERSION_HISTORY
-import com.android.tools.metalava.ARG_REMOVE_MISSING_CLASS_REFERENCES_IN_API_LEVELS
-import com.android.tools.metalava.ARG_SDK_INFO_FILE
+import com.android.tools.metalava.Driver
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.KnownConfigFiles
+import com.android.tools.metalava.cli.common.ExecutionEnvironment
+import com.android.tools.metalava.cli.signature.ARG_API_VERSION_FOR_SDK_EXTENSION
+import com.android.tools.metalava.cli.signature.ARG_SDK_INFO_FILE
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
-import com.android.tools.metalava.testing.TestFileCache
-import com.android.tools.metalava.testing.TestFileCacheRule
-import com.android.tools.metalava.testing.cacheIn
-import com.android.tools.metalava.testing.jarFromSources
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import com.android.tools.metalava.testing.signature
@@ -47,7 +44,6 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
-import org.junit.ClassRule
 import org.junit.Test
 
 // Constants to avoid having to quote $ in expected XML contents.
@@ -56,30 +52,19 @@ const val R = "${'\$'}R"
 const val S = "${'\$'}S"
 
 class ApiGeneratorTest : DriverTest() {
-    companion object {
-        /** Create a [TestFileCache] whose lifespan encompasses all the tests in this class. */
-        @ClassRule @JvmField val testFileCacheRule = TestFileCacheRule()
-
-        private val doublyNestedTestJar =
-            jarFromSources(
-                    "doubly-nested-test.jar",
-                    java(
-                        """
-                            package test.pkg;
-                            public class Test {
-                                private Test() {}
-                                public class Nested {
-                                    private Nested() {}
-                                    public class DoublyNested {
-                                        private DoublyNested() {}
-                                    }
-                                }
-                            }
-                        """
-                    ),
-                )
-                .cacheIn(testFileCacheRule)
+    /** Run the `api-history` sub-command with [args]. */
+    private fun runApiHistory(vararg args: String) {
+        val (executionEnvironment, stderr) = ExecutionEnvironment.forTest()
+        val exitCode = Driver.run(executionEnvironment, arrayOf("api-history", *args))
+        assertEquals(stderr.toString(), 0, exitCode)
     }
+
+    /** Find all `.txt` files under [dir] and return them joined by [File.pathSeparator]. */
+    private fun findTxtFiles(dir: File): String =
+        dir.walkTopDown()
+            .filter { it.isFile && it.extension == "txt" }
+            .sortedBy { it.path }
+            .joinToString(File.pathSeparator) { it.path }
 
     /** Check this `api-versions.xml` file has the correct content. */
     private fun File.checkApiVersionsXmlContent(expectedContent: String) {
@@ -105,12 +90,49 @@ class ApiGeneratorTest : DriverTest() {
         assertEquals(expectedContent.trimIndent(), prettyOutput)
     }
 
-    /** Check `--generate-api-levels` from test files in the metalava directory. */
+    /** Check `api-history` from test files in the metalava directory. */
     private fun checkGenerateFromTestFiles(
         sdkExtensionsInfo: String,
         extraArguments: Array<String>,
     ) {
         val apiVersionsXml = temporaryFolder.newFile("api-versions.xml")
+        val currentApiFile =
+            createTextFile(
+                "current.txt",
+                """
+                    // Signature format: 2.0
+                    package android.test {
+                      public class ClassAddedInApi31AndExt2 {
+                        method public void methodAddedInApi31AndExt2();
+                        method public void methodAddedInExt3();
+                        method public void methodNotFinalized();
+                        field public static final int FIELD_ADDED_IN_API_31_AND_EXT_2 = 1; // 0x1
+                        field public static final int FIELD_ADDED_IN_EXT_3 = 2; // 0x2
+                      }
+                    }
+                    package java.lang {
+                      public class Object {
+                        ctor public Object();
+                      }
+                    }
+                """
+            )
+
+        runApiHistory(
+            ARG_CONFIG_FILE,
+            KnownConfigFiles.configPublicSurface.createFile(temporaryFolder.root).path,
+            ARG_API_SURFACE,
+            "public",
+            "--output-file",
+            apiVersionsXml.path,
+            ARG_SDK_INFO_FILE,
+            sdkExtensionsInfo,
+            "--current-version",
+            "32",
+            "--current-files",
+            currentApiFile.path,
+            *extraArguments,
+        )
 
         check(
             configFiles = arrayOf(KnownConfigFiles.configPublicSurface),
@@ -118,16 +140,10 @@ class ApiGeneratorTest : DriverTest() {
                 arrayOf(
                     ARG_API_SURFACE,
                     "public",
-                    ARG_GENERATE_API_LEVELS,
-                    apiVersionsXml.path,
-                    ARG_SDK_INFO_FILE,
-                    sdkExtensionsInfo,
-                    ARG_API_VERSION_FOR_SOURCES,
-                    "32",
                     ARG_API_VERSION_LABEL,
-                    "32:Foo"
-                ) + extraArguments,
-            // Apply the api-versions.xml file that is being generated by this.
+                    "32:Foo",
+                ),
+            // Apply the api-versions.xml file that was generated above.
             applyApiLevelsXml = apiVersionsXml.path,
             // Do not prevent java.lang.Object from being included in the API.
             skipEmitPackages = emptyList(),
@@ -249,29 +265,8 @@ class ApiGeneratorTest : DriverTest() {
         apiVersionsXml.checkApiVersionsXmlContent(expected)
     }
 
-    // TODO(b/378479241): Fix this test to make it more realistic by including definitions of the
-    //  current API or stopping it from including the current API.
     @Test
-    fun `Generate API for test prebuilts`() {
-        val testPrebuiltsRoot = File(System.getenv("METALAVA_TEST_PREBUILTS_SDK_ROOT"))
-        if (!testPrebuiltsRoot.isDirectory) {
-            fail("test prebuilts not found: $testPrebuiltsRoot")
-        }
-
-        checkGenerateFromTestFiles(
-            sdkExtensionsInfo = "${testPrebuiltsRoot.path}/sdk-extensions-info.xml",
-            extraArguments =
-                arrayOf(
-                    ARG_ANDROID_JAR_PATTERN,
-                    "${testPrebuiltsRoot.path}/{version:level}/public/android.jar",
-                    ARG_ANDROID_JAR_PATTERN,
-                    "${testPrebuiltsRoot.path}/extensions/{version:extension}/*/{module}.jar",
-                ),
-        )
-    }
-
-    @Test
-    fun `Generate API from signature files using --generate-api-levels`() {
+    fun `Generate API from signature files using api-history`() {
         val testdataDir = File(System.getenv("METALAVA_TESTDATA_DIR"))
         if (!testdataDir.isDirectory) {
             fail("testdata directory not found: $testdataDir")
@@ -280,14 +275,15 @@ class ApiGeneratorTest : DriverTest() {
         val prebuiltsSdkDir = testdataDir.resolve("prebuilts/sdk")
 
         checkGenerateFromTestFiles(
-            sdkExtensionsInfo =
-                testdataDir.resolve("prebuilts-sdk-test/sdk-extensions-info.xml").path,
+            sdkExtensionsInfo = prebuiltsSdkDir.resolve("sdk-extensions-info.xml").path,
             extraArguments =
                 arrayOf(
-                    ARG_API_VERSION_SIGNATURE_PATTERN,
+                    "--pattern",
                     "$prebuiltsSdkDir/{version:level}/{surface}/api.txt",
-                    ARG_API_VERSION_SIGNATURE_PATTERN,
+                    "--pattern",
                     "$prebuiltsSdkDir/extensions/{version:extension}/{surface}/{module}.txt",
+                    "--historical-files",
+                    findTxtFiles(prebuiltsSdkDir),
                 ),
         )
     }
@@ -295,26 +291,28 @@ class ApiGeneratorTest : DriverTest() {
     @Test
     fun `Generate API while removing missing class references`() {
         val apiVersionsXml = temporaryFolder.newFile("api-versions.xml")
-
-        check(
-            extraArguments =
-                arrayOf(
-                    ARG_GENERATE_API_LEVELS,
-                    apiVersionsXml.path,
-                    ARG_REMOVE_MISSING_CLASS_REFERENCES_IN_API_LEVELS,
-                    ARG_API_VERSION_FOR_SOURCES,
-                    "32",
-                ),
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package android.test;
-                    public class ClassThatImplementsMethodFromApex implements ClassFromApex {
+        val currentApiFile =
+            createTextFile(
+                "current.txt",
+                """
+                    // Signature format: 2.0
+                    package android.test {
+                      public class ClassThatImplementsMethodFromApex implements ClassFromApex {
+                        ctor public ClassThatImplementsMethodFromApex();
+                      }
                     }
-                    """
-                    )
-                )
+                """
+            )
+
+        runApiHistory(
+            "--output-file",
+            apiVersionsXml.path,
+            "--missing-class-action",
+            "remove",
+            "--current-version",
+            "32",
+            "--current-files",
+            currentApiFile.path,
         )
 
         val expected =
@@ -330,23 +328,38 @@ class ApiGeneratorTest : DriverTest() {
         apiVersionsXml.checkApiVersionsXmlContent(expected)
     }
 
-    @RequiresCapabilities(Capability.LOAD_JAR)
     @Test
-    fun `Generate API for system surface from jar`() {
+    fun `Generate API for system surface from signature`() {
         val apiVersionsXml = temporaryFolder.newFile("api-versions.xml")
+        val currentApiFile =
+            createTextFile(
+                "current.txt",
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Test {
+                      }
+                      public class Test.Nested {
+                      }
+                      public class Test.Nested.DoublyNested {
+                      }
+                    }
+                """
+            )
 
-        check(
-            configFiles = arrayOf(KnownConfigFiles.configPublicAndSystemSurfaces),
-            extraArguments =
-                arrayOf(
-                    ARG_API_SURFACE,
-                    "system",
-                    ARG_GENERATE_API_LEVELS,
-                    apiVersionsXml.path,
-                    ARG_API_VERSION_FOR_SOURCES,
-                    "32",
-                ),
-            sourceFiles = arrayOf(doublyNestedTestJar),
+        runApiHistory(
+            ARG_CONFIG_FILE,
+            KnownConfigFiles.configPublicAndSystemSurfaces.createFile(temporaryFolder.root).path,
+            ARG_API_SURFACE,
+            "system",
+            "--output-file",
+            apiVersionsXml.path,
+            "--missing-class-action",
+            "remove",
+            "--current-version",
+            "32",
+            "--current-files",
+            currentApiFile.path,
         )
 
         val expected =
@@ -367,37 +380,30 @@ class ApiGeneratorTest : DriverTest() {
 
     @Test
     fun `Generate API finds missing class references`() {
-        val testPrebuiltsRoot = File(System.getenv("METALAVA_TEST_PREBUILTS_SDK_ROOT"))
-        if (!testPrebuiltsRoot.isDirectory) {
-            fail("test prebuilts not found: $testPrebuiltsRoot")
-        }
 
         val apiVersionsXml = temporaryFolder.newFile("api-versions.xml")
+        val currentApiFile =
+            createTextFile(
+                "current.txt",
+                """
+                    // Signature format: 2.0
+                    package android.test {
+                      public class ClassThatImplementsMethodFromApex {
+                        ctor public ClassThatImplementsMethodFromApex();
+                      }
+                    }
+                """
+            )
 
         var exception: IllegalStateException? = null
         try {
-            check(
-                extraArguments =
-                    arrayOf(
-                        ARG_GENERATE_API_LEVELS,
-                        apiVersionsXml.path,
-                        ARG_API_VERSION_FOR_SOURCES,
-                        "32",
-                    ),
-                sourceFiles =
-                    arrayOf(
-                        java(
-                            """
-                        package android.test;
-                        // Really this class should implement some interface that doesn't exist,
-                        // but that's hard to set up in the test harness, so just verify that
-                        // metalava complains about java/lang/Object not existing because we didn't
-                        // include the testdata prebuilt jars.
-                        public class ClassThatImplementsMethodFromApex {
-                        }
-                        """
-                        )
-                    )
+            runApiHistory(
+                "--output-file",
+                apiVersionsXml.path,
+                "--current-version",
+                "32",
+                "--current-files",
+                currentApiFile.path,
             )
         } catch (e: IllegalStateException) {
             exception = e
@@ -1026,36 +1032,35 @@ class ApiGeneratorTest : DriverTest() {
             }
 
         val apiVersionsXml = temporaryFolder.newFile("api-versions.xml")
+        val currentApiFile =
+            createTextFile(
+                "current.txt",
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      @Deprecated public class Foo {
+                      }
+                    }
+                """
+            )
 
-        check(
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                            package test.pkg;
-                            /**
-                             * @deprecated Deprecated
-                             */
-                            @Deprecated public class Foo {
-                                private Foo() {}
-                            }
-                        """
-                    ),
-                ),
-            extraArguments =
-                arrayOf(
-                    ARG_GENERATE_API_LEVELS,
-                    apiVersionsXml.path,
-                    ARG_SDK_INFO_FILE,
-                    sdkExtensionsInfoXml.path,
-                    ARG_API_VERSION_SIGNATURE_PATTERN,
-                    "$root/{version:major.minor?}/api.txt",
-                    ARG_API_VERSION_SIGNATURE_PATTERN,
-                    "$root/extensions/{version:extension}/{module}.txt",
-                    ARG_API_VERSION_FOR_SOURCES,
-                    "41",
-                    ARG_REMOVE_MISSING_CLASS_REFERENCES_IN_API_LEVELS,
-                ),
+        runApiHistory(
+            "--output-file",
+            apiVersionsXml.path,
+            ARG_SDK_INFO_FILE,
+            sdkExtensionsInfoXml.path,
+            "--pattern",
+            "$root/{version:major.minor?}/api.txt",
+            "--pattern",
+            "$root/extensions/{version:extension}/{module}.txt",
+            "--historical-files",
+            findTxtFiles(root),
+            "--current-version",
+            "41",
+            "--current-files",
+            currentApiFile.path,
+            "--missing-class-action",
+            "remove",
         )
 
         apiVersionsXml.checkApiVersionsXmlContent(
@@ -1129,45 +1134,47 @@ class ApiGeneratorTest : DriverTest() {
             }
 
         val apiVersionsXml = temporaryFolder.newFile("api-versions.xml")
-        // current sources are only included if --api-versions-for-sources is provided
+        // current API is only included if includeCurrentSource is true
         val prospectiveApiVersion = "40"
         val prospectiveSdkArgs =
-            if (includeCurrentSource)
-                arrayOf(
-                    ARG_API_VERSION_FOR_SOURCES,
-                    prospectiveApiVersion,
-                )
-            else arrayOf()
-
-        check(
-            sourceFiles =
-                arrayOf(
-                    java(
+            if (includeCurrentSource) {
+                val currentApiFile =
+                    createTextFile(
+                        "current.txt",
                         """
-                            package test.pkg;
-                            public class Foo {
-                                private Foo() {}
-                                public void addedInExtension102() {}
-                                public void addedInLatest() {}
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public class Foo {
+                                method public void addedInExtension102();
+                                method public void addedInLatest();
+                              }
                             }
                         """
-                    ),
-                ),
-            extraArguments =
+                    )
                 arrayOf(
-                    ARG_GENERATE_API_LEVELS,
-                    apiVersionsXml.path,
-                    ARG_SDK_INFO_FILE,
-                    sdkExtensionsInfoXml.path,
-                    ARG_API_VERSION_SIGNATURE_PATTERN,
-                    "$root/{version:major.minor?}/api.txt",
-                    ARG_API_VERSION_SIGNATURE_PATTERN,
-                    "$root/extensions/{version:extension}/{module}.txt",
-                    ARG_REMOVE_MISSING_CLASS_REFERENCES_IN_API_LEVELS,
-                    ARG_API_VERSION_FOR_SDK_EXTENSION,
-                    apiVersionForSdkExtension,
-                    *prospectiveSdkArgs
+                    "--current-version",
+                    prospectiveApiVersion,
+                    "--current-files",
+                    currentApiFile.path,
                 )
+            } else arrayOf()
+
+        runApiHistory(
+            "--output-file",
+            apiVersionsXml.path,
+            ARG_SDK_INFO_FILE,
+            sdkExtensionsInfoXml.path,
+            "--pattern",
+            "$root/{version:major.minor?}/api.txt",
+            "--pattern",
+            "$root/extensions/{version:extension}/{module}.txt",
+            "--historical-files",
+            findTxtFiles(root),
+            "--missing-class-action",
+            "remove",
+            ARG_API_VERSION_FOR_SDK_EXTENSION,
+            apiVersionForSdkExtension,
+            *prospectiveSdkArgs,
         )
 
         return apiVersionsXml
@@ -1256,29 +1263,29 @@ class ApiGeneratorTest : DriverTest() {
     /**
      * Checks consistency between historical and latest code when generating API levels and stubs.
      *
-     * It creates an initial release (API 1.0) in bytecode (`android.jar`) from [sourceFiles] and a
-     * current release (API 2.0) from source code, then asserts that the generated stubs match
-     * [expectedStubs] and the generated `api-versions.xml` matches [expectedApiVersionsXml].
+     * It creates an initial release (API 1.0) in a signature file (`android.txt`) from
+     * [historicalSignature] and a current release (API 2.0) from [currentVersionSourceFiles], then
+     * asserts that the generated stubs match [expectedStubs] and the generated `api-versions.xml`
+     * matches [expectedApiVersionsXml].
      */
     private fun checkConsistencyBetweenHistoricalAndLatestCode(
-        vararg sourceFiles: TestFile,
-        currentVersionSourceFiles: List<TestFile>? = null,
+        historicalSignature: String,
+        currentVersionSourceFiles: List<TestFile>,
         expectedStubs: List<TestFile>,
         expectedApiVersionsXml: String,
-        expectedApiSignature: String? = null,
     ) {
         val root = buildFileStructure {
             dir("1.0") {
-                jar(
-                    "android.jar",
-                    *sourceFiles,
+                signature(
+                    "android.txt",
+                    historicalSignature,
                 )
             }
         }
 
         val currentVersion =
             arrayOf(
-                *(currentVersionSourceFiles?.toTypedArray() ?: sourceFiles),
+                *currentVersionSourceFiles.toTypedArray(),
                 java(
                     """
                         package java.lang;
@@ -1289,7 +1296,26 @@ class ApiGeneratorTest : DriverTest() {
                 ),
             )
 
+        val currentApiFile = temporaryFolder.newFile("current.txt")
+        check(
+            sourceFiles = currentVersion,
+            skipEmitPackages = emptyList(),
+            extraArguments = arrayOf(ARG_API, currentApiFile.path),
+        )
+
         val apiVersionsXml = temporaryFolder.newFile("api-versions.xml")
+        runApiHistory(
+            "--output-file",
+            apiVersionsXml.path,
+            "--pattern",
+            "$root/{version:major.minor?}/android.txt",
+            "--historical-files",
+            findTxtFiles(root),
+            "--current-version",
+            "2.0",
+            "--current-files",
+            currentApiFile.path,
+        )
 
         check(
             sourceFiles = currentVersion,
@@ -1297,139 +1323,9 @@ class ApiGeneratorTest : DriverTest() {
             applyApiLevelsXml = apiVersionsXml.path,
             skipEmitPackages = emptyList(),
             expectedStubFiles = expectedStubs.toTypedArray(),
-            extraArguments =
-                arrayOf(
-                    ARG_GENERATE_API_LEVELS,
-                    apiVersionsXml.path,
-                    ARG_ANDROID_JAR_PATTERN,
-                    "$root/{version:major.minor?}/android.jar",
-                    ARG_API_VERSION_FOR_SOURCES,
-                    "2.0",
-                ),
-            expectedApiSignature = expectedApiSignature,
         )
 
         apiVersionsXml.checkApiVersionsXmlContent(expectedApiVersionsXml)
-    }
-
-    /**
-     * Verifies the behavior when a hidden superclass (HiddenSuper) has a public constructor with
-     * different parameters to the subclass's (Foo) constructor. When reading android.jar from
-     * bytecode, Foo does not inline the constructor `<init>(I)V` from HiddenSuper.
-     */
-    @Test
-    fun `Hidden super class has public constructor with different parameters to subclass`() {
-        checkConsistencyBetweenHistoricalAndLatestCode(
-            java(
-                """
-                    package test.pkg;
-                    class HiddenSuper {
-                        public HiddenSuper(int x) {}
-                    }
-                """
-            ),
-            java(
-                """
-                    package test.pkg;
-                    public class Foo extends HiddenSuper {
-                        public Foo() {
-                            super(0);
-                        }
-                    }
-                """
-            ),
-            expectedStubs =
-                listOf(
-                    java(
-                        """
-                            package test.pkg;
-                            /** @apiSince 1 */
-                            @SuppressWarnings({"unchecked", "deprecation", "all"})
-                            public class Foo {
-                            /** @apiSince 1 */
-                            public Foo() { throw new RuntimeException("Stub!"); }
-                            }
-                        """
-                    )
-                ),
-            expectedApiVersionsXml =
-                """
-                    <?xml version="1.0" encoding="utf-8"?>
-                    <api version="4" min="1.0">
-                        <class name="java/lang/Object" since="2.0">
-                            <method name="&lt;init>()V"/>
-                        </class>
-                        <class name="test/pkg/Foo" since="1.0">
-                            <extends name="java/lang/Object"/>
-                            <method name="&lt;init>()V"/>
-                        </class>
-                    </api>
-                """,
-        )
-    }
-
-    /**
-     * Verifies the behavior when inheriting fields from a hidden super class (HiddenSuper). Only
-     * public constant (public static final) fields are inherited into the subclass (Foo).
-     */
-    @Test
-    fun `Inheriting fields from a hidden super class`() {
-        checkConsistencyBetweenHistoricalAndLatestCode(
-            java(
-                """
-                    package test.pkg;
-                    class HiddenSuper {
-                        int packageField = 1;
-                        static int packageStaticField = 2;
-                        static final int PACKAGE_STATIC_FINAL_FIELD = 3;
-                        protected int protectedField = 4;
-                        protected static int protectedStaticField = 5;
-                        protected static final int PROTECTED_STATIC_FINAL_FIELD = 6;
-                        public int publicField = 7;
-                        public static int publicStaticField = 8;
-                        public static final int PUBLIC_STATIC_FINAL_FIELD = 9;
-                    }
-                """
-            ),
-            java(
-                """
-                    package test.pkg;
-                    public class Foo extends HiddenSuper {
-                        public Foo() {}
-                    }
-                """
-            ),
-            expectedStubs =
-                listOf(
-                    java(
-                        """
-                            package test.pkg;
-                            /** @apiSince 1 */
-                            @SuppressWarnings({"unchecked", "deprecation", "all"})
-                            public class Foo {
-                            /** @apiSince 1 */
-                            public Foo() { throw new RuntimeException("Stub!"); }
-                            /** @apiSince 1 */
-                            public static final int PUBLIC_STATIC_FINAL_FIELD = 9;
-                            }
-                        """
-                    )
-                ),
-            expectedApiVersionsXml =
-                """
-                    <?xml version="1.0" encoding="utf-8"?>
-                    <api version="4" min="1.0">
-                        <class name="java/lang/Object" since="2.0">
-                            <method name="&lt;init>()V"/>
-                        </class>
-                        <class name="test/pkg/Foo" since="1.0">
-                            <extends name="java/lang/Object"/>
-                            <method name="&lt;init>()V"/>
-                            <field name="PUBLIC_STATIC_FINAL_FIELD"/>
-                        </class>
-                    </api>
-                """,
-        )
     }
 
     /**
@@ -1440,23 +1336,19 @@ class ApiGeneratorTest : DriverTest() {
     @Test
     fun `Method moved up to a super class in a later version`() {
         checkConsistencyBetweenHistoricalAndLatestCode(
-            java(
+            historicalSignature =
                 """
-                    package test.pkg;
-                    public class Super {
-                        public Super() {}
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Foo extends test.pkg.Super {
+                        ctor public Foo();
+                        method public void foo();
+                      }
+                      public class Super {
+                        ctor public Super();
+                      }
                     }
-                """
-            ),
-            java(
-                """
-                    package test.pkg;
-                    public class Foo extends Super {
-                        public Foo() {}
-                        public void foo() {}
-                    }
-                """
-            ),
+                """,
             currentVersionSourceFiles =
                 listOf(
                     java(
@@ -1529,37 +1421,22 @@ class ApiGeneratorTest : DriverTest() {
     @Test
     fun `Method moved up to an interface in a later version`() {
         checkConsistencyBetweenHistoricalAndLatestCode(
-            java(
+            historicalSignature =
                 """
-                    package test.pkg;
-                    public interface CharSequence {}
-                """
-            ),
-            java(
-                """
-                    package test.pkg;
-                    class AbstractStringBuilder implements CharSequence {
-                        public void getChars(int srcBegin, int srcEnd, char[] dst, int dstBegin) {}
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public interface CharSequence {
+                      }
+                      public class StringBuffer implements test.pkg.CharSequence {
+                        ctor public StringBuffer();
+                        method public void getChars(int, int, char[], int);
+                      }
+                      public class StringBuilder implements test.pkg.CharSequence {
+                        ctor public StringBuilder();
+                        method public void getChars(int, int, char[], int);
+                      }
                     }
-                """
-            ),
-            java(
-                """
-                    package test.pkg;
-                    public class StringBuffer extends AbstractStringBuilder implements CharSequence {
-                        public StringBuffer() {}
-                        public synchronized void getChars(int srcBegin, int srcEnd, char[] dst, int dstBegin) {}
-                    }
-                """
-            ),
-            java(
-                """
-                    package test.pkg;
-                    public class StringBuilder extends AbstractStringBuilder implements CharSequence {
-                        public StringBuilder() {}
-                    }
-                """
-            ),
+                """,
             currentVersionSourceFiles =
                 listOf(
                     java(
@@ -1651,472 +1528,6 @@ class ApiGeneratorTest : DriverTest() {
         )
     }
 
-    /** Verifies the behavior when inheriting methods from a hidden super class (HiddenSuper). */
-    @Test
-    fun `Inheriting methods from a hidden super class`() {
-        checkConsistencyBetweenHistoricalAndLatestCode(
-            java(
-                """
-                    package test.pkg;
-                    class HiddenSuper {
-                        void packageMethod() {}
-                        static void packageStaticMethod() {}
-                        final void packageFinalMethod() {}
-                        protected void protectedMethod() {}
-                        protected static void protectedStaticMethod() {}
-                        protected final void protectedFinalMethod() {}
-                        public void publicMethod() {}
-                        public static void publicStaticMethod() {}
-                        public final void publicFinalMethod() {}
-                    }
-                """
-            ),
-            java(
-                """
-                    package test.pkg;
-                    public class Foo extends HiddenSuper {
-                        public Foo() {}
-                    }
-                """
-            ),
-            expectedStubs =
-                listOf(
-                    java(
-                        """
-                            package test.pkg;
-                            /** @apiSince 1 */
-                            @SuppressWarnings({"unchecked", "deprecation", "all"})
-                            public class Foo {
-                            /** @apiSince 1 */
-                            public Foo() { throw new RuntimeException("Stub!"); }
-                            /** @apiSince 1 */
-                            public final void publicFinalMethod() { throw new RuntimeException("Stub!"); }
-                            /** @apiSince 1 */
-                            public void publicMethod() { throw new RuntimeException("Stub!"); }
-                            /** @apiSince 1 */
-                            public static void publicStaticMethod() { throw new RuntimeException("Stub!"); }
-                            }
-                        """
-                    )
-                ),
-            expectedApiVersionsXml =
-                """
-                    <?xml version="1.0" encoding="utf-8"?>
-                    <api version="4" min="1.0">
-                        <class name="java/lang/Object" since="2.0">
-                            <method name="&lt;init>()V"/>
-                        </class>
-                        <class name="test/pkg/Foo" since="1.0">
-                            <extends name="java/lang/Object"/>
-                            <method name="&lt;init>()V"/>
-                            <method name="publicFinalMethod()V"/>
-                            <method name="publicMethod()V"/>
-                            <method name="publicStaticMethod()V"/>
-                        </class>
-                    </api>
-                """,
-        )
-    }
-
-    /**
-     * Verifies that when a hidden superclass implements a superinterface of an interface
-     * implemented by the public subclass, the redundant superinterface is removed from
-     * `api-versions.xml`.
-     */
-    @Test
-    fun `Inheriting redundant superinterface from a hidden super class`() {
-        checkConsistencyBetweenHistoricalAndLatestCode(
-            java(
-                """
-                    package test.pkg;
-                    public interface SuperInterface {}
-                """
-            ),
-            java(
-                """
-                    package test.pkg;
-                    public interface SubInterface extends SuperInterface {}
-                """
-            ),
-            java(
-                """
-                    package test.pkg;
-                    class HiddenSuper implements SuperInterface {}
-                """
-            ),
-            java(
-                """
-                    package test.pkg;
-                    public class Foo extends HiddenSuper implements SubInterface {
-                        public Foo() {}
-                    }
-                """
-            ),
-            expectedApiSignature =
-                """
-                    // Signature format: 5.0
-                    package java.lang {
-                      public class Object {
-                        ctor public Object();
-                      }
-                    }
-                    package test.pkg {
-                      public class Foo implements test.pkg.SubInterface test.pkg.SuperInterface {
-                        ctor public Foo();
-                      }
-                      public interface SubInterface extends test.pkg.SuperInterface {
-                      }
-                      public interface SuperInterface {
-                      }
-                    }
-                """,
-            expectedStubs =
-                listOf(
-                    java(
-                        """
-                            package test.pkg;
-                            /** @apiSince 1 */
-                            @SuppressWarnings({"unchecked", "deprecation", "all"})
-                            public class Foo implements test.pkg.SubInterface, test.pkg.SuperInterface {
-                            /** @apiSince 1 */
-                            public Foo() { throw new RuntimeException("Stub!"); }
-                            }
-                        """
-                    ),
-                    java(
-                        """
-                            package test.pkg;
-                            /** @apiSince 1 */
-                            @SuppressWarnings({"unchecked", "deprecation", "all"})
-                            public interface SubInterface extends test.pkg.SuperInterface {
-                            }
-                        """
-                    ),
-                    java(
-                        """
-                            package test.pkg;
-                            /** @apiSince 1 */
-                            @SuppressWarnings({"unchecked", "deprecation", "all"})
-                            public interface SuperInterface {
-                            }
-                        """
-                    ),
-                ),
-            expectedApiVersionsXml =
-                """
-                    <?xml version="1.0" encoding="utf-8"?>
-                    <api version="4" min="1.0">
-                        <class name="java/lang/Object" since="2.0">
-                            <method name="&lt;init>()V"/>
-                        </class>
-                        <class name="test/pkg/Foo" since="1.0">
-                            <extends name="java/lang/Object"/>
-                            <implements name="test/pkg/SubInterface"/>
-                            <method name="&lt;init>()V"/>
-                        </class>
-                        <class name="test/pkg/SubInterface" since="1.0">
-                            <extends name="java/lang/Object"/>
-                            <implements name="test/pkg/SuperInterface"/>
-                        </class>
-                        <class name="test/pkg/SuperInterface" since="1.0">
-                            <extends name="java/lang/Object"/>
-                        </class>
-                    </api>
-                """,
-        )
-    }
-
-    /** Verifies special handling of methods that return an AbstractStringBuilder. */
-    @Test
-    fun `Inheriting methods from AbstractStringBuilder hidden super class`() {
-        val abstractStringBuilderSource =
-            java(
-                """
-                    package test.pkg;
-                    class AbstractStringBuilder implements CharSequence {
-                        public AbstractStringBuilder append(char c) { return this; }
-                        public AbstractStringBuilder append(CharSequence s) { return this; }
-                        public AbstractStringBuilder append(String str) { return this; }
-                        public AbstractStringBuilder reverse() { return this; }
-                        public void getChars(int srcBegin, int srcEnd, char[] dst, int dstBegin) {}
-                        public void setLength(int newLength) {}
-                        public int length() { return 0; }
-                        public char charAt(int index) { return ' '; }
-                        public CharSequence subSequence(int start, int end) { return null; }
-                    }
-                """
-            )
-        val stringBufferSource =
-            java(
-                """
-                    package test.pkg;
-                    public class StringBuffer extends AbstractStringBuilder {
-                        public StringBuffer() {}
-                        public synchronized StringBuffer append(char c) { return this; }
-                        public synchronized StringBuffer append(CharSequence s) { return this; }
-                        public synchronized StringBuffer append(String str) { return this; }
-                        public synchronized StringBuffer reverse() { return this; }
-                        public synchronized void getChars(int srcBegin, int srcEnd, char[] dst, int dstBegin) {}
-                        public synchronized void setLength(int newLength) {}
-                        public synchronized int length() { return 0; }
-                        public synchronized char charAt(int index) { return ' '; }
-                        public synchronized CharSequence subSequence(int start, int end) { return null; }
-                    }
-                """
-            )
-        val stringBuilderSource =
-            java(
-                """
-                    package test.pkg;
-                    public class StringBuilder extends AbstractStringBuilder {
-                        public StringBuilder() {}
-                        public StringBuilder append(char c) { return this; }
-                        public StringBuilder append(CharSequence s) { return this; }
-                        public StringBuilder append(String str) { return this; }
-                        public StringBuilder reverse() { return this; }
-                    }
-                """
-            )
-        checkConsistencyBetweenHistoricalAndLatestCode(
-            abstractStringBuilderSource,
-            stringBufferSource,
-            stringBuilderSource,
-            java(
-                """
-                    package test.pkg;
-                    public interface CharSequence {
-                        int length();
-                        char charAt(int index);
-                        CharSequence subSequence(int start, int end);
-                    }
-                """
-            ),
-            expectedApiSignature =
-                """
-                    // Signature format: 5.0
-                    package java.lang {
-                      public class Object {
-                        ctor public Object();
-                      }
-                    }
-                    package test.pkg {
-                      public interface CharSequence {
-                        method public char charAt(int);
-                        method public default void getChars(int, int, char[]!, int);
-                        method public int length();
-                        method public test.pkg.CharSequence! subSequence(int, int);
-                      }
-                      public class StringBuffer implements test.pkg.CharSequence {
-                        ctor public StringBuffer();
-                        method public test.pkg.StringBuffer! append(char);
-                        method public test.pkg.StringBuffer! append(String!);
-                        method public test.pkg.StringBuffer! append(test.pkg.CharSequence!);
-                        method public char charAt(int);
-                        method public int length();
-                        method public test.pkg.StringBuffer! reverse();
-                        method public void setLength(int);
-                        method public test.pkg.CharSequence! subSequence(int, int);
-                      }
-                      public class StringBuilder implements test.pkg.CharSequence {
-                        ctor public StringBuilder();
-                        method public test.pkg.StringBuilder! append(char);
-                        method public test.pkg.StringBuilder! append(String!);
-                        method public test.pkg.StringBuilder! append(test.pkg.CharSequence!);
-                        method public char charAt(int);
-                        method public int length();
-                        method public test.pkg.StringBuilder! reverse();
-                        method public void setLength(int);
-                        method public test.pkg.CharSequence! subSequence(int, int);
-                      }
-                    }
-                """,
-            currentVersionSourceFiles =
-                listOf(
-                    abstractStringBuilderSource,
-                    stringBufferSource,
-                    stringBuilderSource,
-                    java(
-                        """
-                            package test.pkg;
-                            public interface CharSequence {
-                                int length();
-                                char charAt(int index);
-                                CharSequence subSequence(int start, int end);
-                                default void getChars(int srcBegin, int srcEnd, char[] dst, int dstBegin) {}
-                            }
-                        """
-                    ),
-                ),
-            expectedStubs =
-                listOf(
-                    java(
-                        """
-                            package test.pkg;
-                            /** @apiSince 1 */
-                            @SuppressWarnings({"unchecked", "deprecation", "all"})
-                            public interface CharSequence {
-                            /** @apiSince 1 */
-                            public char charAt(int index);
-                            /** @apiSince 2 */
-                            public default void getChars(int srcBegin, int srcEnd, char[] dst, int dstBegin) { throw new RuntimeException("Stub!"); }
-                            /** @apiSince 1 */
-                            public int length();
-                            /** @apiSince 1 */
-                            public test.pkg.CharSequence subSequence(int start, int end);
-                            }
-                        """
-                    ),
-                    java(
-                        """
-                            package test.pkg;
-                            /** @apiSince 1 */
-                            @SuppressWarnings({"unchecked", "deprecation", "all"})
-                            public class StringBuffer implements test.pkg.CharSequence {
-                            /** @apiSince 1 */
-                            public StringBuffer() { throw new RuntimeException("Stub!"); }
-                            /**
-                             * {@inheritDoc}
-                             * @apiSince 1
-                             */
-                            public synchronized test.pkg.StringBuffer append(char c) { throw new RuntimeException("Stub!"); }
-                            /**
-                             * {@inheritDoc}
-                             * @apiSince 1
-                             */
-                            public synchronized test.pkg.StringBuffer append(java.lang.String str) { throw new RuntimeException("Stub!"); }
-                            /**
-                             * {@inheritDoc}
-                             * @apiSince 1
-                             */
-                            public synchronized test.pkg.StringBuffer append(test.pkg.CharSequence s) { throw new RuntimeException("Stub!"); }
-                            /**
-                             * {@inheritDoc}
-                             * @apiSince 1
-                             */
-                            public synchronized char charAt(int index) { throw new RuntimeException("Stub!"); }
-                            /**
-                             * {@inheritDoc}
-                             * @apiSince 1
-                             */
-                            public synchronized void getChars(int srcBegin, int srcEnd, char[] dst, int dstBegin) { throw new RuntimeException("Stub!"); }
-                            /**
-                             * {@inheritDoc}
-                             * @apiSince 1
-                             */
-                            public synchronized int length() { throw new RuntimeException("Stub!"); }
-                            /**
-                             * {@inheritDoc}
-                             * @apiSince 1
-                             */
-                            public synchronized test.pkg.StringBuffer reverse() { throw new RuntimeException("Stub!"); }
-                            /**
-                             * {@inheritDoc}
-                             * @apiSince 1
-                             */
-                            public synchronized void setLength(int newLength) { throw new RuntimeException("Stub!"); }
-                            /**
-                             * {@inheritDoc}
-                             * @apiSince 1
-                             */
-                            public synchronized test.pkg.CharSequence subSequence(int start, int end) { throw new RuntimeException("Stub!"); }
-                            }
-                        """
-                    ),
-                    java(
-                        """
-                            package test.pkg;
-                            /** @apiSince 1 */
-                            @SuppressWarnings({"unchecked", "deprecation", "all"})
-                            public class StringBuilder implements test.pkg.CharSequence {
-                            /** @apiSince 1 */
-                            public StringBuilder() { throw new RuntimeException("Stub!"); }
-                            /**
-                             * {@inheritDoc}
-                             * @apiSince 1
-                             */
-                            public test.pkg.StringBuilder append(char c) { throw new RuntimeException("Stub!"); }
-                            /**
-                             * {@inheritDoc}
-                             * @apiSince 1
-                             */
-                            public test.pkg.StringBuilder append(java.lang.String str) { throw new RuntimeException("Stub!"); }
-                            /**
-                             * {@inheritDoc}
-                             * @apiSince 1
-                             */
-                            public test.pkg.StringBuilder append(test.pkg.CharSequence s) { throw new RuntimeException("Stub!"); }
-                            /**
-                             * {@inheritDoc}
-                             * @apiSince 1
-                             */
-                            public char charAt(int index) { throw new RuntimeException("Stub!"); }
-                            /**
-                             * {@inheritDoc}
-                             * @apiSince 1
-                             */
-                            public void getChars(int srcBegin, int srcEnd, char[] dst, int dstBegin) { throw new RuntimeException("Stub!"); }
-                            /**
-                             * {@inheritDoc}
-                             * @apiSince 1
-                             */
-                            public int length() { throw new RuntimeException("Stub!"); }
-                            /**
-                             * {@inheritDoc}
-                             * @apiSince 1
-                             */
-                            public test.pkg.StringBuilder reverse() { throw new RuntimeException("Stub!"); }
-                            /** @apiSince 1 */
-                            public void setLength(int newLength) { throw new RuntimeException("Stub!"); }
-                            /**
-                             * {@inheritDoc}
-                             * @apiSince 1
-                             */
-                            public test.pkg.CharSequence subSequence(int start, int end) { throw new RuntimeException("Stub!"); }
-                            }
-                        """
-                    ),
-                ),
-            expectedApiVersionsXml =
-                """
-                    <?xml version="1.0" encoding="utf-8"?>
-                    <api version="4" min="1.0">
-                        <class name="java/lang/Object" since="2.0">
-                            <method name="&lt;init>()V"/>
-                        </class>
-                        <class name="test/pkg/CharSequence" since="1.0">
-                            <extends name="java/lang/Object"/>
-                            <method name="charAt(I)C"/>
-                            <method name="getChars(II[CI)V" since="2.0"/>
-                            <method name="length()I"/>
-                            <method name="subSequence(II)Ltest/pkg/CharSequence;"/>
-                        </class>
-                        <class name="test/pkg/StringBuffer" since="1.0">
-                            <extends name="java/lang/Object"/>
-                            <implements name="test/pkg/CharSequence"/>
-                            <method name="&lt;init>()V"/>
-                            <method name="append(C)Ltest/pkg/StringBuffer;"/>
-                            <method name="append(Ljava/lang/String;)Ltest/pkg/StringBuffer;"/>
-                            <method name="append(Ltest/pkg/CharSequence;)Ltest/pkg/StringBuffer;"/>
-                            <method name="getChars(II[CI)V"/>
-                            <method name="reverse()Ltest/pkg/StringBuffer;"/>
-                            <method name="setLength(I)V"/>
-                        </class>
-                        <class name="test/pkg/StringBuilder" since="1.0">
-                            <extends name="java/lang/Object"/>
-                            <implements name="test/pkg/CharSequence"/>
-                            <method name="&lt;init>()V"/>
-                            <method name="append(C)Ltest/pkg/StringBuilder;"/>
-                            <method name="append(Ljava/lang/String;)Ltest/pkg/StringBuilder;"/>
-                            <method name="append(Ltest/pkg/CharSequence;)Ltest/pkg/StringBuilder;"/>
-                            <method name="getChars(II[CI)V"/>
-                            <method name="reverse()Ltest/pkg/StringBuilder;"/>
-                            <method name="setLength(I)V"/>
-                        </class>
-                    </api>
-                """,
-        )
-    }
-
     /**
      * Verifies that when a method is moved up to a superclass and deprecated in a later version,
      * the subclass method's `deprecated` attribute is updated to match.
@@ -2124,23 +1535,19 @@ class ApiGeneratorTest : DriverTest() {
     @Test
     fun `Method moved up to a super class and deprecated in a later version`() {
         checkConsistencyBetweenHistoricalAndLatestCode(
-            java(
+            historicalSignature =
                 """
-                    package test.pkg;
-                    public class Super {
-                        public Super() {}
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Foo extends test.pkg.Super {
+                        ctor public Foo();
+                        method public void foo();
+                      }
+                      public class Super {
+                        ctor public Super();
+                      }
                     }
-                """
-            ),
-            java(
-                """
-                    package test.pkg;
-                    public class Foo extends Super {
-                        public Foo() {}
-                        public void foo() {}
-                    }
-                """
-            ),
+                """,
             currentVersionSourceFiles =
                 listOf(
                     java(
@@ -2224,25 +1631,20 @@ class ApiGeneratorTest : DriverTest() {
     @Test
     fun `Method removed from super class in a later version is retained on subclass`() {
         checkConsistencyBetweenHistoricalAndLatestCode(
-            java(
+            historicalSignature =
                 """
-                    package test.pkg;
-                    public class Super {
-                        public Super() {}
-                        public void foo() {}
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Foo extends test.pkg.Super {
+                        ctor public Foo();
+                        method public void foo();
+                      }
+                      public class Super {
+                        ctor public Super();
+                        method public void foo();
+                      }
                     }
-                """
-            ),
-            java(
-                """
-                    package test.pkg;
-                    public class Foo extends Super {
-                        public Foo() {}
-                        @Override
-                        public void foo() {}
-                    }
-                """
-            ),
+                """,
             currentVersionSourceFiles =
                 listOf(
                     java(
@@ -2306,254 +1708,6 @@ class ApiGeneratorTest : DriverTest() {
                             <extends name="java/lang/Object"/>
                             <method name="&lt;init>()V"/>
                             <method name="foo()V" removed="2.0"/>
-                        </class>
-                    </api>
-                """,
-        )
-    }
-
-    /**
-     * Verifies that when an enclosing class is deprecated in bytecode, its inner classes and their
-     * members also inherit the deprecation status.
-     */
-    @Test
-    fun `Enclosing class deprecation propagates to inner classes in jar`() {
-        checkConsistencyBetweenHistoricalAndLatestCode(
-            java(
-                """
-                    package test.pkg;
-                    /** @deprecated */
-                    @Deprecated
-                    public class Outer {
-                        public Outer() {}
-                        public static class Inner {
-                            public Inner() {}
-                            public void foo() {}
-                        }
-                    }
-                """
-            ),
-            expectedStubs =
-                listOf(
-                    java(
-                        """
-                            package test.pkg;
-                            /**
-                             * @deprecated
-                             * @apiSince 1
-                             * @deprecatedSince 1
-                             */
-                            @SuppressWarnings({"unchecked", "deprecation", "all"})
-                            @Deprecated
-                            public class Outer {
-                            /** @apiSince 1 */
-                            @Deprecated
-                            public Outer() { throw new RuntimeException("Stub!"); }
-                            /**
-                             * @apiSince 1
-                             * @deprecatedSince 1
-                             */
-                            @Deprecated
-                            public static class Inner {
-                            /** @apiSince 1 */
-                            @Deprecated
-                            public Inner() { throw new RuntimeException("Stub!"); }
-                            /** @apiSince 1 */
-                            @Deprecated
-                            public void foo() { throw new RuntimeException("Stub!"); }
-                            }
-                            }
-                        """
-                    ),
-                ),
-            expectedApiVersionsXml =
-                """
-                    <?xml version="1.0" encoding="utf-8"?>
-                    <api version="4" min="1.0">
-                        <class name="java/lang/Object" since="2.0">
-                            <method name="&lt;init>()V"/>
-                        </class>
-                        <class name="test/pkg/Outer" since="1.0" deprecated="1.0">
-                            <extends name="java/lang/Object"/>
-                            <method name="&lt;init>()V"/>
-                        </class>
-                        <class name="test/pkg/Outer${'$'}Inner" since="1.0" deprecated="1.0">
-                            <extends name="java/lang/Object"/>
-                            <method name="&lt;init>()V"/>
-                            <method name="foo()V"/>
-                        </class>
-                    </api>
-                """,
-        )
-    }
-
-    /**
-     * Verifies that synthetic bridge methods generated by the compiler in bytecode (e.g. for a
-     * public method overriding a package-private superclass method with a narrower return type) are
-     * ignored when reading jars.
-     */
-    @Test
-    fun `Bridge methods in jar are ignored`() {
-        checkConsistencyBetweenHistoricalAndLatestCode(
-            java(
-                """
-                    package test.pkg;
-                    public class Super {
-                        public Super() {}
-                        Object makeCopy() { return this; }
-                    }
-                """
-            ),
-            java(
-                """
-                    package test.pkg;
-                    public class Foo extends Super {
-                        public Foo() {}
-                        @Override
-                        public Foo makeCopy() { return this; }
-                    }
-                """
-            ),
-            expectedStubs =
-                listOf(
-                    java(
-                        """
-                            package test.pkg;
-                            /** @apiSince 1 */
-                            @SuppressWarnings({"unchecked", "deprecation", "all"})
-                            public class Foo extends test.pkg.Super {
-                            /** @apiSince 1 */
-                            public Foo() { throw new RuntimeException("Stub!"); }
-                            /**
-                             * {@inheritDoc}
-                             * @apiSince 1
-                             */
-                            public test.pkg.Foo makeCopy() { throw new RuntimeException("Stub!"); }
-                            }
-                        """
-                    ),
-                    java(
-                        """
-                            package test.pkg;
-                            /** @apiSince 1 */
-                            @SuppressWarnings({"unchecked", "deprecation", "all"})
-                            public class Super {
-                            /** @apiSince 1 */
-                            public Super() { throw new RuntimeException("Stub!"); }
-                            }
-                        """
-                    ),
-                ),
-            expectedApiVersionsXml =
-                """
-                    <?xml version="1.0" encoding="utf-8"?>
-                    <api version="4" min="1.0">
-                        <class name="java/lang/Object" since="2.0">
-                            <method name="&lt;init>()V"/>
-                        </class>
-                        <class name="test/pkg/Foo" since="1.0">
-                            <extends name="test/pkg/Super"/>
-                            <method name="&lt;init>()V"/>
-                            <method name="makeCopy()Ltest/pkg/Foo;"/>
-                        </class>
-                        <class name="test/pkg/Super" since="1.0">
-                            <extends name="java/lang/Object"/>
-                            <method name="&lt;init>()V"/>
-                        </class>
-                    </api>
-                """,
-        )
-    }
-
-    /**
-     * Verifies that when a superclass is package-private in an earlier version and becomes public
-     * in a later version, its public methods and nearest public superclass are inlined into public
-     * subclasses in the earlier version, and its `<extends>` transition is recorded in the later
-     * version.
-     */
-    @Test
-    fun `Package private super class becomes public in a later version`() {
-        checkConsistencyBetweenHistoricalAndLatestCode(
-            java(
-                """
-                    package test.pkg;
-                    class BaseObj {
-                        public void destroy() {}
-                    }
-                """
-            ),
-            java(
-                """
-                    package test.pkg;
-                    public class Program extends BaseObj {
-                        public Program() {}
-                    }
-                """
-            ),
-            currentVersionSourceFiles =
-                listOf(
-                    java(
-                        """
-                            package test.pkg;
-                            public class BaseObj {
-                                public BaseObj() {}
-                                public void destroy() {}
-                            }
-                        """
-                    ),
-                    java(
-                        """
-                            package test.pkg;
-                            public class Program extends BaseObj {
-                                public Program() {}
-                            }
-                        """
-                    ),
-                ),
-            expectedStubs =
-                listOf(
-                    java(
-                        """
-                            package test.pkg;
-                            /** @apiSince 2 */
-                            @SuppressWarnings({"unchecked", "deprecation", "all"})
-                            public class BaseObj {
-                            /** @apiSince 2 */
-                            public BaseObj() { throw new RuntimeException("Stub!"); }
-                            /** @apiSince 2 */
-                            public void destroy() { throw new RuntimeException("Stub!"); }
-                            }
-                        """
-                    ),
-                    java(
-                        """
-                            package test.pkg;
-                            /** @apiSince 1 */
-                            @SuppressWarnings({"unchecked", "deprecation", "all"})
-                            public class Program extends test.pkg.BaseObj {
-                            /** @apiSince 1 */
-                            public Program() { throw new RuntimeException("Stub!"); }
-                            }
-                        """
-                    ),
-                ),
-            expectedApiVersionsXml =
-                """
-                    <?xml version="1.0" encoding="utf-8"?>
-                    <api version="4" min="1.0">
-                        <class name="java/lang/Object" since="2.0">
-                            <method name="&lt;init>()V"/>
-                        </class>
-                        <class name="test/pkg/BaseObj" since="2.0">
-                            <extends name="java/lang/Object"/>
-                            <method name="&lt;init>()V"/>
-                            <method name="destroy()V"/>
-                        </class>
-                        <class name="test/pkg/Program" since="1.0">
-                            <extends name="java/lang/Object" removed="2.0"/>
-                            <extends name="test/pkg/BaseObj" since="2.0"/>
-                            <method name="&lt;init>()V"/>
-                            <method name="destroy()V"/>
                         </class>
                     </api>
                 """,

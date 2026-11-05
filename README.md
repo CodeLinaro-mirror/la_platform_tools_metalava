@@ -88,11 +88,6 @@ It can also be run for repeated measurement using [gradle-profiler](https://gith
 
 ## Features
 
-* Ability to read in an existing android.jar file instead of from source, which
-  means we can regenerate signature files etc for older versions according to
-  new formats (e.g. to fix past errors in doclava, such as annotation instance
-  methods which were accidentally not included.)
-
 * Ability to merge in data (annotations etc) from external sources, such as
   IntelliJ external annotations data as well as signature files containing
   annotations. This isn't just merged at export time, it's merged at codebase
@@ -108,7 +103,7 @@ It can also be run for repeated measurement using [gradle-profiler](https://gith
     "@interface" instead of "abstract class extends java.lang.Annotation", sorts
     modifiers in the canonical modifier order, using "extends" instead of
     "implements" for the superclass of an interface, and many other similar
-    tweaks outlined in the `Compatibility` class. (Metalava also allows (and
+    tweaks outlined in the `FileFormat` class. (Metalava also allows (and
     ignores) block comments in the signature files.)
 
   * Add support for writing (and reading) annotations into the signature
@@ -247,12 +242,10 @@ modifier lists (including annotations).
 This is done for multiple reasons:
 
 (1) It allows us to have multiple "back-ends": for example, metalava can read in
-    a model not just from parsing source code, but from reading older SDK
-    android.jar files (e.g. backed by bytecode) or reading previous signature
-    files.  Reading in multiple versions of an API lets doclava perform
-    "diffing", such as warning if an API is changing in an incompatible way. It
-    can also generate signature files in the new format (including data that was
-    missing in older signature files, such as annotation methods) without having
+    a model not just from parsing source code, but from reading previous
+    signature files.  Reading in multiple versions of an API lets doclava
+    perform "diffing", such as warning if an API is changing in an incompatible
+    way. It can also generate signature files in the new format without having
     to parse older source code which may no longer be easy to parse.
 
 (2) There's a lot of logic for deciding whether code found in the source tree
@@ -265,19 +258,18 @@ This is done for multiple reasons:
 
 The basic API element class is "Item". (In doclava1 this was called a
 "DocInfo".)  There are several sub interfaces of Item: PackageItem, ClassItem,
-MemberItem, MethodItem, FieldItem, ParameterItem, etc. And then there are
-several implementation hierarchies: One is PSI based, where you point metalava
-to a source tree or a .jar file, and it constructs Items built on top of PSI:
-PsiPackageItem, PsiClassItem, PsiMethodItem, etc. Another is textual, based on
-signature files: TextPackageItem, TextClassItem, and so on.
+MemberItem, MethodItem, FieldItem, ParameterItem, etc., with a shared default
+implementation hierarchy (DefaultPackageItem, DefaultClassItem,
+DefaultMethodItem, etc.) populated by the different back-ends (such as PSI,
+Turbine, or signature files).
 
 The "Codebase" class captures a complete API snapshot (including classes that
 are hidden, which is why it's called a "Codebase" rather than an "API").
 
-There are methods to load codebases - from source folders, from a .jar file,
-from a signature file. That's how API diffing is performed: you load two
-codebases (from whatever source you want, typically a previous API signature
-file and the current set of source folders), and then you "diff" the two.
+There are methods to load codebases - from source folders, or from a signature
+file. That's how API diffing is performed: you load two codebases (from whatever
+source you want, typically a previous API signature file and the current set of
+source folders), and then you "diff" the two.
 
 There are several key helpers that help with the implementation, detailed next.
 

@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.lint
 
-import com.android.sdklib.SdkVersionInfo
 import com.android.tools.metalava.KotlinInteropChecks
 import com.android.tools.metalava.lint.ApiLint.PackageRank.Companion.INVALID_RANK
 import com.android.tools.metalava.lint.ResourceType.AAPT
@@ -631,7 +630,7 @@ private constructor(
 
         val name = field.name()
         if (!constantNamePattern.matches(name)) {
-            val suggested = SdkVersionInfo.camelCaseToUnderlines(name).uppercase(Locale.US)
+            val suggested = camelCaseToUnderlines(name).uppercase(Locale.US)
             report(
                 ALL_UPPER,
                 field,
@@ -3695,14 +3694,13 @@ private constructor(
             if (s.none { it.isLowerCase() }) {
                 // The entire thing is capitalized. If so, just perform
                 // normal capitalization, but try dropping _'s.
-                return SdkVersionInfo.underlinesToCamelCase(s.lowercase(Locale.US))
-                    .replaceFirstChar {
-                        if (it.isLowerCase()) {
-                            it.titlecase(Locale.getDefault())
-                        } else {
-                            it.toString()
-                        }
+                return underlinesToCamelCase(s.lowercase(Locale.US)).replaceFirstChar {
+                    if (it.isLowerCase()) {
+                        it.titlecase(Locale.getDefault())
+                    } else {
+                        it.toString()
                     }
+                }
             }
 
             while (true) {
@@ -3715,6 +3713,42 @@ private constructor(
                 val decapitalized = acronym[0] + acronym.substring(1).lowercase(Locale.US)
                 s = s.replace(acronym, decapitalized)
             }
+        }
+
+        /** Converts a CamelCase word into an underlined_word. */
+        private fun camelCaseToUnderlines(string: String): String {
+            if (string.isEmpty()) {
+                return string
+            }
+
+            val sb = StringBuilder(2 * string.length)
+            var lastWasUpperCase = string[0].isUpperCase()
+            for (c in string) {
+                val isUpperCase = c.isUpperCase()
+                if (isUpperCase && !lastWasUpperCase) {
+                    sb.append('_')
+                }
+                lastWasUpperCase = isUpperCase
+                sb.append(c.lowercaseChar())
+            }
+
+            return sb.toString()
+        }
+
+        /** Converts an underlined_word into a CamelCase word. */
+        private fun underlinesToCamelCase(string: String): String {
+            val sb = StringBuilder(string.length)
+            var upcaseNext = true
+            for (c in string) {
+                if (c == '_') {
+                    upcaseNext = true
+                } else {
+                    sb.append(if (upcaseNext) c.uppercaseChar() else c)
+                    upcaseNext = false
+                }
+            }
+
+            return sb.toString()
         }
 
         /** The set of heavyweight BitSet classes that are disallowed by [checkBitSet] */

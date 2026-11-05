@@ -232,6 +232,7 @@ class SdkFileWriterTest : DriverTest() {
     @Test
     fun `Test generating widgets`() {
         check(
+            apiSurface = KnownApiSurface.PUBLIC,
             sourceFiles =
                 arrayOf(
                     java(
@@ -249,11 +250,29 @@ class SdkFileWriterTest : DriverTest() {
                             }
                         """
                     ),
+                    java(
+                        """
+                            package android.widget;
+
+                            import android.content.Context;
+                            import android.annotation.DocOnly;
+                            import android.annotation.Widget;
+
+                            @DocOnly
+                            @Widget
+                            public class DocOnlyButton extends android.view.View {
+                                public DocOnlyButton(Context context) {
+                                    super(context, null);
+                                }
+                            }
+                        """
+                    ),
                     widgetSource,
                 ),
+            // `DocOnlyButton` is excluded from `widgets.txt` because it is `@DocOnly` and
+            // therefore not a valid code reference in the public API surface.
             sdkWidgets =
                 """
-                    Wandroid.view.View java.lang.Object
                     Wandroid.widget.MyButton android.view.View java.lang.Object
                 """,
         )

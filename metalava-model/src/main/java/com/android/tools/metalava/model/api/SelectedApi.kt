@@ -74,8 +74,21 @@ sealed class SelectedApi {
      */
     abstract val revertItem: SelectableItem?
 
-    /** Checks to see if the associated [SelectableItem] contains any removed annotations. */
+    /**
+     * Checks to see if the associated [SelectableItem] contains any removed annotations (or was
+     * marked with `@ForRemoval` in a signature file).
+     *
+     * Unlike membership in a `REMOVED` variant in [itemApiVariants], this only reflects whether the
+     * item itself has a removed annotation (it is not inherited by enclosed items) and remains
+     * `true` even when the removal is gated by an unfinalized `@FlaggedApi` annotation.
+     */
     open fun hasRemovedAnnotation(): Boolean = false
+
+    /**
+     * Checks to see whether the associated [SelectableItem] was part of the previously released
+     * API.
+     */
+    open fun wasPreviouslyReleased(): Boolean = false
 
     /**
      * Initialize this instance.
@@ -91,6 +104,15 @@ sealed class SelectedApi {
      * This can only be called on items loaded from signature files.
      */
     abstract fun addItemApiVariant(value: ApiVariant)
+
+    /**
+     * Mark that the associated [SelectableItem] has a removed annotation.
+     *
+     * This can only be called on items loaded from signature files.
+     */
+    open fun markHasRemovedAnnotation() {
+        error("Cannot update hasRemovedAnnotation in $this")
+    }
 
     /**
      * Populate this instance with the state from the [original] [SelectedApi] of the item being
@@ -129,9 +151,6 @@ sealed class SelectedApi {
             // Get the ApiSurfaceSelector that is used by the AnnotationManager.
             val annotationManager = config.annotationManager
             val apiSurfaceSelector = annotationManager.apiSurfaceSelector
-            val previouslyReleasedCodebaseProvider = {
-                annotationManager.previouslyReleasedCodebase
-            }
 
             // Create an updater that will be captured by the factory below and will be used by all
             // SelectedApi instances in the Codebase that uses tha factory.
@@ -139,7 +158,7 @@ sealed class SelectedApi {
                 SelectedApiUpdater(
                     config.reporter,
                     apiSurfaceSelector,
-                    previouslyReleasedCodebaseProvider,
+                    config.previouslyReleasedCodebaseProvider,
                 )
             return { item -> createFromSource(selectedApiUpdater, item) }
         }

@@ -145,10 +145,11 @@ class CompatibilityCheckOptions() :
 
     private val baselineOptionsMixin =
         BaselineOptionsMixin(
-            containingGroup = this,
+            containingParameterHolder = this,
             baselineOptionName = ARG_BASELINE_CHECK_COMPATIBILITY_RELEASED,
             updateBaselineOptionName = ARG_UPDATE_BASELINE_CHECK_COMPATIBILITY_RELEASED,
             issueType = "compatibility",
+            description = "compatibility:released",
         )
 
     /** Returns a [Baseline] for compatibility checks, if there is one. */
@@ -158,7 +159,6 @@ class CompatibilityCheckOptions() :
     ): Baseline? {
         return baselineOptionsMixin.computeBaseline(
             executionEnvironment,
-            description = "compatibility:released",
             commonBaselineOptions = commonBaselineOptions,
         )
     }

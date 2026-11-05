@@ -20,6 +20,7 @@ import com.android.tools.lint.checks.infrastructure.TestFiles.base64gzip
 import com.android.tools.lint.checks.infrastructure.TestFiles.source
 import com.android.tools.metalava.ARG_HIDE_ANNOTATION
 import com.android.tools.metalava.DriverTest
+import com.android.tools.metalava.KnownApiSurface
 import com.android.tools.metalava.cli.common.ARG_SOURCE_PATH
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
@@ -174,13 +175,9 @@ class ApiContentsTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                    src/test/pkg/Foo.java:3: warning: Field test.pkg.Foo.fieldReferencesHidden1 references hidden type test.pkg.Hidden. [HiddenTypeParameter]
                     src/test/pkg/Foo.java:3: error: Class test.pkg.Hidden is hidden but was referenced (in field type) from public field test.pkg.Foo.fieldReferencesHidden1 [ReferencesHidden]
-                    src/test/pkg/Foo.java:4: warning: Field test.pkg.Foo.fieldReferencesHidden2 references hidden type test.pkg.Hidden. [HiddenTypeParameter]
                     src/test/pkg/Foo.java:4: error: Class test.pkg.Hidden is hidden but was referenced (in field type) from public field test.pkg.Foo.fieldReferencesHidden2 [ReferencesHidden]
-                    src/test/pkg/Foo.java:5: warning: Field test.pkg.Foo.fieldReferencesHidden3 references hidden type test.pkg.Hidden. [HiddenTypeParameter]
                     src/test/pkg/Foo.java:5: error: Class test.pkg.Hidden is hidden but was referenced (in field type) from public field test.pkg.Foo.fieldReferencesHidden3 [ReferencesHidden]
-                    src/test/pkg/Foo.java:6: warning: Field test.pkg.Foo.fieldReferencesHidden4 references hidden type test.pkg.Hidden. [HiddenTypeParameter]
                     src/test/pkg/Foo.java:6: error: Class test.pkg.Hidden is hidden but was referenced (in field type) from public field test.pkg.Foo.fieldReferencesHidden4 [ReferencesHidden]
                 """,
             sourceFiles =
@@ -244,8 +241,6 @@ class ApiContentsTest : DriverTest() {
                 """,
             expectedIssues =
                 """
-                    src/test/pkg/HiddenInterface.kt:5: warning: Method test.pkg.PublicClass.returnsHiddenInterface() references hidden type test.pkg.HiddenInterface. [HiddenTypeParameter]
-                    src/test/pkg/HiddenInterface.kt:5: warning: Return type of unavailable type test.pkg.HiddenInterface in test.pkg.PublicClass.returnsHiddenInterface() [UnavailableSymbol]
                     src/test/pkg/HiddenInterface.kt:5: error: Class test.pkg.HiddenInterface is hidden but was referenced (in return type) from public method test.pkg.PublicClass.returnsHiddenInterface() [ReferencesHidden]
                 """,
         )
@@ -288,8 +283,6 @@ class ApiContentsTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                    src/test/pkg/IntValue.kt:8: warning: Method test.pkg.Foo.usesHiddenTypeAndValueClass(test.pkg.IntValue) references hidden type test.pkg.HiddenClass. [HiddenTypeParameter]
-                    src/test/pkg/IntValue.kt:8: warning: Return type of unavailable type test.pkg.HiddenClass in test.pkg.Foo.usesHiddenTypeAndValueClass() [UnavailableSymbol]
                     src/test/pkg/IntValue.kt:8: error: Class test.pkg.HiddenClass is hidden but was referenced (in return type) from public method test.pkg.Foo.usesHiddenTypeAndValueClass(test.pkg.IntValue) [ReferencesHidden]
                 """,
             sourceFiles =
@@ -388,13 +381,10 @@ class ApiContentsTest : DriverTest() {
                     ),
                 ),
             expectedIssues =
-                // One `HiddenTypeParameter` error is for the property, one is for the getter.
-                // The `ReferencesHidden` and `UnavailableSymbol` checks look specifically at
-                // methods so the errors are for the getter.
+                // The `ReferencesHidden` check looks specifically at methods so the error is for
+                // the getter.
                 """
-                    src/test/pkg/HiddenType.kt:5: warning: Parameter hidden references hidden type test.pkg.HiddenType. [HiddenTypeParameter]
                     src/test/pkg/HiddenType.kt:5: error: Class test.pkg.HiddenType is hidden but was referenced (in parameter type) from public parameter hidden in test.pkg.Foo.getPropertyWithContext(test.pkg.HiddenType hidden) [ReferencesHidden]
-                    src/test/pkg/HiddenType.kt:6: warning: Parameter of unavailable type test.pkg.HiddenType in test.pkg.Foo.getPropertyWithContext() [UnavailableSymbol]
                 """,
         )
     }
@@ -426,7 +416,6 @@ class ApiContentsTest : DriverTest() {
                 ),
             expectedIssues =
                 """
-                    ADDITIONAL-SOURCE-PATH/test/pkg/Outer.java:4: error: Class test.pkg.Outer is hidden but was referenced (as containing class) from public class test.pkg.Outer.Hidden [ReferencesHidden]
                     src/test/pkg/Test.java:2: error: Class test.pkg.Outer is hidden but was referenced (as type parameter) from public class test.pkg.Test [ReferencesHidden]
                     src/test/pkg/Test.java:2: error: Class test.pkg.Outer.Hidden is hidden but was referenced (as type parameter) from public class test.pkg.Test [ReferencesHidden]
                 """,
@@ -450,7 +439,6 @@ class ApiContentsTest : DriverTest() {
                 ),
             expectedIssues =
                 """
-                src/test/pkg/Hidden.kt:4: warning: Typealias test.pkg.Public references hidden type test.pkg.Hidden. [HiddenTypeParameter]
                 src/test/pkg/Hidden.kt:4: error: Class test.pkg.Hidden is hidden but was referenced (aliased type) from public typealias test.pkg.Public [ReferencesHidden]
                 """
         )
@@ -489,7 +477,7 @@ class ApiContentsTest : DriverTest() {
             hideAnnotations = arrayOf("test.pkg.Hide"),
             expectedIssues =
                 """
-                nativeMain/src/test/pkg/Native.kt:2: warning: Typealias test.pkg.Public references hidden type test.pkg.Hidden. [HiddenTypeParameter]
+                nativeMain/src/test/pkg/Native.kt:2: error: Class test.pkg.Hidden is hidden but was referenced (aliased type) from public typealias test.pkg.Public [ReferencesHidden]
                 """
         )
     }
@@ -564,6 +552,48 @@ class ApiContentsTest : DriverTest() {
                         ctor public Foo();
                       }
                     }
+                """,
+        )
+    }
+
+    @Test
+    fun `Reference to @DocOnly class from public API`() {
+        check(
+            apiSurface = KnownApiSurface.PUBLIC,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            import android.annotation.DocOnly;
+                            @DocOnly
+                            public class DocOnlySuper {}
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            import android.annotation.DocOnly;
+                            @DocOnly
+                            public class DocOnlyType {}
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            public class PublicClass extends DocOnlySuper {
+                                public DocOnlyType getDocOnly() { return null; }
+                            }
+                        """
+                    ),
+                ),
+            // `@DocOnly` classes are excluded from normal stubs and signature files, so extending
+            // a `@DocOnly` superclass reports `HiddenSuperclass` and returning a `@DocOnly` class
+            // reports `ReferencesHidden`.
+            expectedIssues =
+                """
+                    src/test/pkg/PublicClass.java:2: warning: Public class test.pkg.PublicClass stripped of unavailable superclass test.pkg.DocOnlySuper [HiddenSuperclass]
+                    src/test/pkg/PublicClass.java:3: error: Class test.pkg.DocOnlyType is hidden but was referenced (in return type) from public method test.pkg.PublicClass.getDocOnly() [ReferencesHidden]
                 """,
         )
     }

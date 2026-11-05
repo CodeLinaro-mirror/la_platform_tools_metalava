@@ -89,6 +89,12 @@ interface SignatureFileConsumer {
     fun endPackage() {}
 
     /**
+     * Called before parsing a class, interface, enum, annotation, record, or typealias declaration
+     * in the current package, before its modifiers and annotations are parsed.
+     */
+    fun beforeClass() {}
+
+    /**
      * Called when a `typealias` declaration is parsed in the current package.
      *
      * @param sourcePosition the [SourcePosition] of the `typealias` keyword.
@@ -141,6 +147,12 @@ interface SignatureFileConsumer {
 
     /** Called at the end of the current class declaration. */
     fun endClass() {}
+
+    /**
+     * Called before parsing a member (`ctor`, `enum_constant`, `field`, `method`, or `property`)
+     * declaration in the current class, before its modifiers and annotations are parsed.
+     */
+    fun beforeMember() {}
 
     /**
      * Called when a `ctor` declaration is parsed in the current class.

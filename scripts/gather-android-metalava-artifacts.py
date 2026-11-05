@@ -179,13 +179,12 @@ def default_signature_files():
 def default_jdiff_files():
     """:return: A representative sample list of JDiff files created by the Android build using Metalava."""
     return create_targets([
-        # JDiff files generated from jar files.
-        "out/soong/.intermediates/frameworks/base/api/android_stubs_current/android_common/api.xml",
-        "out/soong/.intermediates/frameworks/base/api/android_system_stubs_current/android_common/system-api.xml",
-        "out/soong/.intermediates/frameworks/base/api/android_module_lib_stubs_current/android_common/module-lib-api.xml",
-        "out/soong/.intermediates/frameworks/base/api/android_system_server_stubs_current/android_common/system-server-api.xml",
-        "out/soong/.intermediates/frameworks/base/api/android_test_stubs_current/android_common/test-api.xml",
         # JDiff files generated from txt files.
+        "out/soong/.intermediates/frameworks/base/api/frameworks-base-api.xml/android_common/gen/api.xml",
+        "out/soong/.intermediates/frameworks/base/api/frameworks-base-system-api.xml/android_common/gen/system-api.xml",
+        "out/soong/.intermediates/frameworks/base/api/frameworks-base-module-lib-api.xml/android_common/gen/module-lib-api.xml",
+        "out/soong/.intermediates/frameworks/base/api/frameworks-base-system-server-api.xml/android_common/gen/system-server-api.xml",
+        "out/soong/.intermediates/frameworks/base/api/frameworks-base-test-api.xml/android_common/gen/test-api.xml",
         "out/soong/.intermediates/packages/services/Car/car-lib/android.car-test-stubs-jdiff/gen/car-test-api.xml",
         "out/soong/.intermediates/packages/services/Car/car-lib/android.car-stubs-jdiff/gen/car-api.xml",
         "out/soong/.intermediates/packages/services/Car/car-lib/android.car-system-stubs-jdiff/gen/car-system-api.xml",

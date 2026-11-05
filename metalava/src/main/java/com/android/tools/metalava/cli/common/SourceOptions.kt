@@ -16,9 +16,8 @@
 
 package com.android.tools.metalava.cli.common
 
-import com.android.SdkConstants
-import com.android.SdkConstants.FN_FRAMEWORK_LIBRARY
-import com.android.tools.lint.detector.api.isJdkFolder
+import com.android.tools.metalava.DOT_JAVA
+import com.android.tools.metalava.FN_FRAMEWORK_LIBRARY
 import com.android.tools.metalava.model.ModelOptions
 import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.SelectableItem
@@ -129,7 +128,7 @@ class SourceOptions(
             listOf(File(""))
         } else {
             path.split(File.pathSeparator).map {
-                if (it.endsWith(SdkConstants.DOT_JAVA)) {
+                if (it.endsWith(DOT_JAVA)) {
                     cliError(
                         "$argName should point to a source root directory, not a source file ($it)"
                     )
@@ -223,6 +222,12 @@ class SourceOptions(
 
         return classpath
     }
+
+    /**
+     * Returns true if the given directory is a JDK home directory (as opposed to a standalone JRE).
+     */
+    private fun isJdkFolder(homePath: File): Boolean =
+        File(homePath, "bin/javac").isFile || File(homePath, "bin/javac.exe").isFile
 
     /**
      * Returns the class root JARs/directories for a JDK or JRE installation at [home].

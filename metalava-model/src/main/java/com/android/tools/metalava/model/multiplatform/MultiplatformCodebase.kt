@@ -63,14 +63,16 @@ class MultiplatformCodebase(val sourceSetToCodebase: SourceSetDependent<Codebase
     }
 
     /** A list of all the packages which exist in any source set of the codebase. */
-    val packages: List<MultiplatformPackageItem> =
-        aggregateChildren(
-            childAccessor = { getPackages().packages },
-            childIdentifier = { qualifiedName() },
-            multiplatformChildCreator = { qualifiedName, sourceSetToPackage ->
-                MultiplatformPackageItem(qualifiedName, sourceSetToPackage)
-            },
-        )
+    val packages: List<MultiplatformPackageItem> by
+        lazy(LazyThreadSafetyMode.NONE) {
+            aggregateChildren(
+                childAccessor = { getPackages().packages },
+                childIdentifier = { qualifiedName() },
+                multiplatformChildCreator = { qualifiedName, sourceSetToPackage ->
+                    MultiplatformPackageItem(qualifiedName, sourceSetToPackage)
+                },
+            )
+        }
 
     /**
      * Searches for the package with [qualifiedName]. If the package exists in any source set,
@@ -255,9 +257,10 @@ class MultiplatformPackageItem(
      * All the top-level (not nested) classes defined in this package in any source set, not
      * including classes loaded from the classpath.
      */
-    val topLevelClassesFromSource: List<MultiplatformClassItem> = aggregateClasses {
-        topLevelClasses().filter { it.origin == ClassOrigin.COMMAND_LINE }
-    }
+    val topLevelClassesFromSource: List<MultiplatformClassItem> by
+        lazy(LazyThreadSafetyMode.NONE) {
+            aggregateClasses { topLevelClasses().filter { it.origin == ClassOrigin.COMMAND_LINE } }
+        }
 
     /**
      * All the top-level (not nested) classes defined in this package in any source set, including
@@ -295,16 +298,18 @@ class MultiplatformPackageItem(
      * In the underlying [Codebase] model, these functions are contained in file facade classes, but
      * those are not included here because they are not real classes in the Kotlin API surface.
      */
-    val topLevelFunctions: List<MultiplatformMethodItem> =
-        aggregateChildren(
-            childAccessor = {
-                topLevelClasses().filter { it.isFileFacade }.flatMap { it.methods() }
-            },
-            childIdentifier = { MultiplatformCallableItem.Identifier(this) },
-            multiplatformChildCreator = { identifier, sourceSetToMethodItem ->
-                MultiplatformMethodItem(this, identifier, sourceSetToMethodItem)
-            }
-        )
+    val topLevelFunctions: List<MultiplatformMethodItem> by
+        lazy(LazyThreadSafetyMode.NONE) {
+            aggregateChildren(
+                childAccessor = {
+                    topLevelClasses().filter { it.isFileFacade }.flatMap { it.methods() }
+                },
+                childIdentifier = { MultiplatformCallableItem.Identifier(this) },
+                multiplatformChildCreator = { identifier, sourceSetToMethodItem ->
+                    MultiplatformMethodItem(this, identifier, sourceSetToMethodItem)
+                }
+            )
+        }
 
     /**
      * All the top-level properties defined in this package in any source set.
@@ -312,22 +317,24 @@ class MultiplatformPackageItem(
      * In the underlying [Codebase] model, these properties are contained in file facade classes,
      * but those are not included here because they are not real classes in the Kotlin API surface.
      */
-    val topLevelProperties: List<MultiplatformPropertyItem> =
-        aggregateChildren(
-            childAccessor = {
-                topLevelClasses().filter { it.isFileFacade }.flatMap { it.properties() }
-            },
-            childIdentifier = {
-                MultiplatformPropertyItem.Identifier(
-                    name(),
-                    receiver,
-                    contextParameters.map { it.type() }
-                )
-            },
-            multiplatformChildCreator = { identifier, sourceSetToPropertyItem ->
-                MultiplatformPropertyItem(this, identifier, sourceSetToPropertyItem)
-            }
-        )
+    val topLevelProperties: List<MultiplatformPropertyItem> by
+        lazy(LazyThreadSafetyMode.NONE) {
+            aggregateChildren(
+                childAccessor = {
+                    topLevelClasses().filter { it.isFileFacade }.flatMap { it.properties() }
+                },
+                childIdentifier = {
+                    MultiplatformPropertyItem.Identifier(
+                        name(),
+                        receiver,
+                        contextParameters.map { it.type() }
+                    )
+                },
+                multiplatformChildCreator = { identifier, sourceSetToPropertyItem ->
+                    MultiplatformPropertyItem(this, identifier, sourceSetToPropertyItem)
+                }
+            )
+        }
 
     override fun elementId(): String {
         return qualifiedName
@@ -395,14 +402,16 @@ class MultiplatformClassItem(
      *
      * This only includes directly nested classes, not the nested classes of nested classes.
      */
-    val nestedClasses: List<MultiplatformClassItem> =
-        aggregateChildren(
-            childAccessor = { nestedClasses() },
-            childIdentifier = { qualifiedName() },
-            multiplatformChildCreator = { qualifiedName, sourceSetToClassItem ->
-                MultiplatformClassItem(qualifiedName, sourceSetToClassItem)
-            }
-        )
+    val nestedClasses: List<MultiplatformClassItem> by
+        lazy(LazyThreadSafetyMode.NONE) {
+            aggregateChildren(
+                childAccessor = { nestedClasses() },
+                childIdentifier = { qualifiedName() },
+                multiplatformChildCreator = { qualifiedName, sourceSetToClassItem ->
+                    MultiplatformClassItem(qualifiedName, sourceSetToClassItem)
+                }
+            )
+        }
 
     /**
      * A mapping from source set where the [ClassItem] exists to the optional aliased type of the
@@ -426,40 +435,46 @@ class MultiplatformClassItem(
     }
 
     /** The properties of this class which exist in any source set. */
-    val properties: List<MultiplatformPropertyItem> =
-        aggregateChildren(
-            childAccessor = { properties() },
-            childIdentifier = {
-                MultiplatformPropertyItem.Identifier(
-                    name(),
-                    receiver,
-                    contextParameters.map { it.type() }
-                )
-            },
-            multiplatformChildCreator = { identifier, sourceSetToPropertyItem ->
-                MultiplatformPropertyItem(this, identifier, sourceSetToPropertyItem)
-            }
-        )
+    val properties: List<MultiplatformPropertyItem> by
+        lazy(LazyThreadSafetyMode.NONE) {
+            aggregateChildren(
+                childAccessor = { properties() },
+                childIdentifier = {
+                    MultiplatformPropertyItem.Identifier(
+                        name(),
+                        receiver,
+                        contextParameters.map { it.type() }
+                    )
+                },
+                multiplatformChildCreator = { identifier, sourceSetToPropertyItem ->
+                    MultiplatformPropertyItem(this, identifier, sourceSetToPropertyItem)
+                }
+            )
+        }
 
     /** The methods of this class which exist in any source set. */
-    val methods: List<MultiplatformMethodItem> =
-        aggregateChildren(
-            childAccessor = { methods() },
-            childIdentifier = { MultiplatformCallableItem.Identifier(this) },
-            multiplatformChildCreator = { identifier, sourceSetToMethodItem ->
-                MultiplatformMethodItem(this, identifier, sourceSetToMethodItem)
-            }
-        )
+    val methods: List<MultiplatformMethodItem> by
+        lazy(LazyThreadSafetyMode.NONE) {
+            aggregateChildren(
+                childAccessor = { methods() },
+                childIdentifier = { MultiplatformCallableItem.Identifier(this) },
+                multiplatformChildCreator = { identifier, sourceSetToMethodItem ->
+                    MultiplatformMethodItem(this, identifier, sourceSetToMethodItem)
+                }
+            )
+        }
 
     /** The constructors of this class which exist in any source set. */
-    val constructors: List<MultiplatformConstructorItem> =
-        aggregateChildren(
-            childAccessor = { constructors() },
-            childIdentifier = { MultiplatformCallableItem.Identifier(this) },
-            multiplatformChildCreator = { identifier, sourceSetToConstructorItem ->
-                MultiplatformConstructorItem(this, identifier, sourceSetToConstructorItem)
-            }
-        )
+    val constructors: List<MultiplatformConstructorItem> by
+        lazy(LazyThreadSafetyMode.NONE) {
+            aggregateChildren(
+                childAccessor = { constructors() },
+                childIdentifier = { MultiplatformCallableItem.Identifier(this) },
+                multiplatformChildCreator = { identifier, sourceSetToConstructorItem ->
+                    MultiplatformConstructorItem(this, identifier, sourceSetToConstructorItem)
+                }
+            )
+        }
 
     override fun accept(visitor: MultiplatformItemVisitor) {
         visitor.visit(this)

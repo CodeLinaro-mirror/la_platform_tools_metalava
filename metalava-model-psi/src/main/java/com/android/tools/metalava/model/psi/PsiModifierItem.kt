@@ -79,6 +79,7 @@ import org.jetbrains.kotlin.analysis.api.symbols.KaSymbolVisibility
 import org.jetbrains.kotlin.asJava.elements.KtLightElement
 import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.KtAnnotated
+import org.jetbrains.kotlin.psi.KtClass
 import org.jetbrains.kotlin.psi.KtDeclaration
 import org.jetbrains.kotlin.psi.KtElement
 import org.jetbrains.kotlin.psi.KtModifierList
@@ -222,7 +223,10 @@ internal object PsiModifierItem {
                     }
                 else -> PACKAGE_PRIVATE
             }
-        if (ktModifierList != null) {
+        // Use visibility modifiers from the KtElement, unless the element is not a class but the
+        // source element is. This happens with implicit constructors or data classes, where methods
+        // are generated from the class definition.
+        if (ktModifierList != null && !(sourcePsi is KtClass && element !is UClass)) {
             if (ktModifierList.hasModifier(KtTokens.INTERNAL_KEYWORD)) {
                 // Reset visibilityFlags to INTERNAL if the internal modifier is explicitly
                 // present on the element

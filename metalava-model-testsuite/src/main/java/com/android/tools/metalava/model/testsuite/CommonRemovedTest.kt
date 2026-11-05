@@ -16,7 +16,9 @@
 
 package com.android.tools.metalava.model.testsuite
 
+import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.api.ApiSurfaceRules
+import com.android.tools.metalava.model.api.SelectedApi
 import com.android.tools.metalava.model.api.SurfaceSelectionRule
 import com.android.tools.metalava.model.api.flags.ApiFlag
 import com.android.tools.metalava.model.api.flags.ApiFlagAction
@@ -26,10 +28,12 @@ import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
+import com.android.tools.metalava.testing.signature
+import kotlin.test.assertEquals
 import org.junit.Test
 
 /** Common tests for verifying the behavior of configured removed annotations. */
-@SupportedInputFormats(InputFormat.JAVA)
+@SupportedInputFormats(InputFormat.JAVA, InputFormat.SIGNATURE)
 class CommonRemovedTest : BaseModelTest() {
 
     private val removedAnnotationSource =
@@ -58,6 +62,18 @@ class CommonRemovedTest : BaseModelTest() {
         return ApiSurfaceRules(apiSurfaces, rulesByName, variantRules)
     }
 
+    /**
+     * Assert that [SelectableItem.selectedApi]'s [SelectedApi.hasRemovedAnnotation] equals
+     * [expected].
+     */
+    private fun SelectableItem.assertHasRemovedAnnotation(expected: Boolean) {
+        assertEquals(
+            expected,
+            selectedApi.hasRemovedAnnotation(),
+            message = "$this hasRemovedAnnotation()",
+        )
+    }
+
     @Test
     fun `Test class annotated with configured removed annotation is marked as removed`() {
         runCodebaseTest(
@@ -74,12 +90,59 @@ class CommonRemovedTest : BaseModelTest() {
                     """
                 ),
             ),
+            inputSet(
+                // Split Foo across two signature files to test merging an existing @ForRemoval
+                // class.
+                signature(
+                    "first.txt",
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          @ForRemoval public class Foo {
+                            ctor public Foo();
+                          }
+                        }
+                    """,
+                ),
+                signature(
+                    "second.txt",
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          @ForRemoval public class Foo {
+                            method public void method();
+                          }
+                        }
+                    """,
+                ),
+            ),
             testFixture = TestFixture(apiSurfaceRules = createApiSurfaceRules()),
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
+
+            // Ensure that the synthetic @ForRemoval annotation from signature files is not retained
+            // in the class's annotations, even when the class is merged across multiple files.
+            val expectedAnnotations =
+                if (inputFormat == InputFormat.SIGNATURE) emptyList()
+                else listOf("test.pkg.Removed")
+            assertEquals(expectedAnnotations, fooClass.annotationNames())
+            fooClass.assertHasRemovedAnnotation(true)
             fooClass.assertItemApiVariants(
                 "ApiVariantSet[main(R)]",
                 message = "Foo should be removed",
+            )
+            val method = fooClass.assertMethod("method", emptyList())
+            method.assertHasRemovedAnnotation(false)
+
+            // TODO(b/571827848): checkForExistingClass sets currentClassApiVariant to
+            //   currentApiVariant without checking @ForRemoval, so Foo.method() in second.txt is
+            //   placed in main(C) instead of main(R).
+            val expectedMethodVariants =
+                if (inputFormat == InputFormat.SIGNATURE) "ApiVariantSet[main(C)]"
+                else "ApiVariantSet[main(R)]"
+            method.assertItemApiVariants(
+                expectedMethodVariants,
+                message = "Foo.method() should be removed",
             )
         }
     }
@@ -163,6 +226,36 @@ class CommonRemovedTest : BaseModelTest() {
                     """
                 ),
             ),
+            inputSet(
+                signature(
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          @ForRemoval @FlaggedApi("test.pkg.flags.finalized_flag") public class FinalizedRemovedClass {
+                            ctor public FinalizedRemovedClass();
+                            method public void method();
+                          }
+                          @ForRemoval @FlaggedApi("test.pkg.flags.kept_flag") public class KeptRemovedClass {
+                            ctor public KeptRemovedClass();
+                            method public void method();
+                          }
+                          @ForRemoval @FlaggedApi("test.pkg.flags.reverted_flag") public class RevertedRemovedClass {
+                            ctor public RevertedRemovedClass();
+                            method public void method();
+                          }
+                          public class Foo {
+                            ctor public Foo();
+                            method @ForRemoval @FlaggedApi("test.pkg.flags.finalized_flag") public void finalizedRemovedMethod();
+                            method @ForRemoval @FlaggedApi("test.pkg.flags.kept_flag") public void keptRemovedMethod();
+                            method @ForRemoval @FlaggedApi("test.pkg.flags.reverted_flag") public void revertedRemovedMethod();
+                            field @ForRemoval @FlaggedApi("test.pkg.flags.finalized_flag") public int finalizedRemovedField;
+                            field @ForRemoval @FlaggedApi("test.pkg.flags.kept_flag") public int keptRemovedField;
+                            field @ForRemoval @FlaggedApi("test.pkg.flags.reverted_flag") public int revertedRemovedField;
+                          }
+                        }
+                    """
+                ),
+            ),
             testFixture =
                 TestFixture(
                     apiSurfaceRules = createApiSurfaceRules(),
@@ -177,82 +270,95 @@ class CommonRemovedTest : BaseModelTest() {
                 ),
         ) {
             val finalizedRemovedClass = codebase.assertClass("test.pkg.FinalizedRemovedClass")
+            finalizedRemovedClass.assertHasRemovedAnnotation(true)
             finalizedRemovedClass.assertItemApiVariants(
                 "ApiVariantSet[main(R)]",
                 message = "FinalizedRemovedClass should be removed",
             )
-            finalizedRemovedClass
-                .assertMethod("method", emptyList())
-                .assertItemApiVariants(
+            finalizedRemovedClass.assertMethod("method", emptyList()).let { method ->
+                method.assertHasRemovedAnnotation(false)
+                method.assertItemApiVariants(
                     "ApiVariantSet[main(R)]",
                     message = "FinalizedRemovedClass.method() should be removed",
                 )
+            }
 
             val keptRemovedClass = codebase.assertClass("test.pkg.KeptRemovedClass")
+            keptRemovedClass.assertHasRemovedAnnotation(true)
             keptRemovedClass.assertItemApiVariants(
                 "ApiVariantSet[main(C)]",
                 message = "KeptRemovedClass should be in main(C)",
             )
-            keptRemovedClass
-                .assertMethod("method", emptyList())
-                .assertItemApiVariants(
+            keptRemovedClass.assertMethod("method", emptyList()).let { method ->
+                method.assertHasRemovedAnnotation(false)
+                method.assertItemApiVariants(
                     "ApiVariantSet[main(C)]",
                     message = "KeptRemovedClass.method() should be in main(C)",
                 )
+            }
 
             val revertedRemovedClass = codebase.assertClass("test.pkg.RevertedRemovedClass")
+            revertedRemovedClass.assertHasRemovedAnnotation(true)
             revertedRemovedClass.assertItemApiVariants(
                 "ApiVariantSet[main(C)]",
                 message = "RevertedRemovedClass should be in main(C)",
             )
-            revertedRemovedClass
-                .assertMethod("method", emptyList())
-                .assertItemApiVariants(
+            revertedRemovedClass.assertMethod("method", emptyList()).let { method ->
+                method.assertHasRemovedAnnotation(false)
+                method.assertItemApiVariants(
                     "ApiVariantSet[main(C)]",
                     message = "RevertedRemovedClass.method() should be in main(C)",
                 )
+            }
 
             val fooClass = codebase.assertClass("test.pkg.Foo")
+            fooClass.assertHasRemovedAnnotation(false)
             fooClass.assertItemApiVariants(
                 "ApiVariantSet[main(C)]",
                 message = "Foo should be in main(C)",
             )
-            fooClass
-                .assertMethod("finalizedRemovedMethod", emptyList())
-                .assertItemApiVariants(
+            fooClass.assertMethod("finalizedRemovedMethod", emptyList()).let { method ->
+                method.assertHasRemovedAnnotation(true)
+                method.assertItemApiVariants(
                     "ApiVariantSet[main(R)]",
                     message = "Foo.finalizedRemovedMethod() should be removed",
                 )
-            fooClass
-                .assertMethod("keptRemovedMethod", emptyList())
-                .assertItemApiVariants(
+            }
+            fooClass.assertMethod("keptRemovedMethod", emptyList()).let { method ->
+                method.assertHasRemovedAnnotation(true)
+                method.assertItemApiVariants(
                     "ApiVariantSet[main(C)]",
                     message = "Foo.keptRemovedMethod() should be in main(C)",
                 )
-            fooClass
-                .assertMethod("revertedRemovedMethod", emptyList())
-                .assertItemApiVariants(
+            }
+            fooClass.assertMethod("revertedRemovedMethod", emptyList()).let { method ->
+                method.assertHasRemovedAnnotation(true)
+                method.assertItemApiVariants(
                     "ApiVariantSet[main(C)]",
                     message = "Foo.revertedRemovedMethod() should be in main(C)",
                 )
-            fooClass
-                .assertField("finalizedRemovedField")
-                .assertItemApiVariants(
+            }
+            fooClass.assertField("finalizedRemovedField").let { field ->
+                field.assertHasRemovedAnnotation(true)
+                field.assertItemApiVariants(
                     "ApiVariantSet[main(R)]",
                     message = "Foo.finalizedRemovedField should be removed",
                 )
-            fooClass
-                .assertField("keptRemovedField")
-                .assertItemApiVariants(
+            }
+            fooClass.assertField("keptRemovedField").let { field ->
+                field.assertHasRemovedAnnotation(true)
+                field.assertItemApiVariants(
                     "ApiVariantSet[main(C)]",
                     message = "Foo.keptRemovedField should be in main(C)",
                 )
-            fooClass
-                .assertField("revertedRemovedField")
-                .assertItemApiVariants(
+            }
+            fooClass.assertField("revertedRemovedField").let { field ->
+                field.assertHasRemovedAnnotation(true)
+                field.assertItemApiVariants(
                     "ApiVariantSet[main(C)]",
                     message = "Foo.revertedRemovedField should be in main(C)",
                 )
+            }
         }
     }
 
@@ -276,19 +382,34 @@ class CommonRemovedTest : BaseModelTest() {
                     """
                 ),
             ),
+            inputSet(
+                signature(
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          @ForRemoval @FlaggedApi("test.pkg.flags.flag") public class Foo {
+                            ctor public Foo();
+                            method public void method();
+                          }
+                        }
+                    """
+                ),
+            ),
             testFixture = TestFixture(apiSurfaceRules = createApiSurfaceRules()),
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
+            fooClass.assertHasRemovedAnnotation(true)
             fooClass.assertItemApiVariants(
                 "ApiVariantSet[main(C)]",
                 message = "Foo should be in main(C)",
             )
-            fooClass
-                .assertMethod("method", emptyList())
-                .assertItemApiVariants(
+            fooClass.assertMethod("method", emptyList()).let { method ->
+                method.assertHasRemovedAnnotation(false)
+                method.assertItemApiVariants(
                     "ApiVariantSet[main(C)]",
                     message = "Foo.method() should be in main(C)",
                 )
+            }
         }
     }
 }

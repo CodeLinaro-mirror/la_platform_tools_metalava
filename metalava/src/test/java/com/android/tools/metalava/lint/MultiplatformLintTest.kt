@@ -710,13 +710,18 @@ class MultiplatformLintTest : DriverTest() {
                 "androidMain" to ClassOrigin.COMMAND_LINE,
             )
 
-            multiplatformCodebase.resolveClass(className)
-            val mismatchAfterResolve =
-                pkg.topLevelClasses().single { it.qualifiedName == className }
-            mismatchAfterResolve.assertSourceSets("androidMain", "jvmMain")
-            mismatchAfterResolve.origin.assertSourceSetValues(
+            val mismatchResolved = multiplatformCodebase.resolveClass(className)!!
+            mismatchResolved.assertSourceSets("androidMain", "jvmMain")
+            mismatchResolved.origin.assertSourceSetValues(
                 "androidMain" to ClassOrigin.COMMAND_LINE,
                 "jvmMain" to ClassOrigin.CLASS_PATH
+            )
+
+            val mismatchAfterResolve =
+                pkg.topLevelClasses().single { it.qualifiedName == className }
+            mismatchAfterResolve.assertSourceSets("androidMain")
+            mismatchAfterResolve.origin.assertSourceSetValues(
+                "androidMain" to ClassOrigin.COMMAND_LINE,
             )
 
             val mismatchFromSource =

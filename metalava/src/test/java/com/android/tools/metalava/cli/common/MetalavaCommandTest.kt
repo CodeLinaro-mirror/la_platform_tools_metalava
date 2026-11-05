@@ -211,12 +211,11 @@ Arguments:
 
 Sub-commands:
   main                                       The default sub-command that is run if no sub-command is specified.
-  android-jars-to-signatures                 Rewrite the signature files in the `prebuilts/sdk` directory in the Android
-                                             source tree.
   api-history                                Generate an API versions XML or JSON file from API signature files.
+  check-compatibility                        Check compatibility between two APIs.
+  filter-signature                           Filter signature files using configured API flags.
   flag-report                                Generates a flag report
   help                                       Provides help for general metalava concepts.
-  jar-to-jdiff                               Convert a jar file into a file in the JDiff XML format.
   list-flags                                 List flags referenced in signature files.
   merge-signatures                           Merge multiple signature files together into a single file.
   signature-cat                              Cats signature files.

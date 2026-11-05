@@ -55,6 +55,19 @@ class SelectedApiUpdater(
     internal val defaultVariantSet =
         apiSurfaceSelector.unannotatedApiSurface?.defaultVariantSet ?: ApiVariantSet.EMPTY
 
+    /**
+     * The default set of variants that are used on unannotated classpath items.
+     *
+     * Compiled `.class` files on the classpath (such as `java.lang.String`) typically do not carry
+     * show annotations because show annotations often have `@Retention(RetentionPolicy.SOURCE)` or
+     * come from the JDK or prebuilt SDK stub jars. Even when [defaultVariantSet] is empty (e.g.
+     * when `--show-single-annotation` is used and `unannotatedApiSurface` is `null`), unannotated
+     * classpath items belong to the base API surface (`apiSurfaces.all.first()`).
+     */
+    internal val classPathDefaultVariantSet =
+        apiSurfaceSelector.unannotatedApiSurface?.defaultVariantSet
+            ?: apiSurfaces.all.first().defaultVariantSet
+
     /** Only check for hidden show annotations if it is not suppressed. */
     private val checkHiddenShowAnnotations = !reporter.isSuppressed(Issues.HIDDEN_SHOW_ANNOTATION)
 
@@ -82,7 +95,7 @@ class SelectedApiUpdater(
         selectedApi.revert = revert
         selectedApi.revertItem = null
         // A hidden item does not belong to any API surfaces.
-        selectedApi.itemApiVariants = ApiVariantSet.EMPTY
+        selectedApi.rawItemApiVariants = ApiVariantSet.EMPTY
         selectedApi.inheritableApiVariants = ApiVariantSet.EMPTY
     }
 
@@ -180,6 +193,11 @@ class SelectedApiUpdater(
                         }
                     }
                     Effect.REMOVED -> {
+                        // Record that the item itself has a removed annotation on selectedApi in
+                        // addition to setting `removed = true`, as `removed` may be reset to
+                        // `false` below if the removal is gated by an unfinalized @FlaggedApi
+                        // annotation.
+                        selectedApi.hasRemovedAnnotation = true
                         removed = true
                     }
                 }
@@ -266,14 +284,25 @@ class SelectedApiUpdater(
             }
 
             // The context item did not specify the API surfaces to which it belongs so use the
-            // enclosing item's API variants for the context item and its enclosed items.
-            itemApiVariants =
+            // enclosing item's API variants for the context item and its enclosed items. If the
+            // enclosing item has no inheritable API variants (because unannotated items are not
+            // included in any surface by default) and the item is an unannotated top-level class
+            // from the classpath, fall back to classPathDefaultVariantSet so that it and its
+            // unannotated members are included in the base API surface.
+            val fallbackVariants =
                 if (enclosingApiVariants.isNotEmpty()) {
                     enclosingApiVariants
+                } else if (
+                    item is ClassItem &&
+                        item.containingClass() == null &&
+                        item.origin == ClassOrigin.CLASS_PATH
+                ) {
+                    classPathDefaultVariantSet
                 } else {
                     ApiVariantSet.EMPTY
                 }
-            inheritableApiVariants = enclosingApiVariants
+            itemApiVariants = fallbackVariants
+            inheritableApiVariants = fallbackVariants
         }
 
         // If the item has a removed annotation (e.g. @RemovedFromApi) and a @FlaggedApi
@@ -393,7 +422,7 @@ class SelectedApiUpdater(
         val actualInheritableApiVariants = revertedApiVariants ?: inheritableApiVariants
 
         // Store the variant sets in selectedApi.
-        selectedApi.itemApiVariants = actualItemApiVariants
+        selectedApi.rawItemApiVariants = actualItemApiVariants
         selectedApi.inheritableApiVariants = actualInheritableApiVariants
     }
 
@@ -553,8 +582,7 @@ class SelectedApiUpdater(
         if (
             item is ClassItem &&
                 action != ApiFlagAction.FINALIZE &&
-                (!mayBeInPreviouslyReleasedApi ||
-                    previouslyReleasedCodebase?.let { item.findCorrespondingItemIn(it) } == null)
+                (!mayBeInPreviouslyReleasedApi || !selectedApi.wasPreviouslyReleased())
         ) {
             if (action < selectedApi.maxValidFlagAction) {
                 selectedApi.maxValidFlagAction = action
@@ -605,6 +633,11 @@ class SelectedApiUpdater(
     private fun SelectableItem.isMarkedForRevert(): Boolean {
         val sourceSelectedApi = selectedApi as SourceSelectedApi<*>
         return sourceSelectedApi.revert
+    }
+
+    /** Checks to see whether [item] has a corresponding item in the previously released API. */
+    internal fun wasPreviouslyReleased(item: SelectableItem): Boolean {
+        return previouslyReleasedCodebase?.let { item.findCorrespondingItemIn(it) } != null
     }
 
     companion object {

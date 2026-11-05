@@ -71,6 +71,11 @@ internal class DefaultClassItem(
     optionalAliasedType: TypeItem?,
     override val isMultiFileClass: Boolean = false,
     recordComponentItemsFactory: RecordComponentItemsFactory? = null,
+    /**
+     * Optional initializer that lazily populates [constructors], [methods], [fields], and
+     * [properties] on demand; cleared once all member kinds have been initialized.
+     */
+    private var memberInitializer: ClassMemberInitializer? = null,
 ) :
     DefaultSelectableItem(
         codebase = codebase,
@@ -88,10 +93,68 @@ internal class DefaultClassItem(
 
     private val fullName: String
 
+    /**
+     * Whether this class has been added to its parent ([containingClass] if nested, or
+     * [containingPackage] if top-level).
+     */
+    private var addedToParent = false
+
+    /**
+     * Return the outermost containing class of this class, or `this` if this is a top-level class.
+     */
+    private fun topLevelClass(): DefaultClassItem {
+        var topClass = this
+        while (topClass.containingClass != null) {
+            topClass = topClass.containingClass as DefaultClassItem
+        }
+        return topClass
+    }
+
+    /**
+     * Add this class and any enclosing classes to their parent ([containingClass] if nested, or
+     * [containingPackage] if top-level) if they have not already been added.
+     *
+     * Only classes with [ClassOrigin.COMMAND_LINE] (or outer stub/classpath classes that contain a
+     * nested [ClassOrigin.COMMAND_LINE] class, e.g. in partial signature files) should appear in
+     * [PackageItem.topLevelClasses] and [PackageItem.allClasses]. Classes resolved on demand from
+     * the classpath ([ClassOrigin.CLASS_PATH]) or source path ([ClassOrigin.SOURCE_PATH]) are still
+     * registered in [DefaultCodebase] for lookup by name, but are left off the package class list
+     * and any command-line containing class's [ClassItem.nestedClasses] list so they are not
+     * traversed by package visitors or mutated during traversal.
+     */
+    private fun addToParentHierarchy() {
+        var current = this
+        while (true) {
+            val parent = current.containingClass as? DefaultClassItem
+            if (parent != null) {
+                if (!current.addedToParent) {
+                    current.addedToParent = true
+                    parent.addNestedClass(current)
+                }
+                current = parent
+            } else {
+                if (!current.addedToParent) {
+                    current.addedToParent = true
+                    (containingPackage as DefaultPackageItem).addTopClass(current)
+                }
+                break
+            }
+        }
+    }
+
     override var origin: ClassOrigin = origin
         set(value) {
             ensureNotFrozen()
-            field = value
+            if (field != value) {
+                field = value
+                // A class initially resolved with ClassOrigin.CLASS_PATH (e.g. when merging an
+                // --api-path signature file with a command-line signature file in ClassMerger) may
+                // be promoted to ClassOrigin.COMMAND_LINE after creation; ensure it and its
+                // enclosing classes are added to their parent class/package when promoted.
+                if (value == ClassOrigin.COMMAND_LINE) {
+                    addToParentHierarchy()
+                }
+            }
         }
 
     override var permitTypes: List<ClassTypeItem> = permitTypes
@@ -115,13 +178,29 @@ internal class DefaultClassItem(
                 containingPackage.emit = true
             }
 
-            if (containingClass == null) {
-                (containingPackage as DefaultPackageItem).addTopClass(classItem)
-                fullName = simpleName
-            } else {
+            if (origin == ClassOrigin.COMMAND_LINE) {
+                // Only add the top-level class to the package (and this class to its containing
+                // class hierarchy) if this class came from the command line.
+                addToParentHierarchy()
+            } else if (containingClass != null && !topLevelClass().addedToParent) {
+                // For non-command-line classes (CLASS_PATH or SOURCE_PATH) whose top-level class is
+                // not in the package's topLevelClasses, still record nested classes on their
+                // containing class so that callers inspecting a resolved classpath/source-path
+                // class can see its nested classes. If the top-level class is already in the
+                // package's topLevelClasses, do not add non-command-line nested classes (such as
+                // stub classes fabricated on demand in TextCodebase) as that would include
+                // non-command-line classes in PackageItem.allClasses() and mutate nestedClasses()
+                // during package traversal.
+                addedToParent = true
                 (containingClass as DefaultClassItem).addNestedClass(classItem)
-                fullName = "${containingClass.fullName()}.$simpleName"
             }
+
+            fullName =
+                if (containingClass == null) {
+                    simpleName
+                } else {
+                    "${containingClass.fullName()}.$simpleName"
+                }
         } else {
             // The fullName needs to be initialized to something so initializing it to something
             // invalid will ensure it is not accidentally used.
@@ -257,13 +336,43 @@ internal class DefaultClassItem(
         }
     }
 
+    /** The mask of member kinds that have not yet been initialized on this class. */
+    val uninitializedMembers: ClassMemberMask
+        get() = memberInitializer?.uninitializedMembers ?: ClassMemberMask.NONE
+
+    /**
+     * Ensure that all member kinds in [kind] have been initialized if [memberInitializer] is
+     * present, discarding [memberInitializer] once all member kinds have been initialized.
+     */
+    private fun ensureInitialized(kind: ClassMemberMask) {
+        val initializer = memberInitializer ?: return
+        // Temporarily unfreeze the class while initializing members so that a class frozen before
+        // its members were accessed (e.g. when frozen as a supertype of a frozen subclass) can
+        // still populate its members via addConstructor/addMethod/addField/addProperty.
+        val wasFrozen = frozen
+        frozen = false
+        try {
+            if (initializer.ensureInitialized(this, kind)) {
+                // Clear the initializer reference once all member kinds have been initialized so
+                // any state it captures can be garbage-collected.
+                memberInitializer = null
+            }
+        } finally {
+            frozen = wasFrozen
+        }
+    }
+
     /** The mutable list of [ConstructorItem] that backs [constructors]. */
     private val mutableConstructors = mutableListOf<ConstructorItem>()
 
-    override fun constructors(): List<ConstructorItem> = mutableConstructors
+    override fun constructors(): List<ConstructorItem> {
+        ensureInitialized(ClassMemberMask.CONSTRUCTORS)
+        return mutableConstructors
+    }
 
     override fun addConstructor(constructor: ConstructorItem) {
         ensureNotFrozen()
+        ensureInitialized(ClassMemberMask.CONSTRUCTORS)
         mutableConstructors += constructor
     }
 
@@ -272,7 +381,6 @@ internal class DefaultClassItem(
      * [item]. Otherwise, adds [item] to the end of [mutableItems].
      */
     private fun <I : Item> replaceOrAddItem(item: I, mutableItems: MutableList<I>) {
-        ensureNotFrozen()
         val iterator = mutableItems.listIterator()
         while (iterator.hasNext()) {
             val existing = iterator.next()
@@ -285,6 +393,8 @@ internal class DefaultClassItem(
     }
 
     override fun replaceOrAddConstructor(constructor: ConstructorItem) {
+        ensureNotFrozen()
+        ensureInitialized(ClassMemberMask.CONSTRUCTORS)
         replaceOrAddItem(constructor, mutableConstructors)
     }
 
@@ -300,14 +410,20 @@ internal class DefaultClassItem(
     /** The mutable list of [MethodItem] that backs [methods]. */
     private val mutableMethods = mutableListOf<MethodItem>()
 
-    override fun methods(): List<MethodItem> = mutableMethods
+    override fun methods(): List<MethodItem> {
+        ensureInitialized(ClassMemberMask.METHODS)
+        return mutableMethods
+    }
 
     override fun addMethod(method: MethodItem) {
         ensureNotFrozen()
+        ensureInitialized(ClassMemberMask.METHODS)
         mutableMethods += method
     }
 
     override fun replaceOrAddMethod(method: MethodItem) {
+        ensureNotFrozen()
+        ensureInitialized(ClassMemberMask.METHODS)
         replaceOrAddItem(method, mutableMethods)
     }
 
@@ -316,34 +432,59 @@ internal class DefaultClassItem(
 
     override fun addField(field: FieldItem) {
         ensureNotFrozen()
+        ensureInitialized(ClassMemberMask.FIELDS)
         mutableFields += field
     }
 
     override fun replaceOrAddField(field: FieldItem) {
+        ensureNotFrozen()
+        ensureInitialized(ClassMemberMask.FIELDS)
         replaceOrAddItem(field, mutableFields)
     }
 
-    override fun fields(): List<FieldItem> = mutableFields
+    override fun fields(): List<FieldItem> {
+        ensureInitialized(ClassMemberMask.FIELDS)
+        return mutableFields
+    }
 
     /** The mutable list of [PropertyItem] that backs [properties]. */
     private val mutableProperties = mutableListOf<PropertyItem>()
 
-    override fun properties(): List<PropertyItem> = mutableProperties
+    override fun properties(): List<PropertyItem> {
+        ensureInitialized(ClassMemberMask.PROPERTIES)
+        return mutableProperties
+    }
 
     override fun addProperty(property: PropertyItem) {
         ensureNotFrozen()
+        ensureInitialized(ClassMemberMask.PROPERTIES)
         mutableProperties += property
     }
 
     override fun replaceOrAddProperty(property: PropertyItem) {
+        ensureNotFrozen()
+        ensureInitialized(ClassMemberMask.PROPERTIES)
         replaceOrAddItem(property, mutableProperties)
     }
 
-    override val recordComponents =
-        if (classKind == ClassKind.RECORD && recordComponentItemsFactory != null) {
-            RecordComponents.create(recordComponentItemsFactory(this))
-        } else {
-            RecordComponents.EMPTY
+    /**
+     * Factory used to lazily initialize [cachedRecordComponents] on first access to
+     * [recordComponents]; cleared once used.
+     */
+    private var recordComponentItemsFactory: RecordComponentItemsFactory? =
+        if (classKind == ClassKind.RECORD) recordComponentItemsFactory else null
+
+    /** Must only be used by [recordComponents] to cache its result. */
+    private var cachedRecordComponents: RecordComponents = RecordComponents.EMPTY
+
+    override val recordComponents: RecordComponents
+        get() {
+            recordComponentItemsFactory?.let { factory ->
+                // Clear the factory reference so any state it captures can be garbage-collected.
+                recordComponentItemsFactory = null
+                cachedRecordComponents = RecordComponents.create(factory(this))
+            }
+            return cachedRecordComponents
         }
 
     /** The mutable list of nested [ClassItem] that backs [nestedClasses]. */

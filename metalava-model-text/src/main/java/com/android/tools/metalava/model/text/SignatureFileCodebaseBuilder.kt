@@ -31,6 +31,7 @@ import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.JAVA_LANG_DEPRECATED
 import com.android.tools.metalava.model.JAVA_LANG_OBJECT
+import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
@@ -48,7 +49,10 @@ import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.WellKnownTypes
+import com.android.tools.metalava.model.api.SelectedApi
+import com.android.tools.metalava.model.api.flags.ApiFlagAction
 import com.android.tools.metalava.model.api.surface.ApiVariant
+import com.android.tools.metalava.model.api.surface.ApiVariantType
 import com.android.tools.metalava.model.createImmutableModifiers
 import com.android.tools.metalava.model.createMutableModifiers
 import com.android.tools.metalava.model.item.DefaultCodebase
@@ -71,6 +75,14 @@ import com.android.tools.metalava.model.value.ValueUseSite
 import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.Issues
 import java.nio.file.Path
+
+/**
+ * Synthetic annotation used in signature files alongside `@FlaggedApi` to mark an API item whose
+ * removal is gated by a flag.
+ *
+ * Kept without any package to make it clear that it is a synthetic annotation.
+ */
+internal const val FOR_REMOVAL_ANNOTATION = "ForRemoval"
 
 /**
  * [SignatureFileConsumer] implementation that populates a [DefaultCodebase] from one or more
@@ -150,6 +162,15 @@ internal class SignatureFileCodebaseBuilder(
     /** The [SkeletonClassItem] of the class currently being parsed. */
     private lateinit var currentClass: SkeletonClassItem
 
+    /**
+     * The [ApiVariant] of [currentClass] to use as the default for its members.
+     *
+     * Usually [currentApiVariant], except when [currentClass] was moved to the
+     * [ApiVariantType.REMOVED] variant due to an unflagged or finalized `@ForRemoval` annotation,
+     * in which case its members also default to [ApiVariantType.REMOVED].
+     */
+    private lateinit var currentClassApiVariant: ApiVariant
+
     /** The [TextTypeItemFactory] for [currentClass]. */
     private lateinit var currentClassTypeItemFactory: TextTypeItemFactory
 
@@ -183,6 +204,17 @@ internal class SignatureFileCodebaseBuilder(
     /** The [kotlinStyleNulls] setting of the previously parsed signature file, if any. */
     private var previousKotlinStyleNulls: Boolean? = null
 
+    /**
+     * Whether the class, typealias, or member currently being parsed had a `@ForRemoval` annotation
+     * in its modifiers, to be recorded on [SelectedApi] when the item is created.
+     *
+     * Stored separately from the item's modifiers so that the synthetic `@ForRemoval` annotation is
+     * never added to the item's modifiers (avoiding having to remove it later or risk merging it
+     * onto an existing class in [ClassMerger]). Reset in [beforeClass] and [beforeMember] before
+     * parsing each declaration's modifiers.
+     */
+    private var currentItemHasRemovedAnnotation: Boolean = false
+
     /** Get the [FileLocation] at the 0-based [charOffset] in the current file. */
     private fun fileLocation(charOffset: Int): FileLocation =
         currentLineMap.fileLocation(currentPath, charOffset)
@@ -201,13 +233,53 @@ internal class SignatureFileCodebaseBuilder(
     }
 
     /**
-     * Record that [item] was loaded from a signature file that contains [currentApiVariant].
+     * Update [SelectableItem.selectedApi] for [item], returning the [ApiVariant] that was added to
+     * [item].
      *
-     * If this item was already defined in a different API surface, this will not add the new
-     * surface.
+     * If [item] was already defined in a different API surface, this will not add the new surface.
      */
-    private fun markSelectedApiVariant(item: SelectableItem) {
-        item.selectedApi.addItemApiVariant(currentApiVariant)
+    private fun updateSelectedApi(item: SelectableItem): ApiVariant {
+        // If the item's modifiers included the @ForRemoval marker annotation, record that on its
+        // SelectedApi.
+        if (currentItemHasRemovedAnnotation) {
+            item.selectedApi.markHasRemovedAnnotation()
+        }
+
+        // Members inherit the variant of their enclosing class (which may have been moved to
+        // REMOVED by @ForRemoval), while top-level and nested classes/typealiases start from the
+        // signature file's variant.
+        val defaultVariant = if (item is MemberItem) currentClassApiVariant else currentApiVariant
+
+        // Place the item in the REMOVED variant of the surface if its removal is unconditional or
+        // finalized; otherwise keep it in defaultVariant (which may itself be REMOVED if its
+        // enclosing class was moved to REMOVED).
+        val variant =
+            if (currentItemHasRemovedAnnotation && shouldMoveToRemovedVariant(item)) {
+                defaultVariant.surface.variantFor(ApiVariantType.REMOVED)
+            } else {
+                defaultVariant
+            }
+        item.selectedApi.addItemApiVariant(variant)
+        return variant
+    }
+
+    /**
+     * Returns whether an [item] marked with `@ForRemoval` should be placed in the
+     * [ApiVariantType.REMOVED] variant rather than its default variant.
+     *
+     * An item marked with `@ForRemoval` is moved to [ApiVariantType.REMOVED] if it has no
+     * `@FlaggedApi` annotation or if its `@FlaggedApi` annotation has [ApiFlagAction.FINALIZE].
+     */
+    private fun shouldMoveToRemovedVariant(item: SelectableItem): Boolean {
+        // Check if the item has a @FlaggedApi annotation (the only annotation with a non-null
+        // apiFlag).
+        val flaggedApiAnnotation = item.modifiers.annotations().firstOrNull { it.apiFlag != null }
+        val action = flaggedApiAnnotation?.apiFlag?.action
+
+        // Move the item to REMOVED if the removal is unflagged (action == null) or if the flag
+        // gating the removal has been finalized. If the flag is kept or reverted, the item stays in
+        // its default variant.
+        return action == null || action == ApiFlagAction.FINALIZE
     }
 
     /**
@@ -288,7 +360,15 @@ internal class SignatureFileCodebaseBuilder(
         tokenStream: TokenStream,
         apiText: String,
     ): List<AnnotationItem> = buildList {
-        while (tokenStream.peekType() == SharedTokenType.AT) {
+        while (tokenStream.match(SharedTokenType.AT)) {
+            // @ForRemoval is a synthetic marker annotation used to record removed-annotation state
+            // on SelectedApi rather than adding an annotation to the item's modifiers.
+            if (tokenStream.peek().text(apiText) == FOR_REMOVAL_ANNOTATION) {
+                tokenStream.consume()
+                currentItemHasRemovedAnnotation = true
+                continue
+            }
+
             // Parse the annotation from the tokenStream, unshortening the class name if necessary,
             // and add it to the list if it is recognized.
             valueParser.parseAnnotationItem(tokenStream, apiText, unshorten = true)?.let {
@@ -303,7 +383,7 @@ internal class SignatureFileCodebaseBuilder(
         modifiers: MutableModifierList,
         name: String,
     ) {
-        // Note: currentPackage.markSelectedApiVariant() is not called here because packages do not
+        // Note: currentPackage.updateSelectedApi() is not called here because packages do not
         // belong to an API surface in their own right; their API variants are populated via
         // propagation from their contained classes and members.
         currentPackage = findOrCreatePackage(sourcePosition, name, modifiers)
@@ -359,6 +439,11 @@ internal class SignatureFileCodebaseBuilder(
         return codebase.packageTracker.createPackage(name, packageInfo)
     }
 
+    override fun beforeClass() {
+        // Reset per-item @ForRemoval state before parsing the class or typealias modifiers.
+        currentItemHasRemovedAnnotation = false
+    }
+
     override fun consumeTypeAlias(
         sourcePosition: SourcePosition,
         modifiers: MutableModifierList,
@@ -407,7 +492,7 @@ internal class SignatureFileCodebaseBuilder(
                 origin = currentClassOrigin,
             )
         // Mark type alias as belonging to the main API surface of this signature file.
-        markSelectedApiVariant(typeAlias)
+        updateSelectedApi(typeAlias)
     }
 
     override fun startClass(
@@ -430,7 +515,14 @@ internal class SignatureFileCodebaseBuilder(
             typeItemFactory,
         ) = resolveDeclaredClassType(currentPackage, fullName, typeParameters, sourcePosition)
 
-        var superClassType = createSuperClassType(classKind, superClassTypeString, typeItemFactory)
+        var superClassType =
+            createSuperClassType(
+                classKind,
+                qualifiedClassName,
+                outerClass,
+                superClassTypeString,
+                typeItemFactory,
+            )
         val interfaceTypes = createInterfaceTypes(classKind, interfaceTypeStrings, typeItemFactory)
         val permitTypes = createPermitTypes(permitTypeStrings, typeItemFactory)
 
@@ -492,7 +584,9 @@ internal class SignatureFileCodebaseBuilder(
                             }
                         }
             )
-        markSelectedApiVariant(cl)
+        // Update the class's SelectedApi and record its resolved variant as the default variant for
+        // any members parsed in the class body.
+        currentClassApiVariant = updateSelectedApi(cl)
 
         currentClass = cl
         currentClassTypeItemFactory = typeItemFactory
@@ -519,6 +613,10 @@ internal class SignatureFileCodebaseBuilder(
         // existing class (typealiases do not have a class body).
         if (classCharacteristics.classKind != ClassKind.TYPEALIAS) {
             currentClass = existingClass
+
+            // Use the current signature file's variant as the default for any members added to the
+            // existing class in this file.
+            currentClassApiVariant = currentApiVariant
             currentClassTypeItemFactory = typeItemFactoryForClass(existingClass)
             hasExistingConstructors = existingClass.constructors().isNotEmpty()
             hasExistingFields = existingClass.fields().isNotEmpty()
@@ -543,13 +641,15 @@ internal class SignatureFileCodebaseBuilder(
      */
     private fun createSuperClassType(
         classKind: ClassKind,
+        qualifiedName: String,
+        outerClass: ClassItem?,
         superClassTypeString: TypeString?,
         typeItemFactory: TextTypeItemFactory,
     ): ClassTypeItem? {
         if (superClassTypeString != null) {
             return typeItemFactory.getSuperClassType(superClassTypeString)
         }
-        return classKind.implicitSuperClassType
+        return classKind.implicitSuperClassType(qualifiedName, outerClass)
     }
 
     /**
@@ -724,6 +824,11 @@ internal class SignatureFileCodebaseBuilder(
         )
     }
 
+    override fun beforeMember() {
+        // Reset per-item @ForRemoval state before parsing the member modifiers.
+        currentItemHasRemovedAnnotation = false
+    }
+
     override fun consumeConstructor(
         sourcePosition: SourcePosition,
         modifiers: MutableModifierList,
@@ -764,7 +869,7 @@ internal class SignatureFileCodebaseBuilder(
                 implicitConstructor = false,
                 targetLanguages = targetLanguages,
             )
-        markSelectedApiVariant(constructor)
+        updateSelectedApi(constructor)
         if (hasExistingConstructors) {
             containingClass.replaceOrAddConstructor(constructor)
         } else {
@@ -836,7 +941,7 @@ internal class SignatureFileCodebaseBuilder(
         // ensure that the resulting Codebase is consistent with the original source Codebase.
         if (method.isEnumSyntheticMethod()) return
 
-        markSelectedApiVariant(method)
+        updateSelectedApi(method)
         if (hasExistingMethods) {
             containingClass.replaceOrAddMethod(method)
         } else {
@@ -895,7 +1000,7 @@ internal class SignatureFileCodebaseBuilder(
                 constantValueProvider = constantValueProvider,
                 targetLanguages = targetLanguages,
             )
-        markSelectedApiVariant(field)
+        updateSelectedApi(field)
         if (hasExistingFields) {
             containingClass.replaceOrAddField(field)
         } else {
@@ -943,7 +1048,7 @@ internal class SignatureFileCodebaseBuilder(
                     contextParameters.map { it.create(propertyItem, typeItemFactory) }
                 },
             )
-        markSelectedApiVariant(property)
+        updateSelectedApi(property)
         if (hasExistingProperties) {
             containingClass.replaceOrAddProperty(property)
         } else {

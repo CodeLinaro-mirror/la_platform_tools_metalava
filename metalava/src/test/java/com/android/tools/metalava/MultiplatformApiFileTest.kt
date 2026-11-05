@@ -307,6 +307,8 @@ class MultiplatformApiFileTest : DriverTest() {
                 ),
             enableMultiplatform = true,
             skipSourceArgs = true, // Don't create a regular Codebase
+            expectedIssues =
+                "androidMain/src/test/pkg/OuterClass.java:4: warning: Public class test.pkg.OuterClass.NestedClassWithSuper extends private class test.pkg.OuterClass.PrivateNestedClass [PrivateSuperclass]",
             multiplatformApi =
                 mapOf(
                     "androidMain.txt" to

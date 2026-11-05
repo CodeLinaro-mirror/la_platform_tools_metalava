@@ -283,7 +283,7 @@ class NestedFlaggedApiTest : DriverTest() {
                         ctor public Foo();
                         method public void method();
                       }
-                      public static class Foo.Nested {
+                      @FlaggedApi("test.pkg.outer") public static class Foo.Nested {
                         ctor public Foo.Nested();
                         method public void method();
                       }
@@ -333,7 +333,7 @@ class NestedFlaggedApiTest : DriverTest() {
                         ctor public Foo.FlaggedNested();
                         method public void method();
                       }
-                      public static class Foo.Nested {
+                      @FlaggedApi("test.pkg.outer") public static class Foo.Nested {
                         ctor public Foo.Nested();
                         method public void method();
                       }
@@ -392,7 +392,7 @@ class NestedFlaggedApiTest : DriverTest() {
                         ctor public Foo.FlaggedNested();
                         method public void method();
                       }
-                      public static class Foo.Nested {
+                      @FlaggedApi("test.pkg.outer") public static class Foo.Nested {
                         ctor public Foo.Nested();
                         method public void method();
                       }
@@ -463,7 +463,7 @@ class NestedFlaggedApiTest : DriverTest() {
                         ctor public Foo.FlaggedNested();
                         method public void method();
                       }
-                      public static class Foo.Nested {
+                      @FlaggedApi("test.pkg.outer") public static class Foo.Nested {
                         ctor public Foo.Nested();
                         method public void method();
                       }

@@ -16,8 +16,6 @@
 package com.android.tools.metalava
 
 import androidx.tracing.Tracer
-import com.android.SdkConstants.DOT_JAR
-import com.android.SdkConstants.DOT_TXT
 import com.android.tools.metalava.api.AnnotationsMerger
 import com.android.tools.metalava.api.ApiAnalyzer
 import com.android.tools.metalava.apilevels.ApiGenerator
@@ -31,18 +29,19 @@ import com.android.tools.metalava.cli.common.SourceOptions
 import com.android.tools.metalava.cli.common.VersionCommand
 import com.android.tools.metalava.cli.common.cliError
 import com.android.tools.metalava.cli.common.commonOptions
+import com.android.tools.metalava.cli.compatibility.CheckCompatibilityCommand
 import com.android.tools.metalava.cli.compatibility.CheckRequest
 import com.android.tools.metalava.cli.compatibility.CheckRequest.CheckType
 import com.android.tools.metalava.cli.compatibility.ComputedCompatibilityCheckOptions
 import com.android.tools.metalava.cli.flag.FlagReportCommand
 import com.android.tools.metalava.cli.flag.ListFlagsCommand
 import com.android.tools.metalava.cli.help.HelpCommand
-import com.android.tools.metalava.cli.historical.AndroidJarsToSignaturesCommand
 import com.android.tools.metalava.cli.internal.MakeAnnotationsPackagePrivateCommand
 import com.android.tools.metalava.cli.lint.ComputedApiLintOptions
 import com.android.tools.metalava.cli.multiplatform.MultiplatformOptions
 import com.android.tools.metalava.cli.signature.ApiHistoryCommand
 import com.android.tools.metalava.cli.signature.ComputedSignatureFormatOptions
+import com.android.tools.metalava.cli.signature.FilterSignatureCommand
 import com.android.tools.metalava.cli.signature.MergeSignaturesCommand
 import com.android.tools.metalava.cli.signature.SignatureCatCommand
 import com.android.tools.metalava.cli.signature.SignatureToDexCommand
@@ -53,7 +52,6 @@ import com.android.tools.metalava.cli.signature.migration.SignatureReformatComma
 import com.android.tools.metalava.cli.surface.MultiSurfaceCommand
 import com.android.tools.metalava.cli.surface.SingleSurfaceCommand
 import com.android.tools.metalava.compatibility.CompatibilityCheck
-import com.android.tools.metalava.jar.JarCodebaseLoader
 import com.android.tools.metalava.lint.ApiLint
 import com.android.tools.metalava.lint.FlaggedApiLint
 import com.android.tools.metalava.lint.MultiplatformLint
@@ -172,11 +170,11 @@ class Driver(
                 )
             command.subcommands(
                 MainCommand(command.commonOptions, executionEnvironment),
-                AndroidJarsToSignaturesCommand(),
                 ApiHistoryCommand(),
+                CheckCompatibilityCommand(),
+                FilterSignatureCommand(),
                 FlagReportCommand(),
                 HelpCommand(),
-                JarToJDiffCommand(),
                 ListFlagsCommand(),
                 MakeAnnotationsPackagePrivateCommand(),
                 MergeSignaturesCommand(),
@@ -212,11 +210,6 @@ class Driver(
                 // Treat an annotation class as part of the API if it belongs to the core API of
                 // this surface or any surface that it includes.
                 annotationClassPredicate = ApiSurfacePredicate.wholeCoreApi(apiSurface),
-                previouslyReleasedCodebaseProvider = {
-                    compatibilityCheckOptions.previouslyReleasedApi?.load {
-                        signatureFileCache.load(it)
-                    }
-                },
                 apiFlags = apiFlags,
                 annotationClassTargets =
                     configFileOptions.config.annotationClasses?.toAnnotationClassTargets()
@@ -225,7 +218,7 @@ class Driver(
         )
     }
 
-    private val codebaseConfig by
+    private val codebaseConfig: Codebase.Config by
         lazy(LazyThreadSafetyMode.NONE) {
             Codebase.Config(
                 allowReadingComments = sourceOptions.allowReadingComments,
@@ -233,10 +226,20 @@ class Driver(
                 apiFlags = apiFlags,
                 apiSurfaces = apiSelectionOptions.apiSurfaces,
                 reporter = reporter,
+                previouslyReleasedCodebaseProvider = {
+                    compatibilityCheckOptions.previouslyReleasedApi?.load {
+                        signatureFileCache.load(it)
+                    }
+                },
 
                 // Pass whether API surfaces are configured in a config file. This determines
                 // whether the `@hide` Javadoc tag is ignored for hiding elements.
                 apiSurfacesConfigured = apiSelectionOptions.apiSurfacesConfigured,
+
+                // Pass external package prefixes configured in a config file. This suppresses
+                // `UnresolvedLink` warnings for references to items in those packages.
+                externalPackagePrefixes =
+                    configFileOptions.config.documentation?.toPackagePrefixes() ?: emptySet(),
             )
         }
 
@@ -547,8 +550,6 @@ class Driver(
                 SignatureFile.fromFiles(sources),
                 classPathResolver,
             )
-        } else if (sources.size == 1 && sources[0].path.endsWith(DOT_JAR)) {
-            return tracer.trace("loadFromJarFile") { loadFromJarFile(sources[0]) }
         } else if (sources.isNotEmpty() || sourceOptions.sourcePath.isNotEmpty()) {
             return tracer.trace("loadFromSources") { loadFromSources() }
         }
@@ -588,6 +589,7 @@ class Driver(
             tracer.trace("handleFileFacadeClassesAndExperimentalPackages") {
                 analyzer.handleFileFacadeClassesAndExperimentalPackages(apiPredicate)
             }
+            tracer.trace("handleStripping") { analyzer.handleStripping() }
             tracer.trace("performChecks") { analyzer.performChecks() }
         }
 
@@ -734,36 +736,6 @@ class Driver(
     private fun generateApiHistoryFromOptions(
         codebase: Codebase,
     ) {
-        val androidConfigCodeFragmentProvider: () -> CodebaseFragment = {
-            var codebaseFragment =
-                CodebaseFragment.create(codebase) { delegatedVisitor ->
-                    FilteringApiVisitor(
-                        delegate = delegatedVisitor,
-                        apiFilters =
-                            ApiFilters(
-                                reference =
-                                    ApiSurfacePredicate.wholeCoreApi(codebase.apiSurfaces.main),
-                                emit = ApiSurfacePredicate.wholeCoreApi(codebase.apiSurfaces.main)
-                            ),
-                    )
-                }
-
-            // If reverting some changes then create a snapshot that combines the items from the
-            // sources for any un-reverted changes and items from the previously released API for
-            // any reverted changes.
-            if (codebaseFragment.codebase.containsRevertedItem) {
-                // Allow references to any of the ClassItems in the original Codebase. This should
-                // not be a problem for api-versions.xml files as they only refer to them by name
-                // and do not care about their contents.
-                codebaseFragment =
-                    codebaseFragment.snapshotIncludingRevertedItems(
-                        referenceVisitorFactory = ::NonFilteringDelegatingVisitor,
-                    )
-            }
-
-            codebaseFragment
-        }
-
         // Provide a CodebaseFragment from the sources that will be included in the generated
         // version history.
         val signatureFileConfigCodeFragmentProvider: () -> CodebaseFragment = {
@@ -779,21 +751,6 @@ class Driver(
         }
 
         val apiGenerator = ApiGenerator(tracer)
-        apiLevelsGenerationOptions
-            .forAndroidConfig(
-                // Do not use a cache here as each file loaded is only loaded once and the created
-                // Codebase is discarded immediately after use so caching just uses memory for no
-                // performance benefit.
-                signatureFileLoader,
-                apiSelectionOptions.apiSurfaces,
-                androidConfigCodeFragmentProvider,
-            )
-            ?.let { config ->
-                tracer.trace("generateApiHistory XML descriptor file") {
-                    apiGenerator.generateApiHistory(config)
-                }
-            }
-
         apiLevelsGenerationOptions
             .fromSignatureFilesConfig(
                 // Do not use a cache here as each file loaded is only loaded once and the created
@@ -948,16 +905,6 @@ class Driver(
         tracer.trace("analyzer.performChecks") { analyzer.performChecks() }
 
         return codebase
-    }
-
-    fun loadFromJarFile(apiJar: File): Codebase {
-        val jarCodebaseLoader =
-            JarCodebaseLoader.createForSourceParser(
-                tracer,
-                reporter,
-                sourceParser,
-            )
-        return jarCodebaseLoader.loadFromJarFile(apiJar, apiAnalyzerConfig)
     }
 
     private fun extractAnnotations(outputFile: File, codebase: Codebase) {

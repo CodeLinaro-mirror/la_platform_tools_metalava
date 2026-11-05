@@ -38,12 +38,8 @@ java_library_host {
         "metalava-model-text",
         "metalava-reporter",
 
-        "prebuilts-metalava-asm",
         "prebuilts-metalava-clikt",
         "prebuilts-metalava-gson",
-        "prebuilts-metalava-guava",
-        "prebuilts-metalava-lint",
-        "prebuilts-metalava-sdklib",
         "prebuilts-metalava-tracing",
         "prebuilts-metalava-tracing-wire",
     ],
@@ -51,6 +47,9 @@ java_library_host {
 
 // The metalava application. This must be built in this directory because the
 // path to this is hard-coded in Bazel rules that use metalava.
+// Source model provider libraries (metalava-model-psi, metalava-model-turbine)
+// are not bundled; they are added dynamically to the classpath when invoking
+// the `main` sub-command.
 java_binary_host {
     name: "metalava",
     visibility: [
@@ -60,10 +59,9 @@ java_binary_host {
         "kotlin-reflect",
 
         "metalava-core",
-        "metalava-model-psi",
-        "metalava-model-turbine",
     ],
     main_class: "com.android.tools.metalava.Driver",
+    wrapper: "metalava.sh",
     target: {
         host: {
             dist: {

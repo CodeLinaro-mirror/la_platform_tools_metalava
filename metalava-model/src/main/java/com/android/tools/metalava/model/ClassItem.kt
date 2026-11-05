@@ -64,6 +64,15 @@ interface ClassItem :
     override val effectivelyDeprecated: Boolean
         get() = originallyDeprecated || containingClass()?.effectivelyDeprecated == true
 
+    /**
+     * Check if this [ClassItem] is accessible as part of an API.
+     *
+     * A class has API visibility if its own [modifiers] have [BaseModifierList.hasApiVisibility]
+     * and any [containingClass] also has API visibility.
+     */
+    fun hasApiVisibility(): Boolean =
+        modifiers.hasApiVisibility() && containingClass()?.hasApiVisibility() != false
+
     /** Returns the internal name of the class, as seen in bytecode */
     fun internalName(): String {
         var curr: ClassItem? = this

@@ -374,6 +374,29 @@ internal class PsiValueFactory(
                 return it
             }
 
+        // Handle the constants in the `kotlin.jvm.internal` primitive `CompanionObject` classes.
+        // For some reason, these constants appear in the bytecode as both fields and accessor
+        // methods, but the accessor method is what is resolved. The field should be used instead
+        // for values.
+        if (
+            resolved is PsiMethod &&
+                resolved.containingClass?.packageName == "kotlin.jvm.internal" &&
+                resolved.containingClass?.name?.endsWith("CompanionObject") == true &&
+                resolved.name.startsWith("get")
+        ) {
+            val resolvedField =
+                resolved.containingClass?.findFieldByName(resolved.name.removePrefix("get"), false)
+            resolvedPsiElementToValue(
+                    optionalTypeItem,
+                    resolvedField,
+                    receiverPsiClass,
+                    explicitConversionTo
+                )
+                ?.let {
+                    return it
+                }
+        }
+
         return null
     }
 

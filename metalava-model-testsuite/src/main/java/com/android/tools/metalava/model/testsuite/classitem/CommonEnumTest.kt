@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.JAVA_ENUM_VALUE_OF
 import com.android.tools.metalava.model.ModifierKeyword
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.SupportedInputFormats
+import com.android.tools.metalava.model.testing.testTypeString
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
@@ -71,6 +72,10 @@ class CommonEnumTest : BaseModelTest() {
 
             assertSame(enumClass, fooClass.superClassType()?.resolveClass(codebase))
             assertSame(enumClass, fooClass.superClass())
+            assertEquals(
+                "java.lang.Enum<test.pkg.Foo>",
+                fooClass.superClassType()?.testTypeString()
+            )
 
             val interfaceList = fooClass.interfaceTypes()
             assertEquals(emptyList(), interfaceList)

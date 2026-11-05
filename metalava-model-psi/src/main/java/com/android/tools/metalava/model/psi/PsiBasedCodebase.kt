@@ -37,10 +37,9 @@ import org.jetbrains.kotlin.analysis.api.projectStructure.KaModule
 /**
  * A codebase containing Java, Kotlin, or UAST PSI classes
  *
- * After creation, a list of PSI file is passed to [PsiCodebaseAssembler.initializeFromSources] or a
- * JAR file is passed to [PsiCodebaseAssembler.initializeFromJar]. This creates package and class
- * items along with their members. Any classes defined in those files will have [ClassItem.origin]
- * set to [ClassOrigin.COMMAND_LINE].
+ * After creation, a list of PSI files is passed to [PsiCodebaseAssembler.initializeFromSources].
+ * This creates package and class items along with their members. Any classes defined in those files
+ * will have [ClassItem.origin] set to [ClassOrigin.COMMAND_LINE].
  *
  * Classes that are created through [findOrCreateClass] will have [ClassItem.origin] set to
  * [ClassOrigin.SOURCE_PATH] or [ClassOrigin.CLASS_PATH] depending on whether the class is defined

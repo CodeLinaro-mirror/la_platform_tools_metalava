@@ -22,9 +22,11 @@ import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces
 import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.SYSTEM_API
+import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.annotatedOnlyRules
 import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.publicSystemModuleRules
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
+import kotlin.test.assertEquals
 import org.junit.Test
 
 /**
@@ -208,7 +210,127 @@ class CommonSelectedApiVariantsTest : BaseModelTest() {
                         method test.pkg.Test.method()
                                self - ApiVariantSet[system(C)]
                 """
+            // Verify that accessing package itemApiVariants and class contentApiVariants directly
+            // (before dumpSelectedApiVariants traverses the codebase) lazily initializes child
+            // SelectedApi instances.
+            val pkg = codebase.assertPackage("test.pkg")
+            pkg.assertItemApiVariants("ApiVariantSet[public(C),system(C)]")
+            val testClass = codebase.assertClass("test.pkg.Test")
+            assertEquals(
+                "ApiVariantSet[system(C)]",
+                testClass.selectedApi.contentApiVariants.formatFor(codebase.apiSurfaces),
+            )
+
             codebase.assertSelectedApiVariants(expected)
+        }
+    }
+
+    /**
+     * Tests that accessing [SelectedApi.itemApiVariants] directly on a Kotlin file facade class and
+     * its containing package lazily initializes the file facade's members and propagates their
+     * variants.
+     */
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.KOTLIN)
+    @Test
+    fun `Test file facade in single signature file and api surface`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public final class FooKt {
+                        method public static void foo();
+                      }
+                    }
+                """
+            ),
+            kotlin(
+                "test/pkg/Foo.kt",
+                """
+                    package test.pkg
+                    fun foo() {}
+                """
+            ),
+        ) {
+            val fooKt = codebase.assertClass("test.pkg.FooKt")
+            fooKt.assertItemApiVariants("ApiVariantSet[main(C)]")
+            val pkg = codebase.assertPackage("test.pkg")
+            pkg.assertItemApiVariants("ApiVariantSet[main(C)]")
+        }
+    }
+
+    /**
+     * Tests that a non-emitted package resolved from the classpath (such as `java.lang`) retains
+     * its default [SelectedApi.itemApiVariants] rather than having them cleared to empty.
+     */
+    @SupportedInputFormats(InputFormat.JAVA, InputFormat.KOTLIN)
+    @Test
+    fun `Test non-emitted classpath package variants`() {
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+                    public class Test {}
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+                    class Test
+                """
+            ),
+        ) {
+            val javaLangPkg = codebase.assertResolvedPackage("java.lang")
+            javaLangPkg.assertItemApiVariants("ApiVariantSet[main(C)]")
+        }
+    }
+
+    /**
+     * Tests that when `unannotatedApiSurface` is `null` (via [annotatedOnlyRules]), unannotated
+     * classpath packages, classes, and members (such as `java.lang`, `java.lang.String`, and
+     * `java.lang.String.length()`) still belong to the base API surface (`public`), while
+     * unannotated source classes remain hidden (`ApiVariantSet[]`).
+     */
+    @SupportedInputFormats(InputFormat.JAVA, InputFormat.KOTLIN)
+    @Test
+    fun `Test classpath items when unannotatedApiSurface is null`() {
+        runCodebaseTest(
+            inputSet(
+                listOf(
+                    java(
+                        """
+                            package test.pkg;
+                            public class Unannotated {}
+                        """
+                    ),
+                ) + TestableApiSurfaces.annotationSources
+            ),
+            inputSet(
+                listOf(
+                    kotlin(
+                        """
+                            package test.pkg
+                            class Unannotated
+                        """
+                    ),
+                ) + TestableApiSurfaces.annotationSources
+            ),
+            testFixture =
+                TestFixture(
+                    apiSurfaceRules = annotatedOnlyRules,
+                ),
+        ) {
+            val unannotatedClass = codebase.assertClass("test.pkg.Unannotated")
+            unannotatedClass.assertItemApiVariants("ApiVariantSet[]")
+
+            val javaLangPkg = codebase.assertResolvedPackage("java.lang")
+            javaLangPkg.assertItemApiVariants("ApiVariantSet[public(C)]")
+
+            val stringClass = codebase.assertResolvedClass("java.lang.String")
+            stringClass.assertItemApiVariants("ApiVariantSet[public(C)]")
+            stringClass
+                .assertMethod("length", emptyList())
+                .assertItemApiVariants("ApiVariantSet[public(C)]")
         }
     }
 }

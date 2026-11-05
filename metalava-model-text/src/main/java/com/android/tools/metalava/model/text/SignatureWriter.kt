@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.text
 
+import com.android.tools.metalava.model.ANDROID_FLAGGED_API
 import com.android.tools.metalava.model.AnnotationFormatter
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationTarget
@@ -44,7 +45,6 @@ import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeStringConfiguration
-import com.android.tools.metalava.model.text.CustomizableProperty.Companion.FLAGGED_API_INHERITANCE
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.INCLUDE_DEFAULT_PARAMETER_VALUES
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.INCLUDE_TYPE_USE_ANNOTATIONS
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.JAVA_RECORD_CLASSES
@@ -111,7 +111,6 @@ class SignatureWriter(
                     skipNullnessAnnotations = fileFormat[KOTLIN_STYLE_NULLS],
                     normalizeFinal = fileFormat[NORMALIZE_FINAL_MODIFIER],
                     normalizeAbstract = fileFormat[NORMALIZE_ABSTRACT_MODIFIER],
-                    flaggedApiInheritance = fileFormat[FLAGGED_API_INHERITANCE],
                     javaRecordClasses = javaRecordClasses,
                     javaSealedClasses = javaSealedClasses,
                 ),
@@ -330,9 +329,71 @@ class SignatureWriter(
         }
     }
 
+    /**
+     * Find the [ANDROID_FLAGGED_API] in this list of [AnnotationItem]s that has not been reverted,
+     * if there is one.
+     */
+    private fun List<AnnotationItem>.findFlaggedApiAnnotation(): AnnotationItem? {
+        return find { it.apiFlag?.let { flag -> !flag.revert } == true }
+    }
+
+    /**
+     * Get the enclosing [ClassItem] and its [ANDROID_FLAGGED_API] [AnnotationItem] to add to
+     * [item]'s [annotations], if any.
+     */
+    private fun flaggedApiAnnotationToInherit(
+        item: SelectableItem,
+    ): Pair<ClassItem, AnnotationItem>? {
+        // If the item is not a nested class then return null.
+        if (item !is ClassItem) return null
+        var containingClassItem: ClassItem? = item.containingClass() ?: return null
+
+        // Find the closest enclosing [ANDROID_FLAGGED_API] annotation in [item]'s containing
+        // [ClassItem], if there is one.
+        while (containingClassItem != null) {
+            containingClassItem.modifiers.annotations().findFlaggedApiAnnotation()?.let {
+                return containingClassItem to it
+            }
+            containingClassItem = containingClassItem.containingClass()
+        }
+
+        // Otherwise, no flagged api annotation needs adding.
+        return null
+    }
+
     private fun writeModifiers(item: Item) {
-        (item as? SelectableItem)?.let { writeTargetLanguage(it) }
-        modifierListWriter.write(item)
+        var annotations = item.modifiers.annotations()
+
+        // Target language modifiers and @FlaggedApi inheritance only apply to SelectableItems
+        // (not parameters or record components).
+        if (item is SelectableItem) {
+            writeTargetLanguage(item)
+
+            // Find the item supplying the active @FlaggedApi annotation: either this item itself,
+            // or an enclosing class from which @FlaggedApi is inherited onto this item's
+            // annotations.
+            val flaggedItemAndAnnotation =
+                annotations.findFlaggedApiAnnotation()?.let { item to it }
+                    ?: flaggedApiAnnotationToInherit(item)?.also { (_, inheritedAnnotation) ->
+                        annotations = annotations + inheritedAnnotation
+                    }
+
+            // If the item has an active @FlaggedApi annotation that will be written to the
+            // signature file and the item supplying that @FlaggedApi annotation has a removed
+            // annotation, emit the synthetic @ForRemoval annotation before the item's other
+            // annotations.
+            if (
+                flaggedItemAndAnnotation != null &&
+                    flaggedItemAndAnnotation.let { (flaggedItem, flaggedApiAnnotation) ->
+                        flaggedItem.selectedApi.hasRemovedAnnotation() &&
+                            AnnotationTarget.SIGNATURE_FILE in flaggedApiAnnotation.targets
+                    }
+            ) {
+                write("@$FOR_REMOVAL_ANNOTATION ")
+            }
+        }
+
+        modifierListWriter.write(item, annotations)
     }
 
     private fun writeAnnotations(item: Item) {

@@ -17,7 +17,7 @@ platform and AndroidX libraries.
 - Java stubs for docs generation (`--doc-stubs`) for passing to documentation tools
 - Documentation stub enhancement (`--enhance-documentation`)
 - Injecting `added in API level` into documentation stubs (`--apply-api-levels`)
-- Generating API levels information for documentation and SDK (`--generate-api-levels`)
+- Generating API levels information for documentation and SDK (`api-history` subcommand)
 - Rewriting of nullness annotations to @RecentlyNull/NonNull (`--migrate-nullness`,
 `--force-convert-to-warning-nullability-annotations`) for SDK
 - Tracking @removed APIs (`--removed-api`)

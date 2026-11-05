@@ -175,6 +175,7 @@ object Issues {
     val HIDDEN_SHOW_ANNOTATION by Issue(Severity.WARNING_ERROR_WHEN_NEW, Category.API_LINT)
     val OVERLAPPING_API_SURFACES by Issue(Severity.WARNING_ERROR_WHEN_NEW, Category.API_LINT)
     val HIDING_API_METHOD_OVERRIDE by Issue(Severity.HIDDEN, Category.API_LINT)
+    val HIDING_API_METHOD_OVERRIDE_CLASSPATH by Issue(Severity.HIDDEN, Category.API_LINT)
 
     // Reported when using @hide doc tag. It is UNKNOWN because it does not fit into any other
     // category. There is an argument that it should be DOCUMENTATION but that causes issues

@@ -183,4 +183,31 @@ class OverridingMethodTest : DriverTest() {
                 """,
         )
     }
+
+    @Test
+    fun `Test hiding override of public method from the classpath`() {
+        check(
+            expectedIssues =
+                """
+                src/test/pkg/Foo.java:8: error: Attempting to hide method test.pkg.Foo.toString() which overrides method java.lang.Object.toString() which is already part of the API [HidingApiMethodOverrideClasspath]
+                """,
+            apiSurface = KnownApiSurface.PUBLIC,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                        package test.pkg;
+
+                        import android.annotation.Hide;
+
+                        public class Foo {
+                            @Hide
+                            @Override
+                            public String toString() { return "Foo"; }
+                        }
+                        """
+                    ),
+                ),
+        )
+    }
 }

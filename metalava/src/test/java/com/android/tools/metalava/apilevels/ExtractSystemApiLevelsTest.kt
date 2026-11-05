@@ -16,10 +16,11 @@
 
 package com.android.tools.metalava.apilevels
 
-import com.android.tools.metalava.ARG_ANDROID_JAR_PATTERN
-import com.android.tools.metalava.ARG_API_VERSION_FOR_SOURCES
-import com.android.tools.metalava.ARG_GENERATE_API_LEVELS
-import com.android.tools.metalava.ARG_SDK_INFO_FILE
+import com.android.tools.metalava.ARG_API_SURFACE
+import com.android.tools.metalava.ARG_CONFIG_FILE
+import com.android.tools.metalava.KnownConfigFiles
+import com.android.tools.metalava.cli.signature.ARG_API_VERSION_FOR_SDK_EXTENSION
+import com.android.tools.metalava.cli.signature.ARG_SDK_INFO_FILE
 import com.android.tools.metalava.doc.getApiLookup
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -28,28 +29,43 @@ import org.junit.Test
 class ExtractSystemApiLevelsTest : ApiGeneratorIntegrationTestBase() {
     @Test
     fun `Extract System API`() {
-        val androidJarPattern = "${platformJars.path}/{version:level}/system/android.jar"
+        val androidSignaturePattern =
+            "${platformJars.path}/{version:level}/{surface}/api/android.txt"
+        // Make sure to only use system and public extension signature files.
+        val extensionSignaturePattern =
+            "${extensionSdkJars.path}/{version:extension}/{surface}/api/{module}.txt"
 
-        check(
-            extraArguments =
-                arrayOf(
-                    ARG_GENERATE_API_LEVELS,
+        commandTest {
+            args +=
+                listOf(
+                    "api-history",
+                    ARG_CONFIG_FILE,
+                    KnownConfigFiles.configKnownTestSurfaces.createFile(temporaryFolder.root).path,
+                    ARG_API_SURFACE,
+                    "system",
+                    "--output-file",
                     outputPath,
-                    ARG_ANDROID_JAR_PATTERN,
-                    androidJarPattern,
-                    ARG_ANDROID_JAR_PATTERN,
-                    // Make sure to only use system extension jars.
-                    "${extensionSdkJars.path}/{version:extension}/system/{module}.jar",
+                    "--historical-versions",
+                    "26:34",
+                    "--pattern",
+                    androidSignaturePattern,
+                    "--pattern",
+                    extensionSignaturePattern,
+                    "--historical-files",
+                    findHistoricalFiles(
+                        androidSignaturePattern,
+                        extensionSignaturePattern,
+                    ),
                     ARG_SDK_INFO_FILE,
                     createSdkExtensionInfoFile().path,
-                    ARG_API_VERSION_FOR_SOURCES,
-                    "34"
+                    ARG_API_VERSION_FOR_SDK_EXTENSION,
+                    "34",
                 )
-        )
+        }
 
         assertTrue(output.isFile)
         val xml = output.readText(Charsets.UTF_8)
-        assertTrue(xml.contains("<api version=\"3\" min=\"21\">"))
+        assertTrue(xml.contains("<api version=\"3\" min=\"26\">"))
         assertTrue(
             xml.contains(
                 "<sdk id=\"30\" shortname=\"R\" name=\"R Extensions\" reference=\"android/os/Build\$VERSION_CODES\$R\"/>"
@@ -65,7 +81,7 @@ class ExtractSystemApiLevelsTest : ApiGeneratorIntegrationTestBase() {
                 "<sdk id=\"33\" shortname=\"T\" name=\"T Extensions\" reference=\"android/os/Build\$VERSION_CODES\$T\"/>"
             )
         )
-        assertTrue(xml.contains("<class name=\"android/Manifest\" since=\"21\">"))
+        assertTrue(xml.contains("<class name=\"android/Manifest\" since=\"26\">"))
         assertTrue(xml.contains("<field name=\"showWhenLocked\" since=\"27\"/>"))
 
         // top level class marked as since=34 and R=7, implemented in the framework-statsd
@@ -93,14 +109,14 @@ class ExtractSystemApiLevelsTest : ApiGeneratorIntegrationTestBase() {
         // (as in the system API), the first introduced API level is the one we use
         @Suppress("DEPRECATION")
         (assertEquals(
-            21,
+            26,
             apiLookup.getFieldVersion("android.Manifest\$permission", "AUTHENTICATE_ACCOUNTS")
         ))
 
         @Suppress("DEPRECATION")
         val methodVersion =
             apiLookup.getMethodVersion("android/icu/util/CopticCalendar", "computeTime", "()")
-        assertEquals(24, methodVersion)
+        assertEquals(26, methodVersion)
 
         // The filter says 'framework-permission-s             *    R' so RoleManager should exist
         // and should have a module/sdks attributes

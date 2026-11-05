@@ -29,10 +29,10 @@ java_library_host {
         "metalava-reporter",
         "metalava-model-source",
 
-        "prebuilts-metalava-guava",
         "prebuilts-metalava-tracing",
     ],
     static_libs: [
+        "prebuilts-metalava-guava",
         "prebuilts-metalava-turbine",
     ],
 }

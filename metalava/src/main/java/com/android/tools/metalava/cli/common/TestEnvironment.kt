@@ -18,6 +18,9 @@ package com.android.tools.metalava.cli.common
 
 import com.android.tools.metalava.Driver
 import com.android.tools.metalava.MiscellaneousOptions
+import com.android.tools.metalava.doc.ApiHistoryProvider
+import com.android.tools.metalava.doc.DocAnalyzer
+import com.android.tools.metalava.doc.MetalavaApiHistoryProvider
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ModelOptions
 import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
@@ -49,6 +52,12 @@ class TestEnvironment(
      * [Codebase] and [MiscellaneousOptions] that are not easily verifiable through other means.
      */
     val postAnalysisChecker: CheckerFunction? = null,
+
+    /**
+     * The [ApiHistoryProvider.Loader] to use when loading `api-versions.xml` in
+     * [DocAnalyzer.applyApiVersions].
+     */
+    val apiHistoryProviderLoader: ApiHistoryProvider.Loader = MetalavaApiHistoryProvider.loader,
 )
 
 /**

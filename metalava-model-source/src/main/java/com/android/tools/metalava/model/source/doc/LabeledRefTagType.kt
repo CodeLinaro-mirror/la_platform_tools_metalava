@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.source.doc
 import com.android.tools.metalava.model.BaseTypeTransformer
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
+import com.android.tools.metalava.model.ExternalReferencableItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.InvalidReferencableItem
 import com.android.tools.metalava.model.PackageItem
@@ -365,13 +366,14 @@ internal data class QualifyingClassSourceReference(
         val classItem =
             when (resolved) {
                 is ClassItem -> resolved
+                is ExternalReferencableItem -> null
                 is InvalidReferencableItem -> {
                     resolved.reportIssue(reporter)
                     null
                 }
                 // This should never happen as passing in NameClassification.CLASS above should
-                // limit
-                // the returned types to ClassItem and InvalidReferencableItem.
+                // limit the returned types to ClassItem, ExternalReferencableItem, and
+                // InvalidReferencableItem.
                 else -> error("type '$className' was resolved to an unknown type $resolved")
             }
 
@@ -533,13 +535,15 @@ internal data class CallableSourceReference(
                     resolved.simpleName(),
                 )
             }
+            is ExternalReferencableItem -> null
             // Report an error and return `null`.
             is InvalidReferencableItem -> {
                 resolved.reportIssue(reporter)
                 null
             }
-            // This should never happen as passing in NameClassification.METHOD above should limit
-            // the returned types to MethodItemSet or InvalidReferencableItem.
+            // This should never happen as passing in NameClassification.CALLABLE_SET above should
+            // limit the returned types to ReferencableMethodSet, ClassItem,
+            // ExternalReferencableItem, or InvalidReferencableItem.
             else -> error("callable name '$name' was resolved to an unknown type $resolved")
         }
     }

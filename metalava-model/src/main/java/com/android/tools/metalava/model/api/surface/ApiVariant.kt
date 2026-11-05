@@ -176,10 +176,16 @@ value class ApiVariantSet(internal val bits: Int) {
         val EMPTY = ApiVariantSet(0)
 
         /**
+         * An [ApiVariantSet] that includes all possible [ApiVariantType.REMOVED] variants that
+         * could fit in an [Int].
+         */
+        val ALL_REMOVED = ApiVariantSet(createAllVariantSet(ApiVariantType.REMOVED))
+
+        /**
          * A mask that includes all possible variants that are not [ApiVariantType.REMOVED] that
          * could fit in an [Int].
          */
-        private val allNotRemovedMask = createAllVariantSet(ApiVariantType.REMOVED).inv()
+        private val allNotRemovedMask = ALL_REMOVED.bits.inv()
 
         /**
          * Create an [ApiVariantSet.bits] value that contains all possible [ApiVariant]s of type

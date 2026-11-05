@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.cli.help
 
-import com.android.tools.metalava.ARG_ANDROID_JAR_PATTERN
 import com.android.tools.metalava.ARG_API_SURFACE
 import com.android.tools.metalava.ARG_CONFIG_FILE
 import com.android.tools.metalava.ARG_HIDE_ANNOTATION
@@ -252,7 +251,7 @@ private fun historicalApiPatterns(): CliktCommand {
         name = "historical-api-patterns",
         help =
             """
-Explains the syntax and behavior of historical API patterns used in options like $ARG_ANDROID_JAR_PATTERN.
+Explains the syntax and behavior of historical API patterns used in options like `api-history --pattern`.
 
 A historical API pattern is used to find historical versioned API files that are used to construct a
 history of an API surface, e.g. when items were added, removed, deprecated, etc.. It allows for
@@ -269,8 +268,8 @@ placeholder in each pattern.
 
 A `version` placeholder is mandatory in non-exclusion patterns, all other placeholders are optional.
 Files that match a non-exclusion pattern are assumed to provide the definition of that version of
-the API. e.g. given a pattern of `prebuilts/sdk/{version:level}/public/android.jar` then it will
-match a file like `prebuilts/sdk/1/public/android.jar` and that file is assumed to define version 1
+the API. e.g. given a pattern of `prebuilts/sdk/{version:level}/public/api/android.txt` then it will
+match a file like `prebuilts/sdk/1/public/api/android.txt` and that file is assumed to define version 1
 of the API.
 
 Patterns can also include any number of wildcards:

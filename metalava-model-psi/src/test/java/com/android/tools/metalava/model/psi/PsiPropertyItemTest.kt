@@ -329,4 +329,84 @@ class PsiPropertyItemTest : BaseModelTest() {
             accessors.setter?.assertPrintedDocumentation(expectedOutput = "/** setter doc */")
         }
     }
+
+    @Test
+    fun `classpath or source path annotation class with properties annotated with its own nested annotations`() {
+        runCodebaseTest(
+            inputSet(
+                kotlin(
+                    """
+                        package test.pkg
+
+                        import other.pkg.OuterAnnotation
+
+                        class Foo(
+                            @OuterAnnotation.NestedAnnotation1 val prop: Int,
+                        )
+                    """
+                ),
+                sourcePathFiles =
+                    listOf(
+                        kotlin(
+                            """
+                                package other.pkg
+
+                                annotation class OuterAnnotation(
+                                    @get:NestedAnnotation1 val prop1: Int = 1,
+                                    @get:NestedAnnotation2 val prop2: Int = 1,
+                                ) {
+                                    annotation class NestedAnnotation1
+                                    annotation class NestedAnnotation2
+                                }
+                            """
+                        ),
+                    ),
+            )
+        ) {
+            val outerAnnotation = codebase.assertResolvedClass("other.pkg.OuterAnnotation")
+            assertEquals(
+                listOf(
+                    "other.pkg.OuterAnnotation.NestedAnnotation1",
+                    "other.pkg.OuterAnnotation.NestedAnnotation2",
+                ),
+                outerAnnotation.nestedClasses().map { it.qualifiedName() }.sorted(),
+            )
+            assertEquals(
+                listOf("prop1", "prop2"),
+                outerAnnotation.properties().map { it.name() }.sorted(),
+            )
+        }
+    }
+
+    @Test
+    fun `KaCodebaseAssembler skips inaccessible classes`() {
+        runCodebaseTest(
+            inputSet(
+                kotlin(
+                    """
+                        package a.pkg
+
+                        internal class InternalFoo(
+                            @property:b.pkg.PropertyAnno val prop: Int,
+                        )
+                    """
+                ),
+                sourcePathFiles =
+                    listOf(
+                        kotlin(
+                            """
+                                package b.pkg
+
+                                @Target(AnnotationTarget.PROPERTY)
+                                annotation class PropertyAnno
+                            """
+                        ),
+                    ),
+            )
+        ) {
+            // a.pkg.InternalFoo does not have API visibility, so KaCodebaseAssembler should not
+            // process its properties or resolve b.pkg.PropertyAnno.
+            assertEquals(null, codebase.findPackage("b.pkg"))
+        }
+    }
 }

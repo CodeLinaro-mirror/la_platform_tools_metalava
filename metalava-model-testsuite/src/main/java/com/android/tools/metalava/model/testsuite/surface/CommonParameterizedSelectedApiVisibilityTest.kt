@@ -477,11 +477,6 @@ class CommonParameterizedSelectedApiVisibilityTest : BaseCommonParameterizedSele
                                      self - ApiVariantSet[]
                                 constructor test.pkg.Hidden()
                                        self - ApiVariantSet[]
-                              class test.pkg.PublicClass
-                                     emit - false
-                                     self - ApiVariantSet[public(C)]
-                                constructor test.pkg.PublicClass()
-                                       self - ApiVariantSet[public(C)]
                         """,
                 )
             }

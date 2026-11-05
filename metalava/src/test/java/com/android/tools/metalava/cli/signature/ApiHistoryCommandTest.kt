@@ -17,11 +17,10 @@
 package com.android.tools.metalava.cli.signature
 
 import com.android.tools.metalava.ARG_API_SURFACE
-import com.android.tools.metalava.ARG_API_VERSION_FOR_SDK_EXTENSION
 import com.android.tools.metalava.ARG_CONFIG_FILE
-import com.android.tools.metalava.ARG_SDK_INFO_FILE
 import com.android.tools.metalava.CONFIG_FILE_OPTIONS_HELP
 import com.android.tools.metalava.KnownConfigFiles
+import com.android.tools.metalava.apilevels.VersionedApi
 import com.android.tools.metalava.cli.common.BaseCommandTest
 import com.android.tools.metalava.testing.signature
 import com.android.tools.metalava.testing.xml
@@ -969,6 +968,316 @@ class ApiHistoryCommandTest : BaseCommandTest<ApiHistoryCommand>({ ApiHistoryCom
                     """
                         .trimIndent(),
                     outputXml.readText().trim(),
+                )
+            }
+        }
+    }
+
+    /** Create a simple `sdk-extension-info.xml` for testing. */
+    private fun createSdkExtensionsInfoXml() =
+        temporaryFolder.newFile("sdk-extensions-info.xml").apply {
+            writeText(
+                """
+                        <?xml version="1.0" encoding="utf-8"?>
+                        <sdk-extensions-info>
+                        <sdk id="7"
+                             shortname="seven"
+                             name="Seven Extensions"
+                             reference="Seven" />
+                        <symbol jar="bar" pattern="foo" sdks="seven" />
+                        <symbol jar="baz" pattern="foo" sdks="seven" />
+                        <symbol jar="foo" pattern="foo" sdks="seven" />
+                        </sdk-extensions-info>
+                    """
+                    .trimIndent()
+            )
+        }
+
+    /** Find all `.txt` files under [dir] and join their paths with [File.pathSeparator]. */
+    private fun findTxtFiles(dir: File): String =
+        dir.walkTopDown()
+            .filter { it.isFile && it.extension == "txt" }
+            .joinToString(File.pathSeparator) { it.path }
+
+    /** Dump the contents of this list to a string. */
+    private fun List<VersionedApi>.dump() = removeTestSpecificDirectories(joinToString("\n"))
+
+    @Test
+    fun `Test signature files in config`() {
+        val root = buildFileStructure {
+            dir("1") { dir("public") { emptyFile("api.txt") } }
+            dir("1.1") {
+                dir("public") { emptyFile("api.txt") }
+                dir("system") { emptyFile("api.txt") }
+            }
+            dir("2") {
+                dir("public") { emptyFile("api.txt") }
+                dir("system") { emptyFile("api.txt") }
+            }
+            dir("extensions") {
+                dir("1") {
+                    dir("public") {
+                        emptyFile("foo.txt")
+                        emptyFile("foo-removed.txt")
+                        emptyFile("bar.txt")
+                    }
+                    dir("system") { emptyFile("foo.txt") }
+                }
+                dir("2") {
+                    dir("public") {
+                        emptyFile("foo.txt")
+                        emptyFile("foo-incompatibilities.txt")
+                        emptyFile("bar.txt")
+                        emptyFile("baz.txt")
+                    }
+                    dir("system") { emptyFile("foo.txt") }
+                }
+            }
+        }
+
+        val configFile =
+            KnownConfigFiles.configPublicAndSystemSurfaces.createFile(temporaryFolder.root)
+        val currentApi = temporaryFolder.newFile("current.txt")
+        val sdkExtensionsInfoXml = createSdkExtensionsInfoXml()
+
+        commandTest {
+            val apiVersionsXml = outputFile("api-versions.xml")
+            args +=
+                listOf(
+                    "api-history",
+                    ARG_CONFIG_FILE,
+                    configFile.path,
+                    ARG_API_SURFACE,
+                    "system",
+                    "--current-version",
+                    "30",
+                    "--current-files",
+                    currentApi.path,
+                    "--output-file",
+                    apiVersionsXml.path,
+                    "--pattern",
+                    "!**/*-incompatibilities.txt",
+                    "--pattern",
+                    "!**/*-removed.txt",
+                    "--pattern",
+                    "$root/{version:major.minor?}/{surface}/api.txt",
+                    "--pattern",
+                    "$root/extensions/{version:extension}/{surface}/{module}.txt",
+                    "--historical-files",
+                    findTxtFiles(root),
+                    ARG_SDK_INFO_FILE,
+                    sdkExtensionsInfoXml.path,
+                )
+
+            verify {
+                assertEquals(
+                    """
+                        VersionedSignatureApi(files=TESTROOT/1/public/api.txt, updater=ApiVersionUpdater(version=1))
+                        VersionedSignatureApi(files=TESTROOT/1.1/{public,system}/api.txt, updater=ApiVersionUpdater(version=1.1))
+                        VersionedSignatureApi(files=TESTROOT/2/{public,system}/api.txt, updater=ApiVersionUpdater(version=2))
+                        VersionedSignatureApi(files=TESTROOT/current.txt, updater=ApiVersionUpdater(version=30))
+                        VersionedSignatureApi(files=TESTROOT/extensions/1/public/bar.txt, updater=ExtensionUpdater(extVersion=1, module=bar, nextSdkVersion=30))
+                        VersionedSignatureApi(files=TESTROOT/extensions/2/public/bar.txt, updater=ExtensionUpdater(extVersion=2, module=bar, nextSdkVersion=30))
+                        VersionedSignatureApi(files=TESTROOT/extensions/2/public/baz.txt, updater=ExtensionUpdater(extVersion=2, module=baz, nextSdkVersion=30))
+                        VersionedSignatureApi(files=TESTROOT/extensions/1/{public,system}/foo.txt, updater=ExtensionUpdater(extVersion=1, module=foo, nextSdkVersion=30))
+                        VersionedSignatureApi(files=TESTROOT/extensions/2/{public,system}/foo.txt, updater=ExtensionUpdater(extVersion=2, module=foo, nextSdkVersion=30))
+                    """
+                        .trimIndent(),
+                    command.config.versionedApis.dump(),
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `Test invalid --historical-versions`() {
+        val root = temporaryFolder.root
+        val currentApi = temporaryFolder.newFile("current.txt")
+
+        commandTest {
+            val apiVersionsXml = outputFile("api-versions.xml")
+            args +=
+                listOf(
+                    "api-history",
+                    "--historical-versions",
+                    "9",
+                    "--current-version",
+                    "30",
+                    "--current-files",
+                    currentApi.path,
+                    "--output-file",
+                    apiVersionsXml.path,
+                    "--pattern",
+                    "$root/{version:major.minor?}/{surface}/api.txt",
+                )
+
+            expectedStderr =
+                """
+                    Aborting: Usage: metalava api-history [options]
+
+                    Error: Invalid value for "--historical-versions": Must be of the form <version>:<version> but found '9'
+                """
+                    .trimIndent()
+        }
+    }
+
+    @Test
+    fun `Test --historical-versions in config`() {
+        val root = buildFileStructure {
+            dir("1") { dir("public") { emptyFile("api.txt") } }
+            dir("1.1") { dir("public") { emptyFile("api.txt") } }
+            // This should be ignored by --historical-versions.
+            dir("2") { dir("public") { emptyFile("api.txt") } }
+        }
+
+        val configFile = KnownConfigFiles.configPublicSurface.createFile(temporaryFolder.root)
+        val currentApi = temporaryFolder.newFile("current.txt")
+
+        commandTest {
+            val apiVersionsXml = outputFile("api-versions.xml")
+            args +=
+                listOf(
+                    "api-history",
+                    ARG_CONFIG_FILE,
+                    configFile.path,
+                    ARG_API_SURFACE,
+                    "public",
+                    "--historical-versions",
+                    "1:1.1",
+                    "--current-version",
+                    "30",
+                    "--current-files",
+                    currentApi.path,
+                    "--output-file",
+                    apiVersionsXml.path,
+                    "--pattern",
+                    "$root/{version:major.minor?}/{surface}/api.txt",
+                    "--historical-files",
+                    findTxtFiles(root),
+                )
+
+            verify {
+                assertEquals(
+                    """
+                        VersionedSignatureApi(files=TESTROOT/1/public/api.txt, updater=ApiVersionUpdater(version=1))
+                        VersionedSignatureApi(files=TESTROOT/1.1/public/api.txt, updater=ApiVersionUpdater(version=1.1))
+                        VersionedSignatureApi(files=TESTROOT/current.txt, updater=ApiVersionUpdater(version=30))
+                    """
+                        .trimIndent(),
+                    command.config.versionedApis.dump(),
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `Test --sdk-extension-versions in config`() {
+        val root = buildFileStructure {
+            dir("28") { dir("public") { emptyFile("api.txt") } }
+            dir("29") { dir("public") { emptyFile("api.txt") } }
+
+            dir("extensions") {
+                dir("1") { dir("public") { emptyFile("foo.txt") } }
+                dir("2") { dir("public") { emptyFile("foo.txt") } }
+                dir("3") { dir("public") { emptyFile("foo.txt") } }
+            }
+        }
+
+        val configFile = KnownConfigFiles.configPublicSurface.createFile(temporaryFolder.root)
+        val currentApi = temporaryFolder.newFile("current.txt")
+        val sdkExtensionsInfoXml = createSdkExtensionsInfoXml()
+
+        commandTest {
+            val apiVersionsXml = outputFile("api-versions.xml")
+            args +=
+                listOf(
+                    "api-history",
+                    ARG_CONFIG_FILE,
+                    configFile.path,
+                    ARG_API_SURFACE,
+                    "public",
+                    "--sdk-extension-versions",
+                    "1:2",
+                    "--current-version",
+                    "30",
+                    "--current-files",
+                    currentApi.path,
+                    "--output-file",
+                    apiVersionsXml.path,
+                    "--pattern",
+                    "$root/{version:major.minor?}/{surface}/api.txt",
+                    "--pattern",
+                    "$root/extensions/{version:extension}/{surface}/{module}.txt",
+                    "--historical-files",
+                    findTxtFiles(root),
+                    ARG_SDK_INFO_FILE,
+                    sdkExtensionsInfoXml.path,
+                )
+
+            verify {
+                assertEquals(
+                    """
+                        VersionedSignatureApi(files=TESTROOT/28/public/api.txt, updater=ApiVersionUpdater(version=28))
+                        VersionedSignatureApi(files=TESTROOT/29/public/api.txt, updater=ApiVersionUpdater(version=29))
+                        VersionedSignatureApi(files=TESTROOT/current.txt, updater=ApiVersionUpdater(version=30))
+                        VersionedSignatureApi(files=TESTROOT/extensions/1/public/foo.txt, updater=ExtensionUpdater(extVersion=1, module=foo, nextSdkVersion=30))
+                        VersionedSignatureApi(files=TESTROOT/extensions/2/public/foo.txt, updater=ExtensionUpdater(extVersion=2, module=foo, nextSdkVersion=30))
+                    """
+                        .trimIndent(),
+                    command.config.versionedApis.dump(),
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `Test nextSdkVersion in config`() {
+        val root = buildFileStructure {
+            dir("1") { dir("public") { emptyFile("api.txt") } }
+            dir("extensions") { dir("1") { dir("public") { emptyFile("foo.txt") } } }
+        }
+
+        val configFile = KnownConfigFiles.configPublicSurface.createFile(temporaryFolder.root)
+        val currentApi = temporaryFolder.newFile("current.txt")
+        val sdkExtensionsInfoXml = createSdkExtensionsInfoXml()
+
+        commandTest {
+            val apiVersionsXml = outputFile("api-versions.xml")
+            args +=
+                listOf(
+                    "api-history",
+                    ARG_CONFIG_FILE,
+                    configFile.path,
+                    ARG_API_SURFACE,
+                    "public",
+                    ARG_API_VERSION_FOR_SDK_EXTENSION,
+                    "123456789",
+                    "--current-version",
+                    "30",
+                    "--current-files",
+                    currentApi.path,
+                    "--output-file",
+                    apiVersionsXml.path,
+                    "--pattern",
+                    "$root/{version:major.minor?}/{surface}/api.txt",
+                    "--pattern",
+                    "$root/extensions/{version:extension}/{surface}/{module}.txt",
+                    "--historical-files",
+                    findTxtFiles(root),
+                    ARG_SDK_INFO_FILE,
+                    sdkExtensionsInfoXml.path,
+                )
+
+            verify {
+                assertEquals(
+                    """
+                        VersionedSignatureApi(files=TESTROOT/1/public/api.txt, updater=ApiVersionUpdater(version=1))
+                        VersionedSignatureApi(files=TESTROOT/current.txt, updater=ApiVersionUpdater(version=30))
+                        VersionedSignatureApi(files=TESTROOT/current.txt, updater=ApiVersionUpdater(version=123456789))
+                        VersionedSignatureApi(files=TESTROOT/extensions/1/public/foo.txt, updater=ExtensionUpdater(extVersion=1, module=foo, nextSdkVersion=123456789))
+                    """
+                        .trimIndent(),
+                    command.config.versionedApis.dump(),
                 )
             }
         }

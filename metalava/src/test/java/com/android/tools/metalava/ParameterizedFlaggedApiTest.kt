@@ -32,7 +32,6 @@ import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.java
 import java.io.File
 import java.util.Locale
-import kotlin.test.assertEquals
 import org.junit.Test
 import org.junit.runners.Parameterized
 
@@ -236,7 +235,6 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
         val expectedIssues: String = "",
         val expectedStubFiles: Array<TestFile> = emptyArray(),
         val expectedStubPaths: Array<String>? = null,
-        val expectedApiVersions: String = "",
     )
 
     /**
@@ -282,29 +280,9 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
         val previouslyReleasedApiList = contributingSurfaces(previouslyReleasedApi)
         val previouslyReleasedRemovedApiList = contributingSurfaces(previouslyReleasedRemovedApi)
 
-        val (apiVersionsArgs, apiVersionsFile) =
-            if (expectations.expectedApiVersions != "") {
-                val apiVersionsXmlFile = temporaryFolder.newFile("api-versions.xml")
-                Pair(
-                    arrayOf(
-                        ARG_GENERATE_API_LEVELS,
-                        apiVersionsXmlFile.path,
-                        ARG_API_VERSION_RANGE,
-                        "30:33",
-                        ARG_API_VERSION_FOR_SOURCES,
-                        "32",
-                        ARG_REMOVE_MISSING_CLASS_REFERENCES_IN_API_LEVELS,
-                    ),
-                    apiVersionsXmlFile,
-                )
-            } else {
-                Pair(emptyArray(), null)
-            }
-
         val args =
             arrayOf(
                 *warningIssues(Issues.UNFLAGGED_API),
-                *apiVersionsArgs,
                 *config.extraArguments(temporaryFolder.root).toTypedArray(),
                 *extraArguments,
             )
@@ -342,13 +320,6 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
             skipEmitPackages = listOf("test.pkg.flags", ANDROID_ANNOTATION_PACKAGE),
             extraArguments = args,
         )
-
-        if (apiVersionsFile != null) {
-            val expected = expectations.expectedApiVersions
-            // Replace tabs with two spaces.
-            val actual = apiVersionsFile.readText().replace("\t", "  ")
-            assertEquals(expected.trimIndent(), actual.trimIndent())
-        }
     }
 
     /**
@@ -1440,19 +1411,6 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                                 }
                             """,
                         expectedStubFiles = stubsWithFlaggedApis,
-                        expectedApiVersions =
-                            """
-                                <?xml version="1.0" encoding="utf-8"?>
-                                <api version="3" min="32">
-                                  <class name="test/pkg/Foo" since="32">
-                                    <method name="&lt;init>()V"/>
-                                    <method name="abstractMethod()V"/>
-                                    <method name="method(Ljava/lang/String;)V"/>
-                                    <method name="nativeMethod()V"/>
-                                    <field name="field"/>
-                                  </class>
-                                </api>
-                            """,
                     ),
                     Expectations(
                         Surface.PUBLIC,
@@ -1471,19 +1429,6 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                                 }
                             """,
                         expectedStubFiles = stubsWithoutFlaggedApis,
-                        expectedApiVersions =
-                            """
-                                <?xml version="1.0" encoding="utf-8"?>
-                                <api version="3" min="32">
-                                  <class name="test/pkg/Foo" since="32">
-                                    <method name="&lt;init>()V"/>
-                                    <method name="abstractMethod()V"/>
-                                    <method name="method(Ljava/lang/String;)V"/>
-                                    <method name="nativeMethod()V"/>
-                                    <field name="field"/>
-                                  </class>
-                                </api>
-                            """,
                     ),
                     Expectations(
                         Surface.SYSTEM,
@@ -1735,26 +1680,6 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                                 }
                             """,
                         expectedStubFiles = stubsWithFlaggedApis,
-                        expectedApiVersions =
-                            """
-                                <?xml version="1.0" encoding="utf-8"?>
-                                <api version="3" min="32">
-                                  <class name="test/pkg/Bar" since="32" deprecated="32">
-                                    <method name="&lt;init>()V"/>
-                                    <method name="method()V"/>
-                                    <field name="field"/>
-                                  </class>
-                                  <class name="test/pkg/Baz" since="32" deprecated="32">
-                                    <method name="&lt;init>()V"/>
-                                    <method name="method()V"/>
-                                    <field name="field"/>
-                                  </class>
-                                  <class name="test/pkg/Foo" since="32">
-                                    <method name="method(Ljava/lang/String;)V"/>
-                                    <field name="field" deprecated="32"/>
-                                  </class>
-                                </api>
-                            """,
                     ),
                     Expectations(
                         Surface.PUBLIC,
@@ -1780,26 +1705,6 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                                 }
                             """,
                         expectedStubFiles = stubsWithoutFlaggedApis,
-                        expectedApiVersions =
-                            """
-                                <?xml version="1.0" encoding="utf-8"?>
-                                <api version="3" min="32">
-                                  <class name="test/pkg/Bar" since="32">
-                                    <method name="&lt;init>()V"/>
-                                    <method name="method()V"/>
-                                    <field name="field"/>
-                                  </class>
-                                  <class name="test/pkg/Baz" since="32" deprecated="32">
-                                    <method name="&lt;init>()V"/>
-                                    <method name="method()V"/>
-                                    <field name="field"/>
-                                  </class>
-                                  <class name="test/pkg/Foo" since="32">
-                                    <method name="method(Ljava/lang/String;)V"/>
-                                    <field name="field"/>
-                                  </class>
-                                </api>
-                            """,
                     ),
                     Expectations(
                         Surface.SYSTEM,
@@ -2071,9 +1976,9 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                                 package test.pkg {
                                   public class Foo {
                                     ctor public Foo();
-                                    method @FlaggedApi("test.pkg.flags.foo_bar") public void removedPublicApi();
+                                    method @ForRemoval @FlaggedApi("test.pkg.flags.foo_bar") public void removedPublicApi();
                                   }
-                                  @FlaggedApi("test.pkg.flags.foo_bar") public class RemovedBar {
+                                  @ForRemoval @FlaggedApi("test.pkg.flags.foo_bar") public class RemovedBar {
                                     ctor public RemovedBar();
                                     method public void method();
                                   }
@@ -2212,7 +2117,7 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                                 // Signature format: 2.0
                                 package test.pkg {
                                   public class Foo {
-                                    method @FlaggedApi("test.pkg.flags.foo_bar") public void removedSystemApi();
+                                    method @ForRemoval @FlaggedApi("test.pkg.flags.foo_bar") public void removedSystemApi();
                                   }
                                 }
                             """,

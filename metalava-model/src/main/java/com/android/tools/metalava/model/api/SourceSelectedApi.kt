@@ -77,11 +77,27 @@ internal sealed class SourceSelectedApi<S : SelectableItem>(
         internal set
 
     /**
-     * Indicates whether the associated [SelectableItem] has a removed annotation.
+     * Indicates whether the associated [SelectableItem] is removed (e.g. via a removed annotation,
+     * a `@removed` doc tag, or inherited from an enclosing item that was removed).
+     *
+     * Note: If the item has both a removed annotation and an unfinalized `@FlaggedApi` annotation,
+     * this is reset to `false` so the item remains in the core API until the flag is finalized,
+     * whereas [hasRemovedAnnotation] remains `true`.
      *
      * Initialized by [SelectedApiUpdater.updateSelectedApi] called from [updateFromSelectableItem].
      */
     var removed: Boolean = false
+        internal set
+
+    /**
+     * Indicates whether the associated [SelectableItem] has a removed annotation.
+     *
+     * Unlike [removed], this is only `true` when the item itself has a removed annotation and is
+     * not reset when the item also has an unfinalized `@FlaggedApi` annotation.
+     *
+     * Initialized by [SelectedApiUpdater.updateSelectedApi] called from [updateFromSelectableItem].
+     */
+    var hasRemovedAnnotation: Boolean = false
         internal set
 
     /**
@@ -133,14 +149,29 @@ internal sealed class SourceSelectedApi<S : SelectableItem>(
         internal set
 
     /**
+     * Backing property for [itemApiVariants] so internal updates and checks during initialization
+     * do not trigger lazy child initialization in [PackageSourceSelectedApi] or
+     * [ClassSourceSelectedApi].
+     */
+    internal var rawItemApiVariants = ApiVariantSet.EMPTY
+
+    /**
      * The [ApiVariantSet] for the [item].
      *
      * This is initialized in [initialize] which must have been called and which must initialize
      * this before it is accessed.
      */
-    override var itemApiVariants = ApiVariantSet.EMPTY
+    override val itemApiVariants: ApiVariantSet
+        get() = rawItemApiVariants
 
-    override var contentApiVariants = ApiVariantSet.EMPTY
+    /**
+     * Backing property for [contentApiVariants] so internal updates during initialization do not
+     * trigger lazy child initialization in [ClassSourceSelectedApi].
+     */
+    internal var rawContentApiVariants = ApiVariantSet.EMPTY
+
+    override val contentApiVariants: ApiVariantSet
+        get() = rawContentApiVariants
 
     /**
      * The [ApiVariantSet] that will be inherited by [SelectableItem]s enclosed within [item].
@@ -157,7 +188,14 @@ internal sealed class SourceSelectedApi<S : SelectableItem>(
     var inheritableApiVariants = ApiVariantSet.EMPTY
 
     /** Checks to see if the associated [SelectableItem] contains any removed annotations. */
-    override fun hasRemovedAnnotation() = removed
+    override fun hasRemovedAnnotation() = hasRemovedAnnotation
+
+    /** Cached result of [wasPreviouslyReleased], or `null` if it has not yet been computed. */
+    private var wasPreviouslyReleased: Boolean? = null
+
+    override fun wasPreviouslyReleased(): Boolean =
+        wasPreviouslyReleased
+            ?: selectedApiUpdater.wasPreviouslyReleased(item).also { wasPreviouslyReleased = it }
 
     final override fun initialize() {
         // Initialize the parent first.
@@ -188,7 +226,7 @@ internal sealed class SourceSelectedApi<S : SelectableItem>(
         // status until an item is determined to be part of an API surface, and only for emitted
         // items (avoiding Javadoc parsing for non-emitted items like classpath dependencies or
         // skipped packages).
-        if (item.emit && itemApiVariants.isNotEmpty()) {
+        if (item.emit && rawItemApiVariants.isNotEmpty()) {
             item.updateDeprecatedFromJavadocIfNeeded()
         }
     }
@@ -224,12 +262,14 @@ internal sealed class SourceSelectedApi<S : SelectableItem>(
 
     /** Adopt the status from [other]. */
     fun adoptStatusFrom(other: SourceSelectedApi<*>) {
-        itemApiVariants = other.itemApiVariants
+        rawItemApiVariants = other.rawItemApiVariants
         inheritableApiVariants = other.inheritableApiVariants
         docOnly = other.docOnly
         removed = other.removed
+        hasRemovedAnnotation = other.hasRemovedAnnotation
         revert = other.revert
         revertItem = other.revertItem
+        wasPreviouslyReleased = other.wasPreviouslyReleased
         explicitlyHidden = other.explicitlyHidden
     }
 
@@ -270,11 +310,11 @@ internal sealed class SourceSelectedApi<S : SelectableItem>(
         append(", accessible=")
         append(accessible)
         append(", itemApiVariants=")
-        append(itemApiVariants.formatFor(selectedApiUpdater.apiSurfaces))
+        append(rawItemApiVariants.formatFor(selectedApiUpdater.apiSurfaces))
         append(", inheritableApiVariants=")
         append(inheritableApiVariants.formatFor(selectedApiUpdater.apiSurfaces))
         append(", contentApiVariants=")
-        append(contentApiVariants.formatFor(selectedApiUpdater.apiSurfaces))
+        append(rawContentApiVariants.formatFor(selectedApiUpdater.apiSurfaces))
         if (superClassApiVariants.isNotEmpty()) {
             append(", superClassApiVariants=")
             append(superClassApiVariants.formatFor(selectedApiUpdater.apiSurfaces))

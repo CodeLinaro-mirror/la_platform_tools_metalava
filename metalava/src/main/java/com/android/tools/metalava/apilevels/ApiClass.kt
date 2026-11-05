@@ -15,8 +15,6 @@
  */
 package com.android.tools.metalava.apilevels
 
-import com.google.common.collect.Iterables
-
 /**
  * Represents a class or an interface and its methods/fields. This is used to write the simplified
  * XML file containing all the public API.
@@ -48,20 +46,8 @@ class ApiClass(name: String, private val isEnum: Boolean) : ApiElement(name) {
     val fields: Collection<ApiElement>
         get() = mFields.values
 
-    /**
-     * Corrects a historical mistake in android.jar files where methods returning
-     * `AbstractStringBuilder` should return the concrete subclass instead.
-     */
-    internal fun correctMethodSignature(signature: String): String {
-        if (
-            signature.endsWith(")Ljava/lang/AbstractStringBuilder;") ||
-                signature.endsWith(")Ltest/pkg/AbstractStringBuilder;")
-        ) {
-            val index = signature.lastIndexOf(')')
-            return signature.substring(0, index) + ")L" + this.name + ";"
-        }
-        return signature
-    }
+    /** Returns the [ApiElement] for the field with [name], or `null` if not present. */
+    fun getField(name: String): ApiElement? = mFields[name]
 
     /**
      * Updates the [ApiElement] for method with [signature], creating and adding one if necessary.
@@ -77,8 +63,7 @@ class ApiClass(name: String, private val isEnum: Boolean) : ApiElement(name) {
         updater: ApiHistoryUpdater,
         deprecated: Boolean,
     ): ApiElement {
-        val correctedName = correctMethodSignature(signature)
-        return updateElementInMap(mMethods, correctedName, updater, deprecated)
+        return updateElementInMap(mMethods, signature, updater, deprecated)
     }
 
     val methods: Collection<ApiElement>
@@ -104,6 +89,29 @@ class ApiClass(name: String, private val isEnum: Boolean) : ApiElement(name) {
 
         for (methodName in enumMethodNames()) {
             mMethods[methodName] = ApiElement(methodName, this)
+        }
+    }
+
+    /**
+     * Computes [ApiElement.removedIn] for all members of this class that were not present in this
+     * class's [lastPresentIn] version, or inherits this class's [removedIn] version.
+     *
+     * @param versionToNext map from each [ApiVersion] to the next [ApiVersion] in sequence.
+     */
+    fun computeRemovedIn(versionToNext: Map<ApiVersion, ApiVersion>) {
+        for (collection in listOf(superClasses, interfaces, methods, fields)) {
+            for (element in collection) {
+                if (element.lastPresentIn < lastPresentIn) {
+                    val removedFrom =
+                        versionToNext[element.lastPresentIn]
+                            ?: error(
+                                "could not find next version for ${element.lastPresentIn} in ${element.name}"
+                            )
+                    element.updateRemovedIn(removedFrom)
+                } else if (removedIn != null) {
+                    element.updateRemovedIn(removedIn!!)
+                }
+            }
         }
     }
 
@@ -144,6 +152,26 @@ class ApiClass(name: String, private val isEnum: Boolean) : ApiElement(name) {
 
     val interfaces: Collection<ApiElement>
         get() = mInterfaces.values
+
+    /** Adds a parsed field [ApiElement] directly to this [ApiClass]. */
+    internal fun addField(field: ApiElement) {
+        mFields[field.name] = field
+    }
+
+    /** Adds a parsed method [ApiElement] directly to this [ApiClass]. */
+    internal fun addMethod(method: ApiElement) {
+        mMethods[method.name] = method
+    }
+
+    /** Adds a parsed superclass [ApiElement] directly to this [ApiClass]. */
+    internal fun addSuperClass(superClass: ApiElement) {
+        mSuperClasses[superClass.name] = superClass
+    }
+
+    /** Adds a parsed interface [ApiElement] directly to this [ApiClass]. */
+    internal fun addInterface(interfaceElement: ApiElement) {
+        mInterfaces[interfaceElement.name] = interfaceElement
+    }
 
     private fun updateElementInMap(
         elements: MutableMap<String, ApiElement>,
@@ -198,7 +226,7 @@ class ApiClass(name: String, private val isEnum: Boolean) : ApiElement(name) {
         interfaceElement: ApiElement,
         allClasses: Map<String, ApiClass>
     ): Boolean {
-        for (parent in Iterables.concat(interfaces, superClasses)) {
+        for (parent in interfaces.asSequence() + superClasses.asSequence()) {
             if (parent.introducedNotLaterThan(interfaceElement)) {
                 val cls = allClasses[parent.name]
                 if (cls != null && cls.implementsInterface(interfaceElement, allClasses)) {
@@ -267,9 +295,9 @@ class ApiClass(name: String, private val isEnum: Boolean) : ApiElement(name) {
         allClasses: Map<String, ApiClass>
     ): Boolean {
         // Check this class' parents.
-        for (parent in Iterables.concat(superClasses, interfaces)) {
+        for (parent in superClasses.asSequence() + interfaces.asSequence()) {
             // Only check the parent if it was a parent class at the introduction of the method.
-            if (parent!!.introducedNotLaterThan(method)) {
+            if (parent.introducedNotLaterThan(method)) {
                 val cls = allClasses[parent.name]
                 if (cls != null && cls.isOverride(method, allClasses)) {
                     return true
@@ -292,7 +320,7 @@ class ApiClass(name: String, private val isEnum: Boolean) : ApiElement(name) {
             return null
         }
         var bestMatch: ApiElement? = null
-        for (parent in Iterables.concat(superClasses, interfaces)) {
+        for (parent in superClasses.asSequence() + interfaces.asSequence()) {
             val cls = allClasses[parent.name] ?: continue
             val localMethod = cls.mMethods[method.name]
             if (localMethod != null) {

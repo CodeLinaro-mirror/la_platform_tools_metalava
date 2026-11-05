@@ -17,6 +17,7 @@
 package com.android.tools.metalava.cli.lint
 
 import com.android.tools.metalava.cli.common.BaseOptionGroupTest
+import com.android.tools.metalava.cli.common.SignatureBasedApi
 import com.android.tools.metalava.testing.signature
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
@@ -41,15 +42,17 @@ Api Lint:
   --api-lint-allowed-acronym <acronym>       An acronym that should be allowed by API lint. Can be specified multiple
                                              times.
   --baseline:api-lint <file>                 An optional baseline file that contains a list of known API lint issues
-                                             which should be ignored. If this does not exist and
-                                             --update-baseline:api-lint is not specified then it will be created and
-                                             populated with all the known API lint issues.
+                                             which should be ignored.
   --update-baseline:api-lint <file>          An optional file into which a list of the latest API lint issues found will
-                                             be written. If --baseline:api-lint is specified then any issues listed in
-                                             there will be copied into this file; that minimizes the amount of churn in
-                                             the baseline file when updating by not removing legacy issues that have
-                                             been fixed. If --delete-empty-baselines is specified and this baseline is
-                                             empty then the file will be deleted.
+                                             be written. If --baseline:api-lint is specified and is a different file
+                                             then any issues listed in there will be copied into this file; that
+                                             minimizes the amount of churn in the baseline file when updating by not
+                                             removing legacy issues that have been fixed, and any unbaselined issues
+                                             will still be reported as errors. If --update-baseline:api-lint and
+                                             --baseline:api-lint refer to the same file then the baseline will be
+                                             updated in place from scratch and no issues will be reported as errors. If
+                                             --delete-empty-baselines is specified and this baseline is empty then the
+                                             file will be deleted.
     """
         .trimIndent()
 
@@ -65,6 +68,21 @@ class ApiLintOptionsTest :
         val file = signature("released.txt", "// Signature format: 2.0\n").toFile()
         runTest(ARG_API_LINT_PREVIOUS_API, file.path) {
             assertThat(options.compute().previouslyReleasedApi?.lastSignatureFile).isEqualTo(file)
+        }
+    }
+
+    @Test
+    fun `multiple api lint previous api files`() {
+        val file1 = signature("released1.txt", "// Signature format: 2.0\n").toFile()
+        val file2 = signature("released2.txt", "// Signature format: 2.0\n").toFile()
+        runTest(ARG_API_LINT_PREVIOUS_API, file1.path, ARG_API_LINT_PREVIOUS_API, file2.path) {
+            assertThat(options.compute().previouslyReleasedApi)
+                .isEqualTo(
+                    SignatureBasedApi.fromFiles(
+                        listOf(file1, file2),
+                        onlyUseLastForMainApiSurface = false,
+                    )
+                )
         }
     }
 }

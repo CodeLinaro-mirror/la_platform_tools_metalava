@@ -34,9 +34,6 @@ enum class Capability {
     /** Has access to documentation. */
     DOCUMENTATION,
 
-    /** Can load additional APIs from a jar file. */
-    LOAD_JAR,
-
     /** Can create a [ClassPathResolver]. */
     CLASS_PATH_RESOLVER,
 

@@ -27,9 +27,6 @@ interface AnnotationManager {
      */
     val apiSurfaceSelector: ApiSurfaceSelector
 
-    /** The optional previously released [Codebase] to check against when reverting flagged APIs. */
-    val previouslyReleasedCodebase: Codebase?
-
     /** Get the [AnnotationInfo] for the specified [annotation]. */
     fun getAnnotationInfo(annotation: AnnotationItem): AnnotationInfo
 
@@ -39,9 +36,6 @@ interface AnnotationManager {
      * Annotations that should not be used internally are mapped to null.
      */
     fun normalizeInputName(qualifiedName: String): String?
-
-    /** Finds the corresponding item in the previously released API, if available. */
-    fun findPreviouslyReleasedItem(item: SelectableItem): SelectableItem? = null
 
     /**
      * Maps an annotation name to the name to be used in signatures/stubs/external annotation files.
@@ -127,9 +121,6 @@ abstract class BaseAnnotationManager : AnnotationManager {
 internal class NoOpAnnotationManager : BaseAnnotationManager() {
 
     override val apiSurfaceSelector: ApiSurfaceSelector = ApiSurfaceSelector.DEFAULT
-
-    override val previouslyReleasedCodebase: Codebase?
-        get() = null
 
     override fun getKeyForAnnotationItem(annotationItem: AnnotationItem): String {
         // Just use the qualified name as the key as [computeAnnotationInfo] does not use anything

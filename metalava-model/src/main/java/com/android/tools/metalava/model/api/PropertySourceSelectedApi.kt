@@ -35,7 +35,7 @@ internal class PropertySourceSelectedApi(
 
         // If the property is already hidden (e.g. parent is hidden, property has no API
         // visibility, or has an explicit hide annotation), do not unhide it.
-        if (itemApiVariants.isNotEmpty()) {
+        if (rawItemApiVariants.isNotEmpty()) {
             item.backingField?.let { backingField ->
                 // A property's backing field can take one of two forms:
                 // 1. Backing fields with API visibility (e.g. `const val` or `@JvmField`):
@@ -64,7 +64,7 @@ internal class PropertySourceSelectedApi(
         }
 
         // Propagate information from this to the parent, i.e. the containing class.
-        parent.propagateFromChild(itemApiVariants)
+        parent.propagateFromChild(rawItemApiVariants)
     }
 
     /**

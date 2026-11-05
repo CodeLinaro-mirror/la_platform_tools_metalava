@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.source.javadoc
 
+import com.android.tools.metalava.model.ExternalReferencableItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.InvalidReferencableItem
 import com.android.tools.metalava.model.ReferencableItem
@@ -148,13 +149,22 @@ internal class ExprBuilder(
                         }
                     }
                 }
+                is ExternalReferencableItem -> {
+                    reporter.report(
+                        fieldSymbol,
+                        Issues.INVALID_JAVADOC_EXPR,
+                        "invalid flag field '$fieldReference', cannot reference field in external package"
+                    )
+                    null
+                }
                 // Did not find any item.
                 is InvalidReferencableItem -> {
                     reporter.report(fieldSymbol, Issues.INVALID_JAVADOC_EXPR, resolved.message)
                     null
                 }
                 // This should never happen as passing in NameClassification.FIELD above should
-                // limit the returned types to FieldItem or InvalidReferencableItem
+                // limit the returned types to FieldItem, ExternalReferencableItem, or
+                // InvalidReferencableItem
                 else -> error("type '$fieldReference' was resolved to an unknown type $resolved")
             }
 
