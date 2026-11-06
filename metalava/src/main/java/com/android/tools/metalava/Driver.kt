@@ -448,6 +448,26 @@ class Driver(
                 apiFilters = apiFilters,
             )
 
+        // Compute the filters and lazily create the CodebaseFragment for the removed API so it can
+        // be shared between FlaggedApiLint (when checking against a previously released API) and
+        // writing `--removed-api` without constructing it when neither needs it.
+        val removedApiFilters =
+            if (preFiltered) {
+                // Pre-filtered so does not need any filters.
+                null
+            } else {
+                ApiSurfacePredicate.apiFilters(ApiType.REMOVED, apiSurface)
+            }
+
+        val removedApiCodebaseFragment by
+            lazy(LazyThreadSafetyMode.NONE) {
+                createSignatureFileFragment(
+                    codebase,
+                    fileFormat = fileFormat,
+                    apiFilters = removedApiFilters,
+                )
+            }
+
         runApiChecksFromOptions(codebase) { _, previouslyReleasedCodebase ->
             tracer.trace("FlaggedApiLint") {
                 FlaggedApiLint.check(
@@ -474,21 +494,6 @@ class Driver(
         }
 
         signatureFileOptions.removedApiFile?.let { apiSignatureFile ->
-            val apiFilters =
-                if (preFiltered) {
-                    // Pre-filtered so does not need any filters.
-                    null
-                } else {
-                    ApiSurfacePredicate.apiFilters(ApiType.REMOVED, apiSurface)
-                }
-
-            val removedApiCodebaseFragment =
-                createSignatureFileFragment(
-                    codebase,
-                    fileFormat = fileFormat,
-                    apiFilters = apiFilters,
-                )
-
             tracer.trace("createOutputFileFromCodebaseFragment removed API") {
                 createOutputFileFromCodebaseFragment(
                     removedApiCodebaseFragment,
