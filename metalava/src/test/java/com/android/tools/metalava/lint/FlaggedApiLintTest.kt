@@ -53,6 +53,7 @@ class FlaggedApiLintTest : DriverTest() {
         sourceFiles: Array<TestFile>,
         extraArguments: Array<String> = emptyArray(),
         expectedApiSignature: String? = null,
+        expectedRemovedApiSignature: String? = null,
         checkCompilation: Boolean = false,
         checkCompatibilityApiReleased: String? = null,
     ) {
@@ -69,6 +70,7 @@ class FlaggedApiLintTest : DriverTest() {
                 ) + extraArguments,
             expectedIssues = expectedIssues,
             expectedApiSignature = expectedApiSignature,
+            removedApi = expectedRemovedApiSignature,
             checkCompatibilityApiReleased = checkCompatibilityApiReleased,
             checkCompilation = checkCompilation,
         )
@@ -1168,6 +1170,611 @@ class FlaggedApiLintTest : DriverTest() {
                     KnownSourceFiles.stringDefSource,
                     flagsFile,
                 ),
+        )
+    }
+
+    /**
+     * Verify that removing previously released classes and members via `@RemovedFromApi` without
+     * `@FlaggedApi` reports `UnflaggedApi` on:
+     * - The outermost removed class only (never on its enclosed constructors, methods, fields, or
+     *   nested classes).
+     * - Individual removed constructors, methods (including `@Deprecated` methods), fields, and
+     *   nested classes inside a non-removed class.
+     * - A `@RemovedFromApi` member inside a `@FlaggedApi`-annotated non-removed class, because an
+     *   enclosing class's `@FlaggedApi` does not gate `@RemovedFromApi` on its members.
+     *
+     * Also verifies that `@SuppressWarnings("UnflaggedApi")` suppresses the error and that newly
+     * added `@RemovedFromApi` items that were never in `previouslyReleasedApi` do not require
+     * `@FlaggedApi`.
+     */
+    @Test
+    fun `Require @FlaggedApi on APIs removed with @RemovedFromApi`() {
+        checkFlaggedApiLint(
+            apiSurface = KnownApiSurface.PUBLIC,
+            // TODO(b/571827848): UnflaggedApi is not reported on APIs removed without @FlaggedApi.
+            expectedIssues = "",
+            apiLint =
+                """
+                    // Signature format: 2.0
+                    package android.foobar {
+                      public class ExistingClass {
+                        ctor public ExistingClass();
+                        ctor public ExistingClass(int);
+                        method @Deprecated public void removedDeprecatedMethod();
+                        method public void removedMethod();
+                        method public void suppressedRemovedMethod();
+                        field public static final int REMOVED_FIELD = 1; // 0x1
+                      }
+                      public static class ExistingClass.RemovedNested {
+                        ctor public ExistingClass.RemovedNested();
+                        method public void innerMethod();
+                      }
+                      public static class ExistingClass.RemovedNested.DeepInner {
+                        ctor public ExistingClass.RemovedNested.DeepInner();
+                      }
+                      public class FlaggedExistingClass {
+                        ctor public FlaggedExistingClass();
+                        method public void unflaggedRemovedInFlaggedClass();
+                      }
+                      public class RemovedClass {
+                        ctor public RemovedClass();
+                        method public void method();
+                        field public static final int FIELD = 1; // 0x1
+                      }
+                      public static class RemovedClass.Inner {
+                        ctor public RemovedClass.Inner();
+                        method public void innerMethod();
+                      }
+                    }
+                """,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package android.foobar;
+
+                            import android.annotation.RemovedFromApi;
+
+                            @RemovedFromApi
+                            public class RemovedClass {
+                                public RemovedClass() {}
+                                public void method() {}
+                                public static final int FIELD = 1;
+
+                                public static class Inner {
+                                    public Inner() {}
+                                    public void innerMethod() {}
+                                }
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package android.foobar;
+
+                            import android.annotation.RemovedFromApi;
+
+                            public class ExistingClass {
+                                public ExistingClass() {}
+
+                                @RemovedFromApi
+                                public ExistingClass(int x) {}
+
+                                @RemovedFromApi
+                                public void removedMethod() {}
+
+                                /** @deprecated */
+                                @Deprecated
+                                @RemovedFromApi
+                                public void removedDeprecatedMethod() {}
+
+                                @RemovedFromApi
+                                public static final int REMOVED_FIELD = 1;
+
+                                @RemovedFromApi
+                                public static class RemovedNested {
+                                    public RemovedNested() {}
+                                    public void innerMethod() {}
+
+                                    public static class DeepInner {
+                                        public DeepInner() {}
+                                    }
+                                }
+
+                                @SuppressWarnings("UnflaggedApi")
+                                @RemovedFromApi
+                                public void suppressedRemovedMethod() {}
+
+                                @RemovedFromApi
+                                public void neverReleasedRemovedMethod() {}
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package android.foobar;
+
+                            import android.annotation.FlaggedApi;
+                            import android.annotation.RemovedFromApi;
+
+                            @FlaggedApi(Flags.FLAG_MY_FEATURE)
+                            public class FlaggedExistingClass {
+                                public FlaggedExistingClass() {}
+
+                                @RemovedFromApi
+                                public void unflaggedRemovedInFlaggedClass() {}
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package android.foobar;
+
+                            class Flags {
+                                static final String FLAG_MY_FEATURE = "android.foobar.my_feature";
+                            }
+                        """
+                    ),
+                ),
+            extraArguments = errorIssues(Issues.UNFLAGGED_API),
+        )
+    }
+
+    /**
+     * Specifically verify legacy `@removed` Javadoc tag behavior (omitting `apiSurface` so legacy
+     * Javadoc tags are honored): removing previously released APIs via `@removed` always reports
+     * `UnflaggedApi` — even if `@FlaggedApi` is also present (`flaggedDocRemovedMethod`), because
+     * `@FlaggedApi` only gates configured removed annotations (`@RemovedFromApi`), not `@removed`
+     * doc tags.
+     */
+    @Test
+    fun `Require @FlaggedApi on APIs removed with @removed doc tag`() {
+        checkFlaggedApiLint(
+            // TODO(b/571827848): UnflaggedApi is not reported on APIs removed with @removed without
+            //  @FlaggedApi.
+            expectedIssues = "",
+            apiLint =
+                """
+                    // Signature format: 2.0
+                    package android.foobar {
+                      public class ExistingClass {
+                        ctor public ExistingClass();
+                        ctor public ExistingClass(int);
+                        method public void flaggedDocRemovedMethod();
+                        method @Deprecated public void removedDeprecatedMethod();
+                        method public void removedMethod();
+                        field public static final int REMOVED_FIELD = 1; // 0x1
+                      }
+                      public static class ExistingClass.RemovedNested {
+                        ctor public ExistingClass.RemovedNested();
+                        method public void innerMethod();
+                      }
+                      public class RemovedClass {
+                        ctor public RemovedClass();
+                        method public void method();
+                      }
+                      public static class RemovedClass.Inner {
+                        ctor public RemovedClass.Inner();
+                      }
+                    }
+                """,
+            expectedApiSignature =
+                """
+                    package android.foobar {
+                      public class ExistingClass {
+                        ctor public ExistingClass();
+                      }
+                    }
+                """,
+            expectedRemovedApiSignature =
+                """
+                    package android.foobar {
+                      public class ExistingClass {
+                        ctor public ExistingClass(int);
+                        method @FlaggedApi("android.foobar.my_feature") public void flaggedDocRemovedMethod();
+                        method public void neverReleasedRemovedMethod();
+                        method @Deprecated public void removedDeprecatedMethod();
+                        method public void removedMethod();
+                        field public static final int REMOVED_FIELD = 1; // 0x1
+                      }
+                      public static class ExistingClass.RemovedNested {
+                        ctor public ExistingClass.RemovedNested();
+                        method public void innerMethod();
+                      }
+                      public class RemovedClass {
+                        ctor public RemovedClass();
+                        method public void method();
+                      }
+                      public static class RemovedClass.Inner {
+                        ctor public RemovedClass.Inner();
+                      }
+                    }
+                """,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package android.foobar;
+
+                            /** @removed */
+                            public class RemovedClass {
+                                public RemovedClass() {}
+                                public void method() {}
+
+                                public static class Inner {
+                                    public Inner() {}
+                                }
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package android.foobar;
+
+                            import android.annotation.FlaggedApi;
+
+                            public class ExistingClass {
+                                public ExistingClass() {}
+
+                                /** @removed */
+                                public ExistingClass(int x) {}
+
+                                /** @removed */
+                                @FlaggedApi(Flags.FLAG_MY_FEATURE)
+                                public void flaggedDocRemovedMethod() {}
+
+                                /** @removed */
+                                public void removedMethod() {}
+
+                                /**
+                                 * @deprecated
+                                 * @removed
+                                 */
+                                @Deprecated
+                                public void removedDeprecatedMethod() {}
+
+                                /** @removed */
+                                public static final int REMOVED_FIELD = 1;
+
+                                /** @removed */
+                                public static class RemovedNested {
+                                    public RemovedNested() {}
+                                    public void innerMethod() {}
+                                }
+
+                                /** @removed */
+                                public void neverReleasedRemovedMethod() {}
+                            }
+                        """
+                    ),
+                    flagsFile,
+                ),
+            extraArguments = errorIssues(Issues.UNFLAGGED_API),
+        )
+    }
+
+    /**
+     * Verify `@FlaggedApi` checks when analyzing the `@SystemApi` delta surface:
+     * - Removing `@SystemApi` classes or methods without `@FlaggedApi` reports `UnflaggedApi`.
+     * - Removing a `public` method (`unflaggedRemovedPublicMethod`) is not reported in the `system`
+     *   delta check (it belongs to `public(R)`, not `system(R)`).
+     * - A `@SystemApi` method inside a `@RemovedFromApi @FlaggedApi` `public` class does not
+     *   require its own `@FlaggedApi` because its enclosing class is already being removed.
+     */
+    @Test
+    fun `Require @FlaggedApi on SystemApi removed with @RemovedFromApi`() {
+        val apiFlagsXmlFile =
+            xml(
+                "config-api-flags.xml",
+                """
+                    <config xmlns="http://www.google.com/tools/metalava/config">
+                        <api-flags>
+                            <api-flag package="android.foobar" name="my_feature" mutability="immutable" status="enabled" is-exported="true"/>
+                        </api-flags>
+                    </config>
+                """
+            )
+        checkFlaggedApiLint(
+            apiSurface = KnownApiSurface.SYSTEM,
+            apiFlagsConfig = apiFlagsXmlFile,
+            // TODO(b/571827848): UnflaggedApi is not reported on SystemApi items removed without
+            //  @FlaggedApi.
+            expectedIssues = "",
+            apiLint =
+                """
+                    // Signature format: 2.0
+                    package android.foobar {
+                      public class FlaggedRemovedPublicClass {
+                        method public void systemMethodInRemovedPublicClass();
+                      }
+                      public class PublicClass {
+                        method public void unflaggedRemovedSystemMethod();
+                      }
+                      public class RemovedSystemClass {
+                        ctor public RemovedSystemClass();
+                        method public void method();
+                      }
+                    }
+                """,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package android.foobar;
+
+                            import android.annotation.FlaggedApi;
+                            import android.annotation.RemovedFromApi;
+                            import android.annotation.SystemApi;
+
+                            @RemovedFromApi
+                            @FlaggedApi(Flags.FLAG_MY_FEATURE)
+                            public class FlaggedRemovedPublicClass {
+                                public FlaggedRemovedPublicClass() {}
+
+                                @SystemApi
+                                public void systemMethodInRemovedPublicClass() {}
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package android.foobar;
+
+                            import android.annotation.RemovedFromApi;
+                            import android.annotation.SystemApi;
+
+                            public class PublicClass {
+                                private PublicClass() {}
+
+                                @RemovedFromApi
+                                public void unflaggedRemovedPublicMethod() {}
+
+                                @SystemApi
+                                @RemovedFromApi
+                                public void unflaggedRemovedSystemMethod() {}
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package android.foobar;
+
+                            import android.annotation.RemovedFromApi;
+                            import android.annotation.SystemApi;
+
+                            @SystemApi
+                            @RemovedFromApi
+                            public class RemovedSystemClass {
+                                public RemovedSystemClass() {}
+                                public void method() {}
+                            }
+                        """
+                    ),
+                    flagsFile,
+                ),
+            extraArguments = errorIssues(Issues.UNFLAGGED_API),
+        )
+    }
+
+    /**
+     * Verify that `@RemovedFromApi` items gated by a kept (`mutable`) or reverted (`immutable` +
+     * `disabled`) `@FlaggedApi` remain in the core API without reporting `UnflaggedApi`.
+     */
+    @Test
+    fun `Do not require @FlaggedApi when @RemovedFromApi is kept or reverted`() {
+        val apiFlagsXmlFile =
+            xml(
+                "config-api-flags.xml",
+                """
+                    <config xmlns="http://www.google.com/tools/metalava/config">
+                        <api-flags>
+                            <api-flag package="android.foobar" name="kept_flag" mutability="mutable" status="enabled" is-exported="true"/>
+                            <api-flag package="android.foobar" name="reverted_flag" mutability="immutable" status="disabled" is-exported="true"/>
+                        </api-flags>
+                    </config>
+                """
+            )
+        val previouslyReleasedApi =
+            """
+                // Signature format: 2.0
+                package android.foobar {
+                  public class ExistingClass {
+                    ctor public ExistingClass();
+                    method public void keptRemovedMethod();
+                    method public void revertedRemovedMethod();
+                  }
+                  public class KeptRemovedClass {
+                    ctor public KeptRemovedClass();
+                    method public void method();
+                  }
+                  public class RevertedRemovedClass {
+                    ctor public RevertedRemovedClass();
+                    method public void method();
+                  }
+                }
+            """
+        checkFlaggedApiLint(
+            apiSurface = KnownApiSurface.PUBLIC,
+            apiFlagsConfig = apiFlagsXmlFile,
+            expectedIssues = "",
+            apiLint = previouslyReleasedApi,
+            checkCompatibilityApiReleased = previouslyReleasedApi,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package android.foobar;
+
+                            class CustomFlags {
+                                static final String FLAG_KEPT = "android.foobar.kept_flag";
+                                static final String FLAG_REVERTED = "android.foobar.reverted_flag";
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package android.foobar;
+
+                            import android.annotation.FlaggedApi;
+                            import android.annotation.RemovedFromApi;
+
+                            @RemovedFromApi
+                            @FlaggedApi(CustomFlags.FLAG_KEPT)
+                            public class KeptRemovedClass {
+                                public KeptRemovedClass() {}
+                                public void method() {}
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package android.foobar;
+
+                            import android.annotation.FlaggedApi;
+                            import android.annotation.RemovedFromApi;
+
+                            @RemovedFromApi
+                            @FlaggedApi(CustomFlags.FLAG_REVERTED)
+                            public class RevertedRemovedClass {
+                                public RevertedRemovedClass() {}
+                                public void method() {}
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package android.foobar;
+
+                            import android.annotation.FlaggedApi;
+                            import android.annotation.RemovedFromApi;
+
+                            public class ExistingClass {
+                                public ExistingClass() {}
+
+                                @RemovedFromApi
+                                @FlaggedApi(CustomFlags.FLAG_KEPT)
+                                public void keptRemovedMethod() {}
+
+                                @RemovedFromApi
+                                @FlaggedApi(CustomFlags.FLAG_REVERTED)
+                                public void revertedRemovedMethod() {}
+                            }
+                        """
+                    ),
+                ),
+            extraArguments = errorIssues(Issues.UNFLAGGED_API),
+        )
+    }
+
+    /**
+     * Verify that finalized `@RemovedFromApi` items annotated with `@FlaggedApi` do not report
+     * `UnflaggedApi`, while still validating their `@FlaggedApi` annotations for
+     * `FlaggedApiLiteral` and `UnexportedFlaggedApi`.
+     */
+    @Test
+    fun `Check @FlaggedApi on finalized @RemovedFromApi items`() {
+        val apiFlagsXmlFile =
+            xml(
+                "config-api-flags.xml",
+                """
+                    <config xmlns="http://www.google.com/tools/metalava/config">
+                        <api-flags>
+                            <api-flag package="android.foobar" name="finalized_flag" mutability="immutable" status="enabled" is-exported="true"/>
+                            <api-flag package="android.foobar" name="unexported_finalized_flag" mutability="immutable" status="enabled" is-exported="false"/>
+                        </api-flags>
+                    </config>
+                """
+            )
+        checkFlaggedApiLint(
+            apiSurface = KnownApiSurface.PUBLIC,
+            apiFlagsConfig = apiFlagsXmlFile,
+            // TODO(b/571827848): FlaggedApiLint does not yet visit the removed API fragment, so
+            //  FlaggedApiLiteral and UnexportedFlaggedApi are not reported on finalized
+            //  @RemovedFromApi items.
+            expectedIssues = "",
+            apiLint =
+                """
+                    // Signature format: 2.0
+                    package android.foobar {
+                      public class ExistingClass {
+                        ctor public ExistingClass();
+                        method public void literalFinalizedRemoval();
+                        method public void okFinalizedRemoval();
+                        method public void unexportedFinalizedRemoval();
+                      }
+                      public class FinalizedRemovedClass {
+                        ctor public FinalizedRemovedClass();
+                        method public void method();
+                      }
+                    }
+                """,
+            expectedRemovedApiSignature =
+                """
+                    package android.foobar {
+                      public class ExistingClass {
+                        method public void literalFinalizedRemoval();
+                        method public void okFinalizedRemoval();
+                        method public void unexportedFinalizedRemoval();
+                      }
+                      public class FinalizedRemovedClass {
+                        ctor public FinalizedRemovedClass();
+                        method public void method();
+                      }
+                    }
+                """,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package android.foobar;
+
+                            class Flags {
+                                static final String FLAG_FINALIZED_FLAG = "android.foobar.finalized_flag";
+                                static final String FLAG_UNEXPORTED_FINALIZED_FLAG = "android.foobar.unexported_finalized_flag";
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package android.foobar;
+
+                            import android.annotation.FlaggedApi;
+                            import android.annotation.RemovedFromApi;
+
+                            @RemovedFromApi
+                            @FlaggedApi(Flags.FLAG_FINALIZED_FLAG)
+                            public class FinalizedRemovedClass {
+                                public FinalizedRemovedClass() {}
+                                public void method() {}
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package android.foobar;
+
+                            import android.annotation.FlaggedApi;
+                            import android.annotation.RemovedFromApi;
+
+                            public class ExistingClass {
+                                public ExistingClass() {}
+
+                                @RemovedFromApi
+                                @FlaggedApi(Flags.FLAG_FINALIZED_FLAG)
+                                public void okFinalizedRemoval() {}
+
+                                @RemovedFromApi
+                                @FlaggedApi("android.foobar.finalized_flag")
+                                public void literalFinalizedRemoval() {}
+
+                                @RemovedFromApi
+                                @FlaggedApi(Flags.FLAG_UNEXPORTED_FINALIZED_FLAG)
+                                public void unexportedFinalizedRemoval() {}
+                            }
+                        """
+                    ),
+                ),
+            extraArguments = errorIssues(Issues.UNFLAGGED_API),
         )
     }
 }
