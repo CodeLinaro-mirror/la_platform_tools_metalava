@@ -310,39 +310,35 @@ class FlaggedApiLint(
                 runtimeAnnotationsOnly = false,
                 skipNullnessAnnotations = true,
             )
-
-        /**
-         * Heuristically converts the given string [literal] into a reference to the equivalent
-         * `aconfig`-generated `Flags.java` field.
-         *
-         * @return a pair of the field reference as Java / Kotlin source, and the referenced field
-         *   item (if found in [codebase]); or `null` if the literal cannot be converted.
-         */
-        private fun aconfigFlagLiteralToFieldOrNull(
-            codebase: Codebase,
-            literal: String
-        ): Pair<String, FieldItem?>? {
-            if (literal.contains('/')) {
-                return null
-            }
-            val parts = literal.split('.')
-
-            val flag = parts.lastOrNull() ?: return null
-            val flagField = "FLAG_" + flag.uppercase()
-            val pkg = parts.dropLast(1).joinToString(separator = ".")
-            val className = "$pkg.Flags"
-            val fieldSource = "$className.$flagField"
-
-            val clazzOrNull = codebase.findClass(className)
-            val fieldOrNull =
-                clazzOrNull?.findField(
-                    flagField,
-                    includeSuperClasses = true,
-                    includeInterfaces = true
-                )
-            return fieldSource to fieldOrNull
-        }
     }
+}
+
+/**
+ * Heuristically converts the given string [literal] into a reference to the equivalent
+ * `aconfig`-generated `Flags.java` field.
+ *
+ * @return a pair of the field reference as Java / Kotlin source, and the referenced field item (if
+ *   found in [codebase]); or `null` if the literal cannot be converted.
+ */
+private fun aconfigFlagLiteralToFieldOrNull(
+    codebase: Codebase,
+    literal: String,
+): Pair<String, FieldItem?>? {
+    if (literal.contains('/')) {
+        return null
+    }
+    val parts = literal.split('.')
+
+    val flag = parts.lastOrNull() ?: return null
+    val flagField = "FLAG_" + flag.uppercase()
+    val pkg = parts.dropLast(1).joinToString(separator = ".")
+    val className = "$pkg.Flags"
+    val fieldSource = "$className.$flagField"
+
+    val clazzOrNull = codebase.findClass(className)
+    val fieldOrNull =
+        clazzOrNull?.findField(flagField, includeSuperClasses = true, includeInterfaces = true)
+    return fieldSource to fieldOrNull
 }
 
 /** [FilterPredicate] that matches items annotated with `@FlaggedApi`. */
