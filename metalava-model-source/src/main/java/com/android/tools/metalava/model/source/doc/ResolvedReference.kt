@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TypeParameterItem
+import com.android.tools.metalava.reporter.LocationSpecificReporter
 
 /**
  * Base for resolved references to some part of the API, e.g. [SelectableItem]s or
@@ -48,8 +49,16 @@ data class PackageReference(private val qualifiedName: String) : ResolvedReferen
         get() = qualifiedName
 }
 
-/** Create a [PackageReference] from a [PackageItem]. */
-internal fun PackageItem.toResolvedReference() = PackageReference(qualifiedName())
+/**
+ * Create a [PackageReference] from a [PackageItem].
+ *
+ * @param context Documentation context of the referencing item.
+ * @param reporter Reporter at the source location of the reference tag.
+ */
+internal fun PackageItem.toResolvedReference(
+    context: DocCommentContext,
+    reporter: LocationSpecificReporter,
+) = PackageReference(qualifiedName())
 
 /** Base for references to type, i.e. classes and type parameters. */
 sealed interface TypeReference : ResolvedReference
@@ -60,9 +69,16 @@ data class ClassReference(private val qualifiedName: String) : TypeReference {
         get() = qualifiedName
 }
 
-/** Create a [ClassReference] from a [ClassItem]. */
-internal fun ClassItem.toResolvedReference(context: DocCommentContext) =
-    ClassReference(context.resolveClassReferenceName(this))
+/**
+ * Create a [ClassReference] from a [ClassItem].
+ *
+ * @param context Documentation context of the referencing item.
+ * @param reporter Reporter at the source location of the reference tag.
+ */
+internal fun ClassItem.toResolvedReference(
+    context: DocCommentContext,
+    reporter: LocationSpecificReporter,
+) = ClassReference(context.resolveClassReferenceName(this))
 
 /** A reference to a [TypeParameterItem]. */
 data class TypeParameterReference(private val name: String) : TypeReference {
@@ -70,7 +86,12 @@ data class TypeParameterReference(private val name: String) : TypeReference {
         get() = name
 }
 
-/** Create a [TypeParameterReference] from a [TypeParameterItem]. */
+/**
+ * Create a [TypeParameterReference] from a [TypeParameterItem].
+ *
+ * Unlike [SelectableItem] references, type parameters cannot be hidden independently of their
+ * declaring item and therefore do not require reference visibility checking.
+ */
 internal fun TypeParameterItem.toResolvedReference() = TypeParameterReference(name())
 
 /** Base for references to class members, i.e. fields, constructors, methods. */
@@ -87,9 +108,16 @@ data class FieldReference(
         if (qualifiedClassName == containingClassName) "#$memberName" else fullyQualifiedForm
 }
 
-/** Create a [FieldReference] from a [FieldItem]. */
-internal fun FieldItem.toResolvedReference(context: DocCommentContext) =
-    FieldReference(context.resolveClassReferenceName(containingClass()), name())
+/**
+ * Create a [FieldReference] from a [FieldItem].
+ *
+ * @param context Documentation context of the referencing item.
+ * @param reporter Reporter at the source location of the reference tag.
+ */
+internal fun FieldItem.toResolvedReference(
+    context: DocCommentContext,
+    reporter: LocationSpecificReporter,
+) = FieldReference(context.resolveClassReferenceName(containingClass()), name())
 
 /** A reference to a [CallableItem]. */
 data class CallableReference(

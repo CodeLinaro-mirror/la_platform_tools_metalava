@@ -371,14 +371,18 @@ internal data class AmbiguousSourceReference(val name: String) : ParsedReference
         // Resolve the reference.
         when (val resolved = context.resolveItemReference(name, NameClassification.AMBIGUOUS)) {
             is ClassItem -> {
-                val resolvedRef = resolved.toResolvedReference(context)
+                val resolvedRef = resolved.toResolvedReference(context, reporter)
                 val sourceName =
                     rewriteMappedSourceClassName(name, resolved, resolvedRef.fullyQualifiedForm)
                 ResolvedSourceReference(sourceName, resolvedRef)
             }
-            is PackageItem -> ResolvedSourceReference(name, resolved.toResolvedReference())
+            is PackageItem ->
+                ResolvedSourceReference(name, resolved.toResolvedReference(context, reporter))
+            // Type parameters are scoped to the declaring item/class and cannot be hidden
+            // independently, so they do not need reference visibility checking.
             is TypeParameterItem -> ResolvedSourceReference(name, resolved.toResolvedReference())
-            is FieldItem -> ResolvedSourceReference(name, resolved.toResolvedReference(context))
+            is FieldItem ->
+                ResolvedSourceReference(name, resolved.toResolvedReference(context, reporter))
             else -> null
         }
 }
@@ -494,7 +498,7 @@ internal data class AmbiguousMemberSourceReference(val name: String) : ClassMemb
         className: String,
     ) =
         // TODO(b/447588621): Check for methods and constructors not just fields.
-        classItem?.findField(name)?.toResolvedReference(context)
+        classItem?.findField(name)?.toResolvedReference(context, reporter)
             // TODO(b/447588621): Report that the field could not be found.
             // If the field could not be found then fallback to a field reference so that at least
             // the resolved class will be fully qualified.
