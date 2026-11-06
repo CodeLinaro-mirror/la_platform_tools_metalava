@@ -50,7 +50,8 @@ data class PackageReference(private val qualifiedName: String) : ResolvedReferen
 }
 
 /**
- * Create a [PackageReference] from a [PackageItem].
+ * Check whether this [PackageItem] can be referenced from [context] (reporting invalid references
+ * to [reporter]) and create a [PackageReference].
  *
  * @param context Documentation context of the referencing item.
  * @param reporter Reporter at the source location of the reference tag.
@@ -58,7 +59,13 @@ data class PackageReference(private val qualifiedName: String) : ResolvedReferen
 internal fun PackageItem.toResolvedReference(
     context: DocCommentContext,
     reporter: LocationSpecificReporter,
-) = PackageReference(qualifiedName())
+): PackageReference {
+    // PackageReference only retains the package name, not the PackageItem, so check whether this
+    // package is accessible in documentation now while the PackageItem is available.
+    context.checkReference(this, reporter)
+
+    return PackageReference(qualifiedName())
+}
 
 /** Base for references to type, i.e. classes and type parameters. */
 sealed interface TypeReference : ResolvedReference
@@ -70,7 +77,8 @@ data class ClassReference(private val qualifiedName: String) : TypeReference {
 }
 
 /**
- * Create a [ClassReference] from a [ClassItem].
+ * Check whether this [ClassItem] can be referenced from [context] (reporting invalid references to
+ * [reporter]) and create a [ClassReference].
  *
  * @param context Documentation context of the referencing item.
  * @param reporter Reporter at the source location of the reference tag.
@@ -78,7 +86,13 @@ data class ClassReference(private val qualifiedName: String) : TypeReference {
 internal fun ClassItem.toResolvedReference(
     context: DocCommentContext,
     reporter: LocationSpecificReporter,
-) = ClassReference(context.resolveClassReferenceName(this))
+): ClassReference {
+    // ClassReference only retains the class name, not the ClassItem, so check whether this class is
+    // accessible in documentation now while the ClassItem is available.
+    context.checkReference(this, reporter)
+
+    return ClassReference(context.resolveClassReferenceName(this))
+}
 
 /** A reference to a [TypeParameterItem]. */
 data class TypeParameterReference(private val name: String) : TypeReference {
@@ -109,7 +123,8 @@ data class FieldReference(
 }
 
 /**
- * Create a [FieldReference] from a [FieldItem].
+ * Check whether this [FieldItem] can be referenced from [context] (reporting invalid references to
+ * [reporter]) and create a [FieldReference].
  *
  * @param context Documentation context of the referencing item.
  * @param reporter Reporter at the source location of the reference tag.
@@ -117,7 +132,13 @@ data class FieldReference(
 internal fun FieldItem.toResolvedReference(
     context: DocCommentContext,
     reporter: LocationSpecificReporter,
-) = FieldReference(context.resolveClassReferenceName(containingClass()), name())
+): FieldReference {
+    // FieldReference only retains class and field names, not the FieldItem, so check whether this
+    // field is accessible in documentation now while the FieldItem is available.
+    context.checkReference(this, reporter)
+
+    return FieldReference(context.resolveClassReferenceName(containingClass()), name())
+}
 
 /** A reference to a [CallableItem]. */
 data class CallableReference(

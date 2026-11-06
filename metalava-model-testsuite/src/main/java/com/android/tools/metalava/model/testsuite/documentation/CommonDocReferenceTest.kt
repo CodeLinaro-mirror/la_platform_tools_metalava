@@ -557,9 +557,25 @@ class CommonDocReferenceTest : BaseModelTest() {
                     """,
             )
 
-            // TODO(b/568477816): Doc references to hidden items do not yet report
-            //  HiddenDocReference.
-            assertAndRemoveReportedIssues("")
+            // TODO(b/568477816): Member fallback (HiddenClass#method), callable references
+            //  (HiddenClass#method(PackagePrivateClass)), and URI fragments
+            //  (HiddenClass##uri-fragment) do not yet check whether the qualifying or parameter
+            //  classes are hidden.
+            assertAndRemoveReportedIssues(
+                """
+                    MAIN_SRC/src/test/pkg/Test.java:4:15: warning: Package hidden.pkg is hidden (ErrorWhenNew) [HiddenDocReference]
+                    MAIN_SRC/src/test/pkg/Test.java:5:15: warning: Class hidden.pkg.InHiddenPackage is hidden (ErrorWhenNew) [HiddenDocReference]
+                    MAIN_SRC/src/test/pkg/Test.java:6:15: warning: Class test.pkg.PackagePrivateClass is not public (ErrorWhenNew) [HiddenDocReference]
+                    MAIN_SRC/src/test/pkg/Test.java:7:15: warning: Class test.pkg.HiddenClass is hidden (ErrorWhenNew) [HiddenDocReference]
+                    MAIN_SRC/src/test/pkg/Test.java:8:15: warning: Field test.pkg.HiddenClass.field is hidden (ErrorWhenNew) [HiddenDocReference]
+                    MAIN_SRC/src/test/pkg/Test.java:12:15: warning: Field test.pkg.Other.hiddenField is hidden (ErrorWhenNew) [HiddenDocReference]
+                    MAIN_SRC/src/test/pkg/Test.java:13:15: warning: Field test.pkg.Other.packagePrivateField is not public (ErrorWhenNew) [HiddenDocReference]
+                    MAIN_SRC/src/test/pkg/Test.java:14:15: warning: Class test.pkg.Other.HiddenNested is hidden (ErrorWhenNew) [HiddenDocReference]
+                    MAIN_SRC/src/test/pkg/Test.java:15:20: warning: Class test.pkg.HiddenClass is hidden (ErrorWhenNew) [HiddenDocReference]
+                    MAIN_SRC/src/test/pkg/Test.java:17:13: warning: Class test.pkg.HiddenClass is hidden (ErrorWhenNew) [HiddenDocReference]
+                    MAIN_SRC/src/test/pkg/Test.java:18:16: warning: Class test.pkg.Test.HiddenException is hidden (ErrorWhenNew) [HiddenDocReference]
+                """
+            )
         }
     }
 }
