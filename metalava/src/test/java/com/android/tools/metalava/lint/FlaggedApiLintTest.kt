@@ -1191,8 +1191,18 @@ class FlaggedApiLintTest : DriverTest() {
     fun `Require @FlaggedApi on APIs removed with @RemovedFromApi`() {
         checkFlaggedApiLint(
             apiSurface = KnownApiSurface.PUBLIC,
-            // TODO(b/571827848): UnflaggedApi is not reported on APIs removed without @FlaggedApi.
-            expectedIssues = "",
+            // TODO(b/571827848): FilteringReporter suppresses UnflaggedApi on
+            //  removedDeprecatedMethod() because it was already @Deprecated in the previously
+            //  released API.
+            expectedIssues =
+                """
+                    src/android/foobar/ExistingClass.java:9: error: Removed API must be flagged with @FlaggedApi: constructor android.foobar.ExistingClass(int) [UnflaggedApi]
+                    src/android/foobar/ExistingClass.java:12: error: Removed API must be flagged with @FlaggedApi: method android.foobar.ExistingClass.removedMethod() [UnflaggedApi]
+                    src/android/foobar/ExistingClass.java:20: error: Removed API must be flagged with @FlaggedApi: field android.foobar.ExistingClass.REMOVED_FIELD [UnflaggedApi]
+                    src/android/foobar/ExistingClass.java:23: error: Removed API must be flagged with @FlaggedApi: class android.foobar.ExistingClass.RemovedNested [UnflaggedApi]
+                    src/android/foobar/FlaggedExistingClass.java:11: error: Removed API must be flagged with @FlaggedApi: method android.foobar.FlaggedExistingClass.unflaggedRemovedInFlaggedClass() [UnflaggedApi]
+                    src/android/foobar/RemovedClass.java:6: error: Removed API must be flagged with @FlaggedApi: class android.foobar.RemovedClass [UnflaggedApi]
+                """,
             apiLint =
                 """
                     // Signature format: 2.0
@@ -1330,9 +1340,18 @@ class FlaggedApiLintTest : DriverTest() {
     @Test
     fun `Require @FlaggedApi on APIs removed with @removed doc tag`() {
         checkFlaggedApiLint(
-            // TODO(b/571827848): UnflaggedApi is not reported on APIs removed with @removed without
-            //  @FlaggedApi.
-            expectedIssues = "",
+            // TODO(b/571827848): FilteringReporter suppresses UnflaggedApi on
+            //  removedDeprecatedMethod() because it was already @Deprecated in the previously
+            //  released API.
+            expectedIssues =
+                """
+                    src/android/foobar/ExistingClass.java:9: error: Removed API must be flagged with @FlaggedApi: constructor android.foobar.ExistingClass(int) [UnflaggedApi]
+                    src/android/foobar/ExistingClass.java:13: error: Removed API must be flagged with @FlaggedApi: method android.foobar.ExistingClass.flaggedDocRemovedMethod() [UnflaggedApi]
+                    src/android/foobar/ExistingClass.java:16: error: Removed API must be flagged with @FlaggedApi: method android.foobar.ExistingClass.removedMethod() [UnflaggedApi]
+                    src/android/foobar/ExistingClass.java:26: error: Removed API must be flagged with @FlaggedApi: field android.foobar.ExistingClass.REMOVED_FIELD [UnflaggedApi]
+                    src/android/foobar/ExistingClass.java:29: error: Removed API must be flagged with @FlaggedApi: class android.foobar.ExistingClass.RemovedNested [UnflaggedApi]
+                    src/android/foobar/RemovedClass.java:4: error: Removed API must be flagged with @FlaggedApi: class android.foobar.RemovedClass [UnflaggedApi]
+                """,
             apiLint =
                 """
                     // Signature format: 2.0
@@ -1477,9 +1496,11 @@ class FlaggedApiLintTest : DriverTest() {
         checkFlaggedApiLint(
             apiSurface = KnownApiSurface.SYSTEM,
             apiFlagsConfig = apiFlagsXmlFile,
-            // TODO(b/571827848): UnflaggedApi is not reported on SystemApi items removed without
-            //  @FlaggedApi.
-            expectedIssues = "",
+            expectedIssues =
+                """
+                    src/android/foobar/PublicClass.java:14: error: Removed API must be flagged with @FlaggedApi: method android.foobar.PublicClass.unflaggedRemovedSystemMethod() [UnflaggedApi]
+                    src/android/foobar/RemovedSystemClass.java:8: error: Removed API must be flagged with @FlaggedApi: class android.foobar.RemovedSystemClass [UnflaggedApi]
+                """,
             apiLint =
                 """
                     // Signature format: 2.0
@@ -1688,10 +1709,12 @@ class FlaggedApiLintTest : DriverTest() {
         checkFlaggedApiLint(
             apiSurface = KnownApiSurface.PUBLIC,
             apiFlagsConfig = apiFlagsXmlFile,
-            // TODO(b/571827848): FlaggedApiLint does not yet visit the removed API fragment, so
-            //  FlaggedApiLiteral and UnexportedFlaggedApi are not reported on finalized
-            //  @RemovedFromApi items.
-            expectedIssues = "",
+            // TODO(b/571827848): FilteringReporter suppresses FlaggedApiLiteral on previously
+            //  released items such as literalFinalizedRemoval().
+            expectedIssues =
+                """
+                    src/android/foobar/ExistingClass.java:18: warning: @FlaggedApi flag android.foobar.unexported_finalized_flag is not exported (ErrorWhenNew) [UnexportedFlaggedApi]
+                """,
             apiLint =
                 """
                     // Signature format: 2.0

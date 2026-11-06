@@ -471,10 +471,24 @@ class Driver(
         runApiChecksFromOptions(codebase) { _, previouslyReleasedCodebase ->
             tracer.trace("FlaggedApiLint") {
                 FlaggedApiLint.check(
+                    apiSurface = apiSurface,
                     previouslyReleasedCodebase = previouslyReleasedCodebase,
                     reporter = reporter,
                     coreCodebaseFragment = codebaseFragment,
                     coreApiFilters = apiFilters ?: ApiFilters.ALL,
+                    // Only instantiate and pass the lazy removedApiCodebaseFragment when:
+                    // 1. A previously released API is available (required to distinguish newly
+                    //    removed APIs from never-released or previously removed APIs), and
+                    // 2. The codebase is not pre-filtered (pre-filtered signature codebases only
+                    //    represent a single pre-filtered fragment rather than separate core and
+                    //    removed variants).
+                    removedCodebaseFragment =
+                        if (previouslyReleasedCodebase == null || removedApiFilters == null) {
+                            null
+                        } else {
+                            removedApiCodebaseFragment
+                        },
+                    removedApiFilters = removedApiFilters,
                 )
             }
         }
