@@ -19,7 +19,6 @@ package com.android.tools.metalava.lint
 import com.android.tools.metalava.model.ANDROID_FLAGGED_API
 import com.android.tools.metalava.model.AnnotationFormatter
 import com.android.tools.metalava.model.AnnotationTarget
-import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
@@ -78,41 +77,38 @@ class FlaggedApiLint(
     }
 
     override fun visitClass(cls: ClassItem) {
-        checkClass(cls)
-    }
-
-    private fun visitCallable(callable: CallableItem) {
-        checkHasFlaggedApi(callable)
-        checkFlaggedApiLiteral(callable)
-        checkFlaggedApiIsExported(callable)
+        checkSelectableItem(cls)
     }
 
     override fun visitMethod(method: MethodItem) {
-        visitCallable(method)
+        checkSelectableItem(method)
     }
 
     override fun visitConstructor(constructor: ConstructorItem) {
-        visitCallable(constructor)
+        checkSelectableItem(constructor)
     }
 
     override fun visitField(field: FieldItem) {
-        checkField(field)
+        checkSelectableItem(field)
     }
 
-    private fun checkClass(
-        cls: ClassItem,
-    ) {
-        checkHasFlaggedApi(cls)
-        checkFlaggedApiLiteral(cls)
-        checkFlaggedApiIsExported(cls)
+    /**
+     * Perform `@FlaggedApi` lint checks on [item], verifying that:
+     * 1. `@FlaggedApi` is present when required ([checkHasFlaggedApi]).
+     * 2. Any `@FlaggedApi` annotation references an `aconfig` constant field rather than a raw
+     *    string literal ([checkFlaggedApiLiteral]).
+     * 3. Any `@FlaggedApi` annotation references an exported flag ([checkFlaggedApiIsExported]).
+     */
+    private fun checkSelectableItem(item: SelectableItem) {
+        checkHasFlaggedApi(item)
+        checkFlaggedApiLiteral(item)
+        checkFlaggedApiIsExported(item)
     }
 
-    private fun checkField(field: FieldItem) {
-        checkHasFlaggedApi(field)
-        checkFlaggedApiLiteral(field)
-        checkFlaggedApiIsExported(field)
-    }
-
+    /**
+     * Verify that if [item] is annotated with `@FlaggedApi`, the referenced flag is marked as
+     * exported in the flag configuration; otherwise report [UNEXPORTED_FLAGGED_API].
+     */
     private fun checkFlaggedApiIsExported(item: Item) {
         val annotation =
             item.modifiers.findAnnotation { it.qualifiedName == ANDROID_FLAGGED_API } ?: return
@@ -128,9 +124,14 @@ class FlaggedApiLint(
         }
     }
 
+    /**
+     * Verify that if [item] is annotated with `@FlaggedApi` (in a non-pre-filtered source
+     * codebase), its argument is a reference to an `aconfig`-generated `Flags.FLAG_*` constant
+     * field rather than a raw string literal; otherwise report [FLAGGED_API_LITERAL].
+     */
     private fun checkFlaggedApiLiteral(item: Item) {
         if (item.codebase.preFiltered) {
-            // Flag constants aren't ever API, so prefitered codebases would always only contain
+            // Flag constants aren't ever API, so prefiltered codebases would always only contain
             // literals.
             return
         }
