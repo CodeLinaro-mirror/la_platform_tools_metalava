@@ -450,13 +450,12 @@ class Driver(
 
         runApiChecksFromOptions(codebase) { _, previouslyReleasedCodebase ->
             tracer.trace("FlaggedApiLint") {
-                val flaggedApiLintVisitor =
-                    FlaggedApiLint(
-                        previouslyReleasedCodebase,
-                        reporter,
-                        apiFilters ?: ApiFilters.ALL,
-                    )
-                codebaseFragment.accept(flaggedApiLintVisitor)
+                FlaggedApiLint.check(
+                    previouslyReleasedCodebase = previouslyReleasedCodebase,
+                    reporter = reporter,
+                    coreCodebaseFragment = codebaseFragment,
+                    coreApiFilters = apiFilters ?: ApiFilters.ALL,
+                )
             }
         }
 

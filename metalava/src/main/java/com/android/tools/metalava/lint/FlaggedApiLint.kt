@@ -21,6 +21,7 @@ import com.android.tools.metalava.model.AnnotationFormatter
 import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.CodebaseFragment
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DelegatedVisitor
 import com.android.tools.metalava.model.FieldItem
@@ -47,24 +48,60 @@ import com.android.tools.metalava.reporter.Severity
 import java.io.StringWriter
 
 /**
- * The [FlaggedApiLint] analyzer checks the API against a known set of preferred FlaggedAPI
- * practices by the Android API council.
+ * The [FlaggedApiLint] analyzer checks the API against a known set of preferred `@FlaggedApi`
+ * practices established by the Android API council.
  */
-class FlaggedApiLint(
-    private val oldCodebase: Codebase?,
+object FlaggedApiLint {
+    /**
+     * Run `@FlaggedApi` lint checks against [coreCodebaseFragment].
+     *
+     * @param previouslyReleasedCodebase the previously released API codebase against which new and
+     *   modified APIs are compared, or `null` if no previous API was provided.
+     * @param reporter the [Reporter] to which lint issues are reported.
+     * @param coreCodebaseFragment the core (`ApiType.CORE`) API fragment to check.
+     * @param coreApiFilters the [ApiFilters] selecting emitted and referenced items in the core
+     *   API.
+     */
+    fun check(
+        previouslyReleasedCodebase: Codebase?,
+        reporter: Reporter,
+        coreCodebaseFragment: CodebaseFragment,
+        coreApiFilters: ApiFilters,
+    ) {
+        coreCodebaseFragment.accept(
+            CoreFlaggedApiLint(
+                previouslyReleasedCodebase,
+                reporter,
+                coreApiFilters,
+            )
+        )
+    }
+}
+
+/**
+ * Base [DelegatedVisitor] shared by `@FlaggedApi` checks on core and removed API fragments.
+ *
+ * Provides common issue reporting via [FilteringReporter] as well as validation of `@FlaggedApi`
+ * annotations that remain present in the codebase ([checkFlaggedApiLiteral] and
+ * [checkFlaggedApiIsExported]), while delegating `@FlaggedApi` presence requirements
+ * ([checkHasFlaggedApi]) to subclasses.
+ */
+private abstract class BaseFlaggedApiLint(
+    protected val oldCodebase: Codebase?,
     reporter: Reporter,
     apiFilters: ApiFilters,
 ) : DelegatedVisitor {
     /** Predicate that checks if the item appears in the signature file. */
-    private val filterEmit = apiFilters.emit
+    protected val filterEmit = apiFilters.emit
 
-    /** The filter to use to determine if we should emit a reference to an item */
-    private val filterReference = apiFilters.reference
+    /** The filter to use to determine if we should emit a reference to an item. */
+    protected val filterReference = apiFilters.reference
 
     /** Filter out issues that are not for items being emitted. */
     private val filteredReporter = FilteringReporter(reporter, oldCodebase, filterEmit)
 
-    private fun report(
+    /** Report [id] on [item] through [filteredReporter] with [item] as the reporting context. */
+    protected fun report(
         id: Issue,
         item: Item,
         message: String,
@@ -99,11 +136,17 @@ class FlaggedApiLint(
      *    string literal ([checkFlaggedApiLiteral]).
      * 3. Any `@FlaggedApi` annotation references an exported flag ([checkFlaggedApiIsExported]).
      */
-    private fun checkSelectableItem(item: SelectableItem) {
+    protected open fun checkSelectableItem(item: SelectableItem) {
         checkHasFlaggedApi(item)
         checkFlaggedApiLiteral(item)
         checkFlaggedApiIsExported(item)
     }
+
+    /**
+     * Check whether [item] requires a `@FlaggedApi` annotation and report [UNFLAGGED_API] if it is
+     * missing.
+     */
+    protected abstract fun checkHasFlaggedApi(item: SelectableItem)
 
     /**
      * Verify that if [item] is annotated with `@FlaggedApi`, the referenced flag is marked as
@@ -172,8 +215,19 @@ class FlaggedApiLint(
             )
         }
     }
+}
 
-    private fun checkHasFlaggedApi(item: SelectableItem) {
+/**
+ * Checks `@FlaggedApi` usage on items in the core (`ApiType.CORE`) API fragment, requiring
+ * `@FlaggedApi` (on the item itself or an enclosing class) for newly added APIs and for deprecation
+ * or modifier changes on previously released APIs.
+ */
+private class CoreFlaggedApiLint(
+    oldCodebase: Codebase?,
+    reporter: Reporter,
+    apiFilters: ApiFilters,
+) : BaseFlaggedApiLint(oldCodebase, reporter, apiFilters) {
+    override fun checkHasFlaggedApi(item: SelectableItem) {
         // Cannot flag an implicit constructor.
         if (item is ConstructorItem && item.isImplicitConstructor()) return
 
