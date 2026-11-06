@@ -139,6 +139,13 @@ internal abstract class AbstractItemDocumentation(
     ) {
         val referenceStrategy = item.codebase.apiSurfaces.referenceStrategy
 
+        // Skip checking references in documentation on items that are not themselves documented
+        // (e.g. `@hide` or `@removed` items), since `ReferenceKind.DOCUMENTATION` checks target
+        // visibility regardless of whether `from` is hidden.
+        if (!referenceStrategy.isValidReference(null, item, ReferenceKind.DOCUMENTATION)) {
+            return
+        }
+
         // Check whether `referencedItem` is accessible in documentation (`CORE` or `DOC_ONLY`).
         val result =
             referenceStrategy.checkReference(item, referencedItem, ReferenceKind.DOCUMENTATION)
@@ -241,6 +248,11 @@ internal abstract class AbstractItemDocumentation(
         docComment.hasBlockTagOfType(blockTagType)
 
     override fun print(writer: PrintWriter) {
+        // Ensure [item.selectedApi] is initialized before stripping `@hide` tags below; otherwise,
+        // if [print] is called before [item.selectedApi] has been accessed, resolving links while
+        // printing would initialize [item.selectedApi] after `@hide` was removed.
+        item.selectedApi
+
         // Remove all `@hide`, and `@doconly` tags before printing to prevent them from being
         // visible to the documentation generation tool that consumes the stubs. That is because the
         // tool may act upon them, e.g. hiding any APIs that are tagged with `@hide`.

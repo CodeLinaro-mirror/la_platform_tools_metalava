@@ -651,15 +651,7 @@ class CommonDocReferenceTest : BaseModelTest() {
                     expectedOutput = """/** {@link test.pkg.HiddenTarget HiddenTarget} */""",
                 )
 
-            // TODO(b/568477816): Skip checking references in documentation on items that are not
-            //  themselves documented.
-            assertAndRemoveReportedIssues(
-                """
-                    MAIN_SRC/src/test/pkg/HiddenReferencer.java:4:11: warning: Class test.pkg.HiddenTarget is hidden (ErrorWhenNew) [HiddenDocReference]
-                    MAIN_SRC/src/test/pkg/HiddenReferencer.java:8:16: warning: Class test.pkg.HiddenTarget is hidden (ErrorWhenNew) [HiddenDocReference]
-                    MAIN_SRC/src/test/pkg/Test.java:4:15: warning: Class test.pkg.HiddenTarget is hidden (ErrorWhenNew) [HiddenDocReference]
-                """
-            )
+            assertAndRemoveReportedIssues("")
         }
     }
 

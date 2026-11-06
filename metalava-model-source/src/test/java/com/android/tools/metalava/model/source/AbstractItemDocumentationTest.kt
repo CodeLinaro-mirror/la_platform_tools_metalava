@@ -272,39 +272,19 @@ class AbstractItemDocumentationTest {
                 annotationNames = listOf(TestableApiSurfaces.DOC_ONLY.qualifiedName),
             )
 
-        // TODO(b/568477816): `checkReference` currently checks target visibility even when the
-        //  referencing item is hidden or removed, producing false-positive `HiddenDocReference`
-        //  warnings on non-documented items.
-        assertEquals(
-            "warning: Class test.pkg.HiddenTarget is hidden (ErrorWhenNew) [HiddenDocReference]",
-            context.checkReference(hiddenClass, hiddenTarget),
-        )
-        assertEquals(
-            "warning: Class test.pkg.HiddenTarget is hidden (ErrorWhenNew) [HiddenDocReference]",
-            context.checkReference(fieldInHiddenClass, hiddenTarget),
-        )
-        assertEquals(
-            "warning: Class test.pkg.HiddenTarget is hidden (ErrorWhenNew) [HiddenDocReference]",
-            context.checkReference(hiddenField, hiddenTarget),
-        )
-        assertEquals(
-            "warning: Class test.pkg.HiddenTarget is hidden (ErrorWhenNew) [HiddenDocReference]",
-            context.checkReference(removedClass, hiddenTarget),
-        )
-        assertEquals(
-            "warning: Class test.pkg.HiddenTarget is hidden (ErrorWhenNew) [HiddenDocReference]",
-            context.checkReference(removedAnnotatedClass, hiddenTarget),
-        )
+        assertEquals("", context.checkReference(hiddenClass, hiddenTarget))
+        assertEquals("", context.checkReference(fieldInHiddenClass, hiddenTarget))
+        assertEquals("", context.checkReference(hiddenField, hiddenTarget))
+        assertEquals("", context.checkReference(removedClass, hiddenTarget))
+        assertEquals("", context.checkReference(removedAnnotatedClass, hiddenTarget))
 
+        // Printing strips `@hide`, so `selectedApi` must be initialized beforehand.
         val printedDoc =
             StringWriter()
                 .also { printedHiddenClass.requiredDocumentation.print(PrintWriter(it)) }
                 .toString()
         assertEquals("/** Summary. */", printedDoc.trim())
-        assertEquals(
-            "warning: Class test.pkg.HiddenTarget is hidden (ErrorWhenNew) [HiddenDocReference]",
-            context.checkReference(printedHiddenClass, hiddenTarget),
-        )
+        assertEquals("", context.checkReference(printedHiddenClass, hiddenTarget))
 
         // `@DocOnly` items are still documented, so references from them to hidden targets report.
         assertEquals(
