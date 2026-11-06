@@ -583,6 +583,136 @@ class CommonDocReferenceTest : BaseModelTest() {
     }
 
     /**
+     * Verify how `HiddenDocReference` checks documentation references to `@hide` annotations that
+     * are mapped to different annotations in documentation stubs (e.g.
+     * `android.annotation.Nullable` -> `androidx.annotation.Nullable`), versus unmapped `@hide`
+     * annotations, explicitly `@hide` annotation fields, and mapped targets that are themselves
+     * `@hide` in the codebase.
+     */
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `Test hidden mapped annotation references`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package android.annotation;
+                        /** @hide */
+                        public @interface Nullable {}
+                    """
+                ),
+                java(
+                    """
+                        package android.annotation;
+                        /** @hide */
+                        public @interface IntDef {
+                            int DEFAULT_FLAG = 0;
+                            /** @hide */
+                            int HIDDEN_FLAG = 1;
+                            boolean flag() default false;
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package android.annotation;
+                        /** @hide */
+                        public @interface NonNull {}
+                    """
+                ),
+                java(
+                    """
+                        package androidx.annotation;
+                        public @interface NonNull {}
+                    """
+                ),
+                java(
+                    """
+                        package android.annotation;
+                        /** @hide */
+                        public @interface IntRange {}
+                    """
+                ),
+                java(
+                    """
+                        package androidx.annotation;
+                        /** @hide */
+                        public @interface IntRange {}
+                    """
+                ),
+                java(
+                    """
+                        package android.annotation;
+                        /** @hide */
+                        public @interface Hide {
+                            String value() default "";
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        import android.annotation.Hide;
+                        import android.annotation.IntDef;
+                        import android.annotation.IntRange;
+                        import android.annotation.NonNull;
+                        import android.annotation.Nullable;
+                        public class Test {
+                            /**
+                             * {@link Nullable}
+                             * {@link IntDef#DEFAULT_FLAG}
+                             * {@link IntDef#HIDDEN_FLAG}
+                             * {@link IntDef#flag}
+                             * {@link IntDef#flag()}
+                             * {@link Nullable##uri-fragment}
+                             * {@link NonNull}
+                             * {@link IntRange}
+                             * {@link Hide}
+                             * {@link Hide#value()}
+                             */
+                            public void method() {}
+                        }
+                    """
+                ),
+            ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            testClass
+                .assertMethod("method", emptyList())
+                .assertPrintedDocumentation(
+                    expectedOutput =
+                        """
+                            /**
+                             * {@link androidx.annotation.Nullable Nullable}
+                             * {@link androidx.annotation.IntDef#DEFAULT_FLAG IntDef.DEFAULT_FLAG}
+                             * {@link androidx.annotation.IntDef#HIDDEN_FLAG IntDef.HIDDEN_FLAG}
+                             * {@link androidx.annotation.IntDef#flag IntDef.flag}
+                             * {@link androidx.annotation.IntDef#flag() IntDef.flag()}
+                             * {@link androidx.annotation.Nullable##uri-fragment}
+                             * {@link androidx.annotation.NonNull NonNull}
+                             * {@link androidx.annotation.IntRange IntRange}
+                             * {@link android.annotation.Hide Hide}
+                             * {@link android.annotation.Hide#value() Hide.value()}
+                             */
+                        """,
+                )
+
+            // TODO(b/568477816): Mapped annotations (Nullable, IntDef#DEFAULT_FLAG, NonNull)
+            //  currently check the @hide source annotation rather than the mapped target.
+            assertAndRemoveReportedIssues(
+                """
+                    MAIN_SRC/src/test/pkg/Test.java:9:15: warning: Class android.annotation.Nullable is hidden (ErrorWhenNew) [HiddenDocReference]
+                    MAIN_SRC/src/test/pkg/Test.java:10:15: warning: Field android.annotation.IntDef.DEFAULT_FLAG is hidden (ErrorWhenNew) [HiddenDocReference]
+                    MAIN_SRC/src/test/pkg/Test.java:11:15: warning: Field android.annotation.IntDef.HIDDEN_FLAG is hidden (ErrorWhenNew) [HiddenDocReference]
+                    MAIN_SRC/src/test/pkg/Test.java:15:15: warning: Class android.annotation.NonNull is hidden (ErrorWhenNew) [HiddenDocReference]
+                    MAIN_SRC/src/test/pkg/Test.java:16:15: warning: Class android.annotation.IntRange is hidden (ErrorWhenNew) [HiddenDocReference]
+                    MAIN_SRC/src/test/pkg/Test.java:17:15: warning: Class android.annotation.Hide is hidden (ErrorWhenNew) [HiddenDocReference]
+                """
+            )
+        }
+    }
+
+    /**
      * Verify that documentation on `@hide` classes, members of `@hide` classes, and `@hide` methods
      * in public classes does not report `HiddenDocReference` when referencing hidden targets, even
      * when printing strips `@hide` tags.

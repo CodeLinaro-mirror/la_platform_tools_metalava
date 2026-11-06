@@ -247,6 +247,124 @@ class AbstractItemDocumentationTest {
     }
 
     @Test
+    fun `Test checkReference on mapped annotations`() {
+        val context = TestContext()
+        val referencer = context.createClass("test.pkg.Referencer")
+
+        // `@hide` annotation mapped to external `androidx.annotation.Nullable` (not in codebase).
+        val androidNullable =
+            context.createClass(
+                "android.annotation.Nullable",
+                classKind = ClassKind.ANNOTATION_TYPE,
+                doc = "/** @hide */",
+            )
+
+        // `@hide` annotation mapped to external `androidx.annotation.IntDef` (not in codebase)
+        // with unhidden, `@hide` doc-tagged, and `@Hide` surface-annotated fields.
+        val androidIntDef =
+            context.createClass(
+                "android.annotation.IntDef",
+                classKind = ClassKind.ANNOTATION_TYPE,
+                doc = "/** @hide */",
+            )
+        val intDefDefaultFlag = context.createField(androidIntDef, "DEFAULT_FLAG")
+        val intDefDocHiddenFlag =
+            context.createField(androidIntDef, "DOC_HIDDEN_FLAG", doc = "/** @hide */")
+        val intDefAnnotationHiddenFlag =
+            context.createField(
+                androidIntDef,
+                "ANNOTATION_HIDDEN_FLAG",
+                annotationNames = listOf(TestableApiSurfaces.HIDE.qualifiedName),
+            )
+
+        // `@hide` annotation mapped to public `androidx.annotation.NonNull` present in codebase.
+        val androidNonNull =
+            context.createClass(
+                "android.annotation.NonNull",
+                classKind = ClassKind.ANNOTATION_TYPE,
+                doc = "/** @hide */",
+            )
+        val androidNonNullPublicField = context.createField(androidNonNull, "PUBLIC_FIELD")
+        val androidNonNullHiddenField = context.createField(androidNonNull, "HIDDEN_FIELD")
+        val androidNonNullUnmappedField = context.createField(androidNonNull, "UNMAPPED_FIELD")
+
+        val androidxNonNull =
+            context.createClass(
+                "androidx.annotation.NonNull",
+                classKind = ClassKind.ANNOTATION_TYPE,
+            )
+        context.createField(androidxNonNull, "PUBLIC_FIELD")
+        context.createField(androidxNonNull, "HIDDEN_FIELD", doc = "/** @hide */")
+
+        // `@hide` annotation mapped to `@hide androidx.annotation.IntRange` present in codebase.
+        val androidIntRange =
+            context.createClass(
+                "android.annotation.IntRange",
+                classKind = ClassKind.ANNOTATION_TYPE,
+                doc = "/** @hide */",
+            )
+        context.createClass(
+            "androidx.annotation.IntRange",
+            classKind = ClassKind.ANNOTATION_TYPE,
+            doc = "/** @hide */",
+        )
+
+        // Unmapped `@hide` annotation.
+        val androidHide =
+            context.createClass(
+                "android.annotation.Hide",
+                classKind = ClassKind.ANNOTATION_TYPE,
+                doc = "/** @hide */",
+            )
+
+        // TODO(b/568477816): `checkReference` currently checks the `@hide` source annotation
+        //  directly rather than resolving the mapped documentation-stubs annotation target,
+        //  reporting false positives on `Nullable`, `IntDef.DEFAULT_FLAG`, `NonNull`, and
+        //  `NonNull.PUBLIC_FIELD`, and reporting the `android.annotation.*` name instead of
+        //  `androidx.annotation.*` when the mapped target in the codebase is itself hidden.
+        assertEquals(
+            "warning: Class android.annotation.Nullable is hidden (ErrorWhenNew) [HiddenDocReference]",
+            context.checkReference(referencer, androidNullable),
+        )
+        assertEquals(
+            "warning: Field android.annotation.IntDef.DEFAULT_FLAG is hidden (ErrorWhenNew) [HiddenDocReference]",
+            context.checkReference(referencer, intDefDefaultFlag),
+        )
+        assertEquals(
+            "warning: Field android.annotation.IntDef.DOC_HIDDEN_FLAG is hidden (ErrorWhenNew) [HiddenDocReference]",
+            context.checkReference(referencer, intDefDocHiddenFlag),
+        )
+        assertEquals(
+            "warning: Field android.annotation.IntDef.ANNOTATION_HIDDEN_FLAG is hidden (ErrorWhenNew) [HiddenDocReference]",
+            context.checkReference(referencer, intDefAnnotationHiddenFlag),
+        )
+        assertEquals(
+            "warning: Class android.annotation.NonNull is hidden (ErrorWhenNew) [HiddenDocReference]",
+            context.checkReference(referencer, androidNonNull),
+        )
+        assertEquals(
+            "warning: Field android.annotation.NonNull.PUBLIC_FIELD is hidden (ErrorWhenNew) [HiddenDocReference]",
+            context.checkReference(referencer, androidNonNullPublicField),
+        )
+        assertEquals(
+            "warning: Field android.annotation.NonNull.HIDDEN_FIELD is hidden (ErrorWhenNew) [HiddenDocReference]",
+            context.checkReference(referencer, androidNonNullHiddenField),
+        )
+        assertEquals(
+            "warning: Field android.annotation.NonNull.UNMAPPED_FIELD is hidden (ErrorWhenNew) [HiddenDocReference]",
+            context.checkReference(referencer, androidNonNullUnmappedField),
+        )
+        assertEquals(
+            "warning: Class android.annotation.IntRange is hidden (ErrorWhenNew) [HiddenDocReference]",
+            context.checkReference(referencer, androidIntRange),
+        )
+        assertEquals(
+            "warning: Class android.annotation.Hide is hidden (ErrorWhenNew) [HiddenDocReference]",
+            context.checkReference(referencer, androidHide),
+        )
+    }
+
+    @Test
     fun `Test checkReference from non-documented items`() {
         val context = TestContext()
         val hiddenTarget = context.createClass("test.pkg.HiddenTarget", doc = "/** @hide */")
