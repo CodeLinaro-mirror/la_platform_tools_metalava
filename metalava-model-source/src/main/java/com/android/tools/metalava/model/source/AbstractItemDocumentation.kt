@@ -26,6 +26,8 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ReferencableItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TypeParameterListOwner
+import com.android.tools.metalava.model.api.surface.ReferenceCheckResult
+import com.android.tools.metalava.model.api.surface.ReferenceKind
 import com.android.tools.metalava.model.doc.DocContent
 import com.android.tools.metalava.model.doc.DocContentOwner
 import com.android.tools.metalava.model.doc.DocContentPredicate
@@ -45,6 +47,7 @@ import com.android.tools.metalava.model.source.javadoc.InvalidBlockUseVisitor
 import com.android.tools.metalava.model.source.javadoc.toOptionalJavadocContent
 import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.reporter.LocationSpecificReporter
 import java.io.PrintWriter
 
 /** Supplies the initial [DocComment] and [FileLocation] for an [ItemDocumentation]. */
@@ -128,6 +131,26 @@ internal abstract class AbstractItemDocumentation(
     /** Implements [DocCommentContext.resolveClassReferenceName]. */
     override fun resolveClassReferenceName(classItem: ClassItem): String =
         mappedDocStubsAnnotationName(classItem) ?: classItem.qualifiedName()
+
+    /** Implements [DocCommentContext.checkReference]. */
+    override fun checkReference(
+        referencedItem: SelectableItem,
+        reporter: LocationSpecificReporter,
+    ) {
+        val referenceStrategy = item.codebase.apiSurfaces.referenceStrategy
+
+        // Check whether `referencedItem` is accessible in documentation (`CORE` or `DOC_ONLY`).
+        val result =
+            referenceStrategy.checkReference(item, referencedItem, ReferenceKind.DOCUMENTATION)
+
+        // Report `HiddenDocReference` with the strategy's human-readable reason (e.g. "hidden").
+        if (result is ReferenceCheckResult.Invalid) {
+            reporter.report(
+                Issues.HIDDEN_DOC_REFERENCE,
+                "${referencedItem.describe(capitalize = true)} is ${result.reasonLabel}",
+            )
+        }
+    }
 
     /** Implements [ExprContext.isFlagEnabled]. */
     override fun isFlagEnabled(flagName: String): Boolean {

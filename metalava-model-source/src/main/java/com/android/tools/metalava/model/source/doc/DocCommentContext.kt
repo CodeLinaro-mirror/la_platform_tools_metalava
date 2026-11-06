@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.source.javadoc.ExprBuilderContext
 import com.android.tools.metalava.model.source.javadoc.ExprContext
+import com.android.tools.metalava.reporter.LocationSpecificReporter
 
 /**
  * Provides contextual information from the surrounding model for use when processing a
@@ -33,6 +34,15 @@ import com.android.tools.metalava.model.source.javadoc.ExprContext
  * [DocComment].
  */
 internal interface DocCommentContext : ExprBuilderContext, ExprContext {
+    /**
+     * Check whether a documentation reference to [referencedItem] is valid from the documented
+     * item, reporting any invalid reference (such as `HiddenDocReference`) to [reporter].
+     *
+     * @param referencedItem The resolved target [SelectableItem] referenced by the doc tag.
+     * @param reporter Location-specific reporter for the reference tag in the doc comment.
+     */
+    fun checkReference(referencedItem: SelectableItem, reporter: LocationSpecificReporter)
+
     /**
      * Resolve the qualified class name to emit in documentation references for [classItem].
      *
