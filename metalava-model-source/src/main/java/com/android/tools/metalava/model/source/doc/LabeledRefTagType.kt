@@ -401,8 +401,8 @@ internal data class QualifyingClassSourceReference(
                 context,
                 reporter,
                 classItem,
-                // Use the qualified class name if available, otherwise use the source name.
-                classItem?.qualifiedName() ?: className,
+                // Use the resolved class name if available, otherwise use the source name.
+                classItem?.let { context.resolveClassReferenceName(it) } ?: className,
             )
         return ResolvedSourceReference(normalizedForm, resolvedReference)
     }
@@ -421,8 +421,8 @@ internal data class CurrentClassSourceReference(val member: ClassMemberSourceRef
         // TODO(b/447588621): Report issue when no class is available, member references are not
         //  allowed in packages.
         val classItem = context.containingClassItem
-        val resolvedReference =
-            member.findIn(context, reporter, classItem, classItem?.qualifiedName() ?: "")
+        val resolvedClassName = classItem?.let { context.resolveClassReferenceName(it) } ?: ""
+        val resolvedReference = member.findIn(context, reporter, classItem, resolvedClassName)
         return ResolvedSourceReference(normalizedForm, resolvedReference)
     }
 }
@@ -543,7 +543,7 @@ internal data class CallableSourceReference(
                     createCallableReference(
                         context,
                         reporter,
-                        containingClass.qualifiedName(),
+                        context.resolveClassReferenceName(containingClass),
                         // Use the resolved name as the source name may be qualified.
                         resolved.name,
                     )
@@ -554,7 +554,7 @@ internal data class CallableSourceReference(
                     createCallableReference(
                         context,
                         reporter,
-                        resolved.qualifiedName(),
+                        context.resolveClassReferenceName(resolved),
                         // Use the class's simple name as the constructor name.
                         resolved.simpleName(),
                     )
