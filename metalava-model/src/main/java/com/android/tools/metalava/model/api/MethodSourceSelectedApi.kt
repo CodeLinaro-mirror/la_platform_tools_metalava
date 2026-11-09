@@ -29,7 +29,7 @@ import com.android.tools.metalava.reporter.Issues
 
 /**
  * Selected API class for methods, ensuring record component getter methods inherit the parent
- * class's API variants.
+ * class's API variants and method overrides inherit or validate against overridden API methods.
  */
 internal class MethodSourceSelectedApi(
     selectedApiUpdater: SelectedApiUpdater,
@@ -142,33 +142,33 @@ internal class MethodSourceSelectedApi(
 
         // Check to see if the method overrides an API method, if so unhide it and report an issue.
         if (
-            !handleHidingApiMethodOverride(filterReference) { method, overriddenMethod ->
+            !handleInvalidApiMethodOverride(filterReference) { method, overriddenMethod ->
                 "Attempting to hide ${method.describe()} which overrides ${overriddenMethod.describe()} which is already part of the API"
             }
         ) {
             // Check to see if the method overrides a method that was previously part of the API
             // but has since been removed.
-            handleHidingApiMethodOverride(removedFilterPredicate) { method, overriddenMethod ->
+            handleInvalidApiMethodOverride(removedFilterPredicate) { method, overriddenMethod ->
                 "Attempting to hide ${method.describe()} which overrides ${overriddenMethod.describe()} which was part of the API but has now been removed"
             }
         }
     }
 
     /**
-     * Handles an attempt by this method to hide an override of an ancestor method that matches
-     * [predicate].
+     * Handles an attempt by this method to hide or remove an override of an ancestor method that
+     * matches [predicate].
      *
-     * If such an overridden method is found, this unhides the method (when their erased parameter
-     * types match) by adopting the overridden method's [itemApiVariants], reports an
+     * If such an overridden method is found, this adopts the overridden method's [itemApiVariants]
+     * when their erased parameter types match, reports an
      * [Issues.HIDING_API_METHOD_OVERRIDE]/[Issues.HIDING_API_METHOD_OVERRIDE_CLASSPATH] issue if
      * appropriate, and returns `true`. Otherwise, this returns `false`.
      */
-    private inline fun handleHidingApiMethodOverride(
+    private inline fun handleInvalidApiMethodOverride(
         predicate: FilterPredicate,
         reportMessageProvider: (MethodItem, MethodItem) -> String,
     ): Boolean {
         // Find an ancestor method that matches the predicate; if none exists, this method is not
-        // hiding an API method override.
+        // hiding or invalidly removing an API method override.
         val overriddenMethod = item.findPredicateSuperMethod(predicate) ?: return false
 
         // If the erased parameter types match (which may not be true when overriding a generic
