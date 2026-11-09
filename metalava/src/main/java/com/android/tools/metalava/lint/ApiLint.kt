@@ -51,6 +51,7 @@ import com.android.tools.metalava.lint.ResourceType.XML
 import com.android.tools.metalava.manifest.Manifest
 import com.android.tools.metalava.manifest.SetMinSdkVersion
 import com.android.tools.metalava.manifest.emptyManifest
+import com.android.tools.metalava.model.ANDROID_SDK_EXTENSION_API
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.BaseTypeVisitor
@@ -94,6 +95,7 @@ import com.android.tools.metalava.model.api.surface.ApiSurface
 import com.android.tools.metalava.model.api.surface.ApiSurfacePredicate
 import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.hasAnnotation
+import com.android.tools.metalava.model.value.ValueKind
 import com.android.tools.metalava.model.value.asInt
 import com.android.tools.metalava.model.value.asString
 import com.android.tools.metalava.model.visitors.ApiFiltersVisitor
@@ -142,6 +144,7 @@ import com.android.tools.metalava.reporter.Issues.INTERFACE_CONSTANT
 import com.android.tools.metalava.reporter.Issues.INTERNAL_CLASSES
 import com.android.tools.metalava.reporter.Issues.INTERNAL_FIELD
 import com.android.tools.metalava.reporter.Issues.INVALID_NULLABILITY_OVERRIDE
+import com.android.tools.metalava.reporter.Issues.INVALID_SDK_EXTENSION_API
 import com.android.tools.metalava.reporter.Issues.Issue
 import com.android.tools.metalava.reporter.Issues.KOTLIN_DEFAULT_PARAMETER_ORDER
 import com.android.tools.metalava.reporter.Issues.KOTLIN_OPERATOR
@@ -266,6 +269,10 @@ private constructor(
             null
         }
 
+    override fun visitItem(item: Item) {
+        filteredReporter.withContext(item) { checkSdkExtensionApi(item) }
+    }
+
     override fun visitClass(cls: ClassItem) {
         val methods = cls.filteredMethods(filterReference).asSequence()
         val fields = cls.filteredFields(filterReference).asSequence()
@@ -332,6 +339,80 @@ private constructor(
 
     override fun visitProperty(property: PropertyItem) {
         filteredReporter.withContext(property) { kotlinInterop?.checkProperty(property) }
+    }
+
+    /**
+     * Check that the `@SdkExtensionApi` annotation on [item], if any, is valid, reporting
+     * [INVALID_SDK_EXTENSION_API] if it is not.
+     *
+     * An `@SdkExtensionApi` annotation is valid if:
+     * 1. Its `value` references a symbolic constant, e.g. `Build.VERSION_CODES.TIRAMISU`, rather
+     *    than an integer literal. This is only checked in sources, i.e. when the codebase is not
+     *    pre-filtered, as signature files always contain the resolved integer value.
+     * 2. Its `value` resolves to a valid SDK extension floor, see [isValidSdkExtensionFloor].
+     * 3. It does not contradict an `@SdkExtensionApi` annotation on an enclosing class, i.e. it
+     *    does not mix an [AD_SERVICES_EXTENSION_ID] floor with a dessert release floor, and is not
+     *    lower than the floor of the enclosing class.
+     */
+    private fun checkSdkExtensionApi(item: Item) {
+        // Only check items that are annotated with @SdkExtensionApi.
+        val annotation = item.modifiers.findAnnotation(ANDROID_SDK_EXTENSION_API) ?: return
+        val attr = annotation.findAttribute("value")
+
+        // 1. In sources, the value must reference a symbolic constant, not a literal.
+        if (!item.codebase.preFiltered && attr != null && attr.value.kind != ValueKind.FIELD) {
+            report(
+                INVALID_SDK_EXTENSION_API,
+                item,
+                "@SdkExtensionApi must reference a symbolic constant from android.os.Build.VERSION_CODES or android.os.ext.SdkExtensions, not a literal",
+                location = annotation.fileLocation,
+            )
+        }
+
+        // 2. The value must resolve to a valid floor. A missing or non-int value is invalid.
+        val floor = attr?.value?.asInt()
+        if (floor == null || !isValidSdkExtensionFloor(floor)) {
+            report(
+                INVALID_SDK_EXTENSION_API,
+                item,
+                "Invalid @SdkExtensionApi value $floor: must be >= $MIN_DESSERT_SDK (excluding $S_V2_SDK)",
+                location = annotation.fileLocation,
+            )
+        } else {
+            // 3. The floor must not contradict the floor of any enclosing class. Walk outwards
+            // through the enclosing classes, reporting at most one contradiction.
+            var enclosingClass = item.containingClass()
+            while (enclosingClass != null) {
+                val outerFloor = enclosingClass.sdkExtensionFloor()
+                // Ignore enclosing classes that are unannotated or have an invalid floor, as an
+                // invalid floor is reported on the enclosing class itself.
+                if (outerFloor != null && isValidSdkExtensionFloor(outerFloor)) {
+                    val innerIsAdServices = floor == AD_SERVICES_EXTENSION_ID
+                    val outerIsAdServices = outerFloor == AD_SERVICES_EXTENSION_ID
+                    if (innerIsAdServices != outerIsAdServices) {
+                        // AD_SERVICES is independent of the dessert releases so cannot be mixed.
+                        report(
+                            INVALID_SDK_EXTENSION_API,
+                            item,
+                            "@SdkExtensionApi($floor) on ${item.describe()} conflicts with @SdkExtensionApi($outerFloor) on enclosing ${enclosingClass.describe()}: cannot mix AD_SERVICES and dessert extension floors",
+                            location = annotation.fileLocation,
+                        )
+                        break
+                    } else if (floor < outerFloor) {
+                        // An item cannot be available in older SDK extensions than its enclosing
+                        // class.
+                        report(
+                            INVALID_SDK_EXTENSION_API,
+                            item,
+                            "@SdkExtensionApi($floor) on ${item.describe()} cannot be lower than @SdkExtensionApi($outerFloor) on enclosing ${enclosingClass.describe()}",
+                            location = annotation.fileLocation,
+                        )
+                        break
+                    }
+                }
+                enclosingClass = enclosingClass.containingClass()
+            }
+        }
     }
 
     /**
@@ -3767,6 +3848,47 @@ private constructor(
                 "android.util.ArrayMap",
             )
     }
+}
+
+/**
+ * The minimum valid `@SdkExtensionApi` floor for a dessert release based SDK extension, i.e.
+ * `android.os.Build.VERSION_CODES.R`, the first release with SDK extensions.
+ */
+private const val MIN_DESSERT_SDK = 30
+
+/**
+ * The `android.os.Build.VERSION_CODES.S_V2` SDK version, i.e. Android 12L, which is not a valid
+ * `@SdkExtensionApi` floor as it does not have its own SDK extension.
+ */
+private const val S_V2_SDK = 32
+
+/**
+ * The `android.os.ext.SdkExtensions.AD_SERVICES` SDK extension id, which is independent of the
+ * dessert releases and so cannot be mixed with dessert release floors on enclosing classes.
+ */
+private const val AD_SERVICES_EXTENSION_ID = 1000000
+
+/**
+ * Check whether [floor] is a valid `@SdkExtensionApi` floor, i.e. it is at least [MIN_DESSERT_SDK]
+ * and is not [S_V2_SDK].
+ *
+ * Dessert release independent SDK extensions, e.g. [AD_SERVICES_EXTENSION_ID], are valid as they
+ * are greater than [MIN_DESSERT_SDK].
+ */
+private fun isValidSdkExtensionFloor(floor: Int): Boolean =
+    floor >= MIN_DESSERT_SDK && floor != S_V2_SDK
+
+/**
+ * Get the floor from the `@SdkExtensionApi` annotation directly on this [Item], or `null` if it is
+ * not annotated or its `value` is not an `int`.
+ *
+ * This does not take into account any `@SdkExtensionApi` annotation on enclosing classes.
+ */
+internal fun Item.sdkExtensionFloor(): Int? {
+    // Find the @SdkExtensionApi annotation, if any.
+    val annotation = modifiers.findAnnotation(ANDROID_SDK_EXTENSION_API) ?: return null
+    // Resolve its `value` attribute to an int, e.g. resolving a constant field reference.
+    return annotation.findAttribute("value")?.value?.asInt()
 }
 
 internal const val DefaultLintErrorMessage =
