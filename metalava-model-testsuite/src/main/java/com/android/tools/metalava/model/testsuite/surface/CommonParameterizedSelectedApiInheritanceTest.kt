@@ -1008,6 +1008,228 @@ class CommonParameterizedSelectedApiInheritanceTest : BaseCommonParameterizedSel
                         """,
                 )
             }
+
+            // Explicitly marking an override of an active public method with @RemovedFromApi is
+            // ineffective because callers can still invoke the inherited superclass method.
+            buildTests(
+                name = "public class overriding public method marked as @RemovedFromApi",
+                surfaceRules = publicSystemModuleRules,
+                // TODO(b/571827848): Attempting to remove an override of an active API method
+                //  should report HidingApiMethodOverride and adopt the overridden method's API
+                //  variants.
+                expectedIssues = "",
+                sources =
+                    listOf(
+                        java(
+                            """
+                                package test.pkg;
+
+                                public class Parent {
+                                    public void method() {}
+                                }
+                            """
+                        ),
+                        java(
+                            """
+                                package test.pkg;
+
+                                public class Child extends Parent {
+                                    $REMOVED_FROM_API
+                                    @Override
+                                    public void method() {}
+                                }
+                            """
+                        ),
+                    ),
+            ) {
+                surfaceTest(
+                    surface = "public",
+                    // TODO(b/571827848): Child.method() should adopt public(C) from Parent.method()
+                    //  without propagating public(R) to Child or test.pkg.
+                    expected =
+                        """
+                            package test.pkg
+                                   self - ApiVariantSet[public(CR)]
+                              class test.pkg.Parent
+                                     self - ApiVariantSet[public(C)]
+                                constructor test.pkg.Parent()
+                                       self - ApiVariantSet[public(C)]
+                                method test.pkg.Parent.method()
+                                       self - ApiVariantSet[public(C)]
+                              class test.pkg.Child
+                                     self - ApiVariantSet[public(C)]
+                                  content - ApiVariantSet[public(R)]
+                                constructor test.pkg.Child()
+                                       self - ApiVariantSet[public(C)]
+                                method test.pkg.Child.method()
+                                       self - ApiVariantSet[public(R)]
+                                   elidable - ApiVariantSet[public(CR)]
+                        """,
+                )
+            }
+
+            // Removing an entire class that happens to override an API method is valid (only
+            // explicitly removing the override itself is an error).
+            buildTests(
+                name = "removed public class overriding public method",
+                surfaceRules = publicSystemModuleRules,
+                sources =
+                    listOf(
+                        java(
+                            """
+                                package test.pkg;
+
+                                public class Parent {
+                                    public void method() {}
+                                }
+                            """
+                        ),
+                        java(
+                            """
+                                package test.pkg;
+
+                                $REMOVED_FROM_API
+                                public class Child extends Parent {
+                                    @Override
+                                    public void method() {}
+                                }
+                            """
+                        ),
+                    ),
+            ) {
+                surfaceTest(
+                    surface = "public",
+                    expected =
+                        """
+                            package test.pkg
+                                   self - ApiVariantSet[public(CR)]
+                              class test.pkg.Parent
+                                     self - ApiVariantSet[public(C)]
+                                constructor test.pkg.Parent()
+                                       self - ApiVariantSet[public(C)]
+                                method test.pkg.Parent.method()
+                                       self - ApiVariantSet[public(C)]
+                              class test.pkg.Child
+                                     self - ApiVariantSet[public(R)]
+                                constructor test.pkg.Child()
+                                       self - ApiVariantSet[public(R)]
+                                method test.pkg.Child.method()
+                                       self - ApiVariantSet[public(R)]
+                                   elidable - ApiVariantSet[public(CR)]
+                        """,
+                )
+            }
+
+            // Explicitly removing an override is valid when the overridden super-method is also
+            // being removed.
+            buildTests(
+                name = "public class overriding removed public method marked as @RemovedFromApi",
+                surfaceRules = publicSystemModuleRules,
+                sources =
+                    listOf(
+                        java(
+                            """
+                                package test.pkg;
+
+                                public class Parent {
+                                    $REMOVED_FROM_API
+                                    public void method() {}
+                                }
+                            """
+                        ),
+                        java(
+                            """
+                                package test.pkg;
+
+                                public class Child extends Parent {
+                                    $REMOVED_FROM_API
+                                    @Override
+                                    public void method() {}
+                                }
+                            """
+                        ),
+                    ),
+            ) {
+                surfaceTest(
+                    surface = "public",
+                    expected =
+                        """
+                            package test.pkg
+                                   self - ApiVariantSet[public(CR)]
+                              class test.pkg.Parent
+                                     self - ApiVariantSet[public(C)]
+                                  content - ApiVariantSet[public(R)]
+                                constructor test.pkg.Parent()
+                                       self - ApiVariantSet[public(C)]
+                                method test.pkg.Parent.method()
+                                       self - ApiVariantSet[public(R)]
+                              class test.pkg.Child
+                                     self - ApiVariantSet[public(C)]
+                                  content - ApiVariantSet[public(R)]
+                                constructor test.pkg.Child()
+                                       self - ApiVariantSet[public(C)]
+                                method test.pkg.Child.method()
+                                       self - ApiVariantSet[public(R)]
+                                   elidable - ApiVariantSet[public(R)]
+                        """,
+                )
+            }
+
+            // Removing a public override that widened a @SystemApi super-method to public is valid
+            // because the super-method is not part of the public API surface from which the
+            // override is being removed.
+            buildTests(
+                name = "public class overriding system method marked as @RemovedFromApi",
+                surfaceRules = publicSystemModuleRules,
+                sources =
+                    listOf(
+                        java(
+                            """
+                                package test.pkg;
+
+                                public class Parent {
+                                    $SYSTEM_API
+                                    public void method() {}
+                                }
+                            """
+                        ),
+                        java(
+                            """
+                                package test.pkg;
+
+                                public class Child extends Parent {
+                                    $REMOVED_FROM_API
+                                    @Override
+                                    public void method() {}
+                                }
+                            """
+                        ),
+                    ),
+            ) {
+                surfaceTest(
+                    surface = "system",
+                    expected =
+                        """
+                            package test.pkg
+                                   self - ApiVariantSet[public(CR),system(C)]
+                              class test.pkg.Parent
+                                     self - ApiVariantSet[public(C)]
+                                  content - ApiVariantSet[system(C)]
+                                constructor test.pkg.Parent()
+                                       self - ApiVariantSet[public(C)]
+                                method test.pkg.Parent.method()
+                                       self - ApiVariantSet[system(C)]
+                              class test.pkg.Child
+                                     self - ApiVariantSet[public(C)]
+                                  content - ApiVariantSet[public(R)]
+                                constructor test.pkg.Child()
+                                       self - ApiVariantSet[public(C)]
+                                method test.pkg.Child.method()
+                                       self - ApiVariantSet[public(R)]
+                                   elidable - ApiVariantSet[system(CR)]
+                        """,
+                )
+            }
         }
     }
 }

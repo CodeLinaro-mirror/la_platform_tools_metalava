@@ -210,4 +210,225 @@ class OverridingMethodTest : DriverTest() {
                 ),
         )
     }
+
+    /**
+     * Verify that explicitly marking an override of a public method with `@RemovedFromApi` reports
+     * `HidingApiMethodOverride` and keeps the override in the active API rather than moving it to
+     * the removed API.
+     */
+    @Test
+    fun `Test removing override of public method with @RemovedFromApi`() {
+        check(
+            // TODO(b/571827848): Attempting to remove an override of an active API method should
+            //  report HidingApiMethodOverride and keep the override in the API.
+            expectedIssues = "",
+            apiSurface = KnownApiSurface.PUBLIC,
+            format = FileFormat.V2,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            public class Parent {
+                                public void elidableOverride() {}
+                                public void finalOverride() {}
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+
+                            import android.annotation.RemovedFromApi;
+
+                            public class Child extends Parent {
+                                @RemovedFromApi
+                                @Override
+                                public void elidableOverride() {}
+
+                                @RemovedFromApi
+                                @Override
+                                public final void finalOverride() {}
+                            }
+                        """
+                    ),
+                ),
+            // TODO(b/571827848): finalOverride() should remain in expectedApiSignature and not
+            //  appear in removedApi.
+            expectedApiSignature =
+                """
+                    package test.pkg {
+                      public class Child extends test.pkg.Parent {
+                        ctor public Child();
+                      }
+                      public class Parent {
+                        ctor public Parent();
+                        method public void elidableOverride();
+                        method public void finalOverride();
+                      }
+                    }
+                """,
+            removedApi =
+                """
+                    package test.pkg {
+                      public class Child extends test.pkg.Parent {
+                        method public final void finalOverride();
+                      }
+                    }
+                """,
+        )
+    }
+
+    /**
+     * Specifically verify legacy `@removed` Javadoc tag behavior when placed on an override of an
+     * active API method (omitting `apiSurface` so legacy Javadoc tags are honored).
+     */
+    @Test
+    fun `Test removing override of public method with @removed doc tag`() {
+        check(
+            // TODO(b/571827848): Attempting to remove an override via @removed doc tag should
+            //  report HidingApiMethodOverride and keep the override in the API.
+            expectedIssues = "",
+            format = FileFormat.V2,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            public class Parent {
+                                public void method() {}
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+
+                            public class Child extends Parent {
+                                /** @removed */
+                                @Override
+                                public final void method() {}
+                            }
+                        """
+                    ),
+                ),
+            // TODO(b/571827848): method() should remain in expectedApiSignature and not appear in
+            //  removedApi.
+            expectedApiSignature =
+                """
+                    package test.pkg {
+                      public class Child extends test.pkg.Parent {
+                        ctor public Child();
+                      }
+                      public class Parent {
+                        ctor public Parent();
+                        method public void method();
+                      }
+                    }
+                """,
+            removedApi =
+                """
+                    package test.pkg {
+                      public class Child extends test.pkg.Parent {
+                        method public final void method();
+                      }
+                    }
+                """,
+        )
+    }
+
+    /**
+     * Verify that attempting to remove an override of a public method inherited from the classpath
+     * reports `HidingApiMethodOverrideClasspath`.
+     */
+    @Test
+    fun `Test removing override of public method from the classpath`() {
+        check(
+            // TODO(b/571827848): Attempting to remove toString() should report
+            //  HidingApiMethodOverrideClasspath.
+            expectedIssues = "",
+            apiSurface = KnownApiSurface.PUBLIC,
+            format = FileFormat.V2,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            import android.annotation.RemovedFromApi;
+
+                            public class Foo {
+                                @RemovedFromApi
+                                @Override
+                                public String toString() { return "Foo"; }
+                            }
+                        """
+                    ),
+                ),
+            removedApi = "",
+        )
+    }
+
+    /**
+     * Verify that removing an entire class with `@RemovedFromApi` when that class happens to
+     * override a public superclass method is allowed and does not report `HidingApiMethodOverride`.
+     */
+    @Test
+    fun `Test removing class that overrides public method`() {
+        check(
+            expectedIssues = "",
+            apiSurface = KnownApiSurface.PUBLIC,
+            format = FileFormat.V2,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            public class Parent {
+                                public void elidableOverride() {}
+                                public void finalOverride() {}
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+
+                            import android.annotation.RemovedFromApi;
+
+                            @RemovedFromApi
+                            public class Child extends Parent {
+                                @Override
+                                public void elidableOverride() {}
+
+                                @Override
+                                public final void finalOverride() {}
+                            }
+                        """
+                    ),
+                ),
+            expectedApiSignature =
+                """
+                    package test.pkg {
+                      public class Parent {
+                        ctor public Parent();
+                        method public void elidableOverride();
+                        method public void finalOverride();
+                      }
+                    }
+                """,
+            removedApi =
+                """
+                    package test.pkg {
+                      public class Child extends test.pkg.Parent {
+                        ctor public Child();
+                        method public final void finalOverride();
+                      }
+                    }
+                """,
+        )
+    }
 }
