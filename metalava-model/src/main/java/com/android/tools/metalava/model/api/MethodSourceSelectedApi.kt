@@ -47,8 +47,22 @@ internal class MethodSourceSelectedApi(
 
         updateFromSelectableItem()
 
-        // Propagate information from this to the parent, i.e. the containing class.
-        parent.propagateFromChild(rawItemApiVariants)
+        // If the parent is part of an API and this method is explicitly marked for removal while
+        // the containing class is not, check whether it overrides an active API method before
+        // propagating its removed variant to the containing class.
+        val unremovedOverride =
+            if (parent.rawItemApiVariants.isNotEmpty() && removed && !parent.removed) {
+                handleRemovingApiMethodOverride()
+            } else {
+                false
+            }
+
+        // Propagate information from this to the parent, i.e. the containing class, unless this
+        // method was an invalid override removal (in which case it was kept in the active API and
+        // should not propagate a removed variant to the containing class).
+        if (!unremovedOverride) {
+            parent.propagateFromChild(rawItemApiVariants)
+        }
 
         // If the parent is not part of any API then the method cannot be either. (Checked after
         // propagateFromChild because a Kotlin file facade class starts with empty variants until
@@ -59,7 +73,7 @@ internal class MethodSourceSelectedApi(
         // methods they override (e.g. an unannotated or @Hide method implementing a public
         // interface method). If this method did not directly specify any API variants, find the
         // widest API surface inherited from overridden super methods.
-        if (rawItemApiVariants.isEmpty()) {
+        if (rawItemApiVariants.isEmpty() && !unremovedOverride) {
             val apiSurfaces = selectedApiUpdater.apiSurfaces
             val parentSurface = parent.rawItemApiVariants.widestSurfaceFor(apiSurfaces) ?: return
             var maxSuperSurface: ApiSurface? = null
@@ -155,16 +169,45 @@ internal class MethodSourceSelectedApi(
     }
 
     /**
+     * Handles an attempt by this method to remove an override of a method that remains part of the
+     * active API by unremoving it (adopting the overridden method's API variants), clearing its
+     * removed status, and reporting an issue.
+     *
+     * Returns `true` if this method was overriding an active API method (and was therefore kept in
+     * the API), or `false` if the removal is valid.
+     */
+    private fun handleRemovingApiMethodOverride(): Boolean {
+        val apiSurfaces = selectedApiUpdater.apiSurfaces
+        // SelectedApiUpdater guarantees that rawItemApiVariants belongs to at most one ApiSurface,
+        // and only sets `removed = true` when `surface != null`.
+        val surface = rawItemApiVariants.narrowestSurfaceFor(apiSurfaces) ?: return false
+
+        // Match ancestor methods that remain active in the core API of `surface` (or any narrower
+        // surface included in `surface`). Ancestor methods that are also removed only have REMOVED
+        // variants and will not match `wholeCoreApi(surface)`.
+        val activeSuperPredicate = ApiSurfacePredicate.wholeCoreApi(surface)
+
+        return handleInvalidApiMethodOverride(
+            predicate = activeSuperPredicate,
+            clearRemoved = true,
+        ) { method, overriddenMethod ->
+            "Attempting to remove ${method.describe()} which overrides ${overriddenMethod.describe()} which is already part of the API"
+        }
+    }
+
+    /**
      * Handles an attempt by this method to hide or remove an override of an ancestor method that
      * matches [predicate].
      *
      * If such an overridden method is found, this adopts the overridden method's [itemApiVariants]
-     * when their erased parameter types match, reports an
-     * [Issues.HIDING_API_METHOD_OVERRIDE]/[Issues.HIDING_API_METHOD_OVERRIDE_CLASSPATH] issue if
-     * appropriate, and returns `true`. Otherwise, this returns `false`.
+     * when their erased parameter types match, clears the removed status when [clearRemoved] is
+     * `true`, reports an [Issues.HIDING_API_METHOD_OVERRIDE] or
+     * [Issues.HIDING_API_METHOD_OVERRIDE_CLASSPATH] issue if appropriate, and returns `true`.
+     * Otherwise, this returns `false`.
      */
     private inline fun handleInvalidApiMethodOverride(
         predicate: FilterPredicate,
+        clearRemoved: Boolean = false,
         reportMessageProvider: (MethodItem, MethodItem) -> String,
     ): Boolean {
         // Find an ancestor method that matches the predicate; if none exists, this method is not
@@ -180,6 +223,13 @@ internal class MethodSourceSelectedApi(
             } else {
                 ApiVariantSet.EMPTY
             }
+
+        // If this was an invalid attempt to remove an override, clear its removed status so it is
+        // not treated as removed (or emitted with `@ForRemoval` by ModifierListWriter).
+        if (clearRemoved) {
+            removed = false
+            hasRemovedAnnotation = false
+        }
 
         // Report an issue unless:
         // - The method is being reverted (e.g. via a disabled `@FlaggedApi`), as it was hidden by

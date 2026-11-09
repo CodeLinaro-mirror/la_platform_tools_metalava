@@ -1014,10 +1014,10 @@ class CommonParameterizedSelectedApiInheritanceTest : BaseCommonParameterizedSel
             buildTests(
                 name = "public class overriding public method marked as @RemovedFromApi",
                 surfaceRules = publicSystemModuleRules,
-                // TODO(b/571827848): Attempting to remove an override of an active API method
-                //  should report HidingApiMethodOverride and adopt the overridden method's API
-                //  variants.
-                expectedIssues = "",
+                expectedIssues =
+                    """
+                        MAIN_SRC/src/test/pkg/Child.java: hidden: Attempting to remove method test.pkg.Child.method() which overrides method test.pkg.Parent.method() which is already part of the API [HidingApiMethodOverride]
+                    """,
                 sources =
                     listOf(
                         java(
@@ -1044,12 +1044,10 @@ class CommonParameterizedSelectedApiInheritanceTest : BaseCommonParameterizedSel
             ) {
                 surfaceTest(
                     surface = "public",
-                    // TODO(b/571827848): Child.method() should adopt public(C) from Parent.method()
-                    //  without propagating public(R) to Child or test.pkg.
                     expected =
                         """
                             package test.pkg
-                                   self - ApiVariantSet[public(CR)]
+                                   self - ApiVariantSet[public(C)]
                               class test.pkg.Parent
                                      self - ApiVariantSet[public(C)]
                                 constructor test.pkg.Parent()
@@ -1058,12 +1056,11 @@ class CommonParameterizedSelectedApiInheritanceTest : BaseCommonParameterizedSel
                                        self - ApiVariantSet[public(C)]
                               class test.pkg.Child
                                      self - ApiVariantSet[public(C)]
-                                  content - ApiVariantSet[public(R)]
                                 constructor test.pkg.Child()
                                        self - ApiVariantSet[public(C)]
                                 method test.pkg.Child.method()
-                                       self - ApiVariantSet[public(R)]
-                                   elidable - ApiVariantSet[public(CR)]
+                                       self - ApiVariantSet[public(C)]
+                                   elidable - ApiVariantSet[public(C)]
                         """,
                 )
             }

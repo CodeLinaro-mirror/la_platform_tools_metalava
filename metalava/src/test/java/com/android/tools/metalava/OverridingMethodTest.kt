@@ -219,9 +219,11 @@ class OverridingMethodTest : DriverTest() {
     @Test
     fun `Test removing override of public method with @RemovedFromApi`() {
         check(
-            // TODO(b/571827848): Attempting to remove an override of an active API method should
-            //  report HidingApiMethodOverride and keep the override in the API.
-            expectedIssues = "",
+            expectedIssues =
+                """
+                    src/test/pkg/Child.java:8: error: Attempting to remove method test.pkg.Child.elidableOverride() which overrides method test.pkg.Parent.elidableOverride() which is already part of the API [HidingApiMethodOverride]
+                    src/test/pkg/Child.java:12: error: Attempting to remove method test.pkg.Child.finalOverride() which overrides method test.pkg.Parent.finalOverride() which is already part of the API [HidingApiMethodOverride]
+                """,
             apiSurface = KnownApiSurface.PUBLIC,
             format = FileFormat.V2,
             sourceFiles =
@@ -254,13 +256,12 @@ class OverridingMethodTest : DriverTest() {
                         """
                     ),
                 ),
-            // TODO(b/571827848): finalOverride() should remain in expectedApiSignature and not
-            //  appear in removedApi.
             expectedApiSignature =
                 """
                     package test.pkg {
                       public class Child extends test.pkg.Parent {
                         ctor public Child();
+                        method public final void finalOverride();
                       }
                       public class Parent {
                         ctor public Parent();
@@ -269,14 +270,7 @@ class OverridingMethodTest : DriverTest() {
                       }
                     }
                 """,
-            removedApi =
-                """
-                    package test.pkg {
-                      public class Child extends test.pkg.Parent {
-                        method public final void finalOverride();
-                      }
-                    }
-                """,
+            removedApi = "",
         )
     }
 
@@ -287,9 +281,10 @@ class OverridingMethodTest : DriverTest() {
     @Test
     fun `Test removing override of public method with @removed doc tag`() {
         check(
-            // TODO(b/571827848): Attempting to remove an override via @removed doc tag should
-            //  report HidingApiMethodOverride and keep the override in the API.
-            expectedIssues = "",
+            expectedIssues =
+                """
+                    src/test/pkg/Child.java:6: error: Attempting to remove method test.pkg.Child.method() which overrides method test.pkg.Parent.method() which is already part of the API [HidingApiMethodOverride]
+                """,
             format = FileFormat.V2,
             sourceFiles =
                 arrayOf(
@@ -314,13 +309,12 @@ class OverridingMethodTest : DriverTest() {
                         """
                     ),
                 ),
-            // TODO(b/571827848): method() should remain in expectedApiSignature and not appear in
-            //  removedApi.
             expectedApiSignature =
                 """
                     package test.pkg {
                       public class Child extends test.pkg.Parent {
                         ctor public Child();
+                        method public final void method();
                       }
                       public class Parent {
                         ctor public Parent();
@@ -328,14 +322,7 @@ class OverridingMethodTest : DriverTest() {
                       }
                     }
                 """,
-            removedApi =
-                """
-                    package test.pkg {
-                      public class Child extends test.pkg.Parent {
-                        method public final void method();
-                      }
-                    }
-                """,
+            removedApi = "",
         )
     }
 
@@ -346,9 +333,10 @@ class OverridingMethodTest : DriverTest() {
     @Test
     fun `Test removing override of public method from the classpath`() {
         check(
-            // TODO(b/571827848): Attempting to remove toString() should report
-            //  HidingApiMethodOverrideClasspath.
-            expectedIssues = "",
+            expectedIssues =
+                """
+                    src/test/pkg/Foo.java:8: error: Attempting to remove method test.pkg.Foo.toString() which overrides method java.lang.Object.toString() which is already part of the API [HidingApiMethodOverrideClasspath]
+                """,
             apiSurface = KnownApiSurface.PUBLIC,
             format = FileFormat.V2,
             sourceFiles =
