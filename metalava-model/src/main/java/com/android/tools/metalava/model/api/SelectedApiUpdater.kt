@@ -106,6 +106,12 @@ class SelectedApiUpdater(
     /**
      * Update [selectedApi] with information about [ApiVariant]s to which the
      * [SourceSelectedApi.item] belongs.
+     *
+     * [SourceSelectedApi.initialize] always initializes [parent] before calling [updateSelectedApi]
+     * on a child, so properties set on [parent] here (such as [SourceSelectedApi.accessible],
+     * [SourceSelectedApi.explicitlyHidden], [SourceSelectedApi.removed],
+     * [SourceSelectedApi.forRemoval], and [SourceSelectedApi.docOnly]) are guaranteed to be up to
+     * date when updating enclosed items.
      */
     internal fun updateSelectedApi(
         selectedApi: SourceSelectedApi<*>,
@@ -154,6 +160,10 @@ class SelectedApiUpdater(
 
         // Indicates whether a removed annotation has been seen.
         var removed = false
+
+        // Indicates whether a removed annotation gated by a kept (unfinalized) @FlaggedApi
+        // annotation has been seen.
+        var forRemoval = false
 
         var revert = false
 
@@ -309,9 +319,13 @@ class SelectedApiUpdater(
         // annotation, only remove the item if the flag has been finalized. Otherwise (when no
         // api flags are provided, or the flag is kept or reverted), keep the item in the API.
         if (removed && flaggedApiAnnotation != null) {
-            if (flaggedApiAnnotation.apiFlag!!.action != ApiFlagAction.FINALIZE) {
+            val action = flaggedApiAnnotation.apiFlag!!.action
+            if (action != ApiFlagAction.FINALIZE) {
                 removed = false
                 revert = false
+                if (action == ApiFlagAction.KEEP) {
+                    forRemoval = true
+                }
             }
             flaggedApiAnnotation = null
         }
@@ -386,9 +400,13 @@ class SelectedApiUpdater(
             }
 
             // If this item has a removed annotation, is enclosed within a removed parent, or has a
-            // doc tag of @removed then make it removed.
+            // doc tag of @removed then make it removed; otherwise if it has a kept @FlaggedApi
+            // removal or is enclosed within a forRemoval parent (and is not reverting to a
+            // previously released item) then mark it as forRemoval.
             if (removed || parent.removed || item.hasRemovedDocTag) {
                 selectedApi.removed = true
+            } else if (revertedItem == null && (forRemoval || parent.forRemoval)) {
+                selectedApi.forRemoval = true
             }
 
             // If this item is not already doc-only but is enclosed within a doc-only parent then

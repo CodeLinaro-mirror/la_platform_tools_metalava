@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.api
 import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.api.surface.ApiSurface
 import com.android.tools.metalava.model.api.surface.ApiSurfacePredicate
 import com.android.tools.metalava.model.api.surface.ApiVariant
@@ -47,11 +48,14 @@ internal class MethodSourceSelectedApi(
 
         updateFromSelectableItem()
 
-        // If the parent is part of an API and this method is explicitly marked for removal while
-        // the containing class is not, check whether it overrides an active API method before
-        // propagating its removed variant to the containing class.
+        // If the parent is part of an API and this method is explicitly marked for immediate or
+        // deferred removal while the containing class is not, check whether it overrides an active
+        // API method before propagating its variants to the containing class.
         val unremovedOverride =
-            if (parent.rawItemApiVariants.isNotEmpty() && removed && !parent.removed) {
+            if (
+                parent.rawItemApiVariants.isNotEmpty() &&
+                    ((removed && !parent.removed) || (forRemoval && !parent.forRemoval))
+            ) {
                 handleRemovingApiMethodOverride()
             } else {
                 false
@@ -179,13 +183,21 @@ internal class MethodSourceSelectedApi(
     private fun handleRemovingApiMethodOverride(): Boolean {
         val apiSurfaces = selectedApiUpdater.apiSurfaces
         // SelectedApiUpdater guarantees that rawItemApiVariants belongs to at most one ApiSurface,
-        // and only sets `removed = true` when `surface != null`.
+        // and only sets `removed = true` or `forRemoval = true` when `surface != null`.
         val surface = rawItemApiVariants.narrowestSurfaceFor(apiSurfaces) ?: return false
 
         // Match ancestor methods that remain active in the core API of `surface` (or any narrower
-        // surface included in `surface`). Ancestor methods that are also removed only have REMOVED
-        // variants and will not match `wholeCoreApi(surface)`.
-        val activeSuperPredicate = ApiSurfacePredicate.wholeCoreApi(surface)
+        // surface included in `surface`). Ancestor methods that are immediately removed only have
+        // REMOVED variants and will not match `wholeCoreApi(surface)`. If this method's removal is
+        // deferred via a kept `@FlaggedApi` (`!removed && forRemoval`), also exclude ancestor
+        // methods that are similarly marked `forRemoval`.
+        val wholeCoreSurface = ApiSurfacePredicate.wholeCoreApi(surface)
+        val activeSuperPredicate =
+            if (removed) {
+                wholeCoreSurface
+            } else {
+                wholeCoreSurface.and(NotForRemovalPredicate)
+            }
 
         return handleInvalidApiMethodOverride(
             predicate = activeSuperPredicate,
@@ -193,6 +205,12 @@ internal class MethodSourceSelectedApi(
         ) { method, overriddenMethod ->
             "Attempting to remove ${method.describe()} which overrides ${overriddenMethod.describe()} which is already part of the API"
         }
+    }
+
+    /** [FilterPredicate] that matches items that are not marked [forRemoval]. */
+    private object NotForRemovalPredicate : FilterPredicate() {
+        override fun test(t: SelectableItem): Boolean =
+            (t.selectedApi as? SourceSelectedApi<*>)?.forRemoval != true
     }
 
     /**
@@ -229,6 +247,7 @@ internal class MethodSourceSelectedApi(
         if (clearRemoved) {
             removed = false
             hasRemovedAnnotation = false
+            forRemoval = false
         }
 
         // Report an issue unless:

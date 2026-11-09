@@ -448,10 +448,10 @@ class OverridingMethodTest : DriverTest() {
         check(
             configFiles = arrayOf(apiFlagsXmlFile),
             classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
-            // TODO(b/571827848): keptOverride() should also report HidingApiMethodOverride.
             expectedIssues =
                 """
                     src/test/pkg/Child.java:10: error: Attempting to remove method test.pkg.Child.finalizedOverride() which overrides method test.pkg.Parent.finalizedOverride() which is already part of the API [HidingApiMethodOverride]
+                    src/test/pkg/Child.java:15: error: Attempting to remove method test.pkg.Child.keptOverride() which overrides method test.pkg.Parent.keptOverride() which is already part of the API [HidingApiMethodOverride]
                 """,
             apiSurface = KnownApiSurface.PUBLIC,
             format = FileFormat.V2,
@@ -494,14 +494,13 @@ class OverridingMethodTest : DriverTest() {
                         """
                     ),
                 ),
-            // TODO(b/571827848): keptOverride() should not have @ForRemoval.
             expectedApiSignature =
                 """
                     package test.pkg {
                       public class Child extends test.pkg.Parent {
                         ctor public Child();
                         method public final void finalizedOverride();
-                        method @ForRemoval @FlaggedApi("test.pkg.kept_flag") public final void keptOverride();
+                        method @FlaggedApi("test.pkg.kept_flag") public final void keptOverride();
                         method public final void revertedOverride();
                       }
                       public class Parent {

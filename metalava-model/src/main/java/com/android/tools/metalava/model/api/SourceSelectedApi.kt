@@ -101,6 +101,19 @@ internal sealed class SourceSelectedApi<S : SelectableItem>(
         internal set
 
     /**
+     * Indicates whether the associated [SelectableItem] is marked for future removal via a removed
+     * annotation gated by an unfinalized (kept) `@FlaggedApi` annotation (or is enclosed within a
+     * parent that is [forRemoval]).
+     *
+     * Unlike [removed] (which is `true` for immediate removals that move the item to
+     * `ApiVariantType.REMOVED`), this is `true` when the removal is deferred (`ApiFlagAction.KEEP`)
+     * so the item remains in the core API with `@ForRemoval` until its flag is finalized.
+     *
+     * Initialized by [SelectedApiUpdater.updateSelectedApi] called from [updateFromSelectableItem].
+     */
+    internal var forRemoval: Boolean = false
+
+    /**
      * Indicates whether the associated [SelectableItem] is being reverted.
      *
      * Initialized by [SelectedApiUpdater.updateSelectedApi] called from [updateFromSelectableItem].
@@ -267,6 +280,7 @@ internal sealed class SourceSelectedApi<S : SelectableItem>(
         docOnly = other.docOnly
         removed = other.removed
         hasRemovedAnnotation = other.hasRemovedAnnotation
+        forRemoval = other.forRemoval
         revert = other.revert
         revertItem = other.revertItem
         wasPreviouslyReleased = other.wasPreviouslyReleased
