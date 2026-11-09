@@ -45,9 +45,14 @@ internal class MethodSourceSelectedApi(
             return
         }
 
-        super.itemSpecificInitialization()
+        updateFromSelectableItem()
 
-        // If the parent is not part of any API then the method cannot be either.
+        // Propagate information from this to the parent, i.e. the containing class.
+        parent.propagateFromChild(rawItemApiVariants)
+
+        // If the parent is not part of any API then the method cannot be either. (Checked after
+        // propagateFromChild because a Kotlin file facade class starts with empty variants until
+        // its members propagate their variants to it.)
         if (parent.rawItemApiVariants.isEmpty()) return
 
         // Unlike classes and fields, methods implicitly inherit API surface membership from the
