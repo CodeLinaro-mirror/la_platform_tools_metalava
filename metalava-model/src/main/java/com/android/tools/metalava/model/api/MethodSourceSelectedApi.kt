@@ -172,11 +172,14 @@ internal class MethodSourceSelectedApi(
         val overriddenMethod = item.findPredicateSuperMethod(predicate) ?: return false
 
         // If the erased parameter types match (which may not be true when overriding a generic
-        // method with specialized type arguments), unhide this method by adopting the overridden
-        // method's API variants.
-        if (MethodItem.overridesMethod(item, overriddenMethod)) {
-            rawItemApiVariants = overriddenMethod.selectedApi.itemApiVariants
-        }
+        // method with specialized type arguments), adopt the overridden method's API variants;
+        // otherwise clear any variants on this specialized method.
+        rawItemApiVariants =
+            if (MethodItem.overridesMethod(item, overriddenMethod)) {
+                overriddenMethod.selectedApi.itemApiVariants
+            } else {
+                ApiVariantSet.EMPTY
+            }
 
         // Report an issue unless:
         // - The method is being reverted (e.g. via a disabled `@FlaggedApi`), as it was hidden by
