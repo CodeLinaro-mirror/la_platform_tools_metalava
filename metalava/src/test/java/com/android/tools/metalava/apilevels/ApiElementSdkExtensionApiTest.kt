@@ -25,6 +25,7 @@ class ApiElementSdkExtensionApiTest {
 
     private val api33 = ApiHistoryUpdater.forApiVersion(ApiVersion.fromLevel(33))
     private val api34 = ApiHistoryUpdater.forApiVersion(ApiVersion.fromLevel(34))
+    private val current35 = ApiHistoryUpdater.forCurrentApiVersion(ApiVersion.fromLevel(35))
 
     /** Create an [ApiHistoryUpdater] for the SDK extension version [extVersion]. */
     private fun extUpdater(extVersion: Int) =
@@ -63,6 +64,28 @@ class ApiElementSdkExtensionApiTest {
         assertEquals(31, element.sdkExtensionApi)
 
         extUpdater(11).updateSdkExtensionApi(element, 33)
+        assertEquals(33, element.sdkExtensionApi)
+    }
+
+    @Test
+    fun `Test current API floor takes precedence over later SDK extension floors`() {
+        // The current API is loaded before any SDK extension versions, so check that a later SDK
+        // extension version does not replace the floor from the current API.
+        val element = ApiElement("foo()V")
+        api34.updateSdkExtensionApi(element, 33)
+        current35.updateSdkExtensionApi(element, 31)
+        extUpdater(10).updateSdkExtensionApi(element, 33)
+        extUpdater(11).updateSdkExtensionApi(element, 34)
+        assertEquals(31, element.sdkExtensionApi)
+    }
+
+    @Test
+    fun `Test without current API floor the newest historical floor is used`() {
+        // e.g. on a finalized release build, the SDK extension versions loaded after the historical
+        // Android SDK versions are newer so their floor is used.
+        val element = ApiElement("foo()V")
+        api34.updateSdkExtensionApi(element, 34)
+        extUpdater(10).updateSdkExtensionApi(element, 33)
         assertEquals(33, element.sdkExtensionApi)
     }
 

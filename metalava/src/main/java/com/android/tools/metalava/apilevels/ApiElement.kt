@@ -244,19 +244,44 @@ open class ApiElement(val name: String) : ParentApiElement, Comparable<ApiElemen
     }
 
     /**
+     * Whether [sdkExtensionApi] was set from the current API, see
+     * [updateSdkExtensionApiFromCurrent].
+     */
+    private var sdkExtensionApiFromCurrent = false
+
+    /**
      * Updates [sdkExtensionApi] with the [floor] of the `@SdkExtensionApi` annotation on this
-     * element in the version being loaded.
+     * element in the historical Android SDK version or SDK extension version being loaded.
      *
      * Versions are loaded from oldest to newest, i.e. historical Android SDK versions, then the
      * current API, then SDK extension versions, so a later floor replaces an earlier one and the
-     * floor from the newest version is used.
+     * floor from the newest version is used. The exception is a floor from the current API, which
+     * is not replaced by a floor from an SDK extension version, see
+     * [updateSdkExtensionApiFromCurrent].
      *
      * A `null` [floor] is ignored so that an unannotated declaration, e.g. a delta declaration in a
      * `system-current.txt` file, does not clear a floor provided by another declaration.
      */
     fun updateSdkExtensionApi(floor: Int?) {
+        if (floor != null && !sdkExtensionApiFromCurrent) {
+            sdkExtensionApi = floor
+        }
+    }
+
+    /**
+     * Updates [sdkExtensionApi] with the [floor] of the `@SdkExtensionApi` annotation on this
+     * element in the current API.
+     *
+     * The current API is always the newest version, so its floor takes precedence over the floor
+     * from any other version. When there is no current API, e.g. on a finalized release build, the
+     * floor from the newest historical version is used, see [updateSdkExtensionApi].
+     *
+     * A `null` [floor] is ignored.
+     */
+    fun updateSdkExtensionApiFromCurrent(floor: Int?) {
         if (floor != null) {
             sdkExtensionApi = floor
+            sdkExtensionApiFromCurrent = true
         }
     }
 

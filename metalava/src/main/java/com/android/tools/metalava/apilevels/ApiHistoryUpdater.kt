@@ -69,6 +69,19 @@ sealed interface ApiHistoryUpdater {
     }
 
     /**
+     * Extends [ApiVersionUpdater] to update [ApiElement.sdkExtensionApi] from the current API,
+     * which takes precedence over all other versions, see
+     * [ApiElement.updateSdkExtensionApiFromCurrent].
+     */
+    private class CurrentApiVersionUpdater(apiVersion: ApiVersion) : ApiVersionUpdater(apiVersion) {
+        override fun updateSdkExtensionApi(apiElement: ApiElement, floor: Int?) {
+            apiElement.updateSdkExtensionApiFromCurrent(floor)
+        }
+
+        override fun toString() = "CurrentApiVersionUpdater(version=$apiVersion)"
+    }
+
+    /**
      * Extends [ApiVersionUpdater] to also update the [ApiElement.sinceExtension] and
      * [ApiElement.mainlineModule] properties.
      *
@@ -108,6 +121,16 @@ sealed interface ApiHistoryUpdater {
         /** Create an [ApiHistoryUpdater] for [apiVersion]. */
         fun forApiVersion(apiVersion: ApiVersion): ApiHistoryUpdater {
             return ApiVersionUpdater(apiVersion)
+        }
+
+        /**
+         * Create an [ApiHistoryUpdater] for the current API whose version is [apiVersion].
+         *
+         * This behaves like [forApiVersion] except that an `@SdkExtensionApi` floor from the
+         * current API takes precedence over floors from all other versions.
+         */
+        fun forCurrentApiVersion(apiVersion: ApiVersion): ApiHistoryUpdater {
+            return CurrentApiVersionUpdater(apiVersion)
         }
 
         /**
