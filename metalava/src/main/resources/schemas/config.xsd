@@ -75,6 +75,13 @@
                         </xs:documentation>
                     </xs:annotation>
                 </xs:element>
+                <xs:element name="documentation" type="config:DocumentationType" minOccurs="0">
+                    <xs:annotation>
+                        <xs:documentation>
+                            Configuration related to documentation processing.
+                        </xs:documentation>
+                    </xs:annotation>
+                </xs:element>
             </xs:choice>
         </xs:complexType>
 
@@ -119,6 +126,15 @@
         <xs:key name="AnnotationClassName">
             <xs:selector xpath=".//config:annotation-class"/>
             <xs:field xpath="@name"/>
+        </xs:key>
+
+        <!--
+         ! A key that makes sure that External Package prefixes are unique within the containing
+         ! file.
+         !-->
+        <xs:key name="ExternalPackagePrefix">
+            <xs:selector xpath=".//config:external-package"/>
+            <xs:field xpath="@prefix"/>
         </xs:key>
 
     </xs:element>
@@ -669,6 +685,49 @@
                     </xs:documentation>
                 </xs:annotation>
             </xs:enumeration>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:complexType name="DocumentationType">
+        <xs:annotation>
+            <xs:documentation>
+                The type of the `documentation` element defined inside `config`.
+            </xs:documentation>
+        </xs:annotation>
+        <xs:choice>
+            <xs:element name="external-package" type="config:ExternalPackageType" minOccurs="0" maxOccurs="unbounded">
+                <xs:annotation>
+                    <xs:documentation>
+                        External package configuration.
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+        </xs:choice>
+    </xs:complexType>
+
+    <xs:complexType name="ExternalPackageType">
+        <xs:annotation>
+            <xs:documentation>
+                The type of the `external-package` element defined inside `DocumentationType`.
+            </xs:documentation>
+        </xs:annotation>
+        <xs:attribute name="prefix" type="config:PackagePrefixType" use="required">
+            <xs:annotation>
+                <xs:documentation>
+                    The required package prefix of the external package.
+                </xs:documentation>
+            </xs:annotation>
+        </xs:attribute>
+    </xs:complexType>
+
+    <xs:simpleType name="PackagePrefixType">
+        <xs:annotation>
+            <xs:documentation>
+                The type of a package prefix, consisting of dot-separated Java identifiers.
+            </xs:documentation>
+        </xs:annotation>
+        <xs:restriction base="xs:string">
+            <xs:pattern value="[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)*"/>
         </xs:restriction>
     </xs:simpleType>
 </xs:schema>

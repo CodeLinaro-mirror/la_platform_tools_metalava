@@ -45,7 +45,6 @@ internal class PsiSourceParser(
     tracer: Tracer,
 ) :
     AbstractSourceParser(
-        psiEnvironment,
         codebaseConfig,
         tracer,
     ) {
@@ -55,7 +54,6 @@ internal class PsiSourceParser(
             description = "Codebase from classpath",
             apiPackages = null,
             compiledSourceJar = null,
-            includeKotlinInCodebase = true,
             // A ClassPathResolver is used when resolving references from a signature file, possibly
             // for the previously released API, so it must not have a reference to the previously
             // released API itself.
@@ -66,14 +64,12 @@ internal class PsiSourceParser(
         description: String,
         apiPackages: PackageFilter?,
         compiledSourceJar: File?,
-        includeKotlinInCodebase: Boolean,
     ): Codebase =
         createCodebase(
             sourceSet = psiEnvironment.sourceSet,
             description = description,
             apiPackages = apiPackages,
             compiledSourceJar = compiledSourceJar,
-            includeKotlinInCodebase = includeKotlinInCodebase,
         )
 
     override fun processJavaStubs(
@@ -87,7 +83,6 @@ internal class PsiSourceParser(
             description = "Codebase loaded from stubs",
             apiPackages = apiPackages,
             compiledSourceJar = null,
-            includeKotlinInCodebase = true,
         )
 
     /**
@@ -99,7 +94,6 @@ internal class PsiSourceParser(
         description: String,
         apiPackages: PackageFilter?,
         compiledSourceJar: File?,
-        includeKotlinInCodebase: Boolean,
         codebaseConfig: Codebase.Config = this.codebaseConfig,
     ): PsiBasedCodebase {
         val environment = psiEnvironment.uastEnvironment
@@ -123,7 +117,6 @@ internal class PsiSourceParser(
             assembler.initializeFromSources(
                 sourceSet,
                 apiPackages,
-                includeKotlinInCodebase,
                 tracer,
             )
         }

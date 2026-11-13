@@ -74,7 +74,14 @@ sealed class SelectedApi {
      */
     abstract val revertItem: SelectableItem?
 
-    /** Checks to see if the associated [SelectableItem] contains any removed annotations. */
+    /**
+     * Checks to see if the associated [SelectableItem] contains any removed annotations (or was
+     * marked with `@ForRemoval` in a signature file).
+     *
+     * Unlike membership in a `REMOVED` variant in [itemApiVariants], this only reflects whether the
+     * item itself has a removed annotation (it is not inherited by enclosed items) and remains
+     * `true` even when the removal is gated by an unfinalized `@FlaggedApi` annotation.
+     */
     open fun hasRemovedAnnotation(): Boolean = false
 
     /**
@@ -97,6 +104,15 @@ sealed class SelectedApi {
      * This can only be called on items loaded from signature files.
      */
     abstract fun addItemApiVariant(value: ApiVariant)
+
+    /**
+     * Mark that the associated [SelectableItem] has a removed annotation.
+     *
+     * This can only be called on items loaded from signature files.
+     */
+    open fun markHasRemovedAnnotation() {
+        error("Cannot update hasRemovedAnnotation in $this")
+    }
 
     /**
      * Populate this instance with the state from the [original] [SelectedApi] of the item being

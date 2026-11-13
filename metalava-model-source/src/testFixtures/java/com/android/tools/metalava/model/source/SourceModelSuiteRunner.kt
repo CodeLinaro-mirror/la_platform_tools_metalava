@@ -173,7 +173,7 @@ class SourceModelSuiteRunner(private val sourceModelProvider: SourceModelProvide
 /** A [JarSupport] implementation that uses [environmentManager]. */
 private class SourceParserJarSupport(private val environmentManager: EnvironmentManager) :
     JarSupport {
-    private fun createSourceParser(classPath: List<File> = emptyList()): SourceParser {
+    private fun createSourceParser(classPath: List<File>): SourceParser {
         val codebaseConfig = Codebase.Config()
         val environment =
             environmentManager.createEnvironment(
@@ -186,7 +186,4 @@ private class SourceParserJarSupport(private val environmentManager: Environment
 
     override fun getClassPathResolver(classPath: List<File>) =
         createSourceParser(classPath).getClassPathResolver()
-
-    override fun loadFromJar(apiJar: File, classPath: List<File>) =
-        createSourceParser().loadFromJar(apiJar, classPath)
 }

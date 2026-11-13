@@ -612,6 +612,8 @@ internal class SingleSignatureFileParser(
 
     /** Parse a class or typealias in the current package. */
     private fun parseClass() {
+        // Notify the consumer before parsing the class or typealias's modifiers and annotations.
+        consumer.beforeClass()
         val (modifiers, targetLanguages) = parseModifiersAndTargetLanguages()
         val kindToken = requireNonEofToken()
         // Remember this position as this seems like a good place to use to report issues with the
@@ -696,6 +698,8 @@ internal class SingleSignatureFileParser(
         // Dispatch each member declaration by its leading keyword token type until the closing `}`
         // is consumed.
         while (!match(SharedTokenType.BRACE_CLOSE)) {
+            // Notify the consumer before parsing the member's modifiers and annotations.
+            consumer.beforeMember()
             val memberToken = requireNonEofToken()
             when (memberToken.type) {
                 SignatureTokenType.CTOR -> {

@@ -23,6 +23,7 @@ data class Config(
     val buildProperties: BuildPropertiesConfig? = null,
     val issues: IssuesConfig? = null,
     val annotationClasses: AnnotationClassesConfig? = null,
+    val documentation: DocumentationConfig? = null,
 ) : CombinableConfig<Config>, ConfigXmlWritable {
 
     /** Combine this [Config] with another returning a [Config] object that combines them both. */
@@ -33,6 +34,7 @@ data class Config(
             buildProperties = combine(buildProperties, other.buildProperties),
             issues = combine(issues, other.issues),
             annotationClasses = combine(annotationClasses, other.annotationClasses),
+            documentation = combine(documentation, other.documentation),
         )
 
     /** Validate this object, i.e. check to make sure that the contained objects are consistent. */
@@ -41,6 +43,7 @@ data class Config(
         apiSurfaces?.validate()
         buildProperties?.validate()
         annotationClasses?.validate()
+        documentation?.validate()
     }
 
     /** Write this [Config] to [writer]. */
@@ -51,6 +54,7 @@ data class Config(
             buildProperties?.writeTo(this)
             issues?.writeTo(this)
             annotationClasses?.writeTo(this)
+            documentation?.writeTo(this)
         }
     }
 }

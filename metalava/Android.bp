@@ -38,12 +38,8 @@ java_library_host {
         "metalava-model-text",
         "metalava-reporter",
 
-        "prebuilts-metalava-asm",
         "prebuilts-metalava-clikt",
         "prebuilts-metalava-gson",
-        "prebuilts-metalava-guava",
-        "prebuilts-metalava-lint",
-        "prebuilts-metalava-sdklib",
         "prebuilts-metalava-tracing",
         "prebuilts-metalava-tracing-wire",
     ],

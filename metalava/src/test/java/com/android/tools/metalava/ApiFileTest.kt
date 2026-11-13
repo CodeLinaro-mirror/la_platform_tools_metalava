@@ -822,8 +822,6 @@ class ApiFileTest : DriverTest() {
             extraArguments =
                 hiddenIssues(
                     Issues.REFERENCES_HIDDEN,
-                    Issues.UNAVAILABLE_SYMBOL,
-                    Issues.HIDDEN_TYPE_PARAMETER,
                     Issues.HIDDEN_SUPERCLASS,
                 )
         )
@@ -962,8 +960,6 @@ class ApiFileTest : DriverTest() {
             extraArguments =
                 hiddenIssues(
                     Issues.REFERENCES_HIDDEN,
-                    Issues.UNAVAILABLE_SYMBOL,
-                    Issues.HIDDEN_TYPE_PARAMETER,
                 )
         )
     }

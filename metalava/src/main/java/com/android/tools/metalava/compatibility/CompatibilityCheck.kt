@@ -21,6 +21,8 @@ import com.android.tools.metalava.ComparisonVisitor
 import com.android.tools.metalava.JVM_DEFAULT_WITH_COMPATIBILITY
 import com.android.tools.metalava.cli.common.cliError
 import com.android.tools.metalava.cli.compatibility.CheckRequest.CheckType
+import com.android.tools.metalava.lint.sdkExtensionFloor
+import com.android.tools.metalava.model.ANDROID_SDK_EXTENSION_API
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
@@ -280,7 +282,82 @@ private constructor(
             }
         }
 
+        compareSdkExtensionApi(old, new)
         compareItemNullability(old, new)
+    }
+
+    /**
+     * Get the effective `@SdkExtensionApi` floor of this [Item], i.e. the floor from its own
+     * `@SdkExtensionApi` annotation, or, if it does not have one, from the closest enclosing class
+     * that does. Returns `null` if neither this nor any enclosing class is annotated.
+     */
+    private fun Item.effectiveSdkExtensionFloor(): Int? {
+        // Use the floor from this item's own annotation, if any.
+        sdkExtensionFloor()?.let {
+            return it
+        }
+        // Otherwise, inherit the floor from the closest annotated enclosing class.
+        var cls = containingClass()
+        while (cls != null) {
+            cls.sdkExtensionFloor()?.let {
+                return it
+            }
+            cls = cls.containingClass()
+        }
+        return null
+    }
+
+    /**
+     * Compare the effective `@SdkExtensionApi` floor (see [effectiveSdkExtensionFloor]) of the
+     * [old] and [new] versions of a class, callable or field, reporting
+     * [Issues.CHANGED_SDK_EXTENSION_API] if the floor was removed or changed.
+     *
+     * Adding a floor to a previously unannotated item is allowed and not reported. A change that is
+     * only inherited from a containing class is not reported on the item, as it is reported on the
+     * containing class instead.
+     */
+    private fun compareSdkExtensionApi(old: Item, new: Item) {
+        // Only classes, callables and fields can be annotated with @SdkExtensionApi.
+        if (old !is ClassItem && old !is CallableItem && old !is FieldItem) return
+        // Adding a floor to an item that previously had none is allowed, so ignore items that
+        // previously had no effective floor.
+        val oldFloor = old.effectiveSdkExtensionFloor() ?: return
+        val newAnnotation = new.modifiers.findAnnotation(ANDROID_SDK_EXTENSION_API)
+        val newFloor = new.effectiveSdkExtensionFloor()
+
+        // If the item does not have its own annotation and both the old and new floors were
+        // inherited from the containing class, then any change is caused by the containing class
+        // changing its floor, which is reported on the containing class, so do not report it again
+        // on each of its members.
+        val oldParentFloor = old.containingClass()?.effectiveSdkExtensionFloor()
+        val newParentFloor = new.containingClass()?.effectiveSdkExtensionFloor()
+        val changeInheritedFromContainingClass =
+            newAnnotation == null &&
+                oldFloor == oldParentFloor &&
+                newFloor == newParentFloor &&
+                oldParentFloor != newParentFloor
+        if (changeInheritedFromContainingClass) return
+
+        when {
+            // The item, and any enclosing class, no longer has a floor.
+            newFloor == null ->
+                report(
+                    Issues.CHANGED_SDK_EXTENSION_API,
+                    new,
+                    "${old.describe(capitalize = true)} has removed @SdkExtensionApi($oldFloor)",
+                    oldItem = old,
+                )
+            // The item has a different floor, either from its own annotation or a newly annotated
+            // enclosing class.
+            newFloor != oldFloor ->
+                report(
+                    Issues.CHANGED_SDK_EXTENSION_API,
+                    new,
+                    "${old.describe(capitalize = true)} has changed @SdkExtensionApi floor from $oldFloor to $newFloor",
+                    newAnnotation?.fileLocation ?: FileLocation.UNKNOWN,
+                    oldItem = old,
+                )
+        }
     }
 
     override fun compareSelectableItems(old: SelectableItem, new: SelectableItem) {
@@ -1939,6 +2016,7 @@ private constructor(
         ) {
             val surfaceFilter = getSurfaceFilter(checkType.apiType, apiSurface)
             val referenceFilter = getReferenceFilter(checkType.apiType, apiSurface)
+            val comparatorReferenceFilter = getComparatorReferenceFilter(apiSurface)
             val checker =
                 CompatibilityCheck(
                     surfaceFilter = surfaceFilter,
@@ -1972,7 +2050,7 @@ private constructor(
                 oldFullCodebase,
                 newFullCodebase,
                 surfaceFilter,
-                referenceFilter,
+                comparatorReferenceFilter,
             )
 
             val message =
@@ -1996,6 +2074,7 @@ private constructor(
         ) {
             val surfaceFilter = getSurfaceFilter(apiType, apiSurface)
             val referenceFilter = getReferenceFilter(apiType, apiSurface)
+            val comparatorReferenceFilter = getComparatorReferenceFilter(apiSurface)
             val checker =
                 CompatibilityCheck(
                     surfaceFilter = surfaceFilter,
@@ -2011,7 +2090,7 @@ private constructor(
                 oldCodebase,
                 newCodebase,
                 surfaceFilter,
-                referenceFilter,
+                comparatorReferenceFilter,
             )
 
             if (checker.foundProblems) {
@@ -2038,5 +2117,14 @@ private constructor(
                 apiType,
                 apiSurface,
             )
+
+        /**
+         * Returns a reference filter for [CodebaseComparator] based on the [apiSurface]. This
+         * includes both core and removed API variants across the surface hierarchy so that items
+         * moved into a base surface or into the removed API are compared rather than reported as
+         * removed.
+         */
+        private fun getComparatorReferenceFilter(apiSurface: ApiSurface) =
+            ApiSurfacePredicate.wholeCoreAndRemovedApi(apiSurface)
     }
 }

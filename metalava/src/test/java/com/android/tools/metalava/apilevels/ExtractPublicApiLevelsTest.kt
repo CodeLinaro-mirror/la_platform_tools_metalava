@@ -16,43 +16,28 @@
 
 package com.android.tools.metalava.apilevels
 
+import com.android.tools.metalava.cli.signature.ARG_API_VERSION_FOR_SDK_EXTENSION
 import com.android.tools.metalava.cli.signature.ARG_SDK_INFO_FILE
 import com.android.tools.metalava.doc.getApiLookup
-import com.android.tools.metalava.testing.signature
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ExtractPublicApiLevelsTest : ApiGeneratorIntegrationTestBase() {
-    // TODO(b/378479241): Fix this test to make it more realistic by including definitions of the
-    //  current API or stopping it from including the current API.
     @Test
     fun `Extract API levels`() {
-        val currentVersion = 35
         val extensionSignaturePattern =
             "${extensionSdkJars.path}/{version:extension}/public/api/{module}.txt"
 
         commandTest {
-            val currentFile =
-                signature(
-                        "current.txt",
-                        """
-                            // Signature format: 2.0
-                            package android.pkg {
-                              public class MyTest {
-                                ctor public MyTest();
-                              }
-                            }
-                        """
-                    )
-                    .createFile(temporaryFolder.root)
-
             args +=
                 listOf(
                     "api-history",
                     "--output-file",
                     outputPath,
+                    "--historical-versions",
+                    "26:34",
                     "--pattern",
                     androidPublicSignaturePattern,
                     "--pattern",
@@ -64,10 +49,8 @@ class ExtractPublicApiLevelsTest : ApiGeneratorIntegrationTestBase() {
                     ),
                     ARG_SDK_INFO_FILE,
                     createSdkExtensionInfoFile().path,
-                    "--current-version",
-                    currentVersion.toString(),
-                    "--current-files",
-                    currentFile.path,
+                    ARG_API_VERSION_FOR_SDK_EXTENSION,
+                    "35",
                 )
         }
 
@@ -75,14 +58,12 @@ class ExtractPublicApiLevelsTest : ApiGeneratorIntegrationTestBase() {
 
         val xml = output.readText(Charsets.UTF_8)
 
-        val nextVersion = 35
-        assertTrue(xml.contains("<class name=\"android/Manifest\$permission\" since=\"1\">"))
+        assertTrue(xml.contains("<class name=\"android/Manifest\$permission\" since=\"26\">"))
         assertTrue(
             xml.contains(
-                "<field name=\"BIND_CARRIER_MESSAGING_SERVICE\" since=\"22\" deprecated=\"23\"/>"
+                "<field name=\"SMS_FINANCIAL_TRANSACTIONS\" since=\"29\" deprecated=\"31\"/>"
             )
         )
-        assertTrue(xml.contains("<class name=\"android/pkg/MyTest\" since=\"$nextVersion\""))
         assertFalse(xml.contains("<implements name=\"java/lang/annotation/Annotation\" removed=\""))
         assertFalse(xml.contains("<extends name=\"java/lang/Enum\" removed=\""))
         assertFalse(xml.contains("<method name=\"append(C)Ljava/lang/AbstractStringBuilder;\""))
@@ -92,22 +73,17 @@ class ExtractPublicApiLevelsTest : ApiGeneratorIntegrationTestBase() {
 
         val apiLookup = getApiLookup(output, temporaryFolder.newFolder())
 
-        // Make sure we're really using the correct database, not the SDK one. (This placeholder
-        // class is provided as a source file above.)
-        @Suppress("DEPRECATION")
-        assertEquals(nextVersion, apiLookup.getClassVersion("android.pkg.MyTest"))
-
         @Suppress("DEPRECATION") apiLookup.getClassVersion("android.v")
         @Suppress("DEPRECATION")
         assertEquals(
-            5,
-            apiLookup.getFieldVersion("android.Manifest\$permission", "AUTHENTICATE_ACCOUNTS")
+            28,
+            apiLookup.getFieldVersion("android.Manifest\$permission", "FOREGROUND_SERVICE")
         )
 
         @Suppress("DEPRECATION")
         val methodVersion =
             apiLookup.getMethodVersion("android/icu/util/CopticCalendar", "computeTime", "()")
-        assertEquals(24, methodVersion)
+        assertEquals(26, methodVersion)
 
         // Verify historical backfill by checking the section for android/os/ext/SdkExtensions
         xml.checkClass(

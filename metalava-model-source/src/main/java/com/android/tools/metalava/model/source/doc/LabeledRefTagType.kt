@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.source.doc
 import com.android.tools.metalava.model.BaseTypeTransformer
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassTypeItem
+import com.android.tools.metalava.model.ExternalReferencableItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.InvalidReferencableItem
 import com.android.tools.metalava.model.PackageItem
@@ -74,18 +75,25 @@ internal open class LabeledRefTagType(name: String, form: TagTypeForm) :
         }
 
         // Resolve the parsed source reference, if available.
-        val resolvedReference =
+        val resolved =
             // Resolve the reference.
-            parsedReference?.resolveReference(context, reporter)?.also { resolved ->
-                checkSourceReferenceValidForResolvedReference(reporter, sourceReference, resolved)
+            parsedReference?.resolveReference(context, reporter)?.also {
+                checkSourceReferenceValidForResolvedReference(
+                    reporter,
+                    sourceReference,
+                    it.resolvedReference,
+                )
             }
 
         // Get a normalized form of the source reference for use as the label if the resolved
         // reference is different.
-        val normalizedSourceReference = parsedReference?.normalizedForm ?: sourceReference
+        val normalizedSourceReference =
+            resolved?.normalizedSourceReference
+                ?: parsedReference?.normalizedForm
+                ?: sourceReference
 
         return ExtractDataResult(
-            LabeledRefTagData(name, normalizedSourceReference, resolvedReference),
+            LabeledRefTagData(name, normalizedSourceReference, resolved?.resolvedReference),
             // The source reference and any following whitespace must be removed from the content as
             // they are part of [LinkTagData].
             consumedContent = labelStart
@@ -327,8 +335,29 @@ internal sealed interface ParsedReference {
     fun resolveReference(
         context: DocCommentContext,
         reporter: LocationSpecificReporter
-    ): ResolvedReference?
+    ): ResolvedSourceReference?
 }
+
+/**
+ * Result of resolving a [ParsedReference]: pairs the [resolvedReference] with the
+ * [normalizedSourceReference] to use when synthesizing a fallback label (with any fully qualified
+ * mapped annotation name rewritten so the hidden source package is not leaked into the label).
+ */
+internal data class ResolvedSourceReference(
+    val normalizedSourceReference: String,
+    val resolvedReference: ResolvedReference,
+)
+
+/**
+ * Rewrite [sourceClassName] to [resolvedClassName] when the author already wrote the full original
+ * qualified name of [classItem], so mapped annotations (e.g. `android.annotation.Nullable` ->
+ * `androidx.annotation.Nullable`) do not synthesize a fallback label containing the unmapped name.
+ */
+private fun rewriteMappedSourceClassName(
+    sourceClassName: String,
+    classItem: ClassItem,
+    resolvedClassName: String,
+): String = if (sourceClassName == classItem.qualifiedName()) resolvedClassName else sourceClassName
 
 /** An ambiguous reference to something by [name]. */
 internal data class AmbiguousSourceReference(val name: String) : ParsedReference {
@@ -338,13 +367,18 @@ internal data class AmbiguousSourceReference(val name: String) : ParsedReference
     override fun resolveReference(
         context: DocCommentContext,
         reporter: LocationSpecificReporter
-    ): ResolvedReference? =
+    ): ResolvedSourceReference? =
         // Resolve the reference.
         when (val resolved = context.resolveItemReference(name, NameClassification.AMBIGUOUS)) {
-            is ClassItem -> resolved.toResolvedReference()
-            is PackageItem -> resolved.toResolvedReference()
-            is TypeParameterItem -> resolved.toResolvedReference()
-            is FieldItem -> resolved.toResolvedReference()
+            is ClassItem -> {
+                val resolvedRef = resolved.toResolvedReference(context)
+                val sourceName =
+                    rewriteMappedSourceClassName(name, resolved, resolvedRef.fullyQualifiedForm)
+                ResolvedSourceReference(sourceName, resolvedRef)
+            }
+            is PackageItem -> ResolvedSourceReference(name, resolved.toResolvedReference())
+            is TypeParameterItem -> ResolvedSourceReference(name, resolved.toResolvedReference())
+            is FieldItem -> ResolvedSourceReference(name, resolved.toResolvedReference(context))
             else -> null
         }
 }
@@ -360,27 +394,36 @@ internal data class QualifyingClassSourceReference(
     override fun resolveReference(
         context: DocCommentContext,
         reporter: LocationSpecificReporter
-    ): ResolvedReference? {
+    ): ResolvedSourceReference? {
         val resolved = context.resolveItemReference(className, NameClassification.CLASS)
         val classItem =
             when (resolved) {
                 is ClassItem -> resolved
+                is ExternalReferencableItem -> null
                 is InvalidReferencableItem -> {
                     resolved.reportIssue(reporter)
                     null
                 }
                 // This should never happen as passing in NameClassification.CLASS above should
-                // limit
-                // the returned types to ClassItem and InvalidReferencableItem.
+                // limit the returned types to ClassItem, ExternalReferencableItem, and
+                // InvalidReferencableItem.
                 else -> error("type '$className' was resolved to an unknown type $resolved")
             }
 
-        return member.findIn(
-            context,
-            reporter,
-            classItem,
-            // Use the qualified class name if available, otherwise use the source name.
-            classItem?.qualifiedName() ?: className,
+        // Use the resolved (possibly mapped) class name if available, otherwise use the source
+        // name.
+        val resolvedClassName =
+            classItem?.let { context.resolveClassReferenceName(it) } ?: className
+        val resolvedReference = member.findIn(context, reporter, classItem, resolvedClassName)
+        val sourceClassName =
+            if (classItem != null) {
+                rewriteMappedSourceClassName(className, classItem, resolvedClassName)
+            } else {
+                className
+            }
+        return ResolvedSourceReference(
+            "$sourceClassName#${member.normalizedForm}",
+            resolvedReference
         )
     }
 }
@@ -394,11 +437,13 @@ internal data class CurrentClassSourceReference(val member: ClassMemberSourceRef
     override fun resolveReference(
         context: DocCommentContext,
         reporter: LocationSpecificReporter
-    ): ResolvedReference? {
+    ): ResolvedSourceReference? {
         // TODO(b/447588621): Report issue when no class is available, member references are not
         //  allowed in packages.
         val classItem = context.containingClassItem
-        return member.findIn(context, reporter, classItem, classItem?.qualifiedName() ?: "")
+        val resolvedClassName = classItem?.let { context.resolveClassReferenceName(it) } ?: ""
+        val resolvedReference = member.findIn(context, reporter, classItem, resolvedClassName)
+        return ResolvedSourceReference(normalizedForm, resolvedReference)
     }
 }
 
@@ -449,7 +494,7 @@ internal data class AmbiguousMemberSourceReference(val name: String) : ClassMemb
         className: String,
     ) =
         // TODO(b/447588621): Check for methods and constructors not just fields.
-        classItem?.findField(name)?.toResolvedReference()
+        classItem?.findField(name)?.toResolvedReference(context)
             // TODO(b/447588621): Report that the field could not be found.
             // If the field could not be found then fallback to a field reference so that at least
             // the resolved class will be fully qualified.
@@ -507,39 +552,59 @@ internal data class CallableSourceReference(
     override fun resolveReference(
         context: DocCommentContext,
         reporter: LocationSpecificReporter
-    ): ResolvedReference? {
+    ): ResolvedSourceReference? {
         val resolved = context.resolveItemReference(name, NameClassification.CALLABLE_SET)
         return when (resolved) {
             is ReferencableMethodSet -> {
                 // TODO(b/447588621): Try and find a callable that matches the resolved
                 //  [parameters].
                 val containingClass = resolved.containingClass
-                createCallableReference(
-                    context,
-                    reporter,
-                    containingClass.qualifiedName(),
-                    // Use the resolved name as the source name may be qualified.
-                    resolved.name,
+                val resolvedClassName = context.resolveClassReferenceName(containingClass)
+                val unmappedQualifiedCallable =
+                    "${containingClass.qualifiedName()}.${resolved.name}"
+                val sourceCallableName =
+                    if (name == unmappedQualifiedCallable) {
+                        "$resolvedClassName.${resolved.name}"
+                    } else {
+                        name
+                    }
+                ResolvedSourceReference(
+                    formatSignature(sourceCallableName, parameters, eraseGenericArguments = false),
+                    createCallableReference(
+                        context,
+                        reporter,
+                        resolvedClassName,
+                        // Use the resolved name as the source name may be qualified.
+                        resolved.name,
+                    ),
                 )
             }
             is ClassItem -> {
                 // Resolving a callable can return the class in lieu of a set of constructor so
                 // treat it as one and create a reference to the constructor.
-                createCallableReference(
-                    context,
-                    reporter,
-                    resolved.qualifiedName(),
-                    // Use the class's simple name as the constructor name.
-                    resolved.simpleName(),
+                val resolvedClassName = context.resolveClassReferenceName(resolved)
+                val sourceCallableName =
+                    rewriteMappedSourceClassName(name, resolved, resolvedClassName)
+                ResolvedSourceReference(
+                    formatSignature(sourceCallableName, parameters, eraseGenericArguments = false),
+                    createCallableReference(
+                        context,
+                        reporter,
+                        resolvedClassName,
+                        // Use the class's simple name as the constructor name.
+                        resolved.simpleName(),
+                    ),
                 )
             }
+            is ExternalReferencableItem -> null
             // Report an error and return `null`.
             is InvalidReferencableItem -> {
                 resolved.reportIssue(reporter)
                 null
             }
-            // This should never happen as passing in NameClassification.METHOD above should limit
-            // the returned types to MethodItemSet or InvalidReferencableItem.
+            // This should never happen as passing in NameClassification.CALLABLE_SET above should
+            // limit the returned types to ReferencableMethodSet, ClassItem,
+            // ExternalReferencableItem, or InvalidReferencableItem.
             else -> error("callable name '$name' was resolved to an unknown type $resolved")
         }
     }

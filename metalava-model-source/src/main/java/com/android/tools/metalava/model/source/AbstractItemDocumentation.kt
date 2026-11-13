@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava.model.source
 
+import com.android.tools.metalava.model.AnnotationManager
+import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ItemDocumentation
@@ -105,6 +107,27 @@ internal abstract class AbstractItemDocumentation(
     ): ReferencableItem {
         return item.resolveReferencableItem(sourceReference, nameClassification)
     }
+
+    /**
+     * If [classItem] is an annotation class that [AnnotationManager] maps to a different annotation
+     * in [AnnotationTarget.DOC_STUBS_FILE] (for example, `android.annotation.Nullable` ->
+     * `androidx.annotation.Nullable`), return that mapped qualified name; otherwise return `null`.
+     */
+    private fun mappedDocStubsAnnotationName(classItem: ClassItem): String? {
+        if (!classItem.isAnnotationType()) {
+            return null
+        }
+        val originalName = classItem.qualifiedName()
+        val annotationManager = item.codebase.annotationManager
+        val internalName = annotationManager.normalizeInputName(originalName) ?: return null
+        val outputName =
+            annotationManager.normalizeOutputName(internalName, AnnotationTarget.DOC_STUBS_FILE)
+        return if (outputName != originalName) outputName else null
+    }
+
+    /** Implements [DocCommentContext.resolveClassReferenceName]. */
+    override fun resolveClassReferenceName(classItem: ClassItem): String =
+        mappedDocStubsAnnotationName(classItem) ?: classItem.qualifiedName()
 
     /** Implements [ExprContext.isFlagEnabled]. */
     override fun isFlagEnabled(flagName: String): Boolean {

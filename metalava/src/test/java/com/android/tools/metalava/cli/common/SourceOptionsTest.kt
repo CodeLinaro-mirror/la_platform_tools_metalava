@@ -16,9 +16,11 @@
 
 package com.android.tools.metalava.cli.common
 
+import com.android.tools.metalava.model.source.SourceModelProvider
 import com.google.common.truth.Truth.assertThat
 import java.io.File
 import org.junit.Assert.assertThrows
+import org.junit.Assume.assumeTrue
 import org.junit.Test
 
 val SOURCE_OPTIONS_HELP =
@@ -73,6 +75,15 @@ class SourceOptionsTest :
 
     override fun createOptions() = SourceOptions()
 
+    /**
+     * Skip tests that require the `turbine` [SourceModelProvider] when `:metalava-model-turbine` is
+     * not on the test runtime classpath (e.g. in checkouts such as `androidx-main` or `studio-main`
+     * where `external/turbine` is not present).
+     */
+    private fun assumeTurbineAvailable() {
+        assumeTrue(SourceModelProvider.implementations.any { it.providerName == "turbine" })
+    }
+
     @Test
     fun `Test source model provider - psi`() {
         runTest(ARG_SOURCE_MODEL_PROVIDER, "psi") {
@@ -82,6 +93,7 @@ class SourceOptionsTest :
 
     @Test
     fun `Test source model provider - turbine`() {
+        assumeTurbineAvailable()
         runTest(ARG_SOURCE_MODEL_PROVIDER, "turbine") {
             assertThat(options.sourceModelProvider.providerName).isEqualTo("turbine")
         }
@@ -125,6 +137,7 @@ class SourceOptionsTest :
 
     @Test
     fun `Test empty source path - turbine`() {
+        assumeTurbineAvailable()
         runTest(ARG_SOURCE_MODEL_PROVIDER, "turbine", ARG_SOURCE_PATH, "") {
             assertThat(options.sourcePath).isEqualTo(listOf(File("")))
         }

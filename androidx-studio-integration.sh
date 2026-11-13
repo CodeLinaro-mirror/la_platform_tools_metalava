@@ -40,6 +40,9 @@ then
   # checkout and will contain the prebuilts metalava needs.
   export METALAVA_PREBUILTS_REPOS="$(pwd)/prebuilts/androidx/external,$(pwd)/prebuilts/androidx/internal,$(pwd)/prebuilts/tools/common/m2/repository"
 
+  # Use Kotlin 2.4.21 for this test because AGP is using gradle 9.7.1
+  sed -i "s/\(kotlin = \).*\"/\1\"2.4.21\"/" tools/metalava/gradle/libs.versions.toml
+
   JAVA_HOME="$(pwd)/prebuilts/jdk/jdk21/linux-x86/" tools/gradlew -p tools/metalava \
     --no-daemon \
     --stacktrace \

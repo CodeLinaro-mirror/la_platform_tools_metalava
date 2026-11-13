@@ -20,8 +20,6 @@ import com.android.tools.metalava.cli.common.ARG_STUB_PACKAGES
 import com.android.tools.metalava.model.ANDROID_FLAGGED_API
 import com.android.tools.metalava.model.ANDROID_REQUIRES_FLAG
 import com.android.tools.metalava.model.ANDROID_SYSTEM_API
-import com.android.tools.metalava.model.FlaggedApiInheritance
-import com.android.tools.metalava.model.text.CustomizableProperty.Companion.FLAGGED_API_INHERITANCE
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.testing.KnownSourceFiles.flaggedApiSource
 import com.android.tools.metalava.testing.KnownSourceFiles.requiresFlagSource
@@ -261,61 +259,6 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
     }
 
     @Test
-    fun `Test javadoc for flagged class includes @apiSince`() {
-        check(
-            configFiles = arrayOf(KnownConfigFiles.configEmptyApiFlags),
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                            package test.pkg;
-                            /**
-                            * Javadoc for Test
-                            */
-                            @$ANDROID_FLAGGED_API("flag.name")
-                            public class Test {
-                            }
-                        """
-                    ),
-                    flaggedApiSource
-                ),
-            docStubs = true,
-            applyApiLevelsXml =
-                """
-                    <?xml version="1.0" encoding="utf-8"?>
-                    <api version="2">
-                      <class name="test/pkg/Test" since="31">
-                      </class>
-                    </api>
-                """,
-            expectedStubFiles =
-                arrayOf(
-                    java(
-                        """
-                            package test.pkg;
-                            /**
-                             * Javadoc for Test
-                             * @apiSince 31
-                             */
-                            @SuppressWarnings({"unchecked", "deprecation", "all"})
-                            public class Test {
-                            Test() { throw new RuntimeException("Stub!"); }
-                            }
-                        """
-                    )
-                ),
-            checkCompatibilityApiReleased =
-                """
-                    // Signature format: 2.0
-                    package test.pkg {
-                      public class Test {
-                      }
-                    }
-                """,
-        )
-    }
-
-    @Test
     fun `Test unresolvable flag field`() {
         check(
             configFiles = arrayOf(KnownConfigFiles.configEmptyApiFlags),
@@ -362,14 +305,10 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
         )
     }
 
-    /** Check [flaggedApiInheritance] behavior. */
-    private fun checkFlaggedApiInheritance(
-        flaggedApiInheritance: FlaggedApiInheritance,
-        expectedApiSignature: String,
-    ) {
+    @Test
+    fun `Test flagged API inheritance in signature files`() {
         check(
-            format =
-                FileFormat.V6.buildCopy { this[FLAGGED_API_INHERITANCE] = flaggedApiInheritance },
+            format = FileFormat.V6,
             sourceFiles =
                 arrayOf(
                     java(
@@ -403,7 +342,24 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
                     ),
                     flaggedApiSource
                 ),
-            expectedApiSignature = expectedApiSignature,
+            expectedApiSignature =
+                """
+                    // Signature format: 6.0
+                    package test.pkg {
+                      @FlaggedApi("flag.name1") public class Test {
+                        field public static final String FLAG_NAME1 = "flag.name1";
+                        field public static final String FLAG_NAME2 = "flag.name2";
+                      }
+                      @FlaggedApi("flag.name2") public class Test.FlaggedNested {
+                      }
+                      @FlaggedApi("flag.name2") public class Test.FlaggedNested.FlaggedNestedTwice {
+                      }
+                      @FlaggedApi("flag.name1") public class Test.Nested {
+                      }
+                      @FlaggedApi("flag.name1") public class Test.Nested.NestedTwice {
+                      }
+                    }
+                """,
             expectedStubFiles =
                 arrayOf(
                     java(
@@ -435,58 +391,6 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
                         """
                     ),
                 ),
-        )
-    }
-
-    @Test
-    fun `Test flagged API inheritance in signature files - no inheritance`() {
-        checkFlaggedApiInheritance(
-            flaggedApiInheritance = FlaggedApiInheritance.NONE,
-            expectedApiSignature =
-                """
-                    // Signature format: 6.0
-                    // - flagged-api-inheritance=none
-                    package test.pkg {
-                      @FlaggedApi("flag.name1") public class Test {
-                        field public static final String FLAG_NAME1 = "flag.name1";
-                        field public static final String FLAG_NAME2 = "flag.name2";
-                      }
-                      @FlaggedApi("flag.name2") public class Test.FlaggedNested {
-                      }
-                      public class Test.FlaggedNested.FlaggedNestedTwice {
-                      }
-                      public class Test.Nested {
-                      }
-                      public class Test.Nested.NestedTwice {
-                      }
-                    }
-                """,
-        )
-    }
-
-    @Test
-    fun `Test flagged API inheritance in signature files - nested-class inheritance`() {
-        checkFlaggedApiInheritance(
-            flaggedApiInheritance = FlaggedApiInheritance.NESTED_CLASSES,
-            // TODO(b/362253909): Should be added to nested classes.
-            expectedApiSignature =
-                """
-                    // Signature format: 6.0
-                    package test.pkg {
-                      @FlaggedApi("flag.name1") public class Test {
-                        field public static final String FLAG_NAME1 = "flag.name1";
-                        field public static final String FLAG_NAME2 = "flag.name2";
-                      }
-                      @FlaggedApi("flag.name2") public class Test.FlaggedNested {
-                      }
-                      @FlaggedApi("flag.name2") public class Test.FlaggedNested.FlaggedNestedTwice {
-                      }
-                      @FlaggedApi("flag.name1") public class Test.Nested {
-                      }
-                      @FlaggedApi("flag.name1") public class Test.Nested.NestedTwice {
-                      }
-                    }
-                """,
         )
     }
 
@@ -574,19 +478,19 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
                 """
                     // Signature format: 6.0
                     package test.pkg {
-                      @FlaggedApi("test.pkg.kept_removed_flag") public class KeptRemovedClass {
+                      @ForRemoval @FlaggedApi("test.pkg.kept_removed_flag") public class KeptRemovedClass {
                         ctor public KeptRemovedClass();
                         method public void method();
                       }
                       @FlaggedApi("test.pkg.kept_flag") public class Test {
                         ctor public Test();
-                        method @FlaggedApi("test.pkg.kept_removed_flag") public void keptMethod();
+                        method @ForRemoval @FlaggedApi("test.pkg.kept_removed_flag") public void keptMethod();
                         method public void revertedMethod();
                       }
-                      @FlaggedApi("test.pkg.kept_removed_flag") public static class Test.KeptNested {
+                      @ForRemoval @FlaggedApi("test.pkg.kept_removed_flag") public static class Test.KeptNested {
                         ctor public Test.KeptNested();
                       }
-                      @FlaggedApi("test.pkg.kept_removed_flag") public static class Test.KeptNested.NestedTwice {
+                      @ForRemoval @FlaggedApi("test.pkg.kept_removed_flag") public static class Test.KeptNested.NestedTwice {
                         ctor public Test.KeptNested.NestedTwice();
                       }
                       @FlaggedApi("test.pkg.kept_flag") public static class Test.RevertedNested {
@@ -907,6 +811,64 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
                     )
                 ),
             extraArguments = arrayOf("--check-compatibility", "disabled")
+        )
+    }
+
+    @Test
+    fun `Test non-signature annotations are preserved in stubs when reverting flagged API`() {
+        check(
+            // Revert all FlaggedApi annotations.
+            configFiles = arrayOf(KnownConfigFiles.configEmptyApiFlags),
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            import android.annotation.FlaggedApi;
+
+                            public class Test {
+                                @FlaggedApi("flag.name")
+                                @android.view.ViewDebug.ExportedProperty
+                                public void method() {}
+                            }
+                        """
+                    ),
+                    flaggedApiSource,
+                ),
+            checkCompatibilityApiReleased =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Test {
+                        ctor public Test();
+                        method public void method();
+                      }
+                    }
+                """,
+            expectedApiSignature =
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public class Test {
+                        ctor public Test();
+                        method public void method();
+                      }
+                    }
+                """,
+            expectedStubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Test {
+                            public Test() { throw new RuntimeException("Stub!"); }
+                            @android.view.ViewDebug.ExportedProperty
+                            public void method() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    )
+                ),
         )
     }
 }

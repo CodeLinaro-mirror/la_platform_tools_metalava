@@ -53,6 +53,8 @@ class AvailableSdkExtensions(internal val sdkExtensions: Set<SdkExtension>) {
 
     private val shortToSdkExtension = sdkExtensions.associateBy { it.shortname }
 
+    private val idToSdkExtension = sdkExtensions.associateBy { it.id }
+
     /** Check to see if this contains an SDK extension with [shortExtensionName]. */
     fun containsSdkExtension(shortExtensionName: String) = shortExtensionName in shortToSdkExtension
 
@@ -63,5 +65,11 @@ class AvailableSdkExtensions(internal val sdkExtensions: Set<SdkExtension>) {
     fun retrieveSdkExtension(shortExtensionName: String): SdkExtension {
         return shortToSdkExtension[shortExtensionName]
             ?: throw IllegalStateException("unknown extension SDK \"$shortExtensionName\"")
+    }
+
+    /** Retrieve the [SdkExtension] for [id], throwing an exception if it could not be found. */
+    fun retrieveSdkExtensionById(id: Int): SdkExtension {
+        return idToSdkExtension[id]
+            ?: throw IllegalArgumentException("SDK reference to unknown <sdk> with id $id")
     }
 }
