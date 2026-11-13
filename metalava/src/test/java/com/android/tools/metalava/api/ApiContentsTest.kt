@@ -24,6 +24,7 @@ import com.android.tools.metalava.KnownApiSurface
 import com.android.tools.metalava.cli.common.ARG_SOURCE_PATH
 import com.android.tools.metalava.config.ApiFlagActionConfig.Mutability.IMMUTABLE
 import com.android.tools.metalava.config.ApiFlagActionConfig.Mutability.MUTABLE
+import com.android.tools.metalava.config.ApiFlagActionConfig.Status.DISABLED
 import com.android.tools.metalava.config.ApiFlagActionConfig.Status.ENABLED
 import com.android.tools.metalava.config.ApiFlagConfig
 import com.android.tools.metalava.config.ApiFlagsConfig
@@ -725,6 +726,93 @@ class ApiContentsTest : DriverTest() {
                     src/test/pkg/PublicClass.java:4: error: Class test.pkg.FlaggedType is guarded by @FlaggedApi(test.pkg.my_flag) but was referenced (in return type) from public method test.pkg.PublicClass.getUnguarded() [ReferencesHidden]
                     src/test/pkg/PublicClass.java:10: error: Class test.pkg.FlaggedType is guarded by @FlaggedApi(test.pkg.my_flag) but was referenced (in return type) from public method test.pkg.PublicClass.getGuardedByFinalizedFlag() [ReferencesHidden]
                 """,
+        )
+    }
+
+    /**
+     * Verify how `ApiContents` checks public API references to a `@RemovedFromApi @FlaggedApi`
+     * class scheduled for removal from unguarded, same-flag, other-removal-flag, and
+     * reverted-removal-flag methods.
+     */
+    @Test
+    fun `Reference to @RemovedFromApi @FlaggedApi class from public API`() {
+        check(
+            apiSurface = KnownApiSurface.PUBLIC,
+            configFiles =
+                arrayOf(
+                    Config(
+                            apiFlags =
+                                ApiFlagsConfig(
+                                    flags =
+                                        listOf(
+                                            // `MUTABLE` + `ENABLED` -> `ApiFlagAction.KEEP`
+                                            // (active removal flag).
+                                            ApiFlagConfig(
+                                                pkg = "test.pkg",
+                                                name = "remove_flag",
+                                                mutability = MUTABLE,
+                                                status = ENABLED,
+                                                isExported = true,
+                                            ),
+                                            ApiFlagConfig(
+                                                pkg = "test.pkg",
+                                                name = "other_remove_flag",
+                                                mutability = MUTABLE,
+                                                status = ENABLED,
+                                                isExported = true,
+                                            ),
+
+                                            // `IMMUTABLE` + `DISABLED` -> `ApiFlagAction.REVERT`
+                                            // (cancels removal).
+                                            ApiFlagConfig(
+                                                pkg = "test.pkg",
+                                                name = "reverted_remove_flag",
+                                                mutability = IMMUTABLE,
+                                                status = DISABLED,
+                                                isExported = true,
+                                            ),
+                                        )
+                                )
+                        )
+                        .toTestFile("flags-config.xml")
+                ),
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            import android.annotation.FlaggedApi;
+                            import android.annotation.RemovedFromApi;
+                            @RemovedFromApi
+                            @FlaggedApi("test.pkg.remove_flag")
+                            public class FlaggedRemovedType {}
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            import android.annotation.FlaggedApi;
+                            import android.annotation.RemovedFromApi;
+                            public class PublicClass {
+                                public FlaggedRemovedType getUnguarded() { return null; }
+                                @RemovedFromApi
+                                @FlaggedApi("test.pkg.remove_flag")
+                                public FlaggedRemovedType getGuardedRemoval() { return null; }
+                                @RemovedFromApi
+                                @FlaggedApi("test.pkg.other_remove_flag")
+                                public FlaggedRemovedType getGuardedByOtherRemovalFlag() { return null; }
+                                @RemovedFromApi
+                                @FlaggedApi("test.pkg.reverted_remove_flag")
+                                public FlaggedRemovedType getGuardedByRevertedRemovalFlag() { return null; }
+                            }
+                        """
+                    ),
+                    flaggedApiSource,
+                ),
+
+            // Currently, `ApiContents` does not check whether a referenced `@RemovedFromApi`
+            // `@FlaggedApi` class is scheduled for removal while the referencing item is retained.
+            expectedIssues = "",
         )
     }
 }
