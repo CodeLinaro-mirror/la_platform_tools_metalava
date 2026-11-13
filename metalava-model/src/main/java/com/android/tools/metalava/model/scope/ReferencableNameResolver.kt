@@ -16,7 +16,9 @@
 
 package com.android.tools.metalava.model.scope
 
+import com.android.tools.metalava.model.ExternalReferencableItem
 import com.android.tools.metalava.model.InvalidReferencableItem
+import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ReferencableItem
 
 /** Implementation of [ReferencableNameScope.resolveReferencableItem]. */
@@ -94,8 +96,20 @@ internal object ReferencableNameResolver {
                         isFirstSimpleName = false,
                     )
                 }
-                    // If the simple name could not be found then it is an error.
+                    // If the simple name could not be found then check if it is in an external
+                    // package, otherwise it is an error.
                     ?: run {
+                        if (
+                            (startIndex == 0 || currentScope is PackageItem) &&
+                                isExternalPackageReference(
+                                    scope.codebase.config.externalPackagePrefixes,
+                                    referencableName,
+                                    nameClassification,
+                                )
+                        ) {
+                            return ExternalReferencableItem
+                        }
+
                         // Use a shorter message for unqualified references that avoids duplicating
                         // the reference multiple times in the message.
                         val unqualifiedName = startIndex == 0 && dotIndex == -1
@@ -122,6 +136,30 @@ internal object ReferencableNameResolver {
 
             // Move onto the next simple name to find.
             startIndex = endIndex + 1
+        }
+    }
+
+    /**
+     * Check whether [referencableName] matches any of the [externalPackagePrefixes].
+     *
+     * A [referencableName] matches a `prefix` if it starts with `"$prefix."`, or if it is equal to
+     * `prefix` and [nameClassification] allows packages.
+     */
+    private fun isExternalPackageReference(
+        externalPackagePrefixes: Set<String>,
+        referencableName: String,
+        nameClassification: NameClassification,
+    ): Boolean {
+        if (externalPackagePrefixes.isEmpty()) return false
+        return externalPackagePrefixes.any { prefix ->
+            if (referencableName.startsWith(prefix)) {
+                when (referencableName.length - prefix.length) {
+                    0 -> nameClassification.packages
+                    else -> referencableName[prefix.length] == '.'
+                }
+            } else {
+                false
+            }
         }
     }
 

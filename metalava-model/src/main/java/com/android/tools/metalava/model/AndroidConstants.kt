@@ -29,6 +29,7 @@ const val ANDROID_TEST_API = "android.annotation.TestApi"
 const val ANDROID_FLAGGED_API = "android.annotation.FlaggedApi"
 const val ANDROID_REQUIRES_FLAG = "android.annotation.RequiresFlag"
 const val ANDROID_CHECKS_FLAG = "android.annotation.ChecksFlag"
+const val ANDROID_SDK_EXTENSION_API = "android.annotation.SdkExtensionApi"
 
 const val ANDROIDX_ANNOTATION_PACKAGE = "androidx.annotation"
 const val ANDROIDX_ANNOTATION_PREFIX = "androidx.annotation."

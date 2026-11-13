@@ -284,4 +284,168 @@ class CommonDocReferenceTest : BaseModelTest() {
             assertAndRemoveReportedIssues("")
         }
     }
+
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `Test external package references`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+                        public class Test {
+                            /**
+                             * {@link ext.pkg.ExternalClass}
+                             * {@link ext.pkg.ExternalClass#field}
+                             * {@link ext.pkg.ExternalClass#method(String, ext.pkg.ExternalParam, UnknownParam)}
+                             * {@link ext.pkg.ExternalClass.method()}
+                             * {@linkplain ext.pkg.ExternalClass#field}
+                             *
+                             * @see ext.pkg.ExternalClass#method()
+                             * @throws ext.pkg.ExternalException if external fails.
+                             * @throws UnknownException if unknown fails.
+                             */
+                            public void method() {}
+                        }
+                    """
+                ),
+            ),
+            testFixture =
+                TestFixture(
+                    externalPackagePrefixes = setOf("ext.pkg"),
+                ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            val testMethod = testClass.methods().single()
+            testMethod.assertPrintedDocumentation(
+                expectedOutput =
+                    """
+                        /**
+                         * {@link ext.pkg.ExternalClass}
+                         * {@link ext.pkg.ExternalClass#field}
+                         * {@link ext.pkg.ExternalClass#method(java.lang.String,ext.pkg.ExternalParam,UnknownParam) ext.pkg.ExternalClass.method(String,ext.pkg.ExternalParam,UnknownParam)}
+                         * {@link ext.pkg.ExternalClass.method()}
+                         * {@linkplain ext.pkg.ExternalClass#field}
+                         *
+                         * @throws UnknownException if unknown fails.
+                         * @throws ext.pkg.ExternalException if external fails.
+                         * @see ext.pkg.ExternalClass#method()
+                         */
+                    """,
+            )
+
+            assertAndRemoveReportedIssues(
+                """
+                    MAIN_SRC/src/test/pkg/Test.java:6:15: warning: Could not resolve a class called 'UnknownParam' in 'method test.pkg.Test.method()' (ErrorWhenNew) [UnresolvedLink]
+                    MAIN_SRC/src/test/pkg/Test.java:12:16: warning: Could not resolve a class or type parameter called 'UnknownException' in 'method test.pkg.Test.method()' (ErrorWhenNew) [UnresolvedLink]
+                """
+            )
+        }
+    }
+
+    /**
+     * Verify how documentation references to annotations that are mapped in documentation stubs
+     * (such as `android.annotation.Nullable` -> `androidx.annotation.Nullable`) and unmapped
+     * annotations (such as `android.annotation.Hide`) are formatted when printed.
+     */
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `Test mapped annotation references`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package android.annotation;
+                        public @interface Nullable {}
+                    """
+                ),
+                java(
+                    """
+                        package org.jetbrains.annotations;
+                        public @interface Nullable {}
+                    """
+                ),
+                java(
+                    """
+                        package android.annotation;
+                        /** {@link android.annotation.IntDef#DEFAULT_FLAG} */
+                        public @interface IntDef {
+                            int DEFAULT_FLAG = 0;
+                            boolean flag() default false;
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package android.annotation;
+                        public @interface Hide {
+                            String value() default "";
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        import android.annotation.Hide;
+                        import android.annotation.IntDef;
+                        import android.annotation.Nullable;
+                        public class Test {
+                            /**
+                             * {@link Nullable}
+                             * {@link android.annotation.Nullable}
+                             * {@link org.jetbrains.annotations.Nullable}
+                             * {@linkplain Nullable}
+                             * {@link IntDef#DEFAULT_FLAG}
+                             * {@link IntDef#flag}
+                             * {@link IntDef#flag()}
+                             * {@link android.annotation.IntDef#flag()}
+                             * {@link android.annotation.IntDef.flag()}
+                             * {@link Nullable##uri-fragment}
+                             * {@link Hide}
+                             * {@link Hide#value()}
+                             *
+                             * @see Nullable
+                             * @see android.annotation.Nullable
+                             */
+                            public void method() {}
+                        }
+                    """
+                ),
+            ),
+        ) {
+            codebase
+                .assertClass("android.annotation.IntDef")
+                .assertPrintedDocumentation(
+                    expectedOutput = """/** {@link #DEFAULT_FLAG} */""",
+                )
+
+            val testClass = codebase.assertClass("test.pkg.Test")
+            testClass
+                .assertMethod("method", emptyList())
+                .assertPrintedDocumentation(
+                    expectedOutput =
+                        """
+                            /**
+                             * {@link androidx.annotation.Nullable Nullable}
+                             * {@link androidx.annotation.Nullable}
+                             * {@link androidx.annotation.Nullable}
+                             * {@linkplain androidx.annotation.Nullable Nullable}
+                             * {@link androidx.annotation.IntDef#DEFAULT_FLAG IntDef.DEFAULT_FLAG}
+                             * {@link androidx.annotation.IntDef#flag IntDef.flag}
+                             * {@link androidx.annotation.IntDef#flag() IntDef.flag()}
+                             * {@link androidx.annotation.IntDef#flag()}
+                             * {@link androidx.annotation.IntDef#flag()}
+                             * {@link androidx.annotation.Nullable##uri-fragment}
+                             * {@link android.annotation.Hide Hide}
+                             * {@link android.annotation.Hide#value() Hide.value()}
+                             *
+                             * @see androidx.annotation.Nullable Nullable
+                             * @see androidx.annotation.Nullable
+                             */
+                        """,
+                )
+
+            assertAndRemoveReportedIssues("")
+        }
+    }
 }

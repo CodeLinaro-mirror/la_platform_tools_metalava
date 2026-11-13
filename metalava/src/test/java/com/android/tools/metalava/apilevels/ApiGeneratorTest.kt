@@ -275,8 +275,7 @@ class ApiGeneratorTest : DriverTest() {
         val prebuiltsSdkDir = testdataDir.resolve("prebuilts/sdk")
 
         checkGenerateFromTestFiles(
-            sdkExtensionsInfo =
-                testdataDir.resolve("prebuilts-sdk-test/sdk-extensions-info.xml").path,
+            sdkExtensionsInfo = prebuiltsSdkDir.resolve("sdk-extensions-info.xml").path,
             extraArguments =
                 arrayOf(
                     "--pattern",

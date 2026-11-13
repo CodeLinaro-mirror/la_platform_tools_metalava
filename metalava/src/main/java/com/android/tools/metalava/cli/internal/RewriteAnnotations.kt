@@ -16,8 +16,8 @@
 
 package com.android.tools.metalava.cli.internal
 
-import com.android.SdkConstants
 import com.android.tools.metalava.ANDROID_SDK_CONSTANT
+import com.android.tools.metalava.DOT_JAVA
 import com.android.tools.metalava.model.ANDROID_CHECKS_FLAG
 import com.android.tools.metalava.model.ANDROID_FLAGGED_API
 import com.android.tools.metalava.model.ANDROID_NONNULL
@@ -38,7 +38,7 @@ internal class RewriteAnnotations {
     /** Modifies annotation source files such that they are package private */
     fun modifyAnnotationSources(source: File, target: File, pkg: String = "") {
         val fileName = source.name
-        if (fileName.endsWith(SdkConstants.DOT_JAVA)) {
+        if (fileName.endsWith(DOT_JAVA)) {
             // Only copy non-source retention annotation classes
             val qualifiedName = pkg + "." + fileName.substring(0, fileName.indexOf('.'))
             if (hasSourceRetention(source, qualifiedName)) {

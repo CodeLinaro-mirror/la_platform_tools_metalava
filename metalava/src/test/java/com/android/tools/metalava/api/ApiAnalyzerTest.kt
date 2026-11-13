@@ -181,7 +181,6 @@ class ApiAnalyzerTest : DriverTest() {
             extraArguments = errorIssues(Issues.HIDDEN_ABSTRACT_METHOD_IN_INTERFACE),
             expectedIssues =
                 """
-                    src/test/pkg/PublicClass.java:4: warning: Parameter p references hidden type test.pkg.PackagePrivateInterface. [HiddenTypeParameter]
                     src/test/pkg/PublicClass.java:4: error: Class test.pkg.PackagePrivateInterface is not public but was referenced (in parameter type) from public parameter p in test.pkg.PublicClass.foo(test.pkg.PackagePrivateInterface p) [ReferencesHidden]
                 """,
             sourceFiles =
@@ -1020,6 +1019,78 @@ class ApiAnalyzerTest : DriverTest() {
                 """
                 // Signature format: 5.0
                 """
+        )
+    }
+
+    @Test
+    fun `Non-emitted source-path class in emitted package is not traversed for hidden propagation`() {
+        check(
+            showAnnotations = arrayOf("android.annotation.SystemApi"),
+            additionalSourcePathFiles =
+                arrayOf(
+                    java(
+                        """
+                            package b.pkg;
+                            import android.annotation.SystemApi;
+                            public class SuperClass {
+                                /** @hide */
+                                @SystemApi
+                                public void internalHelper() {}
+                            }
+                        """
+                    ),
+                ),
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package a.pkg;
+                            public class Child extends b.pkg.SuperClass {
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package b.pkg;
+                            public class OtherEmitted {
+                            }
+                        """
+                    ),
+                    systemApiSource,
+                ),
+            expectedIssues = "",
+        )
+    }
+
+    @Test
+    fun `Inaccessible command-line class is not traversed for hidden propagation`() {
+        check(
+            hideAnnotations = arrayOf("android.annotation.Hide", "test.pkg.HideComponent"),
+            sourceFiles =
+                arrayOf(
+                    hideAnnotation,
+                    java(
+                        """
+                            package test.pkg;
+                            import android.annotation.Hide;
+                            import java.lang.annotation.ElementType;
+                            import java.lang.annotation.Target;
+
+                            @Target(ElementType.RECORD_COMPONENT)
+                            @Hide
+                            public @interface HideComponent {}
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            record PackagePrivateRecord(@HideComponent int a) {
+                            }
+                        """
+                    ),
+                ),
+            javaLanguageLevel = "16",
+            expectedIssues = "",
         )
     }
 }

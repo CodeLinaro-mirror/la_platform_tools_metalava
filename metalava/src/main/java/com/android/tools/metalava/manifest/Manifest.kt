@@ -16,12 +16,18 @@
 
 package com.android.tools.metalava.manifest
 
-import com.android.SdkConstants
+import com.android.tools.metalava.ATTR_NAME
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
+import com.android.tools.metalava.xml.getFirstSubTagByName
+import com.android.tools.metalava.xml.getNextTagByName
 import com.android.tools.metalava.xml.parseDocument
-import com.android.utils.XmlUtils
 import java.io.File
+
+private const val ANDROID_URI = "http://schemas.android.com/apk/res/android"
+private const val TAG_PERMISSION = "permission"
+private const val TAG_USES_SDK = "uses-sdk"
+private const val ATTR_MIN_SDK_VERSION = "minSdkVersion"
 
 /**
  * An empty manifest. This is safe to share as while it is not strictly immutable it only mutates
@@ -51,29 +57,21 @@ class Manifest(private val manifest: File?, private val reporter: Reporter?) {
 
             // Extract permissions.
             val map = HashMap<String, String>(600)
-            var current =
-                XmlUtils.getFirstSubTagByName(doc.documentElement, SdkConstants.TAG_PERMISSION)
+            var current = getFirstSubTagByName(doc.documentElement, TAG_PERMISSION)
             while (current != null) {
-                val permissionName =
-                    current.getAttributeNS(SdkConstants.ANDROID_URI, SdkConstants.ATTR_NAME)
-                val protectionLevel =
-                    current.getAttributeNS(SdkConstants.ANDROID_URI, "protectionLevel")
+                val permissionName = current.getAttributeNS(ANDROID_URI, ATTR_NAME)
+                val protectionLevel = current.getAttributeNS(ANDROID_URI, "protectionLevel")
                 map[permissionName] = protectionLevel
-                current = XmlUtils.getNextTagByName(current, SdkConstants.TAG_PERMISSION)
+                current = getNextTagByName(current, TAG_PERMISSION)
             }
 
             // Extract minSdkVersion.
             val min: MinSdkVersion = run {
-                val usesSdk =
-                    XmlUtils.getFirstSubTagByName(doc.documentElement, SdkConstants.TAG_USES_SDK)
+                val usesSdk = getFirstSubTagByName(doc.documentElement, TAG_USES_SDK)
                 if (usesSdk == null) {
                     UnsetMinSdkVersion
                 } else {
-                    val value =
-                        usesSdk.getAttributeNS(
-                            SdkConstants.ANDROID_URI,
-                            SdkConstants.ATTR_MIN_SDK_VERSION
-                        )
+                    val value = usesSdk.getAttributeNS(ANDROID_URI, ATTR_MIN_SDK_VERSION)
                     if (value.isEmpty()) UnsetMinSdkVersion else SetMinSdkVersion(value.toInt())
                 }
             }

@@ -31,17 +31,18 @@ import com.android.tools.metalava.apilevels.PatternNode
 import com.android.tools.metalava.apilevels.VersionedSignatureApi
 import com.android.tools.metalava.apilevels.createGenerateApiHistoryConfig
 import com.android.tools.metalava.cli.common.DefaultSignatureFileLoader
+import com.android.tools.metalava.cli.common.IssueReportingOptions
 import com.android.tools.metalava.cli.common.MetalavaSubCommand
 import com.android.tools.metalava.cli.common.cliError
 import com.android.tools.metalava.cli.common.enumOption
 import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.fileForPathInner
 import com.android.tools.metalava.cli.common.newFile
+import com.android.tools.metalava.cli.common.runWithReporter
 import com.android.tools.metalava.cli.common.splitMultiple
-import com.android.tools.metalava.cli.common.stderr
 import com.android.tools.metalava.cli.common.tracer
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.reporter.BasicReporter
+import com.android.tools.metalava.reporter.Reporter
 import com.github.ajalt.clikt.parameters.groups.provideDelegate
 import com.github.ajalt.clikt.parameters.options.OptionWithValues
 import com.github.ajalt.clikt.parameters.options.convert
@@ -81,6 +82,9 @@ class ApiHistoryCommand :
 
     /** Add options for loading configuration files (e.g. `<api-surfaces>`). */
     private val configFileOptions by ConfigFileOptions()
+
+    /** Options for configuring issue reporting. */
+    private val issueReportingOptions by IssueReportingOptions()
 
     /** Output XML or JSON API versions file to generate. */
     private val outputFile by
@@ -309,11 +313,21 @@ class ApiHistoryCommand :
             cliError("Must specify $ARG_CURRENT_VERSION with $ARG_CURRENT_FILES")
         }
 
+        runWithReporter(issueReportingOptions, configFileOptions.config.issues) { reporter ->
+            generateApiHistory(reporter, useInternalNames)
+        }
+    }
+
+    /** Generates the API history using [reporter] and [useInternalNames]. */
+    private fun generateApiHistory(
+        reporter: Reporter,
+        useInternalNames: Boolean,
+    ) {
         val apiSurfaces = apiSurfaceName?.let { configFileOptions.apiSurfacesForTargetSurface(it) }
 
         val codebaseConfig =
             Codebase.Config(
-                reporter = BasicReporter(stderr),
+                reporter = reporter,
             )
         val signatureFileLoader =
             DefaultSignatureFileLoader(
@@ -355,6 +369,6 @@ class ApiHistoryCommand :
                 useInternalNames = useInternalNames,
             )
 
-        ApiGenerator(tracer).generateApiHistory(config)
+        ApiGenerator(tracer, reporter).generateApiHistory(config)
     }
 }

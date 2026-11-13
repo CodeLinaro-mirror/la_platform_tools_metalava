@@ -2294,4 +2294,104 @@ class CommonAnnotationItemTest : BaseModelTest() {
             assertFalse(normalAnno.isHideAnnotation(), "normalAnno.isHideAnnotation()")
         }
     }
+
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `copyTypeUseOnlyNullnessAnnotationsToItems skips non-emitted classes`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package a.pkg;
+                        public class Foo {
+                            public String @b.pkg.Nullable [] bar() { return null; }
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package b.pkg;
+                        public class Emitted {}
+                    """
+                ),
+                sourcePathFiles =
+                    listOf(
+                        java(
+                            """
+                                package b.pkg;
+                                import java.lang.annotation.ElementType;
+                                import java.lang.annotation.Target;
+                                @Target(ElementType.TYPE_USE)
+                                public @interface Nullable {
+                                    String @c.pkg.Nullable [] helperMethod() default {};
+                                }
+                            """
+                        ),
+                        java(
+                            """
+                                package c.pkg;
+                                import java.lang.annotation.ElementType;
+                                import java.lang.annotation.Target;
+                                @Target(ElementType.TYPE_USE)
+                                public @interface Nullable {}
+                            """
+                        ),
+                    ),
+            ),
+            testFixture =
+                TestFixture(
+                    annotationManager = noOpAnnotationManager,
+                ),
+        ) {
+            // b.pkg.Nullable was resolved from the source path when checking Foo.bar()'s return
+            // type annotation.
+            val nullableClass = codebase.assertResolvedClass("b.pkg.Nullable")
+            assertFalse(nullableClass.emit)
+            val helperMethod = nullableClass.methods().single()
+
+            // b.pkg.Nullable is not emitted, so copyTypeUseOnlyNullnessAnnotationsToItems() should
+            // not traverse its methods or copy @c.pkg.Nullable onto helperMethod().
+            assertEquals(emptyList(), helperMethod.annotationNames())
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `copyTypeUseOnlyNullnessAnnotationsToItems skips inaccessible classes`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package a.pkg;
+                        class PackagePrivateFoo {
+                            public String @b.pkg.Nullable [] bar() { return null; }
+                        }
+                    """
+                ),
+                sourcePathFiles =
+                    listOf(
+                        java(
+                            """
+                                package b.pkg;
+                                import java.lang.annotation.ElementType;
+                                import java.lang.annotation.Target;
+                                @Target(ElementType.TYPE_USE)
+                                public @interface Nullable {}
+                            """
+                        ),
+                    ),
+            ),
+            testFixture =
+                TestFixture(
+                    annotationManager = noOpAnnotationManager,
+                ),
+        ) {
+            val barMethod = codebase.assertClass("a.pkg.PackagePrivateFoo").methods().single()
+
+            // a.pkg.PackagePrivateFoo does not have API visibility, so
+            // copyTypeUseOnlyNullnessAnnotationsToItems() should not traverse its methods or copy
+            // @b.pkg.Nullable onto bar().
+            assertEquals(emptyList(), barMethod.annotationNames())
+        }
+    }
 }

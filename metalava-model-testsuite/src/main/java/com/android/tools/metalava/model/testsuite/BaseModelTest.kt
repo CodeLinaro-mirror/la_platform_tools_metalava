@@ -246,6 +246,12 @@ abstract class BaseModelTest :
          * The optional previously released [Codebase] to check against when reverting flagged APIs.
          */
         val previouslyReleasedCodebase: Codebase? = null,
+
+        /**
+         * Set of package prefixes for external packages that are not in the codebase, but may be
+         * referenced from documentation.
+         */
+        val externalPackagePrefixes: Set<String> = emptySet(),
     ) {
         /** The [RecordingReporter] used by the test. */
         val recordingReporter =
@@ -282,6 +288,7 @@ abstract class BaseModelTest :
                     apiSurfaces = apiSurfaceRules.apiSurfaces,
                     reporter = recordingReporter,
                     previouslyReleasedCodebaseProvider = { previouslyReleasedCodebase },
+                    externalPackagePrefixes = externalPackagePrefixes,
                 )
     }
 

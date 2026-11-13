@@ -1321,7 +1321,7 @@ class JavadocTest : DriverTest() {
                             public class Foo {
                             Foo() { throw new RuntimeException("Stub!"); }
                             /**
-                             * Does not use @hide correctly; {@link android.annotation.Nullable Nullable}.
+                             * Does not use @hide correctly; {@link androidx.annotation.Nullable Nullable}.
                              * @return This value may be {@code null}.
                              */
                             @androidx.annotation.Nullable

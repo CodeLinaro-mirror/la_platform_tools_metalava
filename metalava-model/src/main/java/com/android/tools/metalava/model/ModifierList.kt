@@ -230,9 +230,18 @@ interface ModifierList : BaseModifierList {
      *
      * Creates a deep snapshot, including snapshots of each annotation for use in [targetCodebase].
      *
+     * If [revertFromModifiers] is provided then any annotations on it that are not included in
+     * signature files (such as `@SdkConstant` or `@ExportedProperty`) are also snapshotted and
+     * merged into the returned [ModifierList].
+     *
      * @param targetCodebase The [Codebase] of which the snapshot will be part.
+     * @param revertFromModifiers The [ModifierList] of the item being reverted to the item owning
+     *   this [ModifierList], or `null` if the item is not being reverted.
      */
-    fun snapshot(targetCodebase: Codebase): ModifierList
+    fun snapshot(
+        targetCodebase: Codebase,
+        revertFromModifiers: ModifierList? = null,
+    ): ModifierList
 }
 
 /**

@@ -532,10 +532,23 @@ private constructor(
 
     override fun toImmutable(): ModifierList = this
 
-    override fun snapshot(targetCodebase: Codebase): ModifierList {
-        if (annotations.isEmpty()) return this
+    override fun snapshot(
+        targetCodebase: Codebase,
+        revertFromModifiers: ModifierList?,
+    ): ModifierList {
+        // Find any annotations on the reverted item's modifiers that have targets (so are included
+        // in some output such as stubs or external annotations) but are not included in signature
+        // files.
+        val nonSignatureAnnotations =
+            revertFromModifiers?.annotations()?.filter { annotation ->
+                val targets = annotation.targets
+                targets.isNotEmpty() && AnnotationTarget.SIGNATURE_FILE !in targets
+            } ?: emptyList()
 
-        val newAnnotations = annotations.map { it.snapshot(targetCodebase) }
+        if (annotations.isEmpty() && nonSignatureAnnotations.isEmpty()) return this
+
+        val newAnnotations =
+            (annotations + nonSignatureAnnotations).map { it.snapshot(targetCodebase) }
         return create(flags, newAnnotations)
     }
 

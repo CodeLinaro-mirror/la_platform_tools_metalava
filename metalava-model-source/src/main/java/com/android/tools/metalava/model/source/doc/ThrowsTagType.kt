@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.source.doc
 
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ExternalReferencableItem
 import com.android.tools.metalava.model.InvalidReferencableItem
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.scope.NameClassification
@@ -60,14 +61,16 @@ internal class ThrowsTagType() : TagType<ThrowsTagData>("throws", TagTypeForm.BL
         val resolved = context.resolveItemReference(typeName, NameClassification.TYPE)
         // TODO(b/447588621): Ensure that the resolved type is a Throwable.
         return when (resolved) {
-            is ClassItem -> resolved.toResolvedReference()
+            is ClassItem -> resolved.toResolvedReference(context)
             is TypeParameterItem -> resolved.toResolvedReference()
+            is ExternalReferencableItem -> null
             is InvalidReferencableItem -> {
                 resolved.reportIssue(reporter)
                 null
             }
             // This should never happen as passing in NameClassification.TYPE above should limit the
-            // returned types to ClassItem, TypeParameterItem or InvalidReferencableItem
+            // returned types to ClassItem, TypeParameterItem, ExternalReferencableItem, or
+            // InvalidReferencableItem.
             else -> error("type '$typeName' was resolved to an unknown type $resolved")
         }
     }

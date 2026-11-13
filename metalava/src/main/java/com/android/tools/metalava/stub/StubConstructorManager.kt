@@ -88,7 +88,17 @@ class StubConstructorManager(codebase: Codebase) {
         // constructors initialized first (such that we can match the parameter lists and throws
         // signatures), and we use the tag fields to avoid looking at all the internal classes more
         // than once.
-        packages.allClasses().filter { filter.test(it) }.forEach { addConstructors(it, filter) }
+        //
+        // The `filter` passed here is a reference filter (which also matches non-emitted classes on
+        // the classpath or source path so that superclasses can be inspected), and
+        // `packages.allClasses()` includes all resolved non-emitted classes. Check `it.emit` so
+        // that the traversal only starts from emitted classes; non-emitted superclasses of emitted
+        // classes will still be visited on demand when walking up the hierarchy in
+        // `addConstructors(cls, filter)` via `cls.filteredSuperclass(filter)`.
+        packages
+            .allClasses()
+            .filter { it.emit && filter.test(it) }
+            .forEach { addConstructors(it, filter) }
     }
 
     /**

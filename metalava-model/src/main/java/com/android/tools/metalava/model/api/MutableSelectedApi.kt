@@ -41,6 +41,15 @@ internal open class MutableSelectedApi<S : SelectableItem>(
     override val revertItem: SelectableItem?
         get() = null
 
+    /** Backing property for [hasRemovedAnnotation]. */
+    private var hasRemovedAnnotation: Boolean = false
+
+    override fun hasRemovedAnnotation(): Boolean = hasRemovedAnnotation
+
+    override fun markHasRemovedAnnotation() {
+        hasRemovedAnnotation = true
+    }
+
     override fun initialize() {}
 
     override fun addItemApiVariant(value: ApiVariant) {

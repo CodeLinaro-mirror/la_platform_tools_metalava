@@ -47,7 +47,7 @@ interface SourceFile : ReferencableNameScope {
     }
 
     /** The [Codebase] to which this [SourceFile] belongs. */
-    val codebase: Codebase
+    override val codebase: Codebase
 
     /** The [PackageItem] to which this [SourceFile] belongs. */
     val containingPackage: PackageItem

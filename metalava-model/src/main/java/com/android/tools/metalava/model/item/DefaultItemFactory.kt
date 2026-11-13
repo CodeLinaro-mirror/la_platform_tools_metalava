@@ -107,6 +107,7 @@ class DefaultItemFactory(
         isFileFacade: Boolean = false,
         isMultiFileClass: Boolean = false,
         recordComponentItemsFactory: RecordComponentItemsFactory? = null,
+        memberInitializer: ClassMemberInitializer? = null,
     ): SkeletonClassItem =
         DefaultClassItem(
             codebase,
@@ -130,6 +131,7 @@ class DefaultItemFactory(
             optionalAliasedType = optionalAliasedType,
             isMultiFileClass = isMultiFileClass,
             recordComponentItemsFactory = recordComponentItemsFactory ?: { emptyList() },
+            memberInitializer = memberInitializer,
         )
 
     /** Create a [ConstructorItem]. */
