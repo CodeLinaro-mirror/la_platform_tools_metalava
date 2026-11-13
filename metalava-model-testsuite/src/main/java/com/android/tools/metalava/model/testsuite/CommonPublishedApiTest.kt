@@ -599,6 +599,82 @@ class CommonPublishedApiTest : BaseModelTest() {
 
     @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
+    fun `PublishedApi property using value class in internal class`() {
+        runCodebaseTest(
+            inputSet(
+                kotlin(
+                    """
+                    package test.pkg
+                    @JvmInline value class IntValue(val value: Int)
+                    internal class Foo {
+                        @PublishedApi internal var foo = IntValue(0)
+                    }
+                    """
+                )
+            ),
+            compiledSourceJar =
+                base64gzip(
+                    "test.jar",
+                    // kotlinc version info: kotlinc-jvm 2.3.20 (JRE 21.0.9+10-b1163.91)
+                    "" +
+                        "H4sIAAAAAAAA/41WeTjUexf/kT1jGUMjhHJLhKExGq9EsmSMhjR20Rhudpmx" +
+                        "XsPIRUUmCUlMSWVsWQrhVSRkhuxrmhhL9iwNil7uH131PG/3nu9z/vs+n3Oe" +
+                        "83zO53wwqF1cEICPjw8AAHlgZ0AAEIA2tNJXOW1upIbWNz9tZHjWShVtdM6K" +
+                        "G+AAHraCN98AwBKa3mKGUlFtB6FUlFrpbaWWsK6jzLFLqqboI6fR7URameWC" +
+                        "qYq/kimdroxdaFVrbqaPjo2McQIYFC9fkdjhIuRWJa2txPzfPvYA/AABH0BQ" +
+                        "8/N0VzvtQ8C6eBHxqjgvl4CA762EW6F8pc5BNudWPHUyFXCP0LhDerJvB0K6" +
+                        "fBRzKAcf8Ceb+9mZXJUHHTnY2nT7lZoOLq9FTmJht80TjmL9WyUAf1KcqWK0" +
+                        "TC2/fKtk4mzTFYoR238O+X5tLqj1bu23jQ1hoPxTpd7QU2kt+/cq+ASaPawF" +
+                        "rcwpT51PUzlqj8jLmRllyORNGomIYEyxg8ZylFYo5z1s2CFBkKiihckp7qi5" +
+                        "Z7N8ghNtzm0CghVPNctdrFGdgTlOEhVpCI01p2efJdccp8pVELOLKd1xziZy" +
+                        "f7QVDsxVG2dT5a9HC8jUcxrcNbuY2J8RdY3l3TONJaKctcMRnf0s0n1bUCrs" +
+                        "TcVp8qclm8xAaVyjf6DDekRjav8n8Y6S7Msv/lxGCvxeEZU3E5bApSmVkxHD" +
+                        "IUh7sEAE+w8SnqV62KeoXaBMWiBHjkM6XioV24kl00YLXAQkxW+m9VDGb53C" +
+                        "yrmFt8NbrgtrJiEWNxqyGDrimDvdjIGjbaj6ab6AZW8PcnqVtyYX2D3bZA0B" +
+                        "t17TwYDKYfXHfMuLMBhRltJUg123vxTjvr3nalmyuU+iy3hGzwiiotGZnStr" +
+                        "zzmQ6zkW5z4AW91bQroWK1nXPN8zVOLImCtT6h/DNjzuiLGHDyNtih0CWgjo" +
+                        "kmZTZT1fo0URJkcyPnXPsh3r6B3rZEMf0fWl0Zo8mvQtWlci22r9QeFjS/52" +
+                        "6Wyk2ZIcwxK5FuqyHOxrNP5qBLM/vyWZzm1OEuS9Rd1nt69TfMDYHeKI5jY2" +
+                        "NNf5Oj14syhqOMSsN2V0HfhSutLyjEi5P7IuYrtytqci0yYhqFh85KaAksvx" +
+                        "S4sJFLO0ZGrVK23t4SFiLnRIZTl9UaEp2w3f6aGjrtUiYV2Jhbdwl7osDWsJ" +
+                        "5Ve6+Qc15H8JIxb0eEEKeBG+SXkMmqd1ftRsHyG01q6g8qHnWXLuatIUo1/s" +
+                        "K5sq3guLhtnq3nNM0XyIhH9S7grHymZ1QD/Hg6edIicioQWRiidET6yiF5ml" +
+                        "rN2T07EVFChST4kYmbpM51CVZXZn1dCPUxSclo7xkYJ1m4hZ5DrB637ZJ4w+" +
+                        "Hnw4wWp0mH5iLvNhnHRe7/EdV1oY478KlZtpTuBQFRId91ym3MFj8UzTvIjA" +
+                        "zJl9BvuYCZVdq+xq0LOVUFMcl8a6MM8g5YDrA1gWT9EcxcqMqTq8+LJSdUYc" +
+                        "f/KmcdqsukescbhR9WIdsTmxTTiLXd99xYCOjt/gWUkN8Ox9bVllQ+vlioJN" +
+                        "VF1w+vz0Ri7pnGsVfllh+GXUfPhl+IfSyd1NK13yEl+mxRuS9kAmZG0iarQd" +
+                        "D7Z+zFcYbggLZ1/LeU3SU1gViyJn9smDwz6UYdV1FnKufwifJ4GlMsM4stqr" +
+                        "0XmxcCnI82pyJFlYkAXKZ97Qx2++fWFs8y7S70nMISloIBW52qf/SmpCxlU6" +
+                        "WjpaZmjlSNCkIzLNHzYmN8u86i7tB1uV3ZYjFWkPa30uAPjM+ys5Au+UIyNf" +
+                        "35+UCG9pcaYTA9n0GSzIiW8HQXGPFffXEQgisvFgUU0FdAy0qyGat9NbXHV6" +
+                        "AM8WCsmIaHA/bwLfK0uvyz7xJngApHFStnWjNagtaO5j0Pz7iNpvQHA0KCZ5" +
+                        "ObpskGGwJSlEGM9033F/7/cgodmagWLrVG2rGNZB4Yo/XlML87FnTeQunrzc" +
+                        "Sqn0YnKVTK07nmmEEnNjyZS7Po4xd8G+T8N5vBtsiZZQ4zfRV/g9Vg4LSkL9" +
+                        "bz55TZUzMFyM2x1DwBMKH52SDk3CXKy1s//W15cw4Rcnset56MC6g663kFCu" +
+                        "xuSdMouB+yG7rf9E+YhEd9zKeI1Ly4UbfFx6QeosWHOQDkmYRTzq1NjztfDQ" +
+                        "uxhlx5HkniumhYctMNlAeo0khwYaOSaqJOaRf7R6nv0Q/VtR2tXu+dtX7wmB" +
+                        "D9yeZyOSNcLuZUWgPWIu5H5pScFi3lxp3BheIs3Xr6XCZ1kmWpnd8Q9yJOAG" +
+                        "5fGGDGgp/THSUfLuf85Vjmujj5HIvelJGcGSCJ2YZgHh6t53WMZ0dYCnrnq/" +
+                        "qU3QBm3wg4WuAsPaqWq02/GjJnScXUVmqbTxm1cwy2qPe6SvIWYCp4aFEgkB" +
+                        "9R1TT0/mdyZ4FKNNCS+j4XXLlxR1qV7XgtelzCARdYq0WsomecbWVX2fpdmB" +
+                        "wPRTey3LUhRRIK60OniBJF1Oy8vNuFzf8/6qTL9vKjpJPTchTix1xJYVO3LI" +
+                        "quBUd8Oa8oF4WsDlq/e0TwYsn4kf9iY/2cu+/YKJc/9UImEc1ve7ro/9ddwN" +
+                        "OsfnuBr9Xe90IqeYKZe5ecv9G1/un9O2qavZBSPjh07omTrbORvKyVMgaRAb" +
+                        "cUU+Oh+Ly417kbMnYpvHC2UI7ghOAOjb9SseS23x+Pt593a56KPq6Uvwuuhz" +
+                        "3tvXleiF/05onLOzs9tWXoh860x9RW0A/jrd1rIhXeAtFOhfp5uDEwL8XWXn" +
+                        "Wd82ET/GP1qKn+F2ruW2F/g74rbyn5zBz2g7hwP+AW0PN/Crxf4ZaOcEpH4A" +
+                        "es8L/KvJYlDcPNv/ubbeMQ4AMNgGBv4H+qo4o5EJAAA="
+                )
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+            assertThat(fooClass.hasApiVisibility()).isFalse()
+            assertThat(fooClass.methods()).isEmpty()
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.KOTLIN)
+    @Test
     fun `PublishedApi class with companion object`() {
         runCodebaseTest(
             inputSet(
@@ -658,6 +734,29 @@ class CommonPublishedApiTest : BaseModelTest() {
             assertThat(fooCompanion.modifiers.isPublishedApi()).isTrue()
             assertThat(fooCompanion.modifiers.hasApiVisibility()).isTrue()
             assertThat(fooCompanion.targetLanguages).isEqualTo(TargetLanguageSet.BYTECODE_ONLY)
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.KOTLIN)
+    @Test
+    fun `PublishedApi data class`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                package test.pkg
+                @PublishedApi
+                internal data class Foo(val i: int)
+                """
+            )
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+            assertThat(fooClass.modifiers.isInternal()).isTrue()
+            assertThat(fooClass.modifiers.isPublishedApi()).isTrue()
+
+            val toString = fooClass.assertMethod("toString", emptyList())
+            // toString is overridden from Object, where it is public, so the override is public
+            assertThat(toString.modifiers.isPublic()).isTrue()
+            assertThat(toString.modifiers.isPublishedApi()).isFalse()
         }
     }
 }

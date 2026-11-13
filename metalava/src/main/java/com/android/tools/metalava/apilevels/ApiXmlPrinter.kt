@@ -17,38 +17,12 @@
 package com.android.tools.metalava.apilevels
 
 import java.io.PrintWriter
-import java.util.TreeSet
 
-/**
- * Printer that will write an XML representation of an [Api] instance.
- *
- * @param availableSdkExtensions the optional set of [AvailableSdkExtensions].
- * @param versionedApis the list of all the [VersionedApi]s that will provide information for the
- *   [Api]. Must include at least one [VersionedApi]. The API version of the first is used to
- *   populate the `<api min="..."...>` attribute, if it is later than version `1`.
- */
-class ApiXmlPrinter(
-    private val availableSdkExtensions: AvailableSdkExtensions?,
-    versionedApis: List<VersionedApi>,
-) : ApiPrinter {
-    /** The set of versions, sorted from lowest to highest. */
-    private val sortedVersions = versionedApis.mapTo(TreeSet()) { it.apiVersion }
-
-    /** Get the first [ApiVersion]. */
-    private val firstApiVersion = sortedVersions.first()
-
-    /**
-     * Map from version to the next version. This is used to compute the version in which an API
-     * element was removed by finding the version after the version it was last present in.
-     */
-    private val versionToNext = sortedVersions.zipWithNext().toMap()
-
-    /** True if the [Api] being printed has any minor versions. */
-    private val hasMinorVersions = sortedVersions.any { it.minor != null }
-
+/** Printer that will write an XML representation of an [Api] instance. */
+class ApiXmlPrinter : ApiPrinter {
     override fun print(api: Api, writer: PrintWriter) {
         writer.println("<?xml version=\"1.0\" encoding=\"utf-8\"?>")
-        api.print(writer, availableSdkExtensions)
+        api.printApi(writer)
     }
 
     override fun toString() = "XML"
@@ -58,17 +32,19 @@ class ApiXmlPrinter(
      *
      * @param writer the writer to which the XML elements will be written.
      */
-    private fun Api.print(writer: PrintWriter, availableSdkExtensions: AvailableSdkExtensions?) {
+    private fun Api.printApi(writer: PrintWriter) {
         // Select the lowest version that supports the necessary capabilities.
         val fileVersion = if (hasMinorVersions) 4 else 3
 
         writer.print("<api version=\"$fileVersion\"")
-        if (firstApiVersion > DEFAULT_MIN_VERSION) {
+        val firstApiVersion = minVersion
+        if (firstApiVersion != null && firstApiVersion > DEFAULT_MIN_VERSION) {
             writer.print(" min=\"$firstApiVersion\"")
         }
         writer.println(">")
-        if (availableSdkExtensions != null) {
-            for (sdkExtension in availableSdkExtensions.sdkExtensions) {
+        val sdkExtensions = availableSdkExtensions
+        if (sdkExtensions != null) {
+            for (sdkExtension in sdkExtensions.sdkExtensions) {
                 writer.println(
                     String.format(
                         "\t<sdk id=\"%d\" shortname=\"%s\" name=\"%s\" reference=\"%s\"/>",
@@ -178,12 +154,9 @@ class ApiXmlPrinter(
             writer.print("\" deprecated=\"")
             writer.print(deprecatedIn)
         }
-        if (lastPresentIn < parentApiElement.lastPresentIn) {
-            val removedFrom =
-                versionToNext[lastPresentIn]
-                    ?: error("could not find next version for $lastPresentIn in $name")
+        if (removedIn != null && removedIn != parentApiElement.removedIn) {
             writer.print("\" removed=\"")
-            writer.print(removedFrom)
+            writer.print(removedIn)
         }
         writer.print('"')
         if (closeTag) {
@@ -194,7 +167,7 @@ class ApiXmlPrinter(
 
     companion object {
         /** The default minimum [ApiVersion] expected by consumers of `api-versions.xml`. */
-        private val DEFAULT_MIN_VERSION = ApiVersion.fromLevel(1)
+        internal val DEFAULT_MIN_VERSION = ApiVersion.fromLevel(1)
 
         /**
          * Prints a closing tag of an XML element terminated by a line break.

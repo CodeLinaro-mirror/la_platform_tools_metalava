@@ -15,16 +15,13 @@
  */
 package com.android.tools.metalava.apilevels
 
+import com.android.tools.metalava.reporter.Issues
+import com.android.tools.metalava.reporter.Reporter
+
 /** Represents a parent of [ApiElement]. */
 interface ParentApiElement {
     /** The API version this API was first introduced in. */
     val since: ApiVersion
-
-    /**
-     * The version in which this API last appeared, if this is not the latest API then it will be
-     * treated as having been removed in the next API version, i.e. [lastPresentIn] + 1.
-     */
-    val lastPresentIn: ApiVersion
 
     /**
      * The SDKs and their versions this API was first introduced in.
@@ -39,6 +36,9 @@ interface ParentApiElement {
 
     /** The optional API level this element was deprecated in. */
     val deprecatedIn: ApiVersion?
+
+    /** The optional API level this element was removed in. */
+    val removedIn: ApiVersion?
 }
 
 /**
@@ -61,6 +61,30 @@ open class ApiElement(val name: String) : ParentApiElement, Comparable<ApiElemen
         mainlineModule = containingClass.mainlineModule
         deprecatedIn = containingClass.deprecatedIn
         lastPresentIn = containingClass.lastPresentIn
+        removedIn = containingClass.removedIn
+    }
+
+    /**
+     * Initializes this element with explicit attributes read from an `api-versions.xml` file.
+     *
+     * @param since the API version in which this element was introduced.
+     * @param sdks the optional comma-separated SDK extension versions string.
+     * @param deprecatedIn the optional API version in which this element was deprecated.
+     * @param removedIn the optional API version in which this element was removed.
+     * @param mainlineModule the optional mainline module name for this element.
+     */
+    internal fun initFromXml(
+        since: ApiVersion,
+        sdks: String? = null,
+        deprecatedIn: ApiVersion? = null,
+        removedIn: ApiVersion? = null,
+        mainlineModule: String? = null,
+    ) {
+        this.since = since
+        this.sdks = sdks
+        this.deprecatedIn = deprecatedIn
+        this.removedIn = removedIn
+        this.mainlineModule = mainlineModule
     }
 
     /**
@@ -69,6 +93,10 @@ open class ApiElement(val name: String) : ParentApiElement, Comparable<ApiElemen
      */
     final override lateinit var since: ApiVersion
         protected set
+
+    /** True if [since] has been initialized. */
+    internal val isSinceInitialized: Boolean
+        get() = ::since.isInitialized
 
     /**
      * The extension version of this ApiElement. i.e. The Android extension SDK version this API was
@@ -87,7 +115,15 @@ open class ApiElement(val name: String) : ParentApiElement, Comparable<ApiElemen
     final override var deprecatedIn: ApiVersion? = null
         private set
 
-    final override lateinit var lastPresentIn: ApiVersion
+    /**
+     * The version in which this API last appeared, if this is not the latest API then it will be
+     * treated as having been removed in the next API version.
+     */
+    lateinit var lastPresentIn: ApiVersion
+        private set
+
+    /** The optional API level this element was removed in. */
+    final override var removedIn: ApiVersion? = null
         private set
 
     override fun toString(): String {
@@ -151,6 +187,11 @@ open class ApiElement(val name: String) : ParentApiElement, Comparable<ApiElemen
         }
     }
 
+    /** Updates the [removedIn] version of this element to [version]. */
+    fun updateRemovedIn(version: ApiVersion) {
+        removedIn = version
+    }
+
     /**
      * Analogous to update(), but for extensions sdk versions.
      *
@@ -184,6 +225,30 @@ open class ApiElement(val name: String) : ParentApiElement, Comparable<ApiElemen
 
     override fun compareTo(other: ApiElement): Int {
         return name.compareTo(other.name)
+    }
+}
+
+/**
+ * Removes any [ApiElement] in this map whose [ApiElement.since] property has not been initialized,
+ * reporting an [Issues.INCONSISTENT_API_HISTORY] issue for each one.
+ */
+internal fun <T : ApiElement> MutableMap<String, T>.removeInconsistentExtensionElements(
+    reporter: Reporter,
+    mainlineModule: String? = null,
+    describeElement: (T) -> String,
+) {
+    values.removeAll { element ->
+        if (!element.isSinceInitialized) {
+            val module = element.mainlineModule ?: mainlineModule
+            reporter.report(
+                Issues.INCONSISTENT_API_HISTORY,
+                reportable = null,
+                "${describeElement(element)} was added in SDK extension ${element.sinceExtension} (module $module) but is missing from the latest SDK extension and all SDK versions",
+            )
+            true
+        } else {
+            false
+        }
     }
 }
 

@@ -26,6 +26,7 @@ import com.android.tools.metalava.model.ANDROID_FLAGGED_API
 import com.android.tools.metalava.model.ANDROID_NONNULL
 import com.android.tools.metalava.model.ANDROID_NULLABLE
 import com.android.tools.metalava.model.ANDROID_REQUIRES_FLAG
+import com.android.tools.metalava.model.ANDROID_SDK_EXTENSION_API
 import com.android.tools.metalava.model.ANDROID_SYSTEM_API
 import com.android.tools.metalava.model.ANDROID_TEST_API
 import com.android.tools.metalava.model.ANNOTATION_EXTERNAL
@@ -302,7 +303,8 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
             // Should not be mapped to a different package name:
             "android.annotation.TargetApi",
             "android.annotation.SuppressLint" -> return qualifiedName
-            ANDROID_FLAGGED_API -> return qualifiedName
+            ANDROID_FLAGGED_API,
+            ANDROID_SDK_EXTENSION_API -> return qualifiedName
 
             // This implementation only annotation shouldn't be used by metalava at all.
             "dalvik.annotation.codegen.CovariantReturnType" -> return null
@@ -489,6 +491,8 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
                 // extracted from those. This is useful for modularizing the main SDK stubs without
                 // having to add a separate module SDK artifact for sdk constants.
                 put("android.annotation.SdkConstant", ANNOTATION_SDK_STUBS_ONLY)
+
+                put(ANDROID_SDK_EXTENSION_API, ANNOTATION_SIGNATURE_ONLY)
 
                 put("android.annotation.RestrictedForEnvironment", ANNOTATION_EXTERNAL)
 

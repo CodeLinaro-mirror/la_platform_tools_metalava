@@ -18,17 +18,20 @@ plugins {
     `java-library`
     id("org.jetbrains.kotlin.jvm")
     id("metalava-build-plugin")
-    id("maven-publish")
 
     // This project provides an implementation of the metalava-model.
     id("metalava-model-provider-plugin")
+
+    // Note: maven-publish is intentionally omitted because :metalava-model-turbine is not a runtime
+    // dependency of the published :metalava artifact (Android builds it from source via Soong) and
+    // it depends on the unpublished :turbine project built from ../../external/turbine.
 }
 
 dependencies {
     implementation(project(":metalava-model-source"))
-    implementation(libs.turbine) { exclude(group = "com.google.protobuf") }
-    // Needed as some Turbine classes use jspecify nullability annotations
-    implementation(libs.jspecify)
+    // Depend on the :turbine project (which compiles ../../external/turbine and exports guava and
+    // jspecify as API dependencies).
+    implementation(project(":turbine"))
     implementation(libs.tracing)
 
     // Pick up the SourceModelSuiteRunner service to run the `metalava-model-testsuite`.

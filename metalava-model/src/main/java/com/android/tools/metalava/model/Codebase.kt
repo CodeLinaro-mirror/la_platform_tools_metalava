@@ -163,6 +163,12 @@ interface Codebase : ClassPathResolver, AnnotationContext {
          * block tags are ignored for hiding.
          */
         val apiSurfacesConfigured: Boolean = false,
+
+        /**
+         * Set of package prefixes for external packages that are not in the codebase, but may be
+         * referenced from documentation.
+         */
+        val externalPackagePrefixes: Set<String> = emptySet(),
     ) {
         companion object {
             /**

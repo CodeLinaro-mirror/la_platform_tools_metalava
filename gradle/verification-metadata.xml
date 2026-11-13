@@ -85,6 +85,7 @@
          <trusted-key id="B801E2F8EF035068EC1139CC29579F18FA8FD93B" group="com.google.j2objc" name="j2objc-annotations"/>
          <trusted-key id="BCC135FC7ED8214F823D73E97FE9900F412D622E" group="com.google.flatbuffers" name="flatbuffers-java"/>
          <trusted-key id="BDB5FA4FE719D787FB3D3197F6D4A1D411E9D1AE" group="^com[.]google($|([.].*))" regex="true"/>
+         <trusted-key id="C3259D20DAEC4ACE6D57CC83340B090F727518D8" group="com.google.j2objc" name="j2objc-annotations"/>
          <trusted-key id="C7BE5BCC9FEC15518CFDA882B0F3710FA64900E7" group="^com[.]google($|([.].*))" regex="true"/>
          <trusted-key id="CB3190CA7842439E57F3712E44CE7BF2825EA2CD" group="com.ibm.icu" name="icu4j"/>
          <trusted-key id="D790F72EA8FD39551012B62DCF9F3090CE4CB752" group="org.abego.treelayout" name="org.abego.treelayout.core"/>

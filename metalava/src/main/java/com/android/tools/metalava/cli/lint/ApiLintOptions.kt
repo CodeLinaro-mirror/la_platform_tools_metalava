@@ -155,7 +155,8 @@ class ComputedApiLintOptions(
         lazy(LazyThreadSafetyMode.NONE) {
             PreviouslyReleasedApi.optionalPreviouslyReleasedApi(
                 ARG_API_LINT_PREVIOUS_API,
-                apiLintPreviousApis
+                apiLintPreviousApis,
+                onlyUseLastForMainApiSurface = false,
             )
         }
 }

@@ -302,14 +302,15 @@ sealed interface AnnotationItem {
         fun unshortenAnnotation(annotationClassName: String): String {
             return when {
                 annotationClassName == "Deprecated" -> "java.lang.Deprecated"
-                // The first 4 annotations are in the android.annotation. package, not
+                // The first 5 annotations are in the android.annotation. package, not
                 // androidx.annotation
                 // Nullability annotations are written as @NonNull and @Nullable in API text files,
                 // and these should be linked to android.annotation package when generating stubs.
                 annotationClassName == "SystemService" ||
                     annotationClassName == "TargetApi" ||
                     annotationClassName == "SuppressLint" ||
-                    annotationClassName == "FlaggedApi" ->
+                    annotationClassName == "FlaggedApi" ||
+                    annotationClassName == "SdkExtensionApi" ->
                     "$ANDROID_ANNOTATION_PREFIX$annotationClassName"
                 // If the first character of the name is lower-case, then assume it's a package
                 // name, so no need to shorten it.

@@ -17,6 +17,7 @@
 package com.android.tools.metalava.cli.lint
 
 import com.android.tools.metalava.cli.common.BaseOptionGroupTest
+import com.android.tools.metalava.cli.common.SignatureBasedApi
 import com.android.tools.metalava.testing.signature
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
@@ -67,6 +68,21 @@ class ApiLintOptionsTest :
         val file = signature("released.txt", "// Signature format: 2.0\n").toFile()
         runTest(ARG_API_LINT_PREVIOUS_API, file.path) {
             assertThat(options.compute().previouslyReleasedApi?.lastSignatureFile).isEqualTo(file)
+        }
+    }
+
+    @Test
+    fun `multiple api lint previous api files`() {
+        val file1 = signature("released1.txt", "// Signature format: 2.0\n").toFile()
+        val file2 = signature("released2.txt", "// Signature format: 2.0\n").toFile()
+        runTest(ARG_API_LINT_PREVIOUS_API, file1.path, ARG_API_LINT_PREVIOUS_API, file2.path) {
+            assertThat(options.compute().previouslyReleasedApi)
+                .isEqualTo(
+                    SignatureBasedApi.fromFiles(
+                        listOf(file1, file2),
+                        onlyUseLastForMainApiSurface = false,
+                    )
+                )
         }
     }
 }

@@ -97,6 +97,8 @@ internal class StaxConfigParser private constructor(private val systemId: String
         var issues: IssuesConfig? = null
         var annotationClasses: AnnotationClassesConfig? = null
         val annotationClassNames = mutableSetOf<String>()
+        var documentation: DocumentationConfig? = null
+        val externalPackagePrefixes = mutableSetOf<String>()
 
         while (reader.hasNext()) {
             when (nextElementEvent(reader, "config")) {
@@ -129,6 +131,10 @@ internal class StaxConfigParser private constructor(private val systemId: String
                             val parsed = parseAnnotationClasses(reader, annotationClassNames)
                             annotationClasses = combine(annotationClasses, parsed)
                         }
+                        "documentation" -> {
+                            val parsed = parseDocumentation(reader, externalPackagePrefixes)
+                            documentation = combine(documentation, parsed)
+                        }
                         else -> {
                             recordUnexpectedElement(reader, "config")
                             skipElement(reader)
@@ -151,6 +157,7 @@ internal class StaxConfigParser private constructor(private val systemId: String
                         buildProperties = buildProperties,
                         issues = issues,
                         annotationClasses = annotationClasses,
+                        documentation = documentation,
                     )
                 }
             }
@@ -161,6 +168,7 @@ internal class StaxConfigParser private constructor(private val systemId: String
             buildProperties = buildProperties,
             issues = issues,
             annotationClasses = annotationClasses,
+            documentation = documentation,
         )
     }
 
@@ -715,6 +723,57 @@ internal class StaxConfigParser private constructor(private val systemId: String
         return AnnotationClassConfig(name = name, targets = targets)
     }
 
+    /** Parse a `<documentation>` element from [reader] into a [DocumentationConfig]. */
+    private fun parseDocumentation(
+        reader: XMLStreamReader,
+        externalPackagePrefixes: MutableSet<String>,
+    ): DocumentationConfig {
+        checkAttributes(reader, "documentation", allowedAttributes = emptySet())
+        val externalPackages = mutableListOf<ExternalPackageConfig>()
+        while (reader.hasNext()) {
+            when (nextElementEvent(reader, "documentation")) {
+                XMLStreamConstants.START_ELEMENT -> {
+                    if (
+                        reader.namespaceURI == CONFIG_NAMESPACE &&
+                            reader.localName == "external-package"
+                    ) {
+                        parseExternalPackage(reader, externalPackagePrefixes)?.let {
+                            externalPackages.add(it)
+                        }
+                    } else {
+                        recordUnexpectedElement(reader, "documentation")
+                        skipElement(reader)
+                    }
+                }
+                XMLStreamConstants.END_ELEMENT -> return DocumentationConfig(externalPackages)
+            }
+        }
+        return DocumentationConfig(externalPackages)
+    }
+
+    /** Parse an `<external-package>` element from [reader] into an [ExternalPackageConfig]. */
+    private fun parseExternalPackage(
+        reader: XMLStreamReader,
+        externalPackagePrefixes: MutableSet<String>,
+    ): ExternalPackageConfig? {
+        val lineNumber = reader.location.lineNumber
+        checkAttributes(reader, "external-package", EXTERNAL_PACKAGE_ATTRIBUTES)
+        val prefix = requiredAttribute(reader, lineNumber, "external-package", "prefix")
+        expectEmptyElement(reader, "external-package")
+
+        if (prefix == null) return null
+        validatePattern(
+            lineNumber,
+            "external-package",
+            "prefix",
+            prefix,
+            PACKAGE_PREFIX_REGEX,
+            "PackagePrefixType",
+        )
+        checkUniqueKey(lineNumber, externalPackagePrefixes, prefix, "ExternalPackagePrefix")
+        return ExternalPackageConfig(prefix = prefix)
+    }
+
     /** Retrieve a required attribute, recording an error if it is missing. */
     private fun requiredAttribute(
         reader: XMLStreamReader,
@@ -959,6 +1018,9 @@ internal class StaxConfigParser private constructor(private val systemId: String
         private val ANNOTATION_CLASS_ATTRIBUTES = setOf("name", "targets")
         private val TARGETS_MAP =
             AnnotationClassConfig.TargetsConfig.entries.associateBy { it.configFileValue }
+        private val EXTERNAL_PACKAGE_ATTRIBUTES = setOf("prefix")
+        private val PACKAGE_PREFIX_REGEX =
+            Regex("[a-zA-Z_][a-zA-Z0-9_]*(\\.[a-zA-Z_][a-zA-Z0-9_]*)*")
 
         /** Parse a list of configuration files in order, returning a single [Config] object. */
         override fun parse(files: List<File>): Config {

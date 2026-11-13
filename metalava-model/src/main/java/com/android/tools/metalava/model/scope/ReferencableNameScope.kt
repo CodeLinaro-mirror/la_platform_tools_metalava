@@ -16,12 +16,16 @@
 
 package com.android.tools.metalava.model.scope
 
+import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.InvalidReferencableItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ReferencableItem
 
 /** Defines the scope of package, class, type parameter, method or field names. */
 interface ReferencableNameScope {
+    /** The [Codebase] to which this [ReferencableNameScope] belongs. */
+    val codebase: Codebase
+
     /**
      * The containing scope.
      *

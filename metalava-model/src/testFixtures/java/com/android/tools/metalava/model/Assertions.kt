@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.item.ClassMemberMask
+import com.android.tools.metalava.model.item.DefaultClassItem
 import com.android.tools.metalava.model.multiplatform.MultiplatformClassItem
 import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
 import com.android.tools.metalava.model.multiplatform.MultiplatformConstructorItem
@@ -651,6 +653,13 @@ interface Assertions {
         )
         return methodItem
     }
+
+    /**
+     * Return the [ClassMemberMask] of member kinds that have not yet been initialized on this
+     * [ClassItem].
+     */
+    val ClassItem.uninitializedMembers: ClassMemberMask
+        get() = (this as DefaultClassItem).uninitializedMembers
 
     companion object : Assertions
 }

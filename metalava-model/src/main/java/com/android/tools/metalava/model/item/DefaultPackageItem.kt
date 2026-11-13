@@ -68,9 +68,7 @@ internal class DefaultPackageItem(
 
     override fun qualifiedName(): String = qualifiedName
 
-    override fun topLevelClasses(): List<ClassItem> =
-        // Return a copy to avoid a ConcurrentModificationException.
-        topClasses.toList()
+    override fun topLevelClasses(): List<ClassItem> = topClasses
 
     override val containingScope: ReferencableNameScope?
         get() =

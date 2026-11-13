@@ -21,21 +21,13 @@ import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.annotation.binding.bindTo
 
 /** Handles @android.processor.devicepolicy.StringPolicyDefinition annotation. */
-class StringPolicyAnnotationHandler(
-    context: DevicePolicyContext,
-) : BaseDevicePolicyAnnotationHandler(context) {
+class StringPolicyAnnotationHandler(context: DevicePolicyContext) :
+    BaseDevicePolicyAnnotationHandler(context) {
 
     /** Processes the [StringPolicyDefinitionProxy] and returns the documentation for the policy. */
     override fun processPolicyAnnotation(annotation: AnnotationItem, item: Item): String {
-        val hasValidation =
-            annotation.findAttribute("validation") != null ||
-                annotation.resolve()?.methods()?.any { it.name() == "validation" } == true
-        if (hasValidation) {
-            val proxy = annotation.bindTo<StringPolicyDefinitionProxy>(item)
-            return proxy?.generateDocs() ?: ""
-        }
-        val legacyProxy = annotation.bindTo<LegacyStringPolicyDefinitionProxy>(item)
-        return legacyProxy?.generateDocs() ?: ""
+        val proxy = annotation.bindTo<StringPolicyDefinitionProxy>(item) ?: return ""
+        return generateDocs(proxy, item)
     }
 }
 
@@ -48,50 +40,11 @@ class StringPolicyAnnotationHandler(
 data class StringPolicyDefinitionProxy(
     val base: PolicyDefinitionProxy,
     val validation: StringValidationProxy,
-) {
-    fun generateDocs() = buildString {
-        val tableEntries = buildList {
-            addAll(base.getTableEntries())
-            val policyValueValidations = validation.getPolicyValueValidations()
-            add(Pair("Policy value", renderPolicyValue("String", policyValueValidations)))
-        }
-
-        append(renderTable(tableEntries))
-    }
-}
-
-// TODO(b/550199902): Remove when validators are extracted from policy definitions
-/**
- * Proxy class bound to an instance of the legacy
- * `android.processor.devicepolicy.StringPolicyDefinition` annotation class where validation
- * properties were inline.
- *
- * @see bindTo
- */
-data class LegacyStringPolicyDefinitionProxy(
-    val base: PolicyDefinitionProxy,
-    val emptyStringAllowed: Boolean,
-    val unprintableCharactersAllowed: Boolean,
-    val pureWhitespaceAllowed: Boolean,
-    val unstrippedStringAllowed: Boolean,
-    val maxLength: Int,
-) {
-    fun generateDocs() = buildString {
-        val tableEntries = buildList {
-            addAll(base.getTableEntries())
-            val policyValueValidations =
-                StringValidationProxy(
-                        emptyStringAllowed = emptyStringAllowed,
-                        unprintableCharactersAllowed = unprintableCharactersAllowed,
-                        pureWhitespaceAllowed = pureWhitespaceAllowed,
-                        unstrippedStringAllowed = unstrippedStringAllowed,
-                        maxLength = maxLength,
-                    )
-                    .getPolicyValueValidations()
-            add(Pair("Policy value", renderPolicyValue("String", policyValueValidations)))
-        }
-
-        append(renderTable(tableEntries))
+) : DevicePolicy {
+    override fun generateDocRows(context: DevicePolicyContext): List<TableRow> = buildList {
+        addAll(base.generateDocRows())
+        val policyValueValidations = validation.getPolicyValueValidations()
+        add(TableRow("Policy value", renderPolicyValue("String", policyValueValidations)))
     }
 }
 

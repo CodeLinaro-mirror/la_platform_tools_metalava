@@ -31,7 +31,7 @@ internal open class MemberSourceSelectedApi<M : MemberItem>(
         updateFromSelectableItem()
 
         // Propagate information from this to the parent, i.e. the containing class.
-        parent.propagateFromChild(itemApiVariants)
+        parent.propagateFromChild(rawItemApiVariants)
     }
 
     override fun propagateFromChild(childVariants: ApiVariantSet) =
@@ -59,7 +59,7 @@ internal open class MemberSourceSelectedApi<M : MemberItem>(
         // If the containing record class is part of an API surface, but this component member
         // was marked as hidden (resulting in empty API variants), report an error because record
         // components cannot be hidden independently of the record class.
-        if (parent.itemApiVariants.isNotEmpty() && itemApiVariants.isEmpty()) {
+        if (parent.rawItemApiVariants.isNotEmpty() && rawItemApiVariants.isEmpty()) {
             item.codebase.reporter.report(
                 Issues.HIDING_RECORD_COMPONENT,
                 item,
@@ -69,6 +69,6 @@ internal open class MemberSourceSelectedApi<M : MemberItem>(
 
         // Make sure that the component is in the same surfaces as the containing class, ensuring
         // its API surface membership strictly matches the record class.
-        itemApiVariants = parent.itemApiVariants
+        rawItemApiVariants = parent.rawItemApiVariants
     }
 }

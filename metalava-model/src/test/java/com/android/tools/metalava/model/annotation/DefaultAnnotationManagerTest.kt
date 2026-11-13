@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.annotation
 
 import com.android.tools.metalava.model.ANNOTATION_IN_ALL_STUBS
+import com.android.tools.metalava.model.ANNOTATION_SIGNATURE_ONLY
 import com.android.tools.metalava.model.ANNOTATION_STUBS_ONLY
 import com.android.tools.metalava.model.AnnotationContext
 import com.android.tools.metalava.model.AnnotationItem
@@ -51,6 +52,9 @@ class DefaultAnnotationManagerTest {
 
         val target = createAnnotation(manager, "@kotlin.annotation.Target")
         assertEquals(ANNOTATION_IN_ALL_STUBS, manager.computeTargets(target))
+
+        val sdkExtensionApi = createAnnotation(manager, "@android.annotation.SdkExtensionApi(34)")
+        assertEquals(ANNOTATION_SIGNATURE_ONLY, manager.computeTargets(sdkExtensionApi))
     }
 
     @Test

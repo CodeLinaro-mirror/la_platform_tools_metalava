@@ -38,6 +38,12 @@ sealed interface ApiSurfaces {
     /** Map from [ApiSurface.name] to [ApiSurface]. */
     val byName: Map<String, ApiSurface>
 
+    /**
+     * The [ApiReferenceStrategy] for checking whether a reference from one item to another item is
+     * valid in these [ApiSurfaces].
+     */
+    val referenceStrategy: ApiReferenceStrategy
+
     companion object {
         /** Returns a simple initializer for use with [build]. */
         private fun simpleSurfacesInitializer(needsBase: Boolean): Builder.() -> Unit = {
@@ -128,6 +134,8 @@ private class DefaultApiSurfaces(initializer: ApiSurfaces.Builder.() -> Unit) : 
 
     override val byName: Map<String, ApiSurface>
 
+    override val referenceStrategy: ApiReferenceStrategy
+
     init {
         // Create a builder for this.
         val builder = BuilderImpl(this)
@@ -143,6 +151,10 @@ private class DefaultApiSurfaces(initializer: ApiSurfaces.Builder.() -> Unit) : 
         variants = builder.variants
 
         byName = all.associateBy { it.name }
+
+        // Create the default reference strategy that checks references against the main surface
+        // and its included surfaces.
+        referenceStrategy = TargetSurfaceReferenceStrategy(main)
     }
 
     /** Provides support for initializing [apiSurfaces] by implementing [ApiSurfaces.Builder]. */

@@ -3002,8 +3002,6 @@ class CompatibilityCheckTest : DriverTest() {
             extraArguments =
                 hiddenIssues(
                     Issues.REFERENCES_HIDDEN,
-                    Issues.UNAVAILABLE_SYMBOL,
-                    Issues.HIDDEN_TYPE_PARAMETER,
                 ),
         )
     }
@@ -4716,6 +4714,112 @@ class CompatibilityCheckTest : DriverTest() {
                    ctor public Child();
                  }
                }
+                """,
+        )
+    }
+
+    @Test
+    fun `Items moved to removed API via RemovedFromApi`() {
+        check(
+            apiSurface = KnownApiSurface.PUBLIC,
+            checkCompatibilityApiReleased =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Foo {
+                        ctor public Foo();
+                        method public void removedMethod();
+                        field public static final int REMOVED_FIELD = 1;
+                      }
+                      public class RemovedBar {
+                        ctor public RemovedBar();
+                        method public void bar();
+                      }
+                    }
+                """,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            import android.annotation.RemovedFromApi;
+
+                            public class Foo {
+                                @RemovedFromApi
+                                public void removedMethod() {}
+
+                                @RemovedFromApi
+                                public static final int REMOVED_FIELD = 1;
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+
+                            import android.annotation.RemovedFromApi;
+
+                            @RemovedFromApi
+                            public class RemovedBar {
+                                public void bar() {}
+                            }
+                        """
+                    ),
+                ),
+        )
+    }
+
+    @Test
+    fun `Incompatible changes in items moved to removed API via RemovedFromApi`() {
+        check(
+            apiSurface = KnownApiSurface.PUBLIC,
+            checkCompatibilityApiReleased =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Foo {
+                        ctor public Foo();
+                        method public void changedMethod();
+                      }
+                      public class RemovedBar {
+                        ctor public RemovedBar();
+                        method public void bar();
+                        method public void deletedFromRemovedBar();
+                      }
+                    }
+                """,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            import android.annotation.RemovedFromApi;
+
+                            public class Foo {
+                                @RemovedFromApi
+                                public final void changedMethod() {}
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+
+                            import android.annotation.RemovedFromApi;
+
+                            @RemovedFromApi
+                            public class RemovedBar {
+                                public void bar() {}
+                            }
+                        """
+                    ),
+                ),
+            expectedIssues =
+                """
+                    released-api.txt:10: error: Binary breaking change: Removed method test.pkg.RemovedBar.deletedFromRemovedBar() [RemovedMethod]
+                    src/test/pkg/Foo.java:7: error: Binary breaking change: Method test.pkg.Foo.changedMethod has added 'final' qualifier [AddedFinal]
                 """,
         )
     }
