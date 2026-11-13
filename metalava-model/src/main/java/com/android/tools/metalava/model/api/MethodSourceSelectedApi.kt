@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.api
 import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.api.surface.ApiSurface
 import com.android.tools.metalava.model.api.surface.ApiSurfacePredicate
 import com.android.tools.metalava.model.api.surface.ApiVariant
@@ -29,7 +30,7 @@ import com.android.tools.metalava.reporter.Issues
 
 /**
  * Selected API class for methods, ensuring record component getter methods inherit the parent
- * class's API variants.
+ * class's API variants and method overrides inherit or validate against overridden API methods.
  */
 internal class MethodSourceSelectedApi(
     selectedApiUpdater: SelectedApiUpdater,
@@ -45,53 +46,91 @@ internal class MethodSourceSelectedApi(
             return
         }
 
-        super.itemSpecificInitialization()
+        updateFromSelectableItem()
 
-        // If the parent is not part of any API then the method cannot be either.
-        if (parent.itemApiVariants.isEmpty()) return
+        // If the parent is part of an API and this method is explicitly marked for immediate or
+        // deferred removal while the containing class is not, check whether it overrides an active
+        // API method before propagating its variants to the containing class.
+        val unremovedOverride =
+            if (
+                parent.rawItemApiVariants.isNotEmpty() &&
+                    ((removed && !parent.removed) || (forRemoval && !parent.forRemoval))
+            ) {
+                handleRemovingApiMethodOverride()
+            } else {
+                false
+            }
+
+        // Propagate information from this to the parent, i.e. the containing class, unless this
+        // method was an invalid override removal (in which case it was kept in the active API and
+        // should not propagate a removed variant to the containing class).
+        if (!unremovedOverride) {
+            parent.propagateFromChild(rawItemApiVariants)
+        }
+
+        // If the parent is not part of any API then the method cannot be either. (Checked after
+        // propagateFromChild because a Kotlin file facade class starts with empty variants until
+        // its members propagate their variants to it.)
+        if (parent.rawItemApiVariants.isEmpty()) return
 
         // Unlike classes and fields, methods implicitly inherit API surface membership from the
         // methods they override (e.g. an unannotated or @Hide method implementing a public
         // interface method). If this method did not directly specify any API variants, find the
         // widest API surface inherited from overridden super methods.
-        if (itemApiVariants.isEmpty()) {
+        if (rawItemApiVariants.isEmpty() && !unremovedOverride) {
             val apiSurfaces = selectedApiUpdater.apiSurfaces
-            val parentSurface = parent.itemApiVariants.widestSurfaceFor(apiSurfaces) ?: return
+            val parentSurface = parent.rawItemApiVariants.widestSurfaceFor(apiSurfaces) ?: return
             var maxSuperSurface: ApiSurface? = null
             var maxSuperVariants = ApiVariantSet.EMPTY
 
-            for (superMethod in item.superMethods()) {
-                val superVariants = superMethod.selectedApi.itemApiVariants
-                val superSurface = superVariants.narrowestSurfaceFor(apiSurfaces) ?: continue
+            // Recursively search overridden super methods for the widest inheritable API surface
+            // narrower than parentSurface. MethodItem.superMethods() returns only the first
+            // matching method along the superclass chain and each implemented interface chain, so
+            // if a direct super method cannot be inherited from directly (e.g. because it is
+            // declared in a package-private or hidden intermediate class), its own superMethods()
+            // must be searched to find any overridden ancestor API method.
+            fun searchSuperMethods(method: MethodItem) {
+                for (superMethod in method.superMethods()) {
+                    val superVariants = superMethod.selectedApi.itemApiVariants
+                    val superSurface = superVariants.narrowestSurfaceFor(apiSurfaces)
+                    if (
+                        superSurface == null ||
+                            superSurface >= parentSurface ||
+                            superSurface.variantFor(ApiVariantType.CORE) !in superVariants
+                    ) {
+                        // This super method cannot be inherited from directly because:
+                        // 1. It is not part of any API surface (e.g. in a package-private or hidden
+                        //    intermediate class/interface), OR
+                        // 2. It is in an API surface at least as wide as the containing class, OR
+                        // 3. It is only removed or doconly (do not inherit removed or doconly
+                        //    status from overridden methods).
+                        // However, it may itself override an ancestor method in a narrower API
+                        // surface that can be inherited from, so continue searching up its
+                        // superMethods().
+                        searchSuperMethods(superMethod)
+                    } else if (maxSuperSurface == null || superSurface > maxSuperSurface!!) {
+                        // Find the widest API surface among the inheritable super methods.
+                        maxSuperSurface = superSurface
+                        maxSuperVariants = superVariants
+                    }
 
-                // Do not inherit removed or doconly status from overridden methods.
-                val superCoreVariant = superSurface.variantFor(ApiVariantType.CORE)
-                if (superCoreVariant !in superVariants) {
-                    continue
-                }
-
-                // A method can only inherit API variants from a super method in a narrower API
-                // surface than the containing class.
-                if (superSurface >= parentSurface) {
-                    continue
-                }
-
-                // Find the widest API surface among the super methods.
-                if (maxSuperSurface == null || superSurface > maxSuperSurface) {
-                    maxSuperSurface = superSurface
-                    maxSuperVariants = superVariants
-                }
-
-                // Stop searching if maxSuperSurface is at least as wide as the main surface being
-                // generated.
-                if (maxSuperSurface >= apiSurfaces.main) {
-                    break
+                    // Stop searching if maxSuperSurface is at least as wide as the main surface
+                    // being generated.
+                    if (maxSuperSurface != null && maxSuperSurface!! >= apiSurfaces.main) {
+                        break
+                    }
                 }
             }
 
-            // Adopt the API variants from the super method in the widest surface found.
+            searchSuperMethods(item)
+
+            // Adopt the API variants from the super method in the widest surface found, or if the
+            // method was not explicitly hidden (e.g. an unannotated method in a class annotated
+            // with a non-recursive show annotation), adopt the containing class's API variants so
+            // that non-elidable overrides are included in the containing class's API surface.
             if (maxSuperSurface != null) {
-                itemApiVariants = maxSuperVariants
+                rawItemApiVariants =
+                    if (explicitlyHidden) maxSuperVariants else parent.rawItemApiVariants
             } else {
                 handleHidingApiMethodOverride()
             }
@@ -121,62 +160,119 @@ internal class MethodSourceSelectedApi(
 
         // Check to see if the method overrides an API method, if so unhide it and report an issue.
         if (
-            !handleHidingApiMethodOverride(filterReference) { method, overriddenMethod ->
+            !handleInvalidApiMethodOverride(filterReference) { method, overriddenMethod ->
                 "Attempting to hide ${method.describe()} which overrides ${overriddenMethod.describe()} which is already part of the API"
             }
         ) {
             // Check to see if the method overrides a method that was previously part of the API
             // but has since been removed.
-            handleHidingApiMethodOverride(removedFilterPredicate) { method, overriddenMethod ->
+            handleInvalidApiMethodOverride(removedFilterPredicate) { method, overriddenMethod ->
                 "Attempting to hide ${method.describe()} which overrides ${overriddenMethod.describe()} which was part of the API but has now been removed"
             }
         }
     }
 
     /**
-     * Handles an attempt by this method to hide an override of an ancestor method that matches
-     * [predicate].
+     * Handles an attempt by this method to remove an override of a method that remains part of the
+     * active API by unremoving it (adopting the overridden method's API variants), clearing its
+     * removed status, and reporting an issue.
      *
-     * If such an overridden method is found, this unhides the method (when their erased parameter
-     * types match) by adopting the overridden method's [itemApiVariants], reports an
-     * [Issues.HIDING_API_METHOD_OVERRIDE] issue if appropriate, and returns `true`. Otherwise, this
-     * returns `false`.
+     * Returns `true` if this method was overriding an active API method (and was therefore kept in
+     * the API), or `false` if the removal is valid.
      */
-    private inline fun handleHidingApiMethodOverride(
+    private fun handleRemovingApiMethodOverride(): Boolean {
+        val apiSurfaces = selectedApiUpdater.apiSurfaces
+        // SelectedApiUpdater guarantees that rawItemApiVariants belongs to at most one ApiSurface,
+        // and only sets `removed = true` or `forRemoval = true` when `surface != null`.
+        val surface = rawItemApiVariants.narrowestSurfaceFor(apiSurfaces) ?: return false
+
+        // Match ancestor methods that remain active in the core API of `surface` (or any narrower
+        // surface included in `surface`). Ancestor methods that are immediately removed only have
+        // REMOVED variants and will not match `wholeCoreApi(surface)`. If this method's removal is
+        // deferred via a kept `@FlaggedApi` (`!removed && forRemoval`), also exclude ancestor
+        // methods that are similarly marked `forRemoval`.
+        val wholeCoreSurface = ApiSurfacePredicate.wholeCoreApi(surface)
+        val activeSuperPredicate =
+            if (removed) {
+                wholeCoreSurface
+            } else {
+                wholeCoreSurface.and(NotForRemovalPredicate)
+            }
+
+        return handleInvalidApiMethodOverride(
+            predicate = activeSuperPredicate,
+            clearRemoved = true,
+        ) { method, overriddenMethod ->
+            "Attempting to remove ${method.describe()} which overrides ${overriddenMethod.describe()} which is already part of the API"
+        }
+    }
+
+    /** [FilterPredicate] that matches items that are not marked [forRemoval]. */
+    private object NotForRemovalPredicate : FilterPredicate() {
+        override fun test(t: SelectableItem): Boolean =
+            (t.selectedApi as? SourceSelectedApi<*>)?.forRemoval != true
+    }
+
+    /**
+     * Handles an attempt by this method to hide or remove an override of an ancestor method that
+     * matches [predicate].
+     *
+     * If such an overridden method is found, this adopts the overridden method's [itemApiVariants]
+     * when their erased parameter types match, clears the removed status when [clearRemoved] is
+     * `true`, reports an [Issues.HIDING_API_METHOD_OVERRIDE] or
+     * [Issues.HIDING_API_METHOD_OVERRIDE_CLASSPATH] issue if appropriate, and returns `true`.
+     * Otherwise, this returns `false`.
+     */
+    private inline fun handleInvalidApiMethodOverride(
         predicate: FilterPredicate,
+        clearRemoved: Boolean = false,
         reportMessageProvider: (MethodItem, MethodItem) -> String,
     ): Boolean {
         // Find an ancestor method that matches the predicate; if none exists, this method is not
-        // hiding an API method override.
+        // hiding or invalidly removing an API method override.
         val overriddenMethod = item.findPredicateSuperMethod(predicate) ?: return false
 
         // If the erased parameter types match (which may not be true when overriding a generic
-        // method with specialized type arguments), unhide this method by adopting the overridden
-        // method's API variants.
-        if (MethodItem.overridesMethod(item, overriddenMethod)) {
-            itemApiVariants = overriddenMethod.selectedApi.itemApiVariants
+        // method with specialized type arguments), adopt the overridden method's API variants;
+        // otherwise clear any variants on this specialized method.
+        rawItemApiVariants =
+            if (MethodItem.overridesMethod(item, overriddenMethod)) {
+                overriddenMethod.selectedApi.itemApiVariants
+            } else {
+                ApiVariantSet.EMPTY
+            }
+
+        // If this was an invalid attempt to remove an override, clear its removed status so it is
+        // not treated as removed (or emitted with `@ForRemoval` by ModifierListWriter).
+        if (clearRemoved) {
+            removed = false
+            hasRemovedAnnotation = false
+            forRemoval = false
         }
 
         // Report an issue unless:
         // - The method is being reverted (e.g. via a disabled `@FlaggedApi`), as it was hidden by
         //   the revert rather than an explicit `@hide`.
         // - The issue is suppressed.
-        // - The overridden method comes from the classpath, as it may not be possible to determine
-        //   if a method in a jar matches a specific API version.
         // - A final class is hiding a protected method from its superclass, as there is no way to
         //   call a method of a final class through a protected method of the superclass.
         if (
             !revert &&
-                !item.codebase.reporter.isSuppressed(Issues.HIDING_API_METHOD_OVERRIDE) &&
-                overriddenMethod.origin != ClassOrigin.CLASS_PATH &&
                 !(item.containingClass().modifiers.isFinal() &&
                     overriddenMethod.modifiers.isProtected())
         ) {
-            item.codebase.reporter.report(
-                Issues.HIDING_API_METHOD_OVERRIDE,
-                item,
-                reportMessageProvider(item, overriddenMethod),
-            )
+            val issue =
+                when (overriddenMethod.origin) {
+                    ClassOrigin.CLASS_PATH -> Issues.HIDING_API_METHOD_OVERRIDE_CLASSPATH
+                    else -> Issues.HIDING_API_METHOD_OVERRIDE
+                }
+            if (!item.codebase.reporter.isSuppressed(issue)) {
+                item.codebase.reporter.report(
+                    issue,
+                    item,
+                    reportMessageProvider(item, overriddenMethod),
+                )
+            }
         }
         return true
     }
@@ -213,22 +309,16 @@ internal class MethodSourceSelectedApi(
                 val duplicateSuper = findDuplicateSuperMethod(item, item, referenceMask) ?: continue
 
                 // For a REMOVED variant, this method is only an elidable override if this method
-                // or the duplicate super method has a removed variant/annotation. If neither has a
-                // removed status, the override is purely in the core API and not part of the
-                // removed API.
+                // or the duplicate super method has a removed variant in itemApiVariants (rather
+                // than merely hasRemovedAnnotation(), which is also true for unfinalized flagged
+                // removals that remain in the core API). If neither has a removed variant, the
+                // override is purely in the core API and not part of the removed API.
                 if (variant.type == ApiVariantType.REMOVED) {
-                    val itemHasRemoved =
-                        hasRemovedAnnotation() ||
-                            selectedApiUpdater.apiSurfaces.all.any {
-                                it.variantFor(ApiVariantType.REMOVED) in itemApiVariants
-                            }
-                    val superHasRemoved =
-                        duplicateSuper.selectedApi.hasRemovedAnnotation() ||
-                            selectedApiUpdater.apiSurfaces.all.any {
-                                it.variantFor(ApiVariantType.REMOVED) in
-                                    duplicateSuper.selectedApi.itemApiVariants
-                            }
-                    if (!itemHasRemoved && !superHasRemoved) {
+                    val allRemoved = ApiVariantSet.ALL_REMOVED
+                    if (
+                        !rawItemApiVariants.containsAny(allRemoved) &&
+                            !duplicateSuper.selectedApi.itemApiVariants.containsAny(allRemoved)
+                    ) {
                         continue
                     }
                 }

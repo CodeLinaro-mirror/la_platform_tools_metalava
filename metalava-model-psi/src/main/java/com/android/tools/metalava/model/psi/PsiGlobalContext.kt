@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.psi
 
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.SkeletonClassItem
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.item.DefaultItemFactory
 import com.intellij.psi.PsiElement
@@ -47,4 +48,7 @@ internal interface PsiGlobalContext {
 
     /** Find a [PsiPackage] called [packageName], if possible. */
     fun findPsiPackage(packageName: String): PsiPackage?
+
+    /** Add any Kotlin properties to [classItem] when loaded from the classpath or source path. */
+    fun addPropertiesToClassFromClasspath(classItem: SkeletonClassItem)
 }

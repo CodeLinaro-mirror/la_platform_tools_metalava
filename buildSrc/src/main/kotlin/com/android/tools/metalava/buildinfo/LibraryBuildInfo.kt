@@ -121,7 +121,7 @@ fun List<Dependency>.asBuildInfoDependencies() =
     filter { it.group?.startsWith("com.android.tools.metalava") ?: false }
         .map {
             LibraryBuildInfoFile.Dependency().apply {
-                this.artifactId = it.name.toString()
+                this.artifactId = it.name
                 this.groupId = it.group.toString()
                 this.version = it.version.toString()
                 this.isTipOfTree = it is ProjectDependency

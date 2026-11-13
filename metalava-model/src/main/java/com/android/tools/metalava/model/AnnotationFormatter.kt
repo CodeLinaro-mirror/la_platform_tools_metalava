@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.api.surface.ReferenceKind
 import com.android.tools.metalava.model.value.AnnotationAttributeNameValueSeparator
 import com.android.tools.metalava.model.value.FieldReferenceValue
 import com.android.tools.metalava.model.value.LegacyValueFormatter
@@ -123,7 +124,9 @@ sealed interface AnnotationFormatter {
             purpose: AnnotationPurpose,
             context: Item?
         ) {
-            val alwaysInline = annotationItem.qualifiedName == ANDROID_FLAGGED_API
+            val alwaysInline =
+                annotationItem.qualifiedName == ANDROID_FLAGGED_API ||
+                    annotationItem.qualifiedName == ANDROID_SDK_EXTENSION_API
             val configuration =
                 if (alwaysInline) alwaysInlineConfiguration else defaultConfiguration
             annotationItem.appendAnnotationStringTo(
@@ -161,5 +164,18 @@ sealed interface AnnotationFormatter {
     }
 }
 
-/** True if this [FieldItem] is not-null, is not hidden or removed and is public. */
-internal fun FieldItem?.isAccessible(): Boolean = this != null && !isHiddenOrRemoved() && isPublic
+/**
+ * True if this [FieldItem] is not-null, is public, and is a valid [ReferenceKind.CODE] reference in
+ * the target API surface (i.e. not hidden, removed, or `@DocOnly`).
+ *
+ * Fields that are not accessible in code must have their constant values inlined when formatting
+ * annotations for signature and stub files.
+ */
+internal fun FieldItem?.isAccessible(): Boolean =
+    this != null &&
+        isPublic &&
+        codebase.apiSurfaces.referenceStrategy.isValidReference(
+            from = null,
+            to = this,
+            kind = ReferenceKind.CODE,
+        )

@@ -178,8 +178,10 @@ internal class KotlinBytecodeApis(private val globalContext: PsiGlobalContext) :
         val scope = GlobalSearchScope.allScope(project)
 
         for (qualifiedName in qualifiedClassNames) {
+            val classItem =
+                codebase.findClassInCodebase(qualifiedName) as? SkeletonClassItem ?: continue
+            if (!classItem.hasApiVisibility()) continue
             val psiClass = facade.findClass(qualifiedName, scope) ?: continue
-            val classItem = codebase.findClass(qualifiedName) as? SkeletonClassItem ?: continue
             // Find associated Kotlin metadata for the class. If there isn't any, this wasn't a
             // Kotlin source class and can be skipped.
             val metadataContainer = psiClass.getMetadataContainer() ?: continue
@@ -192,7 +194,8 @@ internal class KotlinBytecodeApis(private val globalContext: PsiGlobalContext) :
         for ((qualifiedName, classParts) in multiFileClassParts) {
             // Find the multi-file class itself in the codebase.
             val multiFileClassItem =
-                codebase.findClass(qualifiedName) as? SkeletonClassItem ?: continue
+                codebase.findClassInCodebase(qualifiedName) as? SkeletonClassItem ?: continue
+            if (!multiFileClassItem.hasApiVisibility()) continue
             for (classPartPath in classParts) {
                 // Find the psi and metadata corresponding to this part of the multi-file class.
                 val psiClassPart =

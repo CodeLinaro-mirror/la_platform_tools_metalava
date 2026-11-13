@@ -81,7 +81,13 @@ include(":metalava-model-source")
 include(":metalava-model-testsuite")
 include(":metalava-model-testsuite-cli")
 include(":metalava-model-text")
-include(":metalava-model-turbine")
+// Only include :turbine and :metalava-model-turbine when external/turbine is present in the
+// checkout (e.g. in aosp-metalava-main). Checkouts such as androidx-main and studio-main do not
+// include external/turbine and do not need :metalava-model-turbine.
+if (File(rootDir, "../../external/turbine").isDirectory) {
+    include(":turbine")
+    include(":metalava-model-turbine")
+}
 include(":metalava-reporter")
 include(":metalava-testing")
 include(":stub-annotations")

@@ -19,6 +19,7 @@ package com.android.tools.metalava.apilevels
 import com.android.tools.metalava.cli.common.BaseCommandTest
 import com.android.tools.metalava.cli.signature.ApiHistoryCommand
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
+import com.android.tools.metalava.testing.getPrebuiltsSdkDir
 import java.io.File
 import java.util.regex.Pattern
 import org.junit.Assert
@@ -116,7 +117,7 @@ abstract class ApiGeneratorIntegrationTestBase :
     companion object {
         internal val platformJars by
             lazy(LazyThreadSafetyMode.NONE) {
-                File("../../../prebuilts/sdk").canonicalFile.apply {
+                getPrebuiltsSdkDir().canonicalFile.apply {
                     if (!isDirectory) {
                         Assert.fail("prebuilts for platform jars not found: $this")
                     }

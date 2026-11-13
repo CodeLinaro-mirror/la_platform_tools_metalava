@@ -71,9 +71,11 @@ sealed interface ApiHistoryUpdater {
         private val isLatestExtVersion: Boolean,
     ) : ApiVersionUpdater(nextSdkVersion) {
         override fun update(api: Api) {
-            // Do not update the Api with the next sdk version as that could cause all classes
-            // which are not provided by an extension to be treated as being removed as they
-            // may not have been recorded as being part of the next sdk version.
+            // Record the version in the Api so that it is known when computing removed versions,
+            // but do not update api.lastPresentIn with the next sdk version as that could cause
+            // all classes which are not provided by an extension to be treated as being removed as
+            // they may not have been recorded as being part of the next sdk version.
+            api.recordVersion(apiVersion)
         }
 
         override fun update(apiElement: ApiElement, deprecated: Boolean) {

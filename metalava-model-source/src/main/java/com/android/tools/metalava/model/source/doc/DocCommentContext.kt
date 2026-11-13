@@ -34,6 +34,15 @@ import com.android.tools.metalava.model.source.javadoc.ExprContext
  */
 internal interface DocCommentContext : ExprBuilderContext, ExprContext {
     /**
+     * Resolve the qualified class name to emit in documentation references for [classItem].
+     *
+     * Defaults to [ClassItem.qualifiedName], unless [classItem] is an annotation class that is
+     * mapped to a different annotation in documentation stubs (for example,
+     * `android.annotation.Nullable` mapped to `androidx.annotation.Nullable`).
+     */
+    fun resolveClassReferenceName(classItem: ClassItem): String = classItem.qualifiedName()
+
+    /**
      * Compute the ordinal value for parameter [name] in the list of all `@param` tags.
      *
      * The `@param` tags can be used for type and callable parameters, sometimes in the same list.

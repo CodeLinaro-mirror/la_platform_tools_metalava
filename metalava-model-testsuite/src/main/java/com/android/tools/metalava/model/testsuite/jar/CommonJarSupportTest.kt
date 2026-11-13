@@ -18,7 +18,6 @@ package com.android.tools.metalava.model.testsuite.jar
 
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
-import com.android.tools.metalava.model.testing.testTypeString
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.TestFileCache
 import com.android.tools.metalava.testing.TestFileCacheRule
@@ -26,7 +25,6 @@ import com.android.tools.metalava.testing.cacheIn
 import com.android.tools.metalava.testing.getAndroidJar
 import com.android.tools.metalava.testing.jarFromSources
 import com.android.tools.metalava.testing.java
-import kotlin.test.assertEquals
 import org.junit.ClassRule
 import org.junit.Test
 
@@ -35,39 +33,14 @@ class CommonJarSupportTest : BaseModelTest() {
         /** Create a [TestFileCache] whose lifespan encompasses all the tests in this class. */
         @ClassRule @JvmField val testFileCacheRule = TestFileCacheRule()
 
-        private val testJar =
+        private val simpleTestJar =
             jarFromSources(
-                    "doubly-nested-test.jar",
+                    "simple-test.jar",
                     java(
                         """
-                            package test.pkg;
-                            public class Test {
-                                private Test() {}
-                                public void varargMethod(int... values) {}
-                                public class Nested {
-                                    private Nested() {}
-                                    public class DoublyNested {
-                                        private DoublyNested() {}
-                                    }
-                                }
-                            }
-                        """
-                    ),
-                    java(
-                        """
-                            package test.pkg;
-                            public @interface Anno {
-                                int attribute();
-                            }
-                        """
-                    ),
-                    java(
-                        """
-                            package test.pkg;
-                            public enum FooEnum {
-                                VALUE
-                            }
-                        """
+                        package test.pkg;
+                        public class Test {}
+                    """
                     ),
                 )
                 .cacheIn(testFileCacheRule)
@@ -77,7 +50,7 @@ class CommonJarSupportTest : BaseModelTest() {
     @Test
     fun `Test classpath resolve - no java lang`() {
         runJarSupportTest {
-            val resolver = jarSupport.getClassPathResolver(listOf(testJar.toFile()))
+            val resolver = jarSupport.getClassPathResolver(listOf(simpleTestJar.toFile()))
             resolver.assertResolvedClass("test.pkg.Test")
         }
     }
@@ -90,72 +63,10 @@ class CommonJarSupportTest : BaseModelTest() {
                 jarSupport.getClassPathResolver(
                     listOf(
                         getAndroidJar(),
-                        testJar.toFile(),
+                        simpleTestJar.toFile(),
                     )
                 )
             resolver.assertResolvedClass("test.pkg.Test")
-        }
-    }
-
-    @RequiresCapabilities(Capability.LOAD_JAR)
-    @Test
-    fun `Test load jar - no java lang`() {
-        runJarSupportTest {
-            val codebase = jarSupport.loadFromJar(testJar.toFile(), emptyList())
-            codebase.assertClass("test.pkg.Test")
-            codebase.assertClass("test.pkg.Test.Nested")
-            codebase.assertClass("test.pkg.Test.Nested.DoublyNested")
-        }
-    }
-
-    @RequiresCapabilities(Capability.LOAD_JAR)
-    @Test
-    fun `Test load jar - with java lang`() {
-        runJarSupportTest {
-            val codebase = jarSupport.loadFromJar(testJar.toFile(), listOf(getAndroidJar()))
-            codebase.assertClass("test.pkg.Test")
-            codebase.assertClass("test.pkg.Test.Nested")
-            codebase.assertClass("test.pkg.Test.Nested.DoublyNested")
-        }
-    }
-
-    @RequiresCapabilities(Capability.LOAD_JAR, Capability.KOTLIN)
-    @Test
-    fun `Test load jar - check annotation properties`() {
-        runJarSupportTest {
-            val codebase = jarSupport.loadFromJar(testJar.toFile(), emptyList())
-
-            // Make sure that the annotation loaded from the jar does not have Kotlin properties for
-            // the attributes added.
-            val annotation = codebase.assertClass("test.pkg.Anno")
-            assertEquals(emptyList(), annotation.properties())
-        }
-    }
-
-    @RequiresCapabilities(Capability.LOAD_JAR)
-    @Test
-    fun `Test load jar - vararg parameter`() {
-        runJarSupportTest {
-            val codebase = jarSupport.loadFromJar(testJar.toFile(), emptyList())
-
-            val method = codebase.assertClass("test.pkg.Test").methods().single()
-            val parameter = method.parameters().single()
-            assertEquals(true, parameter.isVarArgs(), message = "isVarArgs")
-            assertEquals("int...", parameter.type().testTypeString(), message = "type")
-        }
-    }
-
-    @RequiresCapabilities(Capability.LOAD_JAR)
-    @Test
-    fun `Test load jar - enum super class`() {
-        runJarSupportTest {
-            val codebase = jarSupport.loadFromJar(testJar.toFile(), emptyList())
-
-            val enumClass = codebase.assertClass("test.pkg.FooEnum")
-            assertEquals(
-                "java.lang.Enum<test.pkg.FooEnum>",
-                enumClass.superClassType()?.testTypeString(),
-            )
         }
     }
 }

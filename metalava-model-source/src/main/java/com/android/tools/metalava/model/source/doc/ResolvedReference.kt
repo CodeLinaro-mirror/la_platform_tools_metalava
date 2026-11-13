@@ -61,7 +61,8 @@ data class ClassReference(private val qualifiedName: String) : TypeReference {
 }
 
 /** Create a [ClassReference] from a [ClassItem]. */
-internal fun ClassItem.toResolvedReference() = ClassReference(qualifiedName())
+internal fun ClassItem.toResolvedReference(context: DocCommentContext) =
+    ClassReference(context.resolveClassReferenceName(this))
 
 /** A reference to a [TypeParameterItem]. */
 data class TypeParameterReference(private val name: String) : TypeReference {
@@ -87,8 +88,8 @@ data class FieldReference(
 }
 
 /** Create a [FieldReference] from a [FieldItem]. */
-internal fun FieldItem.toResolvedReference() =
-    FieldReference(containingClass().qualifiedName(), name())
+internal fun FieldItem.toResolvedReference(context: DocCommentContext) =
+    FieldReference(context.resolveClassReferenceName(containingClass()), name())
 
 /** A reference to a [CallableItem]. */
 data class CallableReference(

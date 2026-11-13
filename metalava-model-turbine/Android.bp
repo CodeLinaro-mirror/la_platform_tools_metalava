@@ -29,10 +29,11 @@ java_library_host {
         "metalava-reporter",
         "metalava-model-source",
 
-        "prebuilts-metalava-guava",
         "prebuilts-metalava-tracing",
     ],
     static_libs: [
-        "prebuilts-metalava-turbine",
+        // turbine-core (in external/turbine) statically links and exports guava
+        // and jspecify via exported_static_libs.
+        "turbine-core",
     ],
 }

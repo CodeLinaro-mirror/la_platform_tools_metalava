@@ -30,8 +30,8 @@ class ListOfStringPolicyAnnotationHandler(
      * policy.
      */
     override fun processPolicyAnnotation(annotation: AnnotationItem, item: Item): String {
-        val proxy = annotation.bindTo<ListOfStringPolicyDefinitionProxy>(item)
-        return proxy?.generateDocs() ?: ""
+        val proxy = annotation.bindTo<ListOfStringPolicyDefinitionProxy>(item) ?: return ""
+        return generateDocs(proxy, item)
     }
 }
 
@@ -50,25 +50,21 @@ data class ListOfStringPolicyDefinitionProxy(
     val pureWhitespaceAllowed: Boolean,
     val unstrippedStringAllowed: Boolean,
     val maxListLength: Int,
-) {
-    fun generateDocs() = buildString {
-        val tableEntries = buildList {
-            addAll(base.getTableEntries())
-            val resMechDocs = resolutionMechanism.generateDocs(base.item)
-            if (resMechDocs.isNotEmpty()) {
-                add(Pair("Conflict resolution mechanism", resMechDocs))
-            }
-            val policyValueValidations = buildList {
-                if (maxListLength != Int.MAX_VALUE) add("Length max $maxListLength items")
-                if (!emptyListAllowed) add("No empty list allowed")
-                if (!emptyStringAllowed) add("No empty string allowed")
-                if (!unprintableCharactersAllowed) add("No unprintable characters allowed")
-                if (!pureWhitespaceAllowed) add("No pure whitespace allowed")
-                if (!unstrippedStringAllowed) add("No unstripped string allowed")
-            }
-            add(Pair("Policy value", renderPolicyValue("List<String>", policyValueValidations)))
+) : DevicePolicy {
+    override fun generateDocRows(context: DevicePolicyContext): List<TableRow> = buildList {
+        addAll(base.generateDocRows())
+        val resMechDocs = resolutionMechanism.generateDocs(base.item)
+        if (resMechDocs.isNotEmpty()) {
+            add(TableRow("Conflict resolution mechanism", resMechDocs))
         }
-
-        append(renderTable(tableEntries))
+        val policyValueValidations = buildList {
+            if (maxListLength != Int.MAX_VALUE) add("Length max $maxListLength items")
+            if (!emptyListAllowed) add("No empty list allowed")
+            if (!emptyStringAllowed) add("No empty string allowed")
+            if (!unprintableCharactersAllowed) add("No unprintable characters allowed")
+            if (!pureWhitespaceAllowed) add("No pure whitespace allowed")
+            if (!unstrippedStringAllowed) add("No unstripped string allowed")
+        }
+        add(TableRow("Policy value", renderPolicyValue("List<String>", policyValueValidations)))
     }
 }

@@ -30,8 +30,8 @@ class ListOfEnumPolicyAnnotationHandler(
      * Processes the [ListOfEnumPolicyDefinitionProxy] and returns the documentation for the policy.
      */
     override fun processPolicyAnnotation(annotation: AnnotationItem, item: Item): String {
-        val proxy = annotation.bindTo<ListOfEnumPolicyDefinitionProxy>(item)
-        return proxy?.generateDocs(context) ?: ""
+        val proxy = annotation.bindTo<ListOfEnumPolicyDefinitionProxy>(item) ?: return ""
+        return generateDocs(proxy, item)
     }
 }
 
@@ -48,25 +48,21 @@ data class ListOfEnumPolicyDefinitionProxy(
     val emptyListAllowed: Boolean,
     val resolutionMechanism: ListResolutionMechanismProxy,
     val maxListLength: Int,
-) {
-    fun generateDocs(context: DevicePolicyContext) = buildString {
-        val tableEntries = buildList {
-            addAll(base.getTableEntries())
+) : DevicePolicy {
+    override fun generateDocRows(context: DevicePolicyContext): List<TableRow> = buildList {
+        addAll(base.generateDocRows())
 
-            val resolutionMechanismDocs = resolutionMechanism.generateDocs(base.item)
-            if (resolutionMechanismDocs.isNotEmpty()) {
-                add(Pair("Conflict resolution mechanism", resolutionMechanismDocs))
-            }
-
-            add(
-                Pair(
-                    "Policy value",
-                    renderPolicyValue("List<Integer>", getValueValidation(context)),
-                )
-            )
+        val resolutionMechanismDocs = resolutionMechanism.generateDocs(base.item)
+        if (resolutionMechanismDocs.isNotEmpty()) {
+            add(TableRow("Conflict resolution mechanism", resolutionMechanismDocs))
         }
 
-        append(renderTable(tableEntries))
+        add(
+            TableRow(
+                "Policy value",
+                renderPolicyValue("List<Integer>", getValueValidation(context)),
+            )
+        )
     }
 
     private fun getValueValidation(context: DevicePolicyContext): List<String> = buildList {

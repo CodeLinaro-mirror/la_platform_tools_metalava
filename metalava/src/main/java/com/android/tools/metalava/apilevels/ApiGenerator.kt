@@ -16,12 +16,21 @@
 package com.android.tools.metalava.apilevels
 
 import androidx.tracing.Tracer
+import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.trace
 import java.io.File
 import java.io.IOException
 
-/** Generates API version history. */
-class ApiGenerator(private val tracer: Tracer) {
+/**
+ * Generates API version history.
+ *
+ * @param tracer the [Tracer] to use for tracing execution.
+ * @param reporter the [Reporter] to use for reporting issues found in the API history.
+ */
+class ApiGenerator(
+    private val tracer: Tracer,
+    private val reporter: Reporter,
+) {
     /**
      * Generates an API version history file based on the API surfaces of the versions provided.
      *
@@ -36,6 +45,9 @@ class ApiGenerator(private val tracer: Tracer) {
 
         // If necessary, update the sdks properties.
         config.sdkExtensionsArguments?.let { sdkExtensionsArguments ->
+            // Remove and report any elements that were only present in older SDK extensions and
+            // therefore do not have an initialized `since` version before updating `sdks`.
+            api.removeInconsistentExtensionElements(reporter)
             tracer.trace("updateSdksAttributes") {
                 updateSdksAttributes(
                     api,
@@ -56,11 +68,7 @@ class ApiGenerator(private val tracer: Tracer) {
         val outputFile = config.outputFile
         val printer =
             when (val extension = outputFile.extension) {
-                "xml" -> {
-                    val availableSdkExtensions =
-                        config.sdkExtensionsArguments?.sdkExtensionInfo?.availableSdkExtensions
-                    ApiXmlPrinter(availableSdkExtensions, versionedApis)
-                }
+                "xml" -> ApiXmlPrinter()
                 "json" -> ApiJsonPrinter()
                 else ->
                     error(
@@ -87,6 +95,7 @@ class ApiGenerator(private val tracer: Tracer) {
         versionNotInAndroidSdk: ApiVersion,
         sdkExtensionInfo: SdkExtensionInfo,
     ) {
+        api.availableSdkExtensions = sdkExtensionInfo.availableSdkExtensions
         for (clazz in api.classes) {
             val module = clazz.mainlineModule ?: continue
 

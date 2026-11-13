@@ -32,7 +32,6 @@ internal class TurbineSourceParser(
     tracer: Tracer,
 ) :
     AbstractSourceParser(
-        turbineEnvironment,
         codebaseConfig,
         tracer,
     ) {
@@ -55,7 +54,6 @@ internal class TurbineSourceParser(
         description: String,
         apiPackages: PackageFilter?,
         compiledSourceJar: File?,
-        includeKotlinInCodebase: Boolean,
     ): Codebase? {
         if (turbineEnvironment.projectDescription != null) {
             error("Turbine model does not support --project")

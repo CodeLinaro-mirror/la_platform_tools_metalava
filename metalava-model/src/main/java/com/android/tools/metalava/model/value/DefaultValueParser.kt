@@ -666,20 +666,6 @@ class DefaultValueParser(
                 signToken.text(sourceText) + numToken.text(sourceText)
             }
 
-        // TODO(b/354633349): Temporary workaround that is needed because some historical files from
-        //  `prebuilts/sdk` have expressions like `0x40000000 - 1`. Those files have been fixed
-        //  downstream but the `prebuilts/sdk` repository is not modifiable in aosp/metalava-main.
-        if (tokens.peekType() == SharedTokenType.MINUS) {
-            tokens.consume() // consume '-'
-            val subtrahend = tokens.consume()
-            val subtrahendText = subtrahend.text(sourceText)
-            require(subtrahendText == "1") {
-                """Expected "... - 1" but found "... - $subtrahendText""""
-            }
-            val patchedInt = Integer.decode(numberText) - 1
-            return createLiteralValue(optionalTypeItem, patchedInt, nonLiteralInSource = false)
-        }
-
         return parseNumber(optionalTypeItem, numberText)
     }
 

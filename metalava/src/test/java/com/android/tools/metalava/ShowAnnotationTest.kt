@@ -728,6 +728,7 @@ class ShowAnnotationTest : DriverTest() {
                         method @BytecodeOnly @kotlin.PublishedApi internal void publishedMethod();
                       }
                       @BytecodeOnly @kotlin.PublishedApi internal final class PublishedClass {
+                        ctor public PublishedClass();
                         method public void method();
                       }
                     }
@@ -803,6 +804,7 @@ class ShowAnnotationTest : DriverTest() {
                         method @BytecodeOnly @kotlin.PublishedApi internal void publishedMethod();
                       }
                       @BytecodeOnly @kotlin.PublishedApi internal final class PublishedClass {
+                        ctor public PublishedClass();
                         method public void method();
                       }
                     }
@@ -839,6 +841,7 @@ class ShowAnnotationTest : DriverTest() {
                         method public void foo();
                       }
                       @BytecodeOnly @kotlin.PublishedApi internal final class PublishedClass implements test.pkg.PublicInterface {
+                        ctor public PublishedClass();
                         method public void foo();
                       }
                     }

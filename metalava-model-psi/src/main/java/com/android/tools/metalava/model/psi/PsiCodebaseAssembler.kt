@@ -18,7 +18,6 @@ package com.android.tools.metalava.model.psi
 
 import androidx.tracing.Tracer
 import com.android.tools.lint.UastEnvironment
-import com.android.tools.lint.annotations.Extractor
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassItem
@@ -41,6 +40,7 @@ import com.android.tools.metalava.model.source.SourcePackageInfo
 import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.reporter.Issues
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.vfs.StandardFileSystems
 import com.intellij.psi.JavaPsiFacade
 import com.intellij.psi.JavaRecursiveElementVisitor
 import com.intellij.psi.PsiClass
@@ -51,10 +51,12 @@ import com.intellij.psi.PsiErrorElement
 import com.intellij.psi.PsiFile
 import com.intellij.psi.PsiImportStatement
 import com.intellij.psi.PsiJavaFile
+import com.intellij.psi.PsiManager
 import com.intellij.psi.PsiPackage
 import com.intellij.psi.PsiTypeParameter
 import com.intellij.psi.javadoc.PsiDocComment
 import com.intellij.psi.search.GlobalSearchScope
+import java.io.File
 import org.jetbrains.kotlin.asJava.classes.KtLightClassForFacade
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.psi.KtFile
@@ -293,9 +295,6 @@ internal class PsiCodebaseAssembler(
                 )
             }
 
-        // Add any Kotlin properties to the class.
-        kaCodebaseAssembler?.addPropertiesToClassFromClasspath(createdClassItem)
-
         // Select the class item to return.
         return if (missingPsiClass == psiClass) {
             // The created class item was what was requested so just return it.
@@ -305,6 +304,10 @@ internal class PsiCodebaseAssembler(
             // containing class was created.
             psiCodebase.findClass(psiClass)!!
         }
+    }
+
+    override fun addPropertiesToClassFromClasspath(classItem: SkeletonClassItem) {
+        kaCodebaseAssembler?.addPropertiesToClassFromClasspath(classItem)
     }
 
     /** Lists all packages in the psi project. */
@@ -317,14 +320,21 @@ internal class PsiCodebaseAssembler(
         return listPackages(rootPackage).toSet()
     }
 
+    private fun createUnitsForFiles(project: Project, files: List<File>): List<PsiFile> {
+        val fileSystem = StandardFileSystems.local()
+        val manager = PsiManager.getInstance(project)
+        return files.mapNotNull { file ->
+            fileSystem.findFileByPath(file.path)?.let { manager.findFile(it) }
+        }
+    }
+
     internal fun initializeFromSources(
         sourceSet: SourceSet,
         apiPackages: PackageFilter?,
-        includeKotlinInCodebase: Boolean,
         tracer: Tracer,
     ) {
         // Get the list of `PsiFile`s from the `SourceSet`.
-        val psiFiles = Extractor.createUnitsForFiles(uastEnvironment.ideaProject, sourceSet.sources)
+        val psiFiles = createUnitsForFiles(uastEnvironment.ideaProject, sourceSet.sources)
 
         // Get the `PsiClass`es from the `PsiFile`s.
         val psiClasses =
@@ -337,12 +347,10 @@ internal class PsiCodebaseAssembler(
 
         // Add type aliases.
         val kotlinFiles = psiFiles.filterIsInstance<KtFile>()
-        if (includeKotlinInCodebase) {
-            kaCodebaseAssembler =
-                psiCodebase.mainAnalysisModule?.let {
-                    KaCodebaseAssembler(kotlinFiles, psiCodebase, apiPackages)
-                }
-        }
+        kaCodebaseAssembler =
+            psiCodebase.mainAnalysisModule?.let {
+                KaCodebaseAssembler(kotlinFiles, psiCodebase, apiPackages)
+            }
 
         kaCodebaseAssembler?.apply {
             // Provide a list of all packages when all typealiases are needed in order to inline
@@ -390,15 +398,28 @@ internal class PsiCodebaseAssembler(
      * non-type use annotations from the type.
      */
     fun correctIncorrectlyAppliedAnnotations() {
-        // Iterate over all the classes in all the packages.
-        for (classItem in codebase.getPackages().allClasses()) {
-            // Ignore any Kotlin classes as Kotlin syntax unambiguously differentiates between
-            // type use and declaration annotations so does not have the problem of incorrectly
-            // applied annotations.
-            if (classItem.sourceLanguage == SourceLanguage.KOTLIN) continue
+        for (pkg in codebase.getPackages().packages) {
+            if (!pkg.emit) continue
+            for (classItem in pkg.topLevelClasses()) {
+                correctIncorrectlyAppliedAnnotations(classItem)
+            }
+        }
+    }
 
-            // Iterate over all the methods in each class.
+    private fun correctIncorrectlyAppliedAnnotations(classItem: ClassItem) {
+        // Skip non-emitted classes and classes without API visibility (e.g. private,
+        // package-private, or non-@PublishedApi internal) so that their nested classes, methods,
+        // and return types are not traversed or modified.
+        if (!classItem.emit || !classItem.modifiers.hasApiVisibility()) return
+
+        // Ignore any Kotlin classes as Kotlin syntax unambiguously differentiates between
+        // type use and declaration annotations so does not have the problem of incorrectly
+        // applied annotations.
+        if (classItem.sourceLanguage != SourceLanguage.KOTLIN) {
+            // Iterate over all the methods in the class.
             for (methodItem in classItem.methods()) {
+                if (!methodItem.modifiers.hasApiVisibility()) continue
+
                 // Ignore methods that have no type parameters.
                 if (methodItem.typeParameterList.isEmpty()) continue
 
@@ -416,6 +437,10 @@ internal class PsiCodebaseAssembler(
                     methodItem.setType(newReturnType)
                 }
             }
+        }
+
+        for (nestedClass in classItem.nestedClasses()) {
+            correctIncorrectlyAppliedAnnotations(nestedClass)
         }
     }
 
