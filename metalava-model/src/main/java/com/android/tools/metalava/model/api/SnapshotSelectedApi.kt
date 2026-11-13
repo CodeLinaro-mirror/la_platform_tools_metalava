@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.api
 
 import com.android.tools.metalava.model.SelectableItem
+import com.android.tools.metalava.model.api.flags.FlagState
 import com.android.tools.metalava.model.api.surface.ApiVariant
 import com.android.tools.metalava.model.api.surface.ApiVariantSet
 
@@ -41,6 +42,10 @@ internal class SnapshotSelectedApi : SelectedApi() {
     override val revertItem: SelectableItem?
         get() = null
 
+    /** Effective `@FlaggedApi` [FlagState] copied from the snapshotted item. */
+    override var flagState: FlagState = FlagState.NONE
+        private set
+
     /** Whether the snapshotted item has a removed annotation. */
     private var hasRemovedAnnotation: Boolean = false
 
@@ -62,6 +67,7 @@ internal class SnapshotSelectedApi : SelectedApi() {
         contentApiVariants = original.contentApiVariants
         superClassApiVariants = original.superClassApiVariants
         elidableApiVariants = original.elidableApiVariants
+        flagState = original.flagState
         hasRemovedAnnotation = original.hasRemovedAnnotation()
         wasPreviouslyReleased = original.wasPreviouslyReleased()
     }

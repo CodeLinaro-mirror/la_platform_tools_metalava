@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.api.flags.ApiFlagAction
+import com.android.tools.metalava.model.api.flags.FlagState
 import com.android.tools.metalava.model.api.surface.ApiVariant
 import com.android.tools.metalava.model.api.surface.ApiVariantSet
 import com.android.tools.metalava.reporter.Issues
@@ -161,6 +162,14 @@ internal sealed class SourceSelectedApi<S : SelectableItem>(
     var flaggedApiAnnotation: AnnotationItem? = null
         internal set
 
+    override var ignoreOwnFlaggedApi: Boolean = false
+
+    /** Backing property for [flagState], or `null` if it has not yet been computed. */
+    private var _flagState: FlagState? = null
+
+    override val flagState: FlagState
+        get() = _flagState ?: computeFlagState(item).also { _flagState = it }
+
     /**
      * Backing property for [itemApiVariants] so internal updates and checks during initialization
      * do not trigger lazy child initialization in [PackageSourceSelectedApi] or
@@ -280,6 +289,8 @@ internal sealed class SourceSelectedApi<S : SelectableItem>(
         docOnly = other.docOnly
         removed = other.removed
         hasRemovedAnnotation = other.hasRemovedAnnotation
+        ignoreOwnFlaggedApi = other.ignoreOwnFlaggedApi
+        _flagState = other._flagState
         forRemoval = other.forRemoval
         revert = other.revert
         revertItem = other.revertItem

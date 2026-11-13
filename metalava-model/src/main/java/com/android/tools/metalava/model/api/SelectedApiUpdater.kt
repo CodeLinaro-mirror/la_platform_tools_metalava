@@ -94,6 +94,10 @@ class SelectedApiUpdater(
     internal fun markAsHidden(selectedApi: SourceSelectedApi<*>, revert: Boolean) {
         selectedApi.revert = revert
         selectedApi.revertItem = null
+
+        // Clear any `@removed` flag recorded earlier in `updateSelectedApi` before hiding.
+        selectedApi.removed = false
+
         // A hidden item does not belong to any API surfaces.
         selectedApi.rawItemApiVariants = ApiVariantSet.EMPTY
         selectedApi.inheritableApiVariants = ApiVariantSet.EMPTY
@@ -400,10 +404,11 @@ class SelectedApiUpdater(
             }
 
             // If this item has a removed annotation, is enclosed within a removed parent, or has a
-            // doc tag of @removed then make it removed; otherwise if it has a kept @FlaggedApi
-            // removal or is enclosed within a forRemoval parent (and is not reverting to a
-            // previously released item) then mark it as forRemoval.
-            if (removed || parent.removed || item.hasRemovedDocTag) {
+            // doc tag of @removed (and is not reverting to a previously released item) then make
+            // it removed; otherwise if it has a kept @FlaggedApi removal or is enclosed within a
+            // forRemoval parent (and is not reverting to a previously released item) then mark it
+            // as forRemoval.
+            if (revertedItem == null && (removed || parent.removed || item.hasRemovedDocTag)) {
                 selectedApi.removed = true
             } else if (revertedItem == null && (forRemoval || parent.forRemoval)) {
                 selectedApi.forRemoval = true

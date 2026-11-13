@@ -243,8 +243,13 @@ internal class MethodSourceSelectedApi(
             }
 
         // If this was an invalid attempt to remove an override, clear its removed status so it is
-        // not treated as removed (or emitted with `@ForRemoval` by ModifierListWriter).
+        // not treated as removed (or emitted with `@ForRemoval` by ModifierListWriter), and ignore
+        // any `@FlaggedApi` annotation that was paired with its removed annotation when computing
+        // `flagState`.
         if (clearRemoved) {
+            if (hasRemovedAnnotation) {
+                ignoreOwnFlaggedApi = true
+            }
             removed = false
             hasRemovedAnnotation = false
             forRemoval = false

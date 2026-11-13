@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.api
 
+import com.android.tools.metalava.model.ANDROID_FLAGGED_API
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
@@ -24,8 +25,11 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SelectableItem
+import com.android.tools.metalava.model.api.flags.FlagState
+import com.android.tools.metalava.model.api.flags.optionalFlagName
 import com.android.tools.metalava.model.api.surface.ApiVariant
 import com.android.tools.metalava.model.api.surface.ApiVariantSet
+import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.item.DefaultSelectableItem
 
 /** Provides access to the [ApiVariantSet] to which a specific [SelectableItem] belongs. */
@@ -73,6 +77,77 @@ sealed class SelectedApi {
      * to be reverted.
      */
     abstract val revertItem: SelectableItem?
+
+    /**
+     * The effective `@FlaggedApi` [FlagState] of the associated [SelectableItem], combining the
+     * item's own `@FlaggedApi` annotation and removal state with that of any enclosing
+     * [ClassItem]s.
+     */
+    abstract val flagState: FlagState
+
+    /**
+     * Whether any `@FlaggedApi` annotation directly on the associated [SelectableItem] should be
+     * ignored when computing [flagState] (e.g. when a `@RemovedFromApi @FlaggedApi` annotation on a
+     * method override was invalidated because the overridden method remains active in the API).
+     */
+    protected open val ignoreOwnFlaggedApi: Boolean
+        get() = false
+
+    /**
+     * Computes the effective [FlagState] for [item], combining its own state with that of any
+     * visible enclosing [ClassItem].
+     */
+    protected fun computeFlagState(item: SelectableItem): FlagState {
+        val ownState = computeOwnFlagState(item)
+        val containingClass = item.containingClass()
+        return if (
+            containingClass != null && containingClass.selectedApi.itemApiVariants.isNotEmpty()
+        ) {
+            ownState combineWith containingClass.selectedApi.flagState
+        } else {
+            ownState
+        }
+    }
+
+    /** Computes the [FlagState] directly contributed by [item] without enclosing class flags. */
+    private fun computeOwnFlagState(item: SelectableItem): FlagState {
+        // An item is in `RemovalFlagState.Removed` when all of its API variants are `REMOVED`
+        // (i.e. it is non-empty and `isHiddenOrRemoved()` is true).
+        val isRemoved = itemApiVariants.isNotEmpty() && itemApiVariants.isHiddenOrRemoved()
+        val baseState = if (isRemoved) FlagState.REMOVED else FlagState.NONE
+
+        // If the item is reverting to a previously released item, or its own `@FlaggedApi`
+        // annotation was invalidated (e.g. an invalid `@RemovedFromApi @FlaggedApi` override of an
+        // active superclass method), its own `@FlaggedApi` annotation does not apply.
+        if (revertItem != null || ignoreOwnFlaggedApi) return baseState
+
+        // Find any `@FlaggedApi` annotation directly on `item` (or on its exposed backing field
+        // when `item` is a Kotlin `PropertyItem` annotated with `@field:FlaggedApi`).
+        val annotation =
+            item.modifiers.findAnnotation(ANDROID_FLAGGED_API)
+                ?: (item as? PropertyItem)
+                    ?.backingField
+                    ?.takeIf { it.modifiers.hasApiVisibility() }
+                    ?.modifiers
+                    ?.findAnnotation(ANDROID_FLAGGED_API)
+                ?: return baseState
+
+        val flagName = annotation.optionalFlagName
+        if (flagName.isNullOrEmpty()) return baseState
+        val action = annotation.apiFlag?.action
+        val flagState =
+            when {
+                // `@RemovedFromApi` + `@FlaggedApi` schedules removal (checked before
+                // `wasPreviouslyReleased()` because scheduled removal applies to released APIs).
+                hasRemovedAnnotation() -> FlagState.removalFlag(flagName, action)
+
+                // An addition `@FlaggedApi` on an already-released item cannot strip it from the
+                // API.
+                wasPreviouslyReleased() -> FlagState.NONE
+                else -> FlagState.additionFlag(flagName, action)
+            }
+        return baseState combineWith flagState
+    }
 
     /**
      * Checks to see if the associated [SelectableItem] contains any removed annotations (or was
