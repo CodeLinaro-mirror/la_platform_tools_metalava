@@ -16,6 +16,9 @@
 
 package com.android.tools.metalava.model.testsuite.documentation
 
+import com.android.tools.metalava.model.api.ApiSurfaceRules
+import com.android.tools.metalava.model.api.SurfaceSelectionRule
+import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.source.doc.DocContentPredicates
 import com.android.tools.metalava.model.testing.SupportedInputFormats
@@ -576,6 +579,159 @@ class CommonDocReferenceTest : BaseModelTest() {
                     MAIN_SRC/src/test/pkg/Test.java:18:16: warning: Class test.pkg.Test.HiddenException is hidden (ErrorWhenNew) [HiddenDocReference]
                 """
             )
+        }
+    }
+
+    /**
+     * Verify that documentation on `@hide` classes, members of `@hide` classes, and `@hide` methods
+     * in public classes does not report `HiddenDocReference` when referencing hidden targets, even
+     * when printing strips `@hide` tags.
+     */
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `Test hidden referencing items`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+                        /** @hide */
+                        public class HiddenTarget {}
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        /**
+                         * {@link #method()}
+                         * {@link HiddenTarget}
+                         * @hide
+                         */
+                        public class HiddenReferencer {
+                            /** {@link HiddenTarget} */
+                            public void method() {}
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        public class Test {
+                            /**
+                             * {@link HiddenTarget}
+                             * @hide
+                             */
+                            public void hiddenMethod() {}
+                        }
+                    """
+                ),
+            ),
+        ) {
+            val hiddenReferencer = codebase.assertClass("test.pkg.HiddenReferencer")
+            hiddenReferencer.assertPrintedDocumentation(
+                expectedOutput =
+                    """
+                        /**
+                         * {@link #method()}
+                         * {@link test.pkg.HiddenTarget HiddenTarget}
+                         */
+                    """,
+            )
+            hiddenReferencer
+                .methods()
+                .single()
+                .assertPrintedDocumentation(
+                    expectedOutput = """/** {@link test.pkg.HiddenTarget HiddenTarget} */""",
+                )
+
+            val testClass = codebase.assertClass("test.pkg.Test")
+            testClass
+                .assertMethod("hiddenMethod", emptyList())
+                .assertPrintedDocumentation(
+                    expectedOutput = """/** {@link test.pkg.HiddenTarget HiddenTarget} */""",
+                )
+
+            // TODO(b/568477816): Skip checking references in documentation on items that are not
+            //  themselves documented.
+            assertAndRemoveReportedIssues(
+                """
+                    MAIN_SRC/src/test/pkg/HiddenReferencer.java:4:11: warning: Class test.pkg.HiddenTarget is hidden (ErrorWhenNew) [HiddenDocReference]
+                    MAIN_SRC/src/test/pkg/HiddenReferencer.java:8:16: warning: Class test.pkg.HiddenTarget is hidden (ErrorWhenNew) [HiddenDocReference]
+                    MAIN_SRC/src/test/pkg/Test.java:4:15: warning: Class test.pkg.HiddenTarget is hidden (ErrorWhenNew) [HiddenDocReference]
+                """
+            )
+        }
+    }
+
+    /**
+     * Verify that documentation on public API items can reference `@DocOnly` classes and their
+     * members without reporting `HiddenDocReference`.
+     */
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `Test doconly references`() {
+        // Configure `@test.pkg.DocOnly` with `DOC_ONLY` effect (legacy `@doconly` Javadoc tags
+        // are unsupported).
+        val apiSurfaces = ApiSurfaces.create()
+        val rulesByName = mapOf("main" to listOf(SurfaceSelectionRule.unannotated))
+        val variantRules =
+            listOf(
+                SurfaceSelectionRule.createAnnotationRule(
+                    "test.pkg.DocOnly",
+                    effect = SurfaceSelectionRule.Effect.DOC_ONLY,
+                ),
+            )
+        val apiSurfaceRules = ApiSurfaceRules(apiSurfaces, rulesByName, variantRules)
+
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+                        import java.lang.annotation.Retention;
+                        import java.lang.annotation.RetentionPolicy;
+                        @Retention(RetentionPolicy.SOURCE)
+                        @interface DocOnly {}
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        @DocOnly
+                        public class DocOnlyClass {
+                            public int field;
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        public class Test {
+                            /**
+                             * {@link DocOnlyClass}
+                             * {@link DocOnlyClass#field}
+                             */
+                            public void publicMethod() {}
+                        }
+                    """
+                ),
+            ),
+            testFixture = TestFixture(apiSurfaceRules = apiSurfaceRules),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+            testClass
+                .assertMethod("publicMethod", emptyList())
+                .assertPrintedDocumentation(
+                    expectedOutput =
+                        """
+                            /**
+                             * {@link test.pkg.DocOnlyClass DocOnlyClass}
+                             * {@link test.pkg.DocOnlyClass#field DocOnlyClass.field}
+                             */
+                        """,
+                )
+
+            assertAndRemoveReportedIssues("")
         }
     }
 }

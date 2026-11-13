@@ -44,6 +44,8 @@ import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.LocationSpecificReporter
 import com.android.tools.metalava.reporter.RecordingReporter
 import java.io.File
+import java.io.PrintWriter
+import java.io.StringWriter
 import kotlin.test.assertEquals
 import org.junit.Test
 
@@ -241,6 +243,73 @@ class AbstractItemDocumentationTest {
         assertEquals(
             "warning: Field test.pkg.PublicClass.packagePrivateField is not public (ErrorWhenNew) [HiddenDocReference]",
             context.checkReference(referencer, packagePrivateField),
+        )
+    }
+
+    @Test
+    fun `Test checkReference from non-documented items`() {
+        val context = TestContext()
+        val hiddenTarget = context.createClass("test.pkg.HiddenTarget", doc = "/** @hide */")
+
+        val hiddenClass = context.createClass("test.pkg.HiddenClass", doc = "/** @hide */")
+        val fieldInHiddenClass = context.createField(hiddenClass, "field")
+        val publicClass = context.createClass("test.pkg.PublicClass")
+        val hiddenField = context.createField(publicClass, "hiddenField", doc = "/** @hide */")
+        val removedClass = context.createClass("test.pkg.RemovedClass", doc = "/** @removed */")
+        val removedAnnotatedClass =
+            context.createClass(
+                "test.pkg.RemovedAnnotatedClass",
+                annotationNames = listOf(TestableApiSurfaces.REMOVED_FROM_API.qualifiedName),
+            )
+        val printedHiddenClass =
+            context.createClass(
+                "test.pkg.PrintedHiddenClass",
+                doc = "/**\n * Summary.\n * @hide\n */",
+            )
+        val docOnlyClass =
+            context.createClass(
+                "test.pkg.DocOnlyClass",
+                annotationNames = listOf(TestableApiSurfaces.DOC_ONLY.qualifiedName),
+            )
+
+        // TODO(b/568477816): `checkReference` currently checks target visibility even when the
+        //  referencing item is hidden or removed, producing false-positive `HiddenDocReference`
+        //  warnings on non-documented items.
+        assertEquals(
+            "warning: Class test.pkg.HiddenTarget is hidden (ErrorWhenNew) [HiddenDocReference]",
+            context.checkReference(hiddenClass, hiddenTarget),
+        )
+        assertEquals(
+            "warning: Class test.pkg.HiddenTarget is hidden (ErrorWhenNew) [HiddenDocReference]",
+            context.checkReference(fieldInHiddenClass, hiddenTarget),
+        )
+        assertEquals(
+            "warning: Class test.pkg.HiddenTarget is hidden (ErrorWhenNew) [HiddenDocReference]",
+            context.checkReference(hiddenField, hiddenTarget),
+        )
+        assertEquals(
+            "warning: Class test.pkg.HiddenTarget is hidden (ErrorWhenNew) [HiddenDocReference]",
+            context.checkReference(removedClass, hiddenTarget),
+        )
+        assertEquals(
+            "warning: Class test.pkg.HiddenTarget is hidden (ErrorWhenNew) [HiddenDocReference]",
+            context.checkReference(removedAnnotatedClass, hiddenTarget),
+        )
+
+        val printedDoc =
+            StringWriter()
+                .also { printedHiddenClass.requiredDocumentation.print(PrintWriter(it)) }
+                .toString()
+        assertEquals("/** Summary. */", printedDoc.trim())
+        assertEquals(
+            "warning: Class test.pkg.HiddenTarget is hidden (ErrorWhenNew) [HiddenDocReference]",
+            context.checkReference(printedHiddenClass, hiddenTarget),
+        )
+
+        // `@DocOnly` items are still documented, so references from them to hidden targets report.
+        assertEquals(
+            "warning: Class test.pkg.HiddenTarget is hidden (ErrorWhenNew) [HiddenDocReference]",
+            context.checkReference(docOnlyClass, hiddenTarget),
         )
     }
 }
