@@ -20,7 +20,6 @@ import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.testing.BaseTemporaryFolderOwner
 import com.android.tools.metalava.testing.java
 import com.google.common.collect.ImmutableList
-import com.google.common.util.concurrent.MoreExecutors
 import com.google.turbine.binder.Binder
 import com.google.turbine.binder.ClassPathBinder
 import com.google.turbine.binder.JimageClassBinder
@@ -30,6 +29,7 @@ import com.google.turbine.binder.env.CompoundEnv
 import com.google.turbine.binder.env.SimpleEnv
 import com.google.turbine.binder.sym.ClassSymbol
 import com.google.turbine.diag.SourceFile
+import com.google.turbine.parallel.TurbineExecutor
 import com.google.turbine.parse.Parser
 import com.google.turbine.tree.Tree
 import com.google.turbine.tree.Tree.Ident
@@ -55,7 +55,7 @@ class TurbineFieldResolverTest : BaseTemporaryFolderOwner() {
         val bootClassPath = JimageClassBinder.bindDefault()
         val result =
             Binder.bind(
-                MoreExecutors.newDirectExecutorService(),
+                TurbineExecutor.direct(),
                 units,
                 classPath,
                 bootClassPath,

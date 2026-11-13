@@ -27,7 +27,6 @@ import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import com.google.common.collect.ImmutableList
 import com.google.common.collect.ImmutableMap
-import com.google.common.util.concurrent.MoreExecutors
 import com.google.turbine.binder.Binder
 import com.google.turbine.binder.Binder.BindingResult
 import com.google.turbine.binder.ClassPath
@@ -38,6 +37,7 @@ import com.google.turbine.diag.SourceFile
 import com.google.turbine.diag.TurbineDiagnostic
 import com.google.turbine.diag.TurbineError
 import com.google.turbine.diag.TurbineLog
+import com.google.turbine.parallel.TurbineExecutor
 import com.google.turbine.parse.Parser
 import com.google.turbine.tree.Tree.CompUnit
 import java.io.File
@@ -230,7 +230,7 @@ internal class TurbineEnvironment(
                 )
 
             tracer.trace("turbine.bind") {
-                MoreExecutors.newDirectExecutorService().use { executor ->
+                TurbineExecutor.direct().use { executor ->
                     // Bind the units
                     bindingResult =
                         Binder.bind(
@@ -299,13 +299,17 @@ internal class TurbineEnvironment(
             // Ignore any that do not match the predicate.
             if (!predicate(diagnostic)) continue
 
-            val path = diagnostic.path()
             val location =
-                FileLocation.createLocation(
-                    Paths.get(path),
-                    line = diagnostic.line(),
-                    characterPosition = diagnostic.column()
-                )
+                diagnostic
+                    .path()
+                    .map { path ->
+                        FileLocation.createLocation(
+                            Paths.get(path),
+                            line = diagnostic.line(),
+                            characterPosition = diagnostic.column()
+                        )
+                    }
+                    .orElse(FileLocation.UNKNOWN)
             reporter.report(Issues.INVALID_SYNTAX, null, diagnostic.message(), location)
         }
         clear()
