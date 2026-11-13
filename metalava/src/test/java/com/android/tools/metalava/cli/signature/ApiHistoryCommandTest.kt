@@ -22,6 +22,7 @@ import com.android.tools.metalava.CONFIG_FILE_OPTIONS_HELP
 import com.android.tools.metalava.KnownConfigFiles
 import com.android.tools.metalava.apilevels.VersionedApi
 import com.android.tools.metalava.cli.common.BaseCommandTest
+import com.android.tools.metalava.cli.common.ISSUE_REPORTING_OPTIONS_HELP
 import com.android.tools.metalava.testing.signature
 import com.android.tools.metalava.testing.xml
 import com.google.gson.GsonBuilder
@@ -105,6 +106,8 @@ Options:
   -h, -?, --help                             Show this message and exit
 
 $CONFIG_FILE_OPTIONS_HELP
+
+$ISSUE_REPORTING_OPTIONS_HELP
     """
         .trimIndent()
 
@@ -970,6 +973,243 @@ class ApiHistoryCommandTest : BaseCommandTest<ApiHistoryCommand>({ ApiHistoryCom
                     outputXml.readText().trim(),
                 )
             }
+        }
+    }
+
+    @Test
+    fun `Test SDK extensions with inconsistent API history`() {
+        val sdkInfoXml =
+            xml(
+                    "sdk-extensions-info.xml",
+                    """
+                        <?xml version="1.0" encoding="utf-8"?>
+                        <sdk-extensions-info>
+                          <sdk
+                            id="30"
+                            shortname="R-ext"
+                            name="R Extensions"
+                            reference="android/os/Build${'$'}VERSION_CODES${'$'}R" />
+                          <symbol
+                            jar="framework-ext"
+                            pattern="*"
+                            sdks="R-ext" />
+                        </sdk-extensions-info>
+                    """,
+                )
+                .createFile(temporaryFolder.root)
+
+        val sdk30 =
+            signature(
+                    "sdk/30/public/api/android.txt",
+                    """
+                        // Signature format: 2.0
+                        package java.lang {
+                          public class Object {
+                            ctor public Object();
+                          }
+                        }
+                        package test.pkg {
+                          public class ExtClass {
+                            ctor public ExtClass();
+                            method public void methodIn30();
+                          }
+                          public interface OldInterface {
+                          }
+                          public class OldSuperClass {
+                            ctor public OldSuperClass();
+                          }
+                        }
+                    """,
+                )
+                .createFile(temporaryFolder.root)
+
+        // Extension 1 contains ClassOnlyInExt1 and members/supertypes on ExtClass that are
+        // missing from both Extension 2 (the latest extension) and SDK 30.
+        val ext1 =
+            signature(
+                    "sdk/extensions/1/public/api/framework-ext.txt",
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          public class ClassOnlyInExt1 {
+                            ctor public ClassOnlyInExt1();
+                            method public void someMethod();
+                          }
+                          public class ExtClass extends test.pkg.OldSuperClass implements test.pkg.OldInterface {
+                            ctor public ExtClass();
+                            method public void methodIn30();
+                            method public void methodOnlyInExt1();
+                            field public int fieldOnlyInExt1;
+                          }
+                        }
+                    """,
+                )
+                .createFile(temporaryFolder.root)
+
+        val ext2 =
+            signature(
+                    "sdk/extensions/2/public/api/framework-ext.txt",
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          public class ExtClass {
+                            ctor public ExtClass();
+                            method public void methodIn30();
+                            method public void methodInExt2();
+                          }
+                        }
+                    """,
+                )
+                .createFile(temporaryFolder.root)
+
+        commandTest {
+            val outputXml = outputFile("api-versions.xml")
+            args +=
+                listOf(
+                    "api-history",
+                    "--output-file",
+                    outputXml.path,
+                    ARG_SDK_INFO_FILE,
+                    sdkInfoXml.path,
+                    ARG_API_VERSION_FOR_SDK_EXTENSION,
+                    "10000",
+                    "--pattern",
+                    "${temporaryFolder.root}/sdk/{version:level}/public/api/android.txt",
+                    "--pattern",
+                    "${temporaryFolder.root}/sdk/extensions/{version:extension}/public/api/{module}.txt",
+                    "--historical-files",
+                    listOf(sdk30, ext1, ext2).joinToString(File.pathSeparator) { it.path },
+                )
+
+            expectedStderr =
+                """
+                    error: Class test/pkg/ClassOnlyInExt1 was added in SDK extension 1 (module framework-ext) but is missing from the latest SDK extension and all SDK versions [InconsistentApiHistory]
+                    error: Field test/pkg/ExtClass.fieldOnlyInExt1 was added in SDK extension 1 (module framework-ext) but is missing from the latest SDK extension and all SDK versions [InconsistentApiHistory]
+                    error: Interface test/pkg/OldInterface of class test/pkg/ExtClass was added in SDK extension 1 (module framework-ext) but is missing from the latest SDK extension and all SDK versions [InconsistentApiHistory]
+                    error: Method test/pkg/ExtClass.methodOnlyInExt1()V was added in SDK extension 1 (module framework-ext) but is missing from the latest SDK extension and all SDK versions [InconsistentApiHistory]
+                    error: Superclass test/pkg/OldSuperClass of class test/pkg/ExtClass was added in SDK extension 1 (module framework-ext) but is missing from the latest SDK extension and all SDK versions [InconsistentApiHistory]
+                """
+                    .trimIndent()
+
+            verify {
+                assertEquals(-1, exitCode)
+                assertEquals(
+                    """
+                        <?xml version="1.0" encoding="utf-8"?>
+                        <api version="3" min="30">
+                        	<sdk id="30" shortname="R-ext" name="R Extensions" reference="android/os/Build${'$'}VERSION_CODES${'$'}R"/>
+                        	<class name="java/lang/Object" since="30">
+                        		<method name="&lt;init>()V"/>
+                        	</class>
+                        	<class name="test/pkg/ExtClass" module="framework-ext" since="30" sdks="30:1,0:30">
+                        		<extends name="java/lang/Object" sdks="30:2,0:30"/>
+                        		<method name="&lt;init>()V"/>
+                        		<method name="methodIn30()V"/>
+                        		<method name="methodInExt2()V" since="10000" sdks="30:2"/>
+                        	</class>
+                        	<class name="test/pkg/OldInterface" since="30">
+                        		<extends name="java/lang/Object"/>
+                        	</class>
+                        	<class name="test/pkg/OldSuperClass" since="30">
+                        		<extends name="java/lang/Object"/>
+                        		<method name="&lt;init>()V"/>
+                        	</class>
+                        </api>
+                    """
+                        .trimIndent(),
+                    outputXml.readText().trim(),
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `Test SDK extensions with inconsistent API history as warning`() {
+        val sdkInfoXml =
+            xml(
+                    "sdk-extensions-info.xml",
+                    """
+                        <?xml version="1.0" encoding="utf-8"?>
+                        <sdk-extensions-info>
+                          <sdk
+                            id="30"
+                            shortname="R-ext"
+                            name="R Extensions"
+                            reference="android/os/Build${'$'}VERSION_CODES${'$'}R" />
+                          <symbol
+                            jar="framework-ext"
+                            pattern="*"
+                            sdks="R-ext" />
+                        </sdk-extensions-info>
+                    """,
+                )
+                .createFile(temporaryFolder.root)
+
+        val sdk30 =
+            signature(
+                    "sdk/30/public/api/android.txt",
+                    """
+                        // Signature format: 2.0
+                        package java.lang {
+                          public class Object {
+                            ctor public Object();
+                          }
+                        }
+                    """,
+                )
+                .createFile(temporaryFolder.root)
+
+        val ext1 =
+            signature(
+                    "sdk/extensions/1/public/api/framework-ext.txt",
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          public class ClassOnlyInExt1 {
+                            ctor public ClassOnlyInExt1();
+                          }
+                        }
+                    """,
+                )
+                .createFile(temporaryFolder.root)
+
+        val ext2 =
+            signature(
+                    "sdk/extensions/2/public/api/framework-ext.txt",
+                    """
+                        // Signature format: 2.0
+                    """,
+                )
+                .createFile(temporaryFolder.root)
+
+        commandTest {
+            val outputXml = outputFile("api-versions.xml")
+            args +=
+                listOf(
+                    "api-history",
+                    "--output-file",
+                    outputXml.path,
+                    "--warning",
+                    "InconsistentApiHistory",
+                    ARG_SDK_INFO_FILE,
+                    sdkInfoXml.path,
+                    ARG_API_VERSION_FOR_SDK_EXTENSION,
+                    "10000",
+                    "--pattern",
+                    "${temporaryFolder.root}/sdk/{version:level}/public/api/android.txt",
+                    "--pattern",
+                    "${temporaryFolder.root}/sdk/extensions/{version:extension}/public/api/{module}.txt",
+                    "--historical-files",
+                    listOf(sdk30, ext1, ext2).joinToString(File.pathSeparator) { it.path },
+                )
+
+            expectedStdout =
+                """
+                    warning: Class test/pkg/ClassOnlyInExt1 was added in SDK extension 1 (module framework-ext) but is missing from the latest SDK extension and all SDK versions [InconsistentApiHistory]
+                """
+                    .trimIndent()
+
+            verify { assertEquals(0, exitCode) }
         }
     }
 

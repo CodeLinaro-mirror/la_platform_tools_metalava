@@ -152,6 +152,84 @@ class SnapshotDeltaMakerTest : BaseTextCodebaseTest() {
                         """,
                 ),
                 TestParams(
+                    name = "class - generic super class type",
+                    baseSignature =
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public class BaseSuper<T> {
+                              }
+                              public class Foo<T> extends test.pkg.BaseSuper<T> {
+                              }
+                              public class Unchanged<T> extends test.pkg.BaseSuper<T> {
+                              }
+                            }
+                        """,
+                    extendsSignature =
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public class ExtendsSuper<T> extends test.pkg.BaseSuper<T> {
+                              }
+                              public class Foo<T> extends test.pkg.ExtendsSuper<T> {
+                              }
+                            }
+                        """,
+                    combinedSignature =
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public class BaseSuper<T> {
+                              }
+                              public class ExtendsSuper<T> extends test.pkg.BaseSuper<T> {
+                              }
+                              public class Foo<T> extends test.pkg.ExtendsSuper<T> {
+                              }
+                              public class Unchanged<T> extends test.pkg.BaseSuper<T> {
+                              }
+                            }
+                        """,
+                ),
+                TestParams(
+                    name = "class - generic interface types",
+                    baseSignature =
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public interface BaseInterface<T> {
+                              }
+                              public class Foo<T> implements test.pkg.BaseInterface<T> {
+                              }
+                              public class Unchanged<T> implements test.pkg.BaseInterface<T> {
+                              }
+                            }
+                        """,
+                    extendsSignature =
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public interface ExtendsInterface<T> extends test.pkg.BaseInterface<T> {
+                              }
+                              public class Foo<T> implements test.pkg.ExtendsInterface<T> {
+                              }
+                            }
+                        """,
+                    combinedSignature =
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public interface BaseInterface<T> {
+                              }
+                              public interface ExtendsInterface<T> extends test.pkg.BaseInterface<T> {
+                              }
+                              public class Foo<T> implements test.pkg.ExtendsInterface<T> {
+                              }
+                              public class Unchanged<T> implements test.pkg.BaseInterface<T> {
+                              }
+                            }
+                        """,
+                ),
+                TestParams(
                     name = "class - different annotations",
                     baseSignature =
                         """

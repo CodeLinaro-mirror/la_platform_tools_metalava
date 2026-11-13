@@ -46,7 +46,7 @@ class ExtractSystemApiLevelsTest : ApiGeneratorIntegrationTestBase() {
                     "--output-file",
                     outputPath,
                     "--historical-versions",
-                    "21:36",
+                    "26:34",
                     "--pattern",
                     androidSignaturePattern,
                     "--pattern",
@@ -65,7 +65,7 @@ class ExtractSystemApiLevelsTest : ApiGeneratorIntegrationTestBase() {
 
         assertTrue(output.isFile)
         val xml = output.readText(Charsets.UTF_8)
-        assertTrue(xml.contains("<api version=\"3\" min=\"21\">"))
+        assertTrue(xml.contains("<api version=\"3\" min=\"26\">"))
         assertTrue(
             xml.contains(
                 "<sdk id=\"30\" shortname=\"R\" name=\"R Extensions\" reference=\"android/os/Build\$VERSION_CODES\$R\"/>"
@@ -81,7 +81,7 @@ class ExtractSystemApiLevelsTest : ApiGeneratorIntegrationTestBase() {
                 "<sdk id=\"33\" shortname=\"T\" name=\"T Extensions\" reference=\"android/os/Build\$VERSION_CODES\$T\"/>"
             )
         )
-        assertTrue(xml.contains("<class name=\"android/Manifest\" since=\"21\">"))
+        assertTrue(xml.contains("<class name=\"android/Manifest\" since=\"26\">"))
         assertTrue(xml.contains("<field name=\"showWhenLocked\" since=\"27\"/>"))
 
         // top level class marked as since=34 and R=7, implemented in the framework-statsd
@@ -109,14 +109,14 @@ class ExtractSystemApiLevelsTest : ApiGeneratorIntegrationTestBase() {
         // (as in the system API), the first introduced API level is the one we use
         @Suppress("DEPRECATION")
         (assertEquals(
-            21,
+            26,
             apiLookup.getFieldVersion("android.Manifest\$permission", "AUTHENTICATE_ACCOUNTS")
         ))
 
         @Suppress("DEPRECATION")
         val methodVersion =
             apiLookup.getMethodVersion("android/icu/util/CopticCalendar", "computeTime", "()")
-        assertEquals(24, methodVersion)
+        assertEquals(26, methodVersion)
 
         // The filter says 'framework-permission-s             *    R' so RoleManager should exist
         // and should have a module/sdks attributes

@@ -2897,6 +2897,7 @@ class UastTest : DriverTest() {
                         """
                         package test.pkg
                         class StringList(private val items: MutableList<String>): List<String> by items
+                        class ObjectList(private val items: MutableList<Any>): List<Any> by items
                         """
                     )
                 ),
@@ -2904,6 +2905,34 @@ class UastTest : DriverTest() {
                 """
                 // Signature format: 5.0
                 package test.pkg {
+                  public final class ObjectList implements kotlin.jvm.internal.markers.KMappedMarker java.util.List<java.lang.Object> {
+                    ctor public ObjectList(java.util.List<java.lang.Object> items);
+                    method @InaccessibleFromKotlin public void add(int p, Object! p1);
+                    method @InaccessibleFromKotlin public boolean add(Object! p);
+                    method @InaccessibleFromKotlin public boolean addAll(int p, java.util.Collection<? extends java.lang.Object?>! p1);
+                    method @InaccessibleFromKotlin public boolean addAll(java.util.Collection<? extends java.lang.Object?>! p);
+                    method @InaccessibleFromKotlin public void clear();
+                    method public boolean contains(Object element);
+                    method public boolean containsAll(java.util.Collection<? extends java.lang.Object?> elements);
+                    method public operator Object get(int index);
+                    method public int getSize();
+                    method public int indexOf(Object element);
+                    method public boolean isEmpty();
+                    method public operator java.util.Iterator<java.lang.Object> iterator();
+                    method public int lastIndexOf(Object element);
+                    method public java.util.ListIterator<java.lang.Object> listIterator();
+                    method public java.util.ListIterator<java.lang.Object> listIterator(int index);
+                    method @InaccessibleFromKotlin public Object! remove(int p);
+                    method @InaccessibleFromKotlin public boolean remove(Object! p);
+                    method @InaccessibleFromKotlin public boolean removeAll(java.util.Collection<? extends java.lang.Object?>! p);
+                    method @InaccessibleFromKotlin public boolean retainAll(java.util.Collection<? extends java.lang.Object?>! p);
+                    method @InaccessibleFromKotlin public Object! set(int p, Object! p1);
+                    method @InaccessibleFromKotlin public int size();
+                    method public java.util.List<java.lang.Object> subList(int fromIndex, int toIndex);
+                    method @InaccessibleFromKotlin public Object![]! toArray();
+                    method @InaccessibleFromKotlin public <T> T[]! toArray(T[]! p);
+                    property public int size;
+                  }
                   public final class StringList implements kotlin.jvm.internal.markers.KMappedMarker java.util.List<java.lang.String> {
                     ctor public StringList(java.util.List<java.lang.String> items);
                     method @InaccessibleFromKotlin public void add(int p, String! p1);
@@ -2913,8 +2942,7 @@ class UastTest : DriverTest() {
                     method @InaccessibleFromKotlin public void clear();
                     method @InaccessibleFromKotlin public boolean contains(Object element);
                     method public operator boolean contains(String element);
-                    method @InaccessibleFromKotlin public boolean containsAll(java.util.Collection<? extends java.lang.Object?> elements);
-                    method @KotlinOnly public boolean containsAll(java.util.Collection<java.lang.String> elements);
+                    method public boolean containsAll(java.util.Collection<? extends java.lang.Object?> elements);
                     method public operator String get(int index);
                     method public int getSize();
                     method @InaccessibleFromKotlin public int indexOf(Object element);

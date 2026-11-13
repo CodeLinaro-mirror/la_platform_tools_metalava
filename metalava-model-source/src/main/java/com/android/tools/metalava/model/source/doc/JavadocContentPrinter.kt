@@ -80,7 +80,7 @@ internal class JavadocContentPrinter(
     }
 
     val containingClassName
-        get() = context.containingClassItem?.qualifiedName()
+        get() = context.containingClassItem?.let { context.resolveClassReferenceName(it) }
 
     companion object {
         /** Check to see whether [JavadocContent] starts with a newline character. */

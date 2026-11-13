@@ -102,4 +102,85 @@ class AnnotationOutputTest : DriverTest() {
                 ),
         )
     }
+
+    @Test
+    fun `Annotation referencing @DocOnly field`() {
+        check(
+            apiSurface = KnownApiSurface.PUBLIC,
+            format = FileFormat.V2,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            import java.lang.annotation.Retention;
+                            import java.lang.annotation.RetentionPolicy;
+
+                            @Retention(RetentionPolicy.RUNTIME)
+                            public @interface MyAnno {
+                                int value();
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            import android.annotation.DocOnly;
+
+                            @DocOnly
+                            public class DocOnlyClass {
+                                public static final int CONSTANT = 42;
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+
+                            @MyAnno(DocOnlyClass.CONSTANT)
+                            public class TestClass {
+                            }
+                        """
+                    ),
+                ),
+            // `DocOnlyClass.CONSTANT` is not a valid code reference because `DocOnlyClass` is
+            // `@DocOnly` and omitted from normal stubs and signature files. Therefore, its literal
+            // value (`0x2a` / `42`) is inlined instead of emitting a symbolic reference.
+            expectedApiSignature =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME) public @interface MyAnno {
+                        method public abstract int value();
+                      }
+                      @test.pkg.MyAnno(0x2a) public class TestClass {
+                        ctor public TestClass();
+                      }
+                    }
+                """,
+            expectedStubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME)
+                            public @interface MyAnno {
+                            public int value();
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            @test.pkg.MyAnno(42)
+                            public class TestClass {
+                            public TestClass() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                ),
+        )
+    }
 }

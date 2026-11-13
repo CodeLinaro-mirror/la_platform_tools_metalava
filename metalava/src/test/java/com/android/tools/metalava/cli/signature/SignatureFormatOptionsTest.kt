@@ -48,7 +48,6 @@ Signature Format Output:
                                              A comma separated list of `<property>=<value>` assignments where
                                              `<property>` is one of the following:
                                              * `add-additional-overrides`
-                                             * `flagged-api-inheritance`
                                              * `java-record-classes`
                                              * `java-sealed-classes`
                                              * `normalize-abstract-modifier`

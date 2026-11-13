@@ -41,15 +41,16 @@ class ApiLintFilteringTest(private val previouslyReleasedApiUse: PreviouslyRelea
     private fun checkFiltering(
         sourceFiles: Array<TestFile>,
         expectedIssuesWithoutPreviouslyReleasedApi: String,
-        previouslyReleasedApi: String,
+        previouslyReleasedApi: String? = null,
+        previouslyReleasedApis: List<String> = listOfNotNull(previouslyReleasedApi),
         expectedIssuesWithPreviouslyReleasedApi: String,
     ) {
-        val (apiLint, expectedIssues) =
+        val (apiLintList, expectedIssues) =
             if (previouslyReleasedApiUse == PreviouslyReleasedApiUse.WITH)
-                Pair(previouslyReleasedApi, expectedIssuesWithPreviouslyReleasedApi)
-            else Pair("", expectedIssuesWithoutPreviouslyReleasedApi)
+                Pair(previouslyReleasedApis, expectedIssuesWithPreviouslyReleasedApi)
+            else Pair(listOf(""), expectedIssuesWithoutPreviouslyReleasedApi)
         check(
-            apiLint = apiLint,
+            apiLintList = apiLintList,
             sourceFiles = sourceFiles,
             expectedIssues = expectedIssues,
         )
@@ -78,17 +79,26 @@ class ApiLintFilteringTest(private val previouslyReleasedApiUse: PreviouslyRelea
                     src/test/pkg/Foo.java:5: error: Missing nullability on field `field` in class `class test.pkg.Foo` [MissingNullability]
                     src/test/pkg/Foo.java:5: error: Bare field field must be marked final, or moved behind accessors if mutable [MutableBareField]
                 """,
-            previouslyReleasedApi =
-                """
-                    // Signature format: 2.0
-                    package test.pkg {
-                      public class Foo {
-                        method public void method(String);
-                        method public int hashCode();
-                        field public String field;
-                      }
-                    }
-                """,
+            previouslyReleasedApis =
+                listOf(
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          public class Foo {
+                            method public void method(String);
+                            method public int hashCode();
+                          }
+                        }
+                    """,
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          public class Foo {
+                            field public String field;
+                          }
+                        }
+                    """,
+                ),
             expectedIssuesWithPreviouslyReleasedApi = "",
         )
     }

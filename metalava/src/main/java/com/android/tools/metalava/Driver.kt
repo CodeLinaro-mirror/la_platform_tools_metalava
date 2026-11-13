@@ -16,8 +16,6 @@
 package com.android.tools.metalava
 
 import androidx.tracing.Tracer
-import com.android.SdkConstants.DOT_JAR
-import com.android.SdkConstants.DOT_TXT
 import com.android.tools.metalava.api.AnnotationsMerger
 import com.android.tools.metalava.api.ApiAnalyzer
 import com.android.tools.metalava.apilevels.ApiGenerator
@@ -43,6 +41,7 @@ import com.android.tools.metalava.cli.lint.ComputedApiLintOptions
 import com.android.tools.metalava.cli.multiplatform.MultiplatformOptions
 import com.android.tools.metalava.cli.signature.ApiHistoryCommand
 import com.android.tools.metalava.cli.signature.ComputedSignatureFormatOptions
+import com.android.tools.metalava.cli.signature.FilterSignatureCommand
 import com.android.tools.metalava.cli.signature.MergeSignaturesCommand
 import com.android.tools.metalava.cli.signature.SignatureCatCommand
 import com.android.tools.metalava.cli.signature.SignatureToDexCommand
@@ -53,7 +52,6 @@ import com.android.tools.metalava.cli.signature.migration.SignatureReformatComma
 import com.android.tools.metalava.cli.surface.MultiSurfaceCommand
 import com.android.tools.metalava.cli.surface.SingleSurfaceCommand
 import com.android.tools.metalava.compatibility.CompatibilityCheck
-import com.android.tools.metalava.jar.JarCodebaseLoader
 import com.android.tools.metalava.lint.ApiLint
 import com.android.tools.metalava.lint.FlaggedApiLint
 import com.android.tools.metalava.lint.MultiplatformLint
@@ -174,9 +172,9 @@ class Driver(
                 MainCommand(command.commonOptions, executionEnvironment),
                 ApiHistoryCommand(),
                 CheckCompatibilityCommand(),
+                FilterSignatureCommand(),
                 FlagReportCommand(),
                 HelpCommand(),
-                JarToJDiffCommand(),
                 ListFlagsCommand(),
                 MakeAnnotationsPackagePrivateCommand(),
                 MergeSignaturesCommand(),
@@ -237,6 +235,11 @@ class Driver(
                 // Pass whether API surfaces are configured in a config file. This determines
                 // whether the `@hide` Javadoc tag is ignored for hiding elements.
                 apiSurfacesConfigured = apiSelectionOptions.apiSurfacesConfigured,
+
+                // Pass external package prefixes configured in a config file. This suppresses
+                // `UnresolvedLink` warnings for references to items in those packages.
+                externalPackagePrefixes =
+                    configFileOptions.config.documentation?.toPackagePrefixes() ?: emptySet(),
             )
         }
 
@@ -445,15 +448,48 @@ class Driver(
                 apiFilters = apiFilters,
             )
 
+        // Compute the filters and lazily create the CodebaseFragment for the removed API so it can
+        // be shared between FlaggedApiLint (when checking against a previously released API) and
+        // writing `--removed-api` without constructing it when neither needs it.
+        val removedApiFilters =
+            if (preFiltered) {
+                // Pre-filtered so does not need any filters.
+                null
+            } else {
+                ApiSurfacePredicate.apiFilters(ApiType.REMOVED, apiSurface)
+            }
+
+        val removedApiCodebaseFragment by
+            lazy(LazyThreadSafetyMode.NONE) {
+                createSignatureFileFragment(
+                    codebase,
+                    fileFormat = fileFormat,
+                    apiFilters = removedApiFilters,
+                )
+            }
+
         runApiChecksFromOptions(codebase) { _, previouslyReleasedCodebase ->
             tracer.trace("FlaggedApiLint") {
-                val flaggedApiLintVisitor =
-                    FlaggedApiLint(
-                        previouslyReleasedCodebase,
-                        reporter,
-                        apiFilters ?: ApiFilters.ALL,
-                    )
-                codebaseFragment.accept(flaggedApiLintVisitor)
+                FlaggedApiLint.check(
+                    apiSurface = apiSurface,
+                    previouslyReleasedCodebase = previouslyReleasedCodebase,
+                    reporter = reporter,
+                    coreCodebaseFragment = codebaseFragment,
+                    coreApiFilters = apiFilters ?: ApiFilters.ALL,
+                    // Only instantiate and pass the lazy removedApiCodebaseFragment when:
+                    // 1. A previously released API is available (required to distinguish newly
+                    //    removed APIs from never-released or previously removed APIs), and
+                    // 2. The codebase is not pre-filtered (pre-filtered signature codebases only
+                    //    represent a single pre-filtered fragment rather than separate core and
+                    //    removed variants).
+                    removedCodebaseFragment =
+                        if (previouslyReleasedCodebase == null || removedApiFilters == null) {
+                            null
+                        } else {
+                            removedApiCodebaseFragment
+                        },
+                    removedApiFilters = removedApiFilters,
+                )
             }
         }
 
@@ -472,21 +508,6 @@ class Driver(
         }
 
         signatureFileOptions.removedApiFile?.let { apiSignatureFile ->
-            val apiFilters =
-                if (preFiltered) {
-                    // Pre-filtered so does not need any filters.
-                    null
-                } else {
-                    ApiSurfacePredicate.apiFilters(ApiType.REMOVED, apiSurface)
-                }
-
-            val removedApiCodebaseFragment =
-                createSignatureFileFragment(
-                    codebase,
-                    fileFormat = fileFormat,
-                    apiFilters = apiFilters,
-                )
-
             tracer.trace("createOutputFileFromCodebaseFragment removed API") {
                 createOutputFileFromCodebaseFragment(
                     removedApiCodebaseFragment,
@@ -547,8 +568,6 @@ class Driver(
                 SignatureFile.fromFiles(sources),
                 classPathResolver,
             )
-        } else if (sources.size == 1 && sources[0].path.endsWith(DOT_JAR)) {
-            return tracer.trace("loadFromJarFile") { loadFromJarFile(sources[0]) }
         } else if (sources.isNotEmpty() || sourceOptions.sourcePath.isNotEmpty()) {
             return tracer.trace("loadFromSources") { loadFromSources() }
         }
@@ -588,6 +607,7 @@ class Driver(
             tracer.trace("handleFileFacadeClassesAndExperimentalPackages") {
                 analyzer.handleFileFacadeClassesAndExperimentalPackages(apiPredicate)
             }
+            tracer.trace("handleStripping") { analyzer.handleStripping() }
             tracer.trace("performChecks") { analyzer.performChecks() }
         }
 
@@ -748,7 +768,7 @@ class Driver(
             }
         }
 
-        val apiGenerator = ApiGenerator(tracer)
+        val apiGenerator = ApiGenerator(tracer, reporter)
         apiLevelsGenerationOptions
             .fromSignatureFilesConfig(
                 // Do not use a cache here as each file loaded is only loaded once and the created
@@ -903,16 +923,6 @@ class Driver(
         tracer.trace("analyzer.performChecks") { analyzer.performChecks() }
 
         return codebase
-    }
-
-    fun loadFromJarFile(apiJar: File): Codebase {
-        val jarCodebaseLoader =
-            JarCodebaseLoader.createForSourceParser(
-                tracer,
-                reporter,
-                sourceParser,
-            )
-        return jarCodebaseLoader.loadFromJarFile(apiJar, apiAnalyzerConfig)
     }
 
     private fun extractAnnotations(outputFile: File, codebase: Codebase) {

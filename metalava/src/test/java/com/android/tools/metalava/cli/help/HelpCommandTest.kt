@@ -98,14 +98,6 @@ Usage: metalava help signature-file-formats
   * `add-additional-overrides = yes|no` - If `yes` then add additional overrides into the signature file that are needed
   in order to create compilable stubs from the signature file.
 
-  * `flagged-api-inheritance = none|nested-classes` - Specifies whether `@FlaggedApi` annotations are inherited in
-  signature files.
-
-  `none` (default) - they are not inherited. This can make it difficult to determine whether a nested class is flagged
-  when reviewin as the containing class may be out of view or even in another file altogether.
-
-  `nested-classes` - they are inherited onto nested classes that do not have their own `@FlaggedApi` annotation.
-
   * `include-default-parameter-values = yes|no` - If `no` then the signature file will not include any information about
   default parameter values. If `yes` then it will use the pseudo modifier `optional` to indicate a parameter that has a
   default value.
@@ -251,7 +243,6 @@ Usage: metalava help signature-file-formats
   following properties:
 
   + add-additional-overrides = yes
-  + flagged-api-inheritance = nested-classes
   + java-record-classes = yes
   + normalize-abstract-modifier = yes
   + normalize-final-modifier = yes

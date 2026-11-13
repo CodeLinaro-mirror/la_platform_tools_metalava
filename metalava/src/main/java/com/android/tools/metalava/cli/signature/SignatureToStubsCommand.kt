@@ -22,18 +22,14 @@ import com.android.tools.metalava.ARG_FORCE_CONVERT_TO_WARNING_NULLABILITY_ANNOT
 import com.android.tools.metalava.ARG_STUBS
 import com.android.tools.metalava.ApiFlagsCreator
 import com.android.tools.metalava.ConfigFileOptions
-import com.android.tools.metalava.PROGRAM_NAME
 import com.android.tools.metalava.cli.common.DefaultSignatureFileLoader
 import com.android.tools.metalava.cli.common.IssueReportingOptions
-import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.cli.common.MetalavaSubCommand
-import com.android.tools.metalava.cli.common.commonOptions
 import com.android.tools.metalava.cli.common.executionEnvironment
 import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.newDir
-import com.android.tools.metalava.cli.common.registerPostCommandAction
+import com.android.tools.metalava.cli.common.runWithReporter
 import com.android.tools.metalava.cli.common.splitMultiple
-import com.android.tools.metalava.cli.common.stderr
 import com.android.tools.metalava.cli.common.tracer
 import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.Codebase
@@ -42,10 +38,8 @@ import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
 import com.android.tools.metalava.model.api.surface.ApiSurfacePredicate
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.model.text.SignatureFile
-import com.android.tools.metalava.reporter.DefaultReporter
 import com.android.tools.metalava.stub.StubGenerator
 import com.android.tools.metalava.stub.StubWriterConfig
-import com.android.tools.metalava.trace
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.arguments.multiple
 import com.github.ajalt.clikt.parameters.groups.provideDelegate
@@ -157,22 +151,7 @@ class SignatureToStubsCommand :
     override fun run() {
         val config = configFileOptions.config
 
-        // Configure the issue reporter from CLI options and any <issues> elements in config files.
-        val computedIssueReportingOptions =
-            issueReportingOptions.compute(commonOptions, config.issues)
-        val reporter =
-            DefaultReporter(
-                environment = executionEnvironment.reporterEnvironment,
-                issueConfiguration = computedIssueReportingOptions.issueConfiguration,
-                config = computedIssueReportingOptions.reporterConfig,
-            )
-
-        // Ensure the suppressed-issues writer is closed when the command finishes.
-        registerPostCommandAction {
-            computedIssueReportingOptions.reporterConfig.reportEvenIfSuppressedWriter?.close()
-        }
-
-        try {
+        runWithReporter(issueReportingOptions, config.issues) { reporter ->
             // Create ApiFlags and ApiSurfaces from the loaded configuration.
             val apiFlags = ApiFlagsCreator.createFromConfig(config.apiFlags)
             val apiSurfaces =
@@ -236,26 +215,6 @@ class SignatureToStubsCommand :
                     apiSurface,
                 )
                 .generateStubs()
-        } finally {
-            // Write all saved reports. Do this even if the previous code threw an exception.
-            tracer.trace("writeSavedReports") { reporter.writeSavedReports() }
-        }
-
-        if (reporter.hasErrors()) {
-            // Repeat the errors at the end to make it easy to find the actual problems.
-            if (issueReportingOptions.repeatErrorsMax > 0) {
-                stderr.println("Error: $PROGRAM_NAME detected the following problems:")
-                val totalErrors = reporter.errorCount
-                val numShown = reporter.printErrors(stderr, issueReportingOptions.repeatErrorsMax)
-                if (numShown < totalErrors) {
-                    stderr.println(
-                        "${totalErrors - numShown} more error(s) omitted. Search the log for 'error:' to find all of them."
-                    )
-                }
-            }
-
-            // Make sure that the process exits with an error code.
-            throw MetalavaCliException(exitCode = -1)
         }
     }
 }

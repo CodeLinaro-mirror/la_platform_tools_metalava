@@ -25,6 +25,7 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.api.surface.ApiSurfacePredicate
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
+import com.android.tools.metalava.model.api.surface.ApiVariantType
 import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
 import com.android.tools.metalava.model.text.ApiFile
 import com.android.tools.metalava.model.text.SignatureFile
@@ -487,5 +488,93 @@ class ComparisonVisitorTest : BaseTemporaryFolderOwner(), Assertions {
         )
 
         assertEquals("", differences.sorted().joinToString("\n"))
+    }
+
+    @Test
+    fun `Test removed class present in new codebase does not report removed members`() {
+        val apiSurfaces = ApiSurfaces.create()
+        val codebaseConfig = Codebase.Config(apiSurfaces = apiSurfaces)
+
+        val oldCodebase =
+            ApiFile.parseApi(
+                SignatureFile.fromFiles(
+                    signature(
+                            "old.txt",
+                            """
+                                // Signature format: 2.0
+                                package test.pkg {
+                                    public class Bar {
+                                    }
+                                    public class Foo {
+                                        method public void foo();
+                                    }
+                                }
+                            """
+                        )
+                        .toFile()
+                ),
+                codebaseConfig = codebaseConfig,
+            )
+
+        val newCodebase =
+            ApiFile.parseApi(
+                SignatureFile.fromFiles(
+                    listOf(
+                        signature(
+                                "current.txt",
+                                """
+                                    // Signature format: 2.0
+                                    package test.pkg {
+                                        public class Bar {
+                                        }
+                                    }
+                                """
+                            )
+                            .toFile()
+                    )
+                ) +
+                    SignatureFile.fromFiles(
+                        listOf(
+                            signature(
+                                    "removed.txt",
+                                    """
+                                        // Signature format: 2.0
+                                        package test.pkg {
+                                            public class Foo {
+                                                method public void foo();
+                                            }
+                                        }
+                                    """
+                                )
+                                .toFile()
+                        ),
+                        apiVariantTypeChooser = { ApiVariantType.REMOVED },
+                    ),
+                codebaseConfig = codebaseConfig,
+            )
+
+        val filter = ApiSurfacePredicate.wholeCoreApi(apiSurfaces.main)
+
+        val differences = mutableListOf<String>()
+        CodebaseComparator.compare(
+            object : ComparisonVisitor() {
+                override fun removedClassItem(old: ClassItem, from: SelectableItem) {
+                    differences += "$old was removed"
+                }
+
+                override fun removedMethodItem(old: MethodItem, from: ClassItem) {
+                    differences += "$old was removed"
+                }
+            },
+            old = oldCodebase,
+            new = newCodebase,
+            surfaceFilter = filter,
+            referenceFilter = filter,
+        )
+
+        assertEquals(
+            "class test.pkg.Foo was removed",
+            differences.sorted().joinToString("\n"),
+        )
     }
 }

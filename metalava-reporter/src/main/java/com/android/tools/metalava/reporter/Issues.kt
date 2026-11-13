@@ -76,6 +76,9 @@ object Issues {
     val CHANGED_CLASS by Issue(Severity.ERROR, Category.BINARY_AND_SOURCE_COMPATIBILITY)
     val CHANGED_DEPRECATED by Issue(Severity.HIDDEN, Category.SOURCE_COMPATIBILITY_ONLY)
     val CHANGED_ANNOTATION_RETENTION by Issue(Severity.ERROR, Category.OTHER_COMPATIBILITY)
+    // Changing the `@SdkExtensionApi` floor does not break binary or source compatibility but does
+    // change the SDK extensions in which the API is reported as being available.
+    val CHANGED_SDK_EXTENSION_API by Issue(Severity.WARNING, Category.OTHER_COMPATIBILITY)
     val ADDED_FINAL_UNINSTANTIABLE by Issue(Severity.HIDDEN, Category.OTHER_COMPATIBILITY)
     val REMOVED_FINAL by Issue(Severity.ERROR, Category.BINARY_COMPATIBILITY_ONLY)
     val REMOVED_FINAL_STRICT by Issue(Severity.ERROR, Category.OTHER_COMPATIBILITY)
@@ -105,12 +108,10 @@ object Issues {
     val UNCLOSED_INLINE_TAG by Issue(Severity.ERROR, Category.DOCUMENTATION)
     val UNRESOLVED_LINK by Issue(Severity.WARNING_ERROR_WHEN_NEW, Category.DOCUMENTATION)
     val INVALID_DOC_THROWS_TYPE by Issue(Severity.ERROR, Category.DOCUMENTATION)
-    val UNAVAILABLE_SYMBOL by Issue(Severity.WARNING, Category.DOCUMENTATION)
     val HIDDEN_SUPERCLASS by Issue(Severity.WARNING, Category.DOCUMENTATION)
     val DEPRECATED by Issue(Severity.HIDDEN, Category.DOCUMENTATION)
     val DEPRECATION_MISMATCH by Issue(Severity.ERROR, Category.DOCUMENTATION)
     val IO_ERROR by Issue(Severity.ERROR)
-    val HIDDEN_TYPE_PARAMETER by Issue(Severity.WARNING, Category.DOCUMENTATION)
     val PRIVATE_SUPERCLASS by Issue(Severity.WARNING, Category.DOCUMENTATION)
     val NULLABLE by Issue(Severity.HIDDEN, Category.DOCUMENTATION)
     val INT_DEF by Issue(Severity.HIDDEN, Category.DOCUMENTATION)
@@ -175,6 +176,7 @@ object Issues {
     val HIDDEN_SHOW_ANNOTATION by Issue(Severity.WARNING_ERROR_WHEN_NEW, Category.API_LINT)
     val OVERLAPPING_API_SURFACES by Issue(Severity.WARNING_ERROR_WHEN_NEW, Category.API_LINT)
     val HIDING_API_METHOD_OVERRIDE by Issue(Severity.HIDDEN, Category.API_LINT)
+    val HIDING_API_METHOD_OVERRIDE_CLASSPATH by Issue(Severity.HIDDEN, Category.API_LINT)
 
     // Reported when using @hide doc tag. It is UNKNOWN because it does not fit into any other
     // category. There is an argument that it should be DOCUMENTATION but that causes issues
@@ -309,6 +311,7 @@ object Issues {
     val UNEXPORTED_FLAGGED_API by Issue(Severity.WARNING_ERROR_WHEN_NEW, Category.API_LINT)
     val MULTIPLE_FLAGGING by Issue(Severity.ERROR, Category.API_LINT)
     val INVALID_FLAG_NESTING by Issue(Severity.ERROR, Category.API_LINT)
+    val INVALID_SDK_EXTENSION_API by Issue(Severity.ERROR, Category.API_LINT)
 
     val NO_PREVIOUSLY_RELEASED_API by Issue(Severity.ERROR, Category.API_LINT)
 
@@ -317,6 +320,13 @@ object Issues {
     val VALUE_CLASS_DEFINITION by Issue(Severity.ERROR, Category.API_LINT)
     val MISSING_ENVIRONMENTS_VALUE by Issue(Severity.ERROR, Category.API_LINT)
     val INHERIT_CHANGES_SIGNATURE by Issue(Severity.WARNING_ERROR_WHEN_NEW)
+
+    /**
+     * Reported when an API element was added in an older SDK extension version but is missing from
+     * the latest SDK extension version and all platform SDK versions.
+     */
+    val INCONSISTENT_API_HISTORY by Issue(Severity.ERROR)
+
     val DATA_CLASS_DEFINITION by Issue(Severity.HIDDEN, Category.API_LINT)
     // TODO(b/165356974): set this to error once AndroidX selectively opts-in for projects that
     // target Java

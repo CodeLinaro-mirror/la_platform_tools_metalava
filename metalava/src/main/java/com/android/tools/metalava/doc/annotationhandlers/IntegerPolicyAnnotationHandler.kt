@@ -22,22 +22,14 @@ import com.android.tools.metalava.model.annotation.binding.bindTo
 import com.android.tools.metalava.reporter.Issues
 
 /** Handles @android.processor.devicepolicy.IntegerPolicyDefinition annotation. */
-class IntegerPolicyAnnotationHandler(
-    context: DevicePolicyContext,
-) : BaseDevicePolicyAnnotationHandler(context) {
+class IntegerPolicyAnnotationHandler(context: DevicePolicyContext) :
+    BaseDevicePolicyAnnotationHandler(context) {
     /**
      * Processes the [IntegerPolicyDefinitionProxy] and returns the documentation for the policy.
      */
     override fun processPolicyAnnotation(annotation: AnnotationItem, item: Item): String {
-        val hasValidation =
-            annotation.findAttribute("validation") != null ||
-                annotation.resolve()?.methods()?.any { it.name() == "validation" } == true
-        if (hasValidation) {
-            val proxy = annotation.bindTo<IntegerPolicyDefinitionProxy>(item)
-            return proxy?.generateDocs() ?: ""
-        }
-        val legacyProxy = annotation.bindTo<LegacyIntegerPolicyDefinitionProxy>(item)
-        return legacyProxy?.generateDocs() ?: ""
+        val proxy = annotation.bindTo<IntegerPolicyDefinitionProxy>(item) ?: return ""
+        return generateDocs(proxy, item)
     }
 }
 
@@ -51,53 +43,15 @@ data class IntegerPolicyDefinitionProxy(
     val base: PolicyDefinitionProxy,
     val validation: IntegerValidationProxy,
     val resolutionMechanism: IntegerResolutionMechanismProxy,
-) {
-    fun generateDocs() = buildString {
-        val tableEntries = buildList {
-            addAll(base.getTableEntries())
-            val resolutionMechanismDoc = resolutionMechanism.generateDocs()
-            if (resolutionMechanismDoc.isNotEmpty()) {
-                add(Pair("Conflict resolution mechanism", resolutionMechanismDoc))
-            }
-            val policyValueValidations = validation.getPolicyValueValidations()
-            add(Pair("Policy value", renderPolicyValue("Integer", policyValueValidations)))
+) : DevicePolicy {
+    override fun generateDocRows(context: DevicePolicyContext): List<TableRow> = buildList {
+        addAll(base.generateDocRows())
+        val resolutionMechanismDoc = resolutionMechanism.generateDocs()
+        if (resolutionMechanismDoc.isNotEmpty()) {
+            add(TableRow("Conflict resolution mechanism", resolutionMechanismDoc))
         }
-
-        append(renderTable(tableEntries))
-    }
-}
-
-// TODO(b/550199902): Remove when validators are extracted from policy definitions
-/**
- * Proxy class bound to an instance of the legacy
- * `android.processor.devicepolicy.IntegerPolicyDefinition` annotation class where validation
- * properties were inline.
- *
- * @see bindTo
- */
-data class LegacyIntegerPolicyDefinitionProxy(
-    val base: PolicyDefinitionProxy,
-    val minValue: Int,
-    val maxValue: Int,
-    val resolutionMechanism: IntegerResolutionMechanismProxy,
-) {
-    fun generateDocs() = buildString {
-        val tableEntries = buildList {
-            addAll(base.getTableEntries())
-            val resolutionMechanismDoc = resolutionMechanism.generateDocs()
-            if (resolutionMechanismDoc.isNotEmpty()) {
-                add(Pair("Conflict resolution mechanism", resolutionMechanismDoc))
-            }
-            val policyValueValidations =
-                IntegerValidationProxy(
-                        minValue = minValue,
-                        maxValue = maxValue,
-                    )
-                    .getPolicyValueValidations()
-            add(Pair("Policy value", renderPolicyValue("Integer", policyValueValidations)))
-        }
-
-        append(renderTable(tableEntries))
+        val policyValueValidations = validation.getPolicyValueValidations()
+        add(TableRow("Policy value", renderPolicyValue("Integer", policyValueValidations)))
     }
 }
 
@@ -107,10 +61,7 @@ data class LegacyIntegerPolicyDefinitionProxy(
  *
  * @see bindTo
  */
-data class IntegerValidationProxy(
-    val minValue: Int,
-    val maxValue: Int,
-) {
+data class IntegerValidationProxy(val minValue: Int, val maxValue: Int) {
     fun getPolicyValueValidations(): List<String> = buildList {
         if (minValue != Integer.MIN_VALUE) add("Minimum value $minValue")
         if (maxValue != Integer.MAX_VALUE) add("Maximum value $maxValue")
@@ -137,7 +88,7 @@ data class IntegerResolutionMechanismProxy(
             item.codebase.reporter.report(
                 Issues.INVALID_DEVICE_POLICY_ANNOTATION,
                 item,
-                "IntegerResolutionMechanism must have either 'custom' or 'notCoexistable' set to true."
+                "IntegerResolutionMechanism must have either 'custom' or 'notCoexistable' set to true.",
             )
             ""
         }

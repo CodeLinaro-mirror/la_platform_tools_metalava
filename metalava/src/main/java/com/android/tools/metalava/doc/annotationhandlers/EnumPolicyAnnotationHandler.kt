@@ -32,8 +32,8 @@ class EnumPolicyAnnotationHandler(
         annotation: AnnotationItem,
         item: Item,
     ): String {
-        val proxy = annotation.bindTo<EnumPolicyDefinitionProxy>(item)
-        return proxy?.generateDocs(context) ?: ""
+        val proxy = annotation.bindTo<EnumPolicyDefinitionProxy>(item) ?: return ""
+        return generateDocs(proxy, item)
     }
 }
 
@@ -49,19 +49,19 @@ data class EnumPolicyDefinitionProxy(
     val resolutionMechanism: EnumResolutionMechanismProxy,
     val intDef: ClassItem?,
     val defaultValue: Int = -1,
-) {
+) : DevicePolicy {
     val reporter = item.codebase.reporter
 
-    fun generateDocs(context: DevicePolicyContext): String {
+    override fun generateDocRows(context: DevicePolicyContext): List<TableRow> {
         val enumValueToCodeReference =
             buildEnumValueToCodeReferenceMap(intDef, item, context.filterReference)
         val defaultValue = defaultValue
 
-        val tableEntries = buildList {
-            addAll(base.getTableEntries())
+        return buildList {
+            addAll(base.generateDocRows())
             val resolutionMechanismDoc = resolutionMechanism.generateDocs(enumValueToCodeReference)
             if (resolutionMechanismDoc.isNotEmpty()) {
-                add(Pair("Conflict resolution mechanism", resolutionMechanismDoc))
+                add(TableRow("Conflict resolution mechanism", resolutionMechanismDoc))
             }
             if (enumValueToCodeReference.isNotEmpty()) {
                 val valuesDoc = buildString {
@@ -76,18 +76,16 @@ data class EnumPolicyDefinitionProxy(
                     }
                     append("</ul>")
                 }
-                add(Pair("Policy value", valuesDoc))
+                add(TableRow("Policy value", valuesDoc))
             } else {
                 reporter.report(
                     Issues.INVALID_DEVICE_POLICY_ANNOTATION,
                     item,
                     "No enum values found for @EnumPolicyDefinition"
                 )
-                add(Pair("Policy value", "<code>Integer</code>"))
+                add(TableRow("Policy value", "<code>Integer</code>"))
             }
         }
-
-        return buildString { append(renderTable(tableEntries)) }
     }
 }
 
