@@ -83,4 +83,61 @@ class FlagStateTest {
             reverted1 combineWith reverted2,
         )
     }
+
+    @Test
+    fun `Test removalFlag factory and isIncluded`() {
+        // Finalized removal flags and `FlagState(removal = Removed)` canonicalize to
+        // `FlagState.REMOVED`.
+        val finalized = FlagState.removalFlag("test.pkg.r1", ApiFlagAction.FINALIZE)
+        assertSame(FlagState.REMOVED, finalized)
+        assertSame(FlagState.REMOVED, FlagState(removal = RemovalFlagState.Removed))
+        assertFalse(finalized.isIncluded)
+
+        // Kept and unconfigured removal flags keep the item in CORE as `FlaggedForRemoval`.
+        val kept = FlagState.removalFlag("test.pkg.r2", ApiFlagAction.KEEP)
+        assertEquals(
+            FlagState(removal = RemovalFlagState.FlaggedForRemoval(setOf("test.pkg.r2"))),
+            kept,
+        )
+        assertTrue(kept.isIncluded)
+
+        val unconfigured = FlagState.removalFlag("test.pkg.r3", null)
+        assertEquals(
+            FlagState(removal = RemovalFlagState.FlaggedForRemoval(setOf("test.pkg.r3"))),
+            unconfigured,
+        )
+        assertTrue(unconfigured.isIncluded)
+
+        // Reverted removal flags cancel removal and canonicalize to `FlagState.NONE`.
+        val reverted = FlagState.removalFlag("test.pkg.r4", ApiFlagAction.REVERT)
+        assertSame(FlagState.NONE, reverted)
+        assertTrue(reverted.isIncluded)
+    }
+
+    @Test
+    fun `Test RemovalFlagState ordering and combineWith`() {
+        val removal1 = FlagState.removalFlag("r1", ApiFlagAction.KEEP)
+        val removal2 = FlagState.removalFlag("r2", ApiFlagAction.KEEP)
+        val addition1 = FlagState.additionFlag("f1", ApiFlagAction.KEEP)
+
+        // Permanence ordering: `Removed < FlaggedForRemoval < Retained`.
+        assertTrue(RemovalFlagState.Removed < removal1.removal)
+        assertTrue(removal1.removal < RemovalFlagState.Retained)
+
+        // Combining scheduled-removal flags unions flag sets; `REMOVED` dominates (preserving
+        // canonical `FlagState.REMOVED`), and addition + removal dimensions combine orthogonally.
+        assertEquals(
+            FlagState(removal = RemovalFlagState.FlaggedForRemoval(setOf("r1", "r2"))),
+            removal1 combineWith removal2,
+        )
+        assertSame(FlagState.REMOVED, FlagState.REMOVED combineWith removal1)
+        assertSame(FlagState.REMOVED, removal1 combineWith FlagState.REMOVED)
+        assertEquals(
+            FlagState(
+                addition = AdditionFlagState.Flagged(setOf("f1")),
+                removal = RemovalFlagState.FlaggedForRemoval(setOf("r1")),
+            ),
+            addition1 combineWith removal1,
+        )
+    }
 }
