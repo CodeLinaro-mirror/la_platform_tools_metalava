@@ -188,17 +188,18 @@ internal abstract class AbstractItemDocumentation(
     override fun checkReference(
         referencedItem: SelectableItem,
         reporter: LocationSpecificReporter,
-    ) {
+    ): ReferenceCheckResult {
         val referenceStrategy = item.codebase.apiSurfaces.referenceStrategy
 
         // Skip checking references in documentation on items that are not themselves documented
         // (e.g. `@hide` or `@removed` items), since `ReferenceKind.DOCUMENTATION` checks target
         // visibility regardless of whether `from` is hidden.
         if (!referenceStrategy.isValidReference(null, item, ReferenceKind.DOCUMENTATION)) {
-            return
+            return ReferenceCheckResult.Valid
         }
 
-        val targetItem = effectiveReferencedItem(referencedItem) ?: return
+        val targetItem =
+            effectiveReferencedItem(referencedItem) ?: return ReferenceCheckResult.Valid
 
         // Check whether `targetItem` is accessible in documentation (`CORE` or `DOC_ONLY`).
         val result = referenceStrategy.checkReference(item, targetItem, ReferenceKind.DOCUMENTATION)
@@ -210,6 +211,8 @@ internal abstract class AbstractItemDocumentation(
                 "${targetItem.describe(capitalize = true)} is ${result.reasonLabel}",
             )
         }
+
+        return result
     }
 
     /** Implements [ExprContext.isFlagEnabled]. */

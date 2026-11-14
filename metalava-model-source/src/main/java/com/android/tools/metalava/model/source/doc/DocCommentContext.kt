@@ -21,6 +21,7 @@ import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SelectableItem
+import com.android.tools.metalava.model.api.surface.ReferenceCheckResult
 import com.android.tools.metalava.model.source.javadoc.ExprBuilderContext
 import com.android.tools.metalava.model.source.javadoc.ExprContext
 import com.android.tools.metalava.reporter.LocationSpecificReporter
@@ -40,8 +41,13 @@ internal interface DocCommentContext : ExprBuilderContext, ExprContext {
      *
      * @param referencedItem The resolved target [SelectableItem] referenced by the doc tag.
      * @param reporter Location-specific reporter for the reference tag in the doc comment.
+     * @return The [ReferenceCheckResult] indicating whether the reference is valid or why it is
+     *   invalid.
      */
-    fun checkReference(referencedItem: SelectableItem, reporter: LocationSpecificReporter)
+    fun checkReference(
+        referencedItem: SelectableItem,
+        reporter: LocationSpecificReporter,
+    ): ReferenceCheckResult
 
     /**
      * Resolve the qualified class name to emit in documentation references for [classItem].

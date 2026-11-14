@@ -163,7 +163,8 @@ class AbstractItemDocumentationTest {
         }
 
         /**
-         * Invoke [DocCommentContext.checkReference] on [from]'s documentation targeting [to], and
+         * Invoke [DocCommentContext.checkReference] on [from]'s documentation targeting [to],
+         * verify its [ReferenceCheckResult.isValid] matches whether an issue was reported, and
          * return any reported issue messages.
          */
         fun checkReference(from: SelectableItem, to: SelectableItem): String {
@@ -175,8 +176,14 @@ class AbstractItemDocumentationTest {
                         reporter.report(issue, null, message, FileLocation.UNKNOWN)
                     }
                 }
-            context.checkReference(to, locationReporter)
-            return reporter.removeIssues()
+            val result = context.checkReference(to, locationReporter)
+            val issues = reporter.removeIssues()
+            assertEquals(
+                issues.isEmpty(),
+                result.isValid,
+                "checkReference return value for $from -> $to"
+            )
+            return issues
         }
     }
 
