@@ -139,15 +139,6 @@ class SdkExtensionApiHistoryTest : DriverTest() {
         return apiVersionsXml
     }
 
-    /**
-     * A `<symbol>` rule for a class that does not use `@SdkExtensionApi`.
-     *
-     * `api-history` currently skips scanning the extension files of any jar that has no `<symbol>`
-     * rules, so this rule ensures that the `module` jar is scanned.
-     */
-    private val legacySymbol =
-        """<symbol jar="module" pattern="test.pkg.Legacy" sdks="R-ext,S-ext,T-ext,U-ext" />"""
-
     @Test
     fun `Test api-versions for @SdkExtensionApi without symbol rules`() {
         val moduleApi =
@@ -168,9 +159,6 @@ class SdkExtensionApiHistoryTest : DriverTest() {
                   @SdkExtensionApi(32) public class InvalidFloor {
                     ctor public InvalidFloor();
                   }
-                  public class Legacy {
-                    ctor public Legacy();
-                  }
                 }
             """
 
@@ -178,7 +166,7 @@ class SdkExtensionApiHistoryTest : DriverTest() {
             generateApiVersions(
                 extensionVersions = mapOf(10 to moduleApi),
                 currentApi = moduleApi,
-                symbols = legacySymbol,
+                symbols = "",
             )
 
         // The @SdkExtensionApi floor is used to compute the `sdks` attribute:
@@ -211,9 +199,6 @@ class SdkExtensionApiHistoryTest : DriverTest() {
                     <class name="test/pkg/InvalidFloor" module="module" since="34" sdks="33:10,34:10">
                         <method name="&lt;init>()V"/>
                     </class>
-                    <class name="test/pkg/Legacy" module="module" since="34" sdks="30:10,31:10,33:10,34:10">
-                        <method name="&lt;init>()V"/>
-                    </class>
                 </api>
             """
         )
@@ -229,9 +214,6 @@ class SdkExtensionApiHistoryTest : DriverTest() {
                             """
                                 // Signature format: 2.0
                                 package test.pkg {
-                                  public class Legacy {
-                                    ctor public Legacy();
-                                  }
                                   @SdkExtensionApi(33) public class LoweredFloor {
                                     ctor public LoweredFloor();
                                   }
@@ -244,9 +226,6 @@ class SdkExtensionApiHistoryTest : DriverTest() {
                             """
                                 // Signature format: 2.0
                                 package test.pkg {
-                                  public class Legacy {
-                                    ctor public Legacy();
-                                  }
                                   @SdkExtensionApi(31) public class LoweredFloor {
                                     ctor public LoweredFloor();
                                   }
@@ -260,9 +239,6 @@ class SdkExtensionApiHistoryTest : DriverTest() {
                     """
                         // Signature format: 2.0
                         package test.pkg {
-                          public class Legacy {
-                            ctor public Legacy();
-                          }
                           @SdkExtensionApi(31) public class LoweredFloor {
                             ctor public LoweredFloor();
                           }
@@ -271,7 +247,7 @@ class SdkExtensionApiHistoryTest : DriverTest() {
                           }
                         }
                     """,
-                symbols = legacySymbol,
+                symbols = "",
             )
 
         // The floor from the newest signature file is used to compute the `sdks` attribute:
@@ -286,9 +262,6 @@ class SdkExtensionApiHistoryTest : DriverTest() {
                     <sdk id="33" shortname="T-ext" name="T Extensions" reference="android/os/Build${'$'}VERSION_CODES${'$'}TIRAMISU"/>
                     <sdk id="34" shortname="U-ext" name="U Extensions" reference="android/os/Build${'$'}VERSION_CODES${'$'}UPSIDE_DOWN_CAKE"/>
                     <sdk id="1000000" shortname="AD_SERVICES-ext" name="Ad Services Extensions" reference="android/os/ext/SdkExtensions${'$'}AD_SERVICES"/>
-                    <class name="test/pkg/Legacy" module="module" since="34" sdks="30:10,31:10,33:10,34:10">
-                        <method name="&lt;init>()V"/>
-                    </class>
                     <class name="test/pkg/LoweredFloor" module="module" since="34" sdks="31:10,33:10,34:10">
                         <method name="&lt;init>()V"/>
                     </class>
@@ -317,16 +290,13 @@ class SdkExtensionApiHistoryTest : DriverTest() {
                     "// Signature format: 2.0",
                     "package test.pkg {",
                     classes.trimIndent().prependIndent("  "),
-                    "  public class Legacy {",
-                    "    ctor public Legacy();",
-                    "  }",
                     "}",
                 )
                 .joinToString("\n")
         return generateApiVersions(
             extensionVersions = mapOf(10 to moduleApi),
             currentApi = moduleApi,
-            symbols = symbols.trimIndent() + "\n" + legacySymbol,
+            symbols = symbols,
             expectedError = expectedError,
         )
     }
@@ -360,9 +330,6 @@ class SdkExtensionApiHistoryTest : DriverTest() {
                     <sdk id="34" shortname="U-ext" name="U Extensions" reference="android/os/Build${'$'}VERSION_CODES${'$'}UPSIDE_DOWN_CAKE"/>
                     <sdk id="1000000" shortname="AD_SERVICES-ext" name="Ad Services Extensions" reference="android/os/ext/SdkExtensions${'$'}AD_SERVICES"/>
                     <class name="test/pkg/Agreeing" module="module" since="34" sdks="33:10,34:10">
-                        <method name="&lt;init>()V"/>
-                    </class>
-                    <class name="test/pkg/Legacy" module="module" since="34" sdks="30:10,31:10,33:10,34:10">
                         <method name="&lt;init>()V"/>
                     </class>
                 </api>
@@ -428,9 +395,6 @@ class SdkExtensionApiHistoryTest : DriverTest() {
                           @SdkExtensionApi(34) public class Foo {
                             ctor public Foo();
                           }
-                          public class Legacy {
-                            ctor public Legacy();
-                          }
                         }
                     """,
                 extensionVersions =
@@ -442,20 +406,17 @@ class SdkExtensionApiHistoryTest : DriverTest() {
                                   @SdkExtensionApi(33) public class Foo {
                                     ctor public Foo();
                                   }
-                                  public class Legacy {
-                                    ctor public Legacy();
-                                  }
                                 }
                             """
                     ),
                 currentApi = null,
-                symbols = legacySymbol,
+                symbols = "",
             )
 
         // `Foo` uses the floor from the SDK extension version (33) rather than the floor from the
         // older historical Android SDK version (34), so it is in `T-ext`. `U-ext` is omitted from
-        // the `sdks` attribute of both `Foo` and `Legacy` as they were added in Android SDK 33,
-        // which `U-ext` does not supersede.
+        // the `sdks` attribute of `Foo` as it was added in Android SDK 33, which `U-ext` does not
+        // supersede.
         apiVersionsXml.checkApiVersionsXmlContent(
             """
                 <?xml version="1.0" encoding="utf-8"?>
@@ -466,9 +427,6 @@ class SdkExtensionApiHistoryTest : DriverTest() {
                     <sdk id="34" shortname="U-ext" name="U Extensions" reference="android/os/Build${'$'}VERSION_CODES${'$'}UPSIDE_DOWN_CAKE"/>
                     <sdk id="1000000" shortname="AD_SERVICES-ext" name="Ad Services Extensions" reference="android/os/ext/SdkExtensions${'$'}AD_SERVICES"/>
                     <class name="test/pkg/Foo" module="module" since="33" sdks="33:10,0:33">
-                        <method name="&lt;init>()V"/>
-                    </class>
-                    <class name="test/pkg/Legacy" module="module" since="33" sdks="30:10,31:10,33:10,0:33">
                         <method name="&lt;init>()V"/>
                     </class>
                 </api>
@@ -496,9 +454,8 @@ class SdkExtensionApiHistoryTest : DriverTest() {
                 symbols = "",
             )
 
-        // TODO(b/507875039): The extension versions of a module without any `<symbol>` rules are
-        //  not scanned, so `Migrated` has no `module` or `sdks` attribute. It should be in `T-ext`
-        //  and `U-ext` (`33:10,34:10`).
+        // The extension versions of a module without any `<symbol>` rules are scanned if they use
+        // @SdkExtensionApi, so `Migrated` is in `T-ext` and `U-ext` (`33:10,34:10`).
         apiVersionsXml.checkApiVersionsXmlContent(
             """
                 <?xml version="1.0" encoding="utf-8"?>
@@ -508,7 +465,7 @@ class SdkExtensionApiHistoryTest : DriverTest() {
                     <sdk id="33" shortname="T-ext" name="T Extensions" reference="android/os/Build${'$'}VERSION_CODES${'$'}TIRAMISU"/>
                     <sdk id="34" shortname="U-ext" name="U Extensions" reference="android/os/Build${'$'}VERSION_CODES${'$'}UPSIDE_DOWN_CAKE"/>
                     <sdk id="1000000" shortname="AD_SERVICES-ext" name="Ad Services Extensions" reference="android/os/ext/SdkExtensions${'$'}AD_SERVICES"/>
-                    <class name="test/pkg/Migrated" since="34">
+                    <class name="test/pkg/Migrated" module="module" since="34" sdks="33:10,34:10">
                         <method name="&lt;init>()V"/>
                     </class>
                 </api>
