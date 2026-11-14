@@ -475,4 +475,84 @@ class SdkExtensionApiHistoryTest : DriverTest() {
             """
         )
     }
+
+    @Test
+    fun `Test api-versions for @SdkExtensionApi in a module without symbol rules`() {
+        // A module that has been fully migrated to @SdkExtensionApi has no `<symbol>` rules.
+        val moduleApi =
+            """
+                // Signature format: 2.0
+                package test.pkg {
+                  @SdkExtensionApi(33) public class Migrated {
+                    ctor public Migrated();
+                  }
+                }
+            """
+
+        val apiVersionsXml =
+            generateApiVersions(
+                extensionVersions = mapOf(10 to moduleApi),
+                currentApi = moduleApi,
+                symbols = "",
+            )
+
+        // TODO(b/507875039): The extension versions of a module without any `<symbol>` rules are
+        //  not scanned, so `Migrated` has no `module` or `sdks` attribute. It should be in `T-ext`
+        //  and `U-ext` (`33:10,34:10`).
+        apiVersionsXml.checkApiVersionsXmlContent(
+            """
+                <?xml version="1.0" encoding="utf-8"?>
+                <api version="3" min="33">
+                    <sdk id="30" shortname="R-ext" name="R Extensions" reference="android/os/Build${'$'}VERSION_CODES${'$'}R"/>
+                    <sdk id="31" shortname="S-ext" name="S Extensions" reference="android/os/Build${'$'}VERSION_CODES${'$'}S"/>
+                    <sdk id="33" shortname="T-ext" name="T Extensions" reference="android/os/Build${'$'}VERSION_CODES${'$'}TIRAMISU"/>
+                    <sdk id="34" shortname="U-ext" name="U Extensions" reference="android/os/Build${'$'}VERSION_CODES${'$'}UPSIDE_DOWN_CAKE"/>
+                    <sdk id="1000000" shortname="AD_SERVICES-ext" name="Ad Services Extensions" reference="android/os/ext/SdkExtensions${'$'}AD_SERVICES"/>
+                    <class name="test/pkg/Migrated" since="34">
+                        <method name="&lt;init>()V"/>
+                    </class>
+                </api>
+            """
+        )
+    }
+
+    @Test
+    fun `Test api-versions for a module without symbol rules or @SdkExtensionApi`() {
+        // A module that is not in any SDK extension has neither `<symbol>` rules nor
+        // @SdkExtensionApi.
+        val moduleApi =
+            """
+                // Signature format: 2.0
+                package test.pkg {
+                  public class NotInSdkExtension {
+                    ctor public NotInSdkExtension();
+                  }
+                }
+            """
+
+        val apiVersionsXml =
+            generateApiVersions(
+                extensionVersions = mapOf(10 to moduleApi),
+                currentApi = moduleApi,
+                symbols = "",
+            )
+
+        // The extension versions of the module are not scanned, so `NotInSdkExtension` has no
+        // `module` or `sdks` attribute.
+        apiVersionsXml.checkApiVersionsXmlContent(
+            """
+                <?xml version="1.0" encoding="utf-8"?>
+                <api version="3" min="33">
+                    <sdk id="30" shortname="R-ext" name="R Extensions" reference="android/os/Build${'$'}VERSION_CODES${'$'}R"/>
+                    <sdk id="31" shortname="S-ext" name="S Extensions" reference="android/os/Build${'$'}VERSION_CODES${'$'}S"/>
+                    <sdk id="33" shortname="T-ext" name="T Extensions" reference="android/os/Build${'$'}VERSION_CODES${'$'}TIRAMISU"/>
+                    <sdk id="34" shortname="U-ext" name="U Extensions" reference="android/os/Build${'$'}VERSION_CODES${'$'}UPSIDE_DOWN_CAKE"/>
+                    <sdk id="1000000" shortname="AD_SERVICES-ext" name="Ad Services Extensions" reference="android/os/ext/SdkExtensions${'$'}AD_SERVICES"/>
+                    <class name="test/pkg/NotInSdkExtension" since="34">
+                        <method name="&lt;init>()V"/>
+                    </class>
+                </api>
+            """
+        )
+    }
 }
