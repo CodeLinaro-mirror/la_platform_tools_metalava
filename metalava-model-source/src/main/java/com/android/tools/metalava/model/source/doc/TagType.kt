@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.source.doc
 
 import com.android.tools.metalava.model.InvalidReferencableItem
 import com.android.tools.metalava.model.source.javadoc.JavadocContent
+import com.android.tools.metalava.model.source.javadoc.JavadocInlineTag
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Issues.Issue
 import com.android.tools.metalava.reporter.LocationSpecificReporter
@@ -34,6 +35,23 @@ internal interface TagData : Comparable<TagData> {
     fun JavadocContent.printWithLeadingSpaceTo(contentPrinter: JavadocContentPrinter) {
         contentPrinter.writer.print(' ')
         contentPrinter.print(this)
+    }
+
+    /**
+     * Print [inlineTag] to [contentPrinter].
+     *
+     * By default this prints `{@<tagType><contents>}`, delegating to [printTagContents] for the tag
+     * contents. Implementations may override this to replace the entire inline tag when needed.
+     */
+    fun printInlineTag(
+        inlineTag: JavadocInlineTag,
+        contentPrinter: JavadocContentPrinter,
+    ) {
+        val writer = contentPrinter.writer
+        writer.print("{@")
+        writer.print(inlineTag.tagType)
+        printTagContents(contentPrinter, inlineTag.content)
+        writer.print("}")
     }
 
     /**
