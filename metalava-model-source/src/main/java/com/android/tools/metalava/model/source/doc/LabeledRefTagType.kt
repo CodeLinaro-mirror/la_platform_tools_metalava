@@ -28,6 +28,7 @@ import com.android.tools.metalava.model.TypeComparator
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeStringConfiguration
+import com.android.tools.metalava.model.api.surface.ReferenceCheckResult
 import com.android.tools.metalava.model.parser.SharedTokenType
 import com.android.tools.metalava.model.parser.TokenStream
 import com.android.tools.metalava.model.scope.NameClassification
@@ -506,14 +507,14 @@ internal data class AmbiguousMemberSourceReference(val name: String) : ClassMemb
 
         // When no matching field is found (e.g. a method reference without `()`), still validate
         // that the qualifying class itself is accessible.
-        if (classItem != null) {
-            context.checkReference(classItem, reporter)
-        }
+        val checkResult =
+            if (classItem == null) ReferenceCheckResult.Valid
+            else context.checkReference(classItem, reporter)
 
         // TODO(b/447588621): Report that the field could not be found.
         // If the field could not be found then fallback to a field reference so that at least
         // the resolved class will be fully qualified.
-        return FieldReference(className, name)
+        return FieldReference(className, name, checkResult = checkResult)
     }
 }
 
@@ -577,7 +578,7 @@ internal data class CallableSourceReference(
                 // Callable overloads are not yet resolved to a single CallableItem, so at least
                 // validate that their containing class is accessible.
                 val containingClass = resolved.containingClass
-                context.checkReference(containingClass, reporter)
+                val classCheckResult = context.checkReference(containingClass, reporter)
 
                 val resolvedClassName = context.resolveClassReferenceName(containingClass)
                 val unmappedQualifiedCallable =
@@ -596,6 +597,7 @@ internal data class CallableSourceReference(
                         resolvedClassName,
                         // Use the resolved name as the source name may be qualified.
                         resolved.name,
+                        classCheckResult,
                     ),
                 )
             }
@@ -603,7 +605,7 @@ internal data class CallableSourceReference(
                 // Resolving a callable can return the class in lieu of a set of constructor so
                 // treat it as one, validate that the class is accessible, and create a reference
                 // to the constructor.
-                context.checkReference(resolved, reporter)
+                val classCheckResult = context.checkReference(resolved, reporter)
 
                 val resolvedClassName = context.resolveClassReferenceName(resolved)
                 val sourceCallableName =
@@ -616,6 +618,7 @@ internal data class CallableSourceReference(
                         resolvedClassName,
                         // Use the class's simple name as the constructor name.
                         resolved.simpleName(),
+                        classCheckResult,
                     ),
                 )
             }
@@ -639,9 +642,9 @@ internal data class CallableSourceReference(
         className: String,
     ): CallableReference {
         // Validate that the qualifying class of the callable reference is accessible.
-        if (classItem != null) {
-            context.checkReference(classItem, reporter)
-        }
+        val classCheckResult =
+            if (classItem == null) ReferenceCheckResult.Valid
+            else context.checkReference(classItem, reporter)
 
         return createCallableReference(
             context,
@@ -650,6 +653,7 @@ internal data class CallableSourceReference(
             // The source name will always be the simple callable name in this case, it will never
             // be qualified so it is safe to use in the callable reference.
             name,
+            classCheckResult,
         )
     }
 
@@ -662,19 +666,28 @@ internal data class CallableSourceReference(
         reporter: LocationSpecificReporter,
         className: String,
         name: String,
-    ) =
-        CallableReference(
+        classCheckResult: ReferenceCheckResult,
+    ): CallableReference {
+        var checkResult = classCheckResult
+        val qualifiedParameters =
+            parameters.map { sourceParameter ->
+                val (fullyQualifiedType, parameterCheckResult) =
+                    sourceParameter.type.fullyQualify(context, reporter)
+                checkResult = checkResult.combineWith(parameterCheckResult)
+                SourceParameter(fullyQualifiedType, sourceParameter.name)
+            }
+        return CallableReference(
             className,
             formatSignature(
                 name,
-                parameters.map { sourceParameter ->
-                    val fullyQualifiedType = sourceParameter.type.fullyQualify(context, reporter)
-                    SourceParameter(fullyQualifiedType, sourceParameter.name)
-                },
+                qualifiedParameters,
+
                 // Erase generic arguments from the reference part of this.
                 eraseGenericArguments = true,
-            )
+            ),
+            checkResult = checkResult,
         )
+    }
 
     data class SourceParameter(
         val type: TypeItem,
@@ -702,45 +715,70 @@ internal data class CallableSourceReference(
     }
 }
 
-/** Fully qualify this [TypeItem] within [context], reporting any issues to [reporter]. */
-private fun TypeItem.fullyQualify(context: DocCommentContext, reporter: LocationSpecificReporter) =
-    transform(
-        object : BaseTypeTransformer() {
-            override fun transform(typeItem: ClassTypeItem): ClassTypeItem {
-                // Resolve the qualified name (which may in fact be a simple name, or a partially
-                // qualified name) as a class.
-                val resolved =
-                    context.resolveItemReference(typeItem.qualifiedName, NameClassification.CLASS)
+/**
+ * Combine two [ReferenceCheckResult]s, retaining the first [ReferenceCheckResult.Invalid] if either
+ * result is invalid.
+ */
+private fun ReferenceCheckResult.combineWith(other: ReferenceCheckResult): ReferenceCheckResult =
+    if (isValid) other else this
 
-                val resolvedType =
-                    when (resolved) {
-                        is ClassItem -> {
-                            // Validate each parameter class referenced in the callable signature.
-                            context.checkReference(resolved, reporter)
+/**
+ * Fully qualify this [TypeItem] within [context], reporting any issues to [reporter], and return
+ * the qualified [TypeItem] paired with the combined [ReferenceCheckResult] of all resolved classes
+ * in the type.
+ */
+private fun TypeItem.fullyQualify(
+    context: DocCommentContext,
+    reporter: LocationSpecificReporter,
+): Pair<TypeItem, ReferenceCheckResult> {
+    var checkResult: ReferenceCheckResult = ReferenceCheckResult.Valid
+    val qualifiedType =
+        transform(
+            object : BaseTypeTransformer() {
+                override fun transform(typeItem: ClassTypeItem): ClassTypeItem {
+                    // Resolve the qualified name (which may in fact be a simple name, or a
+                    // partially qualified name) as a class.
+                    val resolved =
+                        context.resolveItemReference(
+                            typeItem.qualifiedName,
+                            NameClassification.CLASS,
+                        )
 
-                            // Use the resolved class's type.
-                            resolved.type()
-                        }
-                        else -> {
-                            // Report any issues with resolving the class.
-                            if (resolved is InvalidReferencableItem) {
-                                resolved.reportIssue(reporter)
+                    val resolvedType =
+                        when (resolved) {
+                            is ClassItem -> {
+                                // Validate each parameter class referenced in the callable
+                                // signature.
+                                checkResult =
+                                    checkResult.combineWith(
+                                        context.checkReference(resolved, reporter)
+                                    )
+
+                                // Use the resolved class's type.
+                                resolved.type()
                             }
+                            else -> {
+                                // Report any issues with resolving the class.
+                                if (resolved is InvalidReferencableItem) {
+                                    resolved.reportIssue(reporter)
+                                }
 
-                            // Default to just using this type
-                            typeItem
+                                // Default to just using this type
+                                typeItem
+                            }
                         }
-                    }
 
-                // Fully qualify the type arguments, reporting any issues with class references.
-                val fullyQualifiedTypeArguments = typeItem.arguments.map { it.transform(this) }
+                    // Fully qualify the type arguments, reporting any issues with class references.
+                    val fullyQualifiedTypeArguments = typeItem.arguments.map { it.transform(this) }
 
-                // Use the resolved type with the fully qualified type arguments provided in the
-                // source.
-                return resolvedType.substitute(arguments = fullyQualifiedTypeArguments)
+                    // Use the resolved type with the fully qualified type arguments provided in the
+                    // source.
+                    return resolvedType.substitute(arguments = fullyQualifiedTypeArguments)
+                }
             }
-        }
-    )
+        )
+    return qualifiedType to checkResult
+}
 
 /** A reference to a [uriFragment]. */
 internal data class UriFragmentSourceReference(val uriFragment: String) :
@@ -760,13 +798,13 @@ internal data class UriFragmentSourceReference(val uriFragment: String) :
         className: String,
     ): UriFragmentReference {
         // Validate that the qualifying class of `Class##uri-fragment` is accessible.
-        if (classItem != null) {
-            context.checkReference(classItem, reporter)
-        }
+        val checkResult =
+            if (classItem == null) ReferenceCheckResult.Valid
+            else context.checkReference(classItem, reporter)
 
         // TODO(b/447588621): If the source for classItem is available then check it for an
         //  id="<uriFragment>" attribute.
-        return UriFragmentReference(className, uriFragment)
+        return UriFragmentReference(className, uriFragment, checkResult = checkResult)
     }
 }
 
