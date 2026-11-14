@@ -940,11 +940,11 @@ class JavadocTest : DriverTest() {
             source =
                 """
                 package test.pkg1;
-                /** Reference to {@link test.pkg2.OtherClass1#myMethod(test.pkg2.OtherClass2,int,test.pkg2.OtherClass2[]) OtherClass1.myMethod(OtherClass2,int,OtherClass2[])}, */
+                /** Reference to ERROR[not public: OtherClass1#myMethod(OtherClass2,int,OtherClass2[])], */
                 @SuppressWarnings({"unchecked", "deprecation", "all"})
                 public class Test<E extends test.pkg2.OtherClass2> {
                 public Test() { throw new RuntimeException("Stub!"); }
-                /** Reference to {@link test.pkg2.OtherClass1#myMethod(test.pkg2.OtherClass2,int,test.pkg2.OtherClass2[]) OtherClass1.myMethod(E,int,OtherClass2[])}, */
+                /** Reference to ERROR[not public: OtherClass1#myMethod(E,int,OtherClass2[])], */
                 public void test() { throw new RuntimeException("Stub!"); }
                 }
                 """

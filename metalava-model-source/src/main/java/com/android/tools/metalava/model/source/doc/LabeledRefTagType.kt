@@ -35,6 +35,7 @@ import com.android.tools.metalava.model.scope.NameClassification
 import com.android.tools.metalava.model.scope.ReferencableNameScope
 import com.android.tools.metalava.model.source.doc.CallableSourceReference.SourceParameter
 import com.android.tools.metalava.model.source.javadoc.JavadocContent
+import com.android.tools.metalava.model.source.javadoc.JavadocInlineTag
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.LocationSpecificReporter
 
@@ -862,6 +863,24 @@ internal data class LabeledRefTagData(
     private val resolvedReference: ResolvedReference?,
 ) : TagData {
     /**
+     * Print [inlineTag] to [contentPrinter], replacing the tag with `ERROR[<reason>: <link>]` or
+     * `ERROR[<reason>: <link> <label>]` when [resolvedReference] failed
+     * [DocCommentContext.checkReference] ([ReferenceCheckResult.Invalid]).
+     */
+    override fun printInlineTag(
+        inlineTag: JavadocInlineTag,
+        contentPrinter: JavadocContentPrinter,
+    ) {
+        val checkResult = resolvedReference?.checkResult
+        if (checkResult !is ReferenceCheckResult.Invalid) {
+            super.printInlineTag(inlineTag, contentPrinter)
+            return
+        }
+
+        printErrorReference(contentPrinter, checkResult, inlineTag.content)
+    }
+
+    /**
      * Print the tag contents which consists of the [sourceReference] and the [content] which is the
      * optional label.
      *
@@ -870,6 +889,14 @@ internal data class LabeledRefTagData(
      */
     override fun printTagContents(contentPrinter: JavadocContentPrinter, content: JavadocContent?) {
         val writer = contentPrinter.writer
+        val checkResult = resolvedReference?.checkResult
+        if (checkResult is ReferenceCheckResult.Invalid) {
+            writer.print(" \"")
+            printErrorReference(contentPrinter, checkResult, content)
+            writer.print("\"")
+            return
+        }
+
         writer.print(" ")
         val formattedReference =
             resolvedReference?.formatForTagReference(contentPrinter.containingClassName)
@@ -928,6 +955,25 @@ internal data class LabeledRefTagData(
         // Use the source reference as the label.
         writer.print(" ")
         writer.print(sourceReferenceAsLabel)
+    }
+
+    /**
+     * Print `ERROR[<reason>: <link>]` or `ERROR[<reason>: <link> <label>]` to [contentPrinter],
+     * using [invalidResult]'s [ReferenceCheckResult.Invalid.reasonLabel] as `<reason>`,
+     * [sourceReference] as `<link>`, and [content] (if present) as `<label>`.
+     */
+    private fun printErrorReference(
+        contentPrinter: JavadocContentPrinter,
+        invalidResult: ReferenceCheckResult.Invalid,
+        content: JavadocContent?,
+    ) {
+        val writer = contentPrinter.writer
+        writer.print("ERROR[")
+        writer.print(invalidResult.reasonLabel)
+        writer.print(": ")
+        writer.print(sourceReference)
+        content?.printWithLeadingSpaceTo(contentPrinter)
+        writer.print("]")
     }
 
     /**

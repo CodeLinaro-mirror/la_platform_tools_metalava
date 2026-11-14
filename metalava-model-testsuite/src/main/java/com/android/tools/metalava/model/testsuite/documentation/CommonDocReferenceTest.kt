@@ -543,31 +543,31 @@ class CommonDocReferenceTest : BaseModelTest() {
             val testClass = codebase.assertClass("test.pkg.Test")
             val testMethod = testClass.methods().single()
 
-            // TODO(b/568477816): Hidden inline references ({@link}, {@linkplain}) should be
-            //  replaced with ERROR[<reason>: <link> <label>] and hidden @see references with
-            //  @see "ERROR[<reason>: <link> <label>]" when printed.
+            // Hidden inline references (`{@link}`, `{@linkplain}`) are replaced with
+            // `ERROR[<reason>: <link> <label>]` and hidden `@see` references with
+            // `@see "ERROR[<reason>: <link> <label>]"`.
             testMethod.assertPrintedDocumentation(
                 expectedOutput =
                     """
                         /**
-                         * {@link hidden.pkg}
-                         * {@link hidden.pkg.InHiddenPackage}
-                         * {@link test.pkg.PackagePrivateClass PackagePrivateClass}
-                         * {@link test.pkg.HiddenClass HiddenClass}
-                         * {@link test.pkg.HiddenClass custom label}
-                         * {@link test.pkg.HiddenClass#field HiddenClass.field}
-                         * {@link test.pkg.HiddenClass#method HiddenClass.method}
-                         * {@link test.pkg.HiddenClass#method(test.pkg.PackagePrivateClass) HiddenClass.method(PackagePrivateClass)}
-                         * {@link test.pkg.HiddenClass##uri-fragment}
-                         * {@link test.pkg.Other#hiddenField Other.hiddenField}
-                         * {@link test.pkg.Other#packagePrivateField Other.packagePrivateField}
-                         * {@link test.pkg.Other.HiddenNested Other.HiddenNested}
-                         * {@linkplain test.pkg.HiddenClass HiddenClass}
-                         * {@linkplain test.pkg.HiddenClass custom label}
+                         * ERROR[hidden: hidden.pkg]
+                         * ERROR[hidden: hidden.pkg.InHiddenPackage]
+                         * ERROR[not public: PackagePrivateClass]
+                         * ERROR[hidden: HiddenClass]
+                         * ERROR[hidden: HiddenClass custom label]
+                         * ERROR[hidden: HiddenClass#field]
+                         * ERROR[hidden: HiddenClass#method]
+                         * ERROR[hidden: HiddenClass#method(PackagePrivateClass)]
+                         * ERROR[hidden: HiddenClass##uri-fragment]
+                         * ERROR[hidden: Other#hiddenField]
+                         * ERROR[not public: Other#packagePrivateField]
+                         * ERROR[hidden: Other.HiddenNested]
+                         * ERROR[hidden: HiddenClass]
+                         * ERROR[hidden: HiddenClass custom label]
                          *
                          * @throws test.pkg.Test.HiddenException if hidden exception is thrown.
-                         * @see test.pkg.HiddenClass HiddenClass
-                         * @see test.pkg.HiddenClass custom label
+                         * @see "ERROR[hidden: HiddenClass]"
+                         * @see "ERROR[hidden: HiddenClass custom label]"
                          */
                     """,
             )
@@ -694,9 +694,6 @@ class CommonDocReferenceTest : BaseModelTest() {
             ),
         ) {
             val testClass = codebase.assertClass("test.pkg.Test")
-
-            // TODO(b/568477816): Hidden inline references (IntDef#HIDDEN_FLAG, IntRange, Hide,
-            //  Hide#value()) should be replaced with ERROR[<reason>: <link>] when printed.
             testClass
                 .assertMethod("method", emptyList())
                 .assertPrintedDocumentation(
@@ -705,14 +702,14 @@ class CommonDocReferenceTest : BaseModelTest() {
                             /**
                              * {@link androidx.annotation.Nullable Nullable}
                              * {@link androidx.annotation.IntDef#DEFAULT_FLAG IntDef.DEFAULT_FLAG}
-                             * {@link androidx.annotation.IntDef#HIDDEN_FLAG IntDef.HIDDEN_FLAG}
+                             * ERROR[hidden: IntDef#HIDDEN_FLAG]
                              * {@link androidx.annotation.IntDef#flag IntDef.flag}
                              * {@link androidx.annotation.IntDef#flag() IntDef.flag()}
                              * {@link androidx.annotation.Nullable##uri-fragment}
                              * {@link androidx.annotation.NonNull NonNull}
-                             * {@link androidx.annotation.IntRange IntRange}
-                             * {@link android.annotation.Hide Hide}
-                             * {@link android.annotation.Hide#value() Hide.value()}
+                             * ERROR[hidden: IntRange]
+                             * ERROR[hidden: Hide]
+                             * ERROR[hidden: Hide#value()]
                              */
                         """,
                 )
@@ -917,16 +914,14 @@ class CommonDocReferenceTest : BaseModelTest() {
         ) {
             val testClass = codebase.assertClass("test.pkg.Test")
 
-            // TODO(b/568477816): Removed inline references (RemovedClass, RemovedClass#field)
-            //  should be replaced with ERROR[<reason>: <link>] when printed.
             testClass
                 .assertMethod("publicMethod", emptyList())
                 .assertPrintedDocumentation(
                     expectedOutput =
                         """
                             /**
-                             * {@link test.pkg.RemovedClass RemovedClass}
-                             * {@link test.pkg.RemovedClass#field RemovedClass.field}
+                             * ERROR[removed: RemovedClass]
+                             * ERROR[removed: RemovedClass#field]
                              */
                         """,
                 )
@@ -954,9 +949,9 @@ class CommonDocReferenceTest : BaseModelTest() {
     }
 
     /**
-     * Verify that documentation on unflagged public API items reports `HiddenDocReference` when
-     * referencing items in a wider API surface, items guarded by an addition `@FlaggedApi`, or
-     * items scheduled for removal by `@FlaggedApi`.
+     * Verify that documentation on unflagged public API items reports `HiddenDocReference` and
+     * rewrites links to `ERROR[<reason>: <link>...]` when referencing items in a wider API surface,
+     * items guarded by an addition `@FlaggedApi`, or items scheduled for removal by `@FlaggedApi`.
      */
     @SupportedInputFormats(InputFormat.JAVA)
     @Test
@@ -1057,21 +1052,17 @@ class CommonDocReferenceTest : BaseModelTest() {
                 ),
         ) {
             val testClass = codebase.assertClass("test.pkg.Test")
-
-            // TODO(b/568477816): Invalid inline references should be replaced with
-            //  ERROR[<reason>: <link> <label>] and invalid @see references with
-            //  @see "ERROR[<reason>: <link> <label>]" when printed.
             testClass
                 .assertMethod("publicMethod", emptyList())
                 .assertPrintedDocumentation(
                     expectedOutput =
                         """
                             /**
-                             * {@link test.pkg.SystemClass SystemClass}
-                             * {@link test.pkg.SystemClass custom label}
-                             * {@link test.pkg.FlaggedAdditionClass FlaggedAdditionClass}
-                             * {@link test.pkg.FlaggedRemovalClass FlaggedRemovalClass}
-                             * @see test.pkg.SystemClass SystemClass
+                             * ERROR[in a wider API surface (system) than public: SystemClass]
+                             * ERROR[in a wider API surface (system) than public: SystemClass custom label]
+                             * ERROR[guarded by @FlaggedApi(test.pkg.flags.add_flag): FlaggedAdditionClass]
+                             * ERROR[scheduled for removal by @FlaggedApi(test.pkg.flags.remove_flag): FlaggedRemovalClass]
+                             * @see "ERROR[in a wider API surface (system) than public: SystemClass]"
                              */
                         """,
                 )
