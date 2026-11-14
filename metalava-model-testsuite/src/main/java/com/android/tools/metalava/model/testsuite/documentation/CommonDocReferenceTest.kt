@@ -18,11 +18,15 @@ package com.android.tools.metalava.model.testsuite.documentation
 
 import com.android.tools.metalava.model.api.ApiSurfaceRules
 import com.android.tools.metalava.model.api.SurfaceSelectionRule
+import com.android.tools.metalava.model.api.flags.ApiFlag
+import com.android.tools.metalava.model.api.flags.ApiFlagAction
+import com.android.tools.metalava.model.api.flags.ApiFlags
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.source.doc.DocContentPredicates
 import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testsuite.BaseModelTest
+import com.android.tools.metalava.testing.KnownJarFiles
 import com.android.tools.metalava.testing.html
 import com.android.tools.metalava.testing.java
 import kotlin.test.assertTrue
@@ -454,8 +458,8 @@ class CommonDocReferenceTest : BaseModelTest() {
 
     /**
      * Verify how documentation references (`{@link}`, `{@linkplain}`, `@see`, `@throws`) to `@hide`
-     * packages/classes/members and package-private classes/members are resolved, fully qualified
-     * when printed, and checked for `HiddenDocReference`.
+     * packages/classes/members and package-private classes/members are resolved, checked for
+     * `HiddenDocReference`, and rewritten to `ERROR[...]` when printed.
      */
     @SupportedInputFormats(InputFormat.JAVA)
     @Test
@@ -512,6 +516,7 @@ class CommonDocReferenceTest : BaseModelTest() {
                              * {@link hidden.pkg.InHiddenPackage}
                              * {@link PackagePrivateClass}
                              * {@link HiddenClass}
+                             * {@link HiddenClass custom label}
                              * {@link HiddenClass#field}
                              * {@link HiddenClass#method}
                              * {@link HiddenClass#method(PackagePrivateClass)}
@@ -520,8 +525,10 @@ class CommonDocReferenceTest : BaseModelTest() {
                              * {@link Other#packagePrivateField}
                              * {@link Other.HiddenNested}
                              * {@linkplain HiddenClass}
+                             * {@linkplain HiddenClass custom label}
                              *
                              * @see HiddenClass
+                             * @see HiddenClass custom label
                              * @throws HiddenException if hidden exception is thrown.
                              */
                             public void method() {}
@@ -536,7 +543,9 @@ class CommonDocReferenceTest : BaseModelTest() {
             val testClass = codebase.assertClass("test.pkg.Test")
             val testMethod = testClass.methods().single()
 
-            // Even when referencing hidden items, links are still resolved and fully qualified.
+            // TODO(b/568477816): Hidden inline references ({@link}, {@linkplain}) should be
+            //  replaced with ERROR[<reason>: <link> <label>] and hidden @see references with
+            //  @see "ERROR[<reason>: <link> <label>]" when printed.
             testMethod.assertPrintedDocumentation(
                 expectedOutput =
                     """
@@ -545,6 +554,7 @@ class CommonDocReferenceTest : BaseModelTest() {
                          * {@link hidden.pkg.InHiddenPackage}
                          * {@link test.pkg.PackagePrivateClass PackagePrivateClass}
                          * {@link test.pkg.HiddenClass HiddenClass}
+                         * {@link test.pkg.HiddenClass custom label}
                          * {@link test.pkg.HiddenClass#field HiddenClass.field}
                          * {@link test.pkg.HiddenClass#method HiddenClass.method}
                          * {@link test.pkg.HiddenClass#method(test.pkg.PackagePrivateClass) HiddenClass.method(PackagePrivateClass)}
@@ -553,14 +563,16 @@ class CommonDocReferenceTest : BaseModelTest() {
                          * {@link test.pkg.Other#packagePrivateField Other.packagePrivateField}
                          * {@link test.pkg.Other.HiddenNested Other.HiddenNested}
                          * {@linkplain test.pkg.HiddenClass HiddenClass}
+                         * {@linkplain test.pkg.HiddenClass custom label}
                          *
                          * @throws test.pkg.Test.HiddenException if hidden exception is thrown.
                          * @see test.pkg.HiddenClass HiddenClass
+                         * @see test.pkg.HiddenClass custom label
                          */
                     """,
             )
 
-            // Line 10 (`HiddenClass#method(PackagePrivateClass)`) reports both the hidden
+            // Line 11 (`HiddenClass#method(PackagePrivateClass)`) reports both the hidden
             // qualifying class and the package-private parameter class.
             assertAndRemoveReportedIssues(
                 """
@@ -568,17 +580,20 @@ class CommonDocReferenceTest : BaseModelTest() {
                     MAIN_SRC/src/test/pkg/Test.java:5:15: warning: Class hidden.pkg.InHiddenPackage is hidden (ErrorWhenNew) [HiddenDocReference]
                     MAIN_SRC/src/test/pkg/Test.java:6:15: warning: Class test.pkg.PackagePrivateClass is not public (ErrorWhenNew) [HiddenDocReference]
                     MAIN_SRC/src/test/pkg/Test.java:7:15: warning: Class test.pkg.HiddenClass is hidden (ErrorWhenNew) [HiddenDocReference]
-                    MAIN_SRC/src/test/pkg/Test.java:8:15: warning: Field test.pkg.HiddenClass.field is hidden (ErrorWhenNew) [HiddenDocReference]
-                    MAIN_SRC/src/test/pkg/Test.java:9:15: warning: Class test.pkg.HiddenClass is hidden (ErrorWhenNew) [HiddenDocReference]
+                    MAIN_SRC/src/test/pkg/Test.java:8:15: warning: Class test.pkg.HiddenClass is hidden (ErrorWhenNew) [HiddenDocReference]
+                    MAIN_SRC/src/test/pkg/Test.java:9:15: warning: Field test.pkg.HiddenClass.field is hidden (ErrorWhenNew) [HiddenDocReference]
                     MAIN_SRC/src/test/pkg/Test.java:10:15: warning: Class test.pkg.HiddenClass is hidden (ErrorWhenNew) [HiddenDocReference]
-                    MAIN_SRC/src/test/pkg/Test.java:10:15: warning: Class test.pkg.PackagePrivateClass is not public (ErrorWhenNew) [HiddenDocReference]
                     MAIN_SRC/src/test/pkg/Test.java:11:15: warning: Class test.pkg.HiddenClass is hidden (ErrorWhenNew) [HiddenDocReference]
-                    MAIN_SRC/src/test/pkg/Test.java:12:15: warning: Field test.pkg.Other.hiddenField is hidden (ErrorWhenNew) [HiddenDocReference]
-                    MAIN_SRC/src/test/pkg/Test.java:13:15: warning: Field test.pkg.Other.packagePrivateField is not public (ErrorWhenNew) [HiddenDocReference]
-                    MAIN_SRC/src/test/pkg/Test.java:14:15: warning: Class test.pkg.Other.HiddenNested is hidden (ErrorWhenNew) [HiddenDocReference]
-                    MAIN_SRC/src/test/pkg/Test.java:15:20: warning: Class test.pkg.HiddenClass is hidden (ErrorWhenNew) [HiddenDocReference]
-                    MAIN_SRC/src/test/pkg/Test.java:17:13: warning: Class test.pkg.HiddenClass is hidden (ErrorWhenNew) [HiddenDocReference]
-                    MAIN_SRC/src/test/pkg/Test.java:18:16: warning: Class test.pkg.Test.HiddenException is hidden (ErrorWhenNew) [HiddenDocReference]
+                    MAIN_SRC/src/test/pkg/Test.java:11:15: warning: Class test.pkg.PackagePrivateClass is not public (ErrorWhenNew) [HiddenDocReference]
+                    MAIN_SRC/src/test/pkg/Test.java:12:15: warning: Class test.pkg.HiddenClass is hidden (ErrorWhenNew) [HiddenDocReference]
+                    MAIN_SRC/src/test/pkg/Test.java:13:15: warning: Field test.pkg.Other.hiddenField is hidden (ErrorWhenNew) [HiddenDocReference]
+                    MAIN_SRC/src/test/pkg/Test.java:14:15: warning: Field test.pkg.Other.packagePrivateField is not public (ErrorWhenNew) [HiddenDocReference]
+                    MAIN_SRC/src/test/pkg/Test.java:15:15: warning: Class test.pkg.Other.HiddenNested is hidden (ErrorWhenNew) [HiddenDocReference]
+                    MAIN_SRC/src/test/pkg/Test.java:16:20: warning: Class test.pkg.HiddenClass is hidden (ErrorWhenNew) [HiddenDocReference]
+                    MAIN_SRC/src/test/pkg/Test.java:17:20: warning: Class test.pkg.HiddenClass is hidden (ErrorWhenNew) [HiddenDocReference]
+                    MAIN_SRC/src/test/pkg/Test.java:19:13: warning: Class test.pkg.HiddenClass is hidden (ErrorWhenNew) [HiddenDocReference]
+                    MAIN_SRC/src/test/pkg/Test.java:20:13: warning: Class test.pkg.HiddenClass is hidden (ErrorWhenNew) [HiddenDocReference]
+                    MAIN_SRC/src/test/pkg/Test.java:21:16: warning: Class test.pkg.Test.HiddenException is hidden (ErrorWhenNew) [HiddenDocReference]
                 """
             )
         }
@@ -679,6 +694,9 @@ class CommonDocReferenceTest : BaseModelTest() {
             ),
         ) {
             val testClass = codebase.assertClass("test.pkg.Test")
+
+            // TODO(b/568477816): Hidden inline references (IntDef#HIDDEN_FLAG, IntRange, Hide,
+            //  Hide#value()) should be replaced with ERROR[<reason>: <link>] when printed.
             testClass
                 .assertMethod("method", emptyList())
                 .assertPrintedDocumentation(
@@ -898,6 +916,9 @@ class CommonDocReferenceTest : BaseModelTest() {
             ),
         ) {
             val testClass = codebase.assertClass("test.pkg.Test")
+
+            // TODO(b/568477816): Removed inline references (RemovedClass, RemovedClass#field)
+            //  should be replaced with ERROR[<reason>: <link>] when printed.
             testClass
                 .assertMethod("publicMethod", emptyList())
                 .assertPrintedDocumentation(
@@ -927,6 +948,141 @@ class CommonDocReferenceTest : BaseModelTest() {
                 """
                     MAIN_SRC/src/test/pkg/Test.java:4:15: warning: Class test.pkg.RemovedClass is removed (ErrorWhenNew) [HiddenDocReference]
                     MAIN_SRC/src/test/pkg/Test.java:5:15: warning: Field test.pkg.RemovedClass.field is removed (ErrorWhenNew) [HiddenDocReference]
+                """
+            )
+        }
+    }
+
+    /**
+     * Verify that documentation on unflagged public API items reports `HiddenDocReference` when
+     * referencing items in a wider API surface, items guarded by an addition `@FlaggedApi`, or
+     * items scheduled for removal by `@FlaggedApi`.
+     */
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `Test wider surface and flagged references`() {
+        val apiSurfaces =
+            ApiSurfaces.build {
+                createSurface("public", isMain = true)
+                createSurface("system", extends = "public")
+            }
+        val apiSurfaceRules =
+            ApiSurfaceRules(
+                apiSurfaces,
+                mapOf(
+                    "public" to listOf(SurfaceSelectionRule.unannotated),
+                    "system" to
+                        listOf(SurfaceSelectionRule.createAnnotationRule("test.pkg.SystemApi")),
+                ),
+                listOf(
+                    SurfaceSelectionRule.createAnnotationRule(
+                        "test.pkg.Removed",
+                        effect = SurfaceSelectionRule.Effect.REMOVED,
+                    ),
+                ),
+            )
+
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+                        import java.lang.annotation.Retention;
+                        import java.lang.annotation.RetentionPolicy;
+                        @Retention(RetentionPolicy.SOURCE)
+                        @interface SystemApi {}
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        import java.lang.annotation.Retention;
+                        import java.lang.annotation.RetentionPolicy;
+                        @Retention(RetentionPolicy.SOURCE)
+                        @interface Removed {}
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        @SystemApi
+                        public class SystemClass {}
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        import android.annotation.FlaggedApi;
+                        @FlaggedApi("test.pkg.flags.add_flag")
+                        public class FlaggedAdditionClass {}
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        import android.annotation.FlaggedApi;
+                        @Removed
+                        @FlaggedApi("test.pkg.flags.remove_flag")
+                        public class FlaggedRemovalClass {}
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+                        public class Test {
+                            /**
+                             * {@link SystemClass}
+                             * {@link SystemClass custom label}
+                             * {@link FlaggedAdditionClass}
+                             * {@link FlaggedRemovalClass}
+                             *
+                             * @see SystemClass
+                             */
+                            public void publicMethod() {}
+                        }
+                    """
+                ),
+            ),
+            testFixture =
+                TestFixture(
+                    additionalClassPath = listOf(KnownJarFiles.stubAnnotationsJar),
+                    apiSurfaceRules = apiSurfaceRules,
+                    apiFlags =
+                        ApiFlags(
+                            listOf(
+                                ApiFlag("test.pkg.flags.add_flag", ApiFlagAction.KEEP),
+                                ApiFlag("test.pkg.flags.remove_flag", ApiFlagAction.KEEP),
+                            )
+                        ),
+                ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+
+            // TODO(b/568477816): Invalid inline references should be replaced with
+            //  ERROR[<reason>: <link> <label>] and invalid @see references with
+            //  @see "ERROR[<reason>: <link> <label>]" when printed.
+            testClass
+                .assertMethod("publicMethod", emptyList())
+                .assertPrintedDocumentation(
+                    expectedOutput =
+                        """
+                            /**
+                             * {@link test.pkg.SystemClass SystemClass}
+                             * {@link test.pkg.SystemClass custom label}
+                             * {@link test.pkg.FlaggedAdditionClass FlaggedAdditionClass}
+                             * {@link test.pkg.FlaggedRemovalClass FlaggedRemovalClass}
+                             * @see test.pkg.SystemClass SystemClass
+                             */
+                        """,
+                )
+
+            assertAndRemoveReportedIssues(
+                """
+                    MAIN_SRC/src/test/pkg/Test.java:4:15: warning: Class test.pkg.SystemClass is in a wider API surface (system) than public (ErrorWhenNew) [HiddenDocReference]
+                    MAIN_SRC/src/test/pkg/Test.java:5:15: warning: Class test.pkg.SystemClass is in a wider API surface (system) than public (ErrorWhenNew) [HiddenDocReference]
+                    MAIN_SRC/src/test/pkg/Test.java:6:15: warning: Class test.pkg.FlaggedAdditionClass is guarded by @FlaggedApi(test.pkg.flags.add_flag) (ErrorWhenNew) [HiddenDocReference]
+                    MAIN_SRC/src/test/pkg/Test.java:7:15: warning: Class test.pkg.FlaggedRemovalClass is scheduled for removal by @FlaggedApi(test.pkg.flags.remove_flag) (ErrorWhenNew) [HiddenDocReference]
+                    MAIN_SRC/src/test/pkg/Test.java:9:13: warning: Class test.pkg.SystemClass is in a wider API surface (system) than public (ErrorWhenNew) [HiddenDocReference]
                 """
             )
         }
