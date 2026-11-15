@@ -846,8 +846,7 @@ internal class TurbineClassBuilder(
      * had an `@NonNull` annotation.
      */
     private fun isInitialValueNonNull(field: FieldInfo): Boolean {
-        val optExpr = field.decl()?.init()
-        val expr = if (optExpr != null && optExpr.isPresent) optExpr.get() else null
+        val expr = field.decl()?.init()?.getOrNull()
         val constantValue = field.value()?.value
 
         val initialValueWithoutRequiredConstant =
@@ -855,17 +854,11 @@ internal class TurbineClassBuilder(
                 constantValue != null -> constantValue
                 expr == null -> null
                 else ->
-                    when (expr.kind()) {
-                        Tree.Kind.LITERAL -> {
-                            (expr as Literal).value().underlyingValue
-                        }
+                    when (expr) {
+                        is Literal -> expr.value().underlyingValue
                         // Class Type
-                        Tree.Kind.CLASS_LITERAL -> {
-                            expr
-                        }
-                        else -> {
-                            null
-                        }
+                        is Tree.ClassLiteral -> expr
+                        else -> null
                     }
             }
 
