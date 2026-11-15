@@ -23,7 +23,6 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassOrVariableTypeItem
 import com.android.tools.metalava.model.ClassOrigin
-import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.ItemKind
 import com.android.tools.metalava.model.ModifierContext
 import com.android.tools.metalava.model.ModifierFlags
@@ -637,17 +636,10 @@ internal class TurbineClassBuilder(
         typeItemFactory: TurbineTypeItemFactory,
     ): List<ParameterItem> {
         val fingerprint = MethodFingerprint(containingCallable.name(), parameters.size)
-        // Some parameters in [parameters] are implicit parameters that do not have a corresponding
-        // entry in the [parameterDecls] list. The number of implicit parameters is the total
-        // number of [parameters] minus the number of declared parameters [parameterDecls]. The
-        // implicit parameters are always at the beginning so the offset from the declared parameter
-        // in [parameterDecls] to the corresponding parameter in [parameters] is simply the number
-        // of the implicit parameters.
-        val ignoreSynthetic = containingCallable is ConstructorItem
         return buildList {
             var parameterIndex = 0
             for ((idx, parameter) in parameters.withIndex()) {
-                if (ignoreSynthetic && parameter.synthetic()) continue
+                if (parameter.synthetic()) continue
                 // Bytecode does not store the varargs flag on the parameter, it stores it on the
                 // method, so if the callable has the varargs flag set then make sure it is also set
                 // on the last parameter.
