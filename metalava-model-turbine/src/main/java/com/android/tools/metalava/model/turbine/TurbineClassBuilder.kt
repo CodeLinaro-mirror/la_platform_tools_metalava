@@ -692,22 +692,6 @@ internal class TurbineClassBuilder(
         }
     }
 
-    /**
-     * Return true if constructors for [classItem] will have an implicit first parameter that needs
-     * removing.
-     *
-     * Constructors of inner classes that are loaded from the class path will have an implicit
-     * parameter that is used to supply the reference to the instance of the containing class to
-     * which the inner class instance belongs.
-     */
-    private fun willConstructorFirstParameterBeImplicit(classItem: SkeletonClassItem): Boolean {
-        // Check to see whether the class is an inner class, i.e. is a non-static class nested
-        // inside another.
-        val isInnerClass = classItem.containingClass() != null && !classItem.modifiers.isStatic()
-
-        return isInnerClass && classItem.origin == ClassOrigin.CLASS_PATH
-    }
-
     private fun createConstructors(
         classItem: SkeletonClassItem,
         methods: List<MethodInfo>,
@@ -718,9 +702,6 @@ internal class TurbineClassBuilder(
         val treatConstructorsAsPrivate =
             classItem.modifiers.let { modifiers -> modifiers.isSealed() && modifiers.isAbstract() }
 
-        // Check to see if the first parameter of the constructors is implicit and need removing.
-        val firstParameterIsImplicit = willConstructorFirstParameterBeImplicit(classItem)
-
         for (constructor in methods) {
             // Skip real methods.
             if (constructor.sym().name() != "<init>") continue
@@ -728,16 +709,6 @@ internal class TurbineClassBuilder(
             // Get the source declaration for the constructor. Will be null for constructors loaded
             // from the class path.
             val decl: MethDecl? = constructor.decl()
-
-            // Get the constructor parameters, removing an implicit first parameter if necessary.
-            val constructorParameters =
-                constructor.parameters().let { parameters ->
-                    if (firstParameterIsImplicit) {
-                        parameters.subList(1, parameters.size)
-                    } else {
-                        parameters
-                    }
-                }
 
             val modifiers =
                 createModifiers(
@@ -775,7 +746,7 @@ internal class TurbineClassBuilder(
                             constructorItem,
                             constructor.access(),
                             decl?.params(),
-                            constructorParameters,
+                            constructor.parameters(),
                             constructorTypeItemFactory,
                         )
                     },
