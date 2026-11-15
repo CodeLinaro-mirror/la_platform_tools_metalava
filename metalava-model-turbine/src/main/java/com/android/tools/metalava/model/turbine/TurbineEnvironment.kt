@@ -75,18 +75,20 @@ internal class TurbineEnvironment(
         reporter = reporter,
         tracer = tracer,
     ) {
+    private val executor = TurbineExecutor.direct()
+
     private val bootclasspath: ClassPath by
         lazy(LazyThreadSafetyMode.NONE) {
             tracer.trace("turbine.bindBootclasspath") {
                 jdkHome?.let { home -> JimageClassBinder.bind(home.path) }
-                    ?: ClassPathBinder.bindClasspath(listOf())
+                    ?: ClassPathBinder.bindClasspath(executor, listOf())
             }
         }
 
     private val boundClassPath: ClassPath by
         lazy(LazyThreadSafetyMode.NONE) {
             tracer.trace("turbine.bindClasspath") {
-                ClassPathBinder.bindClasspath(classPath.map { it.toPath() })
+                ClassPathBinder.bindClasspath(executor, classPath.map { it.toPath() })
             }
         }
 
@@ -230,19 +232,17 @@ internal class TurbineEnvironment(
                 )
 
             tracer.trace("turbine.bind") {
-                TurbineExecutor.direct().use { executor ->
-                    // Bind the units
-                    bindingResult =
-                        Binder.bind(
-                            executor,
-                            log,
-                            units,
-                            boundClassPath,
-                            annotationProcessorInfo,
-                            bootclasspath,
-                            Optional.empty()
-                        )
-                }
+                // Bind the units
+                bindingResult =
+                    Binder.bind(
+                        executor,
+                        log,
+                        units,
+                        boundClassPath,
+                        annotationProcessorInfo,
+                        bootclasspath,
+                        Optional.empty()
+                    )
             }
         } catch (e: TurbineError) {
             // Catch the [TurbineError] and extract its diagnostics.

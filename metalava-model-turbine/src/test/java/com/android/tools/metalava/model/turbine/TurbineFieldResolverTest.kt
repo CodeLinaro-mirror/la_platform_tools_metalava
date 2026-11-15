@@ -51,11 +51,12 @@ class TurbineFieldResolverTest : BaseTemporaryFolderOwner() {
                 .collect(ImmutableList.toImmutableList())
 
         // Bind them together.
-        val classPath = ClassPathBinder.bindClasspath(listOf())
+        val executor = TurbineExecutor.direct()
+        val classPath = ClassPathBinder.bindClasspath(executor, listOf())
         val bootClassPath = JimageClassBinder.bindDefault()
         val result =
             Binder.bind(
-                TurbineExecutor.direct(),
+                executor,
                 units,
                 classPath,
                 bootClassPath,
