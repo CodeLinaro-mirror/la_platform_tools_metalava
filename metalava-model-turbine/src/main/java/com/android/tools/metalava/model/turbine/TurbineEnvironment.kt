@@ -33,6 +33,7 @@ import com.google.turbine.binder.ClassPath
 import com.google.turbine.binder.ClassPathBinder
 import com.google.turbine.binder.JimageClassBinder
 import com.google.turbine.binder.Processing.ProcessorInfo
+import com.google.turbine.cache.StringCache
 import com.google.turbine.diag.SourceFile
 import com.google.turbine.diag.TurbineDiagnostic
 import com.google.turbine.diag.TurbineError
@@ -76,6 +77,8 @@ internal class TurbineEnvironment(
         tracer = tracer,
     ) {
     private val executor = TurbineExecutor.direct()
+
+    private val stringCache = StringCache()
 
     private val bootclasspath: ClassPath by
         lazy(LazyThreadSafetyMode.NONE) {
@@ -278,7 +281,7 @@ internal class TurbineEnvironment(
      */
     private fun parse(log: TurbineLog, sourceFile: SourceFile): CompUnit? =
         try {
-            Parser.parse(sourceFile)
+            Parser.parse(sourceFile, stringCache)
         } catch (e: TurbineError) {
             e.logAllDiagnostics(log)
             null
