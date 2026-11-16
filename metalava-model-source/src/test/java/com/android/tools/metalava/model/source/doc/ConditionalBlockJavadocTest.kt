@@ -239,8 +239,6 @@ class ConditionalBlockJavadocTest : BaseDocCommentTest() {
     /** Verify that single-line `@if (...) { :@see ... } else { :@see ... }` syntax is supported. */
     @Test
     fun `Test single-line @if block tag`() {
-        // TODO(b/586585311): Recognize an unmatched mid-line `}` inside `@if` as closing the branch
-        //  so single-line `@if` block tags work without reporting an unclosed branch.
         checkConditionalDocComment(
             input =
                 """
@@ -252,11 +250,10 @@ class ConditionalBlockJavadocTest : BaseDocCommentTest() {
             flags = mapOf("Flags.TEST_FLAG" to false),
             expectedPrintOutput =
                 """
-                    /** Summary. */
-                """,
-            expectedIssues =
-                """
-                    4:2: expected '}' to close '@if' branch [InvalidJavadoc]
+                    /**
+                     * Summary.
+                     * @see resolved.Second Second
+                     */
                 """,
         )
     }
@@ -267,8 +264,6 @@ class ConditionalBlockJavadocTest : BaseDocCommentTest() {
      */
     @Test
     fun `Test nested braces and annotations inside @code within @if block tag`() {
-        // TODO(b/586585311): Track balanced `{ ... }` braces in `@if` descriptions so line-starting
-        //  `}` inside `{@code ...}` does not close the `@if` branch prematurely.
         checkConditionalDocComment(
             input =
                 """
@@ -294,14 +289,10 @@ class ConditionalBlockJavadocTest : BaseDocCommentTest() {
                      * @deprecated Example:
                      *     <pre>{@code
                      *     @Override
-                     *     void foo() {}
+                     *     void foo() {
+                     *     }
+                     *     }</pre>
                      */
-                """,
-            expectedIssues =
-                """
-                    6:13: unclosed inline '@code' tag [UnclosedInlineTag]
-                    10:8: unexpected '}</pre>
-                     * }' in block tag section [InvalidJavadoc]
                 """,
         )
     }
