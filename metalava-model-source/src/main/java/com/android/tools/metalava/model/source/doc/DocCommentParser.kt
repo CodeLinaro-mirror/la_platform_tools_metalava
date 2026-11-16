@@ -29,44 +29,24 @@ import kotlin.text.isWhitespace
  *     (@<block-tag-type> <description>)*
  * ```
  */
-internal object DocCommentParser {
+internal class DocCommentParser
+private constructor(
+    /** Context for resolving references and evaluating conditions within the comment. */
+    private val context: DocCommentContext,
+
+    /** Full source text containing the documentation comment. */
+    private val text: String,
+
+    /** Reporter for documentation issues found while parsing block tags and descriptions. */
+    private val reporter: DocumentationIssueReporter,
+) {
     /**
-     * Pattern to match a block tag or the end of the content.
-     *
-     * This uses horizontal spaces (`\h`) to avoid matching newline characters as newline characters
-     * are significant.
+     * Parse `[commentBodyStartInclusive, commentBodyEndExclusive)` of [text] into a [DocComment].
      */
-    private val BLOCK_TAG_OR_END_PATTERN =
-        Pattern.compile("""(^\h*\*?\h*@([a-zA-Z]+)\h*)|\z""", Pattern.MULTILINE)
-
-    /** The index of the group in [BLOCK_TAG_TYPE_GROUP_INDEX] that contains the block tag type. */
-    private const val BLOCK_TAG_TYPE_GROUP_INDEX = 2
-
-    fun parseText(
-        context: DocCommentContext,
-        text: String,
-        reporter: DocumentationIssueReporter,
+    private fun parse(
+        commentBodyStartInclusive: Int,
+        commentBodyEndExclusive: Int,
     ): DocComment {
-        val length = text.length
-
-        // Trim any whitespace from the start as well as the start token `/**` (if any).
-        val commentBodyStartInclusive = skipDocCommentStartToken(text)
-
-        // The comment does not exist if skipping forwards over whitespace reaches the end of the
-        // text. An empty comment (e.g. `/** */`) would stop at the end token.
-        if (commentBodyStartInclusive == length) {
-            // There was no comment so return an empty DocComment immediately to save time.
-            return DefaultDocComment(
-                context,
-                ContentSupplier.NULL,
-                emptyList(),
-                noComment = true,
-            )
-        }
-
-        // Trim the end token (`*/`) as well as any whitespace that precedes or follows it.
-        val commentBodyEndExclusive = skipDocCommentEndTokens(text)
-
         val blockTagSections = mutableListOf<BlockTagSection>()
 
         // Split the input text into an optional description followed by one or more block tags.
@@ -186,45 +166,96 @@ internal object DocCommentParser {
         )
     }
 
-    /**
-     * Skip past start Javadoc tokens from [text] returning the position of the character after the
-     * token.
-     */
-    private fun skipDocCommentStartToken(text: String): Int {
-        val length = text.length
+    /** Entry point for [DocCommentParser]. */
+    companion object {
+        /**
+         * Pattern to match a block tag or the end of the content.
+         *
+         * This uses horizontal spaces (`\h`) to avoid matching newline characters as newline
+         * characters are significant.
+         */
+        private val BLOCK_TAG_OR_END_PATTERN =
+            Pattern.compile("""(^\h*\*?\h*@([a-zA-Z]+)\h*)|\z""", Pattern.MULTILINE)
 
-        // Skip forwards over any leading whitespaces.
-        var start = text.skipForwardsOverLeadingWhitespace(0)
+        /**
+         * The index of the group in [BLOCK_TAG_OR_END_PATTERN] that contains the block tag type.
+         */
+        private const val BLOCK_TAG_TYPE_GROUP_INDEX = 2
 
-        // Skip forwards over a leading /** token if it is present, otherwise just use the text
-        // from this point onwards.
-        if (
-            start + 2 < length &&
-                text[start] == '/' &&
-                text[start + 1] == '*' &&
-                text[start + 2] == '*'
-        ) {
-            start += 3
+        /** Parse [text] into a [DocComment] within [context], reporting issues to [reporter]. */
+        fun parseText(
+            context: DocCommentContext,
+            text: String,
+            reporter: DocumentationIssueReporter,
+        ): DocComment {
+            val length = text.length
+
+            // Trim any whitespace from the start as well as the start token `/**` (if any).
+            val commentBodyStartInclusive = skipDocCommentStartToken(text)
+
+            // The comment does not exist if skipping forwards over whitespace reaches the end of
+            // the text. An empty comment (e.g. `/** */`) would stop at the end token.
+            if (commentBodyStartInclusive == length) {
+                // There was no comment so return an empty DocComment immediately to save time.
+                return DefaultDocComment(
+                    context,
+                    ContentSupplier.NULL,
+                    emptyList(),
+                    noComment = true,
+                )
+            }
+
+            // Trim the end token (`*/`) as well as any whitespace that precedes or follows it.
+            val commentBodyEndExclusive = skipDocCommentEndTokens(text)
+
+            return DocCommentParser(
+                    context,
+                    text,
+                    reporter,
+                )
+                .parse(
+                    commentBodyStartInclusive,
+                    commentBodyEndExclusive,
+                )
         }
+    }
+}
 
-        return start
+/**
+ * Skip past start Javadoc tokens from [text] returning the position of the character after the
+ * token.
+ */
+internal fun skipDocCommentStartToken(text: String): Int {
+    val length = text.length
+
+    // Skip forwards over any leading whitespaces.
+    var start = text.skipForwardsOverLeadingWhitespace(0)
+
+    // Skip forwards over a leading /** token if it is present, otherwise just use the text from
+    // this point onwards.
+    if (
+        start + 2 < length && text[start] == '/' && text[start + 1] == '*' && text[start + 2] == '*'
+    ) {
+        start += 3
     }
 
-    /**
-     * Skip past end Javadoc tokens from [text] returning the position of the first character of the
-     * token.
-     */
-    private fun skipDocCommentEndTokens(text: String): Int {
-        val length = text.length
+    return start
+}
 
-        // Skip backwards over any trailing whitespace.
-        var end = text.skipBackwardsOverTrailingWhitespace(length - 1)
+/**
+ * Skip past end Javadoc tokens from [text] returning the position of the first character of the
+ * token.
+ */
+internal fun skipDocCommentEndTokens(text: String): Int {
+    val length = text.length
 
-        // Skip backwards over a trailing */ token.
-        if (end - 1 > 0 && text[end] == '/' && text[end - 1] == '*') end -= 2
+    // Skip backwards over any trailing whitespace.
+    var end = text.skipBackwardsOverTrailingWhitespace(length - 1)
 
-        return end + 1
-    }
+    // Skip backwards over a trailing */ token.
+    if (end - 1 > 0 && text[end] == '/' && text[end - 1] == '*') end -= 2
+
+    return end + 1
 }
 
 /**
