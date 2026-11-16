@@ -16,8 +16,8 @@
 
 package com.android.tools.metalava.model.source.doc
 
+import com.android.tools.metalava.model.parser.TokenStream
 import com.android.tools.metalava.reporter.Issues
-import java.util.regex.Pattern
 import kotlin.text.isWhitespace
 
 /**
@@ -37,104 +37,43 @@ private constructor(
     /** Full source text containing the documentation comment. */
     private val text: String,
 
+    /** Coarse token stream produced by [DocCommentLexer] for the comment body. */
+    private val tokenStream: TokenStream,
+
     /** Reporter for documentation issues found while parsing block tags and descriptions. */
     private val reporter: DocumentationIssueReporter,
 ) {
-    /**
-     * Parse `[commentBodyStartInclusive, commentBodyEndExclusive)` of [text] into a [DocComment].
-     */
-    private fun parse(
-        commentBodyStartInclusive: Int,
-        commentBodyEndExclusive: Int,
-    ): DocComment {
+    /** Parse [tokenStream] into a [DocComment]. */
+    private fun parse(): DocComment {
+        val description = consumeDescriptionSupplier()
+
         val blockTagSections = mutableListOf<BlockTagSection>()
-
-        // Split the input text into an optional description followed by one or more block tags.
-        // This partitions the text using the [BLOCK_TAG_OPEN_BRACE_OR_END] to find each block tag
-        // and the end of the text. The description is the partition before the first block tag (or
-        // the end of the text if no block tags were found). Each block tag is the partition from
-        // the start of the block tag to the start of the next block tag (or the end of the text
-        // for the last block tag).
-
-        // The end of the description, if -1 then it means that the description has not yet been
-        // found.
-        var descriptionEndExclusive = -1
-
-        // The type of the previous block tag, null if there was none. This is set when matching a
-        // block tag but used on the next iteration where the block tag is added to the list.
-        var blockTagType: TagType<*>? = null
-
-        // The start of the description of the previous block tag, -1 if there was none. This is set
-        // when matching a block tag but used on the next iteration where the block tag is added to
-        // the list.
-        var blockTagDescriptionStartInclusive = -1
-
-        // Create a matcher for finding the start of block tags or the end of the content. Restrict
-        // it to the main body of the comment so it does not have to deal with the doc start/end
-        // tokens.
-        val matcher =
-            BLOCK_TAG_OR_END_PATTERN.matcher(text)
-                .region(commentBodyStartInclusive, commentBodyEndExclusive)
-        while (true) {
-            // This will always match as it can just match the end of the input.
-            if (!matcher.find()) {
-                error("Internal Error: BLOCK_TAG_OR_END_PATTERN must always match")
-            }
-
-            val matchStart = matcher.start()
-
-            // If this is the first match then it is the end of the description.
-            if (descriptionEndExclusive == -1) {
-                descriptionEndExclusive = matchStart
-            }
-
-            // End of input or the start of a block tag was found.
-
-            // First, check to see if there was a preceding block tag that needs recording.
-            if (blockTagType != null) {
-                val blockTagDescriptionEndExclusive = matchStart
-                val blockTagDescription =
-                    createDescriptionSupplier(
-                        blockTagDescriptionStartInclusive,
-                        blockTagDescriptionEndExclusive,
-                    )
-                addBlockTagSection(
-                    blockTagSections,
-                    blockTagType,
-                    blockTagDescription,
-                )
-            }
-
-            if (matchStart == commentBodyEndExclusive) {
-                // The end of the content was reached so there are no more partitions to be found.
-                break
-            } else {
-                // A block tag was found so record the block tag type and start of the description
-                // for use in the next iteration of the loop.
-                val tagTypeName = matcher.group(BLOCK_TAG_TYPE_GROUP_INDEX)!!
-                val position = matcher.start(BLOCK_TAG_TYPE_GROUP_INDEX)
-                blockTagType = resolveBlockTagType(tagTypeName, position)
-
-                // The start of the block tag description is the end of the match (which excludes
-                // any white space after the block tag name).
-                blockTagDescriptionStartInclusive = matcher.end()
-            }
+        while (tokenStream.peekType() != DocCommentTokenType.EOF) {
+            parseBlockTagSection(blockTagSections)
         }
 
-        // Create the description, from the start of the comment body to the start of the first
-        // block tag, if present, or the end of the comment body, otherwise.
-        val description =
-            createDescriptionSupplier(
-                commentBodyStartInclusive,
-                descriptionEndExclusive,
-            )
-
-        // Create the doc comment.
         return DefaultDocComment(
             context,
             description,
             blockTagSections.toList(),
             noComment = false,
+        )
+    }
+
+    /** Parse a single `@<tag>` block tag section and append it to [blockTagSections]. */
+    private fun parseBlockTagSection(blockTagSections: MutableList<BlockTagSection>) {
+        // Skip BLOCK_TAG_START; DocCommentLexer always pairs it with an immediately following
+        // BLOCK_TAG_NAME token.
+        tokenStream.consume()
+
+        val nameToken = tokenStream.consume()
+        val tagTypeName = nameToken.text(text)
+        val blockTagType = resolveBlockTagType(tagTypeName, nameToken.startOffset)
+        val blockTagDescription = consumeDescriptionSupplier()
+        addBlockTagSection(
+            blockTagSections,
+            blockTagType,
+            blockTagDescription,
         )
     }
 
@@ -183,6 +122,21 @@ private constructor(
         )
     }
 
+    /**
+     * If the next token is [DocCommentTokenType.DESCRIPTION], consumes it and wraps its slice in a
+     * [LazyContentSupplier]; otherwise returns [ContentSupplier.NULL].
+     */
+    private fun consumeDescriptionSupplier(): ContentSupplier {
+        if (tokenStream.peekType() != DocCommentTokenType.DESCRIPTION) {
+            return ContentSupplier.NULL
+        }
+        val token = tokenStream.consume()
+        return createDescriptionSupplier(
+            token.startOffset,
+            token.endOffset,
+        )
+    }
+
     /** Wrap `[startInclusive, endExclusive)` of [text] in a [LazyContentSupplier]. */
     private fun createDescriptionSupplier(
         startInclusive: Int,
@@ -198,20 +152,6 @@ private constructor(
 
     /** Entry point for [DocCommentParser]. */
     companion object {
-        /**
-         * Pattern to match a block tag or the end of the content.
-         *
-         * This uses horizontal spaces (`\h`) to avoid matching newline characters as newline
-         * characters are significant.
-         */
-        private val BLOCK_TAG_OR_END_PATTERN =
-            Pattern.compile("""(^\h*\*?\h*@([a-zA-Z]+)\h*)|\z""", Pattern.MULTILINE)
-
-        /**
-         * The index of the group in [BLOCK_TAG_OR_END_PATTERN] that contains the block tag type.
-         */
-        private const val BLOCK_TAG_TYPE_GROUP_INDEX = 2
-
         /** Parse [text] into a [DocComment] within [context], reporting issues to [reporter]. */
         fun parseText(
             context: DocCommentContext,
@@ -236,17 +176,22 @@ private constructor(
             }
 
             // Trim the end token (`*/`) as well as any whitespace that precedes or follows it.
-            val commentBodyEndExclusive = skipDocCommentEndTokens(text)
+            val commentBodyEndExclusive =
+                skipDocCommentEndTokens(text).coerceAtLeast(commentBodyStartInclusive)
 
-            return DocCommentParser(
-                    context,
+            val lexer =
+                DocCommentLexer(
                     text,
-                    reporter,
-                )
-                .parse(
                     commentBodyStartInclusive,
                     commentBodyEndExclusive,
                 )
+            return DocCommentParser(
+                    context,
+                    text,
+                    lexer.tokenize(),
+                    reporter,
+                )
+                .parse()
         }
     }
 }
