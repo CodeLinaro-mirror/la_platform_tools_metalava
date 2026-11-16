@@ -364,4 +364,189 @@ class CommonConditionalDocumentationTest : BaseModelTest() {
             )
         }
     }
+
+    /**
+     * Verify that when a flag is reverted (`REVERT`), an `@if` block tag wrapping `:@deprecated`
+     * and `:@see` omits the `true` branch, emits the `else` branch, and does not mark the item as
+     * deprecated.
+     */
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `Test @if block tag with deprecated and see when flag reverted`() {
+        runSourceCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+
+                        /**
+                         * Summary.
+                         *
+                         * @if (flag(Flags.FLAG)) {
+                         *     :@see Replacement
+                         *     :@deprecated Use {@link Replacement} instead.
+                         * } else {
+                         *     :@see Existing
+                         * }
+                         */
+                        public class Test {
+                        }
+                    """,
+                ),
+                java(
+                    """
+                        package test.pkg;
+
+                        public class Replacement {}
+                    """,
+                ),
+                java(
+                    """
+                        package test.pkg;
+
+                        public class Existing {}
+                    """,
+                ),
+                java(
+                    """
+                        package test.pkg;
+
+                        public class Flags {
+                            public static final String FLAG = "flag";
+                        }
+                    """,
+                ),
+            ),
+            testFixture =
+                TestFixture(
+                    apiFlags =
+                        ApiFlags(
+                            listOf(
+                                ApiFlag(
+                                    "flag",
+                                    ApiFlagAction.REVERT,
+                                    isExported = true,
+                                ),
+                            ),
+                        ),
+                ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+
+            // Access `selectedApi` first because `SourceSelectedApi` lazily propagates
+            // `@deprecated` from Javadoc into the item's deprecation state.
+            testClass.selectedApi
+            testClass.assertNotDeprecated()
+
+            // TODO(b/586585311): `@if` should be evaluated as a conditional block tag, emitting
+            //  `@see test.pkg.Existing Existing` instead of raw `@if (...)` text.
+            testClass.assertPrintedDocumentation(
+                expectedOutput =
+                    """
+                        /**
+                         * Summary.
+                         *
+                         * @if (flag(Flags.FLAG)) {
+                         *     :@see Replacement
+                         *     :@deprecated Use {@link test.pkg.Replacement Replacement} instead.
+                         * } else {
+                         *     :@see Existing
+                         * }
+                         */
+                    """,
+            )
+        }
+    }
+
+    /**
+     * Verify that when a flag is kept (`KEEP`), an `@if` block tag wrapping `:@deprecated` and
+     * `:@see` emits the `true` branch and marks the item as explicitly deprecated via Javadoc.
+     */
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `Test @if block tag with deprecated and see when flag kept`() {
+        runSourceCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+
+                        /**
+                         * Summary.
+                         *
+                         * @if (flag(Flags.FLAG)) {
+                         *     :@see Replacement
+                         *     :@deprecated Use {@link Replacement} instead.
+                         * } else {
+                         *     :@see Existing
+                         * }
+                         */
+                        public class Test {
+                        }
+                    """,
+                ),
+                java(
+                    """
+                        package test.pkg;
+
+                        public class Replacement {}
+                    """,
+                ),
+                java(
+                    """
+                        package test.pkg;
+
+                        public class Existing {}
+                    """,
+                ),
+                java(
+                    """
+                        package test.pkg;
+
+                        public class Flags {
+                            public static final String FLAG = "flag";
+                        }
+                    """,
+                ),
+            ),
+            testFixture =
+                TestFixture(
+                    apiFlags =
+                        ApiFlags(
+                            listOf(
+                                ApiFlag(
+                                    "flag",
+                                    ApiFlagAction.KEEP,
+                                    isExported = true,
+                                ),
+                            ),
+                        ),
+                ),
+        ) {
+            val testClass = codebase.assertClass("test.pkg.Test")
+
+            // Access `selectedApi` first because `SourceSelectedApi` lazily propagates
+            // `@deprecated` from Javadoc into the item's deprecation state.
+            testClass.selectedApi
+
+            // TODO(b/586585311): When the flag is kept, `:@deprecated` inside `@if` should mark
+            //  `testClass` as explicitly deprecated and emit `@see` and `@deprecated`.
+            testClass.assertNotDeprecated()
+            testClass.assertPrintedDocumentation(
+                expectedOutput =
+                    """
+                        /**
+                         * Summary.
+                         *
+                         * @if (flag(Flags.FLAG)) {
+                         *     :@see Replacement
+                         *     :@deprecated Use {@link test.pkg.Replacement Replacement} instead.
+                         * } else {
+                         *     :@see Existing
+                         * }
+                         */
+                    """,
+            )
+        }
+    }
 }
