@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.source.doc
 
+import com.android.tools.metalava.model.parser.LineMap
 import kotlin.test.assertEquals
 import org.junit.Test
 
@@ -23,15 +24,17 @@ import org.junit.Test
 class DocCommentLexerTest : BaseDocCommentTest() {
     /**
      * Tokenizes the body of [input] using [DocCommentLexer] and verifies that the formatted token
-     * stream matches [expectedTokens].
+     * stream matches [expectedTokens] and reported issues match [expectedIssues].
      */
     private fun checkTokenize(
         input: String,
         expectedTokens: String,
+        expectedIssues: String = "",
         includePosition: Boolean = false,
         trimIndent: Boolean = true,
     ) {
         val text = if (trimIndent) input.trimIndent() else input
+        val lineMap = LineMap.create(text)
         val startInclusive = skipDocCommentStartToken(text)
         val endExclusive = skipDocCommentEndTokens(text).coerceAtLeast(startInclusive)
         val lexer =
@@ -39,6 +42,7 @@ class DocCommentLexerTest : BaseDocCommentTest() {
                 text,
                 startInclusive,
                 endExclusive,
+                TestDocumentationIssueReporter(reporter, lineMap),
             )
         val tokenStream = lexer.tokenize()
         val tokens = buildList {
@@ -49,6 +53,7 @@ class DocCommentLexerTest : BaseDocCommentTest() {
         }
         val actual = tokens.joinToString("\n") { it.format(text, includePosition) }
         assertEquals(expectedTokens.trimIndent(), actual)
+        assertJavadocParserIssues(expectedIssues)
     }
 
     /** Verify that an empty doc comment body emits only [DocCommentTokenType.EOF]. */
@@ -190,6 +195,81 @@ class DocCommentLexerTest : BaseDocCommentTest() {
                     BLOCK_TAG_START '@'
                     BLOCK_TAG_NAME 'return'
                     DESCRIPTION 'Second'
+                    EOF ''
+                """,
+        )
+    }
+
+    /**
+     * Verify tokenization of `@if (<expr>) { ... } else { ... }` with `:`-prefixed inner block
+     * tags, followed by a top-level block tag.
+     */
+    @Test
+    fun `Test @if block tag with else`() {
+        checkTokenize(
+            """
+                /**
+                 * Summary.
+                 *
+                 * @if (flag(pkg.Flags.MY_FLAG)) {
+                 *     :@see First
+                 *     :@deprecated Use {@link First} instead.
+                 * } else {
+                 *     :@see Second
+                 * }
+                 * @return result
+                 */
+            """,
+            expectedTokens =
+                """
+                    DESCRIPTION '\n * Summary.\n *'
+                    BLOCK_IF_TAG_START '@if'
+                    PAREN_OPEN '('
+                    IDENTIFIER 'flag'
+                    PAREN_OPEN '('
+                    IDENTIFIER 'pkg'
+                    DOT '.'
+                    IDENTIFIER 'Flags'
+                    DOT '.'
+                    IDENTIFIER 'MY_FLAG'
+                    PAREN_CLOSE ')'
+                    PAREN_CLOSE ')'
+                    BRACE_OPEN '{'
+                    BLOCK_TAG_START ':@'
+                    BLOCK_TAG_NAME 'see'
+                    DESCRIPTION 'First'
+                    BLOCK_TAG_START ':@'
+                    BLOCK_TAG_NAME 'deprecated'
+                    DESCRIPTION 'Use {@link First} instead.'
+                    BRACE_CLOSE '}'
+                    IF_TAG_ELSE 'else'
+                    BRACE_OPEN '{'
+                    BLOCK_TAG_START ':@'
+                    BLOCK_TAG_NAME 'see'
+                    DESCRIPTION 'Second'
+                    BRACE_CLOSE '}'
+                    BLOCK_TAG_START '@'
+                    BLOCK_TAG_NAME 'return'
+                    DESCRIPTION 'result'
+                    EOF ''
+                """,
+        )
+    }
+
+    /** Verify that `@ifdef` is tokenized as a regular block tag rather than `@if`. */
+    @Test
+    fun `Test @ifdef is treated as normal block tag`() {
+        checkTokenize(
+            """
+                /**
+                 * @ifdef FOO
+                 */
+            """,
+            expectedTokens =
+                """
+                    BLOCK_TAG_START '@'
+                    BLOCK_TAG_NAME 'ifdef'
+                    DESCRIPTION 'FOO'
                     EOF ''
                 """,
         )

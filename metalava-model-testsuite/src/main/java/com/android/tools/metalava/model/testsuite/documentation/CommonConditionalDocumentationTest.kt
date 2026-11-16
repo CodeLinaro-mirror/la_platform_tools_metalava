@@ -437,21 +437,12 @@ class CommonConditionalDocumentationTest : BaseModelTest() {
             // `@deprecated` from Javadoc into the item's deprecation state.
             testClass.selectedApi
             testClass.assertNotDeprecated()
-
-            // TODO(b/586585311): `@if` should be evaluated as a conditional block tag, emitting
-            //  `@see test.pkg.Existing Existing` instead of raw `@if (...)` text.
             testClass.assertPrintedDocumentation(
                 expectedOutput =
                     """
                         /**
                          * Summary.
-                         *
-                         * @if (flag(Flags.FLAG)) {
-                         *     :@see Replacement
-                         *     :@deprecated Use {@link test.pkg.Replacement Replacement} instead.
-                         * } else {
-                         *     :@see Existing
-                         * }
+                         * @see test.pkg.Existing Existing
                          */
                     """,
             )
@@ -528,22 +519,15 @@ class CommonConditionalDocumentationTest : BaseModelTest() {
             // Access `selectedApi` first because `SourceSelectedApi` lazily propagates
             // `@deprecated` from Javadoc into the item's deprecation state.
             testClass.selectedApi
-
-            // TODO(b/586585311): When the flag is kept, `:@deprecated` inside `@if` should mark
-            //  `testClass` as explicitly deprecated and emit `@see` and `@deprecated`.
-            testClass.assertNotDeprecated()
+            testClass.assertExplicitlyDeprecated()
             testClass.assertPrintedDocumentation(
                 expectedOutput =
                     """
                         /**
                          * Summary.
                          *
-                         * @if (flag(Flags.FLAG)) {
-                         *     :@see Replacement
-                         *     :@deprecated Use {@link test.pkg.Replacement Replacement} instead.
-                         * } else {
-                         *     :@see Existing
-                         * }
+                         * @see test.pkg.Replacement Replacement
+                         * @deprecated Use {@link test.pkg.Replacement Replacement} instead.
                          */
                     """,
             )

@@ -17,6 +17,8 @@
 package com.android.tools.metalava.model.source.doc
 
 import com.android.tools.metalava.model.parser.TokenStream
+import com.android.tools.metalava.model.source.javadoc.ExprBuilder
+import com.android.tools.metalava.model.source.javadoc.TokenIssueReporter
 import com.android.tools.metalava.reporter.Issues
 import kotlin.text.isWhitespace
 
@@ -26,7 +28,10 @@ import kotlin.text.isWhitespace
  * A document comment is of the form:
  * ```
  *     <description>
- *     (@<block-tag-type> <description>)*
+ *     (
+ *         @<block-tag-type> <description>
+ *       | @if (<expr>) { (:@<block-tag-type> <description>)* } (else { (:@<block-tag-type> <description>)* })?
+ *     )*
  * ```
  */
 internal class DocCommentParser
@@ -43,13 +48,30 @@ private constructor(
     /** Reporter for documentation issues found while parsing block tags and descriptions. */
     private val reporter: DocumentationIssueReporter,
 ) {
+    /** Backing field for [tokenIssueReporter], allocated only if an `@if` tag or error occurs. */
+    private var _tokenIssueReporter: TokenIssueReporter? = null
+
+    /** Lazily initialized [TokenIssueReporter] for reporting issues on tokens. */
+    private val tokenIssueReporter: TokenIssueReporter
+        get() =
+            _tokenIssueReporter ?: TokenIssueReporter(reporter).also { _tokenIssueReporter = it }
+
+    /** Backing field for [exprBuilder], allocated only when parsing an `@if` block tag. */
+    private var _exprBuilder: ExprBuilder? = null
+
+    /** Lazily initialized [ExprBuilder] for parsing `@if` conditional expressions. */
+    private val exprBuilder: ExprBuilder
+        get() =
+            _exprBuilder
+                ?: ExprBuilder(text, context, tokenIssueReporter).also { _exprBuilder = it }
+
     /** Parse [tokenStream] into a [DocComment]. */
     private fun parse(): DocComment {
         val description = consumeDescriptionSupplier()
 
         val blockTagSections = mutableListOf<BlockTagSection>()
         while (tokenStream.peekType() != DocCommentTokenType.EOF) {
-            parseBlockTagSection(blockTagSections)
+            parseBlockTagElement(blockTagSections, active = true)
         }
 
         return DefaultDocComment(
@@ -60,20 +82,165 @@ private constructor(
         )
     }
 
-    /** Parse a single `@<tag>` block tag section and append it to [blockTagSections]. */
-    private fun parseBlockTagSection(blockTagSections: MutableList<BlockTagSection>) {
-        // Skip BLOCK_TAG_START; DocCommentLexer always pairs it with an immediately following
-        // BLOCK_TAG_NAME token.
+    /**
+     * Parse a single block-level element (a `@<tag>` section or an `@if` conditional block) and
+     * append any active [BlockTagSection]s to [blockTagSections].
+     */
+    private fun parseBlockTagElement(
+        blockTagSections: MutableList<BlockTagSection>,
+        active: Boolean,
+    ) {
+        when (tokenStream.peekType()) {
+            DocCommentTokenType.BLOCK_TAG_START -> parseBlockTagSection(blockTagSections, active)
+            DocCommentTokenType.BLOCK_IF_TAG_START -> parseBlockIfTag(blockTagSections, active)
+            else -> {
+                val token = tokenStream.consume()
+                tokenIssueReporter.report(
+                    token,
+                    Issues.INVALID_JAVADOC,
+                    "unexpected '${token.text(text)}' in block tag section",
+                )
+            }
+        }
+    }
+
+    /**
+     * Parse a single `@<tag>` (or `:@<tag>` inside `@if`) block tag section, appending it to
+     * [blockTagSections] when [active] is `true`.
+     */
+    private fun parseBlockTagSection(
+        blockTagSections: MutableList<BlockTagSection>,
+        active: Boolean,
+    ) {
+        // Skip BLOCK_TAG_START ('@' or ':@'); DocCommentLexer always pairs it with an immediately
+        // following BLOCK_TAG_NAME token.
         tokenStream.consume()
 
         val nameToken = tokenStream.consume()
         val tagTypeName = nameToken.text(text)
+
+        // Validate the block tag type even inside inactive `@if` branches so invalid tag forms
+        // (such as `@code` used as a block tag) are always diagnosed.
         val blockTagType = resolveBlockTagType(tagTypeName, nameToken.startOffset)
-        val blockTagDescription = consumeDescriptionSupplier()
-        addBlockTagSection(
-            blockTagSections,
-            blockTagType,
-            blockTagDescription,
+
+        // Only emit the BlockTagSection and wrap its description when the enclosing `@if` branch is
+        // active; skipping inactive branches prevents their references from being checked and
+        // prevents inactive `:@deprecated` tags from marking the item as deprecated.
+        if (active) {
+            val blockTagDescription = consumeDescriptionSupplier()
+            addBlockTagSection(
+                blockTagSections,
+                blockTagType,
+                blockTagDescription,
+            )
+        } else {
+            tokenStream.match(DocCommentTokenType.DESCRIPTION)
+        }
+    }
+
+    /**
+     * Parse a conditional `@if (<expr>) { ... } (else { ... })?` block tag, appending any
+     * [BlockTagSection]s from the active branch to [blockTagSections].
+     */
+    private fun parseBlockIfTag(
+        blockTagSections: MutableList<BlockTagSection>,
+        active: Boolean,
+    ) {
+        val ifStartToken = tokenStream.consume()
+
+        if (tokenStream.peekType() != DocCommentTokenType.PAREN_OPEN) {
+            tokenIssueReporter.report(ifStartToken, Issues.INVALID_IF_TAG, "missing <expr>")
+            val token = tokenStream.peek()
+            tokenIssueReporter.report(
+                token,
+                Issues.INVALID_JAVADOC,
+                "expected '(', found '${token.text(text)}'",
+            )
+
+            // Error recovery: validate and skip any following `{ ... }` / `else { ... }` branches.
+            if (tokenStream.match(DocCommentTokenType.BRACE_OPEN)) {
+                parseIfBranch(blockTagSections, active = false)
+                if (tokenStream.match(DocCommentTokenType.IF_TAG_ELSE)) {
+                    if (tokenStream.match(DocCommentTokenType.BRACE_OPEN)) {
+                        parseIfBranch(blockTagSections, active = false)
+                    }
+                }
+            }
+            return
+        }
+
+        tokenStream.consume()
+
+        // Always parse the condition expression so invalid syntax or flag references in nested
+        // inactive `@if` blocks are still reported, but only evaluate it when `active` is true.
+        val expr = exprBuilder.parseExpr(tokenStream)
+
+        if (tokenStream.peekType() == DocCommentTokenType.PAREN_CLOSE) {
+            tokenStream.consume()
+        } else {
+            val token = tokenStream.peek()
+            tokenIssueReporter.report(
+                token,
+                Issues.INVALID_JAVADOC,
+                "expected ')', found '${token.text(text)}'",
+            )
+        }
+
+        val result = if (active) (expr?.evaluate(context) ?: false) else false
+
+        if (tokenStream.peekType() != DocCommentTokenType.BRACE_OPEN) {
+            val token = tokenStream.peek()
+            tokenIssueReporter.report(
+                token,
+                Issues.INVALID_JAVADOC,
+                "expected '{', found '${token.text(text)}'",
+            )
+            if (tokenStream.peekType() == DocCommentTokenType.BRACE_CLOSE) {
+                tokenStream.consume()
+            }
+            return
+        }
+
+        tokenStream.consume()
+        parseIfBranch(blockTagSections, active = active && result)
+
+        if (tokenStream.match(DocCommentTokenType.IF_TAG_ELSE)) {
+            if (tokenStream.peekType() != DocCommentTokenType.BRACE_OPEN) {
+                val token = tokenStream.peek()
+                tokenIssueReporter.report(
+                    token,
+                    Issues.INVALID_JAVADOC,
+                    "expected '{' after 'else', found '${token.text(text)}'",
+                )
+                if (tokenStream.peekType() == DocCommentTokenType.BRACE_CLOSE) {
+                    tokenStream.consume()
+                }
+                return
+            }
+
+            tokenStream.consume()
+            parseIfBranch(blockTagSections, active = active && !result)
+        }
+    }
+
+    /**
+     * Parse the contents of an `@if` or `else` branch body up to and including its closing `}`,
+     * appending [BlockTagSection]s to [blockTagSections] only when [active] is `true`.
+     */
+    private fun parseIfBranch(
+        blockTagSections: MutableList<BlockTagSection>,
+        active: Boolean,
+    ) {
+        while (
+            tokenStream.peekType() != DocCommentTokenType.EOF &&
+                tokenStream.peekType() != DocCommentTokenType.BRACE_CLOSE
+        ) {
+            parseBlockTagElement(blockTagSections, active)
+        }
+        tokenIssueReporter.expect(
+            tokenStream,
+            DocCommentTokenType.BRACE_CLOSE,
+            "expected '}' to close '@if' branch",
         )
     }
 
@@ -184,6 +351,7 @@ private constructor(
                     text,
                     commentBodyStartInclusive,
                     commentBodyEndExclusive,
+                    reporter,
                 )
             return DocCommentParser(
                     context,
