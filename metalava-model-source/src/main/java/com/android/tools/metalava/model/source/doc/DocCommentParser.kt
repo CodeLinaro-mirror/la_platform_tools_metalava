@@ -94,20 +94,15 @@ private constructor(
             if (blockTagType != null) {
                 val blockTagDescriptionEndExclusive = matchStart
                 val blockTagDescription =
-                    LazyContentSupplier(
-                        context,
-                        reporter,
-                        text,
+                    createDescriptionSupplier(
                         blockTagDescriptionStartInclusive,
                         blockTagDescriptionEndExclusive,
                     )
-                val blockTagSection =
-                    DefaultBlockTagSection(
-                        context,
-                        blockTagType,
-                        blockTagDescription,
-                    )
-                blockTagSections.add(blockTagSection)
+                addBlockTagSection(
+                    blockTagSections,
+                    blockTagType,
+                    blockTagDescription,
+                )
             }
 
             if (matchStart == commentBodyEndExclusive) {
@@ -117,28 +112,8 @@ private constructor(
                 // A block tag was found so record the block tag type and start of the description
                 // for use in the next iteration of the loop.
                 val tagTypeName = matcher.group(BLOCK_TAG_TYPE_GROUP_INDEX)!!
-
-                // Map it to a [TagType].
-                blockTagType = TagTypes.tagTypeOf(tagTypeName)
-                if (!blockTagType.form.supportsBlockTag) {
-                    val position = matcher.start(BLOCK_TAG_TYPE_GROUP_INDEX)
-                    reporter.report(
-                        Issues.INVALID_TAG_FORM,
-                        "Cannot use '$tagTypeName' as a block tag",
-                        position,
-                    )
-                }
-
-                blockTagType.errorProvider?.let { errorProvider ->
-                    errorProvider(tagTypeName).let { error ->
-                        val position = matcher.start(BLOCK_TAG_TYPE_GROUP_INDEX)
-                        reporter.report(
-                            error.issue,
-                            error.message,
-                            position,
-                        )
-                    }
-                }
+                val position = matcher.start(BLOCK_TAG_TYPE_GROUP_INDEX)
+                blockTagType = resolveBlockTagType(tagTypeName, position)
 
                 // The start of the block tag description is the end of the match (which excludes
                 // any white space after the block tag name).
@@ -149,10 +124,7 @@ private constructor(
         // Create the description, from the start of the comment body to the start of the first
         // block tag, if present, or the end of the comment body, otherwise.
         val description =
-            LazyContentSupplier(
-                context,
-                reporter,
-                text,
+            createDescriptionSupplier(
                 commentBodyStartInclusive,
                 descriptionEndExclusive,
             )
@@ -165,6 +137,64 @@ private constructor(
             noComment = false,
         )
     }
+
+    /**
+     * Resolve [tagTypeName] at [position] to its [TagType], reporting any block tag form or
+     * deprecation issues to [reporter].
+     */
+    private fun resolveBlockTagType(
+        tagTypeName: String,
+        position: Int,
+    ): TagType<*> {
+        val blockTagType = TagTypes.tagTypeOf(tagTypeName)
+        if (!blockTagType.form.supportsBlockTag) {
+            reporter.report(
+                Issues.INVALID_TAG_FORM,
+                "Cannot use '$tagTypeName' as a block tag",
+                position,
+            )
+        }
+
+        blockTagType.errorProvider?.let { errorProvider ->
+            errorProvider(tagTypeName).let { error ->
+                reporter.report(
+                    error.issue,
+                    error.message,
+                    position,
+                )
+            }
+        }
+
+        return blockTagType
+    }
+
+    /** Create a [DefaultBlockTagSection] and append it to [blockTagSections]. */
+    private fun addBlockTagSection(
+        blockTagSections: MutableList<BlockTagSection>,
+        blockTagType: TagType<*>,
+        description: ContentSupplier,
+    ) {
+        blockTagSections.add(
+            DefaultBlockTagSection(
+                context,
+                blockTagType,
+                description,
+            ),
+        )
+    }
+
+    /** Wrap `[startInclusive, endExclusive)` of [text] in a [LazyContentSupplier]. */
+    private fun createDescriptionSupplier(
+        startInclusive: Int,
+        endExclusive: Int,
+    ): ContentSupplier =
+        LazyContentSupplier(
+            context,
+            reporter,
+            text,
+            startInclusive,
+            endExclusive,
+        )
 
     /** Entry point for [DocCommentParser]. */
     companion object {
