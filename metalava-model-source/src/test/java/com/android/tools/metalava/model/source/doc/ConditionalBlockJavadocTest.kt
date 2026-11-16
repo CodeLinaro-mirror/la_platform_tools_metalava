@@ -297,6 +297,92 @@ class ConditionalBlockJavadocTest : BaseDocCommentTest() {
         )
     }
 
+    /**
+     * Verify that unprefixed block tags in both active and inactive `@if` branches report
+     * `InvalidJavadoc`.
+     */
+    @Test
+    fun `Test unprefixed block tag in true or false branch reports InvalidJavadoc`() {
+        // TODO(b/586585311): Report a dedicated `must be prefixed with ':'` diagnostic and recover
+        //  by parsing the block tag instead of dropping the line as unexpected text.
+        checkConditionalDocComment(
+            input =
+                """
+                    /**
+                     * Summary.
+                     *
+                     * @if (flag(Flags.TEST_FLAG)) {
+                     *     @see First
+                     * } else {
+                     *     @see Second
+                     * }
+                     */
+                """,
+            flags = mapOf("Flags.TEST_FLAG" to true),
+            expectedPrintOutput =
+                """
+                    /** Summary. */
+                """,
+            expectedIssues =
+                """
+                    5:8: unexpected '@see First' in '@if' block, expected block tag prefixed with ':' or '}' [InvalidJavadoc]
+                    7:8: unexpected '@see Second' in '@if' block, expected block tag prefixed with ':' or '}' [InvalidJavadoc]
+                """,
+        )
+    }
+
+    /** Verify that a nested `@if` inside an outer `@if` must also be prefixed with `:`. */
+    @Test
+    fun `Test unprefixed nested @if inside @if reports InvalidJavadoc`() {
+        // TODO(b/586585311): Report `block tag '@if' inside '@if' must be prefixed with ':'` and
+        //  recover the nested `@if` branches without desynchronizing closing braces.
+        checkConditionalDocComment(
+            input =
+                """
+                    /**
+                     * @if (flag(Flags.OUTER_FLAG)) {
+                     *     @if (flag(Flags.INNER_FLAG)) {
+                     *         :@see First
+                     *     }
+                     * }
+                     */
+                """,
+            flags = mapOf("Flags.OUTER_FLAG" to true, "Flags.INNER_FLAG" to true),
+            expectedPrintOutput =
+                """
+                    /** @see resolved.First First */
+                """,
+            expectedIssues =
+                """
+                    3:8: unexpected '@if (flag(Flags.INNER_FLAG)) {' in '@if' block, expected block tag prefixed with ':' or '}' [InvalidJavadoc]
+                    6:4: unexpected '}' in block tag section [InvalidJavadoc]
+                """,
+        )
+    }
+
+    /** Verify that a `:`-prefixed block tag outside `@if` reports `InvalidJavadoc`. */
+    @Test
+    fun `Test colon-prefixed block tag outside @if reports InvalidJavadoc`() {
+        // TODO(b/586585311): Diagnose `:@<tag>` outside `@if` and recover as `@<tag>` instead of
+        //  silently treating it as plain description text.
+        checkConditionalDocComment(
+            input =
+                """
+                    /**
+                     * Summary.
+                     * :@see First
+                     */
+                """,
+            expectedPrintOutput =
+                """
+                    /**
+                     * Summary.
+                     * :@see First
+                     */
+                """,
+        )
+    }
+
     /** Verify error reporting and recovery when `@if` is missing its `(<expr>)` condition. */
     @Test
     fun `Test @if error - missing expr`() {
