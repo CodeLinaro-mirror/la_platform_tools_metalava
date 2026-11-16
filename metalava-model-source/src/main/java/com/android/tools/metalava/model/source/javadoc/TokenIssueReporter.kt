@@ -17,8 +17,11 @@
 package com.android.tools.metalava.model.source.javadoc
 
 import com.android.tools.metalava.model.parser.Token
+import com.android.tools.metalava.model.parser.TokenStream
+import com.android.tools.metalava.model.parser.TokenType
 import com.android.tools.metalava.model.source.doc.DocumentationFragmentIssueReporter
 import com.android.tools.metalava.model.source.doc.DocumentationIssueReporter
+import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Issues.Issue
 
 /** A [DocumentationIssueReporter] that reports issues for a [Token]. */
@@ -50,5 +53,26 @@ internal class TokenIssueReporter(reporter: DocumentationIssueReporter) :
     /** Report [issue] with message for [token]. */
     fun report(token: Token, issue: Issue, message: String) {
         reportAtToken(token) { report(issue, message) }
+    }
+
+    /**
+     * Consumes and returns the current token in [tokens] if its type equals [type]. Otherwise,
+     * reports an [Issues.INVALID_JAVADOC] issue with [errorMessage] at the current token's location
+     * and returns [Token.NONE].
+     */
+    fun expect(
+        tokens: TokenStream,
+        type: TokenType,
+        errorMessage: String,
+    ): Token {
+        if (tokens.peekType() == type) {
+            return tokens.consume()
+        }
+        report(
+            tokens.peek(),
+            Issues.INVALID_JAVADOC,
+            errorMessage,
+        )
+        return Token.NONE
     }
 }

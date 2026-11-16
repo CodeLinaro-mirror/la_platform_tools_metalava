@@ -186,21 +186,8 @@ private constructor(
      * reports an [Issues.INVALID_JAVADOC] issue with [errorMessage] at the token's location and
      * returns [Token.NONE].
      */
-    private fun expect(type: TokenType, errorMessage: String): Token {
-        // If the current token matches the expected type, consume and return it.
-        if (peekType() == type) {
-            return consume()
-        }
-
-        // Otherwise, report an issue at the current token's location and return Token.NONE.
-        val token = peek()
-        tokenIssueReporter.report(
-            token,
-            Issues.INVALID_JAVADOC,
-            errorMessage,
-        )
-        return Token.NONE
-    }
+    private fun expect(type: TokenType, errorMessage: String): Token =
+        tokenIssueReporter.expect(tokens, type, errorMessage)
 
     /**
      * Parse the full token stream into [JavadocContent].
