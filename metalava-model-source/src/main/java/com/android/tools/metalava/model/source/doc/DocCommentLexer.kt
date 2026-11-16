@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model.source.doc
 
-import com.android.tools.metalava.model.parser.AbstractLexer
 import com.android.tools.metalava.model.parser.SharedTokenType
 import com.android.tools.metalava.model.parser.Token
 import com.android.tools.metalava.model.parser.TokenType
@@ -64,16 +63,19 @@ private enum class DocCommentLexerMode {
  * @param text the full documentation comment text.
  * @param startInclusive the start offset of the comment body (after `/**`, if present).
  * @param endExclusive the exclusive end offset of the comment body (before `*/`, if present).
+ * @param reporter reporter used for lexical syntax diagnostics.
  */
 internal class DocCommentLexer(
     text: String,
     startInclusive: Int = 0,
     endExclusive: Int = text.length,
+    reporter: DocumentationIssueReporter = DocumentationIssueReporter.THROWING,
 ) :
-    AbstractLexer(
+    AbstractDocLexer(
         text,
         startInclusive,
         endExclusive,
+        reporter,
     ) {
 
     /** Current lexical mode. */
@@ -84,6 +86,8 @@ internal class DocCommentLexer(
      * immediately following a `\n`, `\r\n`, or `\r` line break).
      */
     private var atLineStart: Boolean = true
+
+    override fun exitExpr() {}
 
     override fun nextToken(): Token {
         while (index < endExclusive) {
@@ -249,13 +253,3 @@ internal class DocCommentLexer(
         return end
     }
 }
-
-/** Returns `true` if [c] is an ASCII letter (`a`..`z` or `A`..`Z`). */
-private fun isAsciiLetter(c: Char): Boolean = c in 'a'..'z' || c in 'A'..'Z'
-
-/**
- * Returns `true` if [c] is a horizontal whitespace character (matching regex `\h`: space, tab, or
- * non-ASCII Unicode space separator, excluding line terminators).
- */
-private fun isHorizontalWhitespace(c: Char): Boolean =
-    c == ' ' || c == '\t' || (c > '\u007f' && Character.isSpaceChar(c))
