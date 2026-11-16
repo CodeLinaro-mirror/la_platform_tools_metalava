@@ -26,13 +26,11 @@ import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import com.google.common.collect.ImmutableList
-import com.google.common.collect.ImmutableMap
 import com.google.turbine.binder.Binder
 import com.google.turbine.binder.Binder.BindingResult
 import com.google.turbine.binder.ClassPath
 import com.google.turbine.binder.ClassPathBinder
 import com.google.turbine.binder.JimageClassBinder
-import com.google.turbine.binder.Processing.ProcessorInfo
 import com.google.turbine.cache.StringCache
 import com.google.turbine.diag.SourceFile
 import com.google.turbine.diag.TurbineDiagnostic
@@ -43,8 +41,6 @@ import com.google.turbine.parse.Parser
 import com.google.turbine.tree.Tree.CompUnit
 import java.io.File
 import java.nio.file.Paths
-import java.util.Optional
-import javax.lang.model.SourceVersion
 
 /** Encapsulates a [SourceSet] along with its parsed [allUnits] and bound [bindingResult]. */
 internal class BoundSources(
@@ -225,27 +221,16 @@ internal class TurbineEnvironment(
         val log = TurbineLog()
         var bindingResult: BindingResult? = null
         try {
-            // No annotation processors are used.
-            val annotationProcessorInfo =
-                ProcessorInfo.create(
-                    ImmutableList.of(),
-                    null,
-                    ImmutableMap.of(),
-                    SourceVersion.latest()
-                )
-
             tracer.trace("turbine.bind") {
+                val request =
+                    Binder.BindingRequest.builder()
+                        .units(units)
+                        .classpath(boundClassPath)
+                        .bootclasspath(bootclasspath)
+                        .build()
+
                 // Bind the units
-                bindingResult =
-                    Binder.bind(
-                        executor,
-                        log,
-                        units,
-                        boundClassPath,
-                        annotationProcessorInfo,
-                        bootclasspath,
-                        Optional.empty()
-                    )
+                bindingResult = Binder.bind(executor, log, request)
             }
         } catch (e: TurbineError) {
             // Catch the [TurbineError] and extract its diagnostics.

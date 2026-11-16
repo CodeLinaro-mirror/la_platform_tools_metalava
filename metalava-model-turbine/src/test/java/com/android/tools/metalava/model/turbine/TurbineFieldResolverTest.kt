@@ -30,7 +30,6 @@ import com.google.turbine.parallel.TurbineExecutor
 import com.google.turbine.parse.Parser
 import com.google.turbine.tree.Tree
 import com.google.turbine.tree.Tree.Ident
-import java.util.Optional
 import kotlin.test.fail
 import org.junit.Test
 
@@ -53,10 +52,11 @@ class TurbineFieldResolverTest : BaseTemporaryFolderOwner() {
         val bootClassPath = JimageClassBinder.bindDefault()
         return Binder.bind(
             executor,
-            units,
-            classPath,
-            bootClassPath,
-            /* moduleVersion= */ Optional.empty(),
+            Binder.BindingRequest.builder()
+                .units(units)
+                .classpath(classPath)
+                .bootclasspath(bootClassPath)
+                .build(),
         ) ?: error("Binding failed")
     }
 
